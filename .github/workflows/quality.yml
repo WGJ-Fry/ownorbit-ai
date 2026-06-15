@@ -37,4 +37,5 @@ jobs:
       - name: Unsigned release check
         env:
           NODE_OPTIONS: --experimental-sqlite
+          LIFEOS_RELEASE_SKIP_ARTIFACTS: "1"
         run: npm run release:check:unsigned

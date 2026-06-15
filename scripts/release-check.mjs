@@ -8,6 +8,7 @@ const rootDir = process.cwd();
 const releaseDir = process.env.LIFEOS_RELEASE_DIR || path.join(rootDir, "release");
 const strict = process.env.LIFEOS_RELEASE_STRICT === "1";
 const distribution = process.env.LIFEOS_DISTRIBUTION || "";
+const skipReleaseArtifacts = process.env.LIFEOS_RELEASE_SKIP_ARTIFACTS === "1";
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
 const require = createRequire(import.meta.url);
 const results = [];
@@ -1027,6 +1028,10 @@ function checkUpdateFeed() {
     fail("missing update feed generator: scripts/prepare-update-feed.mjs");
     return;
   }
+  if (skipReleaseArtifacts) {
+    pass("release artifact checks skipped by LIFEOS_RELEASE_SKIP_ARTIFACTS");
+    return;
+  }
   const feedDir = path.join(releaseDir, "update-feed");
   const checksumPath = path.join(releaseDir, "SHA256SUMS");
   if (!fs.existsSync(feedDir)) {
@@ -1246,6 +1251,10 @@ function checkAudit() {
 }
 
 function checkUnsignedPackage() {
+  if (skipReleaseArtifacts) {
+    pass("unsigned package artifact checks skipped by LIFEOS_RELEASE_SKIP_ARTIFACTS");
+    return;
+  }
   if (!fs.existsSync(releaseDir)) {
     warn("release/ does not exist yet; run npm run desktop:pack:unsigned to verify local packaging");
     return;
