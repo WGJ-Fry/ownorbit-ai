@@ -11,8 +11,6 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    env:
-      NODE_OPTIONS: --experimental-sqlite
 
     steps:
       - uses: actions/checkout@v4
@@ -29,7 +27,11 @@ jobs:
         run: npm run lint
 
       - name: Unit and API tests
+        env:
+          NODE_OPTIONS: --experimental-sqlite
         run: npm test
 
       - name: Unsigned release check
+        env:
+          NODE_OPTIONS: --experimental-sqlite
         run: npm run release:check:unsigned

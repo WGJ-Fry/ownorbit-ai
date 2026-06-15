@@ -21,8 +21,6 @@ jobs:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
-    env:
-      NODE_OPTIONS: --experimental-sqlite
     strategy:
       fail-fast: false
       matrix:
@@ -50,10 +48,13 @@ jobs:
 
       - name: Desktop release smoke
         env:
+          NODE_OPTIONS: --experimental-sqlite
           LIFEOS_RELEASE_SMOKE_FAST: "1"
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
         run: npm run desktop:release:smoke
 
       - name: Packaged app launch smoke
         if: runner.os == 'macOS'
+        env:
+          NODE_OPTIONS: --experimental-sqlite
         run: npm run desktop:artifact:smoke:launch
