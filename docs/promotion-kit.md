@@ -8,11 +8,11 @@ LifeOS AI 是一个本地优先的个人 AI 管家：电脑端运行私有核心
 
 ## 短介绍
 
-LifeOS AI 把电脑端做成你的个人 AI 核心，用来连接 AI、网络、本地数据和安全设置；手机端通过 PWA 扫码绑定后，成为随时可用的私人 AI 管家。它支持 SQLite 本地存储、AI 多 provider 配置、备份恢复、离线队列、设备绑定、URL Scheme 白名单和危险动作确认。
+LifeOS AI 把电脑端做成你的个人 AI 核心，用来连接 AI、网络、本地数据和安全设置；手机端通过 PWA 扫码绑定后，成为随时可用的私人 AI 管家。它支持 SQLite 本地存储、AI 多 provider 配置、VPN/隧道连接向导、自动生成离线微应用/程序、备份恢复、离线队列、设备绑定、URL Scheme 白名单和危险动作确认。
 
 ## 英文短介绍
 
-LifeOS AI is a local-first personal AI assistant. The desktop app runs the private core for AI providers, local data, device management, backups, and security; the phone connects as a paired mobile PWA companion for everyday use.
+LifeOS AI is a local-first personal AI assistant. The desktop app runs the private core for AI providers, local data, device management, VPN/tunnel connectivity, generated micro apps, backups, and security; the phone connects as a paired mobile PWA companion for everyday use.
 
 ## GitHub 仓库描述
 
@@ -33,6 +33,9 @@ desktop-app
 mobile-pwa
 ai-companion
 privacy
+tailscale
+cloudflare-tunnel
+generated-apps
 ```
 
 ## Release 标题
@@ -46,7 +49,7 @@ LifeOS AI 0.0.0 - Desktop core + mobile personal AI assistant
 ```markdown
 LifeOS AI 0.0.0 is the first public desktop release.
 
-LifeOS AI turns your desktop into a private AI core and your phone into an always-available personal AI assistant. The desktop app manages AI providers, local SQLite data, device pairing, backups, diagnostics, and safer local actions. The phone connects as a paired PWA for chat, offline queue, device status, and action permissions.
+LifeOS AI turns your desktop into a private AI core and your phone into an always-available personal AI assistant. The desktop app manages AI providers, local SQLite data, device pairing, VPN/tunnel access, generated micro apps, backups, diagnostics, and safer local actions. The phone connects as a paired PWA for chat, offline queue, device status, and action permissions.
 
 Downloads:
 
@@ -77,9 +80,11 @@ Notes:
 - 手机端 PWA 聊天和扫码绑定
 - SQLite 本地数据
 - AI 多 provider 配置
+- Tailscale / Cloudflare Tunnel / 局域网连接向导
+- 描述想法后自动生成离线微应用/小程序
 - 备份、恢复、恢复任务取消
 - 离线消息队列
-- URL Scheme 白名单和危险动作确认
+- 导航、网页、电话、短信、邮件、快捷指令等 URL Scheme 白名单和危险动作确认
 - 诊断包和审计日志脱敏
 
 项目地址：
@@ -93,16 +98,18 @@ https://github.com/WGJ-Fry/lifeos-ai
 ```text
 I built LifeOS AI, a local-first personal AI assistant.
 
-The desktop app runs the private core: AI providers, local SQLite data, device pairing, backups, diagnostics, and safer local actions. The phone works as a paired mobile PWA companion for everyday use.
+The desktop app runs the private core: AI providers, local SQLite data, device pairing, VPN/tunnel access, generated micro apps, backups, diagnostics, and safer local actions. The phone works as a paired mobile PWA companion for everyday use.
 
 Current release includes:
 - macOS / Windows / Linux desktop builds
 - Mobile PWA pairing and chat
 - SQLite local storage
 - Multi-provider AI configuration
+- Tailscale / Cloudflare Tunnel / LAN connection guide
+- AI-generated offline micro apps from natural-language descriptions
 - Backup and restore
 - Offline message queue
-- URL Scheme allowlist with dangerous-action confirmation
+- URL Scheme allowlist for navigation, web, phone, SMS, mail, shortcuts, and dangerous-action confirmation
 - Redacted diagnostics and audit logs
 
 Repo:
@@ -131,10 +138,12 @@ Your private AI core on desktop. Your personal AI assistant on phone.
 
 ## 截图素材
 
-- README 社交预览图：`public/social-preview.svg`
-- 电脑端管理核心：`public/screenshots/desktop-admin.svg`
-- 手机端聊天：`public/screenshots/mobile-chat.svg`
-- 手机设备与连接：`public/screenshots/mobile-device.svg`
+- 真实首次启动与安全自检：`public/screenshots/real-admin-onboarding.jpg`
+- 真实 VPN/隧道连接向导：`public/screenshots/real-connection-tunnel-vpn.jpg`
+- 真实手机绑定入口：`public/screenshots/real-mobile-device.jpg`
+- 真实手机端未绑定状态：`public/screenshots/real-mobile-chat.jpg`
+
+这些截图来自本地真实运行页面，不是概念图。
 
 ## 推广顺序
 
@@ -149,7 +158,7 @@ Your private AI core on desktop. Your personal AI assistant on phone.
 - 不要承诺“完全开源可商用”，当前仓库是 All Rights Reserved。
 - 不要宣传“自动更新已可用”，当前版本是手动下载更新。
 - Windows 版本未 Authenticode 签名，要主动说明 SmartScreen 可能提示。
-- 异地连接建议 Tailscale 或 Cloudflare Tunnel，不建议直接暴露公网 IP。
+- 异地连接建议 Tailscale、Cloudflare Tunnel 或可信 HTTPS 反向代理，不建议直接暴露公网 IP。
 
 ---
 
@@ -161,7 +170,7 @@ LifeOS AI is a local-first personal AI assistant: your desktop runs the private 
 
 ## Short Description
 
-LifeOS AI turns your desktop into a private AI core for providers, local SQLite data, backups, device pairing, diagnostics, and security. Your phone connects as a paired PWA companion for chat, offline queue, device status, and safer local actions.
+LifeOS AI turns your desktop into a private AI core for providers, local SQLite data, VPN/tunnel access, generated micro apps, backups, device pairing, diagnostics, and security. Your phone connects as a paired PWA companion for chat, offline queue, device status, and safer local actions.
 
 ## Links
 
