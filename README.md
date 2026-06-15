@@ -2,9 +2,38 @@
 
 中文 | [English](#english)
 
-LifeOS AI 是一个“电脑端本地核心 + 手机端 PWA”的个人 AI 系统。电脑端负责运行本地后端、连接 AI 服务、保存 SQLite 数据、管理设备和安全设置；手机端通过浏览器/PWA 使用已经绑定的个性化 AI。
+**把你的电脑变成私人 AI 核心，把手机变成随身 AI 管家。**
+
+LifeOS AI 是一个本地优先的个人 AI 管家/助手：电脑端负责运行本地核心、连接 AI 服务、保存 SQLite 数据、管理设备和安全设置；手机端通过浏览器/PWA 使用已经绑定的个性化 AI。
 
 当前仓库已经具备可分发桌面包、移动端 PWA、管理员认证、设备绑定、SQLite 数据、备份恢复、连接向导、URL Scheme 安全控制、AI 多 provider 配置和发布校验。
+
+![LifeOS AI social preview](public/social-preview.svg)
+
+<p>
+  <a href="https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.0.0"><strong>下载最新版本</strong></a>
+  ·
+  <a href="docs/user-install-guide.md">安装指南</a>
+  ·
+  <a href="docs/promotion-kit.md">推广素材</a>
+  ·
+  <a href="SECURITY.md">安全说明</a>
+</p>
+
+## 亮点
+
+- **个人 AI 管家**：电脑端做私有核心，手机端做随身入口。
+- **本地优先**：聊天、记忆、设备、审计和备份统一进入本机 SQLite。
+- **跨网络使用**：同 Wi-Fi 用 LAN，异地优先走 Tailscale 或 Cloudflare Tunnel。
+- **移动 PWA**：扫码绑定手机，支持离线队列、设备状态和动作权限中心。
+- **安全动作**：URL Scheme 白名单、危险动作二次确认、审计日志脱敏。
+- **可安装桌面包**：macOS DMG、Windows NSIS、Linux AppImage。
+
+## 界面预览
+
+| 电脑端管理核心 | 手机端聊天 | 设备与连接 |
+| --- | --- | --- |
+| ![Desktop admin preview](public/screenshots/desktop-admin.svg) | ![Mobile chat preview](public/screenshots/mobile-chat.svg) | ![Mobile device preview](public/screenshots/mobile-device.svg) |
 
 ## 下载安装
 
@@ -177,7 +206,18 @@ release/update-feed/release-manifest.json
 
 # English
 
-LifeOS AI is a personal AI system built around a desktop local core and a mobile PWA. The desktop app runs the local backend, connects to AI providers, stores SQLite data, manages devices and security settings, and serves the mobile experience. The phone uses a browser/PWA after pairing.
+**Turn your desktop into a private AI core, and your phone into an always-available personal AI assistant.**
+
+LifeOS AI is a local-first personal AI assistant built around a desktop core and a mobile PWA. The desktop app runs the local backend, connects to AI providers, stores SQLite data, manages devices and security settings, and serves the mobile experience. The phone uses a browser/PWA after pairing.
+
+## Highlights
+
+- **Personal AI assistant**: the desktop runs the private core; the phone becomes the daily companion.
+- **Local-first data**: chats, memories, devices, audits, and backups live in local SQLite.
+- **Away-from-home access**: use LAN on the same Wi-Fi, or Tailscale / Cloudflare Tunnel remotely.
+- **Mobile PWA**: pair by QR code, then use chat, offline queue, device status, and action permissions.
+- **Safer local actions**: URL Scheme allowlist, dangerous-action confirmation, and redacted audit logs.
+- **Installable desktop builds**: macOS DMG, Windows NSIS, and Linux AppImage.
 
 ## Download And Install
 
