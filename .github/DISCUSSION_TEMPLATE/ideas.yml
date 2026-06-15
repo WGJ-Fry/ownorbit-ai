@@ -1,0 +1,38 @@
+title: "[Idea] "
+labels: ["idea"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share product ideas, workflows, generated app ideas, and long-term roadmap suggestions.
+
+        在这里分享产品想法、工作流、自动生成程序想法和长期路线建议。
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / 想解决的问题
+      description: What user problem does this idea solve? / 这个想法解决什么用户问题？
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Idea / 想法
+      description: Describe the behavior or experience you want. / 描述你希望的功能或体验。
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area / 模块
+      options:
+        - Personal AI assistant / 个人 AI 管家
+        - Studio generated apps / Studio 自动生成程序
+        - Mobile PWA / 手机端 PWA
+        - Remote connection / 异地连接
+        - Local actions / 本地动作
+        - Security / 安全
+        - Packaging / 安装包
+        - Other / 其他
+    validations:
+      required: true

@@ -1,0 +1,48 @@
+title: "[Support] "
+labels: ["support"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ask installation, pairing, connection, or usage questions here.
+
+        请在这里提安装、绑定、连接和使用问题。
+
+        Do not paste secrets, tokens, AI keys, certificates, private keys, databases, backups, or unredacted logs.
+
+        不要粘贴密钥、Token、AI Key、证书、私钥、数据库、备份或未脱敏日志。
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area / 模块
+      options:
+        - Installation / 安装
+        - Phone pairing / 手机绑定
+        - Remote connection / 异地连接
+        - AI provider / AI 配置
+        - Backup and restore / 备份恢复
+        - Local actions / 本地动作
+        - Other / 其他
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: Question / 问题
+      description: What are you trying to do, and what happened? / 你想做什么，遇到了什么？
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version / 版本
+      placeholder: "0.0.0"
+    validations:
+      required: false
+  - type: input
+    id: platform
+    attributes:
+      label: Platform / 平台
+      placeholder: "macOS / Windows / Linux / iOS Safari / Android Chrome"
+    validations:
+      required: false
