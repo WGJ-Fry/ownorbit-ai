@@ -26,7 +26,7 @@
     "signing:check:mac": "node scripts/check-mac-signing-env.mjs",
     "signing:check:mac:file": "node scripts/with-signing-env.mjs npm run signing:check:mac",
     "release:check": "node scripts/release-check.mjs",
-    "release:check:unsigned": "LIFEOS_DISTRIBUTION=unsigned LIFEOS_RELEASE_STRICT=1 node scripts/release-check.mjs",
+    "release:check:unsigned": "node scripts/release-check-unsigned.mjs",
     "release:check:signed:file": "node scripts/with-signing-env.mjs sh -lc 'LIFEOS_DISTRIBUTION=signed node scripts/release-check.mjs'",
     "release:feed": "node scripts/prepare-update-feed.mjs",
     "remote:smoke": "node scripts/remote-connection-smoke.mjs",
