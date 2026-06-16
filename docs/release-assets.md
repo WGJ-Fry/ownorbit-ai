@@ -46,7 +46,7 @@ ebacb858194ae884c0770820536450e72514b8fee7fdd329933610d70c769022  LifeOS AI Setu
 
 ## 平台说明
 
-- macOS：已使用 Developer ID Application 签名，已 Apple notarization，DMG 已 staple。
+- macOS：支持 Developer ID Application 签名 + Apple notarization + DMG stapled 的正式发布路径；如果本地没有签名环境，则应按 unsigned/Gatekeeper 流程说明发布。
 - Windows：NSIS 安装包可用，但未配置 Windows Authenticode 正式签名，SmartScreen 可能提示未知发布者。
 - Linux：AppImage 可用，通常通过 SHA256 校验完整性。
 
@@ -121,7 +121,7 @@ ebacb858194ae884c0770820536450e72514b8fee7fdd329933610d70c769022  LifeOS AI Setu
 
 ## Platform Notes
 
-- macOS: Developer ID signed, Apple notarized, DMG stapled.
+- macOS: the repo supports a Developer ID signed, Apple notarized, stapled DMG release path. If signing variables are not present, treat the build as unsigned and publish it with Gatekeeper fallback instructions instead.
 - Windows: NSIS installer is usable but not Authenticode signed yet, so SmartScreen may warn about an unknown publisher.
 - Linux: AppImage is usable; integrity is normally verified with SHA256.
 

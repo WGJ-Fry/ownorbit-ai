@@ -364,7 +364,7 @@ export type MobilePairingIntent = {
 };
 
 export function getLifeOSBasePath(pathname = typeof window === "undefined" ? "/" : window.location?.pathname || "/") {
-  const match = String(pathname || "/").match(/^(.*?)(?:\/(?:admin|mobile)(?:\/|$)|\/?$)/);
+  const match = String(pathname || "/").match(/^(.*?)(?:\/(?:admin|mobile|chat)(?:\/|$)|\/?$)/);
   const basePath = (match?.[1] || "").replace(/\/+$/, "");
   return basePath === "/" ? "" : basePath;
 }

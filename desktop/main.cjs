@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, Tray, clipboard, dialog, nativeImage, shell } = require("electron");
+const { app, BrowserWindow, Menu, Tray, clipboard, dialog, ipcMain, nativeImage, shell } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const fs = require("fs");
 const http = require("http");
@@ -19,6 +19,7 @@ let desktopShellStatus = {
   url: "",
   updatedAt: null,
 };
+let shutdownRequested = false;
 const chromiumUnsafePorts = new Set([
   1, 7, 9, 11, 13, 15, 17, 19, 20, 21, 22, 23, 25, 37, 42, 43, 53, 69, 77, 79, 87, 95, 101, 102, 103, 104, 109, 110,
   111, 113, 115, 117, 119, 123, 135, 137, 139, 143, 161, 179, 389, 427, 465, 512, 513, 514, 515, 526, 530, 531, 532,
@@ -42,6 +43,28 @@ function writeDesktopLog(message, details) {
 
 function localUrl(pathname = "/admin/login") {
   return `http://127.0.0.1:${serverPort}${pathname}`;
+}
+
+async function loadDesktopWindow(targetWindow, pathname, attempts = 3) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      await waitForEndpoint(localUrl(pathname), {
+        attempts: 8,
+        description: `LifeOS page ${pathname} did not become available in time.`,
+        validate: (res, body) => res.statusCode === 200 && /LifeOS AI/i.test(body || ""),
+      });
+      await targetWindow.loadURL(localUrl(pathname));
+      return;
+    } catch (error) {
+      lastError = error;
+      writeDesktopLog("Failed to load desktop window", `path=${pathname} attempt=${attempt} error=${error?.message || String(error)}`);
+      if (attempt < attempts) {
+        await new Promise((resolve) => setTimeout(resolve, 350));
+      }
+    }
+  }
+  throw lastError || new Error(`Failed to load ${pathname}`);
 }
 
 function htmlEscape(value) {
@@ -109,23 +132,57 @@ function applyDesktopRuntimeConfig() {
 }
 
 function waitForHealth(port, attempts = 60) {
+  return waitForEndpoint(`http://127.0.0.1:${port}/api/v1/health`, {
+    attempts,
+    description: "LifeOS local server did not start in time.",
+    validate: (res, body) => {
+      if (res.statusCode !== 200) return false;
+      try {
+        const payload = JSON.parse(body || "{}");
+        return payload?.ok === true && payload?.service === "lifeos-local-core";
+      } catch {
+        return false;
+      }
+    },
+  });
+}
+
+function waitForAdminShell(port, attempts = 60) {
+  return waitForEndpoint(`http://127.0.0.1:${port}/admin/login`, {
+    attempts,
+    description: "LifeOS admin console did not become available in time.",
+    validate: (res, body) => res.statusCode === 200 && /LifeOS AI/i.test(body || "") && /<script/i.test(body || ""),
+  });
+}
+
+function waitForEndpoint(url, options = {}) {
+  const attempts = Number.isFinite(Number(options.attempts)) ? Number(options.attempts) : 60;
+  const description = options.description || "Endpoint did not respond in time.";
+  const validate = typeof options.validate === "function" ? options.validate : ((res) => res.statusCode === 200);
   return new Promise((resolve, reject) => {
     const check = (remaining) => {
-      const req = http.get(`http://127.0.0.1:${port}/api/v1/health`, (res) => {
-        if (res.statusCode === 200) {
-          res.resume();
-          resolve(true);
-          return;
-        }
-        res.resume();
-        retry(remaining);
+      const req = http.get(url, (res) => {
+        let body = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk) => {
+          body += chunk;
+          if (body.length > 200_000) req.destroy(new Error("response too large"));
+        });
+        res.on("end", () => {
+          if (validate(res, body)) {
+            resolve(true);
+            return;
+          }
+          retry(remaining);
+        });
       });
+      req.setTimeout(1500, () => req.destroy(new Error("timeout")));
       req.on("error", () => retry(remaining));
     };
 
     const retry = (remaining) => {
       if (remaining <= 0) {
-        reject(new Error("LifeOS local server did not start in time."));
+        reject(new Error(description));
         return;
       }
       setTimeout(() => check(remaining - 1), 250);
@@ -153,20 +210,38 @@ async function startLocalCore() {
   }
   require(path.join(appPath, "dist", "server.cjs"));
   await waitForHealth(serverPort);
+  await waitForAdminShell(serverPort);
   writeDesktopLog("LifeOS local core is healthy", localUrl("/api/v1/health"));
+  writeDesktopLog("LifeOS admin console shell is ready", localUrl("/admin/login"));
 }
 
 function showMainWindow(pathname = "/admin/login") {
   if (!mainWindow || mainWindow.isDestroyed()) {
-    createWindow(pathname);
+    createWindow(pathname).catch((error) => writeDesktopLog("Failed to create desktop window", error?.message || String(error)));
     return;
   }
-  mainWindow.loadURL(localUrl(pathname));
+  loadDesktopWindow(mainWindow, pathname).catch((error) => writeDesktopLog("Failed to reload desktop window", error?.message || String(error)));
   mainWindow.show();
   mainWindow.focus();
 }
 
-function createWindow(pathname = "/admin/login") {
+async function resolvePreferredAdminPath(fallbackPath = "/admin/login") {
+  const adminStatusResult = await fetchLocalJson("/api/v1/admin/status");
+  if (!adminStatusResult.ok || !adminStatusResult.body) return fallbackPath;
+  const status = publicAdminStatusSnapshot(adminStatusResult.body);
+  if (!status?.configured) return "/admin/login";
+  if (status.authenticated && status.nextPath) return status.nextPath;
+  if (status.onboardingRequired && status.nextPath) return status.nextPath;
+  if (fallbackPath === "/admin/dashboard") return status.nextPath || "/admin/dashboard";
+  return fallbackPath;
+}
+
+async function showPreferredAdminWindow(fallbackPath = "/admin/login") {
+  const pathname = await resolvePreferredAdminPath(fallbackPath).catch(() => fallbackPath);
+  showMainWindow(pathname);
+}
+
+async function createWindow(pathname = "/admin/login") {
   mainWindow = new BrowserWindow({
     width: 1180,
     height: 820,
@@ -185,13 +260,28 @@ function createWindow(pathname = "/admin/login") {
     shell.openExternal(url);
     return { action: "deny" };
   });
-  return mainWindow.loadURL(localUrl(pathname));
+  await loadDesktopWindow(mainWindow, pathname);
+  return mainWindow;
 }
 
 function openLogsFolder() {
   shell.openPath(path.dirname(desktopLogPath)).catch((error) => {
     writeDesktopLog("Failed to open logs folder", error?.message || String(error));
   });
+}
+
+function openLocalConsoleInBrowser(pathname = "/admin/login") {
+  const target = localUrl(pathname);
+  shell.openExternal(target).catch((error) => {
+    writeDesktopLog("Failed to open local console in browser", error?.message || String(error));
+  });
+  return target;
+}
+
+function copyLogsPath() {
+  const logsDir = desktopLogPath ? path.dirname(desktopLogPath) : app.getPath("logs");
+  clipboard.writeText(logsDir);
+  return logsDir;
 }
 
 function redactDiagnosticText(value) {
@@ -451,6 +541,7 @@ function showStartupFailureWindow(error) {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      preload: path.join(app.isPackaged ? app.getAppPath() : process.cwd(), "desktop", "preload.cjs"),
       sandbox: true,
     },
   });
@@ -468,6 +559,11 @@ function showStartupFailureWindow(error) {
       .path { margin-top: 16px; padding: 12px; border: 1px solid rgba(255,255,255,.08); border-radius: 14px; background: rgba(255,255,255,.04); word-break: break-all; color: #67e8f9; }
       pre { max-height: 180px; overflow: auto; padding: 12px; border-radius: 14px; background: #060a10; border: 1px solid rgba(248,113,113,.2); color: #fecaca; white-space: pre-wrap; }
       .hint { margin-top: 16px; color: #d4d4d8; }
+      .actions { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 12px; }
+      button { border: 0; border-radius: 14px; padding: 12px 16px; font: inherit; font-weight: 700; cursor: pointer; }
+      .primary { background: #f4f4f5; color: #111827; }
+      .secondary { background: rgba(255,255,255,.06); color: #e4e4e7; border: 1px solid rgba(255,255,255,.1); }
+      .status { margin-top: 14px; min-height: 20px; color: #cbd5e1; font-size: 13px; }
     </style>
   </head>
   <body>
@@ -476,7 +572,45 @@ function showStartupFailureWindow(error) {
       <p>The desktop shell opened, but the local service did not start successfully. Open the log directory and inspect <code>lifeos-desktop.log</code>, then restart LifeOS AI after fixing the issue.</p>
       <div class="path">${htmlEscape(logsDir)}</div>
       <p class="hint">Common causes: port already in use, data directory permissions, missing packaged files, or incomplete security environment variables.</p>
+      <div class="actions">
+        <button class="primary" id="retry">Retry LifeOS AI</button>
+        <button class="secondary" id="browser">Open Local Console In Browser</button>
+        <button class="secondary" id="copyAddress">Copy Local Address</button>
+        <button class="secondary" id="logs">Open Logs Folder</button>
+        <button class="secondary" id="copy">Copy Logs Path</button>
+        <button class="secondary" id="diagnostics">Export Desktop Diagnostics</button>
+      </div>
+      <div class="status" id="status">Use the buttons above to recover without leaving this window.</div>
       <pre>${htmlEscape(message)}</pre>
+      <script>
+        const status = document.getElementById("status");
+        const api = window.lifeosDesktopFailure;
+        const setStatus = (value) => { status.textContent = value; };
+        document.getElementById("retry").addEventListener("click", async () => {
+          setStatus("Relaunching LifeOS AI...");
+          await api.retryStartup();
+        });
+        document.getElementById("browser").addEventListener("click", async () => {
+          const target = await api.openLocalConsole();
+          setStatus("Opened local console: " + target);
+        });
+        document.getElementById("copyAddress").addEventListener("click", async () => {
+          const value = await api.copyLocalAddress();
+          setStatus("Copied local address: " + value);
+        });
+        document.getElementById("logs").addEventListener("click", async () => {
+          await api.openLogsFolder();
+          setStatus("Opened the logs folder.");
+        });
+        document.getElementById("copy").addEventListener("click", async () => {
+          const value = await api.copyLogsPath();
+          setStatus("Copied logs path: " + value);
+        });
+        document.getElementById("diagnostics").addEventListener("click", async () => {
+          const outputPath = await api.exportDiagnostics();
+          setStatus(outputPath ? ("Saved desktop diagnostics to " + outputPath) : "Diagnostic export cancelled.");
+        });
+      </script>
     </main>
   </body>
 </html>`;
@@ -497,7 +631,7 @@ function buildTrayMenu() {
     { label: desktopShellStatus.deviceLabel, enabled: false },
     { label: `Local port ${serverPort}`, enabled: false },
     { type: "separator" },
-    { label: "Open Console", click: () => showMainWindow("/admin/dashboard") },
+    { label: "Open Console", click: () => showPreferredAdminWindow("/admin/dashboard") },
     { label: "Pair Phone", click: () => showMainWindow("/admin/devices/pair") },
     { label: "System Settings", click: () => showMainWindow("/admin/settings") },
     { type: "separator" },
@@ -534,7 +668,7 @@ function buildMenuTemplate() {
     {
       label: "LifeOS AI",
       submenu: [
-        { label: "Open Console", click: () => showMainWindow("/admin/dashboard") },
+        { label: "Open Console", click: () => showPreferredAdminWindow("/admin/dashboard") },
         { label: "Pair Phone", click: () => showMainWindow("/admin/devices/pair") },
         { label: "System Settings", click: () => showMainWindow("/admin/settings") },
         { type: "separator" },
@@ -581,7 +715,8 @@ async function configureDesktopShell() {
   trayRefreshTimer = setInterval(() => {
     refreshDesktopShellStatus().catch((error) => writeDesktopLog("Failed to refresh tray status", error?.message || String(error)));
   }, 60_000);
-  tray.on("click", () => showMainWindow("/admin/dashboard"));
+  trayRefreshTimer.unref?.();
+  tray.on("click", () => showPreferredAdminWindow("/admin/dashboard"));
 }
 
 function configureUpdates() {
@@ -593,11 +728,50 @@ function configureUpdates() {
   });
 }
 
+function requestDesktopShutdown(reason = "signal") {
+  if (shutdownRequested) return;
+  shutdownRequested = true;
+  writeDesktopLog("Desktop shutdown requested", reason);
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
+  } catch {}
+  try {
+    if (tray) {
+      tray.destroy();
+      tray = null;
+    }
+  } catch {}
+  try {
+    if (app.isReady()) {
+      app.quit();
+      setTimeout(() => app.exit(0), 1500).unref?.();
+      return;
+    }
+  } catch {}
+  app.exit(0);
+}
+
 app.whenReady().then(async () => {
+  ipcMain.handle("lifeos:open-logs-folder", async () => {
+    openLogsFolder();
+    return true;
+  });
+  ipcMain.handle("lifeos:copy-logs-path", async () => copyLogsPath());
+  ipcMain.handle("lifeos:open-local-console", async () => openLocalConsoleInBrowser());
+  ipcMain.handle("lifeos:copy-local-address", async () => {
+    copyLocalAddress();
+    return localUrl("/admin/login");
+  });
+  ipcMain.handle("lifeos:export-desktop-diagnostics", async () => exportDesktopDiagnosticBundle());
+  ipcMain.handle("lifeos:retry-startup", async () => {
+    app.relaunch();
+    app.exit(0);
+    return true;
+  });
   try {
     await startLocalCore();
     await configureDesktopShell();
-    await createWindow();
+    await createWindow(await resolvePreferredAdminPath("/admin/login"));
     if (process.env.LIFEOS_DESKTOP_EXPORT_DIAGNOSTIC_ON_START) {
       await exportDesktopDiagnosticBundle(process.env.LIFEOS_DESKTOP_EXPORT_DIAGNOSTIC_ON_START);
     }
@@ -620,7 +794,11 @@ app.whenReady().then(async () => {
   }
 
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) {
+      resolvePreferredAdminPath("/admin/login")
+        .then((pathname) => createWindow(pathname))
+        .catch(() => createWindow("/admin/login"));
+    }
   });
 });
 
@@ -631,3 +809,6 @@ app.on("window-all-closed", () => {
 app.on("before-quit", () => {
   if (trayRefreshTimer) clearInterval(trayRefreshTimer);
 });
+
+process.on("SIGTERM", () => requestDesktopShutdown("SIGTERM"));
+process.on("SIGINT", () => requestDesktopShutdown("SIGINT"));

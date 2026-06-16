@@ -33,8 +33,33 @@ export default function AdminOnboardingPage() {
   const hasBackup = backups.length > 0;
   const hasDevice = devices.some((device) => device.status !== "revoked");
   const completedSteps = [aiConfigured, hasBackup, hasDevice, onboarding?.steps.find((step) => step.id === "security")?.done].filter(Boolean).length;
+  const nextStep = onboarding?.steps.find((step) => !step.done) || null;
   const securityItems = diagnostics?.securityCheck.items || [];
   const securityRiskCount = securityItems.filter((item) => item.status !== "ok").length;
+  const localizedStepMeta = (stepId: OnboardingStatus["steps"][number]["id"], done: boolean) => {
+    switch (stepId) {
+      case "ai":
+        return {
+          label: t("onboarding.aiTitle").replace(/^\d+\.\s*/, ""),
+          message: done ? t("onboarding.stepAiDone") : t("onboarding.stepAiTodo"),
+        };
+      case "backup":
+        return {
+          label: t("onboarding.backupTitle").replace(/^\d+\.\s*/, ""),
+          message: done ? t("onboarding.stepBackupDone", { count: backups.length }) : t("onboarding.stepBackupTodo"),
+        };
+      case "device":
+        return {
+          label: t("onboarding.mobileTitle").replace(/^\d+\.\s*/, ""),
+          message: done ? t("onboarding.stepDeviceDone", { count: devices.filter((device) => device.status !== "revoked").length }) : t("onboarding.stepDeviceTodo"),
+        };
+      default:
+        return {
+          label: t("onboarding.securityCheck"),
+          message: done ? t("onboarding.stepSecurityDone") : t("onboarding.stepSecurityTodo"),
+        };
+    }
+  };
 
   const refresh = async () => {
     const [providerData, diagnosticsData, backupData, scheduleData, deviceData, onboardingData] = await Promise.all([listAiProviders(), getConfigDiagnostics(), listBackups(), getBackupSchedule(), listDevices(), getOnboardingStatus()]);
@@ -128,7 +153,7 @@ export default function AdminOnboardingPage() {
       const result = await completeOnboarding();
       setOnboarding(result.onboarding);
       setStatus(t("onboarding.doneStatus"));
-      window.location.href = result.onboarding.nextPath || "/admin/dashboard";
+      window.location.href = result.onboarding.nextPath || "/chat";
     } catch (error: any) {
       setStatus(error.message || t("onboarding.doneFailed"));
       await refresh().catch(() => null);
@@ -171,6 +196,69 @@ export default function AdminOnboardingPage() {
         </div>
 
         {status ? <div className="mb-5 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 text-sm text-zinc-300">{status}</div> : null}
+
+        {onboarding ? (
+          <section className="mb-5 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+            <div className="rounded-[28px] border border-cyan-400/15 bg-cyan-500/10 p-5">
+              <div className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200/75">{t("onboarding.nextStepTitle")}</div>
+              <h2 className="mt-2 text-xl font-bold text-zinc-50">
+                {nextStep ? localizedStepMeta(nextStep.id, nextStep.done).label : t("onboarding.completed")}
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-cyan-50/85">
+                {nextStep ? localizedStepMeta(nextStep.id, nextStep.done).message : t("onboarding.doneStatus")}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <a
+                  href={nextStep?.actionPath || "/chat"}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-[#061016]"
+                >
+                  {nextStep ? t("onboarding.goNextStep") : t("onboarding.startFirstChat")}
+                  <ArrowRight className="h-4 w-4" />
+                </a>
+                <a
+                  href={nextStep ? "/admin/settings" : "/admin/dashboard"}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.12] bg-[#060a10]/40 px-4 py-3 text-sm font-bold text-zinc-100"
+                >
+                  {nextStep ? t("onboarding.continueSettings") : t("onboarding.enterDashboard")}
+                </a>
+              </div>
+            </div>
+
+            <div className="rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
+              <div className="text-sm font-bold text-zinc-100">{t("onboarding.checklistTitle")}</div>
+              <div className="mt-3 grid gap-2">
+                {onboarding.steps.map((step) => {
+                  const localized = localizedStepMeta(step.id, step.done);
+                  return (
+                  <a
+                    key={step.id}
+                    href={step.actionPath}
+                    className={`rounded-2xl border p-3 text-left text-sm transition-colors ${
+                      step.done
+                        ? "border-emerald-400/15 bg-emerald-500/10 text-emerald-100"
+                        : "border-white/[0.06] bg-white/[0.03] text-zinc-200 hover:bg-white/[0.05]"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-bold">{localized.label}</span>
+                      {step.done ? <CheckCircle2 className="h-4 w-4 text-emerald-300" /> : <ArrowRight className="h-4 w-4 text-zinc-500" />}
+                    </div>
+                    <div className={`mt-1 text-xs leading-relaxed ${step.done ? "text-emerald-100/80" : "text-zinc-400"}`}>{localized.message}</div>
+                  </a>
+                  );
+                })}
+              </div>
+              <div className="mt-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3 text-xs leading-relaxed text-zinc-400">
+                <div className="font-bold text-zinc-200">{t("onboarding.recoveryTitle")}</div>
+                <ul className="mt-2 list-disc space-y-1 pl-4">
+                  <li>{t("onboarding.recoveryLogs")}</li>
+                  <li>{t("onboarding.recoveryPairing")}</li>
+                  <li>{t("onboarding.recoveryConnection")}</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         {diagnostics ? (
           <section className={`mb-5 rounded-[28px] border p-5 ${

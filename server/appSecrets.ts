@@ -75,14 +75,7 @@ function getElectronSafeStorage() {
 }
 
 function canUseElectronSafeStorageStatus() {
-  try {
-    if (!process.versions.electron) return false;
-    if (typeof require !== "function") return false;
-    const electron = require("electron");
-    return Boolean(electron && typeof electron === "object" && electron.safeStorage);
-  } catch {
-    return false;
-  }
+  return Boolean(process.versions.electron);
 }
 
 function getPreferredSecretStorage(): SecretStorageKind {

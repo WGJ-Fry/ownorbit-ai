@@ -967,13 +967,13 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   }).then((res) => res.json());
   assert.equal(completedOnboarding.onboarding.completed, true);
   assert.equal(completedOnboarding.onboarding.required, false);
-  assert.equal(completedOnboarding.onboarding.nextPath, "/admin/dashboard");
+  assert.equal(completedOnboarding.onboarding.nextPath, "/chat");
   assert.equal(typeof completedOnboarding.onboarding.completedAt, "number");
   assert.equal(completedOnboarding.onboarding.steps.every((step) => step.done), true);
 
   const statusAfterOnboarding = await request(port, "/api/v1/admin/status", { headers: adminHeaders }).then((res) => res.json());
   assert.equal(statusAfterOnboarding.onboardingRequired, false);
-  assert.equal(statusAfterOnboarding.nextPath, "/admin/dashboard");
+  assert.equal(statusAfterOnboarding.nextPath, "/chat");
 
   const rotated = await request(port, "/api/v1/devices/token/rotate", {
     method: "POST",

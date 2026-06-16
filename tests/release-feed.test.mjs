@@ -80,6 +80,8 @@ async function createPackagedMacApp(releaseDir, entries) {
     "Run shasum -a 256 -c SHA256SUMS on macOS or Linux.",
     "Run Get-FileHash on Windows and compare it with SHA256SUMS.",
     "## Troubleshooting",
+    "Open Local Console In Browser from the desktop failure page if the local core is already running.",
+    "Copy Local Address from the desktop failure page if the desktop window fails.",
     "Export a diagnostic bundle if startup or phone binding fails.",
     "",
   ].join("\n"));
@@ -313,6 +315,7 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /desktop release smoke workflow covers macOS, Windows, and Linux/);
   assert.match(result.stdout, /desktop release smoke workflow runs the release smoke script/);
   assert.match(result.stdout, /desktop release smoke workflow launches the packaged macOS app/);
+  assert.match(result.stdout, /desktop release smoke workflow launches packaged Windows and Linux apps/);
   assert.match(result.stdout, /desktop release smoke workflow disables opportunistic signing/);
   assert.match(result.stdout, /desktop release smoke workflow uses fast quality gate before platform packaging/);
   assert.match(result.stdout, /Vite dependency is pinned to the esbuild-safe major line/);
@@ -385,7 +388,7 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /unsigned macOS release includes user install and Gatekeeper guidance/);
   assert.match(result.stdout, /unsigned macOS release includes non-developer user install guide/);
   assert.match(result.stdout, /user install guide covers install, first launch, phone binding, backups, updates, and troubleshooting/);
-  assert.doesNotMatch(result.stdout, /release USER-INSTALL\.md should explain first launch, phone binding, add-to-home-screen recovery/);
+  assert.doesNotMatch(result.stdout, /release USER-INSTALL\.md should explain first launch, browser fallback recovery, phone binding, add-to-home-screen recovery/);
   assert.match(result.stdout, /release checklist documents unsigned\/signed distribution, update feed, and signing inputs/);
   assert.match(result.stdout, /desktop release guide covers cross-platform packaging, update channel, and diagnostics/);
   assert.match(result.stdout, /Release check: .*0 warnings, 0 failures/);

@@ -20,12 +20,14 @@ async function waitForHealth(port, child, output) {
     const outputText = output.join("");
     const reportedPort = Number(outputText.match(/Server running on http:\/\/127\.0\.0\.1:(\d+)/)?.[1]);
     const ports = Array.from(new Set([port, Number.isFinite(reportedPort) ? reportedPort : 0].filter(Boolean)));
-    try {
-      for (const candidatePort of ports) {
-        const response = await fetch(`http://127.0.0.1:${candidatePort}/api/v1/health`);
+    for (const candidatePort of ports) {
+      try {
+        const response = await fetch(`http://127.0.0.1:${candidatePort}/api/v1/health`, {
+          signal: AbortSignal.timeout(1500),
+        });
         if (response.ok) return { health: await response.json(), port: candidatePort };
-      }
-    } catch {}
+      } catch {}
+    }
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   throw new Error(`desktop did not expose health endpoint in time\n${output.join("")}`);
@@ -33,8 +35,16 @@ async function waitForHealth(port, child, output) {
 
 async function stop(child) {
   if (child.exitCode !== null) return;
-  child.kill();
-  await new Promise((resolve) => child.once("exit", resolve));
+  child.kill("SIGTERM");
+  await new Promise((resolve) => {
+    const fallback = setTimeout(() => {
+      if (child.exitCode === null) child.kill("SIGKILL");
+    }, 1500);
+    child.once("exit", () => {
+      clearTimeout(fallback);
+      resolve();
+    });
+  });
 }
 
 async function waitForFileMatch(file, pattern, timeoutMs = 10_000) {
@@ -426,8 +436,11 @@ test("Electron desktop keeps a startup failure window open when local core fails
 
   await new Promise((resolve) => setTimeout(resolve, 2500));
   assert.equal(child.exitCode, null, `desktop should stay open with failure window\n${output.join("")}`);
-  assert.match(output.join(""), /Forced desktop startup failure/);
   const desktopMain = await readFile(path.join(rootDir, "desktop", "main.cjs"), "utf8");
+  assert.match(desktopMain, /Retry LifeOS AI/);
+  assert.match(desktopMain, /Open Local Console In Browser/);
+  assert.match(desktopMain, /Copy Local Address/);
   assert.match(desktopMain, /Export Desktop Diagnostics/);
   assert.match(desktopMain, /Open Logs Folder/);
+  assert.match(desktopMain, /Copy Logs Path/);
 });

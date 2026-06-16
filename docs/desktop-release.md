@@ -41,8 +41,8 @@ Current verified path:
 - `electron-builder` is upgraded to `26.15.2`.
 - `npm audit` reports `0 vulnerabilities`.
 - `npm run electron:install` verifies or installs `node_modules/electron/dist`.
-- macOS signed DMG succeeds and creates `release/LifeOS AI-0.0.0-arm64.dmg`.
-- macOS DMG is Developer ID signed, Apple notarized, and stapled.
+- when signing variables are configured, `desktop:dist:mac` can produce `release/LifeOS AI-0.0.0-arm64.dmg`.
+- the signed macOS target is intended to be Developer ID signed, Apple notarized, and stapled; unsigned local builds still need the Gatekeeper fallback path.
 - Windows x64 NSIS succeeds and creates `release/LifeOS AI Setup 0.0.0.exe`.
 - Linux x64 AppImage succeeds and creates `release/LifeOS AI-0.0.0.AppImage`.
 - `package.json` sets `build.electronDist=node_modules/electron/dist` for macOS local builds. Windows/Linux scripts override it with `-c.electronDist=` so electron-builder downloads the correct target runtime.
@@ -88,7 +88,7 @@ For signed distribution:
 
 1. Enroll in Apple Developer Program.
 2. Create Developer ID Application certificate.
-3. Add environment variables:
+3. Create `.env.signing.local` in the repo root, or export the same values in your shell:
 
    ```bash
    CSC_LINK="/absolute/path/to/certificate.p12"
@@ -101,16 +101,17 @@ For signed distribution:
 4. Run the signing preflight:
 
    ```bash
-   npm run signing:check:mac
+   npm run signing:check:mac:file
    ```
 
 5. Run:
 
    ```bash
-   npm run desktop:dist:mac
+   npm run desktop:dist:mac:signed
+   npm run release:check:signed:file
    ```
 
-Electron Builder 26 can notarize automatically when the Apple environment variables are present.
+`scripts/with-signing-env.mjs` loads `.env.signing.local` automatically before running the check or packaging step. Electron Builder 26 can notarize automatically when those Apple environment variables are present.
 
 ## Windows Signing Path
 
@@ -190,7 +191,7 @@ Before handing a macOS zip to a user, run the launch smoke once on a real macOS 
 npm run desktop:artifact:smoke:launch
 ```
 
-This opens the packaged `LifeOS AI.app`, waits for the local core health endpoint, and verifies that the mobile install manifest still preserves the pairing token inside the packaged desktop app. The default `npm run desktop:artifact:smoke` keeps launch optional so CI can still run on hosts where GUI app launch is unavailable.
+This mounts the signed DMG, installs `LifeOS AI.app` with `ditto`, removes transient provenance metadata if needed, opens the installed app through LaunchServices, waits for the local core health endpoint, and verifies that the mobile install manifest still preserves the pairing token inside the packaged desktop app. The default `npm run desktop:artifact:smoke` keeps launch optional so CI can still run on hosts where GUI app launch is unavailable.
 
 ## Desktop Diagnostics
 

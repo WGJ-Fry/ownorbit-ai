@@ -1314,6 +1314,8 @@ function checkReleaseDocs() {
       "shasum -a 256 -c SHA256SUMS",
       "Get-FileHash",
       "diagnostic bundle",
+      "Open Local Console In Browser",
+      "Copy Local Address",
       "desktop startup configuration",
       "Save to desktop startup configuration",
       "npm run remote:smoke",
@@ -1399,6 +1401,11 @@ function checkCiWorkflow() {
   else warn("desktop release smoke workflow does not run npm run desktop:release:smoke");
   if (workflow.includes("runner.os == 'macOS'") && workflow.includes("npm run desktop:artifact:smoke:launch")) pass("desktop release smoke workflow launches the packaged macOS app");
   else warn("desktop release smoke workflow does not run packaged macOS app launch smoke");
+  if (workflow.includes("runner.os != 'macOS'") && workflow.includes("LIFEOS_ARTIFACT_SMOKE_LAUNCH") && workflow.includes("node scripts/desktop-artifact-smoke.mjs")) {
+    pass("desktop release smoke workflow launches packaged Windows and Linux apps");
+  } else {
+    warn("desktop release smoke workflow does not run packaged Windows/Linux app launch smoke");
+  }
   if (workflow.includes("CSC_IDENTITY_AUTO_DISCOVERY") && workflow.includes("false")) pass("desktop release smoke workflow disables opportunistic signing");
   else warn("desktop release smoke workflow should disable opportunistic signing for unsigned smoke builds");
   if (workflow.includes("LIFEOS_RELEASE_SMOKE_FAST")) pass("desktop release smoke workflow uses fast quality gate before platform packaging");
@@ -1460,10 +1467,10 @@ function checkUnsignedPackage() {
     }
     if (fs.existsSync(userInstallGuidePath)) {
       const userInstallGuide = fs.readFileSync(userInstallGuidePath, "utf8");
-      if (/First Launch/i.test(userInstallGuide) && /Bind The Phone PWA/i.test(userInstallGuide) && /daily automatic backups/i.test(userInstallGuide) && /Troubleshooting/i.test(userInstallGuide) && /Do not add the unbound QR page to the home screen/i.test(userInstallGuide) && /delete the old home-screen icon/i.test(userInstallGuide)) {
+      if (/First Launch/i.test(userInstallGuide) && /Bind The Phone PWA/i.test(userInstallGuide) && /daily automatic backups/i.test(userInstallGuide) && /Troubleshooting/i.test(userInstallGuide) && /Open Local Console In Browser/i.test(userInstallGuide) && /Copy Local Address/i.test(userInstallGuide) && /Do not add the unbound QR page to the home screen/i.test(userInstallGuide) && /delete the old home-screen icon/i.test(userInstallGuide)) {
         pass("unsigned macOS release includes non-developer user install guide");
       } else {
-        fail("release USER-INSTALL.md should explain first launch, phone binding, add-to-home-screen recovery, daily backups, and troubleshooting");
+        fail("release USER-INSTALL.md should explain first launch, browser fallback recovery, phone binding, add-to-home-screen recovery, daily backups, and troubleshooting");
       }
     } else {
       fail("unsigned macOS release is missing USER-INSTALL.md");

@@ -11,7 +11,7 @@ flowchart LR
   Download["下载安装电脑端"] --> Password["设置管理员密码"]
   Password --> AIKey["配置 AI Key"]
   AIKey --> Pair["手机扫码绑定"]
-  Pair --> Use["开始聊天 / 生成工具 / 设置异地连接"]
+  Pair --> Use["开始第一次聊天 / 生成工具 / 设置异地连接"]
 ```
 
 ## 第 1 步：下载电脑端
@@ -32,7 +32,10 @@ Windows 当前未配置 Authenticode 正式签名，可能出现 SmartScreen 提
 
 1. 设置管理员密码。
 2. 查看安全自检。
-3. 进入系统设置。
+3. 配置 AI Key、创建备份、绑定手机。
+4. 完成向导后直接进入第一次聊天。
+
+如果本地核心启动失败，桌面失败页现在会直接提供 `Retry LifeOS AI`、`Open Local Console In Browser`、`Copy Local Address`、`Open Logs Folder`、`Copy Logs Path`、`Export Desktop Diagnostics`，不用先自己找日志位置；如果只是桌面窗口异常，本地核心仍然可用时，可以先用浏览器继续完成管理员设置和手机绑定。
 
 管理员密码只保存在电脑端。异地连接前建议使用较长的短语密码。
 
@@ -69,6 +72,8 @@ AI Key 不会保存到手机端，也不会通过普通 API 返回给前端。
 不要直接把本地服务暴露到公网 IP。公网/隧道模式前请确认管理员密码、备份、HTTPS 和 `LIFEOS_ALLOW_PUBLIC=1`。
 
 ## 第 6 步：开始使用
+
+第一次进入时，完成首次启动向导后会默认进入聊天页，方便立刻发一条测试消息确认整条链路正常。
 
 你可以从这几个入口开始：
 
@@ -118,7 +123,7 @@ flowchart LR
   Download["Download desktop app"] --> Password["Set admin password"]
   Password --> AIKey["Configure AI key"]
   AIKey --> Pair["Pair phone by QR"]
-  Pair --> Use["Chat / Generate tools / Configure remote access"]
+  Pair --> Use["Start first chat / Generate tools / Configure remote access"]
 ```
 
 ## Step 1: Download The Desktop App
@@ -139,7 +144,10 @@ After opening LifeOS AI:
 
 1. Set the administrator password.
 2. Review the safety checks.
-3. Open system settings.
+3. Configure the AI key, create a backup, and pair the phone.
+4. Finish the guide and go straight into the first chat.
+
+If the local core fails to start, the desktop failure page now gives direct recovery actions: `Retry LifeOS AI`, `Open Local Console In Browser`, `Copy Local Address`, `Open Logs Folder`, `Copy Logs Path`, and `Export Desktop Diagnostics`. If the desktop window is the only thing that failed, you can keep going in the browser and still finish admin setup and phone pairing.
 
 The admin password is stored only on the desktop. Use a longer passphrase before enabling remote access.
 
@@ -176,6 +184,8 @@ If you add the page to the home screen before pairing, some mobile browsers may 
 Do not expose the local service directly to a public IP. Before public/tunnel mode, verify the admin password, backups, HTTPS, and `LIFEOS_ALLOW_PUBLIC=1`.
 
 ## Step 6: Start Using It
+
+On first launch, finishing the guide now takes you directly to the chat page so you can send one test message right away and confirm the whole path is working.
 
 Good first places to try:
 

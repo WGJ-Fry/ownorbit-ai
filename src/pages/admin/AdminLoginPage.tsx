@@ -23,7 +23,7 @@ export default function AdminLoginPage() {
         setEnvManaged(adminStatus.envManaged);
         setPublicSetupRisk(Boolean(health?.publicSetupRisk));
         if (adminStatus.authenticated) {
-          window.location.href = "/admin/dashboard";
+          window.location.href = adminStatus.nextPath || "/chat";
           return;
         }
         setMode(adminStatus.configured ? "login" : "setup");
@@ -49,7 +49,7 @@ export default function AdminLoginPage() {
         window.location.href = session.nextPath || "/admin/onboarding";
       } else {
         const session = await loginAdmin(password);
-        window.location.href = session.onboardingRequired ? (session.nextPath || "/admin/onboarding") : "/admin/dashboard";
+        window.location.href = session.onboardingRequired ? (session.nextPath || "/admin/onboarding") : (session.nextPath || "/chat");
       }
     } catch (err: any) {
       setError(err.message || t("auth.failed"));

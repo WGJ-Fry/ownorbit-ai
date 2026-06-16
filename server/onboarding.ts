@@ -65,7 +65,7 @@ export function getOnboardingStatus() {
     completedAt: completed ? completedState?.completedAt || null : null,
     required: !completed || !completedState?.completedAt,
     securityOverall: security.overall,
-    nextPath: completed ? "/admin/dashboard" : "/admin/onboarding",
+    nextPath: completed ? "/chat" : "/admin/onboarding",
   };
 }
 

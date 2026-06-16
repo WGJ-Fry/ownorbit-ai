@@ -73,7 +73,6 @@ export default function AdminDashboardPage() {
       setBusyBackupFile(null);
     }
   };
-
   return (
     <div className="min-h-screen bg-[#060a10] text-zinc-100 p-6">
       <div className="max-w-6xl mx-auto">
@@ -84,9 +83,9 @@ export default function AdminDashboardPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <LanguageSwitcher compact />
-            <a href="/admin/chat" className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-sm font-bold hover:bg-white/[0.06]">
+            <a href={sessions.length === 0 ? "/chat" : "/admin/chat"} className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-sm font-bold hover:bg-white/[0.06]">
               <MessageSquareText className="w-4 h-4" />
-              {t("dashboard.chatHistory")}
+              {sessions.length === 0 ? t("dashboard.startFirstChat") : t("dashboard.chatHistory")}
             </a>
             <a href="/admin/memory" className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-sm font-bold hover:bg-white/[0.06]">
               <Brain className="w-4 h-4" />
@@ -178,6 +177,30 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
+        {sessions.length === 0 && (
+          <section className="mb-6 rounded-[28px] border border-cyan-400/20 bg-cyan-500/10 p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0">
+                <div className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200/80">{t("dashboard.firstChatReady")}</div>
+                <h2 className="mt-2 text-xl font-bold text-zinc-50">{t("dashboard.startFirstChat")}</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-cyan-50/85">
+                  {health?.aiConfigured ? t("dashboard.startFirstChatBody") : t("dashboard.startFirstChatNeedsAi")}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <a href={health?.aiConfigured ? "/chat" : "/admin/onboarding"} className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-[#061016]">
+                  <MessageSquareText className="h-4 w-4" />
+                  {health?.aiConfigured ? t("dashboard.startFirstChat") : t("dashboard.configureAiFirst")}
+                </a>
+                <a href="/admin/devices/pair" className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.12] bg-[#060a10]/40 px-4 py-3 text-sm font-bold text-zinc-100">
+                  <Smartphone className="h-4 w-4" />
+                  {t("dashboard.bindPhone")}
+                </a>
+              </div>
+            </div>
+          </section>
+        )}
+
         <section className="grid md:grid-cols-4 gap-4 mb-6">
           <Metric icon={<Server className="w-5 h-5" />} label={t("dashboard.serviceStatus")} value={health?.ok ? "Online" : "Unknown"} tone="cyan" />
           <Metric icon={<Smartphone className="w-5 h-5" />} label={t("dashboard.boundDevices")} value={String(health?.deviceCount ?? "-")} tone="blue" />
@@ -186,14 +209,14 @@ export default function AdminDashboardPage() {
         </section>
 
         <section className="grid md:grid-cols-3 gap-4 mb-6">
-          <a href="/admin/chat" className="rounded-3xl border border-white/[0.08] bg-[#101722] p-5 hover:bg-white/[0.04] transition-colors">
+          <a href={sessions.length === 0 ? "/chat" : "/admin/chat"} className="rounded-3xl border border-white/[0.08] bg-[#101722] p-5 hover:bg-white/[0.04] transition-colors">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 text-cyan-300 flex items-center justify-center">
                 <MessageSquareText className="w-5 h-5" />
               </div>
               <div>
-                <div className="font-bold">{t("dashboard.viewLongChats")}</div>
-                <div className="text-sm text-zinc-500 mt-1">{t("dashboard.viewLongChatsBody")}</div>
+                <div className="font-bold">{sessions.length === 0 ? t("dashboard.startFirstChat") : t("dashboard.viewLongChats")}</div>
+                <div className="text-sm text-zinc-500 mt-1">{sessions.length === 0 ? t("dashboard.startFirstChatBody") : t("dashboard.viewLongChatsBody")}</div>
               </div>
             </div>
           </a>

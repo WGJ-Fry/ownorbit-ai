@@ -35,7 +35,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   });
   await page.goto("/admin/login");
   await expect(page.getByText("首次启动向导")).toBeVisible();
-  await expect(page.getByText("进入设置页配置 AI Key")).toBeVisible();
+  await expect(page.getByText("配置 AI Key，并创建第一份备份")).toBeVisible();
   await page.getByLabel("密码", { exact: true }).fill(password);
   await page.getByLabel("确认密码", { exact: true }).fill(password);
   await page.getByRole("button", { name: "完成初始化" }).click();
@@ -43,7 +43,11 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(page.getByText("把 LifeOS AI 配到可用状态")).toBeVisible();
   await expect(page.getByText("初始化进度")).toBeVisible();
   await expect(page.getByText("1 / 4")).toBeVisible();
-  await expect(page.getByText("启动安全自检")).toBeVisible();
+  await expect(page.getByText("下一步")).toBeVisible();
+  await expect(page.getByText("首次启动检查表")).toBeVisible();
+  await expect(page.getByText("如果遇到问题")).toBeVisible();
+  await expect(page.getByText("先保存并测试一个 AI Provider，这样首次聊天不会卡在未配置状态。").first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "启动安全自检" })).toBeVisible();
   await expect(page.getByText(/项需要处理|全部通过/)).toBeVisible();
   await expect(page.getByRole("link", { name: "处理安全项" })).toBeVisible();
   await expect(page.getByText("1. 配置 AI Key")).toBeVisible();
@@ -80,6 +84,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(page.getByRole("button", { name: /OpenAI/ }).getByText("当前默认")).toBeVisible();
   await expect(page.getByRole("button", { name: "已是默认聊天 Provider" })).toBeDisabled();
   await expect(page.getByText("2 / 4")).toBeVisible();
+  await expect(page.getByText("先创建一份初始备份，再继续绑定手机或开启异地访问。").first()).toBeVisible();
   await page.unroute("**/api/v1/admin/ai-providers/openai/test");
   await page.getByRole("button", { name: "创建备份" }).click();
   await expect(page.getByText(/已创建初始备份：lifeos-.*\.db/)).toBeVisible();
@@ -243,6 +248,30 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
 
   await phone.goto("/mobile/chat");
   await expect(phone.getByText(/已连接电脑|正在连接电脑|连接中断，正在重试/)).toBeVisible();
+  await phone.route("**/api/chat", async (route) => {
+    expect(route.request().method()).toBe("POST");
+    const payload = route.request().postDataJSON() as { message?: string };
+    expect(payload.message).toBe("第一条测试消息");
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        text: "已收到第一条测试消息，聊天链路正常。",
+        provider: "OpenAI",
+        model: "gpt-4o",
+      }),
+    });
+  });
+  await phone.getByPlaceholder("发送指令，或召唤新应用...").fill("第一条测试消息");
+  await phone.keyboard.press("Enter");
+  await expect(phone.getByText("第一条测试消息")).toBeVisible();
+  await expect(phone.getByText("已收到第一条测试消息，聊天链路正常。")).toBeVisible();
+
+  await page.goto("/admin/onboarding");
+  await page.getByRole("button", { name: "完成首次启动向导" }).click();
+  await expect(page).toHaveURL(/\/chat/);
+  await expect(page.getByText("JARVIS", { exact: true }).first()).toBeVisible();
+  await expect(page.getByPlaceholder("发送指令，或召唤新应用...")).toBeVisible();
+  await phone.unroute("**/api/chat");
   await expect(phone.getByText("添加到主屏幕", { exact: true })).toBeVisible();
   await phone.getByRole("button", { name: "关闭安装提示" }).click();
   await phone.reload();

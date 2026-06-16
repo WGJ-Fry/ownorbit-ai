@@ -2,6 +2,21 @@ name: Desktop Release Smoke
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "desktop/**"
+      - "server/**"
+      - "src/**"
+      - "public/**"
+      - "scripts/**"
+      - "tests/**"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.ts"
+      - "tsconfig.json"
+      - "playwright.config.ts"
   pull_request:
     paths:
       - "desktop/**"
@@ -58,3 +73,10 @@ jobs:
         env:
           NODE_OPTIONS: --experimental-sqlite
         run: npm run desktop:artifact:smoke:launch
+
+      - name: Packaged app launch smoke (Windows/Linux)
+        if: runner.os != 'macOS'
+        env:
+          NODE_OPTIONS: --experimental-sqlite
+          LIFEOS_ARTIFACT_SMOKE_LAUNCH: "1"
+        run: node scripts/desktop-artifact-smoke.mjs

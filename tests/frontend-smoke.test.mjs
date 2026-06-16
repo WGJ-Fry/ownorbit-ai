@@ -81,7 +81,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
 
   await waitForServer(port, child, childOutput);
 
-  for (const route of ["/", "/admin/login", "/admin/onboarding", "/admin/settings", "/mobile/chat", "/mobile/actions", "/mobile/device", "/mobile/pair?token=demo", "/mobile/install/bind_shell_demo_123"]) {
+  for (const route of ["/", "/chat", "/admin/login", "/admin/onboarding", "/admin/settings", "/mobile/chat", "/mobile/actions", "/mobile/device", "/mobile/pair?token=demo", "/mobile/install/bind_shell_demo_123"]) {
     const response = await request(port, route);
     assert.equal(response.status, 200, `${route} should render the SPA shell`);
     assert.match(response.headers.get("content-type") || "", /text\/html/);
@@ -267,6 +267,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   const loginSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminLoginPage.tsx"), "utf8");
   assert.match(loginSource, /onboardingRequired/);
   assert.match(loginSource, /session\.nextPath/);
+  assert.match(lifeosApiSource, /admin\|mobile\|chat/);
 
   const onboardingSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminOnboardingPage.tsx"), "utf8");
   const translationsSource = await readFile(path.join(rootDir, "src", "i18n", "translations.ts"), "utf8");

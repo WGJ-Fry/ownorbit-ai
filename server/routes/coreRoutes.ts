@@ -9,6 +9,11 @@ import { getOnlineDeviceCount } from "../realtime";
 import { getSecurityDiagnostics } from "../securityDiagnostics";
 
 export function registerCoreRoutes(app: express.Express, host: string) {
+  const traceHealth = process.env.LIFEOS_TRACE_HEALTH === "1";
+  const trace = (label: string) => {
+    if (traceHealth) console.log(`[health-trace] ${label}`);
+  };
+
   app.get("/manifest.webmanifest", (req, res) => {
     const pairingToken = normalizeInstallPairingToken(req.query.pairingToken);
     if (pairingToken) {
@@ -26,21 +31,32 @@ export function registerCoreRoutes(app: express.Express, host: string) {
   });
 
   app.get("/api/v1/health", (_req, res) => {
+    trace("start");
     const publicBaseUrl = getConfiguredPublicBaseUrl();
+    trace("publicBaseUrl");
     const aiConfigured = listAiProviderStatuses().some((provider) => provider.configured);
+    trace("aiConfigured");
     const adminConfigured = isAdminConfigured();
+    trace("adminConfigured");
     const publicAccessWarning = Boolean(publicBaseUrl) || host === "0.0.0.0";
+    trace("publicAccessWarning");
     const securityDiagnostics = getSecurityDiagnostics();
+    trace("securityDiagnostics");
     const publicRiskItems = securityDiagnostics.publicMode
       ? securityDiagnostics.items.filter((item) => item.status !== "ok")
       : [];
+    trace("publicRiskItems");
+    const deviceCount = getDevices().length;
+    trace("deviceCount");
+    const onlineDeviceCount = getOnlineDeviceCount();
+    trace("onlineDeviceCount");
     res.json({
       ok: true,
       service: "lifeos-local-core",
       version: "0.1.0",
       uptime: process.uptime(),
-      deviceCount: getDevices().length,
-      onlineDeviceCount: getOnlineDeviceCount(),
+      deviceCount,
+      onlineDeviceCount,
       aiConfigured,
       adminConfigured,
       host,
@@ -61,5 +77,6 @@ export function registerCoreRoutes(app: express.Express, host: string) {
       },
       timestamp: Date.now(),
     });
+    trace("done");
   });
 }
