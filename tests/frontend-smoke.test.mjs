@@ -8,7 +8,7 @@ import test from "node:test";
 
 const rootDir = path.resolve(new URL("..", import.meta.url).pathname);
 const nodeCommand = process.platform === "win32" ? "node" : process.execPath;
-const nodeSpawnOptions = process.platform === "win32" ? { shell: true } : {};
+const nodeSpawnOptions = {};
 
 function request(port, pathname, options = {}) {
   return fetch(`http://127.0.0.1:${port}${pathname}`, {
