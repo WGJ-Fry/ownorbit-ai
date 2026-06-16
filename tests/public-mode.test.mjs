@@ -4,8 +4,9 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
-const rootDir = path.resolve(new URL("..", import.meta.url).pathname);
+const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 
 function request(port, pathname, options = {}) {
   return fetch(`http://127.0.0.1:${port}${pathname}`, {

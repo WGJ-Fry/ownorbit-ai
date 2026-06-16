@@ -5,8 +5,9 @@ import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
-const rootDir = path.resolve(new URL("..", import.meta.url).pathname);
+const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const nodeCommand = process.env.LIFEOS_NODE_BINARY || process.execPath;
 const nodeSpawnOptions = {};
 const childProcessPathEnv = process.env.PATH || process.env.Path || "";

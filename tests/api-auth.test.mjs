@@ -8,8 +8,9 @@ import { DatabaseSync } from "node:sqlite";
 import { createServer } from "node:net";
 import test from "node:test";
 import WebSocket from "ws";
+import { fileURLToPath } from "node:url";
 
-const rootDir = path.resolve(new URL("..", import.meta.url).pathname);
+const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 
 function request(port, pathname, options = {}) {
   return fetch(`http://127.0.0.1:${port}${pathname}`, {
