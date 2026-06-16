@@ -220,6 +220,7 @@ Your private AI core on desktop. Your personal AI assistant on phone.
 - 真实 VPN/隧道连接向导：`public/screenshots/real-connection-tunnel-vpn.jpg`
 - 真实手机绑定入口：`public/screenshots/real-mobile-device.jpg`
 - 真实手机端未绑定状态：`public/screenshots/real-mobile-chat.jpg`
+- 英文功能总览图：`public/promo/lifeos-ai-english-feature-map.svg`
 
 这些截图来自本地真实运行页面，不是概念图。
 
@@ -258,6 +259,14 @@ LifeOS AI is a local-first personal AI assistant: your desktop runs the private 
 ## Short Description
 
 LifeOS AI turns your desktop into a private AI core for providers, local SQLite data, VPN/tunnel access, generated solution apps, backups, device pairing, diagnostics, and security. Your phone connects as a paired PWA companion for chat, offline queue, device status, and safer local actions.
+
+## English Visual Asset
+
+- English feature map image: `public/promo/lifeos-ai-english-feature-map.svg`
+- Real English screenshots:
+  - `public/screenshots/en-admin-onboarding.jpg`
+  - `public/screenshots/en-connection-tunnel-vpn.jpg`
+  - `public/screenshots/en-mobile-device.jpg`
 
 ## Links
 
