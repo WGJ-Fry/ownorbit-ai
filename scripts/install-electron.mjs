@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 const version = process.env.npm_package_devDependencies_electron?.replace(/^[^\d]*/, "") || "42.3.3";
@@ -8,11 +9,15 @@ const arch = process.arch === "arm64" ? "arm64" : "x64";
 const zipName = `electron-v${version}-${platform}-${arch}.zip`;
 const mirror = process.env.ELECTRON_MIRROR || "https://npmmirror.com/mirrors/electron/";
 const url = `${mirror.replace(/\/$/, "")}/${version}/${zipName}`;
-const tmpDir = path.join("/tmp", `lifeos-electron-${version}-${platform}-${arch}`);
+const tmpDir = path.join(os.tmpdir(), `lifeos-electron-${version}-${platform}-${arch}`);
 const zipPath = path.join(tmpDir, zipName);
 const distPath = path.join(process.cwd(), "node_modules", "electron", "dist");
 const pathFile = path.join(process.cwd(), "node_modules", "electron", "path.txt");
-const executablePath = process.platform === "darwin" ? "Electron.app/Contents/MacOS/Electron" : "electron";
+const executablePath = process.platform === "darwin"
+  ? "Electron.app/Contents/MacOS/Electron"
+  : process.platform === "win32"
+    ? "electron.exe"
+    : "electron";
 
 function writeElectronPathFile() {
   fs.writeFileSync(pathFile, executablePath);

@@ -66,12 +66,14 @@ jobs:
           NODE_OPTIONS: --experimental-sqlite
           LIFEOS_RELEASE_SMOKE_FAST: "1"
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          ELECTRON_DISABLE_SANDBOX: "1"
         run: npm run desktop:release:smoke
 
       - name: Packaged app launch smoke
         if: runner.os == 'macOS'
         env:
           NODE_OPTIONS: --experimental-sqlite
+          LIFEOS_ARTIFACT_SMOKE_LAUNCH: "1"
         run: npm run desktop:artifact:smoke:launch
 
       - name: Packaged app launch smoke (Windows/Linux)
@@ -79,4 +81,5 @@ jobs:
         env:
           NODE_OPTIONS: --experimental-sqlite
           LIFEOS_ARTIFACT_SMOKE_LAUNCH: "1"
+          ELECTRON_DISABLE_SANDBOX: "1"
         run: node scripts/desktop-artifact-smoke.mjs

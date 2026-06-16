@@ -11,7 +11,12 @@ function run(script, extraEnv = {}) {
     env: { ...process.env, ...extraEnv },
     encoding: "utf8",
     stdio: "inherit",
+    shell: process.platform === "win32",
   });
+  if (result.error) {
+    console.error(`Failed to run npm script "${script}": ${result.error.message}`);
+    process.exit(1);
+  }
   if (result.status !== 0) {
     process.exit(result.status || 1);
   }

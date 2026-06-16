@@ -478,35 +478,42 @@ async function launchPackagedMacApp() {
     return;
   }
   const dmgPath = findSignedMacDmg();
-  if (!dmgPath) fail("signed macOS DMG was not found");
+  const extractedUnsigned = dmgPath ? null : extractUnsignedMacApp();
+  if (!dmgPath && !extractedUnsigned) fail("signed macOS DMG or unsigned macOS zip was not found");
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "lifeos-artifact-smoke-"));
   const mountDir = path.join(tempRoot, "mount");
   const installRoot = path.join(os.homedir(), "Applications");
   const installedAppPath = path.join(installRoot, `${productName} Smoke.app`);
   const port = 7810 + Math.floor(Math.random() * 1000);
-  detachMountedImage(dmgPath);
   fs.mkdirSync(mountDir, { recursive: true });
   fs.mkdirSync(installRoot, { recursive: true });
   fs.rmSync(installedAppPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
-  const attach = spawn("hdiutil", ["attach", dmgPath, "-mountpoint", mountDir, "-nobrowse", "-readonly"], {
-    cwd: rootDir,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
   const output = [];
-  attach.stdout.on("data", (chunk) => output.push(chunk.toString()));
-  attach.stderr.on("data", (chunk) => output.push(chunk.toString()));
-  await new Promise((resolve, reject) => {
-    attach.on("exit", (code) => {
-      if (code !== 0) {
-        reject(new Error(`failed to mount signed macOS DMG\n${output.join("")}`));
-        return;
-      }
-      resolve();
+  let sourceAppPath = "";
+  if (dmgPath) {
+    detachMountedImage(dmgPath);
+    const attach = spawn("hdiutil", ["attach", dmgPath, "-mountpoint", mountDir, "-nobrowse", "-readonly"], {
+      cwd: rootDir,
+      stdio: ["ignore", "pipe", "pipe"],
     });
-  });
-  const mountedAppPath = path.join(mountDir, `${productName}.app`);
-  if (!fs.existsSync(mountedAppPath)) fail("signed macOS DMG did not contain the app bundle");
-  const installCopy = spawn("ditto", [mountedAppPath, installedAppPath], {
+    attach.stdout.on("data", (chunk) => output.push(chunk.toString()));
+    attach.stderr.on("data", (chunk) => output.push(chunk.toString()));
+    await new Promise((resolve, reject) => {
+      attach.on("exit", (code) => {
+        if (code !== 0) {
+          reject(new Error(`failed to mount signed macOS DMG\n${output.join("")}`));
+          return;
+        }
+        resolve();
+      });
+    });
+    sourceAppPath = path.join(mountDir, `${productName}.app`);
+    if (!fs.existsSync(sourceAppPath)) fail("signed macOS DMG did not contain the app bundle");
+  } else {
+    sourceAppPath = extractedUnsigned.appPath;
+    console.log("[WARN] signed macOS DMG was not found; launching the app extracted from the unsigned release zip");
+  }
+  const installCopy = spawn("ditto", [sourceAppPath, installedAppPath], {
     cwd: rootDir,
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -611,6 +618,9 @@ async function launchPackagedMacApp() {
     } catch {}
     try {
       fs.rmSync(tempRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    } catch {}
+    try {
+      if (extractedUnsigned?.tempRoot) fs.rmSync(extractedUnsigned.tempRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
     } catch {}
   }
 }
