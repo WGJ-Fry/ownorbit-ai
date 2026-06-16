@@ -67,6 +67,23 @@ function tailscaleCommand() {
   return process.env.LIFEOS_TAILSCALE_BIN || "tailscale";
 }
 
+function tailscaleCommandPrefixArgs() {
+  try {
+    const parsed = JSON.parse(process.env.LIFEOS_TAILSCALE_BIN_ARGS || "[]");
+    return Array.isArray(parsed) && parsed.every((item) => typeof item === "string") ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function runTailscaleCommand(args: string[] = []): CommandResult {
+  return runCommand(tailscaleCommand(), [...tailscaleCommandPrefixArgs(), ...args]);
+}
+
+function runManagedTailscaleCommand(args: string[] = []): CommandResult {
+  return runManagedCommand(tailscaleCommand(), [...tailscaleCommandPrefixArgs(), ...args]);
+}
+
 function getProcessOutput(name: string) {
   const command = process.platform === "win32" ? "tasklist" : "pgrep";
   const args = process.platform === "win32" ? [] : ["-fl", name];
@@ -311,8 +328,7 @@ function getCloudflareTunnelStatus(port: string) {
 }
 
 function getTailscaleStatus() {
-  const command = tailscaleCommand();
-  const version = runCommand(command, ["version", "--short"]);
+  const version = runTailscaleCommand(["version", "--short"]);
   const installed = version.ok;
   const port = process.env.LIFEOS_PORT || process.env.PORT || 3000;
   let online = false;
@@ -325,7 +341,7 @@ function getTailscaleStatus() {
   let serveStatus = "";
 
   if (installed) {
-    const status = runCommand(command, ["status", "--json"]);
+    const status = runTailscaleCommand(["status", "--json"]);
     if (status.ok) {
       try {
         const parsed = JSON.parse(status.output);
@@ -341,7 +357,7 @@ function getTailscaleStatus() {
         online = status.output.toLowerCase().includes("logged in");
       }
     }
-    const serve = runCommand(command, ["serve", "status", "--json"]);
+    const serve = runTailscaleCommand(["serve", "status", "--json"]);
     serveStatus = serve.output;
     if (serve.ok) {
       serveRunning = Boolean(
@@ -398,7 +414,7 @@ export function startTailscaleHttpsServe(port = String(process.env.LIFEOS_PORT |
   if (!before.httpsServeUrl) throw new Error("Tailscale MagicDNS/HTTPS name was not detected. Enable MagicDNS and HTTPS certificates in Tailscale first.");
 
   const command = before.serveCommand || `tailscale serve --bg https:443 http://127.0.0.1:${port}`;
-  const result = runManagedCommand(tailscaleCommand(), ["serve", "--bg", "https:443", `http://127.0.0.1:${port}`]);
+  const result = runManagedTailscaleCommand(["serve", "--bg", "https:443", `http://127.0.0.1:${port}`]);
   if (!result.ok) throw new Error(result.output || "Failed to start Tailscale HTTPS Serve");
 
   const after = getTailscaleStatus();
@@ -414,7 +430,7 @@ export function startTailscaleHttpsServe(port = String(process.env.LIFEOS_PORT |
 export function stopTailscaleHttpsServe() {
   const before = getTailscaleStatus();
   if (!before.installed) throw new Error("Tailscale CLI was not detected.");
-  const result = runManagedCommand(tailscaleCommand(), ["serve", "--https=443", "off"]);
+  const result = runManagedTailscaleCommand(["serve", "--https=443", "off"]);
   if (!result.ok) throw new Error(result.output || "Failed to stop Tailscale HTTPS Serve");
   const after = getTailscaleStatus();
   return {

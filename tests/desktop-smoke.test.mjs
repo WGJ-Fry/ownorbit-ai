@@ -239,51 +239,28 @@ test("Electron desktop autostarts saved Tailscale HTTPS Serve config", async (t)
     baseUrl: "https://lifeos-mac.tailnet.example.ts.net",
     updatedAt: Date.now(),
   }, null, 2)}\n`);
-  const tailscalePath = path.join(binDir, process.platform === "win32" ? "tailscale.cmd" : "tailscale");
-  if (process.platform === "win32") {
-    await writeFile(tailscalePath, `@echo off
-echo %*>>"${commandLog}"
-if "%1"=="version" (
-  echo 1.66.4
-  exit /b 0
-)
-if "%1"=="status" (
-  echo {"Self":{"Online":true,"HostName":"lifeos-mac","TailscaleIPs":["100.64.0.10"]},"MagicDNSSuffix":"tailnet.example.ts.net"}
-  exit /b 0
-)
-if "%1"=="serve" if "%2"=="status" (
-  echo {}
-  exit /b 0
-)
-if "%1"=="serve" (
-  echo ok
-  exit /b 0
-)
-exit /b 1
+  const tailscalePath = path.join(binDir, "tailscale-mock.mjs");
+  await writeFile(tailscalePath, `import { appendFileSync } from "node:fs";
+const args = process.argv.slice(2);
+appendFileSync(${JSON.stringify(commandLog)}, args.join(" ") + "\\n");
+if (args[0] === "version") {
+  console.log("1.66.4");
+  process.exit(0);
+}
+if (args[0] === "status") {
+  console.log(JSON.stringify({ Self: { Online: true, HostName: "lifeos-mac", TailscaleIPs: ["100.64.0.10"] }, MagicDNSSuffix: "tailnet.example.ts.net" }));
+  process.exit(0);
+}
+if (args[0] === "serve" && args[1] === "status") {
+  console.log("{}");
+  process.exit(0);
+}
+if (args[0] === "serve") {
+  console.log("ok");
+  process.exit(0);
+}
+process.exit(1);
 `);
-  } else {
-    await writeFile(tailscalePath, `#!/bin/sh
-echo "$@" >> "${commandLog}"
-if [ "$1" = "version" ]; then
-  echo "1.66.4"
-  exit 0
-fi
-if [ "$1" = "status" ]; then
-  echo '{"Self":{"Online":true,"HostName":"lifeos-mac","TailscaleIPs":["100.64.0.10"]},"MagicDNSSuffix":"tailnet.example.ts.net"}'
-  exit 0
-fi
-if [ "$1" = "serve" ] && [ "$2" = "status" ]; then
-  echo '{}'
-  exit 0
-fi
-if [ "$1" = "serve" ]; then
-  echo "ok"
-  exit 0
-fi
-exit 1
-`);
-    await chmod(tailscalePath, 0o755);
-  }
 
   const child = spawn(electronBinaryPath(), ["desktop/main.cjs"], {
     cwd: rootDir,
@@ -299,7 +276,8 @@ exit 1
       LIFEOS_ALLOW_PUBLIC: "",
       LIFEOS_ADMIN_PASSWORD: "",
       LIFEOS_DESKTOP_USER_DATA_DIR: userDataDir,
-      LIFEOS_TAILSCALE_BIN: tailscalePath,
+      LIFEOS_TAILSCALE_BIN: process.execPath,
+      LIFEOS_TAILSCALE_BIN_ARGS: JSON.stringify([tailscalePath]),
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
