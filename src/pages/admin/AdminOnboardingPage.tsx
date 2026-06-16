@@ -28,6 +28,7 @@ export default function AdminOnboardingPage() {
   const [status, setStatus] = useState<string | null>(null);
 
   const activeProvider = useMemo(() => providers.find((provider) => provider.id === selectedProvider), [providers, selectedProvider]);
+  const isLocalProvider = selectedProvider === "local";
   const aiConfigured = providers.some((provider) => provider.configured);
   const latestBackup = backups[0];
   const hasBackup = backups.length > 0;
@@ -379,14 +380,23 @@ export default function AdminOnboardingPage() {
                 </div>
               </>
             ) : null}
+            <label className="mt-5 block text-xs font-bold uppercase tracking-wider text-zinc-500">
+              {isLocalProvider ? t("onboarding.localEndpointLabel") : t("onboarding.apiKeyLabel")}
+            </label>
             <input
               value={apiKey}
               onChange={(event) => setApiKey(event.target.value)}
-              type="password"
+              type={isLocalProvider ? "url" : "password"}
+              inputMode={isLocalProvider ? "url" : "text"}
+              autoCapitalize="none"
+              autoCorrect="off"
               disabled={busy === "ai" || activeProvider?.source === "environment"}
-              placeholder={activeProvider?.id === "local" ? "http://127.0.0.1:11434/v1" : activeProvider?.source === "environment" ? t("onboarding.envConfigured", { envVar: activeProvider.envVar }) : t("onboarding.apiKeyPlaceholder")}
-              className="mt-5 w-full rounded-xl border border-white/[0.08] bg-[#060a10] px-4 py-3 text-sm outline-none focus:border-cyan-400/60 disabled:opacity-55"
+              placeholder={isLocalProvider ? "http://127.0.0.1:11434/v1" : activeProvider?.source === "environment" ? t("onboarding.envConfigured", { envVar: activeProvider.envVar }) : t("onboarding.apiKeyPlaceholder")}
+              className="mt-2 w-full rounded-xl border border-white/[0.08] bg-[#060a10] px-4 py-3 text-sm outline-none focus:border-cyan-400/60 disabled:opacity-55"
             />
+            <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+              {isLocalProvider ? t("onboarding.localEndpointHint") : t("onboarding.apiKeyHint")}
+            </p>
             <button
               onClick={handleSaveAiKey}
               disabled={busy === "ai" || activeProvider?.source === "environment"}

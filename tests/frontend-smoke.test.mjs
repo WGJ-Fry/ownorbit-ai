@@ -281,11 +281,16 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.defaultProvider/);
   assert.match(onboardingSource, /onboarding\.setDefault/);
   assert.match(onboardingSource, /onboarding\.alreadyDefault/);
+  assert.match(onboardingSource, /onboarding\.localEndpointLabel/);
+  assert.match(onboardingSource, /type=\{isLocalProvider \? "url" : "password"\}/);
+  assert.match(onboardingSource, /onboarding\.apiKeyHint/);
   assert.match(onboardingSource, /onboarding\.openConnectionGuide/);
   assert.match(onboardingSource, /\/admin\/settings#mobile-connect/);
   assert.match(onboardingSource, /onboarding\.finish/);
   assert.match(onboardingSource, /completedSteps} \/ 4/);
   assert.match(translationsSource, /开启每日自动备份/);
+  assert.match(translationsSource, /本地模型端点/);
+  assert.match(translationsSource, /Local Model Endpoint/);
   assert.match(translationsSource, /Set as Default Chat Provider/);
   const mobileChatSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileChatPage.tsx"), "utf8");
   assert.match(mobileChatSource, /mobile\.pastePairing/);

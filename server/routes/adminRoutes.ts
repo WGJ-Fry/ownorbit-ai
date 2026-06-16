@@ -298,8 +298,10 @@ export function registerAdminRoutes(app: express.Express) {
       message: status.enabled
         ? status.configured
           ? `${status.provider} is configured.`
-          : `${status.provider}  has no key configured.`
-        : `${status.provider}  configuration saved.`,
+          : status.id === "local"
+            ? `${status.provider} has no endpoint configured.`
+            : `${status.provider} has no key configured.`
+        : `${status.provider} configuration is disabled.`,
     });
   });
 

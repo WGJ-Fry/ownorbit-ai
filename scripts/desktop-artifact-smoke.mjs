@@ -89,6 +89,35 @@ function findSignedMacDmg() {
   return matches[0] || "";
 }
 
+function findUnsignedMacZip() {
+  const arch = process.env.npm_config_arch || process.arch;
+  const expected = path.join(releaseDir, `${productName}-${packageJson.version}-${arch}-unsigned.zip`);
+  if (fs.existsSync(expected)) return expected;
+  const matches = walk(releaseDir).filter((file) => file.endsWith(`/${productName}-${packageJson.version}-${arch}-unsigned.zip`) || file.endsWith(`/${productName}-${packageJson.version}-unsigned.zip`));
+  return matches[0] || "";
+}
+
+function extractUnsignedMacApp() {
+  const zipPath = findUnsignedMacZip();
+  if (!zipPath) return null;
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "lifeos-unsigned-app-"));
+  const result = spawnSync("ditto", ["-x", "-k", zipPath, tempRoot], {
+    cwd: rootDir,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  if (result.status !== 0) {
+    fs.rmSync(tempRoot, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+    fail(`failed to extract unsigned macOS zip for verification\n${result.stdout || ""}${result.stderr || ""}`);
+  }
+  const appPath = path.join(tempRoot, `${productName}.app`);
+  if (!fs.existsSync(appPath)) {
+    fs.rmSync(tempRoot, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+    fail("unsigned macOS zip did not contain the app bundle");
+  }
+  return { appPath, tempRoot };
+}
+
 function detachMountedImage(imagePath) {
   const result = spawnSync("hdiutil", ["info"], { cwd: rootDir, encoding: "utf8" });
   if (result.status !== 0) return;
@@ -112,6 +141,14 @@ function unsetLaunchctlEnv(key) {
 
 function macAppPathFromBinary(binary) {
   return binary.slice(0, binary.lastIndexOf(".app/Contents/MacOS/") + 4);
+}
+
+function macAppBinaryFromAppPath(appPath) {
+  return path.join(appPath, "Contents", "MacOS", productName);
+}
+
+function macRendererHelperFromAppPath(appPath) {
+  return path.join(appPath, "Contents", "Frameworks", `${productName} Helper (Renderer).app`, "Contents", "MacOS", `${productName} Helper (Renderer)`);
 }
 
 function detectInterruptedMacBundle(appPath) {
@@ -229,6 +266,17 @@ function checkPackagedMacSignature() {
   const binary = findMacAppBinary();
   if (!binary) fail("packaged macOS app binary was not found");
   const appPath = macAppPathFromBinary(binary);
+  const interrupted = detectInterruptedMacBundle(appPath);
+  let verificationAppPath = appPath;
+  let tempRoot = "";
+  if (interrupted.interrupted) {
+    const extracted = extractUnsignedMacApp();
+    if (extracted) {
+      verificationAppPath = extracted.appPath;
+      tempRoot = extracted.tempRoot;
+      console.log("[WARN] release/mac-arm64 contains an interrupted app bundle; verifying the app inside the unsigned release zip instead");
+    }
+  }
   const result = spawn("codesign", ["--verify", "--deep", "--strict", "--verbose=2", appPath], {
     cwd: rootDir,
     stdio: ["ignore", "pipe", "pipe"],
@@ -244,11 +292,28 @@ function checkPackagedMacSignature() {
         const interruptedBundle = combined.includes("code has no resources but signature indicates they must be present");
         if (process.env.LIFEOS_ARTIFACT_SMOKE_LAUNCH === "1" && signedDmgExists && interruptedBundle) {
           console.log("[WARN] release/mac-arm64 contains an interrupted app bundle; skipping direct signature verification and relying on the signed DMG launch smoke");
+          if (tempRoot) fs.rmSync(tempRoot, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
           resolve();
           return;
         }
+        if (verificationAppPath !== appPath && interruptedBundle) {
+          const fallback = spawnSync("codesign", ["--verify", "--deep", "--strict", "--verbose=2", verificationAppPath], {
+            cwd: rootDir,
+            encoding: "utf8",
+            stdio: ["ignore", "pipe", "pipe"],
+          });
+          if (tempRoot) fs.rmSync(tempRoot, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+          if (fallback.status === 0) {
+            pass("packaged macOS app has a valid ad-hoc signature in the unsigned release zip");
+            resolve();
+            return;
+          }
+          fail(`packaged macOS app signature is invalid in release/mac-arm64 and unsigned zip\n${combined}${fallback.stdout || ""}${fallback.stderr || ""}`);
+        }
+        if (tempRoot) fs.rmSync(tempRoot, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
         fail(`packaged macOS app signature is invalid\n${combined}`);
       }
+      if (tempRoot) fs.rmSync(tempRoot, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
       pass("packaged macOS app has a valid ad-hoc signature");
       resolve();
     });
@@ -271,20 +336,34 @@ function checkPackagedMacEntitlements() {
     console.log("[WARN] release/mac-arm64 contains an interrupted app bundle; skipping direct entitlement verification and relying on the signed DMG launch smoke");
     return;
   }
+  let entitlementAppPath = appPath;
+  let entitlementRendererHelper = rendererHelper;
+  let tempRoot = "";
+  if (interruptedBundle) {
+    const extracted = extractUnsignedMacApp();
+    if (extracted) {
+      entitlementAppPath = extracted.appPath;
+      entitlementRendererHelper = macRendererHelperFromAppPath(extracted.appPath);
+      tempRoot = extracted.tempRoot;
+      console.log("[WARN] release/mac-arm64 contains an interrupted app bundle; verifying entitlements inside the unsigned release zip instead");
+    }
+  }
   const requiredEntitlements = [
     "com.apple.security.cs.allow-jit",
     "com.apple.security.cs.allow-unsigned-executable-memory",
     "com.apple.security.cs.disable-library-validation",
   ];
   return Promise.all([
-    readEntitlements(macAppPathFromBinary(binary)),
-    readEntitlements(macAppPathFromBinary(rendererHelper)),
+    readEntitlements(entitlementAppPath),
+    readEntitlements(macAppPathFromBinary(entitlementRendererHelper)),
   ]).then(([appEntitlements, rendererEntitlements]) => {
     for (const entitlement of requiredEntitlements) {
       if (!appEntitlements.includes(entitlement)) fail(`packaged macOS app is missing entitlement: ${entitlement}`);
       if (!rendererEntitlements.includes(entitlement)) fail(`packaged macOS renderer helper is missing entitlement: ${entitlement}`);
     }
     pass("packaged macOS app and renderer helper include Electron runtime entitlements");
+  }).finally(() => {
+    if (tempRoot) fs.rmSync(tempRoot, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 }
 

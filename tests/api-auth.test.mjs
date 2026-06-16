@@ -424,6 +424,13 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(credentialedLocalProvider.status, 400);
   assert.equal(JSON.stringify(credentialedLocalProvider.body).includes("endpoint-secret"), false);
   assert.equal(JSON.stringify(credentialedLocalProvider.body).includes("user:password"), false);
+  const testedMissingLocalProvider = await request(port, "/api/v1/admin/ai-providers/local/test", {
+    method: "POST",
+    headers: adminHeaders,
+  }).then((res) => res.json());
+  assert.equal(testedMissingLocalProvider.ok, false);
+  assert.match(testedMissingLocalProvider.message, /endpoint configured/);
+  assert.doesNotMatch(testedMissingLocalProvider.message, /key configured/);
   const openAiKey = "sk-test-openai-value-should-not-leak";
   const savedOpenAi = await request(port, "/api/v1/admin/ai-providers/openai/key", {
     method: "PUT",
