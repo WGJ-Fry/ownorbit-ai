@@ -1424,10 +1424,12 @@ function checkAudit() {
     return;
   }
 
-  const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+  const npmExecPath = process.env.npm_execpath || "";
+  const auditCommand = npmExecPath ? process.execPath : process.platform === "win32" ? "npm.cmd" : "npm";
+  const auditArgsPrefix = npmExecPath ? [npmExecPath] : [];
   let lastAudit;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
-    lastAudit = spawnSync(npmCommand, ["audit", "--audit-level=high"], {
+    lastAudit = spawnSync(auditCommand, [...auditArgsPrefix, "audit", "--audit-level=high"], {
       cwd: rootDir,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
