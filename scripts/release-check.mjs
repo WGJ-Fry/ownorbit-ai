@@ -1424,13 +1424,18 @@ function checkAudit() {
     return;
   }
 
+  const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
   let lastAudit;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
-    lastAudit = spawnSync("npm", ["audit", "--audit-level=high"], {
+    lastAudit = spawnSync(npmCommand, ["audit", "--audit-level=high"], {
       cwd: rootDir,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
     });
+    if (lastAudit.error) {
+      fail(`npm audit could not start: ${lastAudit.error.message}`);
+      return;
+    }
     if (lastAudit.status === 0) {
       pass(attempt === 1 ? "npm audit found no high severity vulnerabilities" : `npm audit found no high severity vulnerabilities after ${attempt} attempts`);
       return;
