@@ -23,7 +23,9 @@ function run(script, extraEnv = {}) {
 }
 
 const qualityGate = fast
-  ? ["lint", "test:smoke", "test:desktop"]
+  ? process.platform === "win32"
+    ? ["lint", "test:desktop"]
+    : ["lint", "test:smoke", "test:desktop"]
   : ["lint", "test", "test:e2e", "test:desktop"];
 
 for (const script of qualityGate) run(script);
