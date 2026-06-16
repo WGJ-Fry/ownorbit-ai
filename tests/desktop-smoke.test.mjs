@@ -299,6 +299,7 @@ exit 1
       LIFEOS_ALLOW_PUBLIC: "",
       LIFEOS_ADMIN_PASSWORD: "",
       LIFEOS_DESKTOP_USER_DATA_DIR: userDataDir,
+      LIFEOS_TAILSCALE_BIN: tailscalePath,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
