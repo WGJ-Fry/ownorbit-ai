@@ -269,6 +269,8 @@ release/update-feed/release-manifest.json
 
 LifeOS AI is a local-first personal AI assistant with a Studio workshop that generates runnable offline programs for the problem you are trying to solve. The desktop app runs the local backend, connects to AI providers, stores SQLite data, manages devices and security settings, and serves the mobile experience. The phone uses a browser/PWA after pairing.
 
+![LifeOS AI English admin onboarding screenshot](public/screenshots/en-admin-onboarding.jpg)
+
 ## Understand It In 30 Seconds
 
 LifeOS AI is a personal AI assistant designed for long-term everyday use. It connects problem understanding, generated solution apps, your desktop, phone, AI providers, network access, and local capabilities into one system:
@@ -305,6 +307,14 @@ LifeOS AI is not just another chat box. It is a long-lived personal AI system: y
 | Generate solution apps | Turn the current problem into a runnable offline program for accounting, planning, organizing, habit tracking, calculators, forms, and workflow panels. |
 | Safer local actions | Open maps, web pages, phone, SMS, mail, and shortcuts only through allowlists and confirmations. |
 | Long-term use | Backups, restore tasks, diagnostics, migrations, and release checks make the system maintainable. |
+
+## Interface Preview
+
+These are real English UI screenshots from the current running app, not concept art.
+
+| First launch and safety check | VPN / tunnel connection guide | Mobile pairing entry |
+| --- | --- | --- |
+| ![Real English admin onboarding screenshot](public/screenshots/en-admin-onboarding.jpg) | ![Real English tunnel and VPN connection guide screenshot](public/screenshots/en-connection-tunnel-vpn.jpg) | ![Real English mobile device screenshot](public/screenshots/en-mobile-device.jpg) |
 
 ## Download And Install
 
