@@ -129,13 +129,75 @@ npm run release:check
 
 ```mermaid
 flowchart LR
-  Phone["手机端 PWA<br/>聊天 / 离线队列 / 动作确认"] --> Core["电脑端私有核心<br/>认证 / 绑定 / WebSocket / API"]
-  Core --> Data["SQLite 本地数据<br/>聊天 / 记忆 / 设备 / 审计 / 备份"]
-  Core --> AI["AI Provider<br/>Gemini / OpenAI / OpenRouter / 本地模型"]
-  Core --> Studio["Studio 工坊<br/>按问题生成解决程序"]
-  Core --> Network["连接向导<br/>LAN / Tailscale / Cloudflare Tunnel"]
-  Core --> Actions["本地动作<br/>URL Scheme 白名单 / 二次确认"]
+  User["用户"] --> Desktop["电脑端桌面应用<br/>首次启动 / 管理员认证 / 仪表盘 / 设置 / 诊断"]
+  User --> Phone["手机端 PWA<br/>聊天 / 离线队列 / 设备状态 / 动作确认"]
+  Desktop --> Core["本地核心服务<br/>Express API / WebSocket / 绑定 / 鉴权"]
+  Phone --> Core
+  Core --> Studio["Studio 工坊<br/>按问题生成程序 / 调试 / 预览"]
+  Core --> AI["AI Provider 层<br/>Gemini / OpenAI / OpenRouter / 本地模型"]
+  Core --> Data["SQLite 数据层<br/>聊天 / 记忆 / 设备 / 审计 / 备份"]
+  Core --> Network["连接层<br/>LAN / Tailscale / Cloudflare Tunnel / HTTPS 反代"]
+  Core --> Actions["本地动作层<br/>导航 / 网页 / 电话 / 短信 / 邮件 / 快捷指令"]
+  Actions --> Guard["安全护栏<br/>URL Scheme 白名单 / 危险确认 / 审计脱敏"]
 ```
+
+### 能力分层
+
+| 层级 | 负责什么 | 典型能力 |
+| --- | --- | --- |
+| 用户入口层 | 让用户随时随地进入系统 | 电脑端管理、手机端聊天、扫码绑定、PWA 安装到主屏幕 |
+| AI 工作层 | 把对话变成真正可执行的帮助 | 普通聊天、记忆调用、自动生成解决问题的程序、继续调试 |
+| 系统能力层 | 让 AI 能接触真实世界但不失控 | 联网访问、调用本地动作、生成导航/电话/网页/快捷指令 |
+| 数据持久层 | 把长期使用需要的数据统一收住 | SQLite 聊天、记忆、设备、审计、备份、迁移 |
+| 安全运维层 | 保证能长期自用且不会轻易出事 | 管理员认证、CSRF、限速、白名单、危险确认、诊断包 |
+
+| 模块 | 用户能做什么 | 背后依赖 |
+| --- | --- | --- |
+| 电脑端桌面应用 | 完成首次启动、配置管理员密码、配置 AI、查看安全状态、导出诊断 | Electron、本地核心、管理端 UI |
+| 手机端 PWA | 随时聊天、补写离线消息、查看连接状态、确认本地动作 | 浏览器/PWA、绑定凭证、后台同步、WebSocket |
+| Studio 工坊 | 把当前问题变成可运行程序，用来记账、规划、查询、整理、打卡、计算、表单、流程面板等 | AI provider、沙箱运行时、源码编辑、持久化 |
+| AI Provider 层 | 在 Gemini、OpenAI、OpenRouter、本地模型之间切换 | 电脑端密钥存储、模型配置、请求路由 |
+| SQLite 数据层 | 长期保存聊天、记忆、设备、审计、备份元数据 | 本地数据库、迁移文件、备份恢复 |
+| 连接层 | 局域网访问、异地访问、生成手机入口、验收远程入口 | LAN、Tailscale、Cloudflare Tunnel、可信 HTTPS |
+| 本地动作层 | 安全打开导航、网页、电话、短信、邮件、快捷指令 | URL Scheme、白名单、风险分级、确认弹窗 |
+| 安全与运维 | 登录保护、CSRF、防误公网暴露、备份恢复、诊断包、发布校验 | HttpOnly Cookie、限速、审计脱敏、测试门禁 |
+
+## 系统数据流
+
+```mermaid
+sequenceDiagram
+  participant U as 用户
+  participant P as 手机端 PWA
+  participant D as 电脑端桌面应用
+  participant C as 本地核心服务
+  participant A as AI Provider
+  participant S as Studio/本地动作
+  participant DB as SQLite
+
+  U->>P: 发消息 / 提需求
+  P->>C: 带设备凭证请求聊天或任务
+  C->>A: 调用模型理解问题
+  A-->>C: 返回回复或程序方案
+  alt 需要生成程序
+    C->>S: 创建或更新可运行程序
+    S-->>C: 返回程序结果 / 状态
+  else 需要本地动作
+    C->>P: 下发确认请求
+    P-->>C: 用户确认或拒绝
+    C->>S: 执行动作
+  end
+  C->>DB: 写入聊天、记忆、设备、审计
+  D->>C: 查看设置、备份、诊断、连接状态
+  C-->>P: 返回结果并同步状态
+```
+
+## 使用路径
+
+1. 电脑端先完成管理员认证、AI 配置和初始备份。
+2. 手机端通过二维码或绑定链接接入，成为日常入口。
+3. 日常使用既可以直接聊天，也可以把具体问题交给 Studio 生成程序处理。
+4. 数据统一回到电脑端 SQLite，本地动作统一经过白名单和确认。
+5. 同局域网用 LAN；不在同一局域网时用 Tailscale、Cloudflare Tunnel 或可信 HTTPS 入口。
 
 ## 普通用户安装
 
@@ -307,6 +369,80 @@ LifeOS AI is not just another chat box. It is a long-lived personal AI system: y
 | Generate solution apps | Turn the current problem into a runnable offline program for accounting, planning, organizing, habit tracking, calculators, forms, and workflow panels. |
 | Safer local actions | Open maps, web pages, phone, SMS, mail, and shortcuts only through allowlists and confirmations. |
 | Long-term use | Backups, restore tasks, diagnostics, migrations, and release checks make the system maintainable. |
+
+## Feature Map
+
+```mermaid
+flowchart LR
+  User["User"] --> Desktop["Desktop App<br/>First launch / Admin auth / Dashboard / Settings / Diagnostics"]
+  User --> Phone["Mobile PWA<br/>Chat / Offline queue / Device state / Action confirmations"]
+  Desktop --> Core["Local Core Service<br/>Express API / WebSocket / Pairing / Auth"]
+  Phone --> Core
+  Core --> Studio["Studio Workshop<br/>Generate apps / Refine / Preview"]
+  Core --> AI["AI Provider Layer<br/>Gemini / OpenAI / OpenRouter / Local models"]
+  Core --> Data["SQLite Data Layer<br/>Chats / Memory / Devices / Audit / Backups"]
+  Core --> Network["Connectivity Layer<br/>LAN / Tailscale / Cloudflare Tunnel / HTTPS proxy"]
+  Core --> Actions["Local Action Layer<br/>Maps / Web / Phone / SMS / Mail / Shortcuts"]
+  Actions --> Guard["Safety Guardrails<br/>URL Scheme allowlist / Dangerous-action confirmation / Redacted audit"]
+```
+
+### Capability Layers
+
+| Layer | What it owns | Example capabilities |
+| --- | --- | --- |
+| User entry layer | How the user gets into the system every day | Desktop admin, mobile chat, QR pairing, install-to-home-screen PWA |
+| AI work layer | How conversation becomes real help | Chat, memory recall, generate a solution app, keep refining it |
+| System capability layer | How AI can reach the outside world safely | Network access, local actions, maps, phone, web, shortcuts |
+| Persistence layer | How long-term data stays organized | SQLite chats, memory, devices, audit events, backups, migrations |
+| Safety and operations layer | How the system stays usable over time | Admin auth, CSRF, rate limits, allowlists, confirmations, diagnostics |
+
+| Module | What the user gets | What it depends on |
+| --- | --- | --- |
+| Desktop app | First-run setup, admin password, AI configuration, security overview, diagnostics export | Electron shell, local core, desktop admin UI |
+| Mobile PWA | Everyday chat, offline message retry, connection status, local-action approvals | Browser/PWA, paired device credential, background sync, WebSocket |
+| Studio workshop | Turn a current problem into a runnable app for accounting, planning, search, organizing, habit tracking, calculators, forms, and workflow panels | AI providers, sandbox runtime, code editor, persistence |
+| AI provider layer | Switch between Gemini, OpenAI, OpenRouter, or local models | Desktop key storage, model settings, request routing |
+| SQLite data layer | Keep chats, memories, devices, audit events, and backup metadata on the computer | Local database, migrations, backup/restore |
+| Connectivity layer | Same-Wi-Fi access, remote access, mobile entry generation, remote smoke validation | LAN, Tailscale, Cloudflare Tunnel, trusted HTTPS |
+| Local action layer | Safer launch of maps, web pages, phone, SMS, mail, and shortcuts | URL Schemes, allowlist, risk grading, confirmation UI |
+| Security and operations | Login protection, CSRF, remote-access safety, backups, diagnostics, release validation | HttpOnly cookies, rate limits, redaction, test gates |
+
+## System Data Flow
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant P as Mobile PWA
+  participant D as Desktop App
+  participant C as Local Core Service
+  participant A as AI Provider
+  participant S as Studio/Local Actions
+  participant DB as SQLite
+
+  U->>P: Send a message or describe a problem
+  P->>C: Request with paired device credential
+  C->>A: Ask the model to understand the task
+  A-->>C: Return a reply or app-generation plan
+  alt Needs a generated app
+    C->>S: Create or update a runnable program
+    S-->>C: Return program result or state
+  else Needs a local action
+    C->>P: Ask for confirmation
+    P-->>C: Approve or deny
+    C->>S: Execute the action
+  end
+  C->>DB: Persist chats, memory, devices, and audits
+  D->>C: Read settings, backups, diagnostics, and connection state
+  C-->>P: Return result and sync status
+```
+
+## Usage Flow
+
+1. The desktop app handles admin auth, AI setup, and the first backup.
+2. The phone pairs by QR code or pairing link and becomes the everyday entry point.
+3. Daily use can stay in chat, or move into Studio when the user needs a generated solution app.
+4. Data flows back to desktop SQLite, while local actions always go through allowlists and confirmations.
+5. LAN works on the same Wi-Fi; remote use goes through Tailscale, Cloudflare Tunnel, or a trusted HTTPS entry.
 
 ## Interface Preview
 
