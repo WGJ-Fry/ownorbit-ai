@@ -70,14 +70,22 @@ function findMacRendererHelper() {
 }
 
 function findWindowsUnpackedBinary() {
-  const matches = walk(releaseDir).filter((file) => file.endsWith(`win-unpacked/${productName}.exe`));
+  const expected = path.join(releaseDir, "win-unpacked", `${productName}.exe`);
+  if (fs.existsSync(expected)) return expected;
+  const matches = walk(releaseDir).filter((file) => {
+    const parts = path.relative(releaseDir, file).split(path.sep);
+    return parts.includes("win-unpacked") && path.basename(file) === `${productName}.exe`;
+  });
   return matches[0] || "";
 }
 
 function findLinuxUnpackedBinary() {
   const expected = path.join(releaseDir, "linux-unpacked", packageJson.name);
   if (fs.existsSync(expected)) return expected;
-  const matches = walk(releaseDir).filter((file) => file.endsWith("/linux-unpacked/lifeos-ai") || file.endsWith(`/linux-unpacked/${productName}`));
+  const matches = walk(releaseDir).filter((file) => {
+    const parts = path.relative(releaseDir, file).split(path.sep);
+    return parts.includes("linux-unpacked") && [packageJson.name, productName].includes(path.basename(file));
+  });
   return matches[0] || "";
 }
 
