@@ -251,12 +251,23 @@ test("mobile recovery hints combine entry type, failed probes, and offline queue
     "mobileDevice.connectivityGuidanceFailedQueue",
   ]);
 
-  const tailscaleHints = getMobileRecoveryHints({
+  const tailscaleHttpsHints = getMobileRecoveryHints({
     ...result,
+    currentBase: "https://desktop.tailnet.ts.net",
     steps: [{ id: "health", ok: true, url: "/api/v1/health", latencyMs: 10 }, result.steps[1]],
   }, "tailscale", { pending: 0, failed: 0 });
-  assert.deepEqual(tailscaleHints, [
+  assert.deepEqual(tailscaleHttpsHints, [
     "mobileDevice.connectivityGuidanceTailscale",
+    "mobileDevice.connectivityGuidanceWebSocket",
+  ]);
+
+  const tailscaleHttpHints = getMobileRecoveryHints({
+    ...result,
+    currentBase: "http://100.100.100.100:3000",
+    steps: [{ id: "health", ok: true, url: "/api/v1/health", latencyMs: 10 }, result.steps[1]],
+  }, "tailscale", { pending: 0, failed: 0 });
+  assert.deepEqual(tailscaleHttpHints, [
+    "mobileDevice.connectivityGuidanceTailscaleHttp",
     "mobileDevice.connectivityGuidanceWebSocket",
   ]);
 });

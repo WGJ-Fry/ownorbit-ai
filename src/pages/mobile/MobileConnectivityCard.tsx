@@ -1,4 +1,4 @@
-import { getMobileRecoveryHints, type MobileConnectivityResult, type RemoteEntryKind } from "../../services/pwaCapabilities";
+import { getMobileRecoveryHints, isHttpRemoteBase, type MobileConnectivityResult, type RemoteEntryKind } from "../../services/pwaCapabilities";
 import { useI18n } from "../../i18n/I18nProvider";
 
 export default function MobileConnectivityCard({
@@ -16,7 +16,8 @@ export default function MobileConnectivityCard({
   const passed = result.steps.filter((step) => step.ok).length;
   const websocketFailed = result.steps.some((step) => step.id === "websocket" && !step.ok);
   const recoveryHints = getMobileRecoveryHints(result, entryKind, queueSummary);
-  const showRebind = entryKind === "temporary-cloudflare" || entryKind === "same-lan" || entryKind === "localhost" || entryKind === "configured-mismatch";
+  const tailscaleHttpFallback = entryKind === "tailscale" && isHttpRemoteBase(result.currentBase);
+  const showRebind = tailscaleHttpFallback || entryKind === "temporary-cloudflare" || entryKind === "same-lan" || entryKind === "localhost" || entryKind === "configured-mismatch";
   const showTailscale = entryKind === "tailscale";
   return (
     <div className={`mt-4 rounded-2xl border p-3 text-sm ${result.ok ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100" : "border-red-400/20 bg-red-500/10 text-red-100"}`}>

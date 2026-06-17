@@ -48,6 +48,7 @@ export type MobileConnectivityResult = {
 export type MobileRecoveryHintKey =
   | "mobileDevice.connectivityGuidanceTemporary"
   | "mobileDevice.connectivityGuidanceTailscale"
+  | "mobileDevice.connectivityGuidanceTailscaleHttp"
   | "mobileDevice.connectivityGuidanceLan"
   | "mobileDevice.connectivityGuidanceLocalhost"
   | "mobileDevice.connectivityGuidanceHttps"
@@ -87,6 +88,15 @@ function currentBasePathFromHref(currentHref?: string) {
     return pathname === "/" ? "" : pathname;
   } catch {
     return "";
+  }
+}
+
+export function isHttpRemoteBase(value?: string | null) {
+  if (!value) return false;
+  try {
+    return new URL(value).protocol === "http:";
+  } catch {
+    return value.startsWith("http://");
   }
 }
 
@@ -310,7 +320,9 @@ export function getMobileRecoveryHints(
   const healthFailed = result.steps.some((step) => step.id === "health" && !step.ok);
   const websocketFailed = result.steps.some((step) => step.id === "websocket" && !step.ok);
   if (entryKind === "temporary-cloudflare") hints.add("mobileDevice.connectivityGuidanceTemporary");
-  else if (entryKind === "tailscale") hints.add("mobileDevice.connectivityGuidanceTailscale");
+  else if (entryKind === "tailscale") {
+    hints.add(isHttpRemoteBase(result.currentBase) ? "mobileDevice.connectivityGuidanceTailscaleHttp" : "mobileDevice.connectivityGuidanceTailscale");
+  }
   else if (entryKind === "same-lan") hints.add("mobileDevice.connectivityGuidanceLan");
   else if (entryKind === "localhost") hints.add("mobileDevice.connectivityGuidanceLocalhost");
   else if (entryKind === "stable-https" || entryKind === "configured-match") hints.add("mobileDevice.connectivityGuidanceHttps");

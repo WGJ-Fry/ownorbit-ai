@@ -353,6 +353,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceSource, /onRetry=\{handleConnectivityTest\}/);
   const mobileConnectivityCardSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileConnectivityCard.tsx"), "utf8");
   assert.match(mobileConnectivityCardSource, /getMobileRecoveryHints/);
+  assert.match(mobileConnectivityCardSource, /isHttpRemoteBase/);
+  assert.match(mobileConnectivityCardSource, /tailscaleHttpFallback/);
   assert.match(mobileConnectivityCardSource, /queueSummary/);
   assert.match(mobileConnectivityCardSource, /tailscale:\/\//);
   assert.match(mobileConnectivityCardSource, /mobileDevice\.openTailscale/);
@@ -365,6 +367,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /离线消息同步失败/);
   assert.match(translationsSource, /实时聊天通道/);
   assert.match(translationsSource, /Tailscale HTTPS 入口/);
+  assert.match(translationsSource, /Tailscale HTTP 临时兜底入口/);
   assert.match(translationsSource, /同局域网入口/);
   assert.match(translationsSource, /当前使用临时 Cloudflare 地址/);
   assert.match(translationsSource, /当前入口与电脑端配置不一致/);
@@ -375,6 +378,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(pwaCapabilitiesSource, /indexedDbSupported/);
   assert.match(pwaCapabilitiesSource, /getRemoteEntryStatus/);
   assert.match(pwaCapabilitiesSource, /getMobileRecoveryHints/);
+  assert.match(pwaCapabilitiesSource, /connectivityGuidanceTailscaleHttp/);
   assert.match(pwaCapabilitiesSource, /connectivityGuidanceFailedQueue/);
   assert.match(pwaCapabilitiesSource, /testMobileRemoteConnectivity/);
   assert.match(pwaCapabilitiesSource, /\/api\/v1\/health/);

@@ -884,6 +884,7 @@ function checkAssets() {
     pwaCapabilitiesSource.includes("temporary-cloudflare") &&
     pwaCapabilitiesSource.includes("configured-mismatch") &&
     pwaCapabilitiesSource.includes("connectivityGuidanceHealth") &&
+    pwaCapabilitiesSource.includes("connectivityGuidanceTailscaleHttp") &&
     pwaCapabilitiesSource.includes("connectivityGuidanceOfflineQueue") &&
     pwaCapabilitiesSource.includes("connectivityGuidanceFailedQueue") &&
     pwaCapabilitiesSource.includes("serviceWorkerControlled") &&
@@ -897,6 +898,7 @@ function checkAssets() {
     mobileDeviceSource.includes("onRetry={handleConnectivityTest}") &&
     mobileDeviceSource.includes("queueSummary={queueSummary}") &&
     mobileConnectivityCardSource.includes("getMobileRecoveryHints") &&
+    mobileConnectivityCardSource.includes("isHttpRemoteBase") &&
     mobileConnectivityCardSource.includes("queueSummary") &&
     mobileConnectivityCardSource.includes("tailscale://") &&
     mobileConnectivityCardSource.includes("mobileDevice.openTailscale") &&
@@ -919,6 +921,7 @@ function checkAssets() {
     frontendSmokeTestSource.includes("queueSummary=\\{queueSummary\\}") &&
     frontendSmokeTestSource.includes("getMobileRecoveryHints") &&
     translationsSource.includes("connectivityGuidanceHealth") &&
+    translationsSource.includes("connectivityGuidanceTailscaleHttp") &&
     translationsSource.includes("connectivityGuidanceOfflineQueue") &&
     translationsSource.includes("connectivityGuidanceFailedQueue") &&
     translationsSource.includes("mobileDevice.pwaTitle")
