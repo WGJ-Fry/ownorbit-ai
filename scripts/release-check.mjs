@@ -135,7 +135,7 @@ function checkSourceSizeBudgets() {
 }
 
 function checkScripts() {
-  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "remote:mock-smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:feed"]) {
+  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "remote:acceptance", "remote:mock-smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:feed"]) {
     if (hasScript(script)) pass(`package script exists: ${script}`);
     else fail(`missing package script: ${script}`);
   }
@@ -181,6 +181,23 @@ function checkScripts() {
     else fail("remote mock smoke must be wired into package scripts and GitHub Actions with health/mobile/websocket coverage");
   } else {
     fail("missing remote mock smoke script: scripts/remote-connection-mock-smoke.mjs");
+  }
+
+  if (exists("scripts/remote-acceptance-runbook.mjs")) {
+    const remoteAcceptance = fs.readFileSync(path.join(rootDir, "scripts/remote-acceptance-runbook.mjs"), "utf8");
+    const remoteSmokeTest = exists("tests/remote-connection-smoke.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/remote-connection-smoke.test.mjs"), "utf8") : "";
+    if (
+      packageJson.scripts?.["remote:acceptance"]?.includes("remote-acceptance-runbook.mjs") &&
+      remoteAcceptance.includes("runRemoteConnectionSmoke") &&
+      remoteAcceptance.includes("temporary-cloudflare") &&
+      remoteAcceptance.includes("cellular-mobile-chat") &&
+      remoteAcceptance.includes("restart-restore") &&
+      remoteAcceptance.includes("LIFEOS_REMOTE_ACCEPTANCE_OUT") &&
+      remoteSmokeTest.includes("remote acceptance runbook writes long-term evidence")
+    ) pass("remote acceptance runbook generates evidence for long-term manual validation");
+    else fail("remote acceptance runbook must cover smoke, temporary tunnel status, cellular/restart manual checks, evidence output, and tests");
+  } else {
+    fail("missing remote acceptance runbook script: scripts/remote-acceptance-runbook.mjs");
   }
 
   if (exists("scripts/desktop-release-smoke.mjs")) {
