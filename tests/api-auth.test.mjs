@@ -320,13 +320,27 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     body: JSON.stringify({ mode: "configured", label: "Insecure public", baseUrl: "http://public.example.com" }),
   });
   assert.equal(insecureDesktopConnectionConfig.status, 400);
-  const desktopConnectionConfig = await request(port, "/api/v1/admin/desktop-connection-config", {
+  const unsafeRemoteDesktopConnectionConfig = await request(port, "/api/v1/admin/desktop-connection-config", {
     method: "PUT",
     headers: adminHeaders,
     body: JSON.stringify({
       mode: "cloudflare",
       label: "Cloudflare Smoke",
       baseUrl: "https://user:password@desktop-config.example.com/mobile?token=desktop-secret#debug",
+    }),
+  });
+  assert.equal(unsafeRemoteDesktopConnectionConfig.status, 400);
+  const unsafeRemoteBody = await unsafeRemoteDesktopConnectionConfig.json();
+  assert.match(unsafeRemoteBody.error, /username, password, token, query, or fragment/);
+  assert.equal(JSON.stringify(unsafeRemoteBody).includes("desktop-secret"), false);
+  assert.equal(JSON.stringify(unsafeRemoteBody).includes("user:password"), false);
+  const desktopConnectionConfig = await request(port, "/api/v1/admin/desktop-connection-config", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      mode: "cloudflare",
+      label: "Cloudflare Smoke",
+      baseUrl: "https://desktop-config.example.com/mobile",
     }),
   }).then((res) => res.json());
   assert.equal(desktopConnectionConfig.restartRequired, true);

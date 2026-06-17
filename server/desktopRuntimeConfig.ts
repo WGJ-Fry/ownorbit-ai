@@ -37,6 +37,19 @@ function normalizePort(value: unknown, fallback: number) {
   return port;
 }
 
+function rejectUnsafeSavedBaseUrl(value: unknown) {
+  const raw = String(value || "").trim();
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return;
+  }
+  if (parsed.username || parsed.password || parsed.search || parsed.hash) {
+    throw new Error("Desktop connection baseUrl must not contain username, password, token, query, or fragment");
+  }
+}
+
 export function normalizeDesktopRuntimeConfig(input: {
   mode?: unknown;
   label?: unknown;
@@ -44,6 +57,7 @@ export function normalizeDesktopRuntimeConfig(input: {
 }) {
   const mode = normalizeMode(input.mode);
   const fallbackPort = normalizePort(process.env.LIFEOS_PORT || process.env.PORT || "3000", 3000);
+  rejectUnsafeSavedBaseUrl(input.baseUrl);
   const normalizedBaseUrl = normalizePublicBaseUrl(input.baseUrl);
   if (!normalizedBaseUrl) throw new Error("Desktop connection baseUrl must be a valid HTTP/HTTPS URL");
   const parsed = new URL(normalizedBaseUrl);
