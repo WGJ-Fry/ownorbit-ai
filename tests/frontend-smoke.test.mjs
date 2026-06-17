@@ -556,6 +556,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(remoteHealthSummaryCardSource, /connection\.health\.status\.healthy/);
   assert.match(remoteHealthSummaryCardSource, /connection\.health\.check\.websocket/);
   assert.match(remoteHealthSummaryCardSource, /connection\.health\.recommendation\.replaceTemporaryTunnel/);
+  assert.match(remoteHealthSummaryCardSource, /connection\.health\.recommendation\.refreshPairingQr/);
   const customRemoteEntrySource = await readFile(path.join(rootDir, "src", "pages", "admin", "CustomRemoteEntryCard.tsx"), "utf8");
   assert.match(customRemoteEntrySource, /connection\.customTitle/);
   assert.match(customRemoteEntrySource, /testConnectionUrl/);

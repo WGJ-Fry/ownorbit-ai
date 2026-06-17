@@ -182,6 +182,11 @@ export function getBindingSessionById(bindingId: string) {
   return row ? mapBindingSession(row) : undefined;
 }
 
+export function getLatestBindingSession() {
+  const row = db.prepare("SELECT * FROM binding_sessions ORDER BY created_at DESC LIMIT 1").get();
+  return row ? mapBindingSession(row) : undefined;
+}
+
 export function getOpenBindingSessionByToken(token: string, now: number) {
   const row = db
     .prepare("SELECT * FROM binding_sessions WHERE token_hash = ? AND expires_at > ? AND confirmed_at IS NULL")

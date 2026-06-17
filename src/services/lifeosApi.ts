@@ -310,6 +310,7 @@ export type NetworkDiagnostics = {
       | "fix-health-check"
       | "fix-mobile-shell"
       | "fix-websocket"
+      | "refresh-pairing-qr"
       | "ready"
     >;
     checks: Array<{
@@ -318,6 +319,12 @@ export type NetworkDiagnostics = {
       detail?: string;
     }>;
   };
+  latestBindingSession: {
+    id: string;
+    expiresAt: number;
+    confirmedAt: number | null;
+    expired: boolean;
+  } | null;
   cloudflare: {
     installed: boolean;
     running: boolean;

@@ -16,6 +16,7 @@ import { setClientState } from "../clientState";
 import { evaluatePasswordPolicy, getSecurityDiagnostics } from "../securityDiagnostics";
 import { getOnboardingStatus, markOnboardingComplete } from "../onboarding";
 import { getBackupSchedule } from "../backupSchedule";
+import { getLatestBindingSession } from "../devices";
 
 const loginFailures = new Map<string, { count: number; lockedUntil: number }>();
 
@@ -52,14 +53,24 @@ function getDataDirDiagnosticLabel() {
 function getAdminNetworkDiagnostics() {
   const diagnostics = getNetworkDiagnostics();
   const remoteValidationReport = getRemoteValidationReport();
+  const latestBindingSession = getLatestBindingSession();
   return {
     ...diagnostics,
     cloudflareNamedTunnel: getCloudflareNamedTunnelStatus(),
     remoteValidationReport,
+    latestBindingSession: latestBindingSession
+      ? {
+        id: latestBindingSession.id,
+        expiresAt: latestBindingSession.expiresAt,
+        confirmedAt: latestBindingSession.confirmedAt || null,
+        expired: latestBindingSession.expiresAt <= Date.now() && !latestBindingSession.confirmedAt,
+      }
+      : null,
     remoteHealthSummary: summarizeRemoteHealth({
       baseUrl: diagnostics.desktopRuntimeConfig?.publicBaseUrl || diagnostics.remoteReadiness.baseUrl,
       readiness: diagnostics.remoteReadiness,
       report: remoteValidationReport,
+      pairingSession: latestBindingSession,
     }),
   };
 }

@@ -466,6 +466,7 @@ function checkAssets() {
     connectionGuideSource.includes("connection.remoteValidationOk") &&
     connectionGuideSource.includes("connection.remoteValidationFail") &&
     adminRoutesSource.includes("summarizeRemoteHealth") &&
+    adminRoutesSource.includes("latestBindingSession") &&
     adminRoutesSource.includes("saveRemoteValidationReport") &&
     adminRoutesSource.includes("persist") &&
     connectionToolStatusSource.includes("connection.copyInstallAria") &&

@@ -228,7 +228,8 @@ test("remote health summary classifies long-term entry readiness", async (t) => 
     const temporary = summarizeRemoteHealth({ baseUrl: "https://demo.trycloudflare.com", readiness: { status: "temporary", baseUrl: "https://demo.trycloudflare.com" }, report: null, now });
     const insecure = summarizeRemoteHealth({ baseUrl: "http://100.64.0.10:3000", readiness: { status: "blocked", baseUrl: "http://100.64.0.10:3000" }, report: null, now });
     const stale = summarizeRemoteHealth({ baseUrl: "https://lifeos.tailnet.example.ts.net", readiness: { status: "ready", baseUrl: "https://lifeos.tailnet.example.ts.net" }, report: { ...report, createdAt: now - 11 * 60 * 1000 }, now });
-    process.stdout.write(JSON.stringify({ healthy, temporary, insecure, stale }));
+    const expiredQr = summarizeRemoteHealth({ baseUrl: "https://lifeos.tailnet.example.ts.net", readiness: { status: "ready", baseUrl: "https://lifeos.tailnet.example.ts.net" }, report, pairingSession: { expiresAt: now - 1 }, now });
+    process.stdout.write(JSON.stringify({ healthy, temporary, insecure, stale, expiredQr }));
   `], {
     cwd: process.cwd(),
     env: { ...process.env, LIFEOS_DATA_DIR: dataDir },
@@ -243,4 +244,7 @@ test("remote health summary classifies long-term entry readiness", async (t) => 
   assert.equal(result.insecure.status, "insecure");
   assert.equal(result.insecure.checks.find((check) => check.id === "https").status, "fail");
   assert.equal(result.stale.status, "stale");
+  assert.equal(result.expiredQr.status, "stale");
+  assert.equal(result.expiredQr.checks.find((check) => check.id === "qr-entry").status, "fail");
+  assert.equal(result.expiredQr.recommendations.includes("refresh-pairing-qr"), true);
 });

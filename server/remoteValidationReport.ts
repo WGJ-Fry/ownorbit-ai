@@ -41,6 +41,7 @@ export type RemoteHealthSummary = {
     | "fix-health-check"
     | "fix-mobile-shell"
     | "fix-websocket"
+    | "refresh-pairing-qr"
     | "ready"
   >;
   checks: Array<{
@@ -135,6 +136,7 @@ export function summarizeRemoteHealth(input: {
   baseUrl?: string;
   readiness?: { status?: string; baseUrl?: string };
   report?: RemoteValidationReport | null;
+  pairingSession?: { expiresAt?: number; confirmedAt?: number } | null;
   now?: number;
 }): RemoteHealthSummary {
   const baseUrl = safeSanitizeUrl(input.baseUrl || input.readiness?.baseUrl || input.report?.baseUrl || "");
@@ -144,7 +146,10 @@ export function summarizeRemoteHealth(input: {
   const reportIsCurrent = Boolean(report && baseUrl && sameBaseUrl(baseUrl, report.baseUrl));
   const isHttps = baseUrl.startsWith("https://");
   const isTemporary = baseUrl.includes(".trycloudflare.com") || input.readiness?.status === "temporary";
-  const qrStatus = !baseUrl
+  const pairingExpired = Boolean(input.pairingSession?.expiresAt && input.pairingSession.expiresAt <= now && !input.pairingSession.confirmedAt);
+  const qrStatus = pairingExpired
+    ? "fail"
+    : !baseUrl
     ? "fail"
     : isTemporary
       ? "warning"
@@ -166,7 +171,7 @@ export function summarizeRemoteHealth(input: {
     {
       id: "qr-entry",
       status: qrStatus,
-      detail: baseUrl || undefined,
+      detail: pairingExpired ? "expired" : baseUrl || undefined,
     },
   ];
 
@@ -182,6 +187,10 @@ export function summarizeRemoteHealth(input: {
     status = "insecure";
     severity = "danger";
     recommendations.add("use-https");
+  } else if (pairingExpired) {
+    status = "stale";
+    severity = "warning";
+    recommendations.add("refresh-pairing-qr");
   } else if (isTemporary) {
     status = "temporary";
     severity = "warning";

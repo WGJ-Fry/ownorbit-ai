@@ -29,6 +29,7 @@ const recommendationKey = {
   "fix-health-check": "connection.health.recommendation.fixHealthCheck",
   "fix-mobile-shell": "connection.health.recommendation.fixMobileShell",
   "fix-websocket": "connection.health.recommendation.fixWebsocket",
+  "refresh-pairing-qr": "connection.health.recommendation.refreshPairingQr",
   ready: "connection.health.recommendation.ready",
 } as const;
 

@@ -815,6 +815,11 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.match(binding.token, /^bind_/);
   assert.equal(binding.baseUrl, "https://phone.example.test/some/path");
   assert.equal(binding.pairingUrl, `https://phone.example.test/some/path/mobile/install/${encodeURIComponent(binding.token)}`);
+  const networkDiagnosticsWithBinding = await request(port, "/api/v1/admin/network-diagnostics", { headers: adminHeaders }).then((res) => res.json());
+  assert.equal(networkDiagnosticsWithBinding.latestBindingSession.id, binding.id);
+  assert.equal(networkDiagnosticsWithBinding.latestBindingSession.expiresAt, binding.expiresAt);
+  assert.equal(networkDiagnosticsWithBinding.latestBindingSession.expired, false);
+  assert.notEqual(networkDiagnosticsWithBinding.remoteHealthSummary.checks.find((check) => check.id === "qr-entry").status, "fail");
 
   const invalidPairingBaseUrl = await request(port, "/api/v1/devices/bind/start", {
     method: "POST",
