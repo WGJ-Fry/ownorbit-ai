@@ -120,6 +120,24 @@ test("remote entry status accepts stable HTTPS, Tailscale, and temporary Cloudfl
   assert.equal(quickTunnel.okForRemote, true);
 });
 
+test("remote entry status treats Tailscale HTTP as a fallback that needs HTTPS Serve", async () => {
+  const { getRemoteEntryStatus } = await import(`../src/services/pwaCapabilities.ts?case=remote-tailscale-http-${Date.now()}`);
+
+  const tailnetIp = getRemoteEntryStatus({ currentHref: "http://100.64.0.10:3000/mobile/device" });
+  assert.equal(tailnetIp.kind, "tailscale");
+  assert.equal(tailnetIp.okForRemote, false);
+  assert.equal(tailnetIp.titleKey, "mobileDevice.tailscaleHttpEntryTitle");
+  assert.equal(tailnetIp.bodyKey, "mobileDevice.tailscaleHttpEntryBody");
+
+  const configuredHttp = getRemoteEntryStatus({
+    currentHref: "http://lifeos-mac.tailnet.example.ts.net:3000/mobile/chat",
+    configuredBaseUrl: "http://lifeos-mac.tailnet.example.ts.net:3000",
+  });
+  assert.equal(configuredHttp.kind, "configured-match");
+  assert.equal(configuredHttp.okForRemote, false);
+  assert.equal(configuredHttp.titleKey, "mobileDevice.remoteInsecureTitle");
+});
+
 test("remote entry status detects configured public base mismatches with subpath support", async () => {
   const { getRemoteEntryStatus } = await import(`../src/services/pwaCapabilities.ts?case=remote-config-${Date.now()}`);
 

@@ -276,6 +276,61 @@ exit 1
   assert.match(log, /serve --https=443 off/);
 });
 
+test("Tailscale HTTP fallback is not accepted as a long-term remote entry", async (t) => {
+  const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-tailscale-http-bin-"));
+  const oldPath = process.env.PATH || "";
+  const oldPort = process.env.LIFEOS_PORT;
+  const oldAllowPublic = process.env.LIFEOS_ALLOW_PUBLIC;
+  const oldTailscaleBin = process.env.LIFEOS_TAILSCALE_BIN;
+
+  t.after(async () => {
+    process.env.PATH = oldPath;
+    if (oldPort === undefined) delete process.env.LIFEOS_PORT;
+    else process.env.LIFEOS_PORT = oldPort;
+    if (oldAllowPublic === undefined) delete process.env.LIFEOS_ALLOW_PUBLIC;
+    else process.env.LIFEOS_ALLOW_PUBLIC = oldAllowPublic;
+    if (oldTailscaleBin === undefined) delete process.env.LIFEOS_TAILSCALE_BIN;
+    else process.env.LIFEOS_TAILSCALE_BIN = oldTailscaleBin;
+    await rm(binDir, { recursive: true, force: true });
+  });
+
+  const tailscalePath = path.join(binDir, "tailscale");
+  await writeFile(tailscalePath, `#!/bin/sh
+if [ "$1" = "version" ]; then
+  echo "1.66.4"
+  exit 0
+fi
+if [ "$1" = "status" ]; then
+  echo '{"Self":{"Online":true,"HostName":"lifeos-mac","TailscaleIPs":["100.64.0.10"]},"MagicDNSSuffix":"tailnet.example.ts.net"}'
+  exit 0
+fi
+if [ "$1" = "serve" ] && [ "$2" = "status" ]; then
+  echo '{}'
+  exit 0
+fi
+exit 1
+`);
+  await chmod(tailscalePath, 0o755);
+
+  process.env.PATH = `${binDir}:${oldPath}`;
+  process.env.LIFEOS_PORT = "4567";
+  process.env.LIFEOS_TAILSCALE_BIN = tailscalePath;
+  process.env.LIFEOS_ALLOW_PUBLIC = "1";
+
+  const { getNetworkDiagnostics } = await import(`../server/networkDiagnostics.ts?tailscale-http=${Date.now()}`);
+  const diagnostics = getNetworkDiagnostics();
+  const magicDns = diagnostics.connectionCandidates.find((candidate) => candidate.id === "tailscale-magicdns-0");
+  const tailnetIp = diagnostics.connectionCandidates.find((candidate) => candidate.id === "tailscale-ip-0");
+
+  assert.equal(magicDns.baseUrl, "http://lifeos-mac.tailnet.example.ts.net:4567");
+  assert.equal(magicDns.secure, false);
+  assert.equal(tailnetIp.baseUrl, "http://100.64.0.10:4567");
+  assert.equal(tailnetIp.secure, false);
+  assert.equal(diagnostics.remoteReadiness.status, "blocked");
+  assert.equal(diagnostics.remoteReadiness.blockers.some((blocker) => blocker.id === "needsHttps"), true);
+  assert.equal(diagnostics.remoteReadiness.actions.some((action) => action.id === "needsHttps"), true);
+});
+
 test("configured Tailscale HTTPS Serve autostart refreshes the saved stable URL", async (t) => {
   const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-tailscale-autostart-bin-"));
   const oldPath = process.env.PATH || "";

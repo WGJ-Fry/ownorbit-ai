@@ -144,11 +144,11 @@ export function getRemoteEntryStatus(options: { currentHref?: string; configured
   if (configuredBase) {
     return {
       kind: "configured-match",
-      okForRemote: https || isTailscale,
+      okForRemote: https,
       currentBase,
       configuredBase,
-      titleKey: https || isTailscale ? "mobileDevice.remoteConfiguredTitle" : "mobileDevice.remoteInsecureTitle",
-      bodyKey: https || isTailscale ? "mobileDevice.remoteConfiguredBody" : "mobileDevice.remoteInsecureBody",
+      titleKey: https ? "mobileDevice.remoteConfiguredTitle" : "mobileDevice.remoteInsecureTitle",
+      bodyKey: https ? "mobileDevice.remoteConfiguredBody" : "mobileDevice.remoteInsecureBody",
     };
   }
 
@@ -188,7 +188,7 @@ export function getRemoteEntryStatus(options: { currentHref?: string; configured
   if (isTailscale) {
     return {
       kind: "tailscale",
-      okForRemote: true,
+      okForRemote: https,
       currentBase,
       configuredBase,
       titleKey: https ? "mobileDevice.tailscaleEntryTitle" : "mobileDevice.tailscaleHttpEntryTitle",

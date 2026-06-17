@@ -465,6 +465,7 @@ function checkAssets() {
     networkDiagnosticsSource.includes("startTailscaleHttpsServe") &&
     networkDiagnosticsSource.includes("stopTailscaleHttpsServe") &&
     networkDiagnosticsSource.includes("maybeStartConfiguredTailscaleServe") &&
+    !networkDiagnosticsSource.includes('input.mode === "tailscale" || input.mode === "local"') &&
     networkDiagnosticsSource.includes("saveDesktopRuntimeConfig") &&
     networkDiagnosticsSource.includes("buildRemoteReadiness") &&
     networkDiagnosticsSource.includes("remoteReadiness") &&
@@ -651,6 +652,7 @@ function checkAssets() {
     networkDiagnosticsTestSource.includes("needsPublicOptIn") &&
     networkDiagnosticsTestSource.includes("Tailscale HTTPS Serve helpers run controlled start and stop commands") &&
     networkDiagnosticsTestSource.includes("configured Tailscale HTTPS Serve autostart refreshes the saved stable URL") &&
+    networkDiagnosticsTestSource.includes("Tailscale HTTP fallback is not accepted as a long-term remote entry") &&
     cloudflareTunnelSource.includes("cloudflared-named-tunnel.json") &&
     cloudflareTunnelSource.includes("loadNamedTunnelSettings") &&
     cloudflareTunnelSource.includes("saveNamedTunnelSettings") &&

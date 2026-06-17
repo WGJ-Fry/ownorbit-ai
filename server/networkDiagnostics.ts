@@ -112,7 +112,7 @@ function connectionCandidate(input: {
   stability: "stable" | "temporary" | "local";
   notes: string[];
 }) {
-  const secure = input.baseUrl.startsWith("https://") || input.mode === "tailscale" || input.mode === "local";
+  const secure = input.baseUrl.startsWith("https://") || input.mode === "local";
   const normalizedBaseUrl = input.baseUrl.replace(/\/$/, "");
   const parsedBaseUrl = new URL(normalizedBaseUrl);
   const host = input.mode === "local" || (input.mode === "tailscale" && parsedBaseUrl.protocol === "https:") ? "127.0.0.1" : "0.0.0.0";
