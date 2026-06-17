@@ -97,6 +97,10 @@ export default function CloudflareNamedTunnelCard({
           <div className="font-bold text-sky-100">{t("connection.configPath")}</div>
           <div className="mt-1 break-all font-mono">{namedTunnel?.configPath || "-"}</div>
         </div>
+        <div className={`rounded-xl border p-2 ${namedTunnel?.credentialsFileExists ? "border-emerald-400/15 bg-emerald-500/10" : "border-amber-400/15 bg-amber-500/10"}`}>
+          <div className="font-bold text-sky-100">{t("connection.namedCredentials")}</div>
+          <div className="mt-1">{namedTunnel?.credentialsFileExists ? t("connection.namedCredentialsReady") : t("connection.namedCredentialsMissing")}</div>
+        </div>
         <div className="rounded-xl border border-white/[0.08] bg-[#061016]/40 p-2">
           <div className="font-bold text-sky-100">{t("connection.command")}</div>
           <div className="mt-1 break-all font-mono">{namedTunnel?.command || "-"}</div>

@@ -655,6 +655,13 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /项通过/);
   assert.match(translationsSource, /checks passed/);
   assert.match(translationsSource, /Cloudflare Named Tunnel/);
+  assert.match(translationsSource, /credentials JSON 已找到/);
+  assert.match(translationsSource, /credentials JSON is missing/);
+
+  const cloudflareNamedTunnelCardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "CloudflareNamedTunnelCard.tsx"), "utf8");
+  assert.match(cloudflareNamedTunnelCardSource, /credentialsFileExists/);
+  assert.match(cloudflareNamedTunnelCardSource, /connection\.namedCredentialsReady/);
+  assert.match(cloudflareNamedTunnelCardSource, /connection\.namedCredentialsMissing/);
 
   const devicePairSource = await readFile(path.join(rootDir, "src", "pages", "admin", "DevicePairPage.tsx"), "utf8");
   assert.match(devicePairSource, /connectionCandidates/);

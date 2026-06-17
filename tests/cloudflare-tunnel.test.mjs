@@ -134,6 +134,7 @@ while true; do sleep 1; done
   const generated = tunnelManager.generateCloudflareNamedTunnelConfig({});
   assert.equal(generated.ready, true);
   assert.equal(generated.settingsSaved, true);
+  assert.equal(generated.credentialsFileExists, true);
   assert.equal(generated.baseUrl, "https://lifeos.example.com");
   assert.match(generated.config, /hostname: lifeos\.example\.com/);
   assert.match(generated.config, /service: http:\/\/127\.0\.0\.1:4567/);
@@ -145,6 +146,7 @@ while true; do sleep 1; done
   assert.equal(persistedStatus.configured, true);
   assert.equal(persistedStatus.ready, true);
   assert.equal(persistedStatus.settingsSaved, true);
+  assert.equal(persistedStatus.credentialsFileExists, true);
   assert.equal(persistedStatus.name, "lifeos-ai");
   assert.equal(persistedStatus.hostname, "lifeos.example.com");
   assert.equal(persistedStatus.credentialsFile, "[configured]");
@@ -155,6 +157,14 @@ while true; do sleep 1; done
   assert.equal(process.env.PUBLIC_BASE_URL, "https://lifeos.example.com");
 
   tunnelManager.stopManagedCloudflareTunnel();
+
+  await rm(credentialsFile, { force: true });
+  const missingCredentialsStatus = tunnelManager.getCloudflareNamedTunnelStatus();
+  assert.equal(missingCredentialsStatus.configured, true);
+  assert.equal(missingCredentialsStatus.configExists, true);
+  assert.equal(missingCredentialsStatus.credentialsFileExists, false);
+  assert.equal(missingCredentialsStatus.ready, false);
+  assert.match(missingCredentialsStatus.notes.join("\n"), /credentials JSON file is missing/);
 });
 
 test("Cloudflare Named Tunnel reconnects automatically after an unexpected disconnect", async (t) => {

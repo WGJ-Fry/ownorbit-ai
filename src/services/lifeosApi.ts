@@ -395,6 +395,7 @@ export type NetworkDiagnostics = {
     ready: boolean;
     configPath: string;
     configExists: boolean;
+    credentialsFileExists: boolean;
     name: string;
     hostname: string;
     credentialsFile: string;

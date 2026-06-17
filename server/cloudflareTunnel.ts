@@ -135,6 +135,14 @@ function namedTunnelInput(input: { name?: unknown; hostname?: unknown; credentia
   return { name, hostname, credentialsFile, port, baseUrl };
 }
 
+function credentialsFileExists(credentialsFile = "") {
+  try {
+    return Boolean(credentialsFile && fs.existsSync(credentialsFile) && fs.statSync(credentialsFile).isFile());
+  } catch {
+    return false;
+  }
+}
+
 export function getCloudflareNamedTunnelStatus() {
   const saved = loadNamedTunnelSettings();
   const configured = Boolean(
@@ -148,17 +156,19 @@ export function getCloudflareNamedTunnelStatus() {
     parsed = namedTunnelInput({});
     configPreview = buildNamedTunnelConfig(parsed);
   } catch {}
+  const credentialsFileReady = credentialsFileExists(parsed?.credentialsFile);
   const command = parsed ? `${process.env.LIFEOS_CLOUDFLARED_BIN || "cloudflared"} tunnel --config [lifeos-data]/cloudflared-named-tunnel.yml run ${parsed.name}` : "";
   const safeConfigPreview = configPreview
     ? configPreview.replace(/^credentials-file:.*$/m, "credentials-file: [configured]")
     : "";
   return {
     configured,
-    ready: Boolean(parsed && configExists),
+    ready: Boolean(parsed && configExists && credentialsFileReady),
     configPath: "[lifeos-data]/cloudflared-named-tunnel.yml",
     settingsPath: "[lifeos-data]/cloudflared-named-tunnel.json",
     settingsSaved: Boolean(saved?.name && saved?.hostname && saved?.credentialsFile),
     configExists,
+    credentialsFileExists: credentialsFileReady,
     name: parsed?.name || String(process.env.LIFEOS_CLOUDFLARE_TUNNEL_NAME || ""),
     hostname: parsed?.hostname || String(process.env.LIFEOS_CLOUDFLARE_TUNNEL_HOSTNAME || ""),
     credentialsFile: parsed ? "[configured]" : "",
@@ -168,6 +178,7 @@ export function getCloudflareNamedTunnelStatus() {
     notes: parsed
       ? [
         configExists ? "Named Tunnel config exists and can be started automatically." : "Generate the Named Tunnel config before starting it.",
+        credentialsFileReady ? "Named Tunnel credentials file is present." : "Named Tunnel credentials JSON file is missing; restore it before starting.",
         "Named Tunnel is the recommended Cloudflare mode for long-term remote access with your own domain.",
       ]
       : [
@@ -192,6 +203,7 @@ function buildNamedTunnelConfig(input: { name: string; hostname: string; credent
 
 export function generateCloudflareNamedTunnelConfig(input: { name?: unknown; hostname?: unknown; credentialsFile?: unknown; port?: unknown }) {
   const parsed = namedTunnelInput(input);
+  if (!credentialsFileExists(parsed.credentialsFile)) throw new Error("Named Tunnel credentials JSON file does not exist.");
   const config = buildNamedTunnelConfig(parsed);
   fs.mkdirSync(path.dirname(namedTunnelConfigPath), { recursive: true });
   fs.writeFileSync(namedTunnelConfigPath, config, { mode: 0o600 });
