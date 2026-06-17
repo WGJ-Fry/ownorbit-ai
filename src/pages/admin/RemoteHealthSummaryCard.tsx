@@ -40,7 +40,13 @@ function checkTone(status: NetworkDiagnostics["remoteHealthSummary"]["checks"][n
   return "border-white/[0.08] bg-white/[0.04] text-zinc-300";
 }
 
-export default function RemoteHealthSummaryCard({ summary }: { summary: NetworkDiagnostics["remoteHealthSummary"] }) {
+export default function RemoteHealthSummaryCard({
+  recovery,
+  summary,
+}: {
+  recovery?: NetworkDiagnostics["remoteRecoveryReport"];
+  summary: NetworkDiagnostics["remoteHealthSummary"];
+}) {
   const { t } = useI18n();
   const Icon = summary.severity === "ok" ? CheckCircle2 : summary.severity === "warning" ? Clock3 : AlertTriangle;
   const tone = summary.severity === "ok"
@@ -69,6 +75,21 @@ export default function RemoteHealthSummaryCard({ summary }: { summary: NetworkD
               <li key={item}>{t(recommendationKey[item] as any)}</li>
             ))}
           </ul>
+          {recovery ? (
+            <div className="mt-3 rounded-xl border border-white/10 bg-black/15 p-3 text-xs">
+              <div className="font-bold">{t("connection.recovery.title")}</div>
+              <div className="mt-1 break-all opacity-80">{recovery.baseUrl}</div>
+              <div className="mt-1 opacity-90">
+                {t("connection.recovery.summary", {
+                  mode: recovery.mode,
+                  reason: recovery.recoveryReason,
+                  status: recovery.restored ? t("connection.recovery.restored") : recovery.attempted ? t("connection.recovery.notRestored") : t("connection.recovery.notNeeded"),
+                })}
+              </div>
+              <div className="mt-1 opacity-75">{new Date(recovery.createdAt).toLocaleString()}</div>
+              {recovery.error ? <div className="mt-1 text-red-100">{recovery.error}</div> : null}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

@@ -717,6 +717,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(typeof diagnosticBundle.release.artifactCount, "number");
   assert.equal(Array.isArray(diagnosticBundle.release.artifacts), true);
   assert.equal(typeof diagnosticBundle.remote.healthSummary.status, "string");
+  assert.equal(diagnosticBundle.remote.recoveryReport === null || typeof diagnosticBundle.remote.recoveryReport.restored === "boolean", true);
   assert.equal(diagnosticBundle.remote.validationReport === null || typeof diagnosticBundle.remote.validationReport.ok === "boolean", true);
   assert.equal(Array.isArray(diagnosticBundle.remote.acceptanceChecklist), true);
   assert.equal(typeof diagnosticBundle.remote.acceptanceRecords.total, "number");

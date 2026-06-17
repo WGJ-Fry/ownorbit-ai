@@ -319,6 +319,20 @@ export type NetworkDiagnostics = {
       detail?: string;
     }>;
   };
+  remoteRecoveryReport: {
+    id: string;
+    reason: string;
+    mode: "cloudflare" | "tailscale" | "configured" | "unknown";
+    baseUrl: string;
+    attempted: boolean;
+    restored: boolean;
+    started: boolean;
+    recoveryReason: string;
+    error?: string;
+    healthOkBefore: boolean;
+    healthOkAfter: boolean;
+    createdAt: number;
+  } | null;
   remoteAcceptanceChecklist: Array<{
     id: "tailscale-https-serve" | "cloudflare-named-tunnel" | "remote-smoke" | "restart-restore" | "cellular-mobile-chat" | "ci-remote-mock";
     status: "passed" | "needs-action" | "manual-required";

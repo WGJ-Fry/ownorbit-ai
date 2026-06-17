@@ -424,6 +424,7 @@ function checkAssets() {
   const desktopRuntimeConfigSource = exists("server/desktopRuntimeConfig.ts") ? fs.readFileSync(path.join(rootDir, "server/desktopRuntimeConfig.ts"), "utf8") : "";
   const connectionGuideSource = exists("src/pages/admin/ConnectionGuide.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/ConnectionGuide.tsx"), "utf8") : "";
   const remoteStabilitySectionSource = exists("src/pages/admin/RemoteStabilitySection.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/RemoteStabilitySection.tsx"), "utf8") : "";
+  const remoteHealthSummaryCardSource = exists("src/pages/admin/RemoteHealthSummaryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/RemoteHealthSummaryCard.tsx"), "utf8") : "";
   const remoteAcceptanceChecklistSource = exists("src/pages/admin/RemoteAcceptanceChecklistCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/RemoteAcceptanceChecklistCard.tsx"), "utf8") : "";
   const remoteAcceptanceSource = exists("server/remoteAcceptance.ts") ? fs.readFileSync(path.join(rootDir, "server/remoteAcceptance.ts"), "utf8") : "";
   const connectionToolStatusSource = exists("src/pages/admin/ConnectionToolStatus.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/ConnectionToolStatus.tsx"), "utf8") : "";
@@ -505,7 +506,10 @@ function checkAssets() {
     remoteStabilitySectionSource.includes("importRemoteAcceptanceReport") &&
     remoteStabilitySectionSource.includes("runRemoteAcceptance") &&
     remoteStabilitySectionSource.includes("remoteAcceptanceRunbooks") &&
+    remoteStabilitySectionSource.includes("remoteRecoveryReport") &&
     remoteStabilitySectionSource.includes("JSON.parse") &&
+    remoteHealthSummaryCardSource.includes("connection.recovery.title") &&
+    remoteHealthSummaryCardSource.includes("connection.recovery.summary") &&
     remoteAcceptanceSource.includes("buildRemoteAcceptanceChecklist") &&
     remoteAcceptanceSource.includes("saveRemoteAcceptanceRecord") &&
     remoteAcceptanceSource.includes("saveRemoteAcceptanceRunbookReport") &&
@@ -523,6 +527,7 @@ function checkAssets() {
     connectionGuideSource.includes("connection.remoteValidationOk") &&
     connectionGuideSource.includes("connection.remoteValidationFail") &&
     adminRoutesSource.includes("summarizeRemoteHealth") &&
+    adminRoutesSource.includes("getRemoteRecoveryReport") &&
     adminRoutesSource.includes("buildRemoteAcceptanceChecklist") &&
     adminRoutesSource.includes("remoteAcceptanceRunbooks") &&
     adminRoutesSource.includes("/api/v1/admin/network-diagnostics/acceptance-report") &&
@@ -560,11 +565,13 @@ function checkAssets() {
     translationsSource.includes("connection.readiness.item.needsPublicOptIn") &&
     translationsSource.includes("connection.acceptance.title") &&
     translationsSource.includes("connection.acceptance.commandTitle") &&
+    translationsSource.includes("connection.recovery.title") &&
     translationsSource.includes("connection.acceptance.runNow") &&
     translationsSource.includes("connection.acceptance.importTitle") &&
     translationsSource.includes("connection.acceptance.latestEvidence") &&
     translationsSource.includes("connection.acceptance.markDone") &&
     translationsSource.includes("Remote Acceptance Command") &&
+    translationsSource.includes("Latest Auto-Recovery") &&
     translationsSource.includes("Run Automated Acceptance") &&
     translationsSource.includes("Import Real Acceptance Evidence") &&
     translationsSource.includes("Latest Imported Real Acceptance") &&
@@ -969,11 +976,13 @@ function checkAssets() {
     diagnosticBundleSource.includes("publicReleaseArtifactSummary") &&
     diagnosticBundleSource.includes("release: getReleaseDiagnostics()") &&
     diagnosticBundleSource.includes("remote: {") &&
+    diagnosticBundleSource.includes("recoveryReport") &&
     diagnosticBundleSource.includes("acceptanceChecklist") &&
     diagnosticBundleSource.includes("acceptanceRecords") &&
     diagnosticBundleSource.includes("acceptanceRunbooks") &&
     diagnosticBundleTestSource.includes("bundle.release.manifestAvailable") &&
     diagnosticBundleTestSource.includes("bundle.remote.healthSummary.status") &&
+    apiAuthTestSource.includes("diagnosticBundle.remote.recoveryReport") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceRecords.total") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceRunbooks.total") &&
     apiAuthTestSource.includes("diagnosticBundle.release.artifactCount") &&

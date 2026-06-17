@@ -8,6 +8,7 @@ import { getNetworkDiagnostics } from "./networkDiagnostics";
 import { getOnlineDeviceCount } from "./realtime";
 import { buildRemoteAcceptanceChecklist, getRemoteAcceptanceRecords, getRemoteAcceptanceRunbookRecords } from "./remoteAcceptance";
 import { getRemoteValidationReport, summarizeRemoteHealth } from "./remoteValidationReport";
+import { getRemoteRecoveryReport } from "./remoteHealthMonitor";
 import { getSecurityDiagnostics } from "./securityDiagnostics";
 
 function countTable(table: string) {
@@ -150,6 +151,7 @@ export function createDiagnosticBundle() {
     remote: {
       healthSummary: remoteHealthSummary,
       validationReport: remoteValidationReport,
+      recoveryReport: getRemoteRecoveryReport(),
       acceptanceChecklist: remoteAcceptanceChecklist,
       acceptanceRecords: {
         total: remoteAcceptanceRecords.length,

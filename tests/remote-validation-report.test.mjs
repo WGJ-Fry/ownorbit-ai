@@ -176,13 +176,14 @@ while true; do sleep 1; done
     process.env.LIFEOS_CLOUDFLARE_TUNNEL_HOSTNAME = \`127.0.0.1:\${port}\`;
     process.env.LIFEOS_CLOUDFLARE_TUNNEL_CREDENTIALS = ${JSON.stringify(credentialsFile)};
     const { generateCloudflareNamedTunnelConfig, stopManagedCloudflareTunnel } = await import("./server/cloudflareTunnel.ts");
-    const { runRemoteHealthCheck } = await import("./server/remoteHealthMonitor.ts");
+    const { getRemoteRecoveryReport, runRemoteHealthCheck } = await import("./server/remoteHealthMonitor.ts");
     generateCloudflareNamedTunnelConfig({});
     const result = await runRemoteHealthCheck("manual");
+    const recovery = getRemoteRecoveryReport();
     stopManagedCloudflareTunnel();
     await new Promise((resolve) => wss.close(resolve));
     await new Promise((resolve) => server.close(resolve));
-    process.stdout.write(JSON.stringify({ restored: result.restored, report: result.report }));
+    process.stdout.write(JSON.stringify({ restored: result.restored, recovery, report: result.report }));
   `], {
     cwd: process.cwd(),
     env: {
@@ -195,6 +196,13 @@ while true; do sleep 1; done
   });
   const result = JSON.parse(output);
   assert.equal(result.restored, true);
+  assert.equal(result.recovery.mode, "cloudflare");
+  assert.equal(result.recovery.attempted, true);
+  assert.equal(result.recovery.restored, true);
+  assert.equal(result.recovery.started, true);
+  assert.equal(result.recovery.recoveryReason, "cloudflare_named_configured");
+  assert.equal(result.recovery.healthOkBefore, false);
+  assert.equal(result.recovery.healthOkAfter, true);
   assert.equal(result.report.ok, true, JSON.stringify(result.report, null, 2));
   assert.equal(result.report.passed, 3);
 });

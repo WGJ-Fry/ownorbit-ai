@@ -2,9 +2,26 @@ import { getDesktopRuntimeConfig } from "./desktopRuntimeConfig.ts";
 import { maybeStartConfiguredCloudflareTunnel } from "./cloudflareTunnel.ts";
 import { maybeStartConfiguredTailscaleServe, testConnectionUrl } from "./networkDiagnostics.ts";
 import { getRemoteValidationReport, saveRemoteValidationReport } from "./remoteValidationReport.ts";
+import { getClientState, setClientState } from "./clientState.ts";
 
 let monitorTimer: ReturnType<typeof setInterval> | null = null;
 let running = false;
+const REMOTE_RECOVERY_STATE_KEY = "lifeos_remote_recovery_report";
+
+export type RemoteRecoveryReport = {
+  id: string;
+  reason: string;
+  mode: "cloudflare" | "tailscale" | "configured" | "unknown";
+  baseUrl: string;
+  attempted: boolean;
+  restored: boolean;
+  started: boolean;
+  recoveryReason: string;
+  error?: string;
+  healthOkBefore: boolean;
+  healthOkAfter: boolean;
+  createdAt: number;
+};
 
 function intervalMs() {
   const value = Number.parseInt(String(process.env.LIFEOS_REMOTE_HEALTH_INTERVAL_MS || ""), 10);
@@ -24,18 +41,25 @@ export async function runRemoteHealthCheck(reason = "manual") {
   if (running) return { skipped: true, reason: "already_running", report: getRemoteValidationReport() };
   running = true;
   try {
-    let restored = false;
+    let recovery: Awaited<ReturnType<typeof restoreSavedRemoteEntry>> = { attempted: false, restored: false, started: false, mode: "unknown", reason: "not_needed" };
     let result = await testConnectionUrl(baseUrl);
     if (!result.ok) {
-      restored = await restoreSavedRemoteEntry();
-      if (restored) result = await testConnectionUrl(baseUrl);
+      recovery = await restoreSavedRemoteEntry();
+      if (recovery.restored) result = await testConnectionUrl(baseUrl);
     }
     const report = saveRemoteValidationReport({
-      label: labelForReason(reason, restored),
+      label: labelForReason(reason, recovery.restored),
       baseUrl,
       result,
     }, { type: "system", id: "remote-health-monitor" });
-    return { skipped: false, reason, restored, report };
+    const recoveryReport = saveRemoteRecoveryReport({
+      reason,
+      baseUrl,
+      recovery,
+      healthOkBefore: recovery.attempted ? false : result.ok,
+      healthOkAfter: result.ok,
+    });
+    return { skipped: false, reason, restored: recovery.restored, recovery: recoveryReport, report };
   } finally {
     running = false;
   }
@@ -50,20 +74,68 @@ function labelForReason(reason: string, restored: boolean) {
 
 async function restoreSavedRemoteEntry() {
   const config = getDesktopRuntimeConfig();
-  if (!config || !config.publicBaseUrl) return false;
+  if (!config || !config.publicBaseUrl) return { attempted: false, restored: false, started: false, mode: "unknown" as const, reason: "no_saved_remote_entry" };
   try {
     if (config.mode === "cloudflare") {
-      await maybeStartConfiguredCloudflareTunnel(String(config.port || process.env.LIFEOS_PORT || process.env.PORT || "3000"), 5000);
-      return true;
+      const result = await maybeStartConfiguredCloudflareTunnel(String(config.port || process.env.LIFEOS_PORT || process.env.PORT || "3000"), 5000);
+      return {
+        attempted: true,
+        restored: Boolean(result.started || result.reason === "cloudflare_named_configured" || result.reason === "cloudflare_configured"),
+        started: Boolean(result.started),
+        mode: "cloudflare" as const,
+        reason: result.reason || "cloudflare_restore_attempted",
+      };
     }
     if (config.mode === "tailscale") {
       const result = maybeStartConfiguredTailscaleServe(String(config.port || process.env.LIFEOS_PORT || process.env.PORT || "3000"));
-      return Boolean(result.started || result.reason === "already_running");
+      return {
+        attempted: true,
+        restored: Boolean(result.started || result.reason === "already_running"),
+        started: Boolean(result.started),
+        mode: "tailscale" as const,
+        reason: result.reason || "tailscale_restore_attempted",
+      };
     }
-  } catch {
-    return false;
+  } catch (error: any) {
+    return {
+      attempted: true,
+      restored: false,
+      started: false,
+      mode: config.mode === "cloudflare" ? "cloudflare" as const : config.mode === "tailscale" ? "tailscale" as const : "configured" as const,
+      reason: "restore_failed",
+      error: String(error?.message || error || "Remote restore failed").slice(0, 240),
+    };
   }
-  return false;
+  return { attempted: false, restored: false, started: false, mode: "configured" as const, reason: "unsupported_remote_mode" };
+}
+
+function saveRemoteRecoveryReport(input: {
+  reason: string;
+  baseUrl: string;
+  recovery: Awaited<ReturnType<typeof restoreSavedRemoteEntry>>;
+  healthOkBefore: boolean;
+  healthOkAfter: boolean;
+}) {
+  const report: RemoteRecoveryReport = {
+    id: `remote-recovery-${Date.now()}`,
+    reason: input.reason,
+    mode: input.recovery.mode,
+    baseUrl: input.baseUrl,
+    attempted: input.recovery.attempted,
+    restored: input.recovery.restored,
+    started: input.recovery.started,
+    recoveryReason: input.recovery.reason,
+    error: input.recovery.error,
+    healthOkBefore: input.healthOkBefore,
+    healthOkAfter: input.healthOkAfter,
+    createdAt: Date.now(),
+  };
+  setClientState(REMOTE_RECOVERY_STATE_KEY, report, { type: "system", id: "remote-health-monitor" });
+  return report;
+}
+
+export function getRemoteRecoveryReport(): RemoteRecoveryReport | null {
+  return (getClientState(REMOTE_RECOVERY_STATE_KEY)?.value || null) as RemoteRecoveryReport | null;
 }
 
 export function startRemoteHealthMonitor() {
