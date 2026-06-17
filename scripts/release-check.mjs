@@ -521,6 +521,8 @@ function checkAssets() {
     remoteAcceptanceChecklistSource.includes("network-interruption") &&
     remoteAcceptanceChecklistSource.includes("diagnostic-export") &&
     remoteAcceptanceChecklistSource.includes("ci-remote-mock") &&
+    remoteStabilitySectionSource.includes("acceptanceEvidence") &&
+    remoteStabilitySectionSource.includes("Phone Wi-Fi disabled") &&
     remoteStabilitySectionSource.includes("LIFEOS_REMOTE_ACCEPTANCE_OUT") &&
     remoteStabilitySectionSource.includes("LIFEOS_REMOTE_BASE_URL") &&
     remoteStabilitySectionSource.includes("npm run remote:smoke") &&
@@ -539,6 +541,8 @@ function checkAssets() {
     remoteAcceptanceSource.includes("saveRemoteAcceptanceRecord") &&
     remoteAcceptanceSource.includes("saveRemoteAcceptanceRunbookReport") &&
     remoteAcceptanceSource.includes("saveRemoteAcceptanceRunbookFromConnectionTest") &&
+    remoteAcceptanceSource.includes("safeRequirements") &&
+    remoteAcceptanceSource.includes("evidence") &&
     remoteAcceptanceSource.includes("getRemoteAcceptanceRunbookRecords") &&
     remoteAcceptanceSource.includes("getRemoteAcceptanceRecords") &&
     remoteAcceptanceSource.includes("Remote acceptance URL must not contain username, password, token, query, or fragment") &&
@@ -1065,6 +1069,7 @@ function checkAssets() {
     diagnosticBundleTestSource.includes("bundle.remote.healthSummary.status") &&
     apiAuthTestSource.includes("diagnosticBundle.remote.recoveryReport") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceRecords.total") &&
+    diagnosticBundleTestSource.includes("evidence.requirements") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceRunbooks.total") &&
     apiAuthTestSource.includes("diagnosticBundle.release.artifactCount") &&
     adminRoutesSource.includes("releaseArtifactCount")

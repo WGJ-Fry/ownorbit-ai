@@ -45,6 +45,12 @@ export type RemoteAcceptanceRecord = {
   id: RemoteAcceptanceItem["id"];
   baseUrl: string;
   note: string;
+  evidence?: {
+    entryKind: RemoteAcceptanceRunbookRecord["entryKind"];
+    verifiedUrl: string;
+    source: string;
+    requirements: string[];
+  };
   createdAt: number;
 };
 
@@ -137,6 +143,12 @@ function safeNumber(value: unknown, fallback = 0) {
 
 function safeNote(value: unknown) {
   return String(value || "").replace(/\b(token|key|secret|password)=\S+/gi, "$1=[redacted]").trim().slice(0, 240);
+}
+
+function safeRequirements(value: unknown) {
+  return Array.isArray(value)
+    ? value.map((item) => safeNote(item)).filter(Boolean).slice(0, 6)
+    : [];
 }
 
 function entryKind(baseUrl: string): RemoteAcceptanceRunbookRecord["entryKind"] {
@@ -251,12 +263,23 @@ export function saveRemoteAcceptanceRecord(input: {
   id: RemoteAcceptanceItem["id"];
   baseUrl: string;
   note?: string;
+  evidence?: {
+    source?: string;
+    requirements?: string[];
+  };
 }, actor?: { type: string; id: string }) {
   if (!manualAcceptanceIds.has(input.id)) throw new Error("Only real-world manual acceptance items can be marked manually.");
+  const baseUrl = sanitizeBaseUrl(input.baseUrl);
   const record: RemoteAcceptanceRecord = {
     id: input.id,
-    baseUrl: sanitizeBaseUrl(input.baseUrl),
+    baseUrl,
     note: safeNote(input.note),
+    evidence: {
+      entryKind: entryKind(baseUrl),
+      verifiedUrl: baseUrl,
+      source: safeNote(input.evidence?.source || "admin-checklist"),
+      requirements: safeRequirements(input.evidence?.requirements),
+    },
     createdAt: Date.now(),
   };
   const records = getRemoteAcceptanceRecords().filter((item) => !(item.id === record.id && sameUrl(item.baseUrl, record.baseUrl)));
@@ -268,6 +291,11 @@ function manualRecord(records: RemoteAcceptanceRecord[], id: RemoteAcceptanceIte
   return records
     .filter((item) => item.id === id && sameUrl(item.baseUrl, baseUrl))
     .sort((left, right) => right.createdAt - left.createdAt)[0] || null;
+}
+
+function manualEvidence(record: RemoteAcceptanceRecord | null) {
+  if (!record) return "";
+  return record.note || record.evidence?.requirements?.join("; ") || record.baseUrl;
 }
 
 export function buildRemoteAcceptanceChecklist(input: {
@@ -312,28 +340,28 @@ export function buildRemoteAcceptanceChecklist(input: {
     {
       id: "restart-restore",
       status: restored || restartRecord ? "passed" : "manual-required",
-      evidence: restored ? report!.label : restartRecord ? `Manually accepted at ${new Date(restartRecord.createdAt).toISOString()}: ${restartRecord.note || restartRecord.baseUrl}` : "Restart LifeOS AI and confirm the saved Tailscale/Named Tunnel entry is restored automatically.",
+      evidence: restored ? report!.label : restartRecord ? `Manually accepted at ${new Date(restartRecord.createdAt).toISOString()}: ${manualEvidence(restartRecord)}` : "Restart LifeOS AI and confirm the saved Tailscale/Named Tunnel entry is restored automatically.",
       action: "Quit and reopen the desktop app, then run the remote health check again.",
       acceptedAt: restartRecord?.createdAt,
     },
     {
       id: "cellular-mobile-chat",
       status: cellularRecord ? "passed" : "manual-required",
-      evidence: cellularRecord ? `Manually accepted at ${new Date(cellularRecord.createdAt).toISOString()}: ${cellularRecord.note || cellularRecord.baseUrl}` : "Requires a real phone on cellular data opening /mobile/chat through the saved HTTPS entry.",
+      evidence: cellularRecord ? `Manually accepted at ${new Date(cellularRecord.createdAt).toISOString()}: ${manualEvidence(cellularRecord)}` : "Requires a real phone on cellular data opening /mobile/chat through the saved HTTPS entry.",
       action: "Turn off phone Wi-Fi, open the saved mobile entry, send a chat message, and confirm WebSocket/retry state is healthy.",
       acceptedAt: cellularRecord?.createdAt,
     },
     {
       id: "network-interruption",
       status: interruptionRecord ? "passed" : "manual-required",
-      evidence: interruptionRecord ? `Manually accepted at ${new Date(interruptionRecord.createdAt).toISOString()}: ${interruptionRecord.note || interruptionRecord.baseUrl}` : "Disconnect and reconnect the remote path, then confirm diagnostics refresh and the phone shows a clear recovery message.",
+      evidence: interruptionRecord ? `Manually accepted at ${new Date(interruptionRecord.createdAt).toISOString()}: ${manualEvidence(interruptionRecord)}` : "Disconnect and reconnect the remote path, then confirm diagnostics refresh and the phone shows a clear recovery message.",
       action: "Temporarily interrupt Tailscale/Tunnel/network, restore it, run remote health again, and verify the phone reconnect guidance.",
       acceptedAt: interruptionRecord?.createdAt,
     },
     {
       id: "diagnostic-export",
       status: diagnosticRecord ? "passed" : "manual-required",
-      evidence: diagnosticRecord ? `Manually accepted at ${new Date(diagnosticRecord.createdAt).toISOString()}: ${diagnosticRecord.note || diagnosticRecord.baseUrl}` : "Export the admin diagnostic bundle after the real remote checks.",
+      evidence: diagnosticRecord ? `Manually accepted at ${new Date(diagnosticRecord.createdAt).toISOString()}: ${manualEvidence(diagnosticRecord)}` : "Export the admin diagnostic bundle after the real remote checks.",
       action: "Export diagnostics from Settings and keep the redacted bundle with the release/acceptance evidence.",
       acceptedAt: diagnosticRecord?.createdAt,
     },

@@ -220,11 +220,14 @@ export function registerAdminRoutes(app: express.Express) {
         id: req.body?.id,
         baseUrl,
         note: req.body?.note,
+        evidence: req.body?.evidence,
       }, (req as any).actor || { type: "admin", id: "owner" });
       insertAuditLog("remote_acceptance_recorded", "network", record.id, {
         id: record.id,
         baseUrl: record.baseUrl,
         noteLength: record.note.length,
+        entryKind: record.evidence?.entryKind,
+        requirements: record.evidence?.requirements.length || 0,
         createdAt: record.createdAt,
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.json({ record, diagnostics: getAdminNetworkDiagnostics() });

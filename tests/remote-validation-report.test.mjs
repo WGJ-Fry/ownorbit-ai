@@ -307,6 +307,14 @@ test("remote acceptance checklist separates automated and real-world verificatio
       id: "cellular-mobile-chat",
       baseUrl: "https://lifeos.tailnet.example.ts.net",
       note: "Phone cellular /mobile/chat verified with token=secret",
+      evidence: {
+        source: "admin-long-term-remote-checklist",
+        requirements: [
+          "Saved remote entry: https://lifeos.tailnet.example.ts.net",
+          "Phone Wi-Fi disabled and /mobile/chat verified over cellular data.",
+          "secret=hidden",
+        ],
+      },
     }, { type: "admin", id: "owner" });
     saveRemoteAcceptanceRecord({
       id: "network-interruption",
@@ -328,16 +336,23 @@ test("remote acceptance checklist separates automated and real-world verificatio
       report,
       records: getRemoteAcceptanceRecords(),
     });
-    process.stdout.write(JSON.stringify(checklist));
+    const records = getRemoteAcceptanceRecords();
+    process.stdout.write(JSON.stringify({ checklist, records }));
   `], {
     cwd: process.cwd(),
     env: { ...process.env, LIFEOS_DATA_DIR: dataDir },
     encoding: "utf8",
   });
-  const checklist = JSON.parse(output);
+  const { checklist, records } = JSON.parse(output);
+  const cellularRecord = records.find((item) => item.id === "cellular-mobile-chat");
+  assert.equal(cellularRecord.evidence.entryKind, "tailscale-https");
+  assert.equal(cellularRecord.evidence.source, "admin-long-term-remote-checklist");
+  assert.equal(cellularRecord.evidence.requirements.some((item) => item.includes("token=secret") || item.includes("secret=hidden")), false);
   assert.equal(checklist.find((item) => item.id === "tailscale-https-serve").status, "passed");
   assert.equal(checklist.find((item) => item.id === "remote-smoke").status, "passed");
   assert.equal(checklist.find((item) => item.id === "restart-restore").status, "passed");
+  assert.match(checklist.find((item) => item.id === "cellular-mobile-chat").evidence, /Phone cellular/);
+  assert.doesNotMatch(checklist.find((item) => item.id === "cellular-mobile-chat").evidence, /secret=hidden/);
   assert.equal(checklist.find((item) => item.id === "cloudflare-named-tunnel").status, "needs-action");
   assert.equal(checklist.find((item) => item.id === "cellular-mobile-chat").status, "passed");
   assert.equal(checklist.find((item) => item.id === "cellular-mobile-chat").evidence.includes("secret"), false);

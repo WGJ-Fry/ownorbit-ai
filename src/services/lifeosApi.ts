@@ -682,18 +682,28 @@ export function runRemoteHealthCheck() {
   }>("/api/v1/admin/network-diagnostics/remote-health", { method: "POST" });
 }
 
-export function recordRemoteAcceptance(id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"], note = "") {
+export function recordRemoteAcceptance(
+  id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"],
+  note = "",
+  evidence?: { source?: string; requirements?: string[] },
+) {
   return requestJson<{
     record: {
       id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"];
       baseUrl: string;
       note: string;
+      evidence: {
+        entryKind: string;
+        verifiedUrl: string;
+        source: string;
+        requirements: string[];
+      };
       createdAt: number;
     };
     diagnostics: NetworkDiagnostics;
   }>("/api/v1/admin/network-diagnostics/acceptance", {
     method: "POST",
-    body: JSON.stringify({ id, note }),
+    body: JSON.stringify({ id, note, evidence }),
   });
 }
 

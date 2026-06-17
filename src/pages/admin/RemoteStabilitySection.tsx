@@ -26,6 +26,20 @@ export default function RemoteStabilitySection({
   const acceptanceCommand = acceptanceBaseUrl
     ? `LIFEOS_REMOTE_ACCEPTANCE_OUT="./remote-acceptance.json" LIFEOS_REMOTE_BASE_URL="${acceptanceBaseUrl}" npm run remote:acceptance`
     : `LIFEOS_REMOTE_ACCEPTANCE_OUT="./remote-acceptance.json" npm run remote:acceptance`;
+  const acceptanceEvidence = (id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"]) => {
+    const item = diagnostics.remoteAcceptanceChecklist.find((entry) => entry.id === id);
+    return {
+      source: "admin-long-term-remote-checklist",
+      requirements: [
+        `Saved remote entry: ${acceptanceBaseUrl || "not configured"}`,
+        item?.action || "",
+        id === "cellular-mobile-chat" ? "Phone Wi-Fi disabled and /mobile/chat verified over cellular data." : "",
+        id === "restart-restore" ? "Desktop app restarted and remote health passed after restore." : "",
+        id === "network-interruption" ? "Remote path interrupted, restored, and phone recovery guidance verified." : "",
+        id === "diagnostic-export" ? "Diagnostic bundle exported after real-world remote checks." : "",
+      ].filter(Boolean),
+    };
+  };
   const handleRecordAcceptance = async (id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"]) => {
     setAcceptingId(id);
     try {
@@ -36,7 +50,7 @@ export default function RemoteStabilitySection({
           : id === "network-interruption"
             ? "Remote path was interrupted and restored; diagnostics refreshed; phone recovery guidance and reconnect state confirmed."
             : "Admin diagnostic bundle exported after real remote acceptance checks.";
-      const result = await recordRemoteAcceptance(id, note);
+      const result = await recordRemoteAcceptance(id, note, acceptanceEvidence(id));
       onDiagnostics?.(result.diagnostics);
       onStatus?.(t("connection.acceptance.recorded"));
     } catch (error: any) {

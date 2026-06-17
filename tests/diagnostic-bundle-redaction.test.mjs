@@ -96,6 +96,14 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
     id: "cellular-mobile-chat",
     baseUrl: "https://example.com/lifeos",
     note: "Phone cellular passed token=remote-secret",
+    evidence: {
+      source: "admin-long-term-remote-checklist token=remote-secret",
+      requirements: [
+        "Saved remote entry: https://example.com/lifeos",
+        "Phone Wi-Fi disabled and /mobile/chat verified over cellular data.",
+        "secret=remote-secret",
+      ],
+    },
   }, { type: "admin", id: "owner" });
   remoteAcceptanceModule.saveRemoteAcceptanceRunbookReport({
     generatedAt: "2026-06-17T00:00:00.000Z",
@@ -143,6 +151,8 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(bundle.remote.validationReport.ok, true);
   assert.equal(bundle.remote.acceptanceChecklist.some((item) => item.id === "cellular-mobile-chat" && item.status === "passed"), true);
   assert.equal(bundle.remote.acceptanceRecords.total, 1);
+  assert.equal(bundle.remote.acceptanceRecords.latest[0].evidence.entryKind, "stable-https");
+  assert.equal(bundle.remote.acceptanceRecords.latest[0].evidence.requirements.some((item) => item.includes("remote-secret")), false);
   assert.equal(bundle.release.manifestAvailable, true);
   assert.equal(bundle.release.checksumAvailable, true);
   assert.equal(bundle.release.artifactCount, 1);

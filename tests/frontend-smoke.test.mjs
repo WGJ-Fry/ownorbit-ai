@@ -624,6 +624,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(remoteAcceptanceChecklistSource, /network-interruption/);
   assert.match(remoteAcceptanceChecklistSource, /diagnostic-export/);
   assert.match(remoteAcceptanceChecklistSource, /ci-remote-mock/);
+  assert.match(remoteStabilitySectionSource, /acceptanceEvidence/);
+  assert.match(remoteStabilitySectionSource, /Phone Wi-Fi disabled/);
+  assert.match(remoteStabilitySectionSource, /Desktop app restarted/);
   assert.match(remoteStabilitySectionSource, /acceptingId/);
   assert.match(remoteStabilitySectionSource, /LIFEOS_REMOTE_ACCEPTANCE_OUT/);
   assert.match(remoteStabilitySectionSource, /LIFEOS_REMOTE_BASE_URL/);
