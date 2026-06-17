@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-test("configured Cloudflare Tunnel autostarts and refreshes the public base URL", async (t) => {
+test("configured quick Cloudflare Tunnel is not treated as restart-stable", async (t) => {
   const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-cloudflared-bin-"));
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-cloudflared-data-"));
   const oldPath = process.env.PATH || "";
@@ -64,15 +64,16 @@ while true; do sleep 1; done
   });
 
   const result = await tunnelManager.maybeStartConfiguredCloudflareTunnel("4567", 1500);
-  assert.equal(result.started, true);
-  assert.equal(result.tunnel.url, "https://fresh-lifeos.trycloudflare.com");
-  assert.equal(process.env.PUBLIC_BASE_URL, "https://fresh-lifeos.trycloudflare.com");
+  assert.equal(result.started, false);
+  assert.equal(result.reason, "temporary_quick_tunnel_not_restored");
+  assert.equal(result.tunnel.url, "");
+  assert.equal(process.env.PUBLIC_BASE_URL, "https://stale-lifeos.trycloudflare.com");
 
   const rawConfig = await readFile(path.join(dataDir, "desktop-runtime-config.json"), "utf8");
   const savedConfig = JSON.parse(rawConfig);
   assert.equal(savedConfig.mode, "cloudflare");
-  assert.equal(savedConfig.publicBaseUrl, "https://fresh-lifeos.trycloudflare.com");
-  assert.equal(savedConfig.baseUrl, "https://fresh-lifeos.trycloudflare.com");
+  assert.equal(savedConfig.publicBaseUrl, "https://stale-lifeos.trycloudflare.com");
+  assert.equal(savedConfig.baseUrl, "https://stale-lifeos.trycloudflare.com");
 
   tunnelManager.stopManagedCloudflareTunnel();
 });

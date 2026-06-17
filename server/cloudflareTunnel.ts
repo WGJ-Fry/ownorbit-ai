@@ -313,6 +313,14 @@ function isAutostartDisabled() {
     || process.env.LIFEOS_CLOUDFLARE_AUTOSTART === "0";
 }
 
+function isTemporaryCloudflareUrl(value = "") {
+  try {
+    return new URL(value).hostname.toLowerCase().endsWith(".trycloudflare.com");
+  } catch {
+    return value.toLowerCase().includes(".trycloudflare.com");
+  }
+}
+
 export async function maybeStartConfiguredCloudflareTunnel(port: string, timeoutMs = 15000) {
   const config = getDesktopRuntimeConfig();
   const namedStatus = getCloudflareNamedTunnelStatus();
@@ -328,6 +336,14 @@ export async function maybeStartConfiguredCloudflareTunnel(port: string, timeout
   }
   if (!config || config.mode !== "cloudflare" || isAutostartDisabled()) {
     return { started: false, reason: "not_configured", tunnel: getManagedCloudflareTunnelStatus(), config };
+  }
+  if (isTemporaryCloudflareUrl(config.publicBaseUrl)) {
+    return {
+      started: false,
+      reason: "temporary_quick_tunnel_not_restored",
+      tunnel: getManagedCloudflareTunnelStatus(),
+      config,
+    };
   }
 
   const tunnel = await startManagedCloudflareTunnel(port, timeoutMs);

@@ -664,9 +664,11 @@ function checkAssets() {
     cloudflareTunnelSource.includes("saveNamedTunnelSettings") &&
     cloudflareTunnelSource.includes("settingsSaved") &&
     cloudflareTunnelSource.includes("scheduleNamedTunnelReconnect") &&
+    cloudflareTunnelSource.includes("temporary_quick_tunnel_not_restored") &&
     cloudflareTunnelSource.includes("reconnectAttempts") &&
     cloudflareTunnelSource.includes("reconnectScheduledAt") &&
     cloudflareTunnelTestSource.includes("settingsSaved") &&
+    cloudflareTunnelTestSource.includes("configured quick Cloudflare Tunnel is not treated as restart-stable") &&
     cloudflareTunnelTestSource.includes("reconnects automatically after an unexpected disconnect") &&
     packageJson.scripts.test.includes("tests/cloudflare-tunnel.test.mjs") &&
     cloudflareTunnelTestSource.includes("delete process.env.LIFEOS_CLOUDFLARE_TUNNEL_NAME") &&
