@@ -6,10 +6,11 @@ import { createAdminCredential, createAdminSession, getAdminSessionByToken, getB
 import { createDiagnosticBundle, getReleaseDiagnostics } from "../diagnosticBundle";
 import { clearHttpOnlyCookie, getClientIp, rateLimit, setClientCookie, setHttpOnlyCookie } from "../httpSecurity";
 import { getNetworkDiagnostics, startTailscaleHttpsServe, stopTailscaleHttpsServe, testConnectionUrl } from "../networkDiagnostics";
-import { getManagedCloudflareTunnelStatus, startManagedCloudflareTunnel, stopManagedCloudflareTunnel } from "../cloudflareTunnel";
+import { generateCloudflareNamedTunnelConfig, getCloudflareNamedTunnelStatus, getManagedCloudflareTunnelStatus, startConfiguredCloudflareNamedTunnel, startManagedCloudflareTunnel, stopManagedCloudflareTunnel } from "../cloudflareTunnel";
 import { saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
 import { getRemoteValidationReport, saveRemoteValidationReport } from "../remoteValidationReport";
+import { runRemoteHealthCheck } from "../remoteHealthMonitor";
 import { createSecret, tokenHash } from "../security";
 import { setClientState } from "../clientState";
 import { evaluatePasswordPolicy, getSecurityDiagnostics } from "../securityDiagnostics";
@@ -51,6 +52,7 @@ function getDataDirDiagnosticLabel() {
 function getAdminNetworkDiagnostics() {
   return {
     ...getNetworkDiagnostics(),
+    cloudflareNamedTunnel: getCloudflareNamedTunnelStatus(),
     remoteValidationReport: getRemoteValidationReport(),
   };
 }
@@ -165,8 +167,54 @@ export function registerAdminRoutes(app: express.Express) {
     }
   });
 
+  app.post("/api/v1/admin/network-diagnostics/remote-health", requireAdmin, async (_req, res) => {
+    try {
+      const result = await runRemoteHealthCheck("manual");
+      res.json({ ...result, diagnostics: getAdminNetworkDiagnostics() });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || "Remote health check failed", diagnostics: getAdminNetworkDiagnostics() });
+    }
+  });
+
   app.get("/api/v1/admin/cloudflare-tunnel", requireAdmin, (_req, res) => {
     res.json({ tunnel: getManagedCloudflareTunnelStatus(), diagnostics: getAdminNetworkDiagnostics() });
+  });
+
+  app.post("/api/v1/admin/cloudflare-named-tunnel/config", requireAdmin, (req, res) => {
+    try {
+      const status = generateCloudflareNamedTunnelConfig({
+        name: req.body?.name,
+        hostname: req.body?.hostname,
+        credentialsFile: req.body?.credentialsFile,
+      });
+      insertAuditLog("cloudflare_named_tunnel_config_generated", "network", status.baseUrl || "cloudflare-named", {
+        hostname: status.hostname,
+        configPath: status.configPath,
+        publicBaseUrlConfigured: Boolean(status.desktopConfig.publicBaseUrl),
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.json({ namedTunnel: getCloudflareNamedTunnelStatus(), diagnostics: getAdminNetworkDiagnostics(), message: "Cloudflare Named Tunnel config generated and saved for startup." });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || "Cloudflare Named Tunnel config is invalid" });
+    }
+  });
+
+  app.post("/api/v1/admin/cloudflare-named-tunnel/start", requireAdmin, async (req, res) => {
+    try {
+      const tunnel = await startConfiguredCloudflareNamedTunnel();
+      const namedTunnel = getCloudflareNamedTunnelStatus();
+      if (namedTunnel.baseUrl) process.env.PUBLIC_BASE_URL = namedTunnel.baseUrl;
+      insertAuditLog("cloudflare_named_tunnel_started", "network", namedTunnel.baseUrl || "cloudflare-named", {
+        pid: tunnel.pid,
+        hostname: namedTunnel.hostname,
+        configPath: namedTunnel.configPath,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.json({ tunnel, namedTunnel, diagnostics: getAdminNetworkDiagnostics(), message: "Cloudflare Named Tunnel started. The stable HTTPS domain is now the mobile pairing address." });
+    } catch (error: any) {
+      insertAuditLog("cloudflare_named_tunnel_start_failed", "network", "cloudflare-named", {
+        error: error?.message || "Cloudflare Named Tunnel start failed",
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(400).json({ error: error.message || "Cloudflare Named Tunnel start failed", namedTunnel: getCloudflareNamedTunnelStatus() });
+    }
   });
 
   app.post("/api/v1/admin/cloudflare-tunnel/start", requireAdmin, async (req, res) => {

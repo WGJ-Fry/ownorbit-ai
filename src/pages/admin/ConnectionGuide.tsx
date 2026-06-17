@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, Copy, Globe2, PlugZap, Router, ShieldCheck } from "lucide-react";
-import { getHealth, getNetworkDiagnostics, NetworkDiagnostics, saveDesktopConnectionConfig, startCloudflareTunnel, startTailscaleHttpsServe, stopCloudflareTunnel, stopTailscaleHttpsServe, testConnectionUrl } from "../../services/lifeosApi";
+import { getHealth, getNetworkDiagnostics, NetworkDiagnostics, runRemoteHealthCheck, saveDesktopConnectionConfig, startCloudflareTunnel, startTailscaleHttpsServe, stopCloudflareTunnel, stopTailscaleHttpsServe, testConnectionUrl } from "../../services/lifeosApi";
 import { useI18n } from "../../i18n/I18nProvider";
 import CloudflareTunnelActions from "./CloudflareTunnelActions";
+import CloudflareNamedTunnelCard from "./CloudflareNamedTunnelCard";
 import ConnectionToolStatus from "./ConnectionToolStatus";
 import CustomRemoteEntryCard from "./CustomRemoteEntryCard";
 import GuideCard from "./ConnectionGuideCard";
@@ -30,6 +31,7 @@ export default function ConnectionGuide({ health }: { health: Health | null }) {
   const [tunnelBusy, setTunnelBusy] = useState<"start" | "stop" | null>(null);
   const [tailscaleServeBusy, setTailscaleServeBusy] = useState<"start" | "stop" | null>(null);
   const [testing, setTesting] = useState(false);
+  const [remoteHealthBusy, setRemoteHealthBusy] = useState(false);
   const baseUrl = diagnostics?.recommendedBaseUrl || health?.publicBaseUrl || "http://LAN-IP:3000";
   const mobileChatUrl = `${baseUrl.replace(/\/$/, "")}/mobile/chat`;
   const recommendedCandidate = diagnostics?.connectionCandidates?.[0] || null;
@@ -129,6 +131,21 @@ export default function ConnectionGuide({ health }: { health: Health | null }) {
   const handleStopCloudflareTunnel = () => runRemoteAction(setTunnelBusy, "stop", stopCloudflareTunnel, "connection.cloudflareStopFailed");
   const handleStartTailscaleServe = () => runRemoteAction(setTailscaleServeBusy, "start", startTailscaleHttpsServe, "connection.tailscaleServeStartFailed");
   const handleStopTailscaleServe = () => runRemoteAction(setTailscaleServeBusy, "stop", stopTailscaleHttpsServe, "connection.tailscaleServeStopFailed");
+
+  const handleRemoteHealthCheck = async () => {
+    setRemoteHealthBusy(true);
+    setTestStatus(null);
+    try {
+      const result = await runRemoteHealthCheck();
+      setDiagnostics(result.diagnostics);
+      setTestStatus(result.skipped ? t("connection.remoteHealthSkipped") : t("connection.remoteHealthChecked"));
+    } catch (error: any) {
+      setTestStatus(error.message || t("connection.testFailed"));
+      await refreshDiagnostics();
+    } finally {
+      setRemoteHealthBusy(false);
+    }
+  };
 
   return (
     <section id="mobile-connect" className="mb-6 scroll-mt-6 rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
@@ -252,6 +269,14 @@ export default function ConnectionGuide({ health }: { health: Health | null }) {
                   {testingCandidate === "saved-desktop-config" ? t("connection.testing") : t("connection.testSavedRemote")}
                 </button>
               ) : null}
+              <button
+                onClick={handleRemoteHealthCheck}
+                disabled={remoteHealthBusy}
+                className="inline-flex items-center gap-2 rounded-xl border border-sky-400/20 bg-sky-500/10 px-3 py-2 text-xs font-bold text-sky-100 disabled:opacity-50"
+              >
+                <PlugZap className="h-3.5 w-3.5" />
+                {remoteHealthBusy ? t("connection.testing") : t("connection.runRemoteHealth")}
+              </button>
             </div>
           </div>
           {diagnostics.remoteValidationReport ? (
@@ -340,6 +365,12 @@ export default function ConnectionGuide({ health }: { health: Health | null }) {
             defaultUrl={diagnostics.desktopRuntimeConfig?.publicBaseUrl || diagnostics.publicBaseUrl || ""}
             onSaved={setDiagnostics}
           />
+          {diagnostics.cloudflareNamedTunnel ? (
+            <CloudflareNamedTunnelCard
+              namedTunnel={diagnostics.cloudflareNamedTunnel}
+              onUpdate={setDiagnostics}
+            />
+          ) : null}
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <ConnectionToolStatus

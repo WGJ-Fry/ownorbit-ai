@@ -317,7 +317,7 @@ export default function MobileDevicePage() {
             <RefreshCw className="h-4 w-4" />
             {connectivityBusy ? t("mobileDevice.connectivityTesting") : t("mobileDevice.connectivityTest")}
           </button>
-          {connectivityTest ? <MobileConnectivityCard result={connectivityTest} /> : null}
+          {connectivityTest ? <MobileConnectivityCard result={connectivityTest} entryKind={currentEntry.kind} /> : null}
         </section>
         <section className="mt-4 rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
           <div className="mb-4 flex items-start gap-3">

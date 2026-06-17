@@ -21,6 +21,7 @@ import { requireCsrf, securityHeaders } from "./server/httpSecurity";
 import { startBackupScheduler } from "./server/backupSchedule";
 import { maybeStartConfiguredCloudflareTunnel } from "./server/cloudflareTunnel";
 import { maybeStartConfiguredTailscaleServe } from "./server/networkDiagnostics";
+import { startRemoteHealthMonitor } from "./server/remoteHealthMonitor";
 import { getInstallPairingToken, htmlWithInstallPairingManifest, htmlWithPublicBaseHref, setInstallPairingIntentCookie } from "./server/mobileInstall";
 import { getConfiguredPublicBasePath } from "./server/publicBaseUrl";
 
@@ -66,6 +67,7 @@ function migrateLegacyJsonStore() {
 migrateLegacyJsonStore();
 runMigrations();
 startBackupScheduler();
+startRemoteHealthMonitor();
 
 app.use((req, _res, next) => {
   const basePath = getConfiguredPublicBasePath();

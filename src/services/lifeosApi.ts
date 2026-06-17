@@ -316,6 +316,19 @@ export type NetworkDiagnostics = {
     envTemplate: string;
     notes: string[];
   };
+  cloudflareNamedTunnel: {
+    configured: boolean;
+    ready: boolean;
+    configPath: string;
+    configExists: boolean;
+    name: string;
+    hostname: string;
+    credentialsFile: string;
+    baseUrl: string;
+    command: string;
+    configPreview: string;
+    notes: string[];
+  };
   tailscale: {
     installed: boolean;
     online: boolean;
@@ -560,6 +573,35 @@ export function stopCloudflareTunnel() {
     diagnostics: NetworkDiagnostics;
     message: string;
   }>("/api/v1/admin/cloudflare-tunnel/stop", { method: "POST" });
+}
+
+export function generateCloudflareNamedTunnelConfig(input: { name: string; hostname: string; credentialsFile: string }) {
+  return requestJson<{
+    namedTunnel: NetworkDiagnostics["cloudflareNamedTunnel"];
+    diagnostics: NetworkDiagnostics;
+    message: string;
+  }>("/api/v1/admin/cloudflare-named-tunnel/config", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function startCloudflareNamedTunnel() {
+  return requestJson<{
+    tunnel: NetworkDiagnostics["cloudflare"]["managed"];
+    namedTunnel: NetworkDiagnostics["cloudflareNamedTunnel"];
+    diagnostics: NetworkDiagnostics;
+    message: string;
+  }>("/api/v1/admin/cloudflare-named-tunnel/start", { method: "POST" });
+}
+
+export function runRemoteHealthCheck() {
+  return requestJson<{
+    skipped: boolean;
+    reason: string;
+    report: NetworkDiagnostics["remoteValidationReport"];
+    diagnostics: NetworkDiagnostics;
+  }>("/api/v1/admin/network-diagnostics/remote-health", { method: "POST" });
 }
 
 export function startTailscaleHttpsServe() {
