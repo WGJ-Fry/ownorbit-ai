@@ -431,6 +431,8 @@ function checkAssets() {
   const customRemoteEntrySource = exists("src/pages/admin/CustomRemoteEntryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/CustomRemoteEntryCard.tsx"), "utf8") : "";
   const devicePairSource = exists("src/pages/admin/DevicePairPage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/DevicePairPage.tsx"), "utf8") : "";
   const networkDiagnosticsTestSource = exists("tests/network-diagnostics.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/network-diagnostics.test.mjs"), "utf8") : "";
+  const cloudflareTunnelSource = exists("server/cloudflareTunnel.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudflareTunnel.ts"), "utf8") : "";
+  const cloudflareTunnelTestSource = exists("tests/cloudflare-tunnel.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudflare-tunnel.test.mjs"), "utf8") : "";
   const clientRoutingTestSource = exists("tests/client-routing.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/client-routing.test.mjs"), "utf8") : "";
   const lifeosApiSourceForRouting = exists("src/services/lifeosApi.ts") ? fs.readFileSync(path.join(rootDir, "src/services/lifeosApi.ts"), "utf8") : "";
   const realtimeHookSource = exists("src/hooks/useLifeOSRealtime.ts") ? fs.readFileSync(path.join(rootDir, "src/hooks/useLifeOSRealtime.ts"), "utf8") : "";
@@ -631,6 +633,12 @@ function checkAssets() {
     networkDiagnosticsTestSource.includes("needsPublicOptIn") &&
     networkDiagnosticsTestSource.includes("Tailscale HTTPS Serve helpers run controlled start and stop commands") &&
     networkDiagnosticsTestSource.includes("configured Tailscale HTTPS Serve autostart refreshes the saved stable URL") &&
+    cloudflareTunnelSource.includes("cloudflared-named-tunnel.json") &&
+    cloudflareTunnelSource.includes("loadNamedTunnelSettings") &&
+    cloudflareTunnelSource.includes("saveNamedTunnelSettings") &&
+    cloudflareTunnelSource.includes("settingsSaved") &&
+    cloudflareTunnelTestSource.includes("settingsSaved") &&
+    cloudflareTunnelTestSource.includes("delete process.env.LIFEOS_CLOUDFLARE_TUNNEL_NAME") &&
     networkDiagnosticsTestSource.includes("connection URL tests strip credentials, query secrets, and fragments") &&
     networkDiagnosticsTestSource.includes("connection URL tests health, mobile shell, and websocket under a remote base path")
   ) pass("connection diagnostics have Cloudflare/Tailscale mock coverage and sanitize test URLs");

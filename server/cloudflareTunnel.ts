@@ -26,6 +26,7 @@ const managedTunnel: ManagedTunnel = {
 };
 
 const namedTunnelConfigPath = path.join(dataDir, "cloudflared-named-tunnel.yml");
+const namedTunnelSettingsPath = path.join(dataDir, "cloudflared-named-tunnel.json");
 
 export function extractCloudflareTunnelUrls(output: string) {
   const matches = output.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com\b/gi) || [];
@@ -44,11 +45,40 @@ function commandForPort(port: string) {
   return `${command} tunnel --url http://127.0.0.1:${port}`;
 }
 
+function firstConfiguredValue(...values: unknown[]) {
+  for (const value of values) {
+    const normalized = String(value || "").trim();
+    if (normalized) return normalized;
+  }
+  return "";
+}
+
+function loadNamedTunnelSettings() {
+  if (!fs.existsSync(namedTunnelSettingsPath)) return null;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(namedTunnelSettingsPath, "utf8"));
+    return {
+      name: String(parsed?.name || "").trim(),
+      hostname: String(parsed?.hostname || "").trim().toLowerCase(),
+      credentialsFile: String(parsed?.credentialsFile || "").trim(),
+      port: String(parsed?.port || "").trim(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveNamedTunnelSettings(input: { name: string; hostname: string; credentialsFile: string; port: string }) {
+  fs.mkdirSync(path.dirname(namedTunnelSettingsPath), { recursive: true });
+  fs.writeFileSync(namedTunnelSettingsPath, `${JSON.stringify(input, null, 2)}\n`, { mode: 0o600 });
+}
+
 function namedTunnelInput(input: { name?: unknown; hostname?: unknown; credentialsFile?: unknown; port?: unknown }) {
-  const name = String(input.name || process.env.LIFEOS_CLOUDFLARE_TUNNEL_NAME || "").trim();
-  const hostname = String(input.hostname || process.env.LIFEOS_CLOUDFLARE_TUNNEL_HOSTNAME || "").trim().toLowerCase();
-  const credentialsFile = String(input.credentialsFile || process.env.LIFEOS_CLOUDFLARE_TUNNEL_CREDENTIALS || "").trim();
-  const port = String(input.port || process.env.LIFEOS_PORT || process.env.PORT || "3000").trim();
+  const saved = loadNamedTunnelSettings();
+  const name = firstConfiguredValue(input.name, process.env.LIFEOS_CLOUDFLARE_TUNNEL_NAME, saved?.name);
+  const hostname = firstConfiguredValue(input.hostname, process.env.LIFEOS_CLOUDFLARE_TUNNEL_HOSTNAME, saved?.hostname).toLowerCase();
+  const credentialsFile = firstConfiguredValue(input.credentialsFile, process.env.LIFEOS_CLOUDFLARE_TUNNEL_CREDENTIALS, saved?.credentialsFile);
+  const port = firstConfiguredValue(input.port, process.env.LIFEOS_PORT, process.env.PORT, saved?.port, "3000");
   const baseUrl = normalizePublicBaseUrl(hostname ? `https://${hostname}` : "");
   if (!name || !/^[a-z0-9][a-z0-9._-]{0,80}$/i.test(name)) throw new Error("Named Tunnel requires a valid tunnel name.");
   if (!baseUrl) throw new Error("Named Tunnel requires a valid HTTPS hostname.");
@@ -57,7 +87,11 @@ function namedTunnelInput(input: { name?: unknown; hostname?: unknown; credentia
 }
 
 export function getCloudflareNamedTunnelStatus() {
-  const configured = Boolean(process.env.LIFEOS_CLOUDFLARE_TUNNEL_NAME && process.env.LIFEOS_CLOUDFLARE_TUNNEL_HOSTNAME && process.env.LIFEOS_CLOUDFLARE_TUNNEL_CREDENTIALS);
+  const saved = loadNamedTunnelSettings();
+  const configured = Boolean(
+    (process.env.LIFEOS_CLOUDFLARE_TUNNEL_NAME && process.env.LIFEOS_CLOUDFLARE_TUNNEL_HOSTNAME && process.env.LIFEOS_CLOUDFLARE_TUNNEL_CREDENTIALS)
+      || (saved?.name && saved?.hostname && saved?.credentialsFile),
+  );
   const configExists = fs.existsSync(namedTunnelConfigPath);
   let parsed: ReturnType<typeof namedTunnelInput> | null = null;
   let configPreview = "";
@@ -73,6 +107,8 @@ export function getCloudflareNamedTunnelStatus() {
     configured,
     ready: Boolean(parsed && configExists),
     configPath: "[lifeos-data]/cloudflared-named-tunnel.yml",
+    settingsPath: "[lifeos-data]/cloudflared-named-tunnel.json",
+    settingsSaved: Boolean(saved?.name && saved?.hostname && saved?.credentialsFile),
     configExists,
     name: parsed?.name || String(process.env.LIFEOS_CLOUDFLARE_TUNNEL_NAME || ""),
     hostname: parsed?.hostname || String(process.env.LIFEOS_CLOUDFLARE_TUNNEL_HOSTNAME || ""),
@@ -110,6 +146,12 @@ export function generateCloudflareNamedTunnelConfig(input: { name?: unknown; hos
   const config = buildNamedTunnelConfig(parsed);
   fs.mkdirSync(path.dirname(namedTunnelConfigPath), { recursive: true });
   fs.writeFileSync(namedTunnelConfigPath, config, { mode: 0o600 });
+  saveNamedTunnelSettings({
+    name: parsed.name,
+    hostname: parsed.hostname,
+    credentialsFile: parsed.credentialsFile,
+    port: parsed.port,
+  });
   const desktopConfig = saveDesktopRuntimeConfig({
     mode: "cloudflare",
     label: "Cloudflare Named Tunnel",

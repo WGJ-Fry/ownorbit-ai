@@ -132,9 +132,21 @@ while true; do sleep 1; done
   const tunnelManager = await import(`../server/cloudflareTunnel.ts?cloudflare-named=${cacheKey}`);
   const generated = tunnelManager.generateCloudflareNamedTunnelConfig({});
   assert.equal(generated.ready, true);
+  assert.equal(generated.settingsSaved, true);
   assert.equal(generated.baseUrl, "https://lifeos.example.com");
   assert.match(generated.config, /hostname: lifeos\.example\.com/);
   assert.match(generated.config, /service: http:\/\/127\.0\.0\.1:4567/);
+
+  delete process.env.LIFEOS_CLOUDFLARE_TUNNEL_NAME;
+  delete process.env.LIFEOS_CLOUDFLARE_TUNNEL_HOSTNAME;
+  delete process.env.LIFEOS_CLOUDFLARE_TUNNEL_CREDENTIALS;
+  const persistedStatus = tunnelManager.getCloudflareNamedTunnelStatus();
+  assert.equal(persistedStatus.configured, true);
+  assert.equal(persistedStatus.ready, true);
+  assert.equal(persistedStatus.settingsSaved, true);
+  assert.equal(persistedStatus.name, "lifeos-ai");
+  assert.equal(persistedStatus.hostname, "lifeos.example.com");
+  assert.equal(persistedStatus.credentialsFile, "[configured]");
 
   const started = await tunnelManager.maybeStartConfiguredCloudflareTunnel("4567", 1000);
   assert.equal(started.reason, "cloudflare_named_configured");
