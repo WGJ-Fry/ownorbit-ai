@@ -98,7 +98,7 @@ export default function MobilePairPage() {
               <RefreshCw className="h-4 w-4" />
               {connectivityBusy ? t("mobilePair.connectivityTesting") : t("mobilePair.connectivityTest")}
             </button>
-            {connectivityTest ? <MobileConnectivityCard result={connectivityTest} /> : null}
+            {connectivityTest ? <MobileConnectivityCard result={connectivityTest} onRetry={handleConnectivityTest} /> : null}
             <a href="/mobile/chat" className="mt-8 inline-flex w-full justify-center rounded-xl bg-cyan-500 py-3 font-bold text-[#061016]">
               {t("mobilePair.enterMobileAi")}
             </a>

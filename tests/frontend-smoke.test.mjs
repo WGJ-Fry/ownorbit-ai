@@ -349,8 +349,16 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceSource, /testMobileRemoteConnectivity/);
   assert.match(mobileDeviceSource, /reportMobileConnectivity/);
   assert.match(mobileDeviceSource, /MobileConnectivityCard/);
+  assert.match(mobileDeviceSource, /onRetry=\{handleConnectivityTest\}/);
+  const mobileConnectivityCardSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileConnectivityCard.tsx"), "utf8");
+  assert.match(mobileConnectivityCardSource, /tailscale:\/\//);
+  assert.match(mobileConnectivityCardSource, /mobileDevice\.openTailscale/);
+  assert.match(mobileConnectivityCardSource, /mobileDevice\.rebindRemoteEntry/);
+  assert.match(mobileConnectivityCardSource, /mobileDevice\.retryRealtime/);
   assert.match(translationsSource, /远程入口自检/);
   assert.match(translationsSource, /测试当前手机连通性/);
+  assert.match(translationsSource, /打开 Tailscale/);
+  assert.match(translationsSource, /重新绑定远程入口/);
   assert.match(translationsSource, /实时聊天通道/);
   assert.match(translationsSource, /Tailscale HTTPS 入口/);
   assert.match(translationsSource, /同局域网入口/);

@@ -751,6 +751,7 @@ function checkAssets() {
   const offlineQueueTestSource = exists("tests/offline-queue.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/offline-queue.test.mjs"), "utf8") : "";
   const pwaCapabilitiesSource = exists("src/services/pwaCapabilities.ts") ? fs.readFileSync(path.join(rootDir, "src/services/pwaCapabilities.ts"), "utf8") : "";
   const pwaCapabilitiesTestSource = exists("tests/pwa-capabilities.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/pwa-capabilities.test.mjs"), "utf8") : "";
+  const mobileConnectivityCardSource = exists("src/pages/mobile/MobileConnectivityCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileConnectivityCard.tsx"), "utf8") : "";
   const frontendSmokeTestSource = exists("tests/frontend-smoke.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/frontend-smoke.test.mjs"), "utf8") : "";
   const dbSourceForConnectivity = exists("server/db.ts") ? fs.readFileSync(path.join(rootDir, "server/db.ts"), "utf8") : "";
   if (
@@ -769,6 +770,11 @@ function checkAssets() {
     mobileDeviceSource.includes("mobileDevice.connectivityTest") &&
     mobileDeviceSource.includes("testMobileRemoteConnectivity") &&
     mobileDeviceSource.includes("reportMobileConnectivity") &&
+    mobileDeviceSource.includes("onRetry={handleConnectivityTest}") &&
+    mobileConnectivityCardSource.includes("tailscale://") &&
+    mobileConnectivityCardSource.includes("mobileDevice.openTailscale") &&
+    mobileConnectivityCardSource.includes("mobileDevice.rebindRemoteEntry") &&
+    mobileConnectivityCardSource.includes("mobileDevice.retryRealtime") &&
     mobileDeviceSource.includes("pwaCapabilities.recommendations") &&
     adminDashboardSource.includes("connectivityReport") &&
     adminDashboardSource.includes("dashboard.mobileConnectivityOk") &&

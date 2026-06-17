@@ -10,10 +10,20 @@ function guidanceKey(kind?: RemoteEntryKind) {
   return "mobileDevice.connectivityGuidanceDefault";
 }
 
-export default function MobileConnectivityCard({ result, entryKind }: { result: MobileConnectivityResult; entryKind?: RemoteEntryKind }) {
+export default function MobileConnectivityCard({
+  result,
+  entryKind,
+  onRetry,
+}: {
+  result: MobileConnectivityResult;
+  entryKind?: RemoteEntryKind;
+  onRetry?: () => void;
+}) {
   const { t } = useI18n();
   const passed = result.steps.filter((step) => step.ok).length;
   const websocketFailed = result.steps.some((step) => step.id === "websocket" && !step.ok);
+  const showRebind = entryKind === "temporary-cloudflare" || entryKind === "same-lan" || entryKind === "localhost" || entryKind === "configured-mismatch";
+  const showTailscale = entryKind === "tailscale";
   return (
     <div className={`mt-4 rounded-2xl border p-3 text-sm ${result.ok ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100" : "border-red-400/20 bg-red-500/10 text-red-100"}`}>
       <div className="font-bold">
@@ -38,6 +48,23 @@ export default function MobileConnectivityCard({ result, entryKind }: { result: 
           <div className="font-bold">{t("mobileDevice.connectivityFixTitle")}</div>
           <div className="mt-1 opacity-85">{t(guidanceKey(entryKind) as any)}</div>
           {websocketFailed ? <div className="mt-1 opacity-85">{t("mobileDevice.connectivityGuidanceWebSocket")}</div> : null}
+          <div className="mt-3 grid gap-2">
+            {onRetry ? (
+              <button onClick={onRetry} className="rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-3 py-2 font-bold text-cyan-100">
+                {websocketFailed ? t("mobileDevice.retryRealtime") : t("mobileDevice.retryConnectivity")}
+              </button>
+            ) : null}
+            {showTailscale ? (
+              <a href="tailscale://" className="rounded-xl border border-blue-400/20 bg-blue-500/10 px-3 py-2 text-center font-bold text-blue-100">
+                {t("mobileDevice.openTailscale")}
+              </a>
+            ) : null}
+            {showRebind ? (
+              <a href="/mobile/device" className="rounded-xl border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-center font-bold text-amber-100">
+                {t("mobileDevice.rebindRemoteEntry")}
+              </a>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </div>
