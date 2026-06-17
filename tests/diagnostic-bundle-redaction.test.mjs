@@ -97,6 +97,23 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
     baseUrl: "https://example.com/lifeos",
     note: "Phone cellular passed token=remote-secret",
   }, { type: "admin", id: "owner" });
+  remoteAcceptanceModule.saveRemoteAcceptanceRunbookReport({
+    generatedAt: "2026-06-17T00:00:00.000Z",
+    baseUrl: "https://example.com/lifeos",
+    entryKind: "stable-https",
+    longTermReady: true,
+    longTermReason: "Ready token=remote-secret",
+    automatedChecks: {
+      ok: true,
+      passed: 3,
+      total: 3,
+      latencyMs: 12,
+      steps: [
+        { id: "health", ok: true, status: 200, url: "https://example.com/lifeos/api/v1/health", latencyMs: 4 },
+      ],
+    },
+    manualAcceptance: [{ id: "cellular-mobile-chat", title: "Phone cellular", required: true }],
+  }, { type: "admin", id: "owner" });
 
   const { createDiagnosticBundle } = await import(`../server/diagnosticBundle.ts?diagnostic=${Date.now()}`);
   const bundle = createDiagnosticBundle();
@@ -108,6 +125,9 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(serialized.includes("sk-diagnostic-openai-secret"), false);
   assert.equal(serialized.includes("sk-or-diagnostic-secret"), false);
   assert.equal(serialized.includes("local-secret"), false);
+  assert.equal(serialized.includes("remote-secret"), false);
+  assert.equal(bundle.remote.acceptanceRunbooks.total, 1);
+  assert.equal(bundle.remote.acceptanceRunbooks.latest[0].entryKind, "stable-https");
   assert.equal(serialized.includes("remote-secret"), false);
   assert.equal(serialized.includes("private-release-token-should-not-leak"), false);
   assert.equal(serialized.includes("user:password"), false);

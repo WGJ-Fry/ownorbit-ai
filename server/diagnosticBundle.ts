@@ -6,7 +6,7 @@ import { db, getPendingRestore, listBackups } from "./db";
 import { getDevices } from "./devices";
 import { getNetworkDiagnostics } from "./networkDiagnostics";
 import { getOnlineDeviceCount } from "./realtime";
-import { buildRemoteAcceptanceChecklist, getRemoteAcceptanceRecords } from "./remoteAcceptance";
+import { buildRemoteAcceptanceChecklist, getRemoteAcceptanceRecords, getRemoteAcceptanceRunbookRecords } from "./remoteAcceptance";
 import { getRemoteValidationReport, summarizeRemoteHealth } from "./remoteValidationReport";
 import { getSecurityDiagnostics } from "./securityDiagnostics";
 
@@ -104,6 +104,7 @@ export function createDiagnosticBundle() {
   const network = getNetworkDiagnostics();
   const remoteValidationReport = getRemoteValidationReport();
   const remoteAcceptanceRecords = getRemoteAcceptanceRecords();
+  const remoteAcceptanceRunbookRecords = getRemoteAcceptanceRunbookRecords();
   const remoteHealthSummary = summarizeRemoteHealth({
     baseUrl: network.desktopRuntimeConfig?.publicBaseUrl || network.remoteReadiness.baseUrl,
     readiness: network.remoteReadiness,
@@ -153,6 +154,10 @@ export function createDiagnosticBundle() {
       acceptanceRecords: {
         total: remoteAcceptanceRecords.length,
         latest: remoteAcceptanceRecords.slice(-5),
+      },
+      acceptanceRunbooks: {
+        total: remoteAcceptanceRunbookRecords.length,
+        latest: remoteAcceptanceRunbookRecords.slice(-5),
       },
     },
     security: getSecurityDiagnostics(),

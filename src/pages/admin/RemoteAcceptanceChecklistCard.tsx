@@ -34,12 +34,20 @@ export default function RemoteAcceptanceChecklistCard({
   acceptanceCommand,
   checklist,
   acceptingId,
+  importingReport,
+  reportText,
   onAccept,
+  onImportReport,
+  onReportTextChange,
 }: {
   acceptanceCommand: string;
   checklist: NetworkDiagnostics["remoteAcceptanceChecklist"];
   acceptingId?: string | null;
+  importingReport?: boolean;
+  reportText?: string;
   onAccept?: (id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"]) => void;
+  onImportReport?: () => void;
+  onReportTextChange?: (value: string) => void;
 }) {
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
@@ -71,6 +79,23 @@ export default function RemoteAcceptanceChecklistCard({
               </button>
             </div>
             <code className="mt-2 block break-all rounded-lg bg-black/30 px-2 py-1.5 text-[10px] leading-relaxed text-cyan-50/90">{acceptanceCommand}</code>
+          </div>
+          <div className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
+            <div className="text-xs font-bold text-zinc-100">{t("connection.acceptance.importTitle")}</div>
+            <p className="mt-1 text-[11px] leading-relaxed text-zinc-400">{t("connection.acceptance.importBody")}</p>
+            <textarea
+              value={reportText || ""}
+              onChange={(event) => onReportTextChange?.(event.target.value)}
+              placeholder={t("connection.acceptance.importPlaceholder")}
+              className="mt-2 min-h-20 w-full resize-y rounded-lg border border-white/10 bg-black/20 px-2 py-2 text-[11px] text-zinc-100 outline-none placeholder:text-zinc-600"
+            />
+            <button
+              onClick={onImportReport}
+              disabled={!reportText?.trim() || importingReport}
+              className="mt-2 inline-flex rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-[11px] font-bold text-white disabled:opacity-50"
+            >
+              {importingReport ? t("connection.acceptance.importing") : t("connection.acceptance.importReport")}
+            </button>
           </div>
           <div className="mt-3 grid gap-2 lg:grid-cols-2">
             {checklist.map((item) => (

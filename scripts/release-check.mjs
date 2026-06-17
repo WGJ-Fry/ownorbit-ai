@@ -489,6 +489,8 @@ function checkAssets() {
     remoteAcceptanceChecklistSource.includes("connection.acceptance.commandTitle") &&
     remoteAcceptanceChecklistSource.includes("navigator.clipboard.writeText") &&
     remoteAcceptanceChecklistSource.includes("connection.acceptance.copyCommand") &&
+    remoteAcceptanceChecklistSource.includes("connection.acceptance.importTitle") &&
+    remoteAcceptanceChecklistSource.includes("onImportReport") &&
     remoteAcceptanceChecklistSource.includes("connection.acceptance.markDone") &&
     remoteAcceptanceChecklistSource.includes("onAccept") &&
     remoteAcceptanceChecklistSource.includes("cellular-mobile-chat") &&
@@ -496,18 +498,26 @@ function checkAssets() {
     remoteStabilitySectionSource.includes("LIFEOS_REMOTE_ACCEPTANCE_OUT") &&
     remoteStabilitySectionSource.includes("LIFEOS_REMOTE_BASE_URL") &&
     remoteStabilitySectionSource.includes("npm run remote:acceptance") &&
+    remoteStabilitySectionSource.includes("importRemoteAcceptanceReport") &&
+    remoteStabilitySectionSource.includes("JSON.parse") &&
     remoteAcceptanceSource.includes("buildRemoteAcceptanceChecklist") &&
     remoteAcceptanceSource.includes("saveRemoteAcceptanceRecord") &&
+    remoteAcceptanceSource.includes("saveRemoteAcceptanceRunbookReport") &&
+    remoteAcceptanceSource.includes("getRemoteAcceptanceRunbookRecords") &&
     remoteAcceptanceSource.includes("getRemoteAcceptanceRecords") &&
     remoteAcceptanceSource.includes("Remote acceptance URL must not contain username, password, token, query, or fragment") &&
+    remoteAcceptanceSource.includes("Remote acceptance report URLs must not contain username, password, token, query, or fragment") &&
     remoteAcceptanceSource.includes("manual-required") &&
     remoteAcceptanceSource.includes("LIFEOS_REMOTE_BASE_URL=https://your-stable-entry npm run remote:smoke") &&
     lifeosApiSourceForRouting.includes("recordRemoteAcceptance") &&
+    lifeosApiSourceForRouting.includes("importRemoteAcceptanceReport") &&
     remoteStabilitySectionSource.includes("handleRecordAcceptance") &&
     connectionGuideSource.includes("connection.remoteValidationOk") &&
     connectionGuideSource.includes("connection.remoteValidationFail") &&
     adminRoutesSource.includes("summarizeRemoteHealth") &&
     adminRoutesSource.includes("buildRemoteAcceptanceChecklist") &&
+    adminRoutesSource.includes("/api/v1/admin/network-diagnostics/acceptance-report") &&
+    adminRoutesSource.includes("remote_acceptance_report_imported") &&
     adminRoutesSource.includes("latestBindingSession") &&
     adminRoutesSource.includes("saveRemoteValidationReport") &&
     adminRoutesSource.includes("persist") &&
@@ -539,8 +549,10 @@ function checkAssets() {
     translationsSource.includes("connection.readiness.item.needsPublicOptIn") &&
     translationsSource.includes("connection.acceptance.title") &&
     translationsSource.includes("connection.acceptance.commandTitle") &&
+    translationsSource.includes("connection.acceptance.importTitle") &&
     translationsSource.includes("connection.acceptance.markDone") &&
     translationsSource.includes("Remote Acceptance Command") &&
+    translationsSource.includes("Import Real Acceptance Evidence") &&
     translationsSource.includes("Long-Term Remote Acceptance Checklist") &&
     translationsSource.includes("/mobile/install/<token>") &&
     lifeosApiSourceForRouting.includes("getLifeOSBasePath") &&
@@ -944,9 +956,11 @@ function checkAssets() {
     diagnosticBundleSource.includes("remote: {") &&
     diagnosticBundleSource.includes("acceptanceChecklist") &&
     diagnosticBundleSource.includes("acceptanceRecords") &&
+    diagnosticBundleSource.includes("acceptanceRunbooks") &&
     diagnosticBundleTestSource.includes("bundle.release.manifestAvailable") &&
     diagnosticBundleTestSource.includes("bundle.remote.healthSummary.status") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceRecords.total") &&
+    diagnosticBundleTestSource.includes("bundle.remote.acceptanceRunbooks.total") &&
     apiAuthTestSource.includes("diagnosticBundle.release.artifactCount") &&
     adminRoutesSource.includes("releaseArtifactCount")
   ) pass("admin diagnostic bundle includes redacted release, remote health, and acceptance evidence");

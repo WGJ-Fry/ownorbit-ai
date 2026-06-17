@@ -641,6 +641,37 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(typeof cleanupResponse.cleanup.backupsDeleted, "number");
   assert.equal(typeof cleanupResponse.cleanup.auditLogsDeleted, "number");
 
+  const remoteAcceptanceImport = await request(port, "/api/v1/admin/network-diagnostics/acceptance-report", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      report: {
+        generatedAt: "2026-06-17T00:00:00.000Z",
+        baseUrl: "https://lifeos-api-test.example.com",
+        entryKind: "stable-https",
+        longTermReady: true,
+        longTermReason: "Remote entry passed token=hidden",
+        automatedChecks: {
+          ok: true,
+          passed: 3,
+          total: 3,
+          latencyMs: 30,
+          steps: [
+            { id: "health", ok: true, status: 200, url: "https://lifeos-api-test.example.com/api/v1/health", latencyMs: 10 },
+            { id: "mobile-shell", ok: true, status: 200, url: "https://lifeos-api-test.example.com/mobile/chat", latencyMs: 10 },
+            { id: "websocket", ok: true, status: 101, url: "wss://lifeos-api-test.example.com/api/v1/ws", latencyMs: 10 },
+          ],
+        },
+        manualAcceptance: [{ id: "cellular-mobile-chat", title: "Phone cellular", required: true }],
+      },
+    }),
+  });
+  assert.equal(remoteAcceptanceImport.status, 200);
+  const remoteAcceptanceImportBody = await remoteAcceptanceImport.json();
+  assert.equal(remoteAcceptanceImportBody.record.longTermReady, true);
+  assert.equal(remoteAcceptanceImportBody.record.longTermReason.includes("hidden"), false);
+  assert.equal(remoteAcceptanceImportBody.diagnostics.remoteValidationReport.label, "remote-acceptance:stable-https");
+
   const diagnosticBundleResponse = await request(port, "/api/v1/admin/diagnostic-bundle", { headers: adminHeaders });
   assert.equal(diagnosticBundleResponse.status, 200);
   assert.match(diagnosticBundleResponse.headers.get("content-disposition") || "", /lifeos-diagnostics-.*\.json/);
@@ -684,6 +715,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(diagnosticBundle.remote.validationReport === null || typeof diagnosticBundle.remote.validationReport.ok === "boolean", true);
   assert.equal(Array.isArray(diagnosticBundle.remote.acceptanceChecklist), true);
   assert.equal(typeof diagnosticBundle.remote.acceptanceRecords.total, "number");
+  assert.equal(typeof diagnosticBundle.remote.acceptanceRunbooks.total, "number");
+  assert.equal(diagnosticBundle.remote.acceptanceRunbooks.total, 1);
   assert.equal(JSON.stringify(diagnosticBundle.release).includes(dataDir), false);
   assert.equal(JSON.stringify(diagnosticBundle).includes(testAiKey), false);
   assert.equal(JSON.stringify(diagnosticBundle).includes(dataDir), false);
@@ -697,6 +730,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.ok(auditActions.includes("encrypted_backup_imported"));
   assert.ok(auditActions.includes("data_cleanup_previewed"));
   assert.ok(auditActions.includes("diagnostic_bundle_exported"));
+  assert.ok(auditActions.includes("remote_acceptance_report_imported"));
   assert.ok(auditActions.includes("desktop_connection_config_saved"));
   assert.ok(auditActions.includes("admin_password_change_failed"));
   assert.ok(auditActions.includes("admin_password_changed"));

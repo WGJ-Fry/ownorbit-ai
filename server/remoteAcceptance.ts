@@ -1,8 +1,10 @@
-import type { RemoteHealthSummary, RemoteValidationReport } from "./remoteValidationReport";
+import { saveRemoteValidationReport, type RemoteHealthSummary, type RemoteValidationReport } from "./remoteValidationReport";
 import { getClientState, setClientState } from "./clientState";
 
 const REMOTE_ACCEPTANCE_STATE_KEY = "lifeos_remote_acceptance_records";
+const REMOTE_ACCEPTANCE_RUNBOOK_STATE_KEY = "lifeos_remote_acceptance_runbook_reports";
 const manualAcceptanceIds = new Set(["restart-restore", "cellular-mobile-chat"]);
+const runbookEntryKinds = new Set(["temporary-cloudflare", "tailscale-https", "local", "stable-https", "insecure-http"]);
 
 export type RemoteAcceptanceItem = {
   id: "tailscale-https-serve" | "cloudflare-named-tunnel" | "remote-smoke" | "restart-restore" | "cellular-mobile-chat" | "ci-remote-mock";
@@ -18,6 +20,31 @@ export type RemoteAcceptanceRecord = {
   baseUrl: string;
   note: string;
   createdAt: number;
+};
+
+export type RemoteAcceptanceRunbookRecord = {
+  id: string;
+  baseUrl: string;
+  entryKind: "temporary-cloudflare" | "tailscale-https" | "local" | "stable-https" | "insecure-http";
+  longTermReady: boolean;
+  longTermReason: string;
+  generatedAt: string;
+  importedAt: number;
+  automatedChecks: {
+    ok: boolean;
+    passed: number;
+    total: number;
+    latencyMs: number;
+    steps: Array<{
+      id: string;
+      ok: boolean;
+      status: number;
+      url: string;
+      latencyMs: number;
+      error?: string;
+    }>;
+  };
+  manualAcceptance: Array<{ id: string; title: string; required: boolean }>;
 };
 
 type AcceptanceDiagnostics = {
@@ -53,6 +80,19 @@ function sanitizeBaseUrl(value = "") {
   return parsed.toString().replace(/\/$/, "");
 }
 
+function safeUrl(value: unknown) {
+  const parsed = new URL(String(value || ""));
+  if (parsed.username || parsed.password || parsed.search || parsed.hash) {
+    throw new Error("Remote acceptance report URLs must not contain username, password, token, query, or fragment.");
+  }
+  return parsed.toString().replace(/\/$/, "");
+}
+
+function safeNumber(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
 function safeNote(value: unknown) {
   return String(value || "").replace(/\b(token|key|secret|password)=\S+/gi, "$1=[redacted]").trim().slice(0, 240);
 }
@@ -60,6 +100,61 @@ function safeNote(value: unknown) {
 export function getRemoteAcceptanceRecords(): RemoteAcceptanceRecord[] {
   const value = getClientState(REMOTE_ACCEPTANCE_STATE_KEY)?.value;
   return Array.isArray(value) ? value as RemoteAcceptanceRecord[] : [];
+}
+
+export function getRemoteAcceptanceRunbookRecords(): RemoteAcceptanceRunbookRecord[] {
+  const value = getClientState(REMOTE_ACCEPTANCE_RUNBOOK_STATE_KEY)?.value;
+  return Array.isArray(value) ? value as RemoteAcceptanceRunbookRecord[] : [];
+}
+
+export function saveRemoteAcceptanceRunbookReport(report: any, actor?: { type: string; id: string }) {
+  const baseUrl = sanitizeBaseUrl(report?.baseUrl);
+  const entryKind = String(report?.entryKind || "");
+  if (!runbookEntryKinds.has(entryKind)) throw new Error("Remote acceptance report has an unsupported entry kind.");
+  const steps = Array.isArray(report?.automatedChecks?.steps) ? report.automatedChecks.steps.slice(0, 12).map((step: any) => ({
+    id: String(step?.id || "unknown").slice(0, 40),
+    ok: Boolean(step?.ok),
+    status: safeNumber(step?.status),
+    url: safeUrl(step?.url),
+    latencyMs: safeNumber(step?.latencyMs),
+    error: step?.error ? safeNote(step.error) : undefined,
+  })) : [];
+  const record: RemoteAcceptanceRunbookRecord = {
+    id: `remote-acceptance-runbook-${Date.now()}`,
+    baseUrl,
+    entryKind: entryKind as RemoteAcceptanceRunbookRecord["entryKind"],
+    longTermReady: Boolean(report?.longTermReady),
+    longTermReason: safeNote(report?.longTermReason),
+    generatedAt: Number.isFinite(Date.parse(report?.generatedAt)) ? new Date(report.generatedAt).toISOString() : new Date().toISOString(),
+    importedAt: Date.now(),
+    automatedChecks: {
+      ok: Boolean(report?.automatedChecks?.ok),
+      passed: safeNumber(report?.automatedChecks?.passed),
+      total: safeNumber(report?.automatedChecks?.total, steps.length || 1),
+      latencyMs: safeNumber(report?.automatedChecks?.latencyMs),
+      steps,
+    },
+    manualAcceptance: Array.isArray(report?.manualAcceptance) ? report.manualAcceptance.slice(0, 8).map((step: any) => ({
+      id: String(step?.id || "unknown").slice(0, 48),
+      title: String(step?.title || "Manual acceptance").slice(0, 80),
+      required: Boolean(step?.required),
+    })) : [],
+  };
+  saveRemoteValidationReport({
+    label: `remote-acceptance:${record.entryKind}`,
+    baseUrl,
+    result: {
+      ok: record.automatedChecks.ok,
+      status: record.automatedChecks.ok ? 200 : 0,
+      url: baseUrl,
+      latencyMs: record.automatedChecks.latencyMs,
+      steps,
+      error: record.automatedChecks.ok ? undefined : record.longTermReason,
+    },
+  }, actor);
+  const records = getRemoteAcceptanceRunbookRecords().filter((item) => !sameUrl(item.baseUrl, record.baseUrl));
+  setClientState(REMOTE_ACCEPTANCE_RUNBOOK_STATE_KEY, [...records, record].slice(-5), actor);
+  return record;
 }
 
 export function saveRemoteAcceptanceRecord(input: {

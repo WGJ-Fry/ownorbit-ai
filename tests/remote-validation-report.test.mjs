@@ -345,3 +345,67 @@ test("remote acceptance records reject unsafe or non-HTTPS entries", async (t) =
   assert.match(attempts.join("\\n"), /username, password, token, query, or fragment/);
   assert.match(attempts.join("\\n"), /Only real-world manual acceptance items/);
 });
+
+test("remote acceptance runbook import persists smoke evidence and rejects unsafe reports", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-remote-acceptance-runbook-"));
+  t.after(async () => {
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const { getRemoteValidationReport } = await import("./server/remoteValidationReport.ts");
+    const { getRemoteAcceptanceRunbookRecords, saveRemoteAcceptanceRunbookReport } = await import("./server/remoteAcceptance.ts");
+    const report = {
+      generatedAt: "2026-06-17T00:00:00.000Z",
+      baseUrl: "https://lifeos.tailnet.example.ts.net",
+      entryKind: "tailscale-https",
+      longTermReady: true,
+      longTermReason: "Remote entry passed token=secret",
+      automatedChecks: {
+        ok: true,
+        passed: 3,
+        total: 3,
+        latencyMs: 36,
+        steps: [
+          { id: "health", ok: true, status: 200, url: "https://lifeos.tailnet.example.ts.net/api/v1/health", latencyMs: 10 },
+          { id: "mobile-shell", ok: true, status: 200, url: "https://lifeos.tailnet.example.ts.net/mobile/chat", latencyMs: 12 },
+          { id: "websocket", ok: true, status: 101, url: "wss://lifeos.tailnet.example.ts.net/api/v1/ws", latencyMs: 14 },
+        ],
+      },
+      manualAcceptance: [{ id: "cellular-mobile-chat", title: "Phone cellular", required: true }],
+    };
+    const record = saveRemoteAcceptanceRunbookReport(report, { type: "admin", id: "owner" });
+    const validation = getRemoteValidationReport();
+    const attempts = [];
+    for (const bad of [
+      { ...report, baseUrl: "http://lifeos.example.test" },
+      { ...report, baseUrl: "https://lifeos.example.test?token=abc" },
+      { ...report, entryKind: "unknown" },
+      { ...report, automatedChecks: { ...report.automatedChecks, steps: [{ id: "health", ok: true, status: 200, url: "https://lifeos.example.test/api/v1/health?token=abc", latencyMs: 1 }] } },
+    ]) {
+      try {
+        saveRemoteAcceptanceRunbookReport(bad, { type: "admin", id: "owner" });
+        attempts.push("accepted");
+      } catch (error) {
+        attempts.push(error.message);
+      }
+    }
+    process.stdout.write(JSON.stringify({ record, validation, records: getRemoteAcceptanceRunbookRecords(), attempts }));
+  `], {
+    cwd: process.cwd(),
+    env: { ...process.env, LIFEOS_DATA_DIR: dataDir },
+    encoding: "utf8",
+  });
+  const result = JSON.parse(output);
+  assert.equal(result.record.entryKind, "tailscale-https");
+  assert.equal(result.record.longTermReady, true);
+  assert.equal(result.record.longTermReason.includes("secret"), false);
+  assert.equal(result.validation.ok, true);
+  assert.equal(result.validation.label, "remote-acceptance:tailscale-https");
+  assert.equal(result.validation.passed, 3);
+  assert.equal(result.records.length, 1);
+  assert.equal(result.attempts.filter((item) => item === "accepted").length, 0);
+  assert.match(result.attempts.join("\\n"), /HTTPS/);
+  assert.match(result.attempts.join("\\n"), /username, password, token, query, or fragment/);
+  assert.match(result.attempts.join("\\n"), /unsupported entry kind/);
+});

@@ -11,7 +11,7 @@ import { saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
 import { getRemoteValidationReport, saveRemoteValidationReport, summarizeRemoteHealth } from "../remoteValidationReport";
 import { runRemoteHealthCheck } from "../remoteHealthMonitor";
-import { buildRemoteAcceptanceChecklist, getRemoteAcceptanceRecords, saveRemoteAcceptanceRecord } from "../remoteAcceptance";
+import { buildRemoteAcceptanceChecklist, getRemoteAcceptanceRecords, saveRemoteAcceptanceRecord, saveRemoteAcceptanceRunbookReport } from "../remoteAcceptance";
 import { createSecret, tokenHash } from "../security";
 import { setClientState } from "../clientState";
 import { evaluatePasswordPolicy, getSecurityDiagnostics } from "../securityDiagnostics";
@@ -223,6 +223,23 @@ export function registerAdminRoutes(app: express.Express) {
       res.json({ record, diagnostics: getAdminNetworkDiagnostics() });
     } catch (error: any) {
       res.status(400).json({ error: error.message || "Remote acceptance could not be recorded", diagnostics: getAdminNetworkDiagnostics() });
+    }
+  });
+
+  app.post("/api/v1/admin/network-diagnostics/acceptance-report", requireAdmin, (req, res) => {
+    try {
+      const record = saveRemoteAcceptanceRunbookReport(req.body?.report, (req as any).actor || { type: "admin", id: "owner" });
+      insertAuditLog("remote_acceptance_report_imported", "network", record.id, {
+        baseUrl: record.baseUrl,
+        entryKind: record.entryKind,
+        longTermReady: record.longTermReady,
+        automatedPassed: record.automatedChecks.passed,
+        automatedTotal: record.automatedChecks.total,
+        manualSteps: record.manualAcceptance.length,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.json({ record, diagnostics: getAdminNetworkDiagnostics() });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || "Remote acceptance report could not be imported", diagnostics: getAdminNetworkDiagnostics() });
     }
   });
 

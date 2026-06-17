@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useI18n } from "../../i18n/I18nProvider";
-import { recordRemoteAcceptance } from "../../services/lifeosApi";
+import { importRemoteAcceptanceReport, recordRemoteAcceptance } from "../../services/lifeosApi";
 import type { NetworkDiagnostics } from "../../services/lifeosApi";
 import RemoteAcceptanceChecklistCard from "./RemoteAcceptanceChecklistCard";
 import RemoteHealthSummaryCard from "./RemoteHealthSummaryCard";
@@ -16,6 +16,8 @@ export default function RemoteStabilitySection({
 }) {
   const { t } = useI18n();
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [importingReport, setImportingReport] = useState(false);
+  const [reportText, setReportText] = useState("");
   const acceptanceBaseUrl = diagnostics.desktopRuntimeConfig?.publicBaseUrl || diagnostics.remoteHealthSummary.baseUrl;
   const acceptanceCommand = acceptanceBaseUrl
     ? `LIFEOS_REMOTE_ACCEPTANCE_OUT="./remote-acceptance.json" LIFEOS_REMOTE_BASE_URL="${acceptanceBaseUrl}" npm run remote:acceptance`
@@ -35,6 +37,20 @@ export default function RemoteStabilitySection({
       setAcceptingId(null);
     }
   };
+  const handleImportReport = async () => {
+    setImportingReport(true);
+    try {
+      const parsed = JSON.parse(reportText);
+      const result = await importRemoteAcceptanceReport(parsed);
+      setReportText("");
+      onDiagnostics?.(result.diagnostics);
+      onStatus?.(t("connection.acceptance.imported"));
+    } catch (error: any) {
+      onStatus?.(error.message || t("connection.acceptance.importFailed"));
+    } finally {
+      setImportingReport(false);
+    }
+  };
 
   return (
     <>
@@ -43,7 +59,11 @@ export default function RemoteStabilitySection({
         acceptanceCommand={acceptanceCommand}
         acceptingId={acceptingId}
         checklist={diagnostics.remoteAcceptanceChecklist || []}
+        importingReport={importingReport}
+        reportText={reportText}
+        onImportReport={handleImportReport}
         onAccept={handleRecordAcceptance}
+        onReportTextChange={setReportText}
       />
     </>
   );
