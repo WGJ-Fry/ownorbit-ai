@@ -189,10 +189,10 @@ function buildConnectionCandidates(input: {
       label: index === 0 ? "Tailscale MagicDNS" : `Tailscale MagicDNS ${index + 1}`,
       baseUrl: url,
       mode: "tailscale",
-      priority: 94 - index,
+      priority: 64 - index,
       requiresRestart: input.publicBaseUrl !== url,
-      stability: "stable",
-      notes: ["Good for connecting your own phone and computer remotely. The phone must join the same Tailnet."],
+      stability: "temporary",
+      notes: ["Tailscale MagicDNS over HTTP can help diagnose Tailnet reachability, but it is not a long-term phone/PWA entry. Start Tailscale HTTPS Serve and re-pair with the HTTPS address."],
     }));
   }
   for (const [index, url] of input.tailscale.urls.entries()) {
@@ -201,10 +201,10 @@ function buildConnectionCandidates(input: {
       label: index === 0 ? "Tailscale IP" : `Tailscale IP ${index + 1}`,
       baseUrl: url,
       mode: "tailscale",
-      priority: 90 - index,
+      priority: 60 - index,
       requiresRestart: input.publicBaseUrl !== url,
-      stability: "stable",
-      notes: ["Use the Tailnet IP when MagicDNS is unavailable. The phone must join the same Tailnet."],
+      stability: "temporary",
+      notes: ["Tailscale IP over HTTP is only a fallback for checking VPN reachability. Long-term remote use requires Tailscale HTTPS Serve so PWA, WebCrypto, and WebSocket behavior stay reliable."],
     }));
   }
   for (const [index, url] of input.lanUrls.entries()) {

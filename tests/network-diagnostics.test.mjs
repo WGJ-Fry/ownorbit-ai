@@ -109,8 +109,11 @@ exit 1
   assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.id === "tailscale-magicdns-0" && candidate.baseUrl === "http://lifeos-mac.tailnet.example.ts.net:4567"), true);
   assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.id === "tailscale-ip-0" && candidate.baseUrl === "http://100.64.0.10:4567"), true);
   const tailscaleCandidate = diagnostics.connectionCandidates.find((candidate) => candidate.id === "tailscale-serve-https");
+  const tailscaleHttpCandidate = diagnostics.connectionCandidates.find((candidate) => candidate.id === "tailscale-magicdns-0");
   assert.match(tailscaleCandidate.envTemplate, /PUBLIC_BASE_URL=https:\/\/lifeos-mac\.tailnet\.example\.ts\.net/);
   assert.match(tailscaleCandidate.notes[0], /HTTPS Serve is already active/);
+  assert.equal(tailscaleHttpCandidate.stability, "temporary");
+  assert.match(tailscaleHttpCandidate.notes[0], /not a long-term phone\/PWA entry/);
 });
 
 test("network diagnostics normalizes configured public base URLs before UI and pairing use", async (t) => {
@@ -324,11 +327,78 @@ exit 1
 
   assert.equal(magicDns.baseUrl, "http://lifeos-mac.tailnet.example.ts.net:4567");
   assert.equal(magicDns.secure, false);
+  assert.equal(magicDns.stability, "temporary");
   assert.equal(tailnetIp.baseUrl, "http://100.64.0.10:4567");
   assert.equal(tailnetIp.secure, false);
-  assert.equal(diagnostics.remoteReadiness.status, "blocked");
-  assert.equal(diagnostics.remoteReadiness.blockers.some((blocker) => blocker.id === "needsHttps"), true);
-  assert.equal(diagnostics.remoteReadiness.actions.some((action) => action.id === "needsHttps"), true);
+  assert.equal(tailnetIp.stability, "temporary");
+  assert.equal(diagnostics.recommendedBaseUrl, "https://lifeos-mac.tailnet.example.ts.net");
+  assert.equal(diagnostics.connectionCandidates[0].id, "tailscale-serve-https");
+  assert.equal(diagnostics.remoteReadiness.status, "needs-restart");
+  assert.equal(diagnostics.remoteReadiness.baseUrl, "https://lifeos-mac.tailnet.example.ts.net");
+  assert.equal(diagnostics.remoteReadiness.actions.some((action) => action.id === "needsRestart"), true);
+});
+
+test("HTTPS tunnel is preferred over Tailscale HTTP fallback when HTTPS Serve is unavailable", async (t) => {
+  const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-tailscale-http-cloudflare-bin-"));
+  const oldPath = process.env.PATH || "";
+  const oldPort = process.env.LIFEOS_PORT;
+  const oldTailscaleBin = process.env.LIFEOS_TAILSCALE_BIN;
+  const oldCloudflaredBin = process.env.LIFEOS_CLOUDFLARED_BIN;
+
+  t.after(async () => {
+    process.env.PATH = oldPath;
+    if (oldPort === undefined) delete process.env.LIFEOS_PORT;
+    else process.env.LIFEOS_PORT = oldPort;
+    if (oldTailscaleBin === undefined) delete process.env.LIFEOS_TAILSCALE_BIN;
+    else process.env.LIFEOS_TAILSCALE_BIN = oldTailscaleBin;
+    if (oldCloudflaredBin === undefined) delete process.env.LIFEOS_CLOUDFLARED_BIN;
+    else process.env.LIFEOS_CLOUDFLARED_BIN = oldCloudflaredBin;
+    await rm(binDir, { recursive: true, force: true });
+  });
+
+  const tailscalePath = path.join(binDir, "tailscale");
+  const cloudflaredPath = path.join(binDir, "cloudflared");
+  const pgrepPath = path.join(binDir, "pgrep");
+  await writeFile(tailscalePath, `#!/bin/sh
+if [ "$1" = "version" ]; then
+  echo "1.66.4"
+  exit 0
+fi
+if [ "$1" = "status" ]; then
+  echo '{"Self":{"Online":true,"HostName":"lifeos-mac","TailscaleIPs":["100.64.0.10"]}}'
+  exit 0
+fi
+if [ "$1" = "serve" ] && [ "$2" = "status" ]; then
+  echo '{}'
+  exit 0
+fi
+exit 1
+`);
+  await writeFile(cloudflaredPath, "#!/bin/sh\necho 'cloudflared version 2026.6.0'\n");
+  await writeFile(pgrepPath, `#!/bin/sh
+if [ "$2" = "cloudflared" ]; then
+  echo '123 cloudflared tunnel --url http://127.0.0.1:4567 https://amber-lifeos.trycloudflare.com'
+  exit 0
+fi
+exit 1
+`);
+  await chmod(tailscalePath, 0o755);
+  await chmod(cloudflaredPath, 0o755);
+  await chmod(pgrepPath, 0o755);
+
+  process.env.PATH = `${binDir}:${oldPath}`;
+  process.env.LIFEOS_PORT = "4567";
+  process.env.LIFEOS_TAILSCALE_BIN = tailscalePath;
+  process.env.LIFEOS_CLOUDFLARED_BIN = cloudflaredPath;
+
+  const { getNetworkDiagnostics } = await import(`../server/networkDiagnostics.ts?tailscale-http-cloudflare=${Date.now()}`);
+  const diagnostics = getNetworkDiagnostics();
+  assert.equal(diagnostics.connectionCandidates[0].id, "cloudflare-0");
+  assert.equal(diagnostics.connectionCandidates[0].baseUrl, "https://amber-lifeos.trycloudflare.com");
+  assert.equal(diagnostics.connectionCandidates[0].secure, true);
+  assert.equal(diagnostics.connectionCandidates[0].stability, "temporary");
+  assert.equal(diagnostics.connectionCandidates.find((candidate) => candidate.id === "tailscale-ip-0").stability, "temporary");
+  assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.id === "tailscale-serve-https"), false);
 });
 
 test("configured Tailscale HTTPS Serve autostart refreshes the saved stable URL", async (t) => {
