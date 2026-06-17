@@ -257,7 +257,7 @@ test("remote acceptance checklist separates automated and real-world verificatio
 
   const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
     const { saveRemoteValidationReport, summarizeRemoteHealth } = await import("./server/remoteValidationReport.ts");
-    const { buildRemoteAcceptanceChecklist } = await import("./server/remoteAcceptance.ts");
+    const { buildRemoteAcceptanceChecklist, getRemoteAcceptanceRecords, saveRemoteAcceptanceRecord } = await import("./server/remoteAcceptance.ts");
     const report = saveRemoteValidationReport({
       label: "Remote health check after auto-restore",
       baseUrl: "https://lifeos.tailnet.example.ts.net",
@@ -279,6 +279,11 @@ test("remote acceptance checklist separates automated and real-world verificatio
       report,
       now: report.createdAt + 1000,
     });
+    saveRemoteAcceptanceRecord({
+      id: "cellular-mobile-chat",
+      baseUrl: "https://lifeos.tailnet.example.ts.net",
+      note: "Phone cellular /mobile/chat verified with token=secret",
+    }, { type: "admin", id: "owner" });
     const checklist = buildRemoteAcceptanceChecklist({
       diagnostics: {
         desktopRuntimeConfig: { mode: "tailscale", publicBaseUrl: "https://lifeos.tailnet.example.ts.net" },
@@ -287,6 +292,7 @@ test("remote acceptance checklist separates automated and real-world verificatio
       },
       health,
       report,
+      records: getRemoteAcceptanceRecords(),
     });
     process.stdout.write(JSON.stringify(checklist));
   `], {
@@ -299,6 +305,43 @@ test("remote acceptance checklist separates automated and real-world verificatio
   assert.equal(checklist.find((item) => item.id === "remote-smoke").status, "passed");
   assert.equal(checklist.find((item) => item.id === "restart-restore").status, "passed");
   assert.equal(checklist.find((item) => item.id === "cloudflare-named-tunnel").status, "needs-action");
-  assert.equal(checklist.find((item) => item.id === "cellular-mobile-chat").status, "manual-required");
+  assert.equal(checklist.find((item) => item.id === "cellular-mobile-chat").status, "passed");
+  assert.equal(checklist.find((item) => item.id === "cellular-mobile-chat").evidence.includes("secret"), false);
   assert.equal(checklist.find((item) => item.id === "ci-remote-mock").status, "passed");
+});
+
+test("remote acceptance records reject unsafe or non-HTTPS entries", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-remote-acceptance-reject-"));
+  t.after(async () => {
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const { saveRemoteAcceptanceRecord } = await import("./server/remoteAcceptance.ts");
+    const attempts = [];
+    for (const baseUrl of ["http://lifeos.example.test", "https://user:pass@lifeos.example.test", "https://lifeos.example.test?token=abc"]) {
+      try {
+        saveRemoteAcceptanceRecord({ id: "cellular-mobile-chat", baseUrl });
+        attempts.push("accepted");
+      } catch (error) {
+        attempts.push(error.message);
+      }
+    }
+    try {
+      saveRemoteAcceptanceRecord({ id: "remote-smoke", baseUrl: "https://lifeos.example.test" });
+      attempts.push("accepted");
+    } catch (error) {
+      attempts.push(error.message);
+    }
+    process.stdout.write(JSON.stringify(attempts));
+  `], {
+    cwd: process.cwd(),
+    env: { ...process.env, LIFEOS_DATA_DIR: dataDir },
+    encoding: "utf8",
+  });
+  const attempts = JSON.parse(output);
+  assert.equal(attempts.filter((item) => item === "accepted").length, 0);
+  assert.match(attempts.join("\\n"), /HTTPS/);
+  assert.match(attempts.join("\\n"), /username, password, token, query, or fragment/);
+  assert.match(attempts.join("\\n"), /Only real-world manual acceptance items/);
 });

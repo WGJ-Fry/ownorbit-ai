@@ -298,7 +298,7 @@ export default function ConnectionGuide({ health }: { health: Health | null }) {
               {diagnostics.remoteValidationReport.error ? <div className="mt-1 opacity-80">{diagnostics.remoteValidationReport.error}</div> : null}
             </div>
           ) : null}
-          <RemoteStabilitySection diagnostics={diagnostics} />
+          <RemoteStabilitySection diagnostics={diagnostics} onDiagnostics={setDiagnostics} onStatus={setTestStatus} />
           <RemoteReadinessCard readiness={diagnostics.remoteReadiness} />
           {diagnostics.connectionCandidates?.length ? (
             <div className="mt-4 grid gap-2 lg:grid-cols-2">

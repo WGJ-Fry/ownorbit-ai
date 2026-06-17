@@ -29,7 +29,15 @@ function StatusIcon({ status }: { status: NetworkDiagnostics["remoteAcceptanceCh
   return <AlertTriangle className="h-4 w-4" />;
 }
 
-export default function RemoteAcceptanceChecklistCard({ checklist }: { checklist: NetworkDiagnostics["remoteAcceptanceChecklist"] }) {
+export default function RemoteAcceptanceChecklistCard({
+  checklist,
+  acceptingId,
+  onAccept,
+}: {
+  checklist: NetworkDiagnostics["remoteAcceptanceChecklist"];
+  acceptingId?: string | null;
+  onAccept?: (id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"]) => void;
+}) {
   const { t } = useI18n();
   return (
     <div className="mt-4 rounded-2xl border border-white/[0.08] bg-[#061016]/65 p-4">
@@ -51,6 +59,15 @@ export default function RemoteAcceptanceChecklistCard({ checklist }: { checklist
                 <div className="mt-2 break-words text-[11px] leading-relaxed opacity-85">{item.evidence}</div>
                 <div className="mt-2 text-[11px] leading-relaxed opacity-95">{item.action}</div>
                 {item.command ? <code className="mt-2 block break-all rounded-lg bg-black/25 px-2 py-1 text-[10px] opacity-90">{item.command}</code> : null}
+                {onAccept && item.status === "manual-required" && (item.id === "restart-restore" || item.id === "cellular-mobile-chat") ? (
+                  <button
+                    onClick={() => onAccept(item.id)}
+                    disabled={acceptingId === item.id}
+                    className="mt-3 inline-flex rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-[11px] font-bold text-white disabled:opacity-50"
+                  >
+                    {acceptingId === item.id ? t("connection.acceptance.recording") : t("connection.acceptance.markDone")}
+                  </button>
+                ) : null}
               </div>
             ))}
           </div>

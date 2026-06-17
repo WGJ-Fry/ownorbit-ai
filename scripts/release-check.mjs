@@ -469,11 +469,18 @@ function checkAssets() {
     remoteStabilitySectionSource.includes("RemoteAcceptanceChecklistCard") &&
     remoteStabilitySectionSource.includes("remoteHealthSummary") &&
     remoteAcceptanceChecklistSource.includes("connection.acceptance.title") &&
+    remoteAcceptanceChecklistSource.includes("connection.acceptance.markDone") &&
+    remoteAcceptanceChecklistSource.includes("onAccept") &&
     remoteAcceptanceChecklistSource.includes("cellular-mobile-chat") &&
     remoteAcceptanceChecklistSource.includes("ci-remote-mock") &&
     remoteAcceptanceSource.includes("buildRemoteAcceptanceChecklist") &&
+    remoteAcceptanceSource.includes("saveRemoteAcceptanceRecord") &&
+    remoteAcceptanceSource.includes("getRemoteAcceptanceRecords") &&
+    remoteAcceptanceSource.includes("Remote acceptance URL must not contain username, password, token, query, or fragment") &&
     remoteAcceptanceSource.includes("manual-required") &&
     remoteAcceptanceSource.includes("LIFEOS_REMOTE_BASE_URL=https://your-stable-entry npm run remote:smoke") &&
+    lifeosApiSourceForRouting.includes("recordRemoteAcceptance") &&
+    remoteStabilitySectionSource.includes("handleRecordAcceptance") &&
     connectionGuideSource.includes("connection.remoteValidationOk") &&
     connectionGuideSource.includes("connection.remoteValidationFail") &&
     adminRoutesSource.includes("summarizeRemoteHealth") &&
@@ -508,6 +515,7 @@ function checkAssets() {
     translationsSource.includes("connection.readiness.status.ready") &&
     translationsSource.includes("connection.readiness.item.needsPublicOptIn") &&
     translationsSource.includes("connection.acceptance.title") &&
+    translationsSource.includes("connection.acceptance.markDone") &&
     translationsSource.includes("Long-Term Remote Acceptance Checklist") &&
     translationsSource.includes("/mobile/install/<token>") &&
     lifeosApiSourceForRouting.includes("getLifeOSBasePath") &&

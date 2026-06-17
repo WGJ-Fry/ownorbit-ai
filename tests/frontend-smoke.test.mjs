@@ -570,10 +570,15 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(remoteHealthSummaryCardSource, /connection\.health\.recommendation\.replaceTemporaryTunnel/);
   assert.match(remoteHealthSummaryCardSource, /connection\.health\.recommendation\.refreshPairingQr/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.title/);
+  assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.markDone/);
+  assert.match(remoteAcceptanceChecklistSource, /onAccept/);
   assert.match(remoteAcceptanceChecklistSource, /cellular-mobile-chat/);
   assert.match(remoteAcceptanceChecklistSource, /ci-remote-mock/);
+  assert.match(remoteStabilitySectionSource, /acceptingId/);
   assert.match(translationsSource, /长期异地验收清单/);
   assert.match(translationsSource, /Long-Term Remote Acceptance Checklist/);
+  assert.match(translationsSource, /我已真实验收/);
+  assert.match(translationsSource, /I verified this/);
   const customRemoteEntrySource = await readFile(path.join(rootDir, "src", "pages", "admin", "CustomRemoteEntryCard.tsx"), "utf8");
   assert.match(customRemoteEntrySource, /connection\.customTitle/);
   assert.match(customRemoteEntrySource, /testConnectionUrl/);

@@ -11,7 +11,7 @@ import { saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
 import { getRemoteValidationReport, saveRemoteValidationReport, summarizeRemoteHealth } from "../remoteValidationReport";
 import { runRemoteHealthCheck } from "../remoteHealthMonitor";
-import { buildRemoteAcceptanceChecklist } from "../remoteAcceptance";
+import { buildRemoteAcceptanceChecklist, getRemoteAcceptanceRecords, saveRemoteAcceptanceRecord } from "../remoteAcceptance";
 import { createSecret, tokenHash } from "../security";
 import { setClientState } from "../clientState";
 import { evaluatePasswordPolicy, getSecurityDiagnostics } from "../securityDiagnostics";
@@ -81,6 +81,7 @@ function getAdminNetworkDiagnostics() {
       diagnostics: enrichedDiagnostics,
       health: remoteHealthSummary,
       report: remoteValidationReport,
+      records: getRemoteAcceptanceRecords(),
     }),
   };
 }
@@ -201,6 +202,27 @@ export function registerAdminRoutes(app: express.Express) {
       res.json({ ...result, diagnostics: getAdminNetworkDiagnostics() });
     } catch (error: any) {
       res.status(400).json({ error: error.message || "Remote health check failed", diagnostics: getAdminNetworkDiagnostics() });
+    }
+  });
+
+  app.post("/api/v1/admin/network-diagnostics/acceptance", requireAdmin, (req, res) => {
+    try {
+      const diagnostics = getAdminNetworkDiagnostics();
+      const baseUrl = diagnostics.desktopRuntimeConfig?.publicBaseUrl || diagnostics.remoteHealthSummary.baseUrl;
+      const record = saveRemoteAcceptanceRecord({
+        id: req.body?.id,
+        baseUrl,
+        note: req.body?.note,
+      }, (req as any).actor || { type: "admin", id: "owner" });
+      insertAuditLog("remote_acceptance_recorded", "network", record.id, {
+        id: record.id,
+        baseUrl: record.baseUrl,
+        noteLength: record.note.length,
+        createdAt: record.createdAt,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.json({ record, diagnostics: getAdminNetworkDiagnostics() });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || "Remote acceptance could not be recorded", diagnostics: getAdminNetworkDiagnostics() });
     }
   });
 

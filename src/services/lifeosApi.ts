@@ -325,6 +325,7 @@ export type NetworkDiagnostics = {
     evidence: string;
     action: string;
     command?: string;
+    acceptedAt?: number;
   }>;
   latestBindingSession: {
     id: string;
@@ -639,6 +640,21 @@ export function runRemoteHealthCheck() {
     report: NetworkDiagnostics["remoteValidationReport"];
     diagnostics: NetworkDiagnostics;
   }>("/api/v1/admin/network-diagnostics/remote-health", { method: "POST" });
+}
+
+export function recordRemoteAcceptance(id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"], note = "") {
+  return requestJson<{
+    record: {
+      id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"];
+      baseUrl: string;
+      note: string;
+      createdAt: number;
+    };
+    diagnostics: NetworkDiagnostics;
+  }>("/api/v1/admin/network-diagnostics/acceptance", {
+    method: "POST",
+    body: JSON.stringify({ id, note }),
+  });
 }
 
 export function startTailscaleHttpsServe() {
