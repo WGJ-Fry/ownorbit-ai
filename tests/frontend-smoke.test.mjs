@@ -266,6 +266,13 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(offlineQueueSyncHookSource, /offlineQueueSummary\.nextRetryAt/);
   assert.match(offlineQueueSyncHookSource, /window\.setTimeout\(\(\) => \{\s*void syncQueuedMessages\(\);/);
 
+  const realtimeHookSource = await readFile(path.join(rootDir, "src", "hooks", "useLifeOSRealtime.ts"), "utf8");
+  assert.match(realtimeHookSource, /reconnectTimerRef/);
+  assert.match(realtimeHookSource, /clearReconnectTimer/);
+  assert.match(realtimeHookSource, /window\.addEventListener\("online", handleOnline\)/);
+  assert.match(realtimeHookSource, /document\.addEventListener\("visibilitychange", handleVisibilityChange\)/);
+  assert.match(realtimeHookSource, /socketRef\.current !== ws/);
+
   const chatStateChangesSource = await readFile(path.join(rootDir, "src", "services", "chatStateChanges.ts"), "utf8");
   assert.match(chatStateChangesSource, /OPEN_APP/);
   assert.match(chatStateChangesSource, /REQUEST_APP_GENERATION/);

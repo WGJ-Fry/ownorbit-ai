@@ -609,6 +609,10 @@ function checkAssets() {
     lifeosApiSourceForRouting.includes("apiUrl(url)") &&
     lifeosApiSourceForRouting.includes("realtimeWebSocketUrl") &&
     realtimeHookSource.includes("realtimeWebSocketUrl()") &&
+    realtimeHookSource.includes("reconnectTimerRef") &&
+    realtimeHookSource.includes("clearReconnectTimer") &&
+    realtimeHookSource.includes('window.addEventListener("online", handleOnline)') &&
+    realtimeHookSource.includes('document.addEventListener("visibilitychange", handleVisibilityChange)') &&
     clientRoutingTestSource.includes("/lifeos/mobile/chat") &&
     clientRoutingTestSource.includes("wss://remote.example.test/lifeos/api/v1/ws") &&
     publicBaseUrlSource.includes("getConfiguredPublicBasePath") &&

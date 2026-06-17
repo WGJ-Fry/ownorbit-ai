@@ -9,13 +9,60 @@ export function useLifeOSRealtime() {
   const retryRef = useRef(0);
   const socketRef = useRef<WebSocket | null>(null);
   const stoppedRef = useRef(false);
+  const connectingRef = useRef(false);
+  const reconnectTimerRef = useRef<number | null>(null);
+  const heartbeatRef = useRef<number | null>(null);
 
   useEffect(() => {
     stoppedRef.current = false;
 
+    const clearReconnectTimer = () => {
+      if (reconnectTimerRef.current !== null) {
+        window.clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+    };
+
+    const clearHeartbeat = () => {
+      if (heartbeatRef.current !== null) {
+        window.clearInterval(heartbeatRef.current);
+        heartbeatRef.current = null;
+      }
+    };
+
+    const scheduleReconnect = (delay: number) => {
+      clearReconnectTimer();
+      reconnectTimerRef.current = window.setTimeout(() => {
+        reconnectTimerRef.current = null;
+        void connect();
+      }, delay);
+    };
+
+    const forceReconnect = () => {
+      if (stoppedRef.current) return;
+      const ws = socketRef.current;
+      if (connectingRef.current || ws?.readyState === WebSocket.CONNECTING || ws?.readyState === WebSocket.OPEN) return;
+      retryRef.current = 0;
+      clearReconnectTimer();
+      void connect();
+    };
+
     const connect = async () => {
-      let credential = await getStoredDeviceCredentialAsync();
+      if (stoppedRef.current || connectingRef.current) return;
+      connectingRef.current = true;
+
+      let credential;
+      try {
+        credential = await getStoredDeviceCredentialAsync();
+      } catch {
+        connectingRef.current = false;
+        setStatus("offline");
+        scheduleReconnect(Math.min(30_000, 1000 * 2 ** retryRef.current));
+        retryRef.current += 1;
+        return;
+      }
       if (!credential) {
+        connectingRef.current = false;
         setStatus("unbound");
         return;
       }
@@ -24,21 +71,32 @@ export function useLifeOSRealtime() {
       }
 
       setStatus("connecting");
-      const ws = new WebSocket(realtimeWebSocketUrl());
+      let ws: WebSocket;
+      try {
+        ws = new WebSocket(realtimeWebSocketUrl());
+      } catch {
+        connectingRef.current = false;
+        setStatus("offline");
+        scheduleReconnect(Math.min(30_000, 1000 * 2 ** retryRef.current));
+        retryRef.current += 1;
+        return;
+      }
       socketRef.current = ws;
-
-      let heartbeat: number | undefined;
+      connectingRef.current = false;
 
       ws.onopen = async () => {
         const authMessage = await createDeviceWebSocketAuthMessage();
+        if (socketRef.current !== ws || stoppedRef.current) return;
         if (!authMessage) {
+          socketRef.current = null;
           ws.close(1008, "Missing device credential");
           setStatus("unbound");
           return;
         }
         ws.send(JSON.stringify(authMessage));
         setLastEventAt(Date.now());
-        heartbeat = window.setInterval(() => {
+        clearHeartbeat();
+        heartbeatRef.current = window.setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: "ping", timestamp: Date.now() }));
           }
@@ -46,6 +104,7 @@ export function useLifeOSRealtime() {
       };
 
       ws.onmessage = async (message) => {
+        if (socketRef.current !== ws) return;
         try {
           const event = JSON.parse(message.data);
           if (event?.type === "auth.ok") {
@@ -61,23 +120,41 @@ export function useLifeOSRealtime() {
       };
 
       ws.onerror = () => {
+        if (socketRef.current !== ws) return;
         setStatus("offline");
       };
 
       ws.onclose = () => {
-        if (heartbeat) window.clearInterval(heartbeat);
-        if (stoppedRef.current) return;
+        if (socketRef.current !== ws) return;
+        clearHeartbeat();
+        socketRef.current = null;
+        if (stoppedRef.current) {
+          clearReconnectTimer();
+          return;
+        }
         setStatus("offline");
         const delay = Math.min(30_000, 1000 * 2 ** retryRef.current);
         retryRef.current += 1;
-        window.setTimeout(connect, delay);
+        scheduleReconnect(delay);
       };
     };
 
-    connect();
+    const handleOnline = () => forceReconnect();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") forceReconnect();
+    };
+
+    window.addEventListener("online", handleOnline);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    void connect();
 
     return () => {
       stoppedRef.current = true;
+      clearReconnectTimer();
+      clearHeartbeat();
+      window.removeEventListener("online", handleOnline);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       socketRef.current?.close();
     };
   }, []);
