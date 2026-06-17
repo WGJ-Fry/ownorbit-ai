@@ -85,7 +85,10 @@ exit 1
   assert.equal(diagnostics.tailscale.tailnetName, "tailnet.example.ts.net");
   assert.deepEqual(diagnostics.tailscale.urls, ["http://100.64.0.10:4567"]);
   assert.deepEqual(diagnostics.tailscale.magicDnsUrls, ["http://lifeos-mac.tailnet.example.ts.net:4567"]);
+  assert.equal(diagnostics.tailscale.loginCommand, "tailscale up");
+  assert.equal(diagnostics.tailscale.magicDnsEnabled, true);
   assert.equal(diagnostics.tailscale.httpsServeUrl, "https://lifeos-mac.tailnet.example.ts.net");
+  assert.equal(diagnostics.tailscale.httpsServeReady, true);
   assert.equal(diagnostics.tailscale.serveRunning, true);
   assert.equal(diagnostics.tailscale.serveCommand, "tailscale serve --bg https:443 http://127.0.0.1:4567");
   assert.deepEqual(diagnostics.tailscale.mobileUrls, ["https://lifeos-mac.tailnet.example.ts.net", "http://lifeos-mac.tailnet.example.ts.net:4567", "http://100.64.0.10:4567"]);
@@ -326,6 +329,10 @@ exit 1
   const tailnetIp = diagnostics.connectionCandidates.find((candidate) => candidate.id === "tailscale-ip-0");
 
   assert.equal(magicDns.baseUrl, "http://lifeos-mac.tailnet.example.ts.net:4567");
+  assert.equal(diagnostics.tailscale.loginCommand, "tailscale up");
+  assert.equal(diagnostics.tailscale.magicDnsEnabled, true);
+  assert.equal(diagnostics.tailscale.httpsServeReady, true);
+  assert.equal(diagnostics.tailscale.serveRunning, false);
   assert.equal(magicDns.secure, false);
   assert.equal(magicDns.stability, "temporary");
   assert.equal(tailnetIp.baseUrl, "http://100.64.0.10:4567");
@@ -393,6 +400,9 @@ exit 1
 
   const { getNetworkDiagnostics } = await import(`../server/networkDiagnostics.ts?tailscale-http-cloudflare=${Date.now()}`);
   const diagnostics = getNetworkDiagnostics();
+  assert.equal(diagnostics.tailscale.magicDnsEnabled, false);
+  assert.equal(diagnostics.tailscale.httpsServeReady, false);
+  assert.match(diagnostics.tailscale.notes.join("\n"), /MagicDNS suffix was not detected/);
   assert.equal(diagnostics.connectionCandidates[0].id, "cloudflare-0");
   assert.equal(diagnostics.connectionCandidates[0].baseUrl, "https://amber-lifeos.trycloudflare.com");
   assert.equal(diagnostics.connectionCandidates[0].secure, true);

@@ -14,7 +14,14 @@ export default function TailscaleServeActions({
   onStop: () => void;
 }) {
   const { t } = useI18n();
-  const canStart = tailscale.installed && tailscale.online && Boolean(tailscale.httpsServeUrl);
+  const canStart = tailscale.installed && tailscale.online && tailscale.magicDnsEnabled && tailscale.httpsServeReady;
+  const unavailableMessage = !tailscale.installed
+    ? t("connection.tailscaleInstallRequired")
+    : !tailscale.online
+      ? t("connection.tailscaleLoginRequired", { command: tailscale.loginCommand || "tailscale up" })
+      : !tailscale.magicDnsEnabled
+        ? t("connection.tailscaleMagicDnsRequired")
+        : t("connection.tailscaleServeUnavailable");
 
   return (
     <div className="mt-3 grid gap-2">
@@ -42,7 +49,7 @@ export default function TailscaleServeActions({
         </div>
       ) : !canStart ? (
         <div className="rounded-xl border border-amber-400/15 bg-amber-500/10 p-2 text-[11px] leading-relaxed text-amber-100">
-          {t("connection.tailscaleServeUnavailable")}
+          {unavailableMessage}
         </div>
       ) : null}
     </div>

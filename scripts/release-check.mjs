@@ -463,6 +463,9 @@ function checkAssets() {
     desktopMainSourceForRuntimeConfig.includes("applyDesktopRuntimeConfig") &&
     desktopMainSourceForRuntimeConfig.includes("desktop-runtime-config.json") &&
     networkDiagnosticsSource.includes("tailscale.magicDnsUrls") &&
+    networkDiagnosticsSource.includes("magicDnsEnabled") &&
+    networkDiagnosticsSource.includes("loginCommand") &&
+    networkDiagnosticsSource.includes("httpsServeReady") &&
     networkDiagnosticsSource.includes("httpsServeUrl") &&
     networkDiagnosticsSource.includes("tailscale serve --bg https:443") &&
     networkDiagnosticsSource.includes("startTailscaleHttpsServe") &&
@@ -479,6 +482,8 @@ function checkAssets() {
     adminRoutesSource.includes("/api/v1/admin/tailscale-serve/stop") &&
     networkDiagnosticsSource.includes("tailscale-serve-https") &&
     connectionGuideSource.includes("connection.recommendedAddress") &&
+    connectionGuideSource.includes("tailscale.loginCommand") &&
+    connectionGuideSource.includes("connection.notDetected") &&
     connectionGuideSource.includes("connection.recommendedEnv") &&
     connectionGuideSource.includes("recommended-env") &&
     connectionGuideSource.includes("connection.copyRecommendedEnv") &&
@@ -659,6 +664,9 @@ function checkAssets() {
     networkDiagnosticsSource.includes("cloudflared tunnel --url") &&
     networkDiagnosticsSource.includes("tailscale") &&
     networkDiagnosticsSource.includes("tailscale serve --bg https:443") &&
+    networkDiagnosticsSource.includes("magicDnsEnabled") &&
+    networkDiagnosticsSource.includes("loginCommand") &&
+    networkDiagnosticsSource.includes("httpsServeReady") &&
     networkDiagnosticsSource.includes("parsed.username = \"\"") &&
     networkDiagnosticsSource.includes("new URL(`${basePath}/api/v1/health`, parsed.origin)") &&
     networkDiagnosticsSource.includes("new URL(`${basePath}/mobile/chat`, parsed.origin)") &&

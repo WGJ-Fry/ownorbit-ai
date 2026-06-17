@@ -12,7 +12,6 @@ import RemoteReadinessCard from "./RemoteReadinessCard";
 import TailscaleServeActions from "./TailscaleServeActions";
 type Health = Awaited<ReturnType<typeof getHealth>>;
 type ConnectionResult = Awaited<ReturnType<typeof testConnectionUrl>>["result"];
-
 function connectionStatusMessage(result: ConnectionResult, t: ReturnType<typeof useI18n>["t"]) {
   const passed = result.steps?.filter((step) => step.ok).length || 0;
   const total = result.steps?.length || 1;
@@ -20,7 +19,6 @@ function connectionStatusMessage(result: ConnectionResult, t: ReturnType<typeof 
     ? t("connection.success", { latency: result.latencyMs, url: result.url, passed, total })
     : t("connection.failure", { message: result.error || `HTTP ${result.status}`, passed, total });
 }
-
 export default function ConnectionGuide({ health }: { health: Health | null }) {
   const { t } = useI18n();
   const [diagnostics, setDiagnostics] = useState<NetworkDiagnostics | null>(null);
@@ -404,10 +402,12 @@ export default function ConnectionGuide({ health }: { health: Health | null }) {
             rows={[
               [t("connection.device"), diagnostics.tailscale.deviceName || "-"],
               ["Tailnet", diagnostics.tailscale.tailnetName || "-"],
-              ["HTTPS Serve", diagnostics.tailscale.httpsServeUrl || "-"],
+              ["MagicDNS", diagnostics.tailscale.magicDnsEnabled ? t("connection.enabled") : t("connection.notDetected")],
+              ["HTTPS Serve", diagnostics.tailscale.httpsServeReady ? diagnostics.tailscale.httpsServeUrl : "-"],
               [t("connection.command"), diagnostics.tailscale.serveCommand || "-"],
-              ["MagicDNS", diagnostics.tailscale.magicDnsUrls?.[0] || "-"],
+              ["MagicDNS URL", diagnostics.tailscale.magicDnsUrls?.[0] || "-"],
               ["Tailnet IP", diagnostics.tailscale.urls[0] || "-"],
+              [t("connection.authorization"), diagnostics.tailscale.online ? t("connection.online") : diagnostics.tailscale.loginCommand],
               [t("connection.install"), diagnostics.tailscale.installCommand],
               [t("connection.mobileAccess"), diagnostics.tailscale.mobileUrls?.[0] || diagnostics.tailscale.urls[0] || "-"],
               [t("connection.startup"), diagnostics.tailscale.envTemplate],

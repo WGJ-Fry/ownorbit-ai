@@ -407,12 +407,15 @@ export type NetworkDiagnostics = {
   tailscale: {
     installed: boolean;
     online: boolean;
+    loginCommand: string;
     version: string;
     deviceName: string;
     tailnetName: string;
+    magicDnsEnabled: boolean;
     urls: string[];
     magicDnsUrls: string[];
     httpsServeUrl: string;
+    httpsServeReady: boolean;
     serveRunning: boolean;
     serveCommand: string;
     serveStatus: string;

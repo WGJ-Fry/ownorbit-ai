@@ -541,6 +541,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   const tailscaleServeActionsSource = await readFile(path.join(rootDir, "src", "pages", "admin", "TailscaleServeActions.tsx"), "utf8");
   assert.match(tailscaleServeActionsSource, /connection\.tailscaleServeStart/);
   assert.match(tailscaleServeActionsSource, /connection\.tailscaleServeUrl/);
+  assert.match(tailscaleServeActionsSource, /tailscale\.magicDnsEnabled/);
+  assert.match(tailscaleServeActionsSource, /connection\.tailscaleLoginRequired/);
+  assert.match(tailscaleServeActionsSource, /connection\.tailscaleMagicDnsRequired/);
+  assert.match(connectionGuideSource, /tailscale\.loginCommand/);
+  assert.match(connectionGuideSource, /connection\.notDetected/);
   assert.match(translationsSource, /推荐绑定地址/);
   assert.match(translationsSource, /推荐启动环境/);
   assert.match(translationsSource, /复制推荐启动环境/);
@@ -552,6 +557,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /安装包用户/);
   assert.match(translationsSource, /退出并重新打开 LifeOS AI/);
   assert.match(translationsSource, /一键启动 Tailscale HTTPS Serve/);
+  assert.match(translationsSource, /未检测到 MagicDNS/);
+  assert.match(translationsSource, /Tailscale is installed but not online/);
   assert.match(connectionGuideSource, /desktopRuntimeConfig/);
   assert.match(connectionGuideSource, /connection\.testSavedRemote/);
   assert.match(connectionGuideSource, /saved-desktop-config/);

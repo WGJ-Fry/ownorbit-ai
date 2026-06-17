@@ -372,16 +372,22 @@ function getTailscaleStatus() {
 
   const mobileUrls = Array.from(new Set([...(httpsServeUrl ? [httpsServeUrl] : []), ...magicDnsUrls, ...urls]));
   const serveCommand = httpsServeUrl ? `tailscale serve --bg https:443 http://127.0.0.1:${port}` : "";
+  const magicDnsEnabled = Boolean(deviceName && tailnetName);
+  const httpsServeReady = Boolean(online && magicDnsEnabled && httpsServeUrl);
+  const loginCommand = "tailscale up";
 
   return {
     installed,
     online,
+    loginCommand,
     version: installed ? version.output.split("\n")[0] : "",
     deviceName,
     tailnetName,
+    magicDnsEnabled,
     urls,
     magicDnsUrls,
     httpsServeUrl,
+    httpsServeReady,
     serveRunning,
     serveCommand,
     serveStatus,
@@ -393,12 +399,14 @@ function getTailscaleStatus() {
       : `LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 npm run start`,
     notes: installed
       ? [
-        online ? "Tailscale is signed in and online. Prefer HTTPS Serve for phone PWA/WebCrypto support." : "Tailscale is installed, but no online status was detected.",
-        httpsServeUrl
+        online ? "Tailscale is signed in and online. Prefer HTTPS Serve for phone PWA/WebCrypto support." : `Tailscale is installed, but no online status was detected. Run: ${loginCommand}`,
+        !magicDnsEnabled
+          ? "MagicDNS suffix was not detected. Enable MagicDNS in Tailscale admin so LifeOS can create a stable HTTPS Serve hostname."
+          : httpsServeUrl
           ? serveRunning
             ? `HTTPS Serve appears active at ${httpsServeUrl}.`
             : `For the most reliable phone entry, run: ${serveCommand}`
-          : "Enable MagicDNS in Tailscale to get a stable HTTPS Serve hostname.",
+          : "Enable HTTPS certificates in Tailscale to get a stable HTTPS Serve hostname.",
         "Tailscale is suitable for remote access between your own devices and usually avoids public internet exposure.",
       ]
       : [
