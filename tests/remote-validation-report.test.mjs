@@ -198,3 +198,49 @@ while true; do sleep 1; done
   assert.equal(result.report.ok, true, JSON.stringify(result.report, null, 2));
   assert.equal(result.report.passed, 3);
 });
+
+test("remote health summary classifies long-term entry readiness", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-remote-health-summary-"));
+  t.after(async () => {
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const { saveRemoteValidationReport, summarizeRemoteHealth } = await import("./server/remoteValidationReport.ts");
+    const now = 1781676000000;
+    const report = saveRemoteValidationReport({
+      label: "Tailscale",
+      baseUrl: "https://lifeos.tailnet.example.ts.net",
+      result: {
+        ok: true,
+        status: 200,
+        url: "https://lifeos.tailnet.example.ts.net/api/v1/health",
+        latencyMs: 42,
+        steps: [
+          { id: "health", ok: true, status: 200, url: "https://lifeos.tailnet.example.ts.net/api/v1/health", latencyMs: 10 },
+          { id: "mobile-shell", ok: true, status: 200, url: "https://lifeos.tailnet.example.ts.net/mobile/chat", latencyMs: 12 },
+          { id: "websocket", ok: true, status: 101, url: "wss://lifeos.tailnet.example.ts.net/api/v1/ws", latencyMs: 20 },
+        ],
+      },
+    });
+    report.createdAt = now - 1000;
+    const healthy = summarizeRemoteHealth({ baseUrl: "https://lifeos.tailnet.example.ts.net", readiness: { status: "ready", baseUrl: "https://lifeos.tailnet.example.ts.net" }, report, now });
+    const temporary = summarizeRemoteHealth({ baseUrl: "https://demo.trycloudflare.com", readiness: { status: "temporary", baseUrl: "https://demo.trycloudflare.com" }, report: null, now });
+    const insecure = summarizeRemoteHealth({ baseUrl: "http://100.64.0.10:3000", readiness: { status: "blocked", baseUrl: "http://100.64.0.10:3000" }, report: null, now });
+    const stale = summarizeRemoteHealth({ baseUrl: "https://lifeos.tailnet.example.ts.net", readiness: { status: "ready", baseUrl: "https://lifeos.tailnet.example.ts.net" }, report: { ...report, createdAt: now - 11 * 60 * 1000 }, now });
+    process.stdout.write(JSON.stringify({ healthy, temporary, insecure, stale }));
+  `], {
+    cwd: process.cwd(),
+    env: { ...process.env, LIFEOS_DATA_DIR: dataDir },
+    encoding: "utf8",
+  });
+  const result = JSON.parse(output);
+  assert.equal(result.healthy.status, "healthy");
+  assert.equal(result.healthy.severity, "ok");
+  assert.equal(result.healthy.checks.every((check) => check.status === "ok"), true);
+  assert.equal(result.temporary.status, "temporary");
+  assert.equal(result.temporary.checks.find((check) => check.id === "qr-entry").status, "warning");
+  assert.equal(result.insecure.status, "insecure");
+  assert.equal(result.insecure.checks.find((check) => check.id === "https").status, "fail");
+  assert.equal(result.stale.status, "stale");
+});

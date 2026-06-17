@@ -550,6 +550,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(remoteReadinessCardSource, /remoteReadiness/);
   assert.match(remoteReadinessCardSource, /connection\.readiness\.status\.ready/);
   assert.match(remoteReadinessCardSource, /connection\.readiness\.item\.needsPublicOptIn/);
+  const remoteHealthSummaryCardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "RemoteHealthSummaryCard.tsx"), "utf8");
+  assert.match(connectionGuideSource, /RemoteHealthSummaryCard/);
+  assert.match(connectionGuideSource, /remoteHealthSummary/);
+  assert.match(remoteHealthSummaryCardSource, /connection\.health\.status\.healthy/);
+  assert.match(remoteHealthSummaryCardSource, /connection\.health\.check\.websocket/);
+  assert.match(remoteHealthSummaryCardSource, /connection\.health\.recommendation\.replaceTemporaryTunnel/);
   const customRemoteEntrySource = await readFile(path.join(rootDir, "src", "pages", "admin", "CustomRemoteEntryCard.tsx"), "utf8");
   assert.match(customRemoteEntrySource, /connection\.customTitle/);
   assert.match(customRemoteEntrySource, /testConnectionUrl/);

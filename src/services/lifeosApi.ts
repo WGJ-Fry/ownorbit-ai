@@ -295,6 +295,29 @@ export type NetworkDiagnostics = {
       error?: string;
     }>;
   } | null;
+  remoteHealthSummary: {
+    status: "healthy" | "unchecked" | "failing" | "stale" | "temporary" | "insecure" | "missing";
+    severity: "ok" | "warning" | "danger";
+    baseUrl: string;
+    lastCheckedAt: number | null;
+    ageMs: number | null;
+    recommendations: Array<
+      | "save-long-term-entry"
+      | "run-remote-health"
+      | "replace-temporary-tunnel"
+      | "use-https"
+      | "refresh-stale-check"
+      | "fix-health-check"
+      | "fix-mobile-shell"
+      | "fix-websocket"
+      | "ready"
+    >;
+    checks: Array<{
+      id: "https" | "health" | "mobile-shell" | "websocket" | "qr-entry";
+      status: "ok" | "warning" | "fail" | "unknown";
+      detail?: string;
+    }>;
+  };
   cloudflare: {
     installed: boolean;
     running: boolean;

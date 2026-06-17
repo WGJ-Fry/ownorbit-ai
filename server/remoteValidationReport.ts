@@ -26,6 +26,30 @@ export type RemoteValidationReport = {
   steps: ProbeStep[];
 };
 
+export type RemoteHealthSummary = {
+  status: "healthy" | "unchecked" | "failing" | "stale" | "temporary" | "insecure" | "missing";
+  severity: "ok" | "warning" | "danger";
+  baseUrl: string;
+  lastCheckedAt: number | null;
+  ageMs: number | null;
+  recommendations: Array<
+    | "save-long-term-entry"
+    | "run-remote-health"
+    | "replace-temporary-tunnel"
+    | "use-https"
+    | "refresh-stale-check"
+    | "fix-health-check"
+    | "fix-mobile-shell"
+    | "fix-websocket"
+    | "ready"
+  >;
+  checks: Array<{
+    id: "https" | "health" | "mobile-shell" | "websocket" | "qr-entry";
+    status: "ok" | "warning" | "fail" | "unknown";
+    detail?: string;
+  }>;
+};
+
 function sanitizeUrl(value: string) {
   const parsed = new URL(value);
   parsed.username = "";
@@ -81,4 +105,112 @@ export function saveRemoteValidationReport(input: {
 export function getRemoteValidationReport(): RemoteValidationReport | null {
   const state = getClientState(REMOTE_VALIDATION_STATE_KEY);
   return (state?.value || null) as RemoteValidationReport | null;
+}
+
+function safeSanitizeUrl(value: string) {
+  try {
+    return sanitizeUrl(value);
+  } catch {
+    return "";
+  }
+}
+
+function sameBaseUrl(left: string, right: string) {
+  const safeLeft = safeSanitizeUrl(left);
+  const safeRight = safeSanitizeUrl(right);
+  return Boolean(safeLeft && safeRight && safeLeft === safeRight);
+}
+
+function stepStatus(report: RemoteValidationReport | null, id: ProbeStep["id"]): RemoteHealthSummary["checks"][number] {
+  const step = report?.steps.find((item) => item.id === id);
+  if (!step) return { id: id as RemoteHealthSummary["checks"][number]["id"], status: "unknown" as const };
+  return {
+    id: id as RemoteHealthSummary["checks"][number]["id"],
+    status: step.ok ? "ok" as const : "fail" as const,
+    detail: step.error,
+  };
+}
+
+export function summarizeRemoteHealth(input: {
+  baseUrl?: string;
+  readiness?: { status?: string; baseUrl?: string };
+  report?: RemoteValidationReport | null;
+  now?: number;
+}): RemoteHealthSummary {
+  const baseUrl = safeSanitizeUrl(input.baseUrl || input.readiness?.baseUrl || input.report?.baseUrl || "");
+  const now = input.now || Date.now();
+  const report = input.report || null;
+  const ageMs = report ? Math.max(0, now - report.createdAt) : null;
+  const reportIsCurrent = Boolean(report && baseUrl && sameBaseUrl(baseUrl, report.baseUrl));
+  const isHttps = baseUrl.startsWith("https://");
+  const isTemporary = baseUrl.includes(".trycloudflare.com") || input.readiness?.status === "temporary";
+  const qrStatus = !baseUrl
+    ? "fail"
+    : isTemporary
+      ? "warning"
+      : input.readiness?.status === "ready"
+        ? "ok"
+        : input.readiness?.status === "needs-restart"
+          ? "warning"
+          : "unknown";
+
+  const checks: RemoteHealthSummary["checks"] = [
+    {
+      id: "https",
+      status: !baseUrl ? "unknown" : isHttps ? "ok" : "fail",
+      detail: baseUrl || undefined,
+    },
+    stepStatus(reportIsCurrent ? report : null, "health"),
+    stepStatus(reportIsCurrent ? report : null, "mobile-shell"),
+    stepStatus(reportIsCurrent ? report : null, "websocket"),
+    {
+      id: "qr-entry",
+      status: qrStatus,
+      detail: baseUrl || undefined,
+    },
+  ];
+
+  const recommendations = new Set<RemoteHealthSummary["recommendations"][number]>();
+  let status: RemoteHealthSummary["status"] = "healthy";
+  let severity: RemoteHealthSummary["severity"] = "ok";
+
+  if (!baseUrl) {
+    status = "missing";
+    severity = "danger";
+    recommendations.add("save-long-term-entry");
+  } else if (!isHttps) {
+    status = "insecure";
+    severity = "danger";
+    recommendations.add("use-https");
+  } else if (isTemporary) {
+    status = "temporary";
+    severity = "warning";
+    recommendations.add("replace-temporary-tunnel");
+  } else if (!report) {
+    status = "unchecked";
+    severity = "warning";
+    recommendations.add("run-remote-health");
+  } else if (!reportIsCurrent || (ageMs !== null && ageMs > 10 * 60 * 1000)) {
+    status = "stale";
+    severity = "warning";
+    recommendations.add("refresh-stale-check");
+  } else if (!report.ok) {
+    status = "failing";
+    severity = "danger";
+    if (checks.find((check) => check.id === "health")?.status === "fail") recommendations.add("fix-health-check");
+    if (checks.find((check) => check.id === "mobile-shell")?.status === "fail") recommendations.add("fix-mobile-shell");
+    if (checks.find((check) => check.id === "websocket")?.status === "fail") recommendations.add("fix-websocket");
+  } else {
+    recommendations.add("ready");
+  }
+
+  return {
+    status,
+    severity,
+    baseUrl,
+    lastCheckedAt: report?.createdAt || null,
+    ageMs,
+    recommendations: Array.from(recommendations),
+    checks,
+  };
 }

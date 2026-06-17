@@ -7,9 +7,9 @@ import CloudflareNamedTunnelCard from "./CloudflareNamedTunnelCard";
 import ConnectionToolStatus from "./ConnectionToolStatus";
 import CustomRemoteEntryCard from "./CustomRemoteEntryCard";
 import GuideCard from "./ConnectionGuideCard";
+import RemoteHealthSummaryCard from "./RemoteHealthSummaryCard";
 import RemoteReadinessCard from "./RemoteReadinessCard";
 import TailscaleServeActions from "./TailscaleServeActions";
-
 type Health = Awaited<ReturnType<typeof getHealth>>;
 type ConnectionResult = Awaited<ReturnType<typeof testConnectionUrl>>["result"];
 
@@ -298,6 +298,7 @@ export default function ConnectionGuide({ health }: { health: Health | null }) {
               {diagnostics.remoteValidationReport.error ? <div className="mt-1 opacity-80">{diagnostics.remoteValidationReport.error}</div> : null}
             </div>
           ) : null}
+          <RemoteHealthSummaryCard summary={diagnostics.remoteHealthSummary} />
           <RemoteReadinessCard readiness={diagnostics.remoteReadiness} />
           {diagnostics.connectionCandidates?.length ? (
             <div className="mt-4 grid gap-2 lg:grid-cols-2">

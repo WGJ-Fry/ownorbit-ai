@@ -461,8 +461,11 @@ function checkAssets() {
     connectionGuideSource.includes("connection.testSavedRemote") &&
     connectionGuideSource.includes("saved-desktop-config") &&
     connectionGuideSource.includes("remoteValidationReport") &&
+    connectionGuideSource.includes("RemoteHealthSummaryCard") &&
+    connectionGuideSource.includes("remoteHealthSummary") &&
     connectionGuideSource.includes("connection.remoteValidationOk") &&
     connectionGuideSource.includes("connection.remoteValidationFail") &&
+    adminRoutesSource.includes("summarizeRemoteHealth") &&
     adminRoutesSource.includes("saveRemoteValidationReport") &&
     adminRoutesSource.includes("persist") &&
     connectionToolStatusSource.includes("connection.copyInstallAria") &&

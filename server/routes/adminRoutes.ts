@@ -9,7 +9,7 @@ import { getNetworkDiagnostics, startTailscaleHttpsServe, stopTailscaleHttpsServ
 import { generateCloudflareNamedTunnelConfig, getCloudflareNamedTunnelStatus, getManagedCloudflareTunnelStatus, startConfiguredCloudflareNamedTunnel, startManagedCloudflareTunnel, stopManagedCloudflareTunnel } from "../cloudflareTunnel";
 import { saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
-import { getRemoteValidationReport, saveRemoteValidationReport } from "../remoteValidationReport";
+import { getRemoteValidationReport, saveRemoteValidationReport, summarizeRemoteHealth } from "../remoteValidationReport";
 import { runRemoteHealthCheck } from "../remoteHealthMonitor";
 import { createSecret, tokenHash } from "../security";
 import { setClientState } from "../clientState";
@@ -50,10 +50,17 @@ function getDataDirDiagnosticLabel() {
 }
 
 function getAdminNetworkDiagnostics() {
+  const diagnostics = getNetworkDiagnostics();
+  const remoteValidationReport = getRemoteValidationReport();
   return {
-    ...getNetworkDiagnostics(),
+    ...diagnostics,
     cloudflareNamedTunnel: getCloudflareNamedTunnelStatus(),
-    remoteValidationReport: getRemoteValidationReport(),
+    remoteValidationReport,
+    remoteHealthSummary: summarizeRemoteHealth({
+      baseUrl: diagnostics.desktopRuntimeConfig?.publicBaseUrl || diagnostics.remoteReadiness.baseUrl,
+      readiness: diagnostics.remoteReadiness,
+      report: remoteValidationReport,
+    }),
   };
 }
 
