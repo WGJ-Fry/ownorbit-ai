@@ -2,7 +2,7 @@ import { execFileSync } from "child_process";
 import os from "os";
 import { WebSocket } from "ws";
 import { extractCloudflareTunnelUrls, getManagedCloudflareTunnelStatus } from "./cloudflareTunnel.ts";
-import { getDesktopRuntimeConfig } from "./desktopRuntimeConfig.ts";
+import { getDesktopRuntimeConfig, saveDesktopRuntimeConfig } from "./desktopRuntimeConfig.ts";
 import { getConfiguredPublicBaseUrl } from "./publicBaseUrl";
 
 type CommandResult = {
@@ -456,21 +456,31 @@ export function maybeStartConfiguredTailscaleServe(port = String(process.env.LIF
   const status = getTailscaleStatus();
   if (status.serveRunning && status.httpsServeUrl) {
     process.env.PUBLIC_BASE_URL = status.httpsServeUrl;
+    const updatedConfig = saveDesktopRuntimeConfig({
+      mode: "tailscale",
+      label: config.label || "Tailscale HTTPS Serve",
+      baseUrl: status.httpsServeUrl,
+    });
     return {
       started: false,
       reason: "already_running",
       serve: { ok: true, command: status.serveCommand, output: status.serveStatus, url: status.httpsServeUrl, status },
-      config,
+      config: updatedConfig,
     };
   }
 
   const serve = startTailscaleHttpsServe(port);
   process.env.PUBLIC_BASE_URL = serve.url;
+  const updatedConfig = saveDesktopRuntimeConfig({
+    mode: "tailscale",
+    label: config.label || "Tailscale HTTPS Serve",
+    baseUrl: serve.url,
+  });
   return {
     started: true,
     reason: "tailscale_configured",
     serve,
-    config,
+    config: updatedConfig,
   };
 }
 

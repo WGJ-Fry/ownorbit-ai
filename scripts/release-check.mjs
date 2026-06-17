@@ -458,6 +458,7 @@ function checkAssets() {
     networkDiagnosticsSource.includes("startTailscaleHttpsServe") &&
     networkDiagnosticsSource.includes("stopTailscaleHttpsServe") &&
     networkDiagnosticsSource.includes("maybeStartConfiguredTailscaleServe") &&
+    networkDiagnosticsSource.includes("saveDesktopRuntimeConfig") &&
     networkDiagnosticsSource.includes("buildRemoteReadiness") &&
     networkDiagnosticsSource.includes("remoteReadiness") &&
     serverEntrySource.includes("maybeStartConfiguredTailscaleServe") &&
@@ -629,6 +630,7 @@ function checkAssets() {
     networkDiagnosticsTestSource.includes("remoteReadiness.status") &&
     networkDiagnosticsTestSource.includes("needsPublicOptIn") &&
     networkDiagnosticsTestSource.includes("Tailscale HTTPS Serve helpers run controlled start and stop commands") &&
+    networkDiagnosticsTestSource.includes("configured Tailscale HTTPS Serve autostart refreshes the saved stable URL") &&
     networkDiagnosticsTestSource.includes("connection URL tests strip credentials, query secrets, and fragments") &&
     networkDiagnosticsTestSource.includes("connection URL tests health, mobile shell, and websocket under a remote base path")
   ) pass("connection diagnostics have Cloudflare/Tailscale mock coverage and sanitize test URLs");
