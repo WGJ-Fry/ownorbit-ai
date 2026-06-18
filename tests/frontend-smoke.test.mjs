@@ -622,6 +622,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(remoteHealthSummaryCardSource, /restoredBaseUrl/);
   assert.match(translationsSource, /connection\.recovery\.restoredBaseUrl/);
   assert.match(translationsSource, /恢复前：\{\{before\}\}；恢复后：\{\{after\}\}/);
+  assert.match(translationsSource, /长期异地验收未完成/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.title/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.smokeTitle/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.copySmokeCommand/);
@@ -633,6 +634,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.importTitle/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.latestEvidence/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.automatedPassed/);
+  assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.summaryReady/);
+  assert.match(remoteAcceptanceChecklistSource, /summary\.hasLongTermEntry/);
+  assert.match(remoteStabilitySectionSource, /remoteAcceptanceSummary/);
   assert.match(remoteAcceptanceChecklistSource, /completionStatus/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.manualStillRequired/);
   assert.match(remoteAcceptanceChecklistSource, /onImportReport/);

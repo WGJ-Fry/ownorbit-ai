@@ -11,7 +11,7 @@ import { saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
 import { getRemoteValidationReport, saveRemoteValidationReport, summarizeRemoteHealth } from "../remoteValidationReport";
 import { getRemoteHealthMonitorStatus, getRemoteRecoveryReport, runRemoteHealthCheck } from "../remoteHealthMonitor";
-import { buildRemoteAcceptanceChecklist, getRemoteAcceptanceRecords, getRemoteAcceptanceRunbookRecords, saveRemoteAcceptanceRecord, saveRemoteAcceptanceRunbookFromConnectionTest, saveRemoteAcceptanceRunbookReport } from "../remoteAcceptance";
+import { buildRemoteAcceptanceChecklist, getRemoteAcceptanceRecords, getRemoteAcceptanceRunbookRecords, saveRemoteAcceptanceRecord, saveRemoteAcceptanceRunbookFromConnectionTest, saveRemoteAcceptanceRunbookReport, summarizeRemoteAcceptanceChecklist } from "../remoteAcceptance";
 import { createSecret, tokenHash } from "../security";
 import { setClientState } from "../clientState";
 import { evaluatePasswordPolicy, getSecurityDiagnostics } from "../securityDiagnostics";
@@ -66,6 +66,12 @@ function getAdminNetworkDiagnostics() {
     cloudflareNamedTunnel: getCloudflareNamedTunnelStatus(),
   };
   const remoteAcceptanceRunbookRecords = getRemoteAcceptanceRunbookRecords();
+  const remoteAcceptanceChecklist = buildRemoteAcceptanceChecklist({
+    diagnostics: enrichedDiagnostics,
+    health: remoteHealthSummary,
+    report: remoteValidationReport,
+    records: getRemoteAcceptanceRecords(),
+  });
   return {
     ...enrichedDiagnostics,
     remoteValidationReport,
@@ -81,12 +87,8 @@ function getAdminNetworkDiagnostics() {
     remoteHealthSummary,
     remoteHealthMonitor: getRemoteHealthMonitorStatus(),
     remoteRecoveryReport: getRemoteRecoveryReport(),
-    remoteAcceptanceChecklist: buildRemoteAcceptanceChecklist({
-      diagnostics: enrichedDiagnostics,
-      health: remoteHealthSummary,
-      report: remoteValidationReport,
-      records: getRemoteAcceptanceRecords(),
-    }),
+    remoteAcceptanceChecklist,
+    remoteAcceptanceSummary: summarizeRemoteAcceptanceChecklist(remoteAcceptanceChecklist),
     remoteAcceptanceRunbooks: {
       total: remoteAcceptanceRunbookRecords.length,
       latest: remoteAcceptanceRunbookRecords.slice(-3).reverse(),

@@ -41,6 +41,7 @@ export default function RemoteAcceptanceChecklistCard({
   runbooks,
   runningAcceptance,
   smokeCommand,
+  summary,
   onAccept,
   onImportReport,
   onRunAcceptance,
@@ -54,6 +55,7 @@ export default function RemoteAcceptanceChecklistCard({
   runbooks?: NetworkDiagnostics["remoteAcceptanceRunbooks"];
   runningAcceptance?: boolean;
   smokeCommand: string;
+  summary?: NetworkDiagnostics["remoteAcceptanceSummary"];
   onAccept?: (id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"]) => void;
   onImportReport?: () => void;
   onRunAcceptance?: () => void;
@@ -74,6 +76,25 @@ export default function RemoteAcceptanceChecklistCard({
         <div className="min-w-0 flex-1">
           <div className="text-sm font-bold text-zinc-100">{t("connection.acceptance.title")}</div>
           <p className="mt-1 text-xs leading-relaxed text-zinc-400">{t("connection.acceptance.body")}</p>
+          {summary ? (
+            <div className={`mt-3 rounded-xl border p-3 text-xs ${summary.ready ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100" : "border-amber-400/20 bg-amber-500/10 text-amber-100"}`}>
+              <div className="font-bold">
+                {summary.ready ? t("connection.acceptance.summaryReady") : t("connection.acceptance.summaryNotReady")}
+              </div>
+              <div className="mt-1 leading-relaxed opacity-85">
+                {t("connection.acceptance.summaryCounts", {
+                  passed: summary.passed,
+                  total: summary.total,
+                  needsAction: summary.needsAction,
+                  manualRequired: summary.manualRequired,
+                })}
+              </div>
+              <div className="mt-2 grid gap-1 sm:grid-cols-2">
+                <div>{summary.hasLongTermEntry ? t("connection.acceptance.summaryLongTermOk") : t("connection.acceptance.summaryLongTermMissing")}</div>
+                <div>{summary.hasRealWorldEvidence ? t("connection.acceptance.summaryEvidenceOk") : t("connection.acceptance.summaryEvidenceMissing")}</div>
+              </div>
+            </div>
+          ) : null}
           <div className="mt-3 rounded-xl border border-cyan-300/15 bg-cyan-500/10 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>

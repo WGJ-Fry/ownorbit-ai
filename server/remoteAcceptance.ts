@@ -41,6 +41,16 @@ export type RemoteAcceptanceItem = {
   acceptedAt?: number;
 };
 
+export type RemoteAcceptanceSummary = {
+  ready: boolean;
+  passed: number;
+  total: number;
+  needsAction: number;
+  manualRequired: number;
+  hasLongTermEntry: boolean;
+  hasRealWorldEvidence: boolean;
+};
+
 export type RemoteAcceptanceRecord = {
   id: RemoteAcceptanceItem["id"];
   baseUrl: string;
@@ -389,4 +399,24 @@ export function buildRemoteAcceptanceChecklist(input: {
       command: "npm run remote:mock-smoke",
     },
   ];
+}
+
+export function summarizeRemoteAcceptanceChecklist(checklist: RemoteAcceptanceItem[]): RemoteAcceptanceSummary {
+  const passed = checklist.filter((item) => item.status === "passed").length;
+  const needsAction = checklist.filter((item) => item.status === "needs-action").length;
+  const manualRequired = checklist.filter((item) => item.status === "manual-required").length;
+  const hasLongTermEntry = checklist.some((item) => (item.id === "tailscale-https-serve" || item.id === "cloudflare-named-tunnel") && item.status === "passed");
+  const requiredRealWorldIds = new Set(["remote-smoke", "restart-restore", "cellular-mobile-chat", "network-interruption", "diagnostic-export", "ci-remote-mock"]);
+  const hasRealWorldEvidence = checklist
+    .filter((item) => requiredRealWorldIds.has(item.id))
+    .every((item) => item.status === "passed");
+  return {
+    ready: hasLongTermEntry && hasRealWorldEvidence,
+    passed,
+    total: checklist.length,
+    needsAction,
+    manualRequired,
+    hasLongTermEntry,
+    hasRealWorldEvidence,
+  };
 }

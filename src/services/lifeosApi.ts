@@ -352,6 +352,15 @@ export type NetworkDiagnostics = {
     command?: string;
     acceptedAt?: number;
   }>;
+  remoteAcceptanceSummary: {
+    ready: boolean;
+    passed: number;
+    total: number;
+    needsAction: number;
+    manualRequired: number;
+    hasLongTermEntry: boolean;
+    hasRealWorldEvidence: boolean;
+  };
   remoteAcceptanceRunbooks: {
     total: number;
     latest: Array<{

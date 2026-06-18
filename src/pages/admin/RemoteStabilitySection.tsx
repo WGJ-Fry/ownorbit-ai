@@ -93,6 +93,7 @@ export default function RemoteStabilitySection({
         acceptanceCommand={acceptanceCommand}
         acceptingId={acceptingId}
         checklist={diagnostics.remoteAcceptanceChecklist || []}
+        summary={diagnostics.remoteAcceptanceSummary}
         importingReport={importingReport}
         reportText={reportText}
         runbooks={diagnostics.remoteAcceptanceRunbooks}

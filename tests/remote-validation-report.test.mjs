@@ -595,3 +595,30 @@ test("remote acceptance can be generated from an automated connection test", asy
   assert.equal(result.validation.label, "remote-acceptance:temporary-cloudflare");
   assert.equal(result.records.length, 2);
 });
+
+test("remote acceptance summary requires a long-term entry and real-world evidence", async () => {
+  const { summarizeRemoteAcceptanceChecklist } = await import(`../server/remoteAcceptance.ts?summary=${Date.now()}`);
+  const baseChecklist = [
+    { id: "tailscale-https-serve", status: "passed" },
+    { id: "cloudflare-named-tunnel", status: "needs-action" },
+    { id: "remote-smoke", status: "passed" },
+    { id: "restart-restore", status: "manual-required" },
+    { id: "cellular-mobile-chat", status: "manual-required" },
+    { id: "network-interruption", status: "manual-required" },
+    { id: "diagnostic-export", status: "manual-required" },
+    { id: "ci-remote-mock", status: "passed" },
+  ];
+  const incomplete = summarizeRemoteAcceptanceChecklist(baseChecklist);
+  assert.equal(incomplete.ready, false);
+  assert.equal(incomplete.hasLongTermEntry, true);
+  assert.equal(incomplete.hasRealWorldEvidence, false);
+  assert.equal(incomplete.manualRequired, 4);
+
+  const complete = summarizeRemoteAcceptanceChecklist(baseChecklist.map((item) => (
+    item.status === "manual-required" ? { ...item, status: "passed" } : item
+  )));
+  assert.equal(complete.ready, true);
+  assert.equal(complete.hasLongTermEntry, true);
+  assert.equal(complete.hasRealWorldEvidence, true);
+  assert.equal(complete.passed, 7);
+});
