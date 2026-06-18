@@ -10,7 +10,7 @@ import { generateCloudflareNamedTunnelConfig, getCloudflareNamedTunnelStatus, ge
 import { saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
 import { getRemoteValidationReport, saveRemoteValidationReport, summarizeRemoteHealth } from "../remoteValidationReport";
-import { getRemoteRecoveryReport, runRemoteHealthCheck } from "../remoteHealthMonitor";
+import { getRemoteHealthMonitorStatus, getRemoteRecoveryReport, runRemoteHealthCheck } from "../remoteHealthMonitor";
 import { buildRemoteAcceptanceChecklist, getRemoteAcceptanceRecords, getRemoteAcceptanceRunbookRecords, saveRemoteAcceptanceRecord, saveRemoteAcceptanceRunbookFromConnectionTest, saveRemoteAcceptanceRunbookReport } from "../remoteAcceptance";
 import { createSecret, tokenHash } from "../security";
 import { setClientState } from "../clientState";
@@ -79,6 +79,7 @@ function getAdminNetworkDiagnostics() {
       }
       : null,
     remoteHealthSummary,
+    remoteHealthMonitor: getRemoteHealthMonitorStatus(),
     remoteRecoveryReport: getRemoteRecoveryReport(),
     remoteAcceptanceChecklist: buildRemoteAcceptanceChecklist({
       diagnostics: enrichedDiagnostics,

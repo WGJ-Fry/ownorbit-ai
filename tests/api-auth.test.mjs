@@ -881,6 +881,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(networkDiagnosticsWithBinding.latestBindingSession.baseUrl, binding.baseUrl);
   assert.equal(networkDiagnosticsWithBinding.latestBindingSession.expiresAt, binding.expiresAt);
   assert.equal(networkDiagnosticsWithBinding.latestBindingSession.expired, false);
+  assert.equal(typeof networkDiagnosticsWithBinding.remoteHealthMonitor.enabled, "boolean");
+  assert.equal(typeof networkDiagnosticsWithBinding.remoteHealthMonitor.running, "boolean");
+  assert.equal(typeof networkDiagnosticsWithBinding.remoteHealthMonitor.intervalMs, "number");
   assert.notEqual(networkDiagnosticsWithBinding.remoteHealthSummary.checks.find((check) => check.id === "qr-entry").status, "fail");
 
   const invalidPairingBaseUrl = await request(port, "/api/v1/devices/bind/start", {

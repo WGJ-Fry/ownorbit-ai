@@ -320,6 +320,15 @@ export type NetworkDiagnostics = {
       detail?: string;
     }>;
   };
+  remoteHealthMonitor: {
+    enabled: boolean;
+    running: boolean;
+    inFlight: boolean;
+    intervalMs: number;
+    startedAt: number | null;
+    lastRunAt: number | null;
+    nextRunAt: number | null;
+  };
   remoteRecoveryReport: {
     id: string;
     reason: string;

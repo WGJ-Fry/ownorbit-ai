@@ -96,6 +96,35 @@ test("remote health monitor persists the saved stable remote entry report", asyn
   assert.match(report.baseUrl, /^http:\/\/127\.0\.0\.1:\d+\/lifeos$/);
 });
 
+test("remote health monitor exposes scheduler status", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-remote-health-status-"));
+  t.after(async () => {
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    process.env.LIFEOS_REMOTE_HEALTH_INTERVAL_MS = "30000";
+    const { getRemoteHealthMonitorStatus, startRemoteHealthMonitor } = await import("./server/remoteHealthMonitor.ts");
+    const before = getRemoteHealthMonitorStatus();
+    startRemoteHealthMonitor();
+    const after = getRemoteHealthMonitorStatus();
+    process.stdout.write(JSON.stringify({ before, after }));
+  `], {
+    cwd: process.cwd(),
+    env: { ...process.env, LIFEOS_DATA_DIR: dataDir, LIFEOS_REMOTE_HEALTH_MONITOR: "1" },
+    encoding: "utf8",
+  });
+  const { before, after } = JSON.parse(output);
+  assert.equal(before.enabled, true);
+  assert.equal(before.running, false);
+  assert.equal(after.enabled, true);
+  assert.equal(after.running, true);
+  assert.equal(after.inFlight, false);
+  assert.equal(after.intervalMs, 30000);
+  assert.equal(typeof after.startedAt, "number");
+  assert.equal(typeof after.nextRunAt, "number");
+});
+
 test("remote health monitor restores saved Cloudflare Named Tunnel before refreshing report", async (t) => {
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-remote-health-restore-"));
   const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-remote-health-bin-"));

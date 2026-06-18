@@ -533,11 +533,15 @@ function checkAssets() {
     remoteStabilitySectionSource.includes("runRemoteAcceptance") &&
     remoteStabilitySectionSource.includes("remoteAcceptanceRunbooks") &&
     remoteStabilitySectionSource.includes("remoteRecoveryReport") &&
+    remoteStabilitySectionSource.includes("remoteHealthMonitor") &&
     remoteStabilitySectionSource.includes("JSON.parse") &&
     remoteHealthSummaryCardSource.includes("entryKindKey") &&
     remoteHealthSummaryCardSource.includes("summary.entryKind") &&
     remoteHealthSummaryCardSource.includes("checkDetailText") &&
     remoteHealthSummaryCardSource.includes("connection.health.qrExpired") &&
+    remoteHealthSummaryCardSource.includes("connection.monitor.title") &&
+    remoteHealthSummaryCardSource.includes("monitor.nextRunAt") &&
+    remoteHealthSummaryCardSource.includes("monitor.lastRunAt") &&
     remoteHealthSummaryCardSource.includes("restoredBaseUrl") &&
     remoteHealthSummaryCardSource.includes("connection.recovery.title") &&
     remoteHealthSummaryCardSource.includes("connection.recovery.summary") &&
@@ -566,6 +570,9 @@ function checkAssets() {
     remoteHealthMonitorSource.includes("restoredBaseUrl") &&
     remoteHealthMonitorSource.includes("checkBaseUrl = remoteBaseUrl() || baseUrl") &&
     remoteHealthMonitorSource.includes("baseUrl: checkBaseUrl") &&
+    remoteHealthMonitorSource.includes("getRemoteHealthMonitorStatus") &&
+    remoteHealthMonitorSource.includes("nextRunAt") &&
+    adminRoutesSource.includes("remoteHealthMonitor") &&
     lifeosApiSourceForRouting.includes("entryKind") &&
     lifeosApiSourceForRouting.includes("restoredBaseUrl") &&
     lifeosApiSourceForRouting.includes("recordRemoteAcceptance") &&
@@ -621,6 +628,8 @@ function checkAssets() {
     translationsSource.includes("connection.recovery.title") &&
     translationsSource.includes("connection.recovery.restoredBaseUrl") &&
     translationsSource.includes("connection.recovery.health") &&
+    translationsSource.includes("connection.monitor.title") &&
+    translationsSource.includes("Background Remote Health Monitor") &&
     translationsSource.includes("connection.health.entry.tailscale") &&
     translationsSource.includes("connection.health.entry.temporaryCloudflare") &&
     translationsSource.includes("connection.acceptance.runNow") &&

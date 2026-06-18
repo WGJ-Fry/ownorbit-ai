@@ -56,9 +56,11 @@ function checkDetailText(check: NetworkDiagnostics["remoteHealthSummary"]["check
 }
 
 export default function RemoteHealthSummaryCard({
+  monitor,
   recovery,
   summary,
 }: {
+  monitor?: NetworkDiagnostics["remoteHealthMonitor"];
   recovery?: NetworkDiagnostics["remoteRecoveryReport"];
   summary: NetworkDiagnostics["remoteHealthSummary"];
 }) {
@@ -96,6 +98,29 @@ export default function RemoteHealthSummaryCard({
               <li key={item}>{t(recommendationKey[item] as any)}</li>
             ))}
           </ul>
+          {monitor ? (
+            <div className="mt-3 rounded-xl border border-white/10 bg-black/15 p-3 text-xs">
+              <div className="font-bold">{t("connection.monitor.title")}</div>
+              <div className="mt-1 opacity-90">
+                {t("connection.monitor.summary", {
+                  status: !monitor.enabled
+                    ? t("connection.monitor.disabled")
+                    : monitor.running
+                      ? monitor.inFlight
+                        ? t("connection.monitor.checking")
+                        : t("connection.monitor.running")
+                      : t("connection.monitor.notRunning"),
+                  interval: Math.round(monitor.intervalMs / 60000),
+                })}
+              </div>
+              <div className="mt-1 opacity-75">
+                {monitor.lastRunAt ? t("connection.monitor.lastRun", { time: new Date(monitor.lastRunAt).toLocaleString() }) : t("connection.monitor.noLastRun")}
+              </div>
+              {monitor.nextRunAt ? (
+                <div className="mt-1 opacity-75">{t("connection.monitor.nextRun", { time: new Date(monitor.nextRunAt).toLocaleString() })}</div>
+              ) : null}
+            </div>
+          ) : null}
           {recovery ? (
             <div className="mt-3 rounded-xl border border-white/10 bg-black/15 p-3 text-xs">
               <div className="font-bold">{t("connection.recovery.title")}</div>

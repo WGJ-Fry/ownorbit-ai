@@ -587,6 +587,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   const remoteStabilitySectionSource = await readFile(path.join(rootDir, "src", "pages", "admin", "RemoteStabilitySection.tsx"), "utf8");
   assert.match(connectionGuideSource, /RemoteStabilitySection/);
   assert.match(remoteStabilitySectionSource, /remoteHealthSummary/);
+  assert.match(remoteStabilitySectionSource, /remoteHealthMonitor/);
   assert.match(remoteStabilitySectionSource, /remoteRecoveryReport/);
   assert.match(remoteStabilitySectionSource, /RemoteHealthSummaryCard/);
   assert.match(remoteStabilitySectionSource, /RemoteAcceptanceChecklistCard/);
@@ -600,6 +601,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(remoteHealthSummaryCardSource, /connection\.health\.qrExpired/);
   assert.match(remoteHealthSummaryCardSource, /connection\.health\.recommendation\.replaceTemporaryTunnel/);
   assert.match(remoteHealthSummaryCardSource, /connection\.health\.recommendation\.refreshPairingQr/);
+  assert.match(remoteHealthSummaryCardSource, /connection\.monitor\.title/);
+  assert.match(remoteHealthSummaryCardSource, /monitor\.nextRunAt/);
+  assert.match(remoteHealthSummaryCardSource, /monitor\.lastRunAt/);
+  assert.match(translationsSource, /后台远程健康监控/);
+  assert.match(translationsSource, /Background Remote Health Monitor/);
   assert.match(translationsSource, /最近生成的绑定二维码已过期/);
   const remoteValidationReportSource = await readFile(path.join(rootDir, "server", "remoteValidationReport.ts"), "utf8");
   assert.match(remoteValidationReportSource, /pairingEntryMismatch/);

@@ -6,6 +6,9 @@ import { getClientState, setClientState } from "./clientState.ts";
 
 let monitorTimer: ReturnType<typeof setInterval> | null = null;
 let running = false;
+let monitorStartedAt: number | null = null;
+let nextRunAt: number | null = null;
+let lastRunAt: number | null = null;
 const REMOTE_RECOVERY_STATE_KEY = "lifeos_remote_recovery_report";
 
 export type RemoteRecoveryReport = {
@@ -28,6 +31,10 @@ function intervalMs() {
   const value = Number.parseInt(String(process.env.LIFEOS_REMOTE_HEALTH_INTERVAL_MS || ""), 10);
   if (Number.isFinite(value) && value >= 30_000) return value;
   return 5 * 60 * 1000;
+}
+
+function monitorEnabled() {
+  return process.env.LIFEOS_REMOTE_HEALTH_MONITOR !== "0";
 }
 
 function remoteBaseUrl() {
@@ -68,6 +75,7 @@ export async function runRemoteHealthCheck(reason = "manual") {
     });
     return { skipped: false, reason, restored: recovery.restored, recovery: recoveryReport, report };
   } finally {
+    lastRunAt = Date.now();
     running = false;
   }
 }
@@ -148,13 +156,29 @@ export function getRemoteRecoveryReport(): RemoteRecoveryReport | null {
 }
 
 export function startRemoteHealthMonitor() {
-  if (process.env.LIFEOS_REMOTE_HEALTH_MONITOR === "0") return;
+  if (!monitorEnabled()) return;
   if (monitorTimer) return;
+  monitorStartedAt = Date.now();
+  nextRunAt = monitorStartedAt + 4000;
   setTimeout(() => {
+    nextRunAt = Date.now() + intervalMs();
     runRemoteHealthCheck("startup").catch(() => null);
   }, 4000).unref();
   monitorTimer = setInterval(() => {
+    nextRunAt = Date.now() + intervalMs();
     runRemoteHealthCheck("schedule").catch(() => null);
   }, intervalMs());
   monitorTimer.unref();
+}
+
+export function getRemoteHealthMonitorStatus() {
+  return {
+    enabled: monitorEnabled(),
+    running: Boolean(monitorTimer),
+    inFlight: running,
+    intervalMs: intervalMs(),
+    startedAt: monitorStartedAt,
+    lastRunAt,
+    nextRunAt: monitorTimer ? nextRunAt : null,
+  };
 }
