@@ -954,6 +954,7 @@ function checkAssets() {
     pwaCapabilitiesSource.includes("getRemoteEntryStatus") &&
     pwaCapabilitiesSource.includes("getRemoteEntryGuidance") &&
     pwaCapabilitiesSource.includes("getMobileRecoveryHints") &&
+    pwaCapabilitiesSource.includes("getMobileConnectivityIssue") &&
     pwaCapabilitiesSource.includes("testMobileRemoteConnectivity") &&
     pwaCapabilitiesSource.includes("/api/v1/health") &&
     pwaCapabilitiesSource.includes("/mobile/chat") &&
@@ -965,6 +966,9 @@ function checkAssets() {
     pwaCapabilitiesSource.includes("connectivityGuidanceTailscaleHttp") &&
     pwaCapabilitiesSource.includes("connectivityGuidanceOfflineQueue") &&
     pwaCapabilitiesSource.includes("connectivityGuidanceFailedQueue") &&
+    pwaCapabilitiesSource.includes("connectivityIssueTemporaryExpired") &&
+    pwaCapabilitiesSource.includes("connectivityIssueTailscaleOffline") &&
+    pwaCapabilitiesSource.includes("connectivityIssueWebSocket") &&
     pwaCapabilitiesSource.includes("serviceWorkerControlled") &&
     pwaCapabilitiesSource.includes("backgroundSyncSupported") &&
     pwaCapabilitiesSource.includes("indexedDbSupported") &&
@@ -978,6 +982,8 @@ function checkAssets() {
     mobileDeviceSource.includes("onRetry={handleConnectivityTest}") &&
     mobileDeviceSource.includes("queueSummary={queueSummary}") &&
     mobileConnectivityCardSource.includes("getMobileRecoveryHints") &&
+    mobileConnectivityCardSource.includes("getMobileConnectivityIssue") &&
+    mobileConnectivityCardSource.includes("primaryIssue") &&
     mobileConnectivityCardSource.includes("isHttpRemoteBase") &&
     mobileConnectivityCardSource.includes("queueSummary") &&
     mobileConnectivityCardSource.includes("tailscale://") &&
@@ -1002,16 +1008,23 @@ function checkAssets() {
     pwaCapabilitiesTestSource.includes("mobile remote connectivity probes health, mobile chat shell, and websocket") &&
     pwaCapabilitiesTestSource.includes("mobile remote connectivity reports websocket failures") &&
     pwaCapabilitiesTestSource.includes("mobile recovery hints combine entry type") &&
+    pwaCapabilitiesTestSource.includes("connectivityIssueTemporaryExpired") &&
+    pwaCapabilitiesTestSource.includes("connectivityIssueTailscaleOffline") &&
+    pwaCapabilitiesTestSource.includes("connectivityIssueWebSocket") &&
     pwaCapabilitiesTestSource.includes("remote entry guidance is visible before manual connectivity tests") &&
     pwaCapabilitiesTestSource.includes("degraded offline sync support") &&
     frontendSmokeTestSource.includes("mobileDevice\\.pwaTitle") &&
     frontendSmokeTestSource.includes("getRemoteEntryGuidance") &&
     frontendSmokeTestSource.includes("queueSummary=\\{queueSummary\\}") &&
     frontendSmokeTestSource.includes("getMobileRecoveryHints") &&
+    frontendSmokeTestSource.includes("getMobileConnectivityIssue") &&
     translationsSource.includes("connectivityGuidanceHealth") &&
     translationsSource.includes("connectivityGuidanceTailscaleHttp") &&
     translationsSource.includes("connectivityGuidanceOfflineQueue") &&
     translationsSource.includes("connectivityGuidanceFailedQueue") &&
+    translationsSource.includes("connectivityIssueTemporaryExpired") &&
+    translationsSource.includes("connectivityIssueTailscaleOffline") &&
+    translationsSource.includes("connectivityIssueWebSocket") &&
     translationsSource.includes("connectivityMobileShell") &&
     translationsSource.includes("mobileDevice.pwaTitle")
   ) pass("mobile device page surfaces PWA install, background sync, and remote recovery guidance");

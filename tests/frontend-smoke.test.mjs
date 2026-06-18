@@ -362,6 +362,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceSource, /onRetry=\{handleConnectivityTest\}/);
   const mobileConnectivityCardSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileConnectivityCard.tsx"), "utf8");
   assert.match(mobileConnectivityCardSource, /getMobileRecoveryHints/);
+  assert.match(mobileConnectivityCardSource, /getMobileConnectivityIssue/);
+  assert.match(mobileConnectivityCardSource, /primaryIssue/);
   assert.match(mobileConnectivityCardSource, /isHttpRemoteBase/);
   assert.match(mobileConnectivityCardSource, /tailscaleHttpFallback/);
   assert.match(mobileConnectivityCardSource, /queueSummary/);
@@ -375,6 +377,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /打开 Tailscale/);
   assert.match(translationsSource, /重新绑定远程入口/);
   assert.match(translationsSource, /离线消息同步失败/);
+  assert.match(translationsSource, /临时 Cloudflare Tunnel 很可能已失效/);
+  assert.match(translationsSource, /Tailscale 通路不可达/);
+  assert.match(translationsSource, /只有实时通道失败/);
   assert.match(translationsSource, /实时聊天通道/);
   assert.match(translationsSource, /Tailscale HTTPS 入口/);
   assert.match(translationsSource, /Tailscale HTTP 临时兜底入口/);
@@ -389,8 +394,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(pwaCapabilitiesSource, /getRemoteEntryStatus/);
   assert.match(pwaCapabilitiesSource, /getRemoteEntryGuidance/);
   assert.match(pwaCapabilitiesSource, /getMobileRecoveryHints/);
+  assert.match(pwaCapabilitiesSource, /getMobileConnectivityIssue/);
   assert.match(pwaCapabilitiesSource, /connectivityGuidanceTailscaleHttp/);
   assert.match(pwaCapabilitiesSource, /connectivityGuidanceFailedQueue/);
+  assert.match(pwaCapabilitiesSource, /connectivityIssueTemporaryExpired/);
+  assert.match(pwaCapabilitiesSource, /connectivityIssueTailscaleOffline/);
+  assert.match(pwaCapabilitiesSource, /connectivityIssueWebSocket/);
   assert.match(pwaCapabilitiesSource, /testMobileRemoteConnectivity/);
   assert.match(pwaCapabilitiesSource, /\/api\/v1\/health/);
   assert.match(pwaCapabilitiesSource, /\/api\/v1\/ws/);

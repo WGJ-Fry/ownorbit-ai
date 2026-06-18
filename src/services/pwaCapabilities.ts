@@ -58,6 +58,20 @@ export type MobileRecoveryHintKey =
   | "mobileDevice.connectivityGuidanceFailedQueue"
   | "mobileDevice.connectivityGuidanceDefault";
 
+export type MobileConnectivityIssueKey =
+  | "mobileDevice.connectivityIssueOk"
+  | "mobileDevice.connectivityIssueTemporaryExpired"
+  | "mobileDevice.connectivityIssueTailscaleOffline"
+  | "mobileDevice.connectivityIssueTailscaleHttp"
+  | "mobileDevice.connectivityIssueLanOnly"
+  | "mobileDevice.connectivityIssueLocalhost"
+  | "mobileDevice.connectivityIssueConfiguredMismatch"
+  | "mobileDevice.connectivityIssueHealth"
+  | "mobileDevice.connectivityIssueMobileShell"
+  | "mobileDevice.connectivityIssueWebSocket"
+  | "mobileDevice.connectivityIssueQueueBlocked"
+  | "mobileDevice.connectivityIssueUnknown";
+
 function normalizeBaseUrl(value?: string | null) {
   if (!value) return "";
   try {
@@ -359,6 +373,30 @@ export function getMobileRecoveryHints(
   if ((queue?.pending || 0) + (queue?.syncing || 0) > 0) hints.add("mobileDevice.connectivityGuidanceOfflineQueue");
   if ((queue?.failed || 0) > 0) hints.add("mobileDevice.connectivityGuidanceFailedQueue");
   return Array.from(hints);
+}
+
+export function getMobileConnectivityIssue(
+  result: MobileConnectivityResult,
+  entryKind?: RemoteEntryKind,
+  queue?: { pending?: number; failed?: number; syncing?: number },
+): MobileConnectivityIssueKey {
+  const healthFailed = result.steps.some((step) => step.id === "health" && !step.ok);
+  const mobileShellFailed = result.steps.some((step) => step.id === "mobile-shell" && !step.ok);
+  const websocketFailed = result.steps.some((step) => step.id === "websocket" && !step.ok);
+  const queueBlocked = (queue?.failed || 0) > 0 || ((queue?.pending || 0) + (queue?.syncing || 0) > 0 && !result.ok);
+
+  if (result.ok && !queueBlocked) return "mobileDevice.connectivityIssueOk";
+  if (entryKind === "temporary-cloudflare" && (healthFailed || mobileShellFailed)) return "mobileDevice.connectivityIssueTemporaryExpired";
+  if (entryKind === "tailscale" && isHttpRemoteBase(result.currentBase)) return "mobileDevice.connectivityIssueTailscaleHttp";
+  if (entryKind === "tailscale" && (healthFailed || mobileShellFailed)) return "mobileDevice.connectivityIssueTailscaleOffline";
+  if (entryKind === "same-lan" && (healthFailed || mobileShellFailed)) return "mobileDevice.connectivityIssueLanOnly";
+  if (entryKind === "localhost") return "mobileDevice.connectivityIssueLocalhost";
+  if (entryKind === "configured-mismatch") return "mobileDevice.connectivityIssueConfiguredMismatch";
+  if (healthFailed) return "mobileDevice.connectivityIssueHealth";
+  if (mobileShellFailed) return "mobileDevice.connectivityIssueMobileShell";
+  if (websocketFailed) return "mobileDevice.connectivityIssueWebSocket";
+  if (queueBlocked) return "mobileDevice.connectivityIssueQueueBlocked";
+  return "mobileDevice.connectivityIssueUnknown";
 }
 
 export function getRemoteEntryGuidance(

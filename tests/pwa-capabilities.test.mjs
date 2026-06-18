@@ -241,7 +241,7 @@ test("mobile remote connectivity reports websocket failures", async (t) => {
 });
 
 test("mobile recovery hints combine entry type, failed probes, and offline queue state", async () => {
-  const { getMobileRecoveryHints } = await import(`../src/services/pwaCapabilities.ts?case=mobile-recovery-hints-${Date.now()}`);
+  const { getMobileConnectivityIssue, getMobileRecoveryHints } = await import(`../src/services/pwaCapabilities.ts?case=mobile-recovery-hints-${Date.now()}`);
   const result = {
     ok: false,
     currentBase: "https://abc.trycloudflare.com",
@@ -260,6 +260,7 @@ test("mobile recovery hints combine entry type, failed probes, and offline queue
     "mobileDevice.connectivityGuidanceOfflineQueue",
     "mobileDevice.connectivityGuidanceFailedQueue",
   ]);
+  assert.equal(getMobileConnectivityIssue(result, "temporary-cloudflare", { pending: 2, failed: 1 }), "mobileDevice.connectivityIssueTemporaryExpired");
 
   const tailscaleHttpsHints = getMobileRecoveryHints({
     ...result,
@@ -270,6 +271,11 @@ test("mobile recovery hints combine entry type, failed probes, and offline queue
     "mobileDevice.connectivityGuidanceTailscale",
     "mobileDevice.connectivityGuidanceWebSocket",
   ]);
+  assert.equal(getMobileConnectivityIssue({
+    ...result,
+    currentBase: "https://desktop.tailnet.ts.net",
+    steps: [{ id: "health", ok: false, url: "/api/v1/health", latencyMs: 10 }, result.steps[1]],
+  }, "tailscale"), "mobileDevice.connectivityIssueTailscaleOffline");
 
   const tailscaleHttpHints = getMobileRecoveryHints({
     ...result,
@@ -280,6 +286,26 @@ test("mobile recovery hints combine entry type, failed probes, and offline queue
     "mobileDevice.connectivityGuidanceTailscaleHttp",
     "mobileDevice.connectivityGuidanceWebSocket",
   ]);
+  assert.equal(getMobileConnectivityIssue({
+    ...result,
+    currentBase: "http://100.100.100.100:3000",
+    steps: [{ id: "health", ok: true, url: "/api/v1/health", latencyMs: 10 }, result.steps[1]],
+  }, "tailscale"), "mobileDevice.connectivityIssueTailscaleHttp");
+  assert.equal(getMobileConnectivityIssue({
+    ...result,
+    currentBase: "https://remote.example.test",
+    steps: [{ id: "health", ok: true, url: "/api/v1/health", latencyMs: 10 }, result.steps[1]],
+  }, "stable-https"), "mobileDevice.connectivityIssueWebSocket");
+  assert.equal(getMobileConnectivityIssue({
+    ok: true,
+    currentBase: "https://remote.example.test",
+    latencyMs: 20,
+    steps: [
+      { id: "health", ok: true, url: "/api/v1/health", latencyMs: 10 },
+      { id: "mobile-shell", ok: true, url: "/mobile/chat", latencyMs: 10 },
+      { id: "websocket", ok: true, url: "wss://remote.example.test/api/v1/ws", latencyMs: 10 },
+    ],
+  }, "stable-https"), "mobileDevice.connectivityIssueOk");
 });
 
 test("remote entry guidance is visible before manual connectivity tests", async () => {

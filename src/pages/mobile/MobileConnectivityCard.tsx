@@ -1,4 +1,4 @@
-import { getMobileRecoveryHints, isHttpRemoteBase, type MobileConnectivityResult, type RemoteEntryKind } from "../../services/pwaCapabilities";
+import { getMobileConnectivityIssue, getMobileRecoveryHints, isHttpRemoteBase, type MobileConnectivityResult, type RemoteEntryKind } from "../../services/pwaCapabilities";
 import { useI18n } from "../../i18n/I18nProvider";
 
 const stepLabelKey = {
@@ -22,6 +22,7 @@ export default function MobileConnectivityCard({
   const passed = result.steps.filter((step) => step.ok).length;
   const websocketFailed = result.steps.some((step) => step.id === "websocket" && !step.ok);
   const recoveryHints = getMobileRecoveryHints(result, entryKind, queueSummary);
+  const primaryIssue = getMobileConnectivityIssue(result, entryKind, queueSummary);
   const tailscaleHttpFallback = entryKind === "tailscale" && isHttpRemoteBase(result.currentBase);
   const showRebind = tailscaleHttpFallback || entryKind === "temporary-cloudflare" || entryKind === "same-lan" || entryKind === "localhost" || entryKind === "configured-mismatch";
   const showTailscale = entryKind === "tailscale";
@@ -47,7 +48,10 @@ export default function MobileConnectivityCard({
       {!result.ok ? (
         <div className="mt-3 rounded-xl border border-white/[0.08] bg-black/10 p-2 text-xs leading-relaxed">
           <div className="font-bold">{t("mobileDevice.connectivityFixTitle")}</div>
-          <div className="mt-1 space-y-1 opacity-85">
+          <div className="mt-1 rounded-lg border border-white/[0.06] bg-black/10 p-2 font-bold text-red-50">
+            {t(primaryIssue as any)}
+          </div>
+          <div className="mt-2 space-y-1 opacity-85">
             {recoveryHints.map((hint) => <div key={hint}>{t(hint as any)}</div>)}
           </div>
           <div className="mt-3 grid gap-2">
