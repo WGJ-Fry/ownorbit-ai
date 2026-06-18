@@ -252,6 +252,7 @@ async function createWindow(pathname = "/admin/login") {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      preload: path.join(app.isPackaged ? app.getAppPath() : process.cwd(), "desktop", "preload.cjs"),
       sandbox: true,
     },
   });

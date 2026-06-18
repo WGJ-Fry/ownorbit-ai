@@ -304,9 +304,15 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.apiKeyHint/);
   assert.match(onboardingSource, /onboarding\.openConnectionGuide/);
   assert.match(onboardingSource, /\/admin\/settings#mobile-connect/);
+  assert.match(onboardingSource, /lifeosDesktop/);
+  assert.match(onboardingSource, /handleDesktopRecoveryAction/);
+  assert.match(onboardingSource, /onboarding\.openLogsFolder/);
+  assert.match(onboardingSource, /onboarding\.exportDiagnostics/);
   assert.match(onboardingSource, /onboarding\.finish/);
   assert.match(onboardingSource, /completedSteps} \/ 4/);
   assert.match(translationsSource, /开启每日自动备份/);
+  assert.match(translationsSource, /打开日志文件夹/);
+  assert.match(translationsSource, /导出诊断包/);
   assert.match(translationsSource, /本地模型端点/);
   assert.match(translationsSource, /Local Model Endpoint/);
   assert.match(translationsSource, /Set as Default Chat Provider/);

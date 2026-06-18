@@ -152,6 +152,9 @@ test("Electron desktop starts the local core and exposes admin health", async (t
   assert.match(onboardingBundle, /onboarding\.mobileTitle/);
   assert.match(onboardingBundle, /onboarding\.openConnectionGuide/);
   assert.match(onboardingBundle, /\/admin\/settings#mobile-connect/);
+  assert.match(onboardingBundle, /lifeosDesktop/);
+  assert.match(onboardingBundle, /onboarding\.openLogsFolder/);
+  assert.match(onboardingBundle, /onboarding\.exportDiagnostics/);
   assert.match(onboardingBundle, /onboarding\.finish/);
   assert.match(onboardingBundle, /onboarding\.doneStatus/);
 

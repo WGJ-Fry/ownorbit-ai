@@ -26,6 +26,7 @@ export default function AdminOnboardingPage() {
   const [onboarding, setOnboarding] = useState<OnboardingStatus | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [desktopBridgeAvailable, setDesktopBridgeAvailable] = useState(false);
 
   const activeProvider = useMemo(() => providers.find((provider) => provider.id === selectedProvider), [providers, selectedProvider]);
   const isLocalProvider = selectedProvider === "local";
@@ -74,6 +75,7 @@ export default function AdminOnboardingPage() {
 
   useEffect(() => {
     refresh().catch((error) => setStatus(error.message || t("onboarding.loadFailed")));
+    setDesktopBridgeAvailable(Boolean((window as any).lifeosDesktop));
   }, []);
 
   useEffect(() => {
@@ -158,6 +160,32 @@ export default function AdminOnboardingPage() {
     } catch (error: any) {
       setStatus(error.message || t("onboarding.doneFailed"));
       await refresh().catch(() => null);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleDesktopRecoveryAction = async (action: "logs" | "copyLogs" | "diagnostics") => {
+    const desktop = (window as any).lifeosDesktop;
+    if (!desktop) {
+      setStatus(t("onboarding.desktopActionsUnavailable"));
+      return;
+    }
+    setBusy(`desktop-${action}`);
+    setStatus(null);
+    try {
+      if (action === "logs") {
+        await desktop.openLogsFolder();
+        setStatus(t("onboarding.logsOpened"));
+      } else if (action === "copyLogs") {
+        const logsPath = await desktop.copyLogsPath();
+        setStatus(t("onboarding.logsPathCopied", { path: logsPath || "-" }));
+      } else {
+        const outputPath = await desktop.exportDiagnostics();
+        setStatus(outputPath ? t("onboarding.diagnosticsExported", { path: outputPath }) : t("onboarding.diagnosticsCancelled"));
+      }
+    } catch (error: any) {
+      setStatus(error.message || t("onboarding.desktopActionFailed"));
     } finally {
       setBusy(null);
     }
@@ -256,6 +284,34 @@ export default function AdminOnboardingPage() {
                   <li>{t("onboarding.recoveryPairing")}</li>
                   <li>{t("onboarding.recoveryConnection")}</li>
                 </ul>
+                {desktopBridgeAvailable ? (
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                    <button
+                      type="button"
+                      onClick={() => handleDesktopRecoveryAction("logs")}
+                      disabled={Boolean(busy)}
+                      className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-left font-bold text-zinc-200 disabled:opacity-50"
+                    >
+                      {busy === "desktop-logs" ? t("onboarding.openingLogs") : t("onboarding.openLogsFolder")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDesktopRecoveryAction("copyLogs")}
+                      disabled={Boolean(busy)}
+                      className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-left font-bold text-zinc-200 disabled:opacity-50"
+                    >
+                      {busy === "desktop-copyLogs" ? t("onboarding.copyingLogsPath") : t("onboarding.copyLogsPath")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDesktopRecoveryAction("diagnostics")}
+                      disabled={Boolean(busy)}
+                      className="rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-3 py-2 text-left font-bold text-cyan-100 disabled:opacity-50"
+                    >
+                      {busy === "desktop-diagnostics" ? t("onboarding.exportingDiagnostics") : t("onboarding.exportDiagnostics")}
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </div>
           </section>
