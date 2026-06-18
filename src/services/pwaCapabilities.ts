@@ -165,17 +165,6 @@ export function getRemoteEntryStatus(options: { currentHref?: string; configured
   const isTailscale = hostname.endsWith(".ts.net") || isTailscaleIpv4(hostname);
   const isTryCloudflare = hostname.endsWith(".trycloudflare.com");
 
-  if (configuredBase) {
-    return {
-      kind: "configured-match",
-      okForRemote: https,
-      currentBase,
-      configuredBase,
-      titleKey: https ? "mobileDevice.remoteConfiguredTitle" : "mobileDevice.remoteInsecureTitle",
-      bodyKey: https ? "mobileDevice.remoteConfiguredBody" : "mobileDevice.remoteInsecureBody",
-    };
-  }
-
   if (isLocalhost) {
     return {
       kind: "localhost",

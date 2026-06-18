@@ -133,9 +133,9 @@ test("remote entry status treats Tailscale HTTP as a fallback that needs HTTPS S
     currentHref: "http://lifeos-mac.tailnet.example.ts.net:3000/mobile/chat",
     configuredBaseUrl: "http://lifeos-mac.tailnet.example.ts.net:3000",
   });
-  assert.equal(configuredHttp.kind, "configured-match");
+  assert.equal(configuredHttp.kind, "tailscale");
   assert.equal(configuredHttp.okForRemote, false);
-  assert.equal(configuredHttp.titleKey, "mobileDevice.remoteInsecureTitle");
+  assert.equal(configuredHttp.titleKey, "mobileDevice.tailscaleHttpEntryTitle");
 });
 
 test("remote entry status detects configured public base mismatches with subpath support", async () => {
@@ -145,9 +145,24 @@ test("remote entry status detects configured public base mismatches with subpath
     currentHref: "https://lifeos.example.com/lifeos/mobile/device",
     configuredBaseUrl: "https://lifeos.example.com/lifeos/",
   });
-  assert.equal(match.kind, "configured-match");
+  assert.equal(match.kind, "stable-https");
   assert.equal(match.okForRemote, true);
   assert.equal(match.configuredBase, "https://lifeos.example.com/lifeos");
+
+  const tailscaleMatch = getRemoteEntryStatus({
+    currentHref: "https://mac-mini.tailnet.ts.net/lifeos/mobile/chat",
+    configuredBaseUrl: "https://mac-mini.tailnet.ts.net/lifeos",
+  });
+  assert.equal(tailscaleMatch.kind, "tailscale");
+  assert.equal(tailscaleMatch.okForRemote, true);
+  assert.equal(tailscaleMatch.configuredBase, "https://mac-mini.tailnet.ts.net/lifeos");
+
+  const temporaryMatch = getRemoteEntryStatus({
+    currentHref: "https://old.trycloudflare.com/mobile/device",
+    configuredBaseUrl: "https://old.trycloudflare.com",
+  });
+  assert.equal(temporaryMatch.kind, "temporary-cloudflare");
+  assert.equal(temporaryMatch.okForRemote, true);
 
   const mismatch = getRemoteEntryStatus({
     currentHref: "https://wrong.example.com/mobile/device",

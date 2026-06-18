@@ -1041,6 +1041,8 @@ function checkAssets() {
     dbSourceForConnectivity.includes("device_connectivity_reports") &&
     dbSourceForConnectivity.includes("mobile_shell_ok") &&
     pwaCapabilitiesTestSource.includes("remote entry status detects configured public base mismatches") &&
+    pwaCapabilitiesTestSource.includes("tailscaleMatch.kind, \"tailscale\"") &&
+    pwaCapabilitiesTestSource.includes("temporaryMatch.kind, \"temporary-cloudflare\"") &&
     pwaCapabilitiesTestSource.includes("mobile remote connectivity probes health, mobile chat shell, and websocket") &&
     pwaCapabilitiesTestSource.includes("mobile remote connectivity reports websocket failures") &&
     pwaCapabilitiesTestSource.includes("mobile recovery hints combine entry type") &&
