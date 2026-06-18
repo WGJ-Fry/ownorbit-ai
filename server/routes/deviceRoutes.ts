@@ -4,13 +4,14 @@ import { insertAuditLog } from "../audit";
 import { requireAdmin } from "../auth";
 import { getRequestActor } from "../auth";
 import { BindingSession, DeviceRecord, confirmBindingSession, getBindingSessionById, getDevice, getDevices, getLatestDeviceConnectivityReport, getOpenBindingSessionByToken, insertBindingSession, insertDevice, insertDeviceConnectivityReport, pruneExpiredBindingSessions, revokeDeviceRecord, rotateDeviceToken } from "../devices";
+import { getDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { rateLimit } from "../httpSecurity";
 import { getConfiguredPublicBaseUrl, normalizePublicBaseUrl } from "../publicBaseUrl";
 import { broadcastRealtime, closeDeviceConnection, isDeviceOnline, sendRealtimeToDevice } from "../realtime";
 import { createSecret, tokenHash } from "../security";
 
 function publicBaseUrl(req: express.Request) {
-  return getConfiguredPublicBaseUrl() || `${req.protocol}://${req.get("host")}`;
+  return getConfiguredPublicBaseUrl() || getDesktopRuntimeConfig()?.publicBaseUrl || `${req.protocol}://${req.get("host")}`;
 }
 
 function normalizePairingBaseUrl(value: unknown) {
@@ -23,7 +24,9 @@ function normalizePairingBaseUrl(value: unknown) {
   } catch {
     throw new Error("baseUrl is invalid");
   }
-  if (parsed.username || parsed.password) throw new Error("baseUrl must not contain credentials");
+  if (parsed.username || parsed.password || parsed.search || parsed.hash) {
+    throw new Error("baseUrl must not contain username, password, token, query, or fragment");
+  }
   const normalized = normalizePublicBaseUrl(raw);
   if (!normalized) throw new Error("Only HTTP/HTTPS baseUrl is allowed");
   return normalized;

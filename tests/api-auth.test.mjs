@@ -366,6 +366,14 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(tailscaleHttpsConnectionConfig.config.host, "127.0.0.1");
   assert.equal(tailscaleHttpsConnectionConfig.config.publicBaseUrl, "https://lifeos-mac.tailnet.example.ts.net");
 
+  const defaultRemoteBinding = await request(port, "/api/v1/devices/bind/start", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({}),
+  }).then((res) => res.json());
+  assert.equal(defaultRemoteBinding.baseUrl, "https://lifeos-mac.tailnet.example.ts.net");
+  assert.equal(defaultRemoteBinding.pairingUrl, `https://lifeos-mac.tailnet.example.ts.net/mobile/install/${encodeURIComponent(defaultRemoteBinding.token)}`);
+
   const blockedDiagnosticBundle = await request(port, "/api/v1/admin/diagnostic-bundle");
   assert.equal(blockedDiagnosticBundle.status, 401);
 
@@ -902,6 +910,15 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     body: JSON.stringify({ baseUrl: "https://user:pass@example.test" }),
   });
   assert.equal(credentialUrlPairingBaseUrl.status, 400);
+
+  const tokenizedPairingBaseUrl = await request(port, "/api/v1/devices/bind/start", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ baseUrl: "https://phone.example.test/mobile?token=secret#debug" }),
+  });
+  assert.equal(tokenizedPairingBaseUrl.status, 400);
+  const tokenizedPairingBaseUrlBody = await tokenizedPairingBaseUrl.json();
+  assert.match(tokenizedPairingBaseUrlBody.error, /username, password, token, query, or fragment/);
 
   const credential = await request(port, "/api/v1/devices/bind/confirm", {
     method: "POST",
