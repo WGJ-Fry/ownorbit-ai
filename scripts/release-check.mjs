@@ -746,6 +746,7 @@ function checkAssets() {
     cloudflareTunnelSource.includes("settingsSaved") &&
     cloudflareTunnelSource.includes("credentialsFileExists") &&
     cloudflareTunnelSource.includes("refreshCloudflareNamedTunnelConfigForPort") &&
+    cloudflareTunnelSource.includes("startConfiguredCloudflareNamedTunnel(timeoutMs = 15000, port =") &&
     cloudflareTunnelSource.includes("cloudflare_named_config_refreshed") &&
     cloudflareTunnelSource.includes("scheduleNamedTunnelReconnect") &&
     cloudflareTunnelSource.includes("temporary_quick_tunnel_not_restored") &&
@@ -760,6 +761,7 @@ function checkAssets() {
     cloudflareTunnelTestSource.includes("cloudflare_named_tunnel_not_ready") &&
     cloudflareTunnelTestSource.includes("cloudflare_named_config_refreshed") &&
     cloudflareTunnelTestSource.includes("Cloudflare Named Tunnel config refreshes when desktop restart chooses a new local port") &&
+    cloudflareTunnelTestSource.includes("startConfiguredCloudflareNamedTunnel(1000, \"6789\")") &&
     cloudflareTunnelTestSource.includes("5678") &&
     cloudflareTunnelTestSource.includes("6789") &&
     cloudflareTunnelTestSource.includes("https://lifeos.example.com") &&
@@ -767,6 +769,9 @@ function checkAssets() {
     cloudflareTunnelTestSource.includes("setCloudflareTunnelReconnectHandler") &&
     packageJson.scripts.test.includes("tests/cloudflare-tunnel.test.mjs") &&
     cloudflareTunnelTestSource.includes("delete process.env.LIFEOS_CLOUDFLARE_TUNNEL_NAME") &&
+    adminRoutesSource.includes("refreshCloudflareNamedTunnelConfigForPort(port)") &&
+    adminRoutesSource.includes("configRefreshReason") &&
+    lifeosApiSourceForRouting.includes("refresh: { refreshed: boolean; ready: boolean; reason: string }") &&
     networkDiagnosticsTestSource.includes("connection URL tests strip credentials, query secrets, and fragments") &&
     networkDiagnosticsTestSource.includes("connection URL tests health, mobile shell, and websocket under a remote base path")
   ) pass("connection diagnostics have Cloudflare/Tailscale mock coverage, Named Tunnel reconnect, and sanitize test URLs");

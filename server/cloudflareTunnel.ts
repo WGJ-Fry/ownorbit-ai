@@ -282,7 +282,8 @@ export function refreshCloudflareNamedTunnelConfigForPort(port: string) {
   };
 }
 
-export function startConfiguredCloudflareNamedTunnel(timeoutMs = 15000) {
+export function startConfiguredCloudflareNamedTunnel(timeoutMs = 15000, port = "") {
+  if (port) refreshCloudflareNamedTunnelConfigForPort(port);
   const status = getCloudflareNamedTunnelStatus();
   if (!status.ready || !status.name) throw new Error("Cloudflare Named Tunnel is not ready. Generate the config first.");
   if (managedTunnel.process && !managedTunnel.process.killed && managedTunnel.url === status.baseUrl) return Promise.resolve(getManagedCloudflareTunnelStatus());

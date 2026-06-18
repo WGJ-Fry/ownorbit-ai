@@ -696,6 +696,7 @@ export function startCloudflareNamedTunnel() {
   return requestJson<{
     tunnel: NetworkDiagnostics["cloudflare"]["managed"];
     namedTunnel: NetworkDiagnostics["cloudflareNamedTunnel"];
+    refresh: { refreshed: boolean; ready: boolean; reason: string };
     diagnostics: NetworkDiagnostics;
     message: string;
   }>("/api/v1/admin/cloudflare-named-tunnel/start", { method: "POST" });

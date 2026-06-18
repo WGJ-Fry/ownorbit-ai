@@ -222,7 +222,7 @@ while true; do sleep 1; done
 
   const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
     const { readFileSync } = await import("node:fs");
-    const { generateCloudflareNamedTunnelConfig, maybeStartConfiguredCloudflareTunnel, refreshCloudflareNamedTunnelConfigForPort, stopManagedCloudflareTunnel } = await import("./server/cloudflareTunnel.ts");
+    const { generateCloudflareNamedTunnelConfig, refreshCloudflareNamedTunnelConfigForPort, startConfiguredCloudflareNamedTunnel, stopManagedCloudflareTunnel } = await import("./server/cloudflareTunnel.ts");
     const { saveDesktopRuntimeConfig } = await import("./server/desktopRuntimeConfig.ts");
     generateCloudflareNamedTunnelConfig({
       name: "lifeos-ai",
@@ -236,10 +236,10 @@ while true; do sleep 1; done
     const refreshed = refreshCloudflareNamedTunnelConfigForPort("5678");
     const refreshedConfig = readFileSync(${JSON.stringify(path.join(dataDir, "cloudflared-named-tunnel.yml"))}, "utf8");
     saveDesktopRuntimeConfig({ mode: "cloudflare", label: "Cloudflare Named Tunnel", baseUrl: "https://lifeos.example.com" });
-    const started = await maybeStartConfiguredCloudflareTunnel("6789", 1000);
+    const started = await startConfiguredCloudflareNamedTunnel(1000, "6789");
     const restoredConfig = readFileSync(${JSON.stringify(path.join(dataDir, "cloudflared-named-tunnel.yml"))}, "utf8");
     stopManagedCloudflareTunnel();
-    process.stdout.write(JSON.stringify({ refreshed, refreshedConfig, startedReason: started.reason, startedRefresh: started.refresh, restoredConfig }));
+    process.stdout.write(JSON.stringify({ refreshed, refreshedConfig, started, restoredConfig }));
   `], {
     cwd: process.cwd(),
     env: {
@@ -258,8 +258,8 @@ while true; do sleep 1; done
   assert.equal(result.refreshed.refreshed, true);
   assert.equal(result.refreshed.reason, "cloudflare_named_config_refreshed");
   assert.match(result.refreshedConfig, /service: http:\/\/127\.0\.0\.1:5678/);
-  assert.equal(result.startedReason, "cloudflare_named_configured");
-  assert.equal(result.startedRefresh.refreshed, true);
+  assert.equal(result.started.running, true);
+  assert.equal(result.started.kind, "named");
   assert.match(result.restoredConfig, /service: http:\/\/127\.0\.0\.1:6789/);
 });
 

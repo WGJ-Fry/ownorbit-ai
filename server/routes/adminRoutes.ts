@@ -6,7 +6,7 @@ import { createAdminCredential, createAdminSession, getAdminSessionByToken, getB
 import { createDiagnosticBundle, getReleaseDiagnostics } from "../diagnosticBundle";
 import { clearHttpOnlyCookie, getClientIp, rateLimit, setClientCookie, setHttpOnlyCookie } from "../httpSecurity";
 import { getNetworkDiagnostics, startTailscaleHttpsServe, stopTailscaleHttpsServe, testConnectionUrl } from "../networkDiagnostics";
-import { generateCloudflareNamedTunnelConfig, getCloudflareNamedTunnelStatus, getManagedCloudflareTunnelStatus, startConfiguredCloudflareNamedTunnel, startManagedCloudflareTunnel, stopManagedCloudflareTunnel } from "../cloudflareTunnel";
+import { generateCloudflareNamedTunnelConfig, getCloudflareNamedTunnelStatus, getManagedCloudflareTunnelStatus, refreshCloudflareNamedTunnelConfigForPort, startConfiguredCloudflareNamedTunnel, startManagedCloudflareTunnel, stopManagedCloudflareTunnel } from "../cloudflareTunnel";
 import { saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
 import { getRemoteValidationReport, saveRemoteValidationReport, summarizeRemoteHealth } from "../remoteValidationReport";
@@ -306,16 +306,20 @@ export function registerAdminRoutes(app: express.Express) {
   });
 
   app.post("/api/v1/admin/cloudflare-named-tunnel/start", requireAdmin, async (req, res) => {
+    const port = String(process.env.LIFEOS_PORT || process.env.PORT || "3000");
     try {
-      const tunnel = await startConfiguredCloudflareNamedTunnel();
+      const refresh = refreshCloudflareNamedTunnelConfigForPort(port);
+      const tunnel = await startConfiguredCloudflareNamedTunnel(15000);
       const namedTunnel = getCloudflareNamedTunnelStatus();
       if (namedTunnel.baseUrl) process.env.PUBLIC_BASE_URL = namedTunnel.baseUrl;
       insertAuditLog("cloudflare_named_tunnel_started", "network", namedTunnel.baseUrl || "cloudflare-named", {
         pid: tunnel.pid,
         hostname: namedTunnel.hostname,
         configPath: namedTunnel.configPath,
+        configRefreshReason: refresh.reason,
+        configRefreshed: refresh.refreshed,
       }, (req as any).actor?.type, (req as any).actor?.id);
-      res.json({ tunnel, namedTunnel, diagnostics: getAdminNetworkDiagnostics(), message: "Cloudflare Named Tunnel started. The stable HTTPS domain is now the mobile pairing address." });
+      res.json({ tunnel, namedTunnel, refresh, diagnostics: getAdminNetworkDiagnostics(), message: "Cloudflare Named Tunnel started. The stable HTTPS domain is now the mobile pairing address." });
     } catch (error: any) {
       insertAuditLog("cloudflare_named_tunnel_start_failed", "network", "cloudflare-named", {
         error: error?.message || "Cloudflare Named Tunnel start failed",
