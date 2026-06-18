@@ -27,7 +27,7 @@ export type RemoteValidationReport = {
 };
 
 export type RemoteHealthSummary = {
-  status: "healthy" | "unchecked" | "failing" | "stale" | "temporary" | "insecure" | "missing";
+  status: "healthy" | "unchecked" | "failing" | "stale" | "temporary" | "insecure" | "missing" | "qr-warning";
   severity: "ok" | "warning" | "danger";
   entryKind: "missing" | "temporary-cloudflare" | "tailscale" | "stable-https" | "insecure-http" | "custom";
   baseUrl: string;
@@ -226,10 +226,14 @@ export function summarizeRemoteHealth(input: {
   }
   if (pairingExpired) {
     recommendations.add("refresh-pairing-qr");
+    recommendations.delete("ready");
+    if (status === "healthy") status = "qr-warning";
     if (severity === "ok") severity = "warning";
   }
   if (pairingEntryMismatch) {
     recommendations.add("refresh-pairing-qr");
+    recommendations.delete("ready");
+    if (status === "healthy") status = "qr-warning";
     if (severity === "ok") severity = "warning";
   }
 

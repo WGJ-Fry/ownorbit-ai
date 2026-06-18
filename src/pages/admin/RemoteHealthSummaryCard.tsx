@@ -10,6 +10,7 @@ const statusKey = {
   temporary: "connection.health.status.temporary",
   insecure: "connection.health.status.insecure",
   missing: "connection.health.status.missing",
+  "qr-warning": "connection.health.status.qrWarning",
 } as const;
 
 const checkKey = {

@@ -611,6 +611,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(remoteStabilitySectionSource, /RemoteHealthSummaryCard/);
   assert.match(remoteStabilitySectionSource, /RemoteAcceptanceChecklistCard/);
   assert.match(remoteHealthSummaryCardSource, /connection\.health\.status\.healthy/);
+  assert.match(remoteHealthSummaryCardSource, /qr-warning/);
   assert.match(remoteHealthSummaryCardSource, /entryKindKey/);
   assert.match(remoteHealthSummaryCardSource, /summary\.entryKind/);
   assert.match(translationsSource, /connection\.health\.entry\.tailscale/);

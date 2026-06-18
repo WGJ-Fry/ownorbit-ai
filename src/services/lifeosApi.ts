@@ -297,7 +297,7 @@ export type NetworkDiagnostics = {
     }>;
   } | null;
   remoteHealthSummary: {
-    status: "healthy" | "unchecked" | "failing" | "stale" | "temporary" | "insecure" | "missing";
+    status: "healthy" | "unchecked" | "failing" | "stale" | "temporary" | "insecure" | "missing" | "qr-warning";
     severity: "ok" | "warning" | "danger";
     entryKind: "missing" | "temporary-cloudflare" | "tailscale" | "stable-https" | "insecure-http" | "custom";
     baseUrl: string;

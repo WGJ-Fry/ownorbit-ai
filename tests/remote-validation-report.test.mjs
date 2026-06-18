@@ -402,14 +402,14 @@ test("remote health summary classifies long-term entry readiness", async (t) => 
   assert.equal(result.insecure.entryKind, "insecure-http");
   assert.equal(result.insecure.checks.find((check) => check.id === "https").status, "fail");
   assert.equal(result.stale.status, "stale");
-  assert.equal(result.expiredQr.status, "healthy");
+  assert.equal(result.expiredQr.status, "qr-warning");
   assert.equal(result.expiredQr.severity, "warning");
   assert.equal(result.expiredQr.entryKind, "tailscale");
   assert.equal(result.custom.entryKind, "custom");
   assert.equal(result.expiredQr.checks.find((check) => check.id === "qr-entry").status, "warning");
-  assert.equal(result.expiredQr.recommendations.includes("ready"), true);
+  assert.equal(result.expiredQr.recommendations.includes("ready"), false);
   assert.equal(result.expiredQr.recommendations.includes("refresh-pairing-qr"), true);
-  assert.equal(result.mismatchedQr.status, "healthy");
+  assert.equal(result.mismatchedQr.status, "qr-warning");
   assert.equal(result.mismatchedQr.severity, "warning");
   assert.equal(result.mismatchedQr.checks.find((check) => check.id === "qr-entry").status, "warning");
   assert.equal(result.mismatchedQr.checks.find((check) => check.id === "qr-entry").detail, "https://old.trycloudflare.com");

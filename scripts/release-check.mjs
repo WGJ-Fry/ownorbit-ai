@@ -547,6 +547,7 @@ function checkAssets() {
     remoteStabilitySectionSource.includes("remoteHealthMonitor") &&
     remoteStabilitySectionSource.includes("JSON.parse") &&
     remoteHealthSummaryCardSource.includes("entryKindKey") &&
+    remoteHealthSummaryCardSource.includes("qr-warning") &&
     remoteHealthSummaryCardSource.includes("summary.entryKind") &&
     remoteHealthSummaryCardSource.includes("checkDetailText") &&
     remoteHealthSummaryCardSource.includes("connection.health.qrExpired") &&
@@ -583,6 +584,8 @@ function checkAssets() {
     remoteValidationReportSource.includes("entryKind") &&
     remoteValidationReportSource.includes("classifyEntryKind") &&
     remoteValidationReportSource.includes("pairingEntryMismatch") &&
+    remoteValidationReportSource.includes("qr-warning") &&
+    remoteValidationReportTestSource.includes('result.expiredQr.status, "qr-warning"') &&
     remoteHealthMonitorSource.includes("restoredBaseUrl") &&
     remoteHealthMonitorSource.includes("recoveryAction") &&
     remoteHealthMonitorSource.includes("check-tailscale") &&
@@ -596,6 +599,7 @@ function checkAssets() {
     remoteValidationReportTestSource.includes("remote health monitor checks configured PUBLIC_BASE_URL without a saved runtime entry") &&
     adminRoutesSource.includes("remoteHealthMonitor") &&
     lifeosApiSourceForRouting.includes("entryKind") &&
+    lifeosApiSourceForRouting.includes("qr-warning") &&
     lifeosApiSourceForRouting.includes("restoredBaseUrl") &&
     lifeosApiSourceForRouting.includes("recordRemoteAcceptance") &&
     lifeosApiSourceForRouting.includes("importRemoteAcceptanceReport") &&
