@@ -578,6 +578,9 @@ function checkAssets() {
     remoteAcceptanceSource.includes("summarizeRemoteAcceptanceChecklist") &&
     remoteAcceptanceSource.includes("blockingItems") &&
     remoteAcceptanceSource.includes("hasRealWorldEvidence") &&
+    remoteAcceptanceSource.includes("MANUAL_ACCEPTANCE_MAX_AGE_MS") &&
+    remoteAcceptanceSource.includes("latestManualRecord") &&
+    remoteAcceptanceSource.includes("older than 7 days") &&
     remoteAcceptanceSource.includes("Remote acceptance URL must not contain username, password, token, query, or fragment") &&
     remoteAcceptanceSource.includes("Remote acceptance report URLs must not contain username, password, token, query, or fragment") &&
     desktopRuntimeConfigSource.includes("Desktop connection baseUrl must not contain username, password, token, query, or fragment") &&
@@ -591,6 +594,8 @@ function checkAssets() {
     remoteValidationReportTestSource.includes('result.expiredQr.status, "qr-warning"') &&
     remoteValidationReportTestSource.includes('result.forged.entryKind, "temporary-cloudflare"') &&
     remoteValidationReportTestSource.includes("Forged long-term ready") &&
+    remoteValidationReportTestSource.includes("remote acceptance checklist expires stale real-world manual evidence") &&
+    remoteValidationReportTestSource.includes("older than 7 days") &&
     remoteHealthMonitorSource.includes("restoredBaseUrl") &&
     remoteHealthMonitorSource.includes("recoveryAction") &&
     remoteHealthMonitorSource.includes("check-tailscale") &&

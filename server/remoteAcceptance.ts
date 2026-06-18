@@ -3,6 +3,7 @@ import { getClientState, setClientState } from "./clientState";
 
 const REMOTE_ACCEPTANCE_STATE_KEY = "lifeos_remote_acceptance_records";
 const REMOTE_ACCEPTANCE_RUNBOOK_STATE_KEY = "lifeos_remote_acceptance_runbook_reports";
+const MANUAL_ACCEPTANCE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const manualAcceptanceIds = new Set(["restart-restore", "cellular-mobile-chat", "network-interruption", "diagnostic-export"]);
 const runbookEntryKinds = new Set(["temporary-cloudflare", "tailscale-https", "local", "stable-https", "insecure-http"]);
 const runbookManualSteps = [
@@ -316,10 +317,16 @@ export function saveRemoteAcceptanceRecord(input: {
   return record;
 }
 
-function manualRecord(records: RemoteAcceptanceRecord[], id: RemoteAcceptanceItem["id"], baseUrl: string) {
+function latestManualRecord(records: RemoteAcceptanceRecord[], id: RemoteAcceptanceItem["id"], baseUrl: string) {
   return records
     .filter((item) => item.id === id && sameUrl(item.baseUrl, baseUrl))
     .sort((left, right) => right.createdAt - left.createdAt)[0] || null;
+}
+
+function manualRecord(records: RemoteAcceptanceRecord[], id: RemoteAcceptanceItem["id"], baseUrl: string, now = Date.now()) {
+  const record = latestManualRecord(records, id, baseUrl);
+  if (!record) return null;
+  return now - record.createdAt <= MANUAL_ACCEPTANCE_MAX_AGE_MS ? record : null;
 }
 
 function manualEvidence(record: RemoteAcceptanceRecord | null) {
@@ -327,22 +334,33 @@ function manualEvidence(record: RemoteAcceptanceRecord | null) {
   return record.note || record.evidence?.requirements?.join("; ") || record.baseUrl;
 }
 
+function staleManualEvidence(record: RemoteAcceptanceRecord | null, fallback: string) {
+  if (!record) return fallback;
+  return `Previous acceptance at ${new Date(record.createdAt).toISOString()} is older than 7 days. Repeat this real-world check for the current HTTPS entry.`;
+}
+
 export function buildRemoteAcceptanceChecklist(input: {
   diagnostics: AcceptanceDiagnostics;
   health: RemoteHealthSummary;
   report: RemoteValidationReport | null;
   records?: RemoteAcceptanceRecord[];
+  now?: number;
 }): RemoteAcceptanceItem[] {
   const { diagnostics, health, report } = input;
+  const now = input.now || Date.now();
   const runtimeUrl = diagnostics.desktopRuntimeConfig?.publicBaseUrl || health.baseUrl || "";
   const tailscaleUrl = diagnostics.tailscale?.httpsServeUrl || "";
   const namedUrl = diagnostics.cloudflareNamedTunnel?.baseUrl || "";
   const stableHealthPassed = health.status === "healthy" && reportCoversBase(report, runtimeUrl);
   const restored = Boolean(report?.ok && /auto-restore|startup/i.test(report.label || ""));
-  const restartRecord = manualRecord(input.records || [], "restart-restore", runtimeUrl);
-  const cellularRecord = manualRecord(input.records || [], "cellular-mobile-chat", runtimeUrl);
-  const interruptionRecord = manualRecord(input.records || [], "network-interruption", runtimeUrl);
-  const diagnosticRecord = manualRecord(input.records || [], "diagnostic-export", runtimeUrl);
+  const restartLatestRecord = latestManualRecord(input.records || [], "restart-restore", runtimeUrl);
+  const cellularLatestRecord = latestManualRecord(input.records || [], "cellular-mobile-chat", runtimeUrl);
+  const interruptionLatestRecord = latestManualRecord(input.records || [], "network-interruption", runtimeUrl);
+  const diagnosticLatestRecord = latestManualRecord(input.records || [], "diagnostic-export", runtimeUrl);
+  const restartRecord = manualRecord(input.records || [], "restart-restore", runtimeUrl, now);
+  const cellularRecord = manualRecord(input.records || [], "cellular-mobile-chat", runtimeUrl, now);
+  const interruptionRecord = manualRecord(input.records || [], "network-interruption", runtimeUrl, now);
+  const diagnosticRecord = manualRecord(input.records || [], "diagnostic-export", runtimeUrl, now);
 
   return [
     {
@@ -369,28 +387,28 @@ export function buildRemoteAcceptanceChecklist(input: {
     {
       id: "restart-restore",
       status: restored || restartRecord ? "passed" : "manual-required",
-      evidence: restored ? report!.label : restartRecord ? `Manually accepted at ${new Date(restartRecord.createdAt).toISOString()}: ${manualEvidence(restartRecord)}` : "Restart LifeOS AI and confirm the saved Tailscale/Named Tunnel entry is restored automatically.",
+      evidence: restored ? report!.label : restartRecord ? `Manually accepted at ${new Date(restartRecord.createdAt).toISOString()}: ${manualEvidence(restartRecord)}` : staleManualEvidence(restartLatestRecord, "Restart LifeOS AI and confirm the saved Tailscale/Named Tunnel entry is restored automatically."),
       action: "Quit and reopen the desktop app, then run the remote health check again.",
       acceptedAt: restartRecord?.createdAt,
     },
     {
       id: "cellular-mobile-chat",
       status: cellularRecord ? "passed" : "manual-required",
-      evidence: cellularRecord ? `Manually accepted at ${new Date(cellularRecord.createdAt).toISOString()}: ${manualEvidence(cellularRecord)}` : "Requires a real phone on cellular data opening /mobile/chat through the saved HTTPS entry.",
+      evidence: cellularRecord ? `Manually accepted at ${new Date(cellularRecord.createdAt).toISOString()}: ${manualEvidence(cellularRecord)}` : staleManualEvidence(cellularLatestRecord, "Requires a real phone on cellular data opening /mobile/chat through the saved HTTPS entry."),
       action: "Turn off phone Wi-Fi, open the saved mobile entry, send a chat message, and confirm WebSocket/retry state is healthy.",
       acceptedAt: cellularRecord?.createdAt,
     },
     {
       id: "network-interruption",
       status: interruptionRecord ? "passed" : "manual-required",
-      evidence: interruptionRecord ? `Manually accepted at ${new Date(interruptionRecord.createdAt).toISOString()}: ${manualEvidence(interruptionRecord)}` : "Disconnect and reconnect the remote path, then confirm diagnostics refresh and the phone shows a clear recovery message.",
+      evidence: interruptionRecord ? `Manually accepted at ${new Date(interruptionRecord.createdAt).toISOString()}: ${manualEvidence(interruptionRecord)}` : staleManualEvidence(interruptionLatestRecord, "Disconnect and reconnect the remote path, then confirm diagnostics refresh and the phone shows a clear recovery message."),
       action: "Temporarily interrupt Tailscale/Tunnel/network, restore it, run remote health again, and verify the phone reconnect guidance.",
       acceptedAt: interruptionRecord?.createdAt,
     },
     {
       id: "diagnostic-export",
       status: diagnosticRecord ? "passed" : "manual-required",
-      evidence: diagnosticRecord ? `Manually accepted at ${new Date(diagnosticRecord.createdAt).toISOString()}: ${manualEvidence(diagnosticRecord)}` : "Export the admin diagnostic bundle after the real remote checks.",
+      evidence: diagnosticRecord ? `Manually accepted at ${new Date(diagnosticRecord.createdAt).toISOString()}: ${manualEvidence(diagnosticRecord)}` : staleManualEvidence(diagnosticLatestRecord, "Export the admin diagnostic bundle after the real remote checks."),
       action: "Export diagnostics from Settings and keep the redacted bundle with the release/acceptance evidence.",
       acceptedAt: diagnosticRecord?.createdAt,
     },

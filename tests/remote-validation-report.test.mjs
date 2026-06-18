@@ -557,6 +557,80 @@ test("remote acceptance checklist requires real network interruption and diagnos
   assert.equal(checklist.find((item) => item.id === "diagnostic-export").status, "manual-required");
 });
 
+test("remote acceptance checklist expires stale real-world manual evidence", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-remote-acceptance-stale-"));
+  t.after(async () => {
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const { saveRemoteValidationReport, summarizeRemoteHealth } = await import("./server/remoteValidationReport.ts");
+    const { buildRemoteAcceptanceChecklist } = await import("./server/remoteAcceptance.ts");
+    const now = 1781676000000;
+    const baseUrl = "https://lifeos.tailnet.example.ts.net";
+    const report = saveRemoteValidationReport({
+      label: "Remote health check after auto-restore",
+      baseUrl,
+      result: {
+        ok: true,
+        status: 200,
+        url: baseUrl + "/api/v1/health",
+        latencyMs: 42,
+        steps: [
+          { id: "health", ok: true, status: 200, url: baseUrl + "/api/v1/health", latencyMs: 10 },
+          { id: "mobile-shell", ok: true, status: 200, url: baseUrl + "/mobile/chat", latencyMs: 12 },
+          { id: "websocket", ok: true, status: 101, url: "wss://lifeos.tailnet.example.ts.net/api/v1/ws", latencyMs: 20 },
+        ],
+      },
+    });
+    const health = summarizeRemoteHealth({
+      baseUrl,
+      readiness: { status: "ready", baseUrl },
+      report,
+      now,
+    });
+    const staleCreatedAt = now - 8 * 24 * 60 * 60 * 1000;
+    const freshCreatedAt = now - 60 * 60 * 1000;
+    const staleRecords = ["cellular-mobile-chat", "network-interruption", "diagnostic-export"].map((id) => ({
+      id,
+      baseUrl,
+      note: id + " stale proof",
+      evidence: { entryKind: "tailscale-https", verifiedUrl: baseUrl, source: "test", requirements: [] },
+      createdAt: staleCreatedAt,
+    }));
+    const freshRecords = staleRecords.map((record) => ({ ...record, createdAt: freshCreatedAt, note: record.id + " fresh proof" }));
+    const common = {
+      diagnostics: {
+        desktopRuntimeConfig: { mode: "tailscale", publicBaseUrl: baseUrl },
+        tailscale: { serveRunning: true, httpsServeUrl: baseUrl },
+        cloudflareNamedTunnel: { ready: false, baseUrl: "" },
+      },
+      health,
+      report,
+      now,
+    };
+    const staleChecklist = buildRemoteAcceptanceChecklist({ ...common, records: staleRecords });
+    const freshChecklist = buildRemoteAcceptanceChecklist({ ...common, records: freshRecords });
+    process.stdout.write(JSON.stringify({ staleChecklist, freshChecklist }));
+  `], {
+    cwd: process.cwd(),
+    env: { ...process.env, LIFEOS_DATA_DIR: dataDir },
+    encoding: "utf8",
+  });
+  const { staleChecklist, freshChecklist } = JSON.parse(output);
+  for (const id of ["cellular-mobile-chat", "network-interruption", "diagnostic-export"]) {
+    const staleItem = staleChecklist.find((item) => item.id === id);
+    assert.equal(staleItem.status, "manual-required");
+    assert.match(staleItem.evidence, /older than 7 days/);
+    assert.equal(staleItem.acceptedAt, undefined);
+
+    const freshItem = freshChecklist.find((item) => item.id === id);
+    assert.equal(freshItem.status, "passed");
+    assert.match(freshItem.evidence, /fresh proof/);
+    assert.equal(freshItem.acceptedAt > 0, true);
+  }
+});
+
 test("remote acceptance records reject unsafe or non-HTTPS entries", async (t) => {
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-remote-acceptance-reject-"));
   t.after(async () => {
