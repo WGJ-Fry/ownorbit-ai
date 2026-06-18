@@ -161,11 +161,16 @@ function checkScripts() {
       remoteSmoke.includes("LIFEOS_REMOTE_BASE_URL") &&
       remoteSmoke.includes("desktop-runtime-config.json") &&
       remoteSmoke.includes("resolveRemoteBaseUrl") &&
+      remoteSmoke.includes("classifyRemoteEntry") &&
+      remoteSmoke.includes("longTermCandidate") &&
+      remoteSmoke.includes("temporary-cloudflare") &&
+      remoteSmoke.includes("tailscale-https") &&
       remoteSmoke.includes("query parameters or fragments") &&
+      remoteSmokeTest.includes("remote connection smoke classifies long-term and temporary entries") &&
       remoteSmokeTest.includes("query parameters or fragments") &&
       testScript.includes("tests/remote-connection-smoke.test.mjs")
-    ) pass("remote connection smoke verifies health, mobile shell, websocket, and saved desktop config");
-    else fail("remote connection smoke must cover health, mobile shell, websocket, env/config URL, unsafe URL rejection, and tests");
+    ) pass("remote connection smoke verifies health, mobile shell, websocket, saved desktop config, and long-term entry classification");
+    else fail("remote connection smoke must cover health, mobile shell, websocket, env/config URL, unsafe URL rejection, long-term entry classification, and tests");
   } else {
     fail("missing remote connection smoke script: scripts/remote-connection-smoke.mjs");
   }

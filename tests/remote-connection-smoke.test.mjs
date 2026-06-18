@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { WebSocketServer } from "ws";
-import { normalizeRemoteBaseUrl, resolveRemoteBaseUrl, runRemoteConnectionSmoke } from "../scripts/remote-connection-smoke.mjs";
+import { classifyRemoteEntry, normalizeRemoteBaseUrl, resolveRemoteBaseUrl, runRemoteConnectionSmoke } from "../scripts/remote-connection-smoke.mjs";
 import { runRemoteAcceptanceRunbook } from "../scripts/remote-acceptance-runbook.mjs";
 
 function runNode(args, options = {}) {
@@ -59,8 +59,28 @@ test("remote connection smoke verifies health, mobile shell, and websocket", asy
   const result = await runRemoteConnectionSmoke(`http://127.0.0.1:${port}/lifeos`, { timeoutMs: 2000 });
   assert.equal(result.ok, true);
   assert.equal(result.baseUrl, `http://127.0.0.1:${port}/lifeos`);
+  assert.equal(result.entryKind, "local");
+  assert.equal(result.longTermCandidate, false);
+  assert.match(result.longTermReason, /desktop/);
   assert.deepEqual(result.steps.map((step) => step.ok), [true, true, true]);
   assert.equal(JSON.stringify(result).includes("secret"), false);
+});
+
+test("remote connection smoke classifies long-term and temporary entries", () => {
+  assert.deepEqual(classifyRemoteEntry("https://mac.tailnet.example.ts.net/lifeos"), {
+    entryKind: "tailscale-https",
+    longTermCandidate: true,
+    longTermReason: "Tailscale HTTPS Serve is a recommended long-term remote entry.",
+  });
+  assert.deepEqual(classifyRemoteEntry("https://lifeos.example.com"), {
+    entryKind: "stable-https",
+    longTermCandidate: true,
+    longTermReason: "This is an HTTPS non-temporary remote entry; confirm the domain is controlled and restart recovery works.",
+  });
+  assert.equal(classifyRemoteEntry("https://fresh.trycloudflare.com").entryKind, "temporary-cloudflare");
+  assert.equal(classifyRemoteEntry("https://fresh.trycloudflare.com").longTermCandidate, false);
+  assert.equal(classifyRemoteEntry("http://192.168.1.20:3000").entryKind, "insecure-http");
+  assert.equal(classifyRemoteEntry("http://127.0.0.1:3000").entryKind, "local");
 });
 
 test("remote connection smoke rejects unsafe or broken entries", async () => {
@@ -166,7 +186,7 @@ test("remote acceptance runbook writes long-term evidence and manual steps", asy
   assert.equal(report.longTermReady, false);
   assert.equal(report.realWorldAcceptanceRequired, true);
   assert.equal(report.completionStatus, "not-ready");
-  assert.match(report.longTermReason, /not HTTPS/);
+  assert.match(report.longTermReason, /desktop/);
   assert.equal(report.manualAcceptance.some((step) => step.id === "cellular-mobile-chat"), true);
   assert.equal(JSON.stringify(report).includes("secret"), false);
 

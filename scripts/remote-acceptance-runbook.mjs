@@ -14,21 +14,10 @@ function parseArgs(argv) {
   return result;
 }
 
-function entryKind(baseUrl) {
-  const parsed = new URL(baseUrl);
-  const host = parsed.hostname.toLowerCase();
-  if (host.endsWith(".trycloudflare.com")) return "temporary-cloudflare";
-  if (host.includes(".ts.net") || host.includes(".tailscale")) return "tailscale-https";
-  if (host.includes("localhost") || host === "127.0.0.1") return "local";
-  if (parsed.protocol === "https:") return "stable-https";
-  return "insecure-http";
-}
-
-function longTermStatus(kind, baseUrl, smokeOk) {
-  const secure = baseUrl.startsWith("https://");
-  if (!secure) return { ok: false, reason: "Remote entry is not HTTPS. It can be tested, but it is not accepted as a long-term remote entry." };
+function longTermStatus(kind, smoke) {
+  if (!smoke.longTermCandidate) return { ok: false, reason: smoke.longTermReason };
   if (kind === "temporary-cloudflare") return { ok: false, reason: "Temporary trycloudflare.com entries are for testing only. Use Tailscale HTTPS Serve or Cloudflare Named Tunnel for long-term use." };
-  if (!smokeOk) return { ok: false, reason: "Remote smoke checks did not all pass." };
+  if (!smoke.ok) return { ok: false, reason: "Remote smoke checks did not all pass." };
   return { ok: true, reason: "Remote entry is HTTPS, non-temporary, and passed automated smoke checks." };
 }
 
@@ -65,8 +54,8 @@ function manualSteps(kind) {
 
 export async function runRemoteAcceptanceRunbook(inputUrl, options = {}) {
   const smoke = await runRemoteConnectionSmoke(inputUrl, options);
-  const kind = entryKind(smoke.baseUrl);
-  const status = longTermStatus(kind, smoke.baseUrl, smoke.ok);
+  const kind = smoke.entryKind;
+  const status = longTermStatus(kind, smoke);
   const manualAcceptance = manualSteps(kind);
   const realWorldAcceptanceRequired = manualAcceptance.some((step) => step.required);
   return {

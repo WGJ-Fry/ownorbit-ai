@@ -67,6 +67,24 @@ function websocketUrl(baseUrl, suffix) {
   return parsed.toString();
 }
 
+export function classifyRemoteEntry(baseUrl) {
+  const parsed = new URL(baseUrl);
+  const host = parsed.hostname.toLowerCase();
+  if (host === "localhost" || host === "127.0.0.1" || host === "::1") {
+    return { entryKind: "local", longTermCandidate: false, longTermReason: "Localhost is only reachable on the desktop and cannot be a long-term phone entry." };
+  }
+  if (parsed.protocol !== "https:") {
+    return { entryKind: "insecure-http", longTermCandidate: false, longTermReason: "Long-term remote entries must use HTTPS for PWA, WebCrypto, and WebSocket reliability." };
+  }
+  if (host.endsWith(".trycloudflare.com")) {
+    return { entryKind: "temporary-cloudflare", longTermCandidate: false, longTermReason: "Temporary trycloudflare.com tunnels are for testing only and can change after restart." };
+  }
+  if (host.endsWith(".ts.net") || host.includes(".tailscale")) {
+    return { entryKind: "tailscale-https", longTermCandidate: true, longTermReason: "Tailscale HTTPS Serve is a recommended long-term remote entry." };
+  }
+  return { entryKind: "stable-https", longTermCandidate: true, longTermReason: "This is an HTTPS non-temporary remote entry; confirm the domain is controlled and restart recovery works." };
+}
+
 async function probeFetchStep(baseUrl, suffix, validate, timeoutMs) {
   const url = joinUrl(baseUrl, suffix);
   const startedAt = Date.now();
@@ -199,9 +217,11 @@ export async function runRemoteConnectionSmoke(inputUrl, options = {}) {
 
   const ok = steps.every((step) => step.ok);
   const passed = steps.filter((step) => step.ok).length;
+  const classification = classifyRemoteEntry(baseUrl);
   return {
     ok,
     baseUrl,
+    ...classification,
     passed,
     total: steps.length,
     latencyMs: Date.now() - startedAt,
@@ -213,6 +233,8 @@ function printHuman(result) {
   const status = result.ok ? "PASS" : "FAIL";
   console.log(`[${status}] Remote connection ${result.passed}/${result.total} checks passed in ${result.latencyMs}ms`);
   console.log(`Base URL: ${result.baseUrl}`);
+  console.log(`Entry kind: ${result.entryKind}`);
+  console.log(`Long-term candidate: ${result.longTermCandidate ? "yes" : "no"} - ${result.longTermReason}`);
   for (const step of result.steps) {
     console.log(`- ${step.ok ? "PASS" : "FAIL"} ${step.url} (${step.latencyMs}ms${step.error ? `, ${step.error}` : ""})`);
   }
