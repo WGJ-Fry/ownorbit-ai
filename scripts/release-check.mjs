@@ -528,6 +528,8 @@ function checkAssets() {
     remoteAcceptanceChecklistSource.includes("runbooks.latest") &&
     remoteAcceptanceChecklistSource.includes("completionStatus") &&
     remoteAcceptanceChecklistSource.includes("connection.acceptance.manualStillRequired") &&
+    remoteAcceptanceChecklistSource.includes("connection.acceptance.validUntil") &&
+    remoteAcceptanceChecklistSource.includes("item.expiresAt") &&
     remoteAcceptanceChecklistSource.includes("onImportReport") &&
     remoteAcceptanceChecklistSource.includes("connection.acceptance.markDone") &&
     remoteAcceptanceChecklistSource.includes("onAccept") &&
@@ -580,6 +582,7 @@ function checkAssets() {
     remoteAcceptanceSource.includes("hasRealWorldEvidence") &&
     remoteAcceptanceSource.includes("MANUAL_ACCEPTANCE_MAX_AGE_MS") &&
     remoteAcceptanceSource.includes("latestManualRecord") &&
+    remoteAcceptanceSource.includes("expiresAt") &&
     remoteAcceptanceSource.includes("older than 7 days") &&
     remoteAcceptanceSource.includes("Remote acceptance URL must not contain username, password, token, query, or fragment") &&
     remoteAcceptanceSource.includes("Remote acceptance report URLs must not contain username, password, token, query, or fragment") &&
@@ -595,6 +598,7 @@ function checkAssets() {
     remoteValidationReportTestSource.includes('result.forged.entryKind, "temporary-cloudflare"') &&
     remoteValidationReportTestSource.includes("Forged long-term ready") &&
     remoteValidationReportTestSource.includes("remote acceptance checklist expires stale real-world manual evidence") &&
+    remoteValidationReportTestSource.includes("freshItem.expiresAt") &&
     remoteValidationReportTestSource.includes("older than 7 days") &&
     remoteHealthMonitorSource.includes("restoredBaseUrl") &&
     remoteHealthMonitorSource.includes("recoveryAction") &&

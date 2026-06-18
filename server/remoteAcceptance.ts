@@ -40,6 +40,7 @@ export type RemoteAcceptanceItem = {
   action: string;
   command?: string;
   acceptedAt?: number;
+  expiresAt?: number;
 };
 
 export type RemoteAcceptanceSummary = {
@@ -390,6 +391,7 @@ export function buildRemoteAcceptanceChecklist(input: {
       evidence: restored ? report!.label : restartRecord ? `Manually accepted at ${new Date(restartRecord.createdAt).toISOString()}: ${manualEvidence(restartRecord)}` : staleManualEvidence(restartLatestRecord, "Restart LifeOS AI and confirm the saved Tailscale/Named Tunnel entry is restored automatically."),
       action: "Quit and reopen the desktop app, then run the remote health check again.",
       acceptedAt: restartRecord?.createdAt,
+      expiresAt: restartRecord ? restartRecord.createdAt + MANUAL_ACCEPTANCE_MAX_AGE_MS : undefined,
     },
     {
       id: "cellular-mobile-chat",
@@ -397,6 +399,7 @@ export function buildRemoteAcceptanceChecklist(input: {
       evidence: cellularRecord ? `Manually accepted at ${new Date(cellularRecord.createdAt).toISOString()}: ${manualEvidence(cellularRecord)}` : staleManualEvidence(cellularLatestRecord, "Requires a real phone on cellular data opening /mobile/chat through the saved HTTPS entry."),
       action: "Turn off phone Wi-Fi, open the saved mobile entry, send a chat message, and confirm WebSocket/retry state is healthy.",
       acceptedAt: cellularRecord?.createdAt,
+      expiresAt: cellularRecord ? cellularRecord.createdAt + MANUAL_ACCEPTANCE_MAX_AGE_MS : undefined,
     },
     {
       id: "network-interruption",
@@ -404,6 +407,7 @@ export function buildRemoteAcceptanceChecklist(input: {
       evidence: interruptionRecord ? `Manually accepted at ${new Date(interruptionRecord.createdAt).toISOString()}: ${manualEvidence(interruptionRecord)}` : staleManualEvidence(interruptionLatestRecord, "Disconnect and reconnect the remote path, then confirm diagnostics refresh and the phone shows a clear recovery message."),
       action: "Temporarily interrupt Tailscale/Tunnel/network, restore it, run remote health again, and verify the phone reconnect guidance.",
       acceptedAt: interruptionRecord?.createdAt,
+      expiresAt: interruptionRecord ? interruptionRecord.createdAt + MANUAL_ACCEPTANCE_MAX_AGE_MS : undefined,
     },
     {
       id: "diagnostic-export",
@@ -411,6 +415,7 @@ export function buildRemoteAcceptanceChecklist(input: {
       evidence: diagnosticRecord ? `Manually accepted at ${new Date(diagnosticRecord.createdAt).toISOString()}: ${manualEvidence(diagnosticRecord)}` : staleManualEvidence(diagnosticLatestRecord, "Export the admin diagnostic bundle after the real remote checks."),
       action: "Export diagnostics from Settings and keep the redacted bundle with the release/acceptance evidence.",
       acceptedAt: diagnosticRecord?.createdAt,
+      expiresAt: diagnosticRecord ? diagnosticRecord.createdAt + MANUAL_ACCEPTANCE_MAX_AGE_MS : undefined,
     },
     {
       id: "ci-remote-mock",

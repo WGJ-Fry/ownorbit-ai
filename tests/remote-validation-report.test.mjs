@@ -628,6 +628,7 @@ test("remote acceptance checklist expires stale real-world manual evidence", asy
     assert.equal(freshItem.status, "passed");
     assert.match(freshItem.evidence, /fresh proof/);
     assert.equal(freshItem.acceptedAt > 0, true);
+    assert.equal(freshItem.expiresAt, freshItem.acceptedAt + 7 * 24 * 60 * 60 * 1000);
   }
 });
 

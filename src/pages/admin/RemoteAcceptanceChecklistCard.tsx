@@ -32,6 +32,10 @@ function StatusIcon({ status }: { status: NetworkDiagnostics["remoteAcceptanceCh
   return <AlertTriangle className="h-4 w-4" />;
 }
 
+function daysUntil(timestamp: number) {
+  return Math.max(0, Math.ceil((timestamp - Date.now()) / (24 * 60 * 60 * 1000)));
+}
+
 export default function RemoteAcceptanceChecklistCard({
   acceptanceCommand,
   checklist,
@@ -200,6 +204,14 @@ export default function RemoteAcceptanceChecklistCard({
                   <StatusIcon status={item.status} />
                 </div>
                 <div className="mt-2 break-words text-[11px] leading-relaxed opacity-85">{item.evidence}</div>
+                {item.expiresAt ? (
+                  <div className="mt-2 rounded-lg border border-white/[0.08] bg-black/20 px-2 py-1.5 text-[10px] font-bold opacity-90">
+                    {t("connection.acceptance.validUntil", {
+                      date: new Date(item.expiresAt).toLocaleString(),
+                      days: daysUntil(item.expiresAt),
+                    })}
+                  </div>
+                ) : null}
                 <div className="mt-2 text-[11px] leading-relaxed opacity-95">{item.action}</div>
                 {item.command ? <code className="mt-2 block break-all rounded-lg bg-black/25 px-2 py-1 text-[10px] opacity-90">{item.command}</code> : null}
                 {onAccept && item.status === "manual-required" && (item.id === "restart-restore" || item.id === "cellular-mobile-chat" || item.id === "network-interruption" || item.id === "diagnostic-export") ? (

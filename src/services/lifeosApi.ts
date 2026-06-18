@@ -353,6 +353,7 @@ export type NetworkDiagnostics = {
     action: string;
     command?: string;
     acceptedAt?: number;
+    expiresAt?: number;
   }>;
   remoteAcceptanceSummary: {
     ready: boolean;
