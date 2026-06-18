@@ -327,10 +327,10 @@ function getCloudflareTunnelStatus(port: string) {
   };
 }
 
-function getTailscaleStatus() {
+function getTailscaleStatus(portOverride = String(process.env.LIFEOS_PORT || process.env.PORT || "3000")) {
   const version = runTailscaleCommand(["version", "--short"]);
   const installed = version.ok;
-  const port = process.env.LIFEOS_PORT || process.env.PORT || 3000;
+  const port = String(portOverride || process.env.LIFEOS_PORT || process.env.PORT || "3000");
   let online = false;
   let deviceName = "";
   let tailnetName = "";
@@ -361,8 +361,7 @@ function getTailscaleStatus() {
     serveStatus = serve.output;
     if (serve.ok) {
       serveRunning = Boolean(
-        (httpsServeUrl && serve.output.includes(httpsServeUrl.replace(/^https:\/\//, "")))
-          || serve.output.includes(`127.0.0.1:${port}`)
+        serve.output.includes(`127.0.0.1:${port}`)
           || serve.output.includes(`:${port}`),
       );
     } else {
@@ -416,7 +415,7 @@ function getTailscaleStatus() {
 }
 
 export function startTailscaleHttpsServe(port = String(process.env.LIFEOS_PORT || process.env.PORT || "3000")) {
-  const before = getTailscaleStatus();
+  const before = getTailscaleStatus(port);
   if (!before.installed) throw new Error("Tailscale CLI was not detected. Install Tailscale and sign in first.");
   if (!before.online) throw new Error("Tailscale is installed but not online. Sign in and connect this computer to your Tailnet first.");
   if (!before.httpsServeUrl) throw new Error("Tailscale MagicDNS/HTTPS name was not detected. Enable MagicDNS and HTTPS certificates in Tailscale first.");
@@ -425,7 +424,7 @@ export function startTailscaleHttpsServe(port = String(process.env.LIFEOS_PORT |
   const result = runManagedTailscaleCommand(["serve", "--bg", "https:443", `http://127.0.0.1:${port}`]);
   if (!result.ok) throw new Error(result.output || "Failed to start Tailscale HTTPS Serve");
 
-  const after = getTailscaleStatus();
+  const after = getTailscaleStatus(port);
   return {
     ok: true,
     command,
@@ -461,7 +460,7 @@ export function maybeStartConfiguredTailscaleServe(port = String(process.env.LIF
     return { started: false, reason: "not_configured", serve: null, config };
   }
 
-  const status = getTailscaleStatus();
+  const status = getTailscaleStatus(port);
   if (status.serveRunning && status.httpsServeUrl) {
     process.env.PUBLIC_BASE_URL = status.httpsServeUrl;
     const updatedConfig = saveDesktopRuntimeConfig({
@@ -498,7 +497,7 @@ export function getNetworkDiagnostics() {
   const publicBaseUrl = getConfiguredPublicBaseUrl();
   const lanUrls = getLanUrls(port);
   const cloudflare = getCloudflareTunnelStatus(port);
-  const tailscale = getTailscaleStatus();
+  const tailscale = getTailscaleStatus(port);
   const connectionCandidates = buildConnectionCandidates({ port, publicBaseUrl, lanUrls, cloudflare, tailscale });
   const recommendedBaseUrl = connectionCandidates[0]?.baseUrl || `http://127.0.0.1:${port}`;
   const desktopRuntimeConfig = getDesktopRuntimeConfig();

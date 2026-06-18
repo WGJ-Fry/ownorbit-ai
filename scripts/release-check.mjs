@@ -473,6 +473,7 @@ function checkAssets() {
     networkDiagnosticsSource.includes("loginCommand") &&
     networkDiagnosticsSource.includes("httpsServeReady") &&
     networkDiagnosticsSource.includes("httpsServeUrl") &&
+    networkDiagnosticsSource.includes("getTailscaleStatus(portOverride =") &&
     networkDiagnosticsSource.includes("tailscale serve --bg https:443") &&
     networkDiagnosticsSource.includes("startTailscaleHttpsServe") &&
     networkDiagnosticsSource.includes("stopTailscaleHttpsServe") &&
@@ -743,6 +744,7 @@ function checkAssets() {
     networkDiagnosticsTestSource.includes("needsPublicOptIn") &&
     networkDiagnosticsTestSource.includes("Tailscale HTTPS Serve helpers run controlled start and stop commands") &&
     networkDiagnosticsTestSource.includes("configured Tailscale HTTPS Serve autostart refreshes the saved stable URL") &&
+    networkDiagnosticsTestSource.includes("configured Tailscale HTTPS Serve autostart uses the runtime port instead of the environment default") &&
     networkDiagnosticsTestSource.includes("Tailscale HTTP fallback is not accepted as a long-term remote entry") &&
     cloudflareTunnelSource.includes("cloudflared-named-tunnel.json") &&
     cloudflareTunnelSource.includes("loadNamedTunnelSettings") &&

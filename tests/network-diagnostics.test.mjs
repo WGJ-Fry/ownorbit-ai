@@ -491,3 +491,85 @@ exit 1
   assert.equal(savedConfig.publicBaseUrl, "https://lifeos-new.tailnet.example.ts.net");
   assert.equal(savedConfig.baseUrl, "https://lifeos-new.tailnet.example.ts.net");
 });
+
+test("configured Tailscale HTTPS Serve autostart uses the runtime port instead of the environment default", async (t) => {
+  const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-tailscale-autostart-port-bin-"));
+  const stateFile = path.join(binDir, "serve-target.txt");
+  const oldPath = process.env.PATH || "";
+  const oldPort = process.env.LIFEOS_PORT;
+  const oldPublicBaseUrl = process.env.PUBLIC_BASE_URL;
+  const oldTailscaleBin = process.env.LIFEOS_TAILSCALE_BIN;
+  const oldDisableAutostart = process.env.LIFEOS_DISABLE_TAILSCALE_SERVE_AUTOSTART;
+  const oldAutostart = process.env.LIFEOS_TAILSCALE_SERVE_AUTOSTART;
+
+  t.after(async () => {
+    process.env.PATH = oldPath;
+    if (oldPort === undefined) delete process.env.LIFEOS_PORT;
+    else process.env.LIFEOS_PORT = oldPort;
+    if (oldPublicBaseUrl === undefined) delete process.env.PUBLIC_BASE_URL;
+    else process.env.PUBLIC_BASE_URL = oldPublicBaseUrl;
+    if (oldTailscaleBin === undefined) delete process.env.LIFEOS_TAILSCALE_BIN;
+    else process.env.LIFEOS_TAILSCALE_BIN = oldTailscaleBin;
+    if (oldDisableAutostart === undefined) delete process.env.LIFEOS_DISABLE_TAILSCALE_SERVE_AUTOSTART;
+    else process.env.LIFEOS_DISABLE_TAILSCALE_SERVE_AUTOSTART = oldDisableAutostart;
+    if (oldAutostart === undefined) delete process.env.LIFEOS_TAILSCALE_SERVE_AUTOSTART;
+    else process.env.LIFEOS_TAILSCALE_SERVE_AUTOSTART = oldAutostart;
+    await rm(binDir, { recursive: true, force: true });
+  });
+
+  await writeFile(stateFile, "http://127.0.0.1:3000");
+  const tailscalePath = path.join(binDir, "tailscale");
+  await writeFile(tailscalePath, `#!/bin/sh
+STATE_FILE=${JSON.stringify(stateFile)}
+if [ "$1" = "version" ]; then
+  echo "1.66.4"
+  exit 0
+fi
+if [ "$1" = "status" ]; then
+  echo '{"Self":{"Online":true,"HostName":"lifeos-port","TailscaleIPs":["100.64.0.12"]},"MagicDNSSuffix":"tailnet.example.ts.net"}'
+  exit 0
+fi
+if [ "$1" = "serve" ] && [ "$2" = "status" ]; then
+  target=$(cat "$STATE_FILE")
+  echo '{"Web":{"lifeos-port.tailnet.example.ts.net:443":{"Handlers":{"/":{"Proxy":"'"$target"'"}}}}}'
+  exit 0
+fi
+if [ "$1" = "serve" ] && [ "$2" = "--bg" ]; then
+  echo "$4" > "$STATE_FILE"
+  echo "ok"
+  exit 0
+fi
+exit 1
+`);
+  await chmod(tailscalePath, 0o755);
+
+  process.env.PATH = `${binDir}:${oldPath}`;
+  process.env.LIFEOS_PORT = "3000";
+  process.env.LIFEOS_TAILSCALE_BIN = tailscalePath;
+  process.env.PUBLIC_BASE_URL = "https://lifeos-port.tailnet.example.ts.net";
+  delete process.env.LIFEOS_DISABLE_TAILSCALE_SERVE_AUTOSTART;
+  delete process.env.LIFEOS_TAILSCALE_SERVE_AUTOSTART;
+
+  const cacheKey = Date.now();
+  const desktopConfig = await import("../server/desktopRuntimeConfig.ts");
+  const networkDiagnostics = await import(`../server/networkDiagnostics.ts?tailscale-autostart-runtime-port=${cacheKey}`);
+  const configPath = desktopConfig.desktopRuntimeConfigPath;
+  const previousConfig = fs.existsSync(configPath) ? await readFile(configPath, "utf8") : null;
+  t.after(async () => {
+    if (previousConfig === null) await rm(configPath, { force: true });
+    else await writeFile(configPath, previousConfig);
+  });
+
+  desktopConfig.saveDesktopRuntimeConfig({
+    mode: "tailscale",
+    label: "Tailscale HTTPS Serve",
+    baseUrl: "https://lifeos-port.tailnet.example.ts.net",
+  });
+
+  const result = networkDiagnostics.maybeStartConfiguredTailscaleServe("4567");
+  assert.equal(result.started, true);
+  assert.equal(result.reason, "tailscale_configured");
+  assert.equal(await readFile(stateFile, "utf8"), "http://127.0.0.1:4567\n");
+  assert.equal(result.serve.status.serveRunning, true);
+  assert.match(result.serve.status.serveStatus, /4567/);
+});
