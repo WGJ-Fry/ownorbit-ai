@@ -103,18 +103,50 @@ test("remote health monitor exposes scheduler status", async (t) => {
   });
 
   const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const { createServer } = await import("node:http");
+    const { WebSocketServer } = await import("ws");
+    const server = createServer((req, res) => {
+      if (req.url === "/lifeos/api/v1/health") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ service: "lifeos-local-core" }));
+        return;
+      }
+      if (req.url === "/lifeos/mobile/chat") {
+        res.writeHead(200, { "content-type": "text/html" });
+        res.end("<!doctype html><title>LifeOS AI</title><div id=\\\"root\\\"></div>");
+        return;
+      }
+      res.writeHead(404);
+      res.end("not found");
+    });
+    const wss = new WebSocketServer({ noServer: true });
+    server.on("upgrade", (req, socket, head) => {
+      if (req.url !== "/lifeos/api/v1/ws") {
+        socket.destroy();
+        return;
+      }
+      wss.handleUpgrade(req, socket, head, (ws) => ws.close(1000, "ok"));
+    });
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const { port } = server.address();
+    const { saveDesktopRuntimeConfig } = await import("./server/desktopRuntimeConfig.ts");
     process.env.LIFEOS_REMOTE_HEALTH_INTERVAL_MS = "30000";
-    const { getRemoteHealthMonitorStatus, startRemoteHealthMonitor } = await import("./server/remoteHealthMonitor.ts");
+    const { getRemoteHealthMonitorStatus, runRemoteHealthCheck, startRemoteHealthMonitor } = await import("./server/remoteHealthMonitor.ts");
+    saveDesktopRuntimeConfig({ mode: "tailscale", label: "Stable Test", baseUrl: \`http://127.0.0.1:\${port}/lifeos\` });
     const before = getRemoteHealthMonitorStatus();
     startRemoteHealthMonitor();
     const after = getRemoteHealthMonitorStatus();
-    process.stdout.write(JSON.stringify({ before, after }));
+    await runRemoteHealthCheck("manual");
+    const afterManual = getRemoteHealthMonitorStatus();
+    await new Promise((resolve) => wss.close(resolve));
+    await new Promise((resolve) => server.close(resolve));
+    process.stdout.write(JSON.stringify({ before, after, afterManual }));
   `], {
     cwd: process.cwd(),
     env: { ...process.env, LIFEOS_DATA_DIR: dataDir, LIFEOS_REMOTE_HEALTH_MONITOR: "1" },
     encoding: "utf8",
   });
-  const { before, after } = JSON.parse(output);
+  const { before, after, afterManual } = JSON.parse(output);
   assert.equal(before.enabled, true);
   assert.equal(before.running, false);
   assert.equal(after.enabled, true);
@@ -123,6 +155,9 @@ test("remote health monitor exposes scheduler status", async (t) => {
   assert.equal(after.intervalMs, 30000);
   assert.equal(typeof after.startedAt, "number");
   assert.equal(typeof after.nextRunAt, "number");
+  assert.equal(typeof afterManual.lastRunAt, "number");
+  assert.equal(typeof afterManual.nextRunAt, "number");
+  assert.ok(afterManual.nextRunAt >= afterManual.lastRunAt + 29_000);
 });
 
 test("remote health monitor restores saved Cloudflare Named Tunnel before refreshing report", async (t) => {

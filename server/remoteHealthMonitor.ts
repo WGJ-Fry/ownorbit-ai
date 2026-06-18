@@ -76,6 +76,7 @@ export async function runRemoteHealthCheck(reason = "manual") {
     return { skipped: false, reason, restored: recovery.restored, recovery: recoveryReport, report };
   } finally {
     lastRunAt = Date.now();
+    nextRunAt = monitorTimer ? lastRunAt + intervalMs() : null;
     running = false;
   }
 }
@@ -164,11 +165,9 @@ export function startRemoteHealthMonitor() {
   monitorStartedAt = Date.now();
   nextRunAt = monitorStartedAt + 4000;
   setTimeout(() => {
-    nextRunAt = Date.now() + intervalMs();
     runRemoteHealthCheck("startup").catch(() => null);
   }, 4000).unref();
   monitorTimer = setInterval(() => {
-    nextRunAt = Date.now() + intervalMs();
     runRemoteHealthCheck("schedule").catch(() => null);
   }, intervalMs());
   monitorTimer.unref();
