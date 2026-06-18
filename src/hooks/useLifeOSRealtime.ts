@@ -3,9 +3,16 @@ import { createDeviceWebSocketAuthMessage, getStoredDeviceCredentialAsync, realt
 
 export type RealtimeStatus = "unbound" | "connecting" | "connected" | "offline";
 
+export function realtimeReconnectDelay(attempt: number) {
+  return Math.min(30_000, 1000 * 2 ** Math.max(0, attempt));
+}
+
 export function useLifeOSRealtime() {
   const [status, setStatus] = useState<RealtimeStatus>("unbound");
   const [lastEventAt, setLastEventAt] = useState<number | null>(null);
+  const [nextReconnectAt, setNextReconnectAt] = useState<number | null>(null);
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  const [lastError, setLastError] = useState<string | null>(null);
   const retryRef = useRef(0);
   const socketRef = useRef<WebSocket | null>(null);
   const stoppedRef = useRef(false);
@@ -30,10 +37,13 @@ export function useLifeOSRealtime() {
       }
     };
 
-    const scheduleReconnect = (delay: number) => {
+    const scheduleReconnect = (delay: number, attempt = retryRef.current) => {
       clearReconnectTimer();
+      setNextReconnectAt(Date.now() + delay);
+      setRetryAttempt(attempt + 1);
       reconnectTimerRef.current = window.setTimeout(() => {
         reconnectTimerRef.current = null;
+        setNextReconnectAt(null);
         void connect();
       }, delay);
     };
@@ -54,10 +64,11 @@ export function useLifeOSRealtime() {
       let credential;
       try {
         credential = await getStoredDeviceCredentialAsync();
-      } catch {
+      } catch (error: any) {
         connectingRef.current = false;
+        setLastError(error?.message || "Device credential unavailable");
         setStatus("offline");
-        scheduleReconnect(Math.min(30_000, 1000 * 2 ** retryRef.current));
+        scheduleReconnect(realtimeReconnectDelay(retryRef.current));
         retryRef.current += 1;
         return;
       }
@@ -74,10 +85,11 @@ export function useLifeOSRealtime() {
       let ws: WebSocket;
       try {
         ws = new WebSocket(realtimeWebSocketUrl());
-      } catch {
+      } catch (error: any) {
         connectingRef.current = false;
+        setLastError(error?.message || "WebSocket unavailable");
         setStatus("offline");
-        scheduleReconnect(Math.min(30_000, 1000 * 2 ** retryRef.current));
+        scheduleReconnect(realtimeReconnectDelay(retryRef.current));
         retryRef.current += 1;
         return;
       }
@@ -109,6 +121,9 @@ export function useLifeOSRealtime() {
           const event = JSON.parse(message.data);
           if (event?.type === "auth.ok") {
             retryRef.current = 0;
+            setRetryAttempt(0);
+            setNextReconnectAt(null);
+            setLastError(null);
             setStatus("connected");
           }
           if (event?.type === "device.token.rotate_requested") {
@@ -121,6 +136,7 @@ export function useLifeOSRealtime() {
 
       ws.onerror = () => {
         if (socketRef.current !== ws) return;
+        setLastError("WebSocket connection failed");
         setStatus("offline");
       };
 
@@ -132,10 +148,12 @@ export function useLifeOSRealtime() {
           clearReconnectTimer();
           return;
         }
+        setLastError("WebSocket connection closed");
         setStatus("offline");
-        const delay = Math.min(30_000, 1000 * 2 ** retryRef.current);
+        const delay = realtimeReconnectDelay(retryRef.current);
+        const attempt = retryRef.current;
         retryRef.current += 1;
-        scheduleReconnect(delay);
+        scheduleReconnect(delay, attempt);
       };
     };
 
@@ -159,5 +177,5 @@ export function useLifeOSRealtime() {
     };
   }, []);
 
-  return { status, lastEventAt };
+  return { status, lastEventAt, nextReconnectAt, retryAttempt, lastError };
 }

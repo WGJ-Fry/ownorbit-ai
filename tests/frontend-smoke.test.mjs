@@ -269,6 +269,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   const realtimeHookSource = await readFile(path.join(rootDir, "src", "hooks", "useLifeOSRealtime.ts"), "utf8");
   assert.match(realtimeHookSource, /reconnectTimerRef/);
   assert.match(realtimeHookSource, /clearReconnectTimer/);
+  assert.match(realtimeHookSource, /nextReconnectAt/);
+  assert.match(realtimeHookSource, /retryAttempt/);
+  assert.match(realtimeHookSource, /lastError/);
+  assert.match(realtimeHookSource, /realtimeReconnectDelay/);
   assert.match(realtimeHookSource, /window\.addEventListener\("online", handleOnline\)/);
   assert.match(realtimeHookSource, /document\.addEventListener\("visibilitychange", handleVisibilityChange\)/);
   assert.match(realtimeHookSource, /socketRef\.current !== ws/);

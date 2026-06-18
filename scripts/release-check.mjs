@@ -447,6 +447,7 @@ function checkAssets() {
   const connectionToolStatusSource = exists("src/pages/admin/ConnectionToolStatus.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/ConnectionToolStatus.tsx"), "utf8") : "";
   const customRemoteEntrySource = exists("src/pages/admin/CustomRemoteEntryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/CustomRemoteEntryCard.tsx"), "utf8") : "";
   const devicePairSource = exists("src/pages/admin/DevicePairPage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/DevicePairPage.tsx"), "utf8") : "";
+  const mobileChatPageSource = exists("src/pages/mobile/MobileChatPage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileChatPage.tsx"), "utf8") : "";
   const devicesSource = exists("server/devices.ts") ? fs.readFileSync(path.join(rootDir, "server/devices.ts"), "utf8") : "";
   const deviceRoutesSource = exists("server/routes/deviceRoutes.ts") ? fs.readFileSync(path.join(rootDir, "server/routes/deviceRoutes.ts"), "utf8") : "";
   const networkDiagnosticsTestSource = exists("tests/network-diagnostics.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/network-diagnostics.test.mjs"), "utf8") : "";
@@ -719,6 +720,13 @@ function checkAssets() {
     realtimeHookSource.includes("realtimeWebSocketUrl()") &&
     realtimeHookSource.includes("reconnectTimerRef") &&
     realtimeHookSource.includes("clearReconnectTimer") &&
+    realtimeHookSource.includes("nextReconnectAt") &&
+    realtimeHookSource.includes("retryAttempt") &&
+    realtimeHookSource.includes("lastError") &&
+    realtimeHookSource.includes("realtimeReconnectDelay") &&
+    mobileChatPageSource.includes("mobile.realtimeNextRetry") &&
+    translationsSource.includes("mobile.realtimeNextRetry") &&
+    clientRoutingTestSource.includes("mobile realtime reconnect delay uses capped exponential backoff") &&
     realtimeHookSource.includes('window.addEventListener("online", handleOnline)') &&
     realtimeHookSource.includes('document.addEventListener("visibilitychange", handleVisibilityChange)') &&
     clientRoutingTestSource.includes("/lifeos/mobile/chat") &&

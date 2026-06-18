@@ -19,7 +19,7 @@ const STATUS_CLASS = {
 
 export default function MobileChatPage() {
   const { t } = useI18n();
-  const { status } = useLifeOSRealtime();
+  const { lastError, lastEventAt, nextReconnectAt, retryAttempt, status } = useLifeOSRealtime();
   const [credential, setCredential] = useState(() => getStoredDeviceCredential());
   const [loadedCredential, setLoadedCredential] = useState(Boolean(credential));
   const [pairingInput, setPairingInput] = useState("");
@@ -195,8 +195,18 @@ export default function MobileChatPage() {
 
   return (
     <>
-      <div className={`fixed left-1/2 top-2 z-[100] -translate-x-1/2 rounded-full border px-3 py-1 text-[11px] font-bold backdrop-blur-xl ${STATUS_CLASS[status]}`}>
-        {t(`mobile.status.${status}` as TranslationKey)}
+      <div className={`fixed left-1/2 top-2 z-[100] max-w-[calc(100vw-6.5rem)] -translate-x-1/2 rounded-2xl border px-3 py-1 text-center text-[11px] font-bold backdrop-blur-xl ${STATUS_CLASS[status]}`}>
+        <div>{t(`mobile.status.${status}` as TranslationKey)}</div>
+        {status === "offline" && nextReconnectAt ? (
+          <div className="mt-0.5 text-[10px] font-medium opacity-80">
+            {t("mobile.realtimeNextRetry", { attempt: retryAttempt, time: new Date(nextReconnectAt).toLocaleTimeString() })}
+          </div>
+        ) : status === "connected" && lastEventAt ? (
+          <div className="mt-0.5 text-[10px] font-medium opacity-80">
+            {t("mobile.realtimeLastEvent", { time: new Date(lastEventAt).toLocaleTimeString() })}
+          </div>
+        ) : null}
+        {status === "offline" && lastError ? <div className="mt-0.5 max-w-56 truncate text-[10px] font-medium opacity-75">{lastError}</div> : null}
       </div>
       <a
         href="/mobile/actions"

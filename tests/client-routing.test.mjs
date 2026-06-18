@@ -68,3 +68,13 @@ test("client chat route stays root-relative without a proxy base path", async ()
   assert.equal(apiUrl("/api/v1/health"), "/api/v1/health");
   assert.equal(realtimeWebSocketUrl(), "ws://127.0.0.1:3000/api/v1/ws");
 });
+
+test("mobile realtime reconnect delay uses capped exponential backoff", async () => {
+  const { realtimeReconnectDelay } = await import(`../src/hooks/useLifeOSRealtime.ts?client-realtime-delay=${Date.now()}`);
+
+  assert.equal(realtimeReconnectDelay(0), 1000);
+  assert.equal(realtimeReconnectDelay(1), 2000);
+  assert.equal(realtimeReconnectDelay(5), 30000);
+  assert.equal(realtimeReconnectDelay(20), 30000);
+  assert.equal(realtimeReconnectDelay(-1), 1000);
+});
