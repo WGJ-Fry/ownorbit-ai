@@ -23,11 +23,13 @@ export default function MobileConnectivityCard({
   const websocketFailed = result.steps.some((step) => step.id === "websocket" && !step.ok);
   const recoveryHints = getMobileRecoveryHints(result, entryKind, queueSummary);
   const primaryIssue = getMobileConnectivityIssue(result, entryKind, queueSummary);
+  const queueBlocked = primaryIssue === "mobileDevice.connectivityIssueQueueBlocked";
+  const showRecovery = !result.ok || queueBlocked;
   const tailscaleHttpFallback = entryKind === "tailscale" && isHttpRemoteBase(result.currentBase);
   const showRebind = tailscaleHttpFallback || entryKind === "temporary-cloudflare" || entryKind === "same-lan" || entryKind === "localhost" || entryKind === "configured-mismatch";
   const showTailscale = entryKind === "tailscale";
   return (
-    <div className={`mt-4 rounded-2xl border p-3 text-sm ${result.ok ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100" : "border-red-400/20 bg-red-500/10 text-red-100"}`}>
+    <div className={`mt-4 rounded-2xl border p-3 text-sm ${queueBlocked ? "border-amber-400/20 bg-amber-500/10 text-amber-100" : result.ok ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100" : "border-red-400/20 bg-red-500/10 text-red-100"}`}>
       <div className="font-bold">
         {result.ok
           ? t("mobileDevice.connectivityOk", { passed, total: result.steps.length, latency: result.latencyMs })
@@ -45,10 +47,10 @@ export default function MobileConnectivityCard({
           </div>
         ))}
       </div>
-      {!result.ok ? (
+      {showRecovery ? (
         <div className="mt-3 rounded-xl border border-white/[0.08] bg-black/10 p-2 text-xs leading-relaxed">
           <div className="font-bold">{t("mobileDevice.connectivityFixTitle")}</div>
-          <div className="mt-1 rounded-lg border border-white/[0.06] bg-black/10 p-2 font-bold text-red-50">
+          <div className={`mt-1 rounded-lg border border-white/[0.06] bg-black/10 p-2 font-bold ${queueBlocked ? "text-amber-50" : "text-red-50"}`}>
             {t(primaryIssue as any)}
           </div>
           <div className="mt-2 space-y-1 opacity-85">

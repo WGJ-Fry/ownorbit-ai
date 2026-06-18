@@ -1044,6 +1044,8 @@ function checkAssets() {
     mobileConnectivityCardSource.includes("getMobileRecoveryHints") &&
     mobileConnectivityCardSource.includes("getMobileConnectivityIssue") &&
     mobileConnectivityCardSource.includes("primaryIssue") &&
+    mobileConnectivityCardSource.includes("queueBlocked") &&
+    mobileConnectivityCardSource.includes("showRecovery") &&
     mobileConnectivityCardSource.includes("isHttpRemoteBase") &&
     mobileConnectivityCardSource.includes("queueSummary") &&
     mobileConnectivityCardSource.includes("tailscale://") &&
@@ -1075,6 +1077,8 @@ function checkAssets() {
     pwaCapabilitiesTestSource.includes("connectivityIssueTemporaryExpired") &&
     pwaCapabilitiesTestSource.includes("connectivityIssueTailscaleOffline") &&
     pwaCapabilitiesTestSource.includes("connectivityIssueWebSocket") &&
+    pwaCapabilitiesTestSource.includes("connectivityIssueQueueBlocked") &&
+    pwaCapabilitiesTestSource.includes("connectedButQueueFailed") &&
     pwaCapabilitiesTestSource.includes("remote entry guidance is visible before manual connectivity tests") &&
     pwaCapabilitiesTestSource.includes("degraded offline sync support") &&
     frontendSmokeTestSource.includes("mobileDevice\\.pwaTitle") &&

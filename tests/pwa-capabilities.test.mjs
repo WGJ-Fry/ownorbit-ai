@@ -339,6 +339,21 @@ test("mobile recovery hints combine entry type, failed probes, and offline queue
       { id: "websocket", ok: true, url: "wss://remote.example.test/api/v1/ws", latencyMs: 10 },
     ],
   }, "stable-https"), "mobileDevice.connectivityIssueOk");
+  const connectedButQueueFailed = {
+    ok: true,
+    currentBase: "https://remote.example.test",
+    latencyMs: 20,
+    steps: [
+      { id: "health", ok: true, url: "/api/v1/health", latencyMs: 10 },
+      { id: "mobile-shell", ok: true, url: "/mobile/chat", latencyMs: 10 },
+      { id: "websocket", ok: true, url: "wss://remote.example.test/api/v1/ws", latencyMs: 10 },
+    ],
+  };
+  assert.equal(getMobileConnectivityIssue(connectedButQueueFailed, "stable-https", { failed: 1 }), "mobileDevice.connectivityIssueQueueBlocked");
+  assert.deepEqual(getMobileRecoveryHints(connectedButQueueFailed, "stable-https", { failed: 1 }), [
+    "mobileDevice.connectivityGuidanceHttps",
+    "mobileDevice.connectivityGuidanceFailedQueue",
+  ]);
 });
 
 test("remote entry guidance is visible before manual connectivity tests", async () => {
