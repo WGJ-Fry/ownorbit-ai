@@ -218,18 +218,18 @@ export default function MobileDevicePage() {
                 </div>
               )}
               {status ? <div className="mt-4 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3 text-sm text-zinc-300">{status}</div> : null}
-              {credential.authMethod !== "signature" ? (
-                <PairingLinkPanel
-                  value={pairingInput}
-                  error={pairingInputError}
-                  onChange={(value) => {
-                    setPairingInput(value);
-                    setPairingInputError(null);
-                  }}
-                  onSubmit={() => openPairingInput({ clearCurrent: true })}
-                  buttonLabel={t("mobileDevice.rebindButton")}
-                />
-              ) : null}
+              <PairingLinkPanel
+                value={pairingInput}
+                error={pairingInputError}
+                onChange={(value) => {
+                  setPairingInput(value);
+                  setPairingInputError(null);
+                }}
+                onSubmit={() => openPairingInput({ clearCurrent: true })}
+                buttonLabel={t("mobileDevice.rebindButton")}
+                title={t("mobileDevice.rebindTitle")}
+                body={t("mobileDevice.rebindBody")}
+              />
               <div className="mt-5 grid gap-3">
                 <button onClick={handleRotate} className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm font-bold text-cyan-200">
                   <RefreshCw className="h-4 w-4" />
@@ -256,6 +256,7 @@ export default function MobileDevicePage() {
                 }}
                 onSubmit={() => openPairingInput()}
                 buttonLabel={t("mobile.usePairingLink")}
+                body={t("mobileDevice.notBoundPairingBody")}
               />
             </div>
           )}
@@ -414,22 +415,32 @@ function PairingLinkPanel({
   onChange,
   onSubmit,
   buttonLabel,
+  title,
+  body,
 }: {
   value: string;
   error: string | null;
   onChange: (value: string) => void;
   onSubmit: () => void;
   buttonLabel: string;
+  title?: string;
+  body?: string;
 }) {
   const { t } = useI18n();
   return (
     <div className="mt-5 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 text-left">
+      {title || body ? (
+        <div className="mb-3">
+          {title ? <div className="text-sm font-bold text-zinc-100">{title}</div> : null}
+          {body ? <div className="mt-1 text-xs leading-relaxed text-zinc-500">{body}</div> : null}
+        </div>
+      ) : null}
       <label className="text-xs font-bold text-zinc-500">{t("mobileDevice.pastePairingLink")}</label>
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className="mt-2 w-full rounded-xl border border-white/[0.08] bg-[#060a10] px-3 py-3 text-sm outline-none focus:border-cyan-400/60"
-        placeholder="http://.../mobile/install/bind_..."
+        placeholder={t("mobileDevice.pairingPlaceholder")}
       />
       {error ? <div className="mt-2 text-xs leading-relaxed text-red-200">{error}</div> : null}
       <button onClick={onSubmit} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-3 text-sm font-bold text-[#061016]">
