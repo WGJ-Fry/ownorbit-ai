@@ -433,6 +433,7 @@ function checkAssets() {
   const remoteAcceptanceChecklistSource = exists("src/pages/admin/RemoteAcceptanceChecklistCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/RemoteAcceptanceChecklistCard.tsx"), "utf8") : "";
   const remoteAcceptanceSource = exists("server/remoteAcceptance.ts") ? fs.readFileSync(path.join(rootDir, "server/remoteAcceptance.ts"), "utf8") : "";
   const remoteValidationReportSource = exists("server/remoteValidationReport.ts") ? fs.readFileSync(path.join(rootDir, "server/remoteValidationReport.ts"), "utf8") : "";
+  const remoteValidationReportTestSource = exists("tests/remote-validation-report.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/remote-validation-report.test.mjs"), "utf8") : "";
   const remoteHealthMonitorSource = exists("server/remoteHealthMonitor.ts") ? fs.readFileSync(path.join(rootDir, "server/remoteHealthMonitor.ts"), "utf8") : "";
   const connectionToolStatusSource = exists("src/pages/admin/ConnectionToolStatus.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/ConnectionToolStatus.tsx"), "utf8") : "";
   const customRemoteEntrySource = exists("src/pages/admin/CustomRemoteEntryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/CustomRemoteEntryCard.tsx"), "utf8") : "";
@@ -580,12 +581,14 @@ function checkAssets() {
     remoteHealthMonitorSource.includes("restoredBaseUrl") &&
     remoteHealthMonitorSource.includes("recoveryAction") &&
     remoteHealthMonitorSource.includes("check-tailscale") &&
-    remoteHealthMonitorSource.includes("checkBaseUrl = remoteBaseUrl() || baseUrl") &&
+    remoteHealthMonitorSource.includes("getConfiguredPublicBaseUrl") &&
+    remoteHealthMonitorSource.includes("configuredRemoteBaseUrl") &&
     remoteHealthMonitorSource.includes("baseUrl: checkBaseUrl") &&
     remoteHealthMonitorSource.includes("getRemoteHealthMonitorStatus") &&
     remoteHealthMonitorSource.includes("setCloudflareTunnelReconnectHandler") &&
     remoteHealthMonitorSource.includes("cloudflare-reconnect") &&
     remoteHealthMonitorSource.includes("nextRunAt") &&
+    remoteValidationReportTestSource.includes("remote health monitor checks configured PUBLIC_BASE_URL without a saved runtime entry") &&
     adminRoutesSource.includes("remoteHealthMonitor") &&
     lifeosApiSourceForRouting.includes("entryKind") &&
     lifeosApiSourceForRouting.includes("restoredBaseUrl") &&

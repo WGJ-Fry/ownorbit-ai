@@ -3,6 +3,7 @@ import { maybeStartConfiguredCloudflareTunnel, setCloudflareTunnelReconnectHandl
 import { maybeStartConfiguredTailscaleServe, testConnectionUrl } from "./networkDiagnostics.ts";
 import { getRemoteValidationReport, saveRemoteValidationReport } from "./remoteValidationReport.ts";
 import { getClientState, setClientState } from "./clientState.ts";
+import { getConfiguredPublicBaseUrl } from "./publicBaseUrl.ts";
 
 let monitorTimer: ReturnType<typeof setInterval> | null = null;
 let running = false;
@@ -55,8 +56,14 @@ function remoteBaseUrl() {
   return config.publicBaseUrl;
 }
 
+function configuredRemoteBaseUrl() {
+  const runtimeBaseUrl = remoteBaseUrl();
+  if (runtimeBaseUrl) return runtimeBaseUrl;
+  return getConfiguredPublicBaseUrl();
+}
+
 export async function runRemoteHealthCheck(reason = "manual") {
-  const baseUrl = remoteBaseUrl();
+  const baseUrl = configuredRemoteBaseUrl();
   if (!baseUrl) return { skipped: true, reason: "no_remote_entry", report: getRemoteValidationReport() };
   if (running) return { skipped: true, reason: "already_running", report: getRemoteValidationReport() };
   running = true;

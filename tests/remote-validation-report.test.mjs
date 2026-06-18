@@ -96,6 +96,57 @@ test("remote health monitor persists the saved stable remote entry report", asyn
   assert.match(report.baseUrl, /^http:\/\/127\.0\.0\.1:\d+\/lifeos$/);
 });
 
+test("remote health monitor checks configured PUBLIC_BASE_URL without a saved runtime entry", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-remote-health-env-"));
+  t.after(async () => {
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const { createServer } = await import("node:http");
+    const { WebSocketServer } = await import("ws");
+    const server = createServer((req, res) => {
+      if (req.url === "/lifeos/api/v1/health") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ service: "lifeos-local-core" }));
+        return;
+      }
+      if (req.url === "/lifeos/mobile/chat") {
+        res.writeHead(200, { "content-type": "text/html" });
+        res.end("<!doctype html><title>LifeOS AI</title><div id=\\\"root\\\"></div>");
+        return;
+      }
+      res.writeHead(404);
+      res.end("not found");
+    });
+    const wss = new WebSocketServer({ noServer: true });
+    server.on("upgrade", (req, socket, head) => {
+      if (req.url !== "/lifeos/api/v1/ws") {
+        socket.destroy();
+        return;
+      }
+      wss.handleUpgrade(req, socket, head, (ws) => ws.close(1000, "ok"));
+    });
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const { port } = server.address();
+    process.env.PUBLIC_BASE_URL = \`http://127.0.0.1:\${port}/lifeos\`;
+    const { runRemoteHealthCheck } = await import("./server/remoteHealthMonitor.ts");
+    const result = await runRemoteHealthCheck("manual");
+    await new Promise((resolve) => wss.close(resolve));
+    await new Promise((resolve) => server.close(resolve));
+    process.stdout.write(JSON.stringify(result));
+  `], {
+    cwd: process.cwd(),
+    env: { ...process.env, LIFEOS_DATA_DIR: dataDir, PUBLIC_BASE_URL: "" },
+    encoding: "utf8",
+  });
+  const result = JSON.parse(output);
+  assert.equal(result.skipped, false);
+  assert.equal(result.report.ok, true, JSON.stringify(result.report, null, 2));
+  assert.equal(result.report.passed, 3);
+  assert.match(result.report.baseUrl, /^http:\/\/127\.0\.0\.1:\d+\/lifeos$/);
+});
+
 test("remote health monitor exposes scheduler status", async (t) => {
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-remote-health-status-"));
   t.after(async () => {
