@@ -648,6 +648,10 @@ test("remote acceptance summary requires a long-term entry and real-world eviden
   assert.equal(incomplete.hasLongTermEntry, true);
   assert.equal(incomplete.hasRealWorldEvidence, false);
   assert.equal(incomplete.manualRequired, 4);
+  assert.equal(incomplete.blockingItems.length, 4);
+  assert.equal(incomplete.blockingItems[0].id, "restart-restore");
+  assert.equal(incomplete.blockingItems[0].status, "manual-required");
+  assert.equal(incomplete.blockingItems.some((item) => item.id === "cloudflare-named-tunnel"), false);
 
   const complete = summarizeRemoteAcceptanceChecklist(baseChecklist.map((item) => (
     item.status === "manual-required" ? { ...item, status: "passed" } : item
@@ -656,4 +660,5 @@ test("remote acceptance summary requires a long-term entry and real-world eviden
   assert.equal(complete.hasLongTermEntry, true);
   assert.equal(complete.hasRealWorldEvidence, true);
   assert.equal(complete.passed, 7);
+  assert.deepEqual(complete.blockingItems, []);
 });

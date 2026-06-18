@@ -93,6 +93,20 @@ export default function RemoteAcceptanceChecklistCard({
                 <div>{summary.hasLongTermEntry ? t("connection.acceptance.summaryLongTermOk") : t("connection.acceptance.summaryLongTermMissing")}</div>
                 <div>{summary.hasRealWorldEvidence ? t("connection.acceptance.summaryEvidenceOk") : t("connection.acceptance.summaryEvidenceMissing")}</div>
               </div>
+              {!summary.ready && summary.blockingItems?.length ? (
+                <div className="mt-3 rounded-lg border border-white/[0.08] bg-black/15 p-2">
+                  <div className="text-[11px] font-bold uppercase tracking-wide opacity-80">{t("connection.acceptance.nextActions")}</div>
+                  <div className="mt-2 space-y-2">
+                    {summary.blockingItems.slice(0, 3).map((item) => (
+                      <div key={item.id} className="rounded-lg bg-black/15 px-2 py-2">
+                        <div className="text-[11px] font-bold">{t(itemKey[item.id] as any)}</div>
+                        <div className="mt-1 text-[11px] leading-relaxed opacity-85">{item.action}</div>
+                        {item.command ? <code className="mt-1 block break-all text-[10px] opacity-80">{item.command}</code> : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : null}
           <div className="mt-3 rounded-xl border border-cyan-300/15 bg-cyan-500/10 p-3">

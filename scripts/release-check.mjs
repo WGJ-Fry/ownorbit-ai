@@ -514,6 +514,8 @@ function checkAssets() {
     remoteAcceptanceChecklistSource.includes("connection.acceptance.importTitle") &&
     remoteAcceptanceChecklistSource.includes("connection.acceptance.latestEvidence") &&
     remoteAcceptanceChecklistSource.includes("connection.acceptance.summaryReady") &&
+    remoteAcceptanceChecklistSource.includes("connection.acceptance.nextActions") &&
+    remoteAcceptanceChecklistSource.includes("summary.blockingItems") &&
     remoteAcceptanceChecklistSource.includes("summary.hasLongTermEntry") &&
     remoteAcceptanceChecklistSource.includes("summary.hasRealWorldEvidence") &&
     remoteAcceptanceChecklistSource.includes("runbooks.latest") &&
@@ -562,6 +564,7 @@ function checkAssets() {
     remoteAcceptanceSource.includes("getRemoteAcceptanceRunbookRecords") &&
     remoteAcceptanceSource.includes("getRemoteAcceptanceRecords") &&
     remoteAcceptanceSource.includes("summarizeRemoteAcceptanceChecklist") &&
+    remoteAcceptanceSource.includes("blockingItems") &&
     remoteAcceptanceSource.includes("hasRealWorldEvidence") &&
     remoteAcceptanceSource.includes("Remote acceptance URL must not contain username, password, token, query, or fragment") &&
     remoteAcceptanceSource.includes("Remote acceptance report URLs must not contain username, password, token, query, or fragment") &&
@@ -646,6 +649,7 @@ function checkAssets() {
     translationsSource.includes("connection.acceptance.latestEvidence") &&
     translationsSource.includes("connection.acceptance.markDone") &&
     translationsSource.includes("connection.acceptance.summaryNotReady") &&
+    translationsSource.includes("connection.acceptance.nextActions") &&
     translationsSource.includes("Long-term remote acceptance is incomplete") &&
     translationsSource.includes("Remote Acceptance Command") &&
     translationsSource.includes("Latest Auto-Recovery") &&

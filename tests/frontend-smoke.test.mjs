@@ -638,6 +638,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.latestEvidence/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.automatedPassed/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.summaryReady/);
+  assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.nextActions/);
+  assert.match(remoteAcceptanceChecklistSource, /summary\.blockingItems/);
   assert.match(remoteAcceptanceChecklistSource, /summary\.hasLongTermEntry/);
   assert.match(remoteStabilitySectionSource, /remoteAcceptanceSummary/);
   assert.match(remoteAcceptanceChecklistSource, /completionStatus/);

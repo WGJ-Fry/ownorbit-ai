@@ -49,6 +49,7 @@ export type RemoteAcceptanceSummary = {
   manualRequired: number;
   hasLongTermEntry: boolean;
   hasRealWorldEvidence: boolean;
+  blockingItems: Array<Pick<RemoteAcceptanceItem, "id" | "status" | "action" | "command">>;
 };
 
 export type RemoteAcceptanceRecord = {
@@ -418,5 +419,14 @@ export function summarizeRemoteAcceptanceChecklist(checklist: RemoteAcceptanceIt
     manualRequired,
     hasLongTermEntry,
     hasRealWorldEvidence,
+    blockingItems: checklist
+      .filter((item) => item.status !== "passed")
+      .filter((item) => !(hasLongTermEntry && (item.id === "tailscale-https-serve" || item.id === "cloudflare-named-tunnel")))
+      .map((item) => ({
+        id: item.id,
+        status: item.status,
+        action: item.action,
+        command: item.command,
+      })),
   };
 }
