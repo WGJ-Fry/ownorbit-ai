@@ -198,8 +198,9 @@ export function getRemoteAcceptanceRunbookRecords(): RemoteAcceptanceRunbookReco
 
 export function saveRemoteAcceptanceRunbookReport(report: any, actor?: { type: string; id: string }) {
   const baseUrl = sanitizeBaseUrl(report?.baseUrl);
-  const entryKind = String(report?.entryKind || "");
-  if (!runbookEntryKinds.has(entryKind)) throw new Error("Remote acceptance report has an unsupported entry kind.");
+  const reportedEntryKind = String(report?.entryKind || "");
+  if (!runbookEntryKinds.has(reportedEntryKind)) throw new Error("Remote acceptance report has an unsupported entry kind.");
+  const derivedEntryKind = entryKind(baseUrl);
   const steps = Array.isArray(report?.automatedChecks?.steps) ? report.automatedChecks.steps.slice(0, 12).map((step: any) => ({
     id: String(step?.id || "unknown").slice(0, 40),
     ok: Boolean(step?.ok),
@@ -213,22 +214,23 @@ export function saveRemoteAcceptanceRunbookReport(report: any, actor?: { type: s
     title: String(step?.title || "Manual acceptance").slice(0, 80),
     required: Boolean(step?.required),
   })) : [];
-  const longTermReady = Boolean(report?.longTermReady);
   const realWorldAcceptanceRequired = typeof report?.realWorldAcceptanceRequired === "boolean"
     ? Boolean(report.realWorldAcceptanceRequired)
     : manualAcceptance.some((step) => step.required);
+  const automatedOk = Boolean(report?.automatedChecks?.ok);
+  const longTermReady = automatedOk && derivedEntryKind !== "temporary-cloudflare" && derivedEntryKind !== "local" && derivedEntryKind !== "insecure-http";
   const record: RemoteAcceptanceRunbookRecord = {
     id: `remote-acceptance-runbook-${Date.now()}`,
     baseUrl,
-    entryKind: entryKind as RemoteAcceptanceRunbookRecord["entryKind"],
+    entryKind: derivedEntryKind,
     longTermReady,
-    longTermReason: safeNote(report?.longTermReason),
+    longTermReason: longTermReason(derivedEntryKind, automatedOk),
     realWorldAcceptanceRequired,
     completionStatus: completionStatus(longTermReady, realWorldAcceptanceRequired),
     generatedAt: Number.isFinite(Date.parse(report?.generatedAt)) ? new Date(report.generatedAt).toISOString() : new Date().toISOString(),
     importedAt: Date.now(),
     automatedChecks: {
-      ok: Boolean(report?.automatedChecks?.ok),
+      ok: automatedOk,
       passed: safeNumber(report?.automatedChecks?.passed),
       total: safeNumber(report?.automatedChecks?.total, steps.length || 1),
       latencyMs: safeNumber(report?.automatedChecks?.latencyMs),

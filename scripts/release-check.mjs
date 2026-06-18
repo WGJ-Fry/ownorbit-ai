@@ -567,6 +567,8 @@ function checkAssets() {
     remoteAcceptanceSource.includes("saveRemoteAcceptanceRunbookReport") &&
     remoteAcceptanceSource.includes("saveRemoteAcceptanceRunbookFromConnectionTest") &&
     remoteAcceptanceSource.includes("safeRequirements") &&
+    remoteAcceptanceSource.includes("derivedEntryKind = entryKind(baseUrl)") &&
+    remoteAcceptanceSource.includes("longTermReason(derivedEntryKind, automatedOk)") &&
     remoteAcceptanceSource.includes("evidence") &&
     remoteAcceptanceSource.includes("realWorldAcceptanceRequired") &&
     remoteAcceptanceSource.includes("automated-ready-manual-required") &&
@@ -586,6 +588,8 @@ function checkAssets() {
     remoteValidationReportSource.includes("pairingEntryMismatch") &&
     remoteValidationReportSource.includes("qr-warning") &&
     remoteValidationReportTestSource.includes('result.expiredQr.status, "qr-warning"') &&
+    remoteValidationReportTestSource.includes('result.forged.entryKind, "temporary-cloudflare"') &&
+    remoteValidationReportTestSource.includes("Forged long-term ready") &&
     remoteHealthMonitorSource.includes("restoredBaseUrl") &&
     remoteHealthMonitorSource.includes("recoveryAction") &&
     remoteHealthMonitorSource.includes("check-tailscale") &&

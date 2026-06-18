@@ -637,7 +637,22 @@ test("remote acceptance runbook import persists smoke evidence and rejects unsaf
         attempts.push(error.message);
       }
     }
-    process.stdout.write(JSON.stringify({ record, validation, records: getRemoteAcceptanceRunbookRecords(), attempts }));
+    const forged = saveRemoteAcceptanceRunbookReport({
+      ...report,
+      baseUrl: "https://demo.trycloudflare.com",
+      entryKind: "stable-https",
+      longTermReady: true,
+      longTermReason: "Forged long-term ready",
+      automatedChecks: {
+        ...report.automatedChecks,
+        steps: [
+          { id: "health", ok: true, status: 200, url: "https://demo.trycloudflare.com/api/v1/health", latencyMs: 10 },
+          { id: "mobile-shell", ok: true, status: 200, url: "https://demo.trycloudflare.com/mobile/chat", latencyMs: 12 },
+          { id: "websocket", ok: true, status: 101, url: "wss://demo.trycloudflare.com/api/v1/ws", latencyMs: 14 },
+        ],
+      },
+    }, { type: "admin", id: "owner" });
+    process.stdout.write(JSON.stringify({ record, validation, records: getRemoteAcceptanceRunbookRecords(), attempts, forged }));
   `], {
     cwd: process.cwd(),
     env: { ...process.env, LIFEOS_DATA_DIR: dataDir },
@@ -649,14 +664,19 @@ test("remote acceptance runbook import persists smoke evidence and rejects unsaf
   assert.equal(result.record.realWorldAcceptanceRequired, true);
   assert.equal(result.record.completionStatus, "automated-ready-manual-required");
   assert.equal(result.record.longTermReason.includes("secret"), false);
+  assert.equal(result.record.longTermReason, "Remote entry is HTTPS, non-temporary, and passed automated smoke checks.");
   assert.equal(result.validation.ok, true);
   assert.equal(result.validation.label, "remote-acceptance:tailscale-https");
   assert.equal(result.validation.passed, 3);
-  assert.equal(result.records.length, 1);
+  assert.equal(result.records.length, 2);
   assert.equal(result.attempts.filter((item) => item === "accepted").length, 0);
   assert.match(result.attempts.join("\\n"), /HTTPS/);
   assert.match(result.attempts.join("\\n"), /username, password, token, query, or fragment/);
   assert.match(result.attempts.join("\\n"), /unsupported entry kind/);
+  assert.equal(result.forged.entryKind, "temporary-cloudflare");
+  assert.equal(result.forged.longTermReady, false);
+  assert.equal(result.forged.completionStatus, "not-ready");
+  assert.match(result.forged.longTermReason, /Temporary/);
 });
 
 test("remote acceptance can be generated from an automated connection test", async (t) => {
