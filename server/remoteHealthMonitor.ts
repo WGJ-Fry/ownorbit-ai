@@ -1,5 +1,5 @@
 import { getDesktopRuntimeConfig } from "./desktopRuntimeConfig.ts";
-import { maybeStartConfiguredCloudflareTunnel } from "./cloudflareTunnel.ts";
+import { maybeStartConfiguredCloudflareTunnel, setCloudflareTunnelReconnectHandler } from "./cloudflareTunnel.ts";
 import { maybeStartConfiguredTailscaleServe, testConnectionUrl } from "./networkDiagnostics.ts";
 import { getRemoteValidationReport, saveRemoteValidationReport } from "./remoteValidationReport.ts";
 import { getClientState, setClientState } from "./clientState.ts";
@@ -158,6 +158,9 @@ export function getRemoteRecoveryReport(): RemoteRecoveryReport | null {
 export function startRemoteHealthMonitor() {
   if (!monitorEnabled()) return;
   if (monitorTimer) return;
+  setCloudflareTunnelReconnectHandler(() => {
+    runRemoteHealthCheck("cloudflare-reconnect").catch(() => null);
+  });
   monitorStartedAt = Date.now();
   nextRunAt = monitorStartedAt + 4000;
   setTimeout(() => {

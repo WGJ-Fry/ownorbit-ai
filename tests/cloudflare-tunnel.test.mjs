@@ -228,6 +228,10 @@ while true; do sleep 1; done
     hostname: "lifeos.example.com",
     credentialsFile,
   });
+  let reconnectNotification = null;
+  tunnelManager.setCloudflareTunnelReconnectHandler((status) => {
+    reconnectNotification = status;
+  });
 
   const started = await tunnelManager.startConfiguredCloudflareNamedTunnel(1000);
   assert.equal(started.running, true);
@@ -237,7 +241,7 @@ while true; do sleep 1; done
   let status = tunnelManager.getManagedCloudflareTunnelStatus();
   while (Date.now() < deadline) {
     status = tunnelManager.getManagedCloudflareTunnelStatus();
-    if (status.running && status.reconnectAttempts >= 1 && status.lastOutput.includes("attempt 2")) break;
+    if (status.running && status.reconnectAttempts >= 1 && status.lastOutput.includes("attempt 2") && reconnectNotification) break;
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
 
@@ -246,6 +250,8 @@ while true; do sleep 1; done
   assert.equal(status.url, "https://lifeos.example.com");
   assert.equal(status.reconnectAttempts, 1);
   assert.match(status.lastOutput, /attempt 2/);
+  assert.equal(reconnectNotification?.url, "https://lifeos.example.com");
+  assert.equal(reconnectNotification?.kind, "named");
   assert.equal(await readFile(countFile, "utf8"), "2\n");
 
   tunnelManager.stopManagedCloudflareTunnel();

@@ -571,6 +571,8 @@ function checkAssets() {
     remoteHealthMonitorSource.includes("checkBaseUrl = remoteBaseUrl() || baseUrl") &&
     remoteHealthMonitorSource.includes("baseUrl: checkBaseUrl") &&
     remoteHealthMonitorSource.includes("getRemoteHealthMonitorStatus") &&
+    remoteHealthMonitorSource.includes("setCloudflareTunnelReconnectHandler") &&
+    remoteHealthMonitorSource.includes("cloudflare-reconnect") &&
     remoteHealthMonitorSource.includes("nextRunAt") &&
     adminRoutesSource.includes("remoteHealthMonitor") &&
     lifeosApiSourceForRouting.includes("entryKind") &&
@@ -713,10 +715,13 @@ function checkAssets() {
     cloudflareTunnelSource.includes("temporary_quick_tunnel_not_restored") &&
     cloudflareTunnelSource.includes("reconnectAttempts") &&
     cloudflareTunnelSource.includes("reconnectScheduledAt") &&
+    cloudflareTunnelSource.includes("setCloudflareTunnelReconnectHandler") &&
+    cloudflareTunnelSource.includes("notifyReconnect") &&
     cloudflareTunnelTestSource.includes("settingsSaved") &&
     cloudflareTunnelTestSource.includes("credentialsFileExists, false") &&
     cloudflareTunnelTestSource.includes("configured quick Cloudflare Tunnel is not treated as restart-stable") &&
     cloudflareTunnelTestSource.includes("reconnects automatically after an unexpected disconnect") &&
+    cloudflareTunnelTestSource.includes("setCloudflareTunnelReconnectHandler") &&
     packageJson.scripts.test.includes("tests/cloudflare-tunnel.test.mjs") &&
     cloudflareTunnelTestSource.includes("delete process.env.LIFEOS_CLOUDFLARE_TUNNEL_NAME") &&
     networkDiagnosticsTestSource.includes("connection URL tests strip credentials, query secrets, and fragments") &&

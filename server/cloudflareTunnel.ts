@@ -22,6 +22,8 @@ type ManagedTunnel = {
   reconnectReason: string;
 };
 
+type CloudflareReconnectHandler = (status: ReturnType<typeof getManagedCloudflareTunnelStatus>) => void | Promise<void>;
+
 const managedTunnel: ManagedTunnel = {
   process: null,
   url: "",
@@ -38,6 +40,8 @@ const managedTunnel: ManagedTunnel = {
   reconnectScheduledAt: null,
   reconnectReason: "",
 };
+
+let reconnectHandler: CloudflareReconnectHandler | null = null;
 
 const namedTunnelConfigPath = path.join(dataDir, "cloudflared-named-tunnel.yml");
 const namedTunnelSettingsPath = path.join(dataDir, "cloudflared-named-tunnel.json");
@@ -81,12 +85,27 @@ function scheduleNamedTunnelReconnect(reason: string) {
     if (managedTunnel.stopping || isAutostartDisabled()) return;
     managedTunnel.reconnectAttempts += 1;
     managedTunnel.lastReconnectAt = Date.now();
-    startConfiguredCloudflareNamedTunnel(15000).catch((error: any) => {
-      managedTunnel.lastError = String(error?.message || error || "Cloudflare Named Tunnel reconnect failed").slice(0, 500);
-      scheduleNamedTunnelReconnect("reconnect_failed");
-    });
+    startConfiguredCloudflareNamedTunnel(15000)
+      .then((status) => notifyReconnect(status))
+      .catch((error: any) => {
+        managedTunnel.lastError = String(error?.message || error || "Cloudflare Named Tunnel reconnect failed").slice(0, 500);
+        scheduleNamedTunnelReconnect("reconnect_failed");
+      });
   }, delay);
   managedTunnel.reconnectTimer.unref();
+}
+
+function notifyReconnect(status: ReturnType<typeof getManagedCloudflareTunnelStatus>) {
+  if (!reconnectHandler) return;
+  Promise.resolve()
+    .then(() => reconnectHandler?.(status))
+    .catch((error: any) => {
+      managedTunnel.lastError = String(error?.message || error || "Cloudflare Named Tunnel reconnect health refresh failed").slice(0, 500);
+    });
+}
+
+export function setCloudflareTunnelReconnectHandler(handler: CloudflareReconnectHandler | null) {
+  reconnectHandler = handler;
 }
 
 function commandForPort(port: string) {
