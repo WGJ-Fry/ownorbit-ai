@@ -93,9 +93,42 @@ function collectUnexpectedSensitiveFields(value, options = {}, currentPath = [])
   });
 }
 
+function collectUnexpectedSensitiveStrings(value, currentPath = []) {
+  if (typeof value === "string") {
+    const leaks = [];
+    const normalized = value.trim();
+    const pathKey = currentPath.join(".") || "(root)";
+    if (/\/Users\/[^\s,;"]+/.test(normalized) || /[A-Za-z]:\\[^\s,;"]+/.test(normalized)) {
+      leaks.push(`${pathKey}: local path`);
+    }
+    if (/\b(github_pat_|ghp_|sk-[A-Za-z0-9_-]{12,}|sk-or-[A-Za-z0-9_-]{12,}|AIza[0-9A-Za-z_-]{12,})/.test(normalized)) {
+      leaks.push(`${pathKey}: secret-like token`);
+    }
+    try {
+      const parsed = /^https?:\/\//i.test(normalized) || /^wss?:\/\//i.test(normalized) ? new URL(normalized) : null;
+      if (parsed?.username || parsed?.password || parsed?.hash) {
+        leaks.push(`${pathKey}: credentialed or fragment URL`);
+      }
+      for (const key of parsed?.searchParams.keys() || []) {
+        if (/api[-_]?key|token|password|passphrase|secret|authorization|cookie/i.test(key)) {
+          leaks.push(`${pathKey}: URL query secret`);
+        }
+      }
+    } catch {}
+    return leaks;
+  }
+  if (!value || typeof value !== "object") return [];
+  if (Array.isArray(value)) {
+    return value.flatMap((item, index) => collectUnexpectedSensitiveStrings(item, [...currentPath, String(index)]));
+  }
+  return Object.entries(value).flatMap(([key, item]) => collectUnexpectedSensitiveStrings(item, [...currentPath, key]));
+}
+
 function assertPublicApiResponse(label, value, options = {}) {
   const leaks = collectUnexpectedSensitiveFields(value, options);
   assert.deepEqual(leaks, [], `${label} returned sensitive fields: ${leaks.join(", ")}`);
+  const stringLeaks = collectUnexpectedSensitiveStrings(value);
+  assert.deepEqual(stringLeaks, [], `${label} returned sensitive strings: ${stringLeaks.join(", ")}`);
 }
 
 function assertSecretNotLeaked(samples, secret, allowedLabels = new Set()) {

@@ -1280,6 +1280,15 @@ function checkAssets() {
   ) pass("client state API responses and realtime broadcasts redact sensitive values");
   else warn("client state API responses or realtime broadcasts may expose sensitive values");
   if (
+    apiAuthTestSource.includes("collectUnexpectedSensitiveStrings") &&
+    apiAuthTestSource.includes("credentialed or fragment URL") &&
+    apiAuthTestSource.includes("URL query secret") &&
+    apiAuthTestSource.includes("secret-like token") &&
+    apiAuthTestSource.includes("local path") &&
+    apiAuthTestSource.includes("returned sensitive strings")
+  ) pass("API response audit rejects sensitive URL, path, and token-shaped strings");
+  else warn("API response audit may miss sensitive URL, local path, or token-shaped strings");
+  if (
     clientStateSource.includes("normalizeClientStateValue") &&
     clientStateSource.includes("normalizeAllowedUrlSchemes") &&
     clientStateSource.includes("Array.from(new Set") &&
