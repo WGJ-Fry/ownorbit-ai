@@ -1,4 +1,5 @@
 import { getClientState, listMemories } from "./lifeosApi";
+import { isSensitiveLocalStorageKey } from "./sensitiveLocalStorage";
 import type { AiProviderId } from "./lifeosApi";
 
 const defaultMemories = [
@@ -16,6 +17,7 @@ function parseLocalJson<T>(key: string, fallback: T) {
 }
 
 export function readLocalRuntimeValue<T>(key: string, fallback: T): T {
+  if (isSensitiveLocalStorageKey(key)) return fallback;
   let raw: string | null = null;
   try {
     raw = localStorage.getItem(key);

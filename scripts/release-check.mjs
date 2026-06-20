@@ -1302,6 +1302,7 @@ function checkAssets() {
   const appSecretsSource = exists("server/appSecrets.ts") ? fs.readFileSync(path.join(rootDir, "server/appSecrets.ts"), "utf8") : "";
   const aiKeyPanelSource = exists("src/pages/admin/settings/AiKeyPanel.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/AiKeyPanel.tsx"), "utf8") : "";
   const chatRuntimeSettingsSource = exists("src/services/chatRuntimeSettings.ts") ? fs.readFileSync(path.join(rootDir, "src/services/chatRuntimeSettings.ts"), "utf8") : "";
+  const chatRuntimeSettingsTestSource = exists("tests/chat-runtime-settings.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/chat-runtime-settings.test.mjs"), "utf8") : "";
   if (
     appSecretsSource.includes("gemini") &&
     appSecretsSource.includes("openai") &&
@@ -1314,8 +1315,12 @@ function checkAssets() {
     chatRuntimeSettingsSource.includes("lifeos_active_ai_provider") &&
     chatRuntimeSettingsSource.includes("providerId") &&
     chatRuntimeSettingsSource.includes("readLocalRuntimeValue") &&
+    chatRuntimeSettingsSource.includes("isSensitiveLocalStorageKey") &&
     chatRuntimeSettingsSource.includes("lifeos_proxy_nodes") &&
     !chatRuntimeSettingsSource.includes('getClientState("lifeos_model_engine", localStorage.getItem') &&
+    chatRuntimeSettingsTestSource.includes("runtime settings refuse sensitive local fallback keys") &&
+    chatRuntimeSettingsTestSource.includes("lifeos_byok_key") &&
+    chatRuntimeSettingsTestSource.includes("lifeos_proxy_url") &&
     aiKeyPanelSource.includes("listAiProviders") &&
     aiKeyPanelSource.includes("saveAiProviderKey") &&
     aiKeyPanelSource.includes("updateActiveAiProvider") &&

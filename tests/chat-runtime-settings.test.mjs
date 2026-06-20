@@ -44,6 +44,18 @@ test("runtime settings ignore corrupted local JSON for structured values", () =>
   });
 });
 
+test("runtime settings refuse sensitive local fallback keys", () => {
+  withLocalStorage({
+    lifeos_byok_key: "AIzaSy-local-legacy-secret",
+    lifeos_proxy_url: "https://proxy.example.test/sub?token=secret",
+    lifeos_openai_api_key: "sk-local-legacy-secret",
+  }, () => {
+    assert.equal(readLocalRuntimeValue("lifeos_byok_key", ""), "");
+    assert.equal(readLocalRuntimeValue("lifeos_proxy_url", "direct"), "direct");
+    assert.equal(readLocalRuntimeValue("lifeos_openai_api_key", null), null);
+  });
+});
+
 test("runtime settings tolerate unavailable browser storage", () => {
   withLocalStorage("throw", () => {
     assert.equal(readLocalRuntimeValue("lifeos_model_engine", "Gemini 2.0 Flash"), "Gemini 2.0 Flash");
