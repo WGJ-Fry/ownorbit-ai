@@ -391,7 +391,9 @@ test("Electron desktop exports a redacted desktop diagnostic bundle", async (t) 
   assert.match(diagnostics.mainWindow.url, new RegExp(`^http://127\\.0\\.0\\.1:${actualPort}/admin/login`));
   assert.equal(diagnostics.mainWindow.visible, true);
   assert.equal(diagnostics.updates.configured, true);
+  assert.equal(diagnostics.updates.enabled, false);
   assert.equal(diagnostics.updates.updateUrlHost, "updates.example.com");
+  assert.equal(diagnostics.updates.reason, "url_contains_credentials_or_tokens");
   assert.equal(diagnostics.release.manifestAvailable, true);
   assert.equal(diagnostics.release.checksumAvailable, true);
   assert.equal(diagnostics.release.version, "0.1.0");

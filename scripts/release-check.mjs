@@ -1515,6 +1515,15 @@ function checkSecurityConfig() {
   else warn("desktop diagnostic does not include local core health/admin status snapshots");
   if (desktopMain.includes("readReleaseSnapshot") && desktopMain.includes("release: readReleaseSnapshot()") && desktopSmokeTestSource.includes("diagnostics.release.manifestAvailable")) pass("desktop diagnostic includes release manifest and checksum metadata");
   else warn("desktop diagnostic does not include release manifest/checksum metadata");
+  if (
+    desktopMain.includes("validateDesktopUpdateUrl") &&
+    desktopMain.includes("url_contains_credentials_or_tokens") &&
+    desktopMain.includes("url_points_to_artifact") &&
+    desktopMain.includes("desktopUpdateStatus.enabled") &&
+    desktopSmokeTestSource.includes("diagnostics.updates.enabled") &&
+    desktopSmokeTestSource.includes("url_contains_credentials_or_tokens")
+  ) pass("desktop runtime disables unsafe auto-update URLs");
+  else warn("desktop runtime may accept unsafe auto-update URLs");
   if (desktopMain.includes("onboardingRequired") && desktopMain.includes("nextPath") && desktopMain.includes("First-run guide pending")) pass("desktop diagnostic captures first-launch onboarding routing state");
   else warn("desktop diagnostic does not capture first-launch onboarding routing state");
   if (

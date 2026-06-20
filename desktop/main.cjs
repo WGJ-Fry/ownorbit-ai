@@ -19,6 +19,12 @@ let desktopShellStatus = {
   url: "",
   updatedAt: null,
 };
+let desktopUpdateStatus = {
+  configured: false,
+  enabled: false,
+  updateUrlHost: "",
+  reason: "not_configured",
+};
 let shutdownRequested = false;
 const chromiumUnsafePorts = new Set([
   1, 7, 9, 11, 13, 15, 17, 19, 20, 21, 22, 23, 25, 37, 42, 43, 53, 69, 77, 79, 87, 95, 101, 102, 103, 104, 109, 110,
@@ -107,6 +113,25 @@ function normalizeDesktopRuntimeConfig(config) {
     publicBaseUrl: /^https?:\/\//i.test(publicBaseUrl) ? publicBaseUrl : "",
     allowPublic: Boolean(config.allowPublic),
   };
+}
+
+function validateDesktopUpdateUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return { configured: false, enabled: false, updateUrlHost: "", reason: "not_configured" };
+  try {
+    const parsed = new URL(raw);
+    const updateUrlHost = parsed.host;
+    if (parsed.protocol !== "https:") return { configured: true, enabled: false, updateUrlHost, reason: "non_https" };
+    if (parsed.username || parsed.password || parsed.search || parsed.hash) {
+      return { configured: true, enabled: false, updateUrlHost, reason: "url_contains_credentials_or_tokens" };
+    }
+    if (/\.(dmg|zip|exe|AppImage|yml|json)$/i.test(parsed.pathname)) {
+      return { configured: true, enabled: false, updateUrlHost, reason: "url_points_to_artifact" };
+    }
+    return { configured: true, enabled: true, updateUrlHost, reason: "ready", url: raw };
+  } catch {
+    return { configured: true, enabled: false, updateUrlHost: "invalid-url", reason: "invalid_url" };
+  }
 }
 
 function applyDesktopRuntimeConfig() {
@@ -452,6 +477,7 @@ function readReleaseSnapshot() {
 
 async function createDesktopDiagnosticBundle() {
   const logStat = desktopLogPath && fs.existsSync(desktopLogPath) ? fs.statSync(desktopLogPath) : null;
+  desktopUpdateStatus = validateDesktopUpdateUrl(process.env.LIFEOS_UPDATE_URL);
   const [healthResult, adminStatusResult] = await Promise.all([
     fetchLocalJson("/api/v1/health"),
     fetchLocalJson("/api/v1/admin/status"),
@@ -490,14 +516,10 @@ async function createDesktopDiagnosticBundle() {
       adminStatusError: adminStatusResult.ok ? "" : adminStatusResult.error || "",
     },
     updates: {
-      configured: Boolean(process.env.LIFEOS_UPDATE_URL),
-      updateUrlHost: process.env.LIFEOS_UPDATE_URL ? (() => {
-        try {
-          return new URL(process.env.LIFEOS_UPDATE_URL).host;
-        } catch {
-          return "invalid-url";
-        }
-      })() : "",
+      configured: desktopUpdateStatus.configured,
+      enabled: desktopUpdateStatus.enabled,
+      updateUrlHost: desktopUpdateStatus.updateUrlHost,
+      reason: desktopUpdateStatus.reason,
     },
     release: readReleaseSnapshot(),
     logs: {
@@ -721,9 +743,16 @@ async function configureDesktopShell() {
 }
 
 function configureUpdates() {
-  if (!app.isPackaged || !process.env.LIFEOS_UPDATE_URL) return;
+  desktopUpdateStatus = validateDesktopUpdateUrl(process.env.LIFEOS_UPDATE_URL);
+  if (!desktopUpdateStatus.configured || !desktopUpdateStatus.enabled) {
+    if (desktopUpdateStatus.configured) {
+      writeDesktopLog("Auto update disabled by unsafe update URL", `reason=${desktopUpdateStatus.reason} host=${desktopUpdateStatus.updateUrlHost}`);
+    }
+    return;
+  }
+  if (!app.isPackaged) return;
   autoUpdater.autoDownload = false;
-  autoUpdater.setFeedURL({ provider: "generic", url: process.env.LIFEOS_UPDATE_URL });
+  autoUpdater.setFeedURL({ provider: "generic", url: desktopUpdateStatus.url });
   autoUpdater.checkForUpdates().catch((error) => {
     console.warn("LifeOS update check failed:", error?.message || error);
   });
