@@ -1009,6 +1009,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
       publicKey: signatureKeyPair.publicKey,
     }),
   }).then((res) => res.json());
+  assert.equal(signatureCredential.authMethod, "signature");
+  assert.equal(signatureCredential.accessToken, undefined);
+  assert.equal(typeof signatureCredential.accessTokenExpiresAt, "number");
   const signedStateBody = JSON.stringify({ value: { enabled: true } });
   const signedStateHeaders = signedDeviceHeaders({
     deviceId: signatureCredential.device.id,
@@ -1484,7 +1487,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     { label: "pending restore", value: pendingRestore },
     { label: "binding", value: binding, allowedPaths: new Set(["token"]) },
     { label: "signature binding", value: signatureBinding, allowedPaths: new Set(["token"]) },
-    { label: "signature credential", value: signatureCredential, allowedPaths: new Set(["accessToken"]) },
+    { label: "signature credential", value: signatureCredential },
     { label: "missing AI chat", value: missingAiChat.body },
     { label: "missing OpenAI chat", value: missingOpenAiChat.body },
     { label: "missing app generation", value: missingAiAppGeneration.body },
@@ -1521,7 +1524,6 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assertSecretNotLeaked(publicResponses, "password123");
   assertSecretNotLeaked(publicResponses, binding.token, new Set(["binding"]));
   assertSecretNotLeaked(publicResponses, credential.accessToken, new Set(["credential"]));
-  assertSecretNotLeaked(publicResponses, signatureCredential.accessToken, new Set(["signature credential"]));
   assertSecretNotLeaked(publicResponses, rotated.accessToken, new Set(["rotated token"]));
   assertSecretNotLeaked(publicResponses, adminRequestedRotation.accessToken, new Set(["admin requested rotation"]));
 });

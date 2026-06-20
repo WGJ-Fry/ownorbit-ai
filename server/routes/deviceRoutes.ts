@@ -192,7 +192,8 @@ export function registerDeviceRoutes(app: express.Express) {
 
     res.json({
       device: sanitizeDevice(device),
-      accessToken,
+      authMethod,
+      ...(authMethod === "token" ? { accessToken } : {}),
       accessTokenExpiresAt: device.accessTokenExpiresAt,
     });
   });
