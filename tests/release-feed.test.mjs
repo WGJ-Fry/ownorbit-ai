@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import crypto from "node:crypto";
 import { createRequire } from "node:module";
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -39,6 +39,15 @@ function runReleaseCheck(env = {}) {
     },
     encoding: "utf8",
   });
+}
+
+async function fileExists(file) {
+  try {
+    await access(file);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function createPackagedMacApp(releaseDir, entries) {
@@ -229,6 +238,51 @@ test("release feed generator writes Windows and Linux updater metadata", async (
   assert.equal(linux.size, (await stat(path.join(releaseDir, "LifeOS AI-0.1.0.AppImage"))).size);
   assert.equal(linux.sha256, crypto.createHash("sha256").update("fake appimage bytes for feed smoke").digest("hex"));
   assert.match(linuxFeed, new RegExp(linux.sha512.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+});
+
+test("release feed generator removes stale metadata before rewriting feeds", async (t) => {
+  const releaseDir = await mkdtemp(path.join(tmpdir(), "lifeos-release-feed-stale-"));
+  t.after(async () => {
+    await rm(releaseDir, { recursive: true, force: true });
+  });
+
+  await writeFile(path.join(releaseDir, "LifeOS AI Setup 0.1.0.exe"), "fake nsis bytes for stale feed smoke");
+  await writeFile(path.join(releaseDir, "LifeOS AI-0.1.0.AppImage"), "fake appimage bytes for stale feed smoke");
+  const first = spawnSync(process.execPath, ["scripts/prepare-update-feed.mjs"], {
+    cwd: rootDir,
+    env: {
+      ...process.env,
+      LIFEOS_RELEASE_DIR: releaseDir,
+    },
+    encoding: "utf8",
+  });
+  assert.equal(first.status, 0, `${first.stdout}\n${first.stderr}`);
+  assert.ok(await fileExists(path.join(releaseDir, "update-feed", "latest.yml")));
+  assert.ok(await fileExists(path.join(releaseDir, "update-feed", "latest-linux.yml")));
+
+  await rm(path.join(releaseDir, "LifeOS AI Setup 0.1.0.exe"), { force: true });
+  await rm(path.join(releaseDir, "LifeOS AI-0.1.0.AppImage"), { force: true });
+  await writeFile(path.join(releaseDir, "LifeOS AI-0.1.0-arm64-unsigned.zip"), "fake mac zip bytes after stale feed");
+  const second = spawnSync(process.execPath, ["scripts/prepare-update-feed.mjs"], {
+    cwd: rootDir,
+    env: {
+      ...process.env,
+      LIFEOS_RELEASE_DIR: releaseDir,
+    },
+    encoding: "utf8",
+  });
+  assert.equal(second.status, 0, `${second.stdout}\n${second.stderr}`);
+  assert.ok(await fileExists(path.join(releaseDir, "update-feed", "latest-mac.yml")));
+  assert.equal(await fileExists(path.join(releaseDir, "update-feed", "latest.yml")), false);
+  assert.equal(await fileExists(path.join(releaseDir, "update-feed", "latest-linux.yml")), false);
+  assert.equal(await fileExists(path.join(releaseDir, "update-feed", "LifeOS AI Setup 0.1.0.exe")), false);
+  assert.equal(await fileExists(path.join(releaseDir, "update-feed", "LifeOS AI-0.1.0.AppImage")), false);
+
+  const manifest = JSON.parse(await readFile(path.join(releaseDir, "update-feed", "release-manifest.json"), "utf8"));
+  assert.deepEqual(manifest.artifacts.map((artifact) => artifact.platform), ["mac"]);
+  const checksums = await readFile(path.join(releaseDir, "SHA256SUMS"), "utf8");
+  assert.doesNotMatch(checksums, /LifeOS AI Setup 0\.1\.0\.exe/);
+  assert.doesNotMatch(checksums, /LifeOS AI-0\.1\.0\.AppImage/);
 });
 
 test("release check verifies packaged macOS app contains runtime entrypoints", async (t) => {

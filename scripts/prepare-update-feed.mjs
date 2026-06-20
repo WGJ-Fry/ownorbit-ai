@@ -63,6 +63,7 @@ if (artifacts.length === 0) {
   process.exit(1);
 }
 
+fs.rmSync(feedDir, { recursive: true, force: true });
 fs.mkdirSync(feedDir, { recursive: true });
 
 const macArtifact = artifacts.find((file) => file.endsWith(".dmg")) || artifacts.find((file) => /mac|darwin|unsigned/i.test(file) && file.endsWith(".zip"));
