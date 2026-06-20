@@ -29,6 +29,10 @@ function getProviderId(value: string): AiProviderId | null {
   return aiProviders.some((provider) => provider.id === value) ? value as AiProviderId : null;
 }
 
+function getLegacyGeminiProvider() {
+  return aiProviders.find((provider) => provider.id === "gemini")!;
+}
+
 function aiStatusAuditMetadata(status: ReturnType<typeof getAiProviderStatus>) {
   return {
     provider: status.provider,
@@ -529,18 +533,22 @@ export function registerAdminRoutes(app: express.Express) {
   });
 
   app.put("/api/v1/admin/ai-key", requireAdmin, (req, res) => {
+    const provider = getLegacyGeminiProvider();
     const apiKey = String(req.body?.apiKey || "").trim();
-    if (process.env.GEMINI_API_KEY) {
-      return res.status(409).json({ error: "AI key is managed by GEMINI_API_KEY environment variable" });
+    if (process.env[provider.envVar]) {
+      return res.status(409).json({ error: `AI key is managed by ${provider.envVar} environment variable` });
     }
     if (apiKey.length < 16) {
       return res.status(400).json({ error: "API key is too short" });
     }
 
-    saveAiApiKey(apiKey);
-    const status = getAiConfigStatus();
-    insertAuditLog("ai_key_saved", "config", "google_gemini", aiStatusAuditMetadata(status));
-    res.json({ ai: getAiConfigStatus() });
+    saveAiApiKey(apiKey, provider.id);
+    const status = getAiProviderStatus(provider.id);
+    insertAuditLog("ai_key_saved", "config", "google_gemini", {
+      ...aiStatusAuditMetadata(status),
+      compatibilityEndpoint: true,
+    });
+    res.json({ ai: status });
   });
 
   app.put("/api/v1/admin/ai-providers/:providerId/key", requireAdmin, (req, res) => {
@@ -566,13 +574,17 @@ export function registerAdminRoutes(app: express.Express) {
   });
 
   app.delete("/api/v1/admin/ai-key", requireAdmin, (_req, res) => {
-    if (process.env.GEMINI_API_KEY) {
-      return res.status(409).json({ error: "AI key is managed by GEMINI_API_KEY environment variable" });
+    const provider = getLegacyGeminiProvider();
+    if (process.env[provider.envVar]) {
+      return res.status(409).json({ error: `AI key is managed by ${provider.envVar} environment variable` });
     }
-    deleteAiApiKey();
-    const status = getAiConfigStatus();
-    insertAuditLog("ai_key_deleted", "config", "google_gemini", aiStatusAuditMetadata(status));
-    res.json({ ai: getAiConfigStatus() });
+    deleteAiApiKey(provider.id);
+    const status = getAiProviderStatus(provider.id);
+    insertAuditLog("ai_key_deleted", "config", "google_gemini", {
+      ...aiStatusAuditMetadata(status),
+      compatibilityEndpoint: true,
+    });
+    res.json({ ai: status });
   });
 
   app.delete("/api/v1/admin/ai-providers/:providerId/key", requireAdmin, (req, res) => {

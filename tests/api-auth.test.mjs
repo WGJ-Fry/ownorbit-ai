@@ -390,6 +390,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     headers: adminHeaders,
     body: JSON.stringify({ apiKey: testAiKey }),
   }).then((res) => res.json());
+  assert.equal(savedAiKey.ai.id, "gemini");
+  assert.equal(savedAiKey.ai.provider, "Google Gemini");
   assert.equal(savedAiKey.ai.configured, true);
   assert.equal(savedAiKey.ai.source, "encrypted_store");
   assert.equal(savedAiKey.ai.secureStorage.current, "local_aes_gcm");
@@ -409,6 +411,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     method: "DELETE",
     headers: adminHeaders,
   }).then((res) => res.json());
+  assert.equal(deletedAiKey.ai.id, "gemini");
+  assert.equal(deletedAiKey.ai.provider, "Google Gemini");
   assert.equal(deletedAiKey.ai.configured, false);
   assert.equal(deletedAiKey.ai.source, "missing");
   assert.equal(deletedAiKey.ai.secureStorage.current, undefined);
@@ -829,12 +833,14 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const findConfigAudit = (action, targetId) => auditAfterExports.logs.find((log) => log.action === action && log.targetType === "config" && log.targetId === targetId);
   const geminiKeySavedAudit = findConfigAudit("ai_key_saved", "google_gemini");
   assert.equal(geminiKeySavedAudit.metadata.provider, "Google Gemini");
+  assert.equal(geminiKeySavedAudit.metadata.compatibilityEndpoint, true);
   assert.equal(geminiKeySavedAudit.metadata.configured, true);
   assert.equal(geminiKeySavedAudit.metadata.source, "encrypted_store");
   assert.equal(typeof geminiKeySavedAudit.metadata.secureStorage.label, "string");
   assert.equal(typeof geminiKeySavedAudit.metadata.secureStorage.fallbackActive, "boolean");
   const geminiKeyDeletedAudit = findConfigAudit("ai_key_deleted", "google_gemini");
   assert.equal(geminiKeyDeletedAudit.metadata.provider, "Google Gemini");
+  assert.equal(geminiKeyDeletedAudit.metadata.compatibilityEndpoint, true);
   assert.equal(geminiKeyDeletedAudit.metadata.configured, false);
   assert.equal(geminiKeyDeletedAudit.metadata.source, "missing");
   assert.equal(typeof geminiKeyDeletedAudit.metadata.secureStorage.migrationRecommended, "boolean");
