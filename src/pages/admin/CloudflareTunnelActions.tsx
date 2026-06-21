@@ -14,12 +14,13 @@ export default function CloudflareTunnelActions({
   onStop: () => void;
 }) {
   const { t } = useI18n();
+  const canStart = cloudflare.installed;
 
   return (
     <div className="mt-3 grid gap-2">
       <button
         onClick={onStart}
-        disabled={tunnelBusy === "start"}
+        disabled={!canStart || tunnelBusy === "start"}
         className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-100 disabled:opacity-50"
       >
         <WandSparkles className="h-3.5 w-3.5" />
@@ -58,6 +59,11 @@ export default function CloudflareTunnelActions({
               {t("connection.cloudflareReconnectScheduled", { time: new Date(cloudflare.managed.reconnectScheduledAt).toLocaleTimeString() })}
             </div>
           ) : null}
+        </div>
+      ) : !canStart ? (
+        <div className="rounded-xl border border-amber-400/15 bg-amber-500/10 p-2 text-[11px] leading-relaxed text-amber-100">
+          <div>{t("connection.cloudflareInstallRequired")}</div>
+          <div className="mt-1 font-mono text-amber-50/90">{cloudflare.installCommand}</div>
         </div>
       ) : null}
     </div>

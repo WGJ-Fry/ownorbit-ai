@@ -741,6 +741,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(cloudflareNamedTunnelCardSource, /credentialsFileExists/);
   assert.match(cloudflareNamedTunnelCardSource, /connection\.namedCredentialsReady/);
   assert.match(cloudflareNamedTunnelCardSource, /connection\.namedCredentialsMissing/);
+  const cloudflareTunnelActionsSource = await readFile(path.join(rootDir, "src", "pages", "admin", "CloudflareTunnelActions.tsx"), "utf8");
+  assert.match(cloudflareTunnelActionsSource, /const canStart = cloudflare\.installed/);
+  assert.match(cloudflareTunnelActionsSource, /disabled=\{!canStart \|\| tunnelBusy === "start"\}/);
+  assert.match(cloudflareTunnelActionsSource, /connection\.cloudflareInstallRequired/);
+  assert.match(cloudflareTunnelActionsSource, /cloudflare\.installCommand/);
 
   const devicePairSource = await readFile(path.join(rootDir, "src", "pages", "admin", "DevicePairPage.tsx"), "utf8");
   assert.match(devicePairSource, /connectionCandidates/);
@@ -777,6 +782,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /实时通道/);
   assert.match(translationsSource, /下一步：当前入口没有稳定转发 WebSocket/);
   assert.match(translationsSource, /Next step: this entry is not forwarding WebSocket reliably/);
+  assert.match(translationsSource, /下一步：先安装 cloudflared/);
+  assert.match(translationsSource, /Next step: install cloudflared first/);
 
   const adminDashboardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminDashboardPage.tsx"), "utf8");
   assert.match(adminDashboardSource, /dashboard\.publicRiskTitle/);

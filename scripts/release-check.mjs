@@ -459,6 +459,7 @@ function checkAssets() {
   const remoteValidationReportTestSource = exists("tests/remote-validation-report.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/remote-validation-report.test.mjs"), "utf8") : "";
   const remoteHealthMonitorSource = exists("server/remoteHealthMonitor.ts") ? fs.readFileSync(path.join(rootDir, "server/remoteHealthMonitor.ts"), "utf8") : "";
   const connectionToolStatusSource = exists("src/pages/admin/ConnectionToolStatus.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/ConnectionToolStatus.tsx"), "utf8") : "";
+  const cloudflareTunnelActionsSource = exists("src/pages/admin/CloudflareTunnelActions.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/CloudflareTunnelActions.tsx"), "utf8") : "";
   const customRemoteEntrySource = exists("src/pages/admin/CustomRemoteEntryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/CustomRemoteEntryCard.tsx"), "utf8") : "";
   const devicePairSource = exists("src/pages/admin/DevicePairPage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/DevicePairPage.tsx"), "utf8") : "";
   const devicePairConnectionTestSource = exists("src/pages/admin/DevicePairConnectionTestResult.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/DevicePairConnectionTestResult.tsx"), "utf8") : "";
@@ -808,6 +809,11 @@ function checkAssets() {
     networkDiagnosticsTestSource.includes("configured Tailscale HTTPS Serve autostart refreshes the saved stable URL") &&
     networkDiagnosticsTestSource.includes("configured Tailscale HTTPS Serve autostart uses the runtime port instead of the environment default") &&
     networkDiagnosticsTestSource.includes("Tailscale HTTP fallback is not accepted as a long-term remote entry") &&
+    cloudflareTunnelActionsSource.includes("const canStart = cloudflare.installed") &&
+    cloudflareTunnelActionsSource.includes('disabled={!canStart || tunnelBusy === "start"}') &&
+    cloudflareTunnelActionsSource.includes("connection.cloudflareInstallRequired") &&
+    cloudflareTunnelActionsSource.includes("cloudflare.installCommand") &&
+    translationsSource.includes("connection.cloudflareInstallRequired") &&
     cloudflareTunnelSource.includes("cloudflared-named-tunnel.json") &&
     cloudflareTunnelSource.includes("loadNamedTunnelSettings") &&
     cloudflareTunnelSource.includes("saveNamedTunnelSettings") &&
