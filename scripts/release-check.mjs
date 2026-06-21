@@ -1177,8 +1177,11 @@ function checkAssets() {
     mobileDeviceSource.includes("MobileOfflineQueueCards") &&
     mobileDeviceSource.includes("offlineQueue.remoteEntryTitle") &&
     mobileDeviceSource.includes("currentEntryGuidance.map") &&
-    mobileOfflineQueueCardsSource.includes("getOfflineMessageStatusLabel") &&
-    mobileOfflineQueueCardsSource.includes("getOfflineMessageRetryLabel") &&
+    mobileOfflineQueueCardsSource.includes("getOfflineMessageNextRetryAt") &&
+    mobileOfflineQueueCardsSource.includes("offlineQueue.status.pending") &&
+    mobileOfflineQueueCardsSource.includes("offlineQueue.status.syncing") &&
+    mobileOfflineQueueCardsSource.includes("offlineQueue.status.failed") &&
+    mobileOfflineQueueCardsSource.includes("offlineQueue.readyToRetry") &&
     mobileOfflineQueueCardsSource.includes("getOfflineMessageQueueStorageLabel") &&
     mobileOfflineQueueCardsSource.includes("getOfflineMessageQueueUsageLabel") &&
     mobileOfflineQueueCardsSource.includes("storage.nearByteLimit") &&
@@ -1192,6 +1195,8 @@ function checkAssets() {
     translationsSource.includes("offlineQueue.persistentStorage") &&
     translationsSource.includes("offlineQueue.failureReason") &&
     translationsSource.includes("offlineQueue.remoteEntryTitle") &&
+    translationsSource.includes("offlineQueue.status.pending") &&
+    translationsSource.includes("offlineQueue.readyToRetry") &&
     offlineQueueTestSource.includes("getOfflineMessageStatusLabel") &&
     offlineQueueTestSource.includes("getOfflineMessageRetryLabel") &&
     offlineQueueTestSource.includes("formatOfflineMessageQueueBytes") &&

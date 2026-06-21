@@ -1,9 +1,8 @@
 import {
   formatOfflineMessageQueueBytes,
+  getOfflineMessageNextRetryAt,
   getOfflineMessageQueueStorageLabel,
   getOfflineMessageQueueUsageLabel,
-  getOfflineMessageRetryLabel,
-  getOfflineMessageStatusLabel,
   type OfflineMessageQueueStorageStatus,
   type OfflineQueuedMessage,
 } from "../../services/offlineMessageQueue";
@@ -40,8 +39,10 @@ export function QueueStorageCard({ storage }: { storage: OfflineMessageQueueStor
 export function QueueItem({ item, onRetry, onRemove }: { item: OfflineQueuedMessage; onRetry: () => void; onRemove: () => void }) {
   const { t } = useI18n();
   const preview = item.message.parts.find((part) => part.text)?.text || t("offlineQueue.attachmentMessage");
-  const statusLabel = getOfflineMessageStatusLabel(item);
-  const retryLabel = getOfflineMessageRetryLabel(item);
+  const nextRetryAt = getOfflineMessageNextRetryAt(item);
+  const retryReady = typeof nextRetryAt === "number" && nextRetryAt <= Date.now();
+  const statusLabel = item.status === "failed" ? t("offlineQueue.status.failed") : item.status === "syncing" ? t("offlineQueue.status.syncing") : t("offlineQueue.status.pending");
+  const retryLabel = !nextRetryAt ? "" : retryReady ? t("offlineQueue.readyToRetry") : t("offlineQueue.nextRetry", { time: new Date(nextRetryAt).toLocaleTimeString() });
   const statusClass = item.status === "failed" ? "border-red-400/20 bg-red-500/10 text-red-100" : item.status === "syncing" ? "border-amber-400/20 bg-amber-500/10 text-amber-100" : "border-cyan-400/20 bg-cyan-500/10 text-cyan-100";
   return (
     <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3 text-xs">

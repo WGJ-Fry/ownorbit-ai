@@ -493,8 +493,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.doesNotMatch(mobileDeviceSource, /href="\/mobile\/pair"/);
 
   const mobileOfflineQueueCardsSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileOfflineQueueCards.tsx"), "utf8");
-  assert.match(mobileOfflineQueueCardsSource, /getOfflineMessageStatusLabel/);
-  assert.match(mobileOfflineQueueCardsSource, /getOfflineMessageRetryLabel/);
+  assert.match(mobileOfflineQueueCardsSource, /getOfflineMessageNextRetryAt/);
+  assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.status\.pending/);
+  assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.status\.syncing/);
+  assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.status\.failed/);
+  assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.readyToRetry/);
   assert.match(mobileOfflineQueueCardsSource, /getOfflineMessageQueueStorageLabel/);
   assert.match(mobileOfflineQueueCardsSource, /getOfflineMessageQueueUsageLabel/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.storageTitle/);
@@ -506,6 +509,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceSource, /currentEntryGuidance\.map/);
   assert.match(translationsSource, /offlineQueue\.remoteEntryTitle/);
   assert.match(translationsSource, /离线队列存储/);
+  assert.match(translationsSource, /待同步/);
+  assert.match(translationsSource, /可以重试/);
   assert.match(translationsSource, /localStorage 兼容镜像/);
   assert.match(translationsSource, /持久化存储/);
   assert.match(translationsSource, /失败原因/);
