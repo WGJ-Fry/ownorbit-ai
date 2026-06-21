@@ -42,6 +42,7 @@ export type MobileConnectivityResult = {
   ok: boolean;
   currentBase: string;
   latencyMs: number;
+  testedAt?: number;
   steps: MobileConnectivityStep[];
   error?: string;
 };
@@ -348,6 +349,7 @@ export async function testMobileRemoteConnectivity(options: { currentHref?: stri
       ok,
       currentBase,
       latencyMs: Date.now() - startedAt,
+      testedAt: Date.now(),
       steps,
       error: ok ? undefined : steps.find((step) => !step.ok)?.error || "Mobile connectivity test failed",
     };

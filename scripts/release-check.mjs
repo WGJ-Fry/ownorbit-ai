@@ -935,8 +935,9 @@ function checkAssets() {
   else warn("PWA install path malformed-token hardening lacks source or test coverage");
 
   const mobileDeviceSource = exists("src/pages/mobile/MobileDevicePage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileDevicePage.tsx"), "utf8") : "";
+  const mobileDeviceStatusCardsSource = exists("src/pages/mobile/MobileDeviceStatusCards.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileDeviceStatusCards.tsx"), "utf8") : "";
   if (
-    mobileDeviceSource.includes("mobileDevice.pastePairingLink") &&
+    mobileDeviceStatusCardsSource.includes("mobileDevice.pastePairingLink") &&
     mobileDeviceSource.includes("mobileDevice.rebindButton") &&
     mobileDeviceSource.includes("pairingInstallPath") &&
     !mobileDeviceSource.includes('href="/mobile/pair"') &&
@@ -967,8 +968,8 @@ function checkAssets() {
     deviceCredentialStoreSource.includes("LEGACY_LOCAL_STORAGE_KEY") &&
     deviceCredentialStoreSource.includes("localStorage.removeItem(LEGACY_LOCAL_STORAGE_KEY)") &&
     !deviceCredentialStoreSource.includes("localStorage.setItem(LEGACY_LOCAL_STORAGE_KEY") &&
-    mobileDeviceSource.includes("mobileDevice.storageTitle") &&
-    mobileDeviceSource.includes("mobileDevice.legacyCredential") &&
+    mobileDeviceStatusCardsSource.includes("mobileDevice.storageTitle") &&
+    mobileDeviceStatusCardsSource.includes("mobileDevice.legacyCredential") &&
     translationsSource.includes("mobileDevice.storageTitle") &&
     translationsSource.includes("mobileDevice.legacyCredential")
   ) pass("mobile device credentials migrate away from localStorage and expose storage status");
@@ -1094,6 +1095,8 @@ function checkAssets() {
     mobileConnectivityCardSource.includes("mobileDevice.openTailscale") &&
     mobileConnectivityCardSource.includes("mobileDevice.rebindRemoteEntry") &&
     mobileConnectivityCardSource.includes("mobileDevice.retryRealtime") &&
+    mobileConnectivityCardSource.includes("mobileDevice.connectivityTestedAt") &&
+    translationsSource.includes("mobileDevice.connectivityTestedAt") &&
     mobileDeviceSource.includes("pwaCapabilities.recommendations") &&
     adminDashboardSource.includes("connectivityReport") &&
     adminDashboardSource.includes("DeviceConnectivityStatus") &&

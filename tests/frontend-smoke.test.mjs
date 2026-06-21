@@ -351,6 +351,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /测试当前手机连通性/);
 
   const mobileDeviceSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileDevicePage.tsx"), "utf8");
+  const mobileDeviceStatusCardsSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileDeviceStatusCards.tsx"), "utf8");
   assert.match(mobileDeviceSource, /getPwaCapabilityStatus/);
   assert.match(mobileDeviceSource, /getRemoteEntryStatus/);
   assert.match(mobileDeviceSource, /getRemoteEntryGuidance/);
@@ -381,9 +382,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileConnectivityCardSource, /mobileDevice\.openTailscale/);
   assert.match(mobileConnectivityCardSource, /mobileDevice\.rebindRemoteEntry/);
   assert.match(mobileConnectivityCardSource, /mobileDevice\.retryRealtime/);
+  assert.match(mobileConnectivityCardSource, /mobileDevice\.connectivityTestedAt/);
   assert.match(translationsSource, /远程入口自检/);
   assert.match(translationsSource, /当前入口建议/);
   assert.match(translationsSource, /测试当前手机连通性/);
+  assert.match(translationsSource, /测试时间/);
   assert.match(translationsSource, /打开 Tailscale/);
   assert.match(translationsSource, /重新绑定远程入口/);
   assert.match(translationsSource, /离线消息同步失败/);
@@ -466,16 +469,16 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
 
   assert.match(mobileDeviceSource, /mobileDevice\.confirmRemoveItem/);
   assert.match(mobileDeviceSource, /mobileDevice\.confirmClearQueue/);
-  assert.match(mobileDeviceSource, /mobileDevice\.pastePairingLink/);
+  assert.match(mobileDeviceStatusCardsSource, /mobileDevice\.pastePairingLink/);
   assert.match(mobileDeviceSource, /mobileDevice\.rebindTitle/);
   assert.match(mobileDeviceSource, /mobileDevice\.rebindBody/);
   assert.match(mobileDeviceSource, /mobileDevice\.rebindButton/);
-  assert.match(mobileDeviceSource, /mobileDevice\.pairingPlaceholder/);
+  assert.match(mobileDeviceStatusCardsSource, /mobileDevice\.pairingPlaceholder/);
   assert.match(mobileDeviceSource, /revokeCurrentDeviceBinding/);
   assert.match(mobileDeviceSource, /mobileDevice\.forgetBinding/);
-  assert.match(mobileDeviceSource, /mobileDevice\.storageTitle/);
+  assert.match(mobileDeviceStatusCardsSource, /mobileDevice\.storageTitle/);
   assert.match(mobileDeviceSource, /IndexedDB/);
-  assert.match(mobileDeviceSource, /mobileDevice\.legacyCredential/);
+  assert.match(mobileDeviceStatusCardsSource, /mobileDevice\.legacyCredential/);
   assert.match(translationsSource, /删除这条离线消息/);
   assert.match(translationsSource, /清空离线消息队列/);
   assert.match(translationsSource, /粘贴电脑端绑定链接/);

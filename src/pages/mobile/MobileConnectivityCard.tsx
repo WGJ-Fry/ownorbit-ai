@@ -35,6 +35,7 @@ export default function MobileConnectivityCard({
           ? t("mobileDevice.connectivityOk", { passed, total: result.steps.length, latency: result.latencyMs })
           : t("mobileDevice.connectivityFail", { passed, total: result.steps.length, message: result.error || "-" })}
       </div>
+      {result.testedAt ? <div className="mt-1 text-xs opacity-75">{t("mobileDevice.connectivityTestedAt", { time: new Date(result.testedAt).toLocaleString() })}</div> : null}
       <div className="mt-3 space-y-2">
         {result.steps.map((step) => (
           <div key={step.id} className="rounded-xl border border-white/[0.08] bg-black/10 p-2">
