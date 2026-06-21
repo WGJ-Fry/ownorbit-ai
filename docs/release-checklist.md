@@ -66,7 +66,7 @@ For the current platform release smoke, use:
 npm run desktop:release:smoke
 ```
 
-This runs the quality gate, builds the current platform artifact, regenerates update metadata, and runs the strict unsigned release check. In CI, set `LIFEOS_RELEASE_SMOKE_FAST=1` to use the lighter smoke gate before platform packaging.
+This runs the quality gate, builds the current platform artifact, regenerates update metadata, blocks stale installer artifacts, verifies the packaged artifact, and runs the strict unsigned release check. In CI, set `LIFEOS_RELEASE_SMOKE_FAST=1` to use the lighter smoke gate before platform packaging.
 
 On macOS, run the real packaged app launch smoke before handing the zip to users:
 

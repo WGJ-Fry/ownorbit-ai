@@ -236,6 +236,8 @@ function checkScripts() {
     else fail("desktop release smoke should build Linux AppImage artifact");
     if (smoke.match(/release:feed/g)?.length >= 2) pass("desktop release smoke regenerates update feed after Windows/Linux builds");
     else fail("desktop release smoke should regenerate update feed after Windows/Linux builds");
+    if (smoke.includes("release:artifacts:check")) pass("desktop release smoke blocks stale installer artifacts before verification");
+    else fail("desktop release smoke should run release:artifacts:check before packaged artifact verification");
     if (smoke.includes("desktop:artifact:smoke")) pass("desktop release smoke verifies packaged artifacts after building");
     else fail("desktop release smoke should run desktop:artifact:smoke after packaging");
     if (smoke.includes("LIFEOS_RELEASE_SMOKE_LAUNCH") && smoke.includes("desktop:artifact:smoke:launch")) {

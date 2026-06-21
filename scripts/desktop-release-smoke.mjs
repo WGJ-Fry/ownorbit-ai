@@ -43,6 +43,7 @@ if (process.platform === "darwin") {
   process.exit(1);
 }
 
+run("release:artifacts:check");
 run("desktop:artifact:smoke");
 if (process.platform === "darwin" && launchPackagedMacApp) {
   run("desktop:artifact:smoke:launch");

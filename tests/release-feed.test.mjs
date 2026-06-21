@@ -417,6 +417,7 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /desktop release smoke builds unsigned Windows NSIS artifact/);
   assert.match(result.stdout, /desktop release smoke builds Linux AppImage artifact/);
   assert.match(result.stdout, /desktop release smoke regenerates update feed after Windows\/Linux builds/);
+  assert.match(result.stdout, /desktop release smoke blocks stale installer artifacts before verification/);
   assert.match(result.stdout, /desktop release smoke verifies packaged artifacts after building/);
   assert.match(result.stdout, /desktop release smoke can launch the packaged macOS app when requested/);
   assert.match(result.stdout, /desktop artifact launch smoke script starts the packaged app/);
