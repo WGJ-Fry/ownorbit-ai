@@ -14,6 +14,10 @@ function electronBinaryPath() {
   return path.join(rootDir, "node_modules", "electron", "dist", "electron");
 }
 
+function electronLaunchArgs() {
+  return process.platform === "linux" ? ["--no-sandbox", "desktop/main.cjs"] : ["desktop/main.cjs"];
+}
+
 async function waitForHealth(port, child, output) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < 20_000) {
@@ -75,7 +79,7 @@ test("Electron desktop starts the local core and exposes admin health", async (t
   const port = 6310 + Math.floor(Math.random() * 1000);
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-desktop-smoke-"));
   const userDataDir = await mkdtemp(path.join(tmpdir(), "lifeos-desktop-user-data-"));
-  const child = spawn(electronBinaryPath(), ["desktop/main.cjs"], {
+  const child = spawn(electronBinaryPath(), electronLaunchArgs(), {
     cwd: rootDir,
     env: {
       ...process.env,
@@ -191,7 +195,7 @@ test("Electron desktop loads saved connection config before starting local core"
     baseUrl: "https://desktop-smoke.example.com",
     updatedAt: Date.now(),
   }, null, 2)}\n`);
-  const child = spawn(electronBinaryPath(), ["desktop/main.cjs"], {
+  const child = spawn(electronBinaryPath(), electronLaunchArgs(), {
     cwd: rootDir,
     env: {
       ...process.env,
@@ -265,7 +269,7 @@ if (args[0] === "serve") {
 process.exit(1);
 `);
 
-  const child = spawn(electronBinaryPath(), ["desktop/main.cjs"], {
+  const child = spawn(electronBinaryPath(), electronLaunchArgs(), {
     cwd: rootDir,
     env: {
       ...process.env,
@@ -326,7 +330,7 @@ test("Electron desktop exports a redacted desktop diagnostic bundle", async (t) 
       releaseDate: new Date(0).toISOString(),
     }],
   }, null, 2)}\n`);
-  const child = spawn(electronBinaryPath(), ["desktop/main.cjs"], {
+  const child = spawn(electronBinaryPath(), electronLaunchArgs(), {
     cwd: rootDir,
     env: {
       ...process.env,
@@ -421,7 +425,7 @@ test("Electron desktop keeps a startup failure window open when local core fails
   const port = 7310 + Math.floor(Math.random() * 1000);
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-desktop-failure-"));
   const userDataDir = await mkdtemp(path.join(tmpdir(), "lifeos-desktop-user-data-"));
-  const child = spawn(electronBinaryPath(), ["desktop/main.cjs"], {
+  const child = spawn(electronBinaryPath(), electronLaunchArgs(), {
     cwd: rootDir,
     env: {
       ...process.env,

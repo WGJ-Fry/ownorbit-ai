@@ -233,6 +233,14 @@ function checkScripts() {
       qualityWorkflow.match(/NODE_OPTIONS:\s*--experimental-sqlite/g)?.length >= 4
     ) pass("GitHub Actions quality gate runs Playwright E2E, desktop smoke, SQLite-enabled tests, and remote smoke");
     else fail("GitHub Actions quality gate must run Playwright E2E, desktop smoke, SQLite-enabled tests, and remote smoke");
+
+    const desktopSmokeTest = exists("tests/desktop-smoke.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests", "desktop-smoke.test.mjs"), "utf8") : "";
+    if (
+      qualityWorkflow.includes("ELECTRON_DISABLE_SANDBOX") &&
+      desktopSmokeTest.includes("electronLaunchArgs") &&
+      desktopSmokeTest.includes("--no-sandbox")
+    ) pass("GitHub Actions quality gate disables Electron sandbox for Linux desktop smoke");
+    else fail("Linux CI desktop smoke must disable the Electron sandbox or configure chrome-sandbox permissions");
   } else {
     fail("missing remote mock smoke script: scripts/remote-connection-mock-smoke.mjs");
   }
