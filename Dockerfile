@@ -2,6 +2,9 @@ FROM node:24-bookworm-slim AS builder
 
 WORKDIR /app
 
+ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+
 COPY package*.json ./
 RUN npm ci
 
