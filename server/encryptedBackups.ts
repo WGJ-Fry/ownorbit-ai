@@ -47,6 +47,19 @@ function deriveKey(passphrase: string, salt: Buffer, iterations = PBKDF2_ITERATI
   return crypto.pbkdf2Sync(passphrase, salt, iterations, KEY_BYTES, "sha256");
 }
 
+function decodeBase64UrlField(value: unknown, expectedBytes: number | { min: number; max: number }, label: string) {
+  if (typeof value !== "string" || !/^[A-Za-z0-9_-]+$/.test(value)) {
+    throw new Error(`Invalid encrypted backup ${label}`);
+  }
+  const decoded = Buffer.from(value, "base64url");
+  if (typeof expectedBytes === "number") {
+    if (decoded.length !== expectedBytes) throw new Error(`Invalid encrypted backup ${label}`);
+  } else if (decoded.length < expectedBytes.min || decoded.length > expectedBytes.max) {
+    throw new Error(`Invalid encrypted backup ${label}`);
+  }
+  return decoded;
+}
+
 export function encryptBackupFile(file: string, passphraseInput: unknown): EncryptedBackupPayload {
   const passphrase = normalizePassphrase(passphraseInput);
   const backupPath = getBackupPath(file);
@@ -85,22 +98,26 @@ function assertPayload(payload: any): asserts payload is EncryptedBackupPayload 
   if (!payload || payload.magic !== MAGIC || payload.version !== VERSION) {
     throw new Error("Unsupported encrypted backup file");
   }
+  if (typeof payload.originalFile !== "string" || payload.originalFile.length > 180 || /[\\/]/.test(payload.originalFile)) {
+    throw new Error("Unsupported encrypted backup file");
+  }
   if (payload.kdf?.name !== "pbkdf2" || payload.kdf?.hash !== "sha256" || payload.cipher?.name !== "aes-256-gcm") {
     throw new Error("Unsupported encrypted backup parameters");
   }
-  if (typeof payload.ciphertext !== "string" || Buffer.byteLength(payload.ciphertext, "base64url") > MAX_CIPHERTEXT_BYTES) {
-    throw new Error("Encrypted backup is too large");
-  }
+  decodeBase64UrlField(payload.kdf.salt, SALT_BYTES, "salt");
+  decodeBase64UrlField(payload.cipher.iv, IV_BYTES, "iv");
+  decodeBase64UrlField(payload.cipher.tag, AUTH_TAG_BYTES, "auth tag");
+  decodeBase64UrlField(payload.ciphertext, { min: 1, max: MAX_CIPHERTEXT_BYTES }, "ciphertext");
 }
 
 export function importEncryptedBackup(payload: unknown, passphraseInput: unknown) {
   const passphrase = normalizePassphrase(passphraseInput);
   assertPayload(payload);
 
-  const salt = Buffer.from(payload.kdf.salt, "base64url");
-  const iv = Buffer.from(payload.cipher.iv, "base64url");
-  const tag = Buffer.from(payload.cipher.tag, "base64url");
-  const ciphertext = Buffer.from(payload.ciphertext, "base64url");
+  const salt = decodeBase64UrlField(payload.kdf.salt, SALT_BYTES, "salt");
+  const iv = decodeBase64UrlField(payload.cipher.iv, IV_BYTES, "iv");
+  const tag = decodeBase64UrlField(payload.cipher.tag, AUTH_TAG_BYTES, "auth tag");
+  const ciphertext = decodeBase64UrlField(payload.ciphertext, { min: 1, max: MAX_CIPHERTEXT_BYTES }, "ciphertext");
   const key = deriveKey(passphrase, salt, payload.kdf.iterations);
 
   try {

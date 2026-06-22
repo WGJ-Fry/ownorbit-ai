@@ -645,6 +645,30 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     body: JSON.stringify({ payload: encryptedExport.payload, passphrase: "wrong password value" }),
   });
   assert.equal(rejectedEncryptedImport.status, 400);
+  const malformedEncryptedImport = await request(port, "/api/v1/backups/encrypted-import", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      payload: {
+        ...encryptedExport.payload,
+        cipher: { ...encryptedExport.payload.cipher, iv: "bad" },
+      },
+      passphrase: encryptedPassphrase,
+    }),
+  });
+  assert.equal(malformedEncryptedImport.status, 400);
+  const pathTraversalEncryptedImport = await request(port, "/api/v1/backups/encrypted-import", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      payload: {
+        ...encryptedExport.payload,
+        originalFile: "../lifeos.db",
+      },
+      passphrase: encryptedPassphrase,
+    }),
+  });
+  assert.equal(pathTraversalEncryptedImport.status, 400);
 
   const encryptedImport = await request(port, "/api/v1/backups/encrypted-import", {
     method: "POST",
