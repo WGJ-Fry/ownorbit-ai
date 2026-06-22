@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -128,6 +128,7 @@ test("public mode diagnostics flag weak password, non-HTTPS, and missing backup"
   assert.equal(initialHealth.publicRisk.overall, "critical");
   assert.equal(initialHealth.publicRisk.items.some((item) => item.id === "admin" && item.status === "critical"), true);
   assert.equal(initialHealth.publicRisk.items.some((item) => item.id === "backup" && item.status === "critical"), true);
+  assert.equal(initialHealth.publicRisk.items.some((item) => item.id === "backupFreshness" && item.status === "critical"), true);
   assert.equal(initialHealth.publicRisk.items.some((item) => item.id === "backupSchedule" && item.status === "critical"), true);
 
   const setupResponse = await request(port, "/api/v1/admin/setup", {
@@ -143,6 +144,7 @@ test("public mode diagnostics flag weak password, non-HTTPS, and missing backup"
   assert.equal(configuredHealth.publicRisk.items.some((item) => item.id === "password" && item.status === "critical"), true);
   assert.equal(configuredHealth.publicRisk.items.some((item) => item.id === "https" && item.status === "critical"), true);
   assert.equal(configuredHealth.publicRisk.items.some((item) => item.id === "backup" && item.status === "critical"), true);
+  assert.equal(configuredHealth.publicRisk.items.some((item) => item.id === "backupFreshness" && item.status === "critical"), true);
   assert.equal(configuredHealth.publicRisk.items.some((item) => item.id === "backupSchedule" && item.status === "critical"), true);
 
   const diagnostics = await request(port, "/api/v1/admin/config-diagnostics", { headers: adminHeaders }).then((res) => res.json());
@@ -151,6 +153,7 @@ test("public mode diagnostics flag weak password, non-HTTPS, and missing backup"
   assert.equal(diagnostics.securityCheck.items.some((item) => item.id === "password" && item.status === "critical"), true);
   assert.equal(diagnostics.securityCheck.items.some((item) => item.id === "https" && item.status === "critical"), true);
   assert.equal(diagnostics.securityCheck.items.some((item) => item.id === "backup" && item.status === "critical"), true);
+  assert.equal(diagnostics.securityCheck.items.some((item) => item.id === "backupFreshness" && item.status === "critical"), true);
   assert.equal(diagnostics.securityCheck.items.some((item) => item.id === "backupSchedule" && item.status === "critical"), true);
   assert.equal(diagnostics.securityCheck.items.some((item) => item.id === "publicOptIn" && item.status === "ok"), true);
   assert.equal(diagnostics.storage.backupSchedule.enabled, false);
@@ -160,6 +163,19 @@ test("public mode diagnostics flag weak password, non-HTTPS, and missing backup"
     headers: adminHeaders,
   });
   assert.equal(backupResponse.status, 200);
+  const staleBackup = await backupResponse.json();
+  const staleDate = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+  await utimes(path.join(dataDir, "backups", staleBackup.backup.file), staleDate, staleDate);
+
+  const staleBackupDiagnostics = await request(port, "/api/v1/admin/config-diagnostics", { headers: adminHeaders }).then((res) => res.json());
+  assert.equal(staleBackupDiagnostics.securityCheck.items.some((item) => item.id === "backup" && item.status === "ok"), true);
+  assert.equal(staleBackupDiagnostics.securityCheck.items.some((item) => item.id === "backupFreshness" && item.status === "critical"), true);
+
+  const freshBackupResponse = await request(port, "/api/v1/backups", {
+    method: "POST",
+    headers: adminHeaders,
+  });
+  assert.equal(freshBackupResponse.status, 200);
 
   const passwordResponse = await request(port, "/api/v1/admin/password", {
     method: "PUT",
@@ -178,6 +194,7 @@ test("public mode diagnostics flag weak password, non-HTTPS, and missing backup"
   const improvedDiagnostics = await request(port, "/api/v1/admin/config-diagnostics", { headers: adminHeaders }).then((res) => res.json());
   assert.equal(improvedDiagnostics.securityCheck.items.some((item) => item.id === "password" && item.status === "ok"), true);
   assert.equal(improvedDiagnostics.securityCheck.items.some((item) => item.id === "backup" && item.status === "ok"), true);
+  assert.equal(improvedDiagnostics.securityCheck.items.some((item) => item.id === "backupFreshness" && item.status === "ok"), true);
   assert.equal(improvedDiagnostics.securityCheck.items.some((item) => item.id === "backupSchedule" && item.status === "ok"), true);
   assert.equal(improvedDiagnostics.securityCheck.items.some((item) => item.id === "https" && item.status === "critical"), true);
   assert.equal(improvedDiagnostics.storage.backupSchedule.enabled, true);
@@ -187,6 +204,7 @@ test("public mode diagnostics flag weak password, non-HTTPS, and missing backup"
   assert.equal(improvedHealth.publicSetupRisk, true);
   assert.equal(improvedHealth.publicRisk.items.some((item) => item.id === "password"), false);
   assert.equal(improvedHealth.publicRisk.items.some((item) => item.id === "backup"), false);
+  assert.equal(improvedHealth.publicRisk.items.some((item) => item.id === "backupFreshness"), false);
   assert.equal(improvedHealth.publicRisk.items.some((item) => item.id === "backupSchedule"), false);
   assert.equal(improvedHealth.publicRisk.items.some((item) => item.id === "https" && item.status === "critical"), true);
 });

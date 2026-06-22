@@ -1,3 +1,4 @@
+import fs from "fs";
 import { getClientState } from "./clientState";
 import { isAdminConfigured } from "./auth";
 import { listAiProviderStatuses } from "./appSecrets";
@@ -14,6 +15,7 @@ export type SecurityCheckItem = {
 };
 
 const weakPasswordSamples = new Set(["password", "password123", "12345678", "123456789", "lifeos123", "admin123", "changeme"]);
+const staleBackupAgeMs = 7 * 24 * 60 * 60 * 1000;
 
 export function evaluatePasswordPolicy(password: string) {
   const normalized = password.trim().toLowerCase();
@@ -37,6 +39,10 @@ export function getSecurityDiagnostics() {
   const passwordPolicy = getClientState("lifeos_admin_password_policy")?.value as ReturnType<typeof evaluatePasswordPolicy> | undefined;
   const aiConfigured = listAiProviderStatuses().some((provider) => provider.configured);
   const backupCount = listBackups().length;
+  const latestBackup = listBackups()[0];
+  const latestBackupModifiedAt = latestBackup?.path && fs.existsSync(latestBackup.path) ? fs.statSync(latestBackup.path).mtimeMs : latestBackup?.createdAt;
+  const backupAgeMs = latestBackupModifiedAt ? Date.now() - latestBackupModifiedAt : null;
+  const backupFresh = backupCount > 0 && backupAgeMs !== null && backupAgeMs <= staleBackupAgeMs;
   const backupSchedule = getBackupSchedule();
 
   const items: SecurityCheckItem[] = [
@@ -102,6 +108,17 @@ export function getSecurityDiagnostics() {
       status: backupCount > 0 ? "ok" : publicMode ? "critical" : "warning",
       message: backupCount > 0 ? `${backupCount} backup(s) available.` : "No SQLite backup has been created.",
       action: "Create a backup before public access, upgrade, or migration.",
+    },
+    {
+      id: "backupFreshness",
+      label: "Recent Backup",
+      status: backupCount === 0 ? (publicMode ? "critical" : "warning") : backupFresh ? "ok" : publicMode ? "critical" : "warning",
+      message: backupCount === 0
+        ? "No backup freshness can be verified because no backup exists."
+        : backupFresh
+          ? "Latest backup is recent."
+          : "Latest backup is older than 7 days.",
+      action: backupFresh ? "No action needed." : "Create a fresh backup before long-term remote access or upgrades.",
     },
     {
       id: "backupSchedule",
