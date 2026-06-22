@@ -46,7 +46,7 @@ jobs:
         env:
           NODE_OPTIONS: --experimental-sqlite
           ELECTRON_DISABLE_SANDBOX: "1"
-        run: npm run test:desktop
+        run: xvfb-run -a npm run test:desktop
 
       - name: Remote connection mock smoke
         env:

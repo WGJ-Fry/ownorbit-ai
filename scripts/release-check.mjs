@@ -237,10 +237,11 @@ function checkScripts() {
     const desktopSmokeTest = exists("tests/desktop-smoke.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests", "desktop-smoke.test.mjs"), "utf8") : "";
     if (
       qualityWorkflow.includes("ELECTRON_DISABLE_SANDBOX") &&
+      qualityWorkflow.includes("xvfb-run -a npm run test:desktop") &&
       desktopSmokeTest.includes("electronLaunchArgs") &&
       desktopSmokeTest.includes("--no-sandbox")
-    ) pass("GitHub Actions quality gate disables Electron sandbox for Linux desktop smoke");
-    else fail("Linux CI desktop smoke must disable the Electron sandbox or configure chrome-sandbox permissions");
+    ) pass("GitHub Actions quality gate runs Linux desktop smoke under Xvfb with Electron sandbox disabled");
+    else fail("Linux CI desktop smoke must run under Xvfb and disable the Electron sandbox or configure chrome-sandbox/display permissions");
   } else {
     fail("missing remote mock smoke script: scripts/remote-connection-mock-smoke.mjs");
   }
