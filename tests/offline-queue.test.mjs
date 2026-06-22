@@ -151,6 +151,8 @@ test("offline message queue deduplicates and persists retry state", async () => 
   [item] = queueModule.getOfflineMessageQueue();
   assert.equal(item.status, "pending");
   assert.equal(item.lastError, undefined);
+  assert.equal(item.manualRetryCount, 1);
+  assert.equal(typeof item.lastManualRetryAt, "number");
 
   queueModule.markOfflineMessageFailed(firstId, new Error("network down again"));
   queueModule.resetFailedOfflineMessages();
@@ -247,6 +249,8 @@ test("single offline message retry and remove only change the selected queue ite
   const afterRetry = queueModule.getOfflineMessageQueue();
   assert.equal(afterRetry.find((item) => item.id === firstId)?.status, "pending");
   assert.equal(afterRetry.find((item) => item.id === firstId)?.lastError, undefined);
+  assert.equal(afterRetry.find((item) => item.id === firstId)?.manualRetryCount, 1);
+  assert.equal(typeof afterRetry.find((item) => item.id === firstId)?.lastManualRetryAt, "number");
   assert.equal(afterRetry.find((item) => item.id === secondId)?.status, "failed");
   assert.equal(afterRetry.find((item) => item.id === secondId)?.lastError, "second failed");
   assert.equal(afterRetry.find((item) => item.id === thirdId)?.status, "failed");

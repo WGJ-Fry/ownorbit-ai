@@ -19,6 +19,8 @@ export type OfflineQueuedMessage = {
   status: "pending" | "syncing" | "failed";
   attempts: number;
   lastAttemptAt?: number;
+  manualRetryCount?: number;
+  lastManualRetryAt?: number;
   lastError?: string;
 };
 
@@ -102,6 +104,8 @@ function normalizeQueueItem(item: any): OfflineQueuedMessage | null {
     status: item.status === "syncing" || item.status === "failed" ? item.status : "pending",
     attempts: Number.isFinite(item.attempts) ? item.attempts : 0,
     lastAttemptAt: Number.isFinite(item.lastAttemptAt) ? item.lastAttemptAt : undefined,
+    manualRetryCount: Number.isFinite(item.manualRetryCount) ? item.manualRetryCount : undefined,
+    lastManualRetryAt: Number.isFinite(item.lastManualRetryAt) ? item.lastManualRetryAt : undefined,
     lastError: typeof item.lastError === "string" ? item.lastError.slice(0, 500) : undefined,
   };
 }
@@ -393,7 +397,15 @@ export function removeOfflineMessages(ids: string[]) {
 
 export function retryOfflineMessage(id: string) {
   writeQueue(readQueue().map((item) => (
-    item.id === id ? { ...item, status: "pending", lastError: undefined } : item
+    item.id === id
+      ? {
+        ...item,
+        status: "pending",
+        lastError: undefined,
+        manualRetryCount: (item.manualRetryCount || 0) + 1,
+        lastManualRetryAt: Date.now(),
+      }
+      : item
   )));
 }
 

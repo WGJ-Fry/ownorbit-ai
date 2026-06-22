@@ -522,6 +522,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.persistentStorage/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.failureReason/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.retryOne/);
+  assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.manualRetryMeta/);
   assert.match(mobileOfflineQueueCardsSource, /recommendationKey/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.recommendation\.browserStorage/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.recommendation\.persistentStorage/);

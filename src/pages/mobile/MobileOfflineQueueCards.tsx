@@ -56,6 +56,9 @@ export function QueueItem({ item, onRetry, onRemove }: { item: OfflineQueuedMess
   const statusLabel = item.status === "failed" ? t("offlineQueue.status.failed") : item.status === "syncing" ? t("offlineQueue.status.syncing") : t("offlineQueue.status.pending");
   const retryLabel = !nextRetryAt ? "" : retryReady ? t("offlineQueue.readyToRetry") : t("offlineQueue.nextRetry", { time: new Date(nextRetryAt).toLocaleTimeString() });
   const statusClass = item.status === "failed" ? "border-red-400/20 bg-red-500/10 text-red-100" : item.status === "syncing" ? "border-amber-400/20 bg-amber-500/10 text-amber-100" : "border-cyan-400/20 bg-cyan-500/10 text-cyan-100";
+  const manualRetryLabel = item.lastManualRetryAt
+    ? t("offlineQueue.manualRetryMeta", { count: item.manualRetryCount || 1, time: new Date(item.lastManualRetryAt).toLocaleTimeString() })
+    : "";
   return (
     <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3 text-xs">
       <div className="flex items-start justify-between gap-3">
@@ -76,6 +79,7 @@ export function QueueItem({ item, onRetry, onRemove }: { item: OfflineQueuedMess
           {retryLabel}
         </div>
       ) : null}
+      {manualRetryLabel ? <div className="mt-2 rounded-xl border border-cyan-400/20 bg-cyan-500/10 p-2 leading-relaxed text-cyan-100">{manualRetryLabel}</div> : null}
       <div className="mt-3 flex items-center gap-2">
         <button aria-label={t("offlineQueue.retryAria", { preview })} onClick={onRetry} className="inline-flex flex-1 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-500/10 px-3 py-2 font-bold text-amber-100">
           {t("offlineQueue.retryOne")}
