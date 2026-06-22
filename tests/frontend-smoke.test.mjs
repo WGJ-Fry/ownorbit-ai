@@ -786,6 +786,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
 
   const devicePairSource = await readFile(path.join(rootDir, "src", "pages", "admin", "DevicePairPage.tsx"), "utf8");
   assert.match(devicePairSource, /connectionCandidates/);
+  assert.match(devicePairSource, /candidate\.mode !== "local"/);
+  assert.match(devicePairSource, /devicePair\.noReachableAddress/);
+  assert.match(devicePairSource, /devicePair\.openConnectionGuide/);
   assert.match(devicePairSource, /testConnectionUrl/);
   assert.match(devicePairSource, /devicePair\.testCurrent/);
   assert.match(devicePairSource, /connection\.secureRecommended/);
@@ -809,6 +812,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(devicePairConnectionTestSource, /devicePair\.testFix\.websocket/);
   assert.match(devicePairConnectionTestSource, /devicePair\.testFix\.https/);
   assert.match(devicePairConnectionTestSource, /devicePair\.testFix\.generic/);
+  assert.match(translationsSource, /还没有手机可访问的地址/);
+  assert.match(translationsSource, /No phone-reachable address yet/);
   assert.match(translationsSource, /测试当前绑定地址/);
   assert.match(translationsSource, /推荐安全/);
   assert.match(translationsSource, /仅可信网络/);

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { CheckCircle2, Copy, Loader2, PlugZap, RefreshCw, ShieldCheck, Smartphone } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Copy, Loader2, PlugZap, RefreshCw, ShieldCheck, Smartphone } from "lucide-react";
 import { BindingSession, BoundDevice, getBindingSession, getNetworkDiagnostics, NetworkDiagnostics, startBindingSession, testConnectionUrl } from "../../services/lifeosApi";
 import type { ConnectionTestResult } from "../../services/lifeosApi";
 import DevicePairConnectionTestResult from "./DevicePairConnectionTestResult";
@@ -20,6 +20,7 @@ export default function DevicePairPage() {
 
   const createSession = async () => {
     setError(null);
+    setSession(null);
     setConfirmedDevice(null);
     setConnectionTestResult(null);
     try {
@@ -28,9 +29,15 @@ export default function DevicePairPage() {
         const networkDiagnostics = await getNetworkDiagnostics();
         setDiagnostics(networkDiagnostics);
         recommendedBaseUrl = networkDiagnostics.recommendedBaseUrl;
+        recommendedBaseUrl = networkDiagnostics.connectionCandidates.find((candidate) => candidate.mode !== "local")?.baseUrl || "";
       } catch {
         setDiagnostics(null);
         recommendedBaseUrl = "";
+      }
+      if (!recommendedBaseUrl) {
+        setPairingBaseUrl("");
+        setError(t("devicePair.noReachableAddress"));
+        return;
       }
       const data = await startBindingSession(recommendedBaseUrl);
       setPairingBaseUrl(data.baseUrl || recommendedBaseUrl);
@@ -115,13 +122,46 @@ export default function DevicePairPage() {
         </section>
 
         <section className="rounded-[28px] border border-white/[0.08] bg-[#0b111a] p-6 flex flex-col items-center justify-center min-h-[520px]">
-          {error && (
+          {error && session ? (
             <div className="text-red-300 text-sm bg-red-500/10 border border-red-500/20 rounded-2xl p-4 mb-4 w-full">
               {error}
             </div>
-          )}
+          ) : null}
 
-          {confirmedDevice ? (
+          {error && !session ? (
+            <div className="w-full text-center">
+              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl border border-amber-400/20 bg-amber-500/10">
+                <AlertTriangle className="h-7 w-7 text-amber-300" />
+              </div>
+              <h2 className="text-xl font-bold">{t("devicePair.noReachableTitle")}</h2>
+              <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-zinc-400">{t("devicePair.noReachableBody")}</p>
+              {diagnostics?.connectionCandidates?.length ? (
+                <div className="mt-5 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-left text-xs text-zinc-400">
+                  <div className="font-bold text-zinc-200">{t("devicePair.detectedOnlyTitle")}</div>
+                  <div className="mt-2 space-y-2">
+                    {diagnostics.connectionCandidates.slice(0, 3).map((candidate) => (
+                      <div key={candidate.id} className="rounded-xl bg-black/20 p-2">
+                        <div className="font-semibold text-zinc-200">{candidate.label}</div>
+                        <div className="mt-1 break-all font-mono text-zinc-500">{candidate.baseUrl}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              <div className="mt-6 grid gap-3">
+                <a href="/admin/settings#mobile-connect" className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-3 text-sm font-bold text-[#061016]">
+                  {t("devicePair.openConnectionGuide")}
+                </a>
+                <button
+                  onClick={createSession}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm font-bold text-zinc-200"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  {t("devicePair.retryDiagnostics")}
+                </button>
+              </div>
+            </div>
+          ) : confirmedDevice ? (
             <div className="text-center">
               <CheckCircle2 className="w-16 h-16 text-emerald-300 mx-auto mb-5" />
               <h2 className="text-xl font-bold">{t("devicePair.successTitle")}</h2>
