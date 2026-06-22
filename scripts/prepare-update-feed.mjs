@@ -6,6 +6,7 @@ const rootDir = process.cwd();
 const releaseDir = process.env.LIFEOS_RELEASE_DIR ? path.resolve(process.env.LIFEOS_RELEASE_DIR) : path.join(rootDir, "release");
 const feedDir = path.join(releaseDir, "update-feed");
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
+const packageVersionCore = String(packageJson.version).match(/\d+\.\d+\.\d+/)?.[0] || packageJson.version;
 
 function topLevelReleaseFiles() {
   if (!fs.existsSync(releaseDir)) return [];
@@ -28,8 +29,9 @@ function yamlString(value) {
 
 function artifactVersionMismatches(file) {
   const name = path.basename(file);
+  if (name.includes(packageJson.version)) return [];
   const versionMatches = [...name.matchAll(/\b(\d+\.\d+\.\d+)\b/g)].map((match) => match[1]);
-  return versionMatches.filter((version) => version !== packageJson.version);
+  return versionMatches.filter((version) => version !== packageVersionCore || packageJson.version !== packageVersionCore);
 }
 
 function writeFeed(fileName, artifact, platform) {

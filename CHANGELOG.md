@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.1-alpha.0
+
+Focused Docker quickstart alpha for the local Markdown memory loop.
+
+- Added Docker Compose quickstart with LifeOS, Ollama, automatic `llama3.2` pull, local vault, and local data mounts.
+- Added GHCR Docker image workflow for tagged releases.
+- Added quickstart mode so env-managed local installs can log in once and go straight to `/chat`.
+- Added local Markdown vault ingestion for `/api/chat` with prompt-injection guardrails.
+- Changed the local model default to `llama3.2` and made quickstart/local env settings override frontend provider/model hints.
+- Changed repository metadata and license to MIT for a real open-source release path.
+- Rewrote README around the single verifiable promise: ask "What am I forgetting?" from local Markdown notes.
+
 ## 0.1.0
 
 Initial local-first LifeOS AI desktop/PWA release.

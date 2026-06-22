@@ -11,6 +11,11 @@ import { fileURLToPath } from "node:url";
 const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const require = createRequire(import.meta.url);
 const asar = require("@electron/asar");
+const currentVersion = JSON.parse(await readFile(path.join(rootDir, "package.json"), "utf8")).version;
+const currentVersionPattern = currentVersion.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const currentMacZipName = `LifeOS AI-${currentVersion}-arm64-unsigned.zip`;
+const currentWinInstallerName = `LifeOS AI Setup ${currentVersion}.exe`;
+const currentLinuxAppImageName = `LifeOS AI-${currentVersion}.AppImage`;
 const packagedDesktopMain = [
   "function fetchLocalJson() {}",
   "const bundle = {",
@@ -55,7 +60,7 @@ async function createPackagedMacApp(releaseDir, entries) {
   const resourcesDir = path.join(releaseDir, "mac-arm64", "LifeOS AI.app", "Contents", "Resources");
   await mkdir(sourceDir, { recursive: true });
   await mkdir(resourcesDir, { recursive: true });
-  const zipName = "LifeOS AI-0.1.0-arm64-unsigned.zip";
+  const zipName = currentMacZipName;
   const zipContent = "fake unsigned zip";
   const zipHash = crypto.createHash("sha512").update(zipContent).digest("base64");
   const zipSha256 = crypto.createHash("sha256").update(zipContent).digest("hex");
@@ -98,7 +103,7 @@ async function createPackagedMacApp(releaseDir, entries) {
   await mkdir(path.join(releaseDir, "update-feed"), { recursive: true });
   await writeFile(path.join(releaseDir, "update-feed", zipName), zipContent);
   await writeFile(path.join(releaseDir, "update-feed", "latest-mac.yml"), [
-    "version: \"0.1.0\"",
+    `version: "${currentVersion}"`,
     "files:",
     `  - url: "${zipName}"`,
     `    sha512: "${zipHash}"`,
@@ -109,7 +114,7 @@ async function createPackagedMacApp(releaseDir, entries) {
     "",
   ].join("\n"));
   await writeFile(path.join(releaseDir, "update-feed", "release-manifest.json"), `${JSON.stringify({
-    version: "0.1.0",
+    version: currentVersion,
     generatedAt: new Date(0).toISOString(),
     artifacts: [{
       platform: "mac",
@@ -157,7 +162,7 @@ test("release feed generator writes electron-updater metadata for packaged artif
   assert.match(checksums, new RegExp(`${crypto.createHash("sha256").update("fake dmg bytes for feed smoke").digest("hex")}  LifeOS AI\\.dmg`));
 
   const manifest = JSON.parse(await readFile(path.join(releaseDir, "update-feed", "release-manifest.json"), "utf8"));
-  assert.equal(manifest.version, "0.1.0");
+  assert.equal(manifest.version, currentVersion);
   assert.equal(manifest.artifacts.length, 1);
   assert.equal(manifest.artifacts[0].platform, "mac");
   assert.equal(manifest.artifacts[0].feedFile, "latest-mac.yml");
@@ -173,7 +178,7 @@ test("release feed generator accepts unsigned mac zip artifacts", async (t) => {
     await rm(releaseDir, { recursive: true, force: true });
   });
 
-  await writeFile(path.join(releaseDir, "LifeOS AI-0.1.0-arm64-unsigned.zip"), "fake zip bytes for feed smoke");
+  await writeFile(path.join(releaseDir, currentMacZipName), "fake zip bytes for feed smoke");
   const result = spawnSync(process.execPath, ["scripts/prepare-update-feed.mjs"], {
     cwd: rootDir,
     env: {
@@ -185,13 +190,13 @@ test("release feed generator accepts unsigned mac zip artifacts", async (t) => {
 
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   const feed = await readFile(path.join(releaseDir, "update-feed", "latest-mac.yml"), "utf8");
-  assert.match(feed, /LifeOS AI-0\.1\.0-arm64-unsigned\.zip/);
+  assert.match(feed, new RegExp(currentMacZipName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(feed, /sha512:/);
   const checksums = await readFile(path.join(releaseDir, "SHA256SUMS"), "utf8");
-  assert.match(checksums, new RegExp(`${crypto.createHash("sha256").update("fake zip bytes for feed smoke").digest("hex")}  LifeOS AI-0\\.1\\.0-arm64-unsigned\\.zip`));
+  assert.match(checksums, new RegExp(`${crypto.createHash("sha256").update("fake zip bytes for feed smoke").digest("hex")}  ${currentMacZipName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
 
   const manifest = JSON.parse(await readFile(path.join(releaseDir, "update-feed", "release-manifest.json"), "utf8"));
-  assert.equal(manifest.artifacts[0].fileName, "LifeOS AI-0.1.0-arm64-unsigned.zip");
+  assert.equal(manifest.artifacts[0].fileName, currentMacZipName);
   assert.equal(manifest.artifacts[0].feedFile, "latest-mac.yml");
   assert.equal(manifest.artifacts[0].sha256, crypto.createHash("sha256").update("fake zip bytes for feed smoke").digest("hex"));
 });
@@ -204,7 +209,7 @@ test("release feed generator rejects stale versioned artifacts", async (t) => {
 
   await writeFile(path.join(releaseDir, "LifeOS AI-0.0.0-arm64.dmg"), "old dmg bytes");
   await writeFile(path.join(releaseDir, "LifeOS AI-0.0.0-arm64.dmg.blockmap"), "old blockmap bytes");
-  await writeFile(path.join(releaseDir, "LifeOS AI Setup 0.1.0.exe"), "current nsis bytes");
+  await writeFile(path.join(releaseDir, currentWinInstallerName), "current nsis bytes");
   const result = spawnSync(process.execPath, ["scripts/prepare-update-feed.mjs"], {
     cwd: rootDir,
     env: {
@@ -215,7 +220,7 @@ test("release feed generator rejects stale versioned artifacts", async (t) => {
   });
 
   assert.notEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
-  assert.match(result.stderr, /Release artifacts do not match package version 0\.1\.0/);
+  assert.match(result.stderr, new RegExp(`Release artifacts do not match package version ${currentVersionPattern}`));
   assert.match(result.stderr, /LifeOS AI-0\.0\.0-arm64\.dmg contains 0\.0\.0/);
   assert.match(result.stderr, /LifeOS AI-0\.0\.0-arm64\.dmg\.blockmap contains 0\.0\.0/);
   assert.match(result.stderr, /Rebuild the desktop packages or remove stale release artifacts/);
@@ -230,7 +235,7 @@ test("release feed generator ignores unpacked app internals", async (t) => {
   });
 
   await mkdir(path.join(releaseDir, "win-unpacked"), { recursive: true });
-  await writeFile(path.join(releaseDir, "LifeOS AI-0.1.0-arm64-unsigned.zip"), "fake mac zip bytes");
+  await writeFile(path.join(releaseDir, currentMacZipName), "fake mac zip bytes");
   await writeFile(path.join(releaseDir, "win-unpacked", "LifeOS AI.exe"), "unpacked executable should not be a release asset");
 
   const result = spawnSync(process.execPath, ["scripts/prepare-update-feed.mjs"], {
@@ -244,7 +249,7 @@ test("release feed generator ignores unpacked app internals", async (t) => {
 
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   const manifest = JSON.parse(await readFile(path.join(releaseDir, "update-feed", "release-manifest.json"), "utf8"));
-  assert.deepEqual(manifest.artifacts.map((artifact) => artifact.fileName), ["LifeOS AI-0.1.0-arm64-unsigned.zip"]);
+  assert.deepEqual(manifest.artifacts.map((artifact) => artifact.fileName), [currentMacZipName]);
   assert.equal(await fileExists(path.join(releaseDir, "update-feed", "LifeOS AI.exe")), false);
   const checksums = await readFile(path.join(releaseDir, "SHA256SUMS"), "utf8");
   assert.doesNotMatch(checksums, /LifeOS AI\.exe/);
@@ -258,7 +263,7 @@ test("release artifact version checker blocks and explicitly cleans stale instal
 
   const staleDmg = path.join(releaseDir, "LifeOS AI-0.0.0-arm64.dmg");
   const staleBlockmap = path.join(releaseDir, "LifeOS AI-0.0.0-arm64.dmg.blockmap");
-  const currentExe = path.join(releaseDir, "LifeOS AI Setup 0.1.0.exe");
+  const currentExe = path.join(releaseDir, currentWinInstallerName);
   await writeFile(staleDmg, "old dmg bytes");
   await writeFile(staleBlockmap, "old blockmap bytes");
   await writeFile(currentExe, "current nsis bytes");
@@ -269,7 +274,7 @@ test("release artifact version checker blocks and explicitly cleans stale instal
     encoding: "utf8",
   });
   assert.notEqual(check.status, 0, `${check.stdout}\n${check.stderr}`);
-  assert.match(check.stderr, /Release artifacts do not match package version 0\.1\.0/);
+  assert.match(check.stderr, new RegExp(`Release artifacts do not match package version ${currentVersionPattern}`));
   assert.match(check.stderr, /LifeOS AI-0\.0\.0-arm64\.dmg contains 0\.0\.0/);
   assert.match(check.stderr, /LifeOS AI-0\.0\.0-arm64\.dmg\.blockmap contains 0\.0\.0/);
   assert.equal(await fileExists(staleDmg), true);
@@ -294,8 +299,8 @@ test("release feed generator writes Windows and Linux updater metadata", async (
     await rm(releaseDir, { recursive: true, force: true });
   });
 
-  await writeFile(path.join(releaseDir, "LifeOS AI Setup 0.1.0.exe"), "fake nsis bytes for feed smoke");
-  await writeFile(path.join(releaseDir, "LifeOS AI-0.1.0.AppImage"), "fake appimage bytes for feed smoke");
+  await writeFile(path.join(releaseDir, currentWinInstallerName), "fake nsis bytes for feed smoke");
+  await writeFile(path.join(releaseDir, currentLinuxAppImageName), "fake appimage bytes for feed smoke");
   const result = spawnSync(process.execPath, ["scripts/prepare-update-feed.mjs"], {
     cwd: rootDir,
     env: {
@@ -308,26 +313,26 @@ test("release feed generator writes Windows and Linux updater metadata", async (
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   const winFeed = await readFile(path.join(releaseDir, "update-feed", "latest.yml"), "utf8");
   const linuxFeed = await readFile(path.join(releaseDir, "update-feed", "latest-linux.yml"), "utf8");
-  assert.match(winFeed, /LifeOS AI Setup 0\.1\.0\.exe/);
-  assert.match(linuxFeed, /LifeOS AI-0\.1\.0\.AppImage/);
+  assert.match(winFeed, new RegExp(currentWinInstallerName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(linuxFeed, new RegExp(currentLinuxAppImageName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(winFeed, /sha512:/);
   assert.match(linuxFeed, /sha512:/);
   const checksums = await readFile(path.join(releaseDir, "SHA256SUMS"), "utf8");
-  assert.match(checksums, new RegExp(`${crypto.createHash("sha256").update("fake nsis bytes for feed smoke").digest("hex")}  LifeOS AI Setup 0\\.1\\.0\\.exe`));
-  assert.match(checksums, new RegExp(`${crypto.createHash("sha256").update("fake appimage bytes for feed smoke").digest("hex")}  LifeOS AI-0\\.1\\.0\\.AppImage`));
+  assert.match(checksums, new RegExp(`${crypto.createHash("sha256").update("fake nsis bytes for feed smoke").digest("hex")}  ${currentWinInstallerName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+  assert.match(checksums, new RegExp(`${crypto.createHash("sha256").update("fake appimage bytes for feed smoke").digest("hex")}  ${currentLinuxAppImageName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
 
   const manifest = JSON.parse(await readFile(path.join(releaseDir, "update-feed", "release-manifest.json"), "utf8"));
   assert.deepEqual(manifest.artifacts.map((artifact) => artifact.platform).sort(), ["linux", "windows"]);
   const windows = manifest.artifacts.find((artifact) => artifact.platform === "windows");
   const linux = manifest.artifacts.find((artifact) => artifact.platform === "linux");
   assert.equal(windows.feedFile, "latest.yml");
-  assert.equal(windows.fileName, "LifeOS AI Setup 0.1.0.exe");
-  assert.equal(windows.size, (await stat(path.join(releaseDir, "LifeOS AI Setup 0.1.0.exe"))).size);
+  assert.equal(windows.fileName, currentWinInstallerName);
+  assert.equal(windows.size, (await stat(path.join(releaseDir, currentWinInstallerName))).size);
   assert.equal(windows.sha256, crypto.createHash("sha256").update("fake nsis bytes for feed smoke").digest("hex"));
   assert.match(winFeed, new RegExp(windows.sha512.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.equal(linux.feedFile, "latest-linux.yml");
-  assert.equal(linux.fileName, "LifeOS AI-0.1.0.AppImage");
-  assert.equal(linux.size, (await stat(path.join(releaseDir, "LifeOS AI-0.1.0.AppImage"))).size);
+  assert.equal(linux.fileName, currentLinuxAppImageName);
+  assert.equal(linux.size, (await stat(path.join(releaseDir, currentLinuxAppImageName))).size);
   assert.equal(linux.sha256, crypto.createHash("sha256").update("fake appimage bytes for feed smoke").digest("hex"));
   assert.match(linuxFeed, new RegExp(linux.sha512.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
@@ -338,8 +343,8 @@ test("release feed generator removes stale metadata before rewriting feeds", asy
     await rm(releaseDir, { recursive: true, force: true });
   });
 
-  await writeFile(path.join(releaseDir, "LifeOS AI Setup 0.1.0.exe"), "fake nsis bytes for stale feed smoke");
-  await writeFile(path.join(releaseDir, "LifeOS AI-0.1.0.AppImage"), "fake appimage bytes for stale feed smoke");
+  await writeFile(path.join(releaseDir, currentWinInstallerName), "fake nsis bytes for stale feed smoke");
+  await writeFile(path.join(releaseDir, currentLinuxAppImageName), "fake appimage bytes for stale feed smoke");
   const first = spawnSync(process.execPath, ["scripts/prepare-update-feed.mjs"], {
     cwd: rootDir,
     env: {
@@ -352,9 +357,9 @@ test("release feed generator removes stale metadata before rewriting feeds", asy
   assert.ok(await fileExists(path.join(releaseDir, "update-feed", "latest.yml")));
   assert.ok(await fileExists(path.join(releaseDir, "update-feed", "latest-linux.yml")));
 
-  await rm(path.join(releaseDir, "LifeOS AI Setup 0.1.0.exe"), { force: true });
-  await rm(path.join(releaseDir, "LifeOS AI-0.1.0.AppImage"), { force: true });
-  await writeFile(path.join(releaseDir, "LifeOS AI-0.1.0-arm64-unsigned.zip"), "fake mac zip bytes after stale feed");
+  await rm(path.join(releaseDir, currentWinInstallerName), { force: true });
+  await rm(path.join(releaseDir, currentLinuxAppImageName), { force: true });
+  await writeFile(path.join(releaseDir, currentMacZipName), "fake mac zip bytes after stale feed");
   const second = spawnSync(process.execPath, ["scripts/prepare-update-feed.mjs"], {
     cwd: rootDir,
     env: {
@@ -367,14 +372,14 @@ test("release feed generator removes stale metadata before rewriting feeds", asy
   assert.ok(await fileExists(path.join(releaseDir, "update-feed", "latest-mac.yml")));
   assert.equal(await fileExists(path.join(releaseDir, "update-feed", "latest.yml")), false);
   assert.equal(await fileExists(path.join(releaseDir, "update-feed", "latest-linux.yml")), false);
-  assert.equal(await fileExists(path.join(releaseDir, "update-feed", "LifeOS AI Setup 0.1.0.exe")), false);
-  assert.equal(await fileExists(path.join(releaseDir, "update-feed", "LifeOS AI-0.1.0.AppImage")), false);
+  assert.equal(await fileExists(path.join(releaseDir, "update-feed", currentWinInstallerName)), false);
+  assert.equal(await fileExists(path.join(releaseDir, "update-feed", currentLinuxAppImageName)), false);
 
   const manifest = JSON.parse(await readFile(path.join(releaseDir, "update-feed", "release-manifest.json"), "utf8"));
   assert.deepEqual(manifest.artifacts.map((artifact) => artifact.platform), ["mac"]);
   const checksums = await readFile(path.join(releaseDir, "SHA256SUMS"), "utf8");
-  assert.doesNotMatch(checksums, /LifeOS AI Setup 0\.1\.0\.exe/);
-  assert.doesNotMatch(checksums, /LifeOS AI-0\.1\.0\.AppImage/);
+  assert.equal(checksums.includes(currentWinInstallerName), false);
+  assert.equal(checksums.includes(currentLinuxAppImageName), false);
 });
 
 test("release check verifies packaged macOS app contains runtime entrypoints", async (t) => {
@@ -463,7 +468,7 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /desktop artifact smoke verifies Electron runtime entitlements/);
   assert.match(result.stdout, /unsigned macOS zip packaging uses electron-builder ad-hoc signing and verifies before zipping/);
   assert.match(result.stdout, /desktop artifact smoke verifies packaged mobile pairing install manifest/);
-  assert.match(result.stdout, /release SHA256SUMS includes artifact: LifeOS AI-0\.1\.0-arm64-unsigned\.zip/);
+  assert.match(result.stdout, new RegExp(`release SHA256SUMS includes artifact: ${currentMacZipName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
   assert.match(result.stdout, /release manifest\/checksums (?:exclude unpacked build directories|do not reference unpacked build directories)/);
   assert.match(result.stdout, /desktop release smoke workflow covers macOS, Windows, and Linux/);
   assert.match(result.stdout, /desktop release smoke workflow runs the release smoke script/);
@@ -631,7 +636,7 @@ test("release check rejects update URLs that embed secrets", () => {
 
 test("release check rejects update URLs that point to a single artifact", () => {
   const result = runReleaseCheck({
-    LIFEOS_UPDATE_URL: "https://updates.example.com/lifeos-ai/LifeOS%20AI-0.1.0-arm64-unsigned.zip",
+    LIFEOS_UPDATE_URL: `https://updates.example.com/lifeos-ai/${encodeURIComponent(currentMacZipName)}`,
   });
   assert.notEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
   assert.match(result.stdout, /LIFEOS_UPDATE_URL must point to the release directory/);

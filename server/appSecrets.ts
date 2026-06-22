@@ -41,8 +41,8 @@ export const aiProviders = [
     envVar: "LOCAL_MODEL_BASE_URL",
     secretId: "ai.local_model.endpoint",
     enabled: true,
-    defaultModel: "llama3.1",
-    models: ["llama3.1", "qwen2.5", "mistral"],
+    defaultModel: "llama3.2",
+    models: ["llama3.2", "llama3.2:1b", "llama3.1", "qwen2.5", "mistral"],
   },
 ] as const;
 
@@ -114,6 +114,13 @@ function getProvider(providerId: string) {
 }
 
 export function getActiveAiProviderId(): AiProviderId {
+  const envProvider = process.env.LIFEOS_ACTIVE_AI_PROVIDER;
+  if (envProvider && getProvider(envProvider)) {
+    return envProvider as AiProviderId;
+  }
+  if (process.env.LOCAL_MODEL_BASE_URL) {
+    return "local";
+  }
   const state = getClientState(activeAiProviderStateKey)?.value;
   return typeof state === "string" && getProvider(state) ? state as AiProviderId : "gemini";
 }
@@ -154,6 +161,12 @@ export function isAllowedAiModel(providerId: AiProviderId, model: string) {
 }
 
 export function getSelectedAiModel(providerId: AiProviderId) {
+  if (providerId === "local") {
+    const envModel = process.env.LIFEOS_LOCAL_MODEL_NAME || process.env.LOCAL_MODEL_NAME;
+    if (envModel && isAllowedAiModel(providerId, envModel)) {
+      return envModel.trim();
+    }
+  }
   const state = getAiModelState();
   const selected = state[providerId];
   return selected && isAllowedAiModel(providerId, selected) ? selected : getDefaultAiModel(providerId);

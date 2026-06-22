@@ -227,6 +227,44 @@ test("PUBLIC_BASE_URL requires explicit public access opt-in", async (t) => {
   assert.match(result.output, /requires LIFEOS_ALLOW_PUBLIC=1/);
 });
 
+test("quickstart env password login skips onboarding and routes to chat", async (t) => {
+  const port = 11410 + Math.floor(Math.random() * 1000);
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-quickstart-login-test-"));
+  const { child, output } = startServer({
+    LIFEOS_PORT: String(port),
+    LIFEOS_DATA_DIR: dataDir,
+    LIFEOS_HOST: "127.0.0.1",
+    LIFEOS_QUICKSTART: "1",
+    LIFEOS_ADMIN_PASSWORD: "lifeos-local-demo",
+    LIFEOS_ACTIVE_AI_PROVIDER: "local",
+    LOCAL_MODEL_BASE_URL: "http://ollama:11434/v1",
+    LOCAL_MODEL_NAME: "llama3.2",
+  });
+
+  t.after(async () => {
+    await stopServer(child);
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  await waitForHealth(port, child, output);
+
+  const loginResponse = await request(port, "/api/v1/admin/login", {
+    method: "POST",
+    body: JSON.stringify({ password: "lifeos-local-demo" }),
+  });
+  assert.equal(loginResponse.status, 200);
+  const login = await loginResponse.json();
+  assert.equal(login.onboardingRequired, false);
+  assert.equal(login.nextPath, "/chat");
+
+  const adminHeaders = cookieHeader(loginResponse);
+  const onboarding = await request(port, "/api/v1/admin/onboarding", { headers: adminHeaders }).then((res) => res.json());
+  assert.equal(onboarding.onboarding.required, false);
+  assert.equal(onboarding.onboarding.completed, true);
+  assert.equal(onboarding.onboarding.nextPath, "/chat");
+  assert.equal(onboarding.onboarding.steps.every((step) => step.done), true);
+});
+
 test("public mode security diagnostics flag unsafe raw PUBLIC_BASE_URL input", async (t) => {
   const port = 12410 + Math.floor(Math.random() * 1000);
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-public-url-input-test-"));

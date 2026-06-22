@@ -1,6 +1,6 @@
 import { GoogleGenAI, type FunctionDeclaration } from "@google/genai";
 import type express from "express";
-import { type AiProviderId, aiProviders, getActiveAiProviderId, getAiApiKey, getAiProviderModelCatalog, getAiProviderStatus, getSelectedAiModel } from "./appSecrets";
+import { type AiProviderId, aiProviders, getActiveAiProviderId, getAiApiKey, getAiProviderModelCatalog, getAiProviderStatus, getSelectedAiModel, isAllowedAiModel } from "./appSecrets";
 
 type AiContentPart = {
   text?: string;
@@ -54,7 +54,16 @@ function isProviderId(value: unknown): value is AiProviderId {
   return typeof value === "string" && aiProviders.some((provider) => provider.id === value);
 }
 
+function getEnvForcedProvider(): AiProviderId | null {
+  const forced = process.env.LIFEOS_ACTIVE_AI_PROVIDER;
+  if (isProviderId(forced)) return forced;
+  if (process.env.LIFEOS_QUICKSTART === "1" && process.env.LOCAL_MODEL_BASE_URL) return "local";
+  return null;
+}
+
 export function resolveAiProviderId(input: { providerId?: unknown; modelEngine?: unknown; byokProvider?: unknown } = {}): AiProviderId {
+  const forced = getEnvForcedProvider();
+  if (forced) return forced;
   if (isProviderId(input.providerId)) return input.providerId;
 
   const hint = [input.modelEngine, input.byokProvider].filter(Boolean).join(" ");
@@ -63,16 +72,22 @@ export function resolveAiProviderId(input: { providerId?: unknown; modelEngine?:
 }
 
 export function resolveAiModel(providerId: AiProviderId, modelEngine: unknown) {
+  if (providerId === "local") {
+    const envModel = process.env.LIFEOS_LOCAL_MODEL_NAME || process.env.LOCAL_MODEL_NAME;
+    if (envModel && isAllowedAiModel(providerId, envModel)) {
+      return envModel.trim();
+    }
+  }
   const selectedModel = getSelectedAiModel(providerId);
   const engine = typeof modelEngine === "string" ? modelEngine.trim() : "";
   if (!engine) return selectedModel;
 
   const catalog = getAiProviderModelCatalog(providerId);
   if ((catalog as string[]).includes(engine)) return engine;
+  if (providerId === "local") return selectedModel;
   if (providerId === "gemini" && engine.includes("1.5")) return "gemini-1.5-pro";
   if (providerId === "openai" && /GPT-4o|gpt-4o/i.test(engine)) return "gpt-4o";
   if (providerId === "openrouter" && /Claude|claude/i.test(engine)) return "anthropic/claude-3.5-sonnet";
-  if (providerId === "local" && !/local|local|ollama|lm studio/i.test(engine)) return engine;
   return selectedModel;
 }
 

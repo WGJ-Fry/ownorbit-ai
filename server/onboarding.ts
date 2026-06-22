@@ -17,6 +17,46 @@ export type OnboardingStep = {
 };
 
 export function getOnboardingStatus() {
+  if (process.env.LIFEOS_QUICKSTART === "1") {
+    return {
+      steps: [
+        {
+          id: "ai" as const,
+          label: "Configure AI Provider",
+          done: true,
+          actionPath: "/chat",
+          message: "Quickstart mode uses the local model configured by environment variables.",
+        },
+        {
+          id: "backup" as const,
+          label: "Create Initial Backup",
+          done: true,
+          actionPath: "/chat",
+          message: "Skipped in quickstart mode.",
+        },
+        {
+          id: "device" as const,
+          label: "Pair Mobile",
+          done: true,
+          actionPath: "/chat",
+          message: "Skipped in quickstart mode.",
+        },
+        {
+          id: "security" as const,
+          label: "Security Check",
+          done: true,
+          actionPath: "/chat",
+          message: "Local-only quickstart mode.",
+        },
+      ],
+      completed: true,
+      completedAt: Date.now(),
+      required: false,
+      securityOverall: "ok" as const,
+      nextPath: "/chat",
+    };
+  }
+
   const providers = listAiProviderStatuses();
   const backups = listBackups();
   const devices = getDevices();

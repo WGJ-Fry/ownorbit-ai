@@ -1,0 +1,54 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: lifeos-ollama
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: lifeos-ollama-pull
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    entrypoint: ["/bin/sh", "-lc", "ollama pull llama3.2"]
+    restart: "no"
+
+  lifeos:
+    image: ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha
+    container_name: lifeos-app
+    depends_on:
+      ollama:
+        condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:8080:3000"
+    volumes:
+      - ./lifeos_vault:/app/vault
+      - ./lifeos_data:/app/data
+    environment:
+      - LIFEOS_PORT=3000
+      - LIFEOS_HOST=0.0.0.0
+      - LIFEOS_ALLOW_PUBLIC=1
+      - LIFEOS_QUICKSTART=1
+      - LIFEOS_DATA_DIR=/app/data
+      - LIFEOS_VAULT_DIR=/app/vault
+      - LIFEOS_ADMIN_PASSWORD=lifeos-local-demo
+      - LIFEOS_ACTIVE_AI_PROVIDER=local
+      - LOCAL_MODEL_NAME=llama3.2
+      - LOCAL_MODEL_BASE_URL=http://ollama:11434/v1
+    restart: unless-stopped
+
+volumes:
+  ollama_data:

@@ -1,0 +1,14 @@
+.git
+.github
+node_modules
+dist
+release
+*.log
+
+lifeos_vault
+lifeos_data
+.cache
+.DS_Store
+
+desktop/dist
+desktop/release

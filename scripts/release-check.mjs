@@ -1807,6 +1807,40 @@ function checkReleaseDocs() {
   if (exists("docs/rollback.md")) pass("rollback guide exists: docs/rollback.md");
   else warn("rollback guide is missing: docs/rollback.md");
 
+  const dockerQuickstartFiles = {
+    ".dockerignore": exists(".dockerignore") ? fs.readFileSync(path.join(rootDir, ".dockerignore"), "utf8") : "",
+    Dockerfile: exists("Dockerfile") ? fs.readFileSync(path.join(rootDir, "Dockerfile"), "utf8") : "",
+    "docker-compose.yml": exists("docker-compose.yml") ? fs.readFileSync(path.join(rootDir, "docker-compose.yml"), "utf8") : "",
+    ".github/workflows/docker.yml": exists(".github/workflows/docker.yml") ? fs.readFileSync(path.join(rootDir, ".github/workflows/docker.yml"), "utf8") : "",
+    "README.md": exists("README.md") ? fs.readFileSync(path.join(rootDir, "README.md"), "utf8") : "",
+  };
+  const missingDockerFiles = Object.entries(dockerQuickstartFiles)
+    .filter(([, source]) => !source)
+    .map(([relativePath]) => relativePath);
+  const dockerCombined = Object.values(dockerQuickstartFiles).join("\n");
+  const requiredDockerQuickstartMarkers = [
+    "node:24-bookworm-slim",
+    "npm ci",
+    "npm run build",
+    "ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha",
+    "ollama/ollama:latest",
+    "ollama pull llama3.2",
+    "127.0.0.1:8080:3000",
+    "LIFEOS_QUICKSTART=1",
+    "LIFEOS_ADMIN_PASSWORD=lifeos-local-demo",
+    "LOCAL_MODEL_BASE_URL=http://ollama:11434/v1",
+    "LIFEOS_VAULT_DIR=/app/vault",
+    "docker/build-push-action@v6",
+    "docs/assets/real-demo.gif",
+    "What am I forgetting?",
+  ];
+  const missingDockerMarkers = requiredDockerQuickstartMarkers.filter((marker) => !dockerCombined.includes(marker));
+  if (missingDockerFiles.length === 0 && missingDockerMarkers.length === 0) {
+    pass("Docker quickstart covers Ollama, local Markdown vault, quickstart login, GHCR image, and README proof path");
+  } else {
+    fail(`Docker quickstart is incomplete; missing files: ${missingDockerFiles.join(", ") || "none"}; missing markers: ${missingDockerMarkers.join(", ") || "none"}`);
+  }
+
   const publicReleaseDocPaths = [
     "README.md",
     "docs/release-assets.md",

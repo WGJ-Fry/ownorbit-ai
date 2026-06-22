@@ -39,6 +39,7 @@ test("AI runtime routes OpenAI-compatible providers with safe headers and select
     OPENAI_API_KEY: "sk-openai-test",
     OPENROUTER_API_KEY: "sk-openrouter-test",
     LOCAL_MODEL_BASE_URL: "http://127.0.0.1:11434/v1",
+    LOCAL_MODEL_NAME: "qwen2.5",
   }, async ({ generateAiContent }) => {
     const calls = [];
     globalThis.fetch = async (url, init) => {
@@ -68,9 +69,9 @@ test("AI runtime routes OpenAI-compatible providers with safe headers and select
     assert.equal(openrouter.providerId, "openrouter");
     assert.equal(openrouter.model, "anthropic/claude-3.5-sonnet");
 
-    const local = await generateAiContent({ providerId: "local", modelEngine: "qwen-custom:latest", contents: "hello" });
+    const local = await generateAiContent({ providerId: "local", modelEngine: "Gemini 2.0 Flash", contents: "hello" });
     assert.equal(local.providerId, "local");
-    assert.equal(local.model, "qwen-custom:latest");
+    assert.equal(local.model, "qwen2.5");
 
     assert.equal(calls[0].url, "https://api.openai.com/v1/chat/completions");
     assert.equal(calls[0].headers.Authorization, "Bearer sk-openai-test");
@@ -100,5 +101,36 @@ test("AI runtime falls back to the saved default provider when no provider hint 
     saveActiveAiProvider("openai");
     assert.equal(resolveAiProviderId({}), "openai");
     assert.equal(resolveAiProviderId({ modelEngine: "Gemini 2.0 Flash" }), "gemini");
+  });
+});
+
+test("AI runtime quickstart forces local Ollama over frontend provider hints", async () => {
+  await withRuntime("quickstart-local", {
+    LIFEOS_QUICKSTART: "1",
+    LIFEOS_ACTIVE_AI_PROVIDER: "local",
+    LOCAL_MODEL_BASE_URL: "http://ollama:11434/v1",
+    LOCAL_MODEL_NAME: "llama3.2",
+    GEMINI_API_KEY: "gemini-should-not-be-used",
+  }, async ({ generateAiContent, resolveAiProviderId, resolveAiModel }) => {
+    assert.equal(resolveAiProviderId({ providerId: "gemini", modelEngine: "Gemini 2.0 Flash" }), "local");
+    assert.equal(resolveAiModel("local", "Gemini 2.0 Flash"), "llama3.2");
+
+    const calls = [];
+    globalThis.fetch = async (url, init) => {
+      const body = JSON.parse(init.body);
+      calls.push({ url: String(url), headers: init.headers, body });
+      return jsonResponse({ choices: [{ message: { content: "Passport expires in 47 days." } }] });
+    };
+
+    const response = await generateAiContent({
+      providerId: "gemini",
+      modelEngine: "Gemini 2.0 Flash",
+      contents: "What am I forgetting?",
+    });
+
+    assert.equal(response.providerId, "local");
+    assert.equal(response.model, "llama3.2");
+    assert.equal(calls[0].url, "http://ollama:11434/v1/chat/completions");
+    assert.equal(calls[0].headers.Authorization, undefined);
   });
 });

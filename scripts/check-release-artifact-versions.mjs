@@ -6,6 +6,7 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"
 const releaseDir = process.env.LIFEOS_RELEASE_DIR ? path.resolve(process.env.LIFEOS_RELEASE_DIR) : path.join(rootDir, "release");
 const fix = process.argv.includes("--fix");
 const artifactPattern = /\.(dmg|zip|exe|AppImage|blockmap)$/i;
+const packageVersionCore = String(packageJson.version).match(/\d+\.\d+\.\d+/)?.[0] || packageJson.version;
 
 function walk(dir) {
   if (!fs.existsSync(dir)) return [];
@@ -17,9 +18,10 @@ function walk(dir) {
 
 function versionMismatches(file) {
   const name = path.basename(file);
+  if (name.includes(packageJson.version)) return [];
   return [...name.matchAll(/\b(\d+\.\d+\.\d+)\b/g)]
     .map((match) => match[1])
-    .filter((version) => version !== packageJson.version);
+    .filter((version) => version !== packageVersionCore || packageJson.version !== packageVersionCore);
 }
 
 const artifacts = walk(releaseDir).filter((file) => artifactPattern.test(file));
