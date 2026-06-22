@@ -1416,6 +1416,9 @@ function checkAssets() {
     appSecretsSource.includes("normalizeProviderCredential") &&
     appSecretsSource.includes("getActiveAiProviderId") &&
     appSecretsSource.includes("saveActiveAiProvider") &&
+    appSecretsSource.includes("syncLegacyAiRuntimeState") &&
+    appSecretsSource.includes("lifeos_byok_provider") &&
+    appSecretsSource.includes("lifeos_model_engine") &&
     appSecretsSource.includes("Local model endpoint must not contain credentials, query strings, or fragments") &&
     chatRuntimeSettingsSource.includes("lifeos_active_ai_provider") &&
     chatRuntimeSettingsSource.includes("providerId") &&
@@ -1443,7 +1446,11 @@ function checkAssets() {
     apiAuthTestSource.includes("file:///tmp/ollama.sock") &&
     apiAuthTestSource.includes("endpoint-secret") &&
     apiAuthTestSource.includes("ai_provider_default_updated") &&
+    apiAuthTestSource.includes("legacyByokProviderState") &&
+    apiAuthTestSource.includes("legacyModelEngineState") &&
     apiAuthTestSource.includes("testedOpenAi.mode") &&
+    exists("tests/ai-provider-runtime.test.mjs") &&
+    fs.readFileSync(path.join(rootDir, "tests/ai-provider-runtime.test.mjs"), "utf8").includes("AI provider changes sync legacy Studio runtime state") &&
     packageJson.scripts.test.includes("tests/chat-runtime-settings.test.mjs")
   ) pass("AI multi-provider UI and local endpoint validation are covered");
   else warn("AI multi-provider UI or local endpoint validation lacks release coverage");

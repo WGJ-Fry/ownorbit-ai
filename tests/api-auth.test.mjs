@@ -534,6 +534,14 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(activeOpenAi.provider.active, true);
   assert.equal(activeOpenAi.providers.find((provider) => provider.id === "openai").active, true);
   assert.equal(activeOpenAi.providers.find((provider) => provider.id === "gemini").active, false);
+  const legacyByokProviderState = await request(port, "/api/v1/state/lifeos_byok_provider", {
+    headers: adminHeaders,
+  }).then((res) => res.json());
+  assert.equal(legacyByokProviderState.value, "OpenAI");
+  const legacyModelEngineState = await request(port, "/api/v1/state/lifeos_model_engine", {
+    headers: adminHeaders,
+  }).then((res) => res.json());
+  assert.equal(legacyModelEngineState.value, "gpt-4o");
   await request(port, "/api/v1/state/lifeos_byok_key", {
     method: "PUT",
     headers: adminHeaders,

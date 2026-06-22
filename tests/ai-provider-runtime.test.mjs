@@ -104,6 +104,31 @@ test("AI runtime falls back to the saved default provider when no provider hint 
   });
 });
 
+test("AI provider changes sync legacy Studio runtime state", async () => {
+  await withRuntime("legacy-runtime-sync", {}, async ({ resolveAiProviderId }) => {
+    const { saveActiveAiProvider, saveSelectedAiModel } = await import(`../server/appSecrets.ts?case=legacy-runtime-sync-${Date.now()}`);
+    const { getClientState } = await import(`../server/clientState.ts?case=legacy-runtime-sync-${Date.now()}`);
+
+    saveActiveAiProvider("gemini", { type: "admin", id: "owner" });
+    saveSelectedAiModel("openai", "gpt-4o");
+    assert.equal(getClientState("lifeos_byok_provider")?.value, "Google Gemini");
+    assert.equal(getClientState("lifeos_model_engine")?.value, "gemini-3.5-flash");
+
+    saveActiveAiProvider("openai", { type: "admin", id: "owner" });
+    assert.equal(resolveAiProviderId({}), "openai");
+    assert.equal(getClientState("lifeos_active_ai_provider")?.value, "openai");
+    assert.equal(getClientState("lifeos_byok_provider")?.value, "OpenAI");
+    assert.equal(getClientState("lifeos_model_engine")?.value, "gpt-4o");
+
+    saveSelectedAiModel("openai", "gpt-4o-mini", { type: "admin", id: "owner" });
+    assert.equal(getClientState("lifeos_model_engine")?.value, "gpt-4o-mini");
+
+    saveSelectedAiModel("gemini", "gemini-1.5-pro", { type: "admin", id: "owner" });
+    assert.equal(getClientState("lifeos_byok_provider")?.value, "OpenAI");
+    assert.equal(getClientState("lifeos_model_engine")?.value, "gpt-4o-mini");
+  });
+});
+
 test("AI runtime quickstart forces local Ollama over frontend provider hints", async () => {
   await withRuntime("quickstart-local", {
     LIFEOS_QUICKSTART: "1",

@@ -7,6 +7,8 @@ import { getClientState, setClientState } from "./clientState";
 const keyPath = path.join(dataDir, "lifeos-secret.key");
 const aiModelStateKey = "lifeos_ai_provider_models";
 const activeAiProviderStateKey = "lifeos_active_ai_provider";
+const legacyByokProviderStateKey = "lifeos_byok_provider";
+const legacyModelEngineStateKey = "lifeos_model_engine";
 export const aiProviders = [
   {
     id: "gemini",
@@ -126,8 +128,10 @@ export function getActiveAiProviderId(): AiProviderId {
 }
 
 export function saveActiveAiProvider(providerId: AiProviderId, actor?: { type: string; id: string }) {
-  if (!getProvider(providerId)) throw new Error("Unknown AI provider");
+  const provider = getProvider(providerId);
+  if (!provider) throw new Error("Unknown AI provider");
   setClientState(activeAiProviderStateKey, providerId, actor);
+  syncLegacyAiRuntimeState(providerId, getSelectedAiModel(providerId), actor);
   return providerId;
 }
 
@@ -176,7 +180,17 @@ export function saveSelectedAiModel(providerId: AiProviderId, model: string, act
   const normalized = model.trim();
   if (!isAllowedAiModel(providerId, normalized)) throw new Error("Unsupported AI model");
   setClientState(aiModelStateKey, { ...getAiModelState(), [providerId]: normalized }, actor);
+  if (getActiveAiProviderId() === providerId) {
+    syncLegacyAiRuntimeState(providerId, normalized, actor);
+  }
   return getAiProviderStatus(providerId);
+}
+
+function syncLegacyAiRuntimeState(providerId: AiProviderId, model: string, actor?: { type: string; id: string }) {
+  const provider = getProvider(providerId);
+  if (!provider) throw new Error("Unknown AI provider");
+  setClientState(legacyByokProviderStateKey, provider.name, actor);
+  setClientState(legacyModelEngineStateKey, model, actor);
 }
 
 function getMasterKey() {
