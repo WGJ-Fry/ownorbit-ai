@@ -270,7 +270,7 @@ test("single offline message retry and remove only change the selected queue ite
   assert.ok(dispatchedEvents.some((event) => event.type === "lifeos-offline-message-queue-changed" && event.detail.count === 0));
 });
 
-test("offline message queue records the latest successful write-back without storing message content", async () => {
+test("offline message queue records successful write-back metadata and clears it with the queue", async () => {
   storage.clear();
   dispatchedEvents = [];
   postedMessages = [];
@@ -294,8 +294,9 @@ test("offline message queue records the latest successful write-back without sto
   await queueModule.clearOfflineMessageQueue();
   const afterClear = queueModule.getOfflineMessageQueueSummary();
   assert.equal(afterClear.count, 0);
-  assert.equal(afterClear.lastSyncedCount, 1);
-  assert.equal(afterClear.lastSyncedAt, summary.lastSyncedAt);
+  assert.equal(afterClear.lastSyncedCount, undefined);
+  assert.equal(afterClear.lastSyncedAt, undefined);
+  assert.equal(storage.has("lifeos_offline_message_queue_sync_meta"), false);
 });
 
 test("offline message queue migrates legacy localStorage into IndexedDB primary storage", async () => {

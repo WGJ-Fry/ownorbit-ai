@@ -1338,6 +1338,10 @@ function checkAssets() {
     offlineQueueTestSource.includes("getOfflineMessageQueueStorageLabel") &&
     offlineQueueTestSource.includes("getOfflineMessageQueueUsageLabel") &&
     offlineQueueTestSource.includes("getOfflineMessageQueueStorageStatus") &&
+    offlineQueueSource.includes("clearSyncMeta") &&
+    offlineQueueSource.includes("localStorage.removeItem(QUEUE_SYNC_META_KEY)") &&
+    offlineQueueTestSource.includes("clears it with the queue") &&
+    offlineQueueTestSource.includes('storage.has("lifeos_offline_message_queue_sync_meta"), false') &&
     offlineQueueTestSource.includes("migrates legacy localStorage into IndexedDB primary storage") &&
     offlineQueueTestSource.includes("compacts oversized messages and reports byte budget") &&
     offlineQueueTestSource.includes("trims oldest items when storage budget is exceeded") &&

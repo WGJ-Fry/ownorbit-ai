@@ -97,6 +97,11 @@ function writeSyncMeta(meta: OfflineMessageQueueSyncMeta) {
   localStorage.setItem(QUEUE_SYNC_META_KEY, JSON.stringify(meta));
 }
 
+function clearSyncMeta() {
+  if (!localStorageAvailable()) return;
+  localStorage.removeItem(QUEUE_SYNC_META_KEY);
+}
+
 function normalizeQueue(value: unknown): OfflineQueuedMessage[] {
   if (!Array.isArray(value)) return [];
   return value.map((item) => normalizeQueueItem(item)).filter(Boolean) as OfflineQueuedMessage[];
@@ -468,6 +473,7 @@ export function resetFailedOfflineMessages() {
 export async function clearOfflineMessageQueue() {
   queueCache = [];
   if (localStorageAvailable()) localStorage.removeItem(QUEUE_KEY);
+  clearSyncMeta();
   await deleteIndexedQueue().catch(() => false);
   emitQueueChanged();
 }
