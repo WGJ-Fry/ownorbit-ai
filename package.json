@@ -36,7 +36,7 @@
     "remote:mock-smoke": "node scripts/remote-connection-mock-smoke.mjs",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
-    "lint": "tsc --noEmit",
+    "lint": "node --stack_size=8192 ./node_modules/typescript/bin/tsc --noEmit",
     "test:api": "npm run build && node --test tests/api-auth.test.mjs",
     "test:desktop": "npm run build && node --test --test-concurrency=1 tests/desktop-smoke.test.mjs",
     "test:smoke": "npm run build && node --test tests/frontend-smoke.test.mjs",
