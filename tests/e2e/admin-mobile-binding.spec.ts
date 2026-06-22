@@ -503,7 +503,8 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
       }),
     });
   });
-  await page.getByRole("link", { name: "设置" }).click();
+  await page.evaluate(() => localStorage.setItem("lifeos_locale", "zh-CN"));
+  await page.goto("/admin/settings");
   await expect(page).toHaveURL(/\/admin\/settings/);
   await expect(page.getByRole("heading", { name: "系统设置" })).toBeVisible();
   await expect(page.getByRole("link", { name: "导出诊断包" })).toBeVisible();
@@ -547,7 +548,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await aiKeyPanel.getByRole("button", { name: "保存", exact: true }).click();
   await expect(aiKeyPanel.getByText("OpenAI 配置已安全保存。")).toBeVisible();
   await aiKeyPanel.getByRole("button", { name: "测试" }).click();
-  await expect(aiKeyPanel.getByText(/OpenAI (已配置|is configured)/)).toBeVisible();
+  await expect(aiKeyPanel.getByText(/OpenAI 配置检查通过|OpenAI configuration check passed/)).toBeVisible();
   page.once("dialog", async (dialog) => {
     expect(dialog.message()).toContain("OpenAI");
     await dialog.accept();

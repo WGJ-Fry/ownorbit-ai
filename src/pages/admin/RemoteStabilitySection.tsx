@@ -5,6 +5,39 @@ import type { NetworkDiagnostics } from "../../services/lifeosApi";
 import RemoteAcceptanceChecklistCard from "./RemoteAcceptanceChecklistCard";
 import RemoteHealthSummaryCard from "./RemoteHealthSummaryCard";
 
+const emptyRemoteHealthSummary: NetworkDiagnostics["remoteHealthSummary"] = {
+  status: "unchecked",
+  severity: "warning",
+  entryKind: "missing",
+  baseUrl: "",
+  lastCheckedAt: null,
+  ageMs: null,
+  recommendations: ["run-remote-health"],
+  checks: [
+    { id: "https", status: "unknown" },
+    { id: "health", status: "unknown" },
+    { id: "mobile-shell", status: "unknown" },
+    { id: "websocket", status: "unknown" },
+    { id: "qr-entry", status: "unknown" },
+  ],
+};
+
+const emptyRemoteAcceptanceSummary: NetworkDiagnostics["remoteAcceptanceSummary"] = {
+  ready: false,
+  passed: 0,
+  total: 0,
+  needsAction: 0,
+  manualRequired: 0,
+  hasLongTermEntry: false,
+  hasRealWorldEvidence: false,
+  blockingItems: [],
+};
+
+const emptyRemoteAcceptanceRunbooks: NetworkDiagnostics["remoteAcceptanceRunbooks"] = {
+  total: 0,
+  latest: [],
+};
+
 export default function RemoteStabilitySection({
   diagnostics,
   onDiagnostics,
@@ -19,7 +52,16 @@ export default function RemoteStabilitySection({
   const [importingReport, setImportingReport] = useState(false);
   const [runningAcceptance, setRunningAcceptance] = useState(false);
   const [reportText, setReportText] = useState("");
-  const acceptanceBaseUrl = diagnostics.desktopRuntimeConfig?.publicBaseUrl || diagnostics.remoteHealthSummary.baseUrl;
+  const remoteHealthSummary = diagnostics.remoteHealthSummary || emptyRemoteHealthSummary;
+  const remoteAcceptanceChecklist = diagnostics.remoteAcceptanceChecklist || [];
+  const remoteAcceptanceSummary = diagnostics.remoteAcceptanceSummary || emptyRemoteAcceptanceSummary;
+  const remoteAcceptanceRunbooks = diagnostics.remoteAcceptanceRunbooks || emptyRemoteAcceptanceRunbooks;
+  const remoteCandidate = diagnostics.connectionCandidates?.find((candidate) => candidate.mode !== "local");
+  const acceptanceBaseUrl = diagnostics.desktopRuntimeConfig?.publicBaseUrl
+    || remoteHealthSummary.baseUrl
+    || diagnostics.recommendedBaseUrl
+    || remoteCandidate?.baseUrl
+    || "";
   const smokeCommand = acceptanceBaseUrl
     ? `LIFEOS_REMOTE_BASE_URL="${acceptanceBaseUrl}" npm run remote:smoke`
     : `npm run remote:smoke`;
@@ -27,7 +69,7 @@ export default function RemoteStabilitySection({
     ? `LIFEOS_REMOTE_ACCEPTANCE_OUT="./remote-acceptance.json" LIFEOS_REMOTE_BASE_URL="${acceptanceBaseUrl}" npm run remote:acceptance`
     : `LIFEOS_REMOTE_ACCEPTANCE_OUT="./remote-acceptance.json" npm run remote:acceptance`;
   const acceptanceEvidence = (id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"]) => {
-    const item = diagnostics.remoteAcceptanceChecklist.find((entry) => entry.id === id);
+    const item = remoteAcceptanceChecklist.find((entry) => entry.id === id);
     return {
       source: "admin-long-term-remote-checklist",
       requirements: [
@@ -88,15 +130,15 @@ export default function RemoteStabilitySection({
 
   return (
     <>
-      <RemoteHealthSummaryCard monitor={diagnostics.remoteHealthMonitor} recovery={diagnostics.remoteRecoveryReport} summary={diagnostics.remoteHealthSummary} />
+      <RemoteHealthSummaryCard monitor={diagnostics.remoteHealthMonitor} recovery={diagnostics.remoteRecoveryReport} summary={remoteHealthSummary} />
       <RemoteAcceptanceChecklistCard
         acceptanceCommand={acceptanceCommand}
         acceptingId={acceptingId}
-        checklist={diagnostics.remoteAcceptanceChecklist || []}
-        summary={diagnostics.remoteAcceptanceSummary}
+        checklist={remoteAcceptanceChecklist}
+        summary={remoteAcceptanceSummary}
         importingReport={importingReport}
         reportText={reportText}
-        runbooks={diagnostics.remoteAcceptanceRunbooks}
+        runbooks={remoteAcceptanceRunbooks}
         runningAcceptance={runningAcceptance}
         smokeCommand={smokeCommand}
         onImportReport={handleImportReport}
