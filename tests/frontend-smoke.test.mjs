@@ -826,6 +826,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(devicePairConnectionTestSource, /devicePair\.testFix\.websocket/);
   assert.match(devicePairConnectionTestSource, /devicePair\.testFix\.https/);
   assert.match(devicePairConnectionTestSource, /devicePair\.testFix\.generic/);
+  assert.match(devicePairConnectionTestSource, /repairHintKey/);
+  assert.match(devicePairConnectionTestSource, /result\.fixes/);
+  assert.match(devicePairConnectionTestSource, /devicePair\.repair\.title/);
+  assert.match(devicePairConnectionTestSource, /devicePair\.repair\.websocketUpgradeBlocked/);
+  assert.match(devicePairConnectionTestSource, /devicePair\.repair\.localhostPhoneUnreachable/);
   assert.match(translationsSource, /还没有手机可访问的地址/);
   assert.match(translationsSource, /No phone-reachable address yet/);
   assert.match(translationsSource, /测试当前绑定地址/);
@@ -833,6 +838,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /仅可信网络/);
   assert.match(translationsSource, /复制当前绑定启动环境/);
   assert.match(translationsSource, /重启后生效/);
+  assert.match(translationsSource, /建议按下面顺序修复/);
+  assert.match(translationsSource, /Fix these in order/);
   assert.match(translationsSource, /这是临时地址/);
   assert.match(translationsSource, /手机聊天页面/);
   assert.match(translationsSource, /实时通道/);

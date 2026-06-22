@@ -807,12 +807,18 @@ function checkAssets() {
     devicePairConnectionTestSource.includes("devicePair.testFix.websocket") &&
     devicePairConnectionTestSource.includes("devicePair.testFix.https") &&
     devicePairConnectionTestSource.includes("devicePair.testFix.generic") &&
+    devicePairConnectionTestSource.includes("repairHintKey") &&
+    devicePairConnectionTestSource.includes("devicePair.repair.title") &&
+    devicePairConnectionTestSource.includes("devicePair.repair.websocketUpgradeBlocked") &&
+    devicePairConnectionTestSource.includes("devicePair.repair.localhostPhoneUnreachable") &&
     translationsSource.includes("devicePair.testCurrent") &&
     translationsSource.includes("connection.secureRecommended") &&
     translationsSource.includes("connection.trustedNetworkOnly") &&
-    translationsSource.includes("devicePair.copyEnv")
-  ) pass("device pairing QR page exposes recommended URL safety and reachability test");
-  else warn("device pairing QR page does not expose recommended URL safety or reachability test");
+    translationsSource.includes("devicePair.copyEnv") &&
+    translationsSource.includes("devicePair.repair.desktopServiceUnreachable") &&
+    translationsSource.includes("devicePair.repair.publicModeRisk")
+  ) pass("device pairing QR page exposes recommended URL safety, reachability test, and repair guidance");
+  else warn("device pairing QR page does not expose recommended URL safety, reachability test, or repair guidance");
   if (
     networkDiagnosticsSource.includes("cloudflared tunnel --url") &&
     networkDiagnosticsSource.includes("tailscale") &&
@@ -824,6 +830,9 @@ function checkAssets() {
     networkDiagnosticsSource.includes("new URL(`${basePath}/api/v1/health`, parsed.origin)") &&
     networkDiagnosticsSource.includes("new URL(`${basePath}/mobile/chat`, parsed.origin)") &&
     networkDiagnosticsSource.includes("probeWebSocketStep") &&
+    networkDiagnosticsSource.includes("buildConnectionRepairHints") &&
+    networkDiagnosticsSource.includes("websocket-upgrade-blocked") &&
+    networkDiagnosticsSource.includes("localhost-phone-unreachable") &&
     networkDiagnosticsSource.includes("publicAccessWarning = Boolean") &&
     networkDiagnosticsTestSource.includes("network diagnostics detects mocked Cloudflare and Tailscale CLIs") &&
     networkDiagnosticsTestSource.includes("tailscale-serve-https") &&
@@ -873,9 +882,10 @@ function checkAssets() {
     adminRoutesSource.includes("configRefreshReason") &&
     lifeosApiSourceForRouting.includes("refresh: { refreshed: boolean; ready: boolean; reason: string }") &&
     networkDiagnosticsTestSource.includes("connection URL tests strip credentials, query secrets, and fragments") &&
-    networkDiagnosticsTestSource.includes("connection URL tests health, mobile shell, and websocket under a remote base path")
-  ) pass("connection diagnostics have Cloudflare/Tailscale mock coverage, Named Tunnel reconnect, and sanitize test URLs");
-  else warn("connection diagnostics lack Cloudflare/Tailscale mock coverage, Named Tunnel reconnect, or URL sanitization checks");
+    networkDiagnosticsTestSource.includes("connection URL tests health, mobile shell, and websocket under a remote base path") &&
+    networkDiagnosticsTestSource.includes("connection URL returns structured repair hints for blocked websocket and unsafe phone entry")
+  ) pass("connection diagnostics have Cloudflare/Tailscale mock coverage, Named Tunnel reconnect, sanitize test URLs, and repair hints");
+  else warn("connection diagnostics lack Cloudflare/Tailscale mock coverage, Named Tunnel reconnect, URL sanitization checks, or repair hints");
 
   const pairingIntentSource = exists("src/services/mobilePairingIntent.ts") ? fs.readFileSync(path.join(rootDir, "src/services/mobilePairingIntent.ts"), "utf8") : "";
   const mobilePairingIntentTestSource = exists("tests/mobile-pairing-intent.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/mobile-pairing-intent.test.mjs"), "utf8") : "";

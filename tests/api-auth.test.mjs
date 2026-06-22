@@ -331,6 +331,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   }).then((res) => res.json());
   assert.equal(connectionTest.result.ok, true);
   assert.equal(connectionTest.result.service, "lifeos-local-core");
+  assert.ok(connectionTest.result.fixes.some((fix) => fix.id === "localhost-phone-unreachable"));
+  assert.ok(connectionTest.result.fixes.some((fix) => fix.id === "https-required"));
+  assert.equal(JSON.stringify(connectionTest.result).includes("connection-secret"), false);
 
   const blockedDesktopConnectionConfig = await request(port, "/api/v1/admin/desktop-connection-config", {
     method: "PUT",
