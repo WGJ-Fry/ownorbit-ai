@@ -158,6 +158,13 @@ function checkScripts() {
   if (missingQualitySteps.length === 0) pass("quality gate script runs lint, tests, e2e, desktop, and release checks");
   else fail(`quality:gate is missing required steps: ${missingQualitySteps.join(", ")}`);
 
+  const testScriptForTsRuntime = packageJson.scripts?.test || "";
+  if (!/&& node --test --test-concurrency=1/.test(testScriptForTsRuntime) && (testScriptForTsRuntime.match(/node --import tsx --test/g) || []).length >= 2) {
+    pass("npm test loads tsx for all TypeScript-importing test batches");
+  } else {
+    fail("npm test must use node --import tsx for every batch that imports TypeScript server modules");
+  }
+
   if (exists("scripts/desktop-release-smoke.mjs")) pass("desktop release smoke script exists");
   else fail("missing desktop release smoke script: scripts/desktop-release-smoke.mjs");
 
@@ -1176,8 +1183,11 @@ function checkAssets() {
     offlineQueueSource.includes("getOfflineMessageStatusLabel") &&
     offlineQueueSource.includes("getOfflineMessageRetryLabel") &&
     offlineQueueSource.includes("Ready to retry") &&
-    offlineQueueBannerSource.includes("getOfflineMessageStatusLabel") &&
-    offlineQueueBannerSource.includes("getOfflineMessageRetryLabel") &&
+    offlineQueueBannerSource.includes("getOfflineMessageNextRetryAt") &&
+    offlineQueueBannerSource.includes("offlineQueue.status.pending") &&
+    offlineQueueBannerSource.includes("offlineQueue.status.syncing") &&
+    offlineQueueBannerSource.includes("offlineQueue.status.failed") &&
+    offlineQueueBannerSource.includes("offlineQueue.readyToRetry") &&
     offlineQueueBannerSource.includes("networkLabel") &&
     offlineQueueBannerSource.includes("network.labelKey") &&
     !/network\.label(?!Key)/.test(offlineQueueBannerSource) &&

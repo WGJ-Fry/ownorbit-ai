@@ -532,8 +532,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /单条重试/);
 
   const offlineQueueBannerSource = await readFile(path.join(rootDir, "src", "components", "chat", "OfflineQueueBanner.tsx"), "utf8");
-  assert.match(offlineQueueBannerSource, /getOfflineMessageStatusLabel/);
-  assert.match(offlineQueueBannerSource, /getOfflineMessageRetryLabel/);
+  assert.match(offlineQueueBannerSource, /getOfflineMessageNextRetryAt/);
+  assert.match(offlineQueueBannerSource, /offlineQueue\.status\.pending/);
+  assert.match(offlineQueueBannerSource, /offlineQueue\.status\.syncing/);
+  assert.match(offlineQueueBannerSource, /offlineQueue\.status\.failed/);
+  assert.match(offlineQueueBannerSource, /offlineQueue\.readyToRetry/);
   assert.match(offlineQueueBannerSource, /networkLabel/);
   assert.match(offlineQueueBannerSource, /network\.labelKey/);
   assert.doesNotMatch(offlineQueueBannerSource, /network\.label(?!Key)/);

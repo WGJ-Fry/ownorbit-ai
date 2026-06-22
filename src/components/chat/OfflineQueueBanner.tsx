@@ -1,4 +1,4 @@
-import { getOfflineMessageRetryLabel, getOfflineMessageStatusLabel } from "../../services/offlineMessageQueue";
+import { getOfflineMessageNextRetryAt } from "../../services/offlineMessageQueue";
 import type { OfflineQueuedMessage } from "../../services/offlineMessageQueue";
 import type { NetworkStatus } from "../../services/networkStatus";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -79,12 +79,15 @@ export default function OfflineQueueBanner({
       {summary.count > 0 ? <div className="mt-3 space-y-2 border-t border-amber-200/15 pt-3">
         {items.slice(0, 3).map((item) => {
           const preview = item.message.parts.find((part) => part.text)?.text || t("offlineQueue.attachmentMessage");
-          const retryLabel = getOfflineMessageRetryLabel(item);
+          const nextRetryAt = getOfflineMessageNextRetryAt(item);
+          const retryReady = typeof nextRetryAt === "number" && nextRetryAt <= Date.now();
+          const retryLabel = !nextRetryAt ? "" : retryReady ? t("offlineQueue.readyToRetry") : t("offlineQueue.nextRetry", { time: new Date(nextRetryAt).toLocaleTimeString() });
+          const statusLabel = item.status === "failed" ? t("offlineQueue.status.failed") : item.status === "syncing" ? t("offlineQueue.status.syncing") : t("offlineQueue.status.pending");
           return (
             <div key={item.id} className="rounded-xl border border-amber-200/15 bg-black/10 p-2">
               <div className="flex items-center justify-between gap-2">
                 <span className="min-w-0 truncate text-[11px] text-amber-50/80">{preview}</span>
-                <span className="shrink-0 rounded-full bg-amber-200/10 px-2 py-0.5 text-[10px] text-amber-100/80">{getOfflineMessageStatusLabel(item)}</span>
+                <span className="shrink-0 rounded-full bg-amber-200/10 px-2 py-0.5 text-[10px] text-amber-100/80">{statusLabel}</span>
               </div>
               {item.lastError ? <div className="mt-1 truncate text-[10px] text-red-100/80">{item.lastError}</div> : null}
               {retryLabel ? <div className="mt-1 text-[10px] text-amber-100/65">{retryLabel}</div> : null}

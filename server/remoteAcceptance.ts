@@ -1,4 +1,4 @@
-import { saveRemoteValidationReport, type RemoteHealthSummary, type RemoteValidationReport } from "./remoteValidationReport";
+import { saveRemoteValidationReport, type RemoteHealthSummary, type RemoteValidationReport } from "./remoteValidationReport.ts";
 import { getClientState, setClientState } from "./clientState";
 
 const REMOTE_ACCEPTANCE_STATE_KEY = "lifeos_remote_acceptance_records";
