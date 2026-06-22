@@ -27,6 +27,39 @@ function backupPreviewAuditSummary(preview: ReturnType<typeof previewBackup>) {
   };
 }
 
+function safeOriginalFileStatus(value: unknown) {
+  if (typeof value !== "string") return "missing";
+  if (value.length > 180) return "too_long";
+  if (/[\\/]/.test(value)) return "unsafe_path";
+  return "present";
+}
+
+function encryptedImportFailureReason(error: any) {
+  const message = String(error?.message || "");
+  if (/passphrase/i.test(message)) return "invalid_passphrase";
+  if (/could not be decrypted/i.test(message)) return "decrypt_failed";
+  if (/parameters|kdf/i.test(message)) return "unsupported_parameters";
+  if (/invalid encrypted backup/i.test(message)) return "malformed_payload";
+  if (/unsupported encrypted backup file/i.test(message)) return "unsupported_file";
+  return "import_failed";
+}
+
+function encryptedImportFailureAuditMetadata(body: any, error: any) {
+  const payload = body?.payload && typeof body.payload === "object" ? body.payload : null;
+  const encryptedValue = payload && typeof payload.ciphertext === "string" ? payload.ciphertext : "";
+  return {
+    reason: encryptedImportFailureReason(error),
+    payload: {
+      shape: payload ? "object" : "missing",
+      version: payload && typeof payload.version === "number" ? payload.version : null,
+      originalFileStatus: safeOriginalFileStatus(payload?.originalFile),
+      hasKdf: Boolean(payload?.kdf && typeof payload.kdf === "object"),
+      hasCipher: Boolean(payload?.cipher && typeof payload.cipher === "object"),
+      encryptedBytesEstimate: encryptedValue ? Buffer.byteLength(encryptedValue, "base64url") : 0,
+    },
+  };
+}
+
 function publicRestoreRecord(restore: ReturnType<typeof scheduleDatabaseRestore>) {
   if (!restore) return null;
   return {
@@ -122,6 +155,7 @@ export function registerBackupRoutes(app: express.Express) {
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.json({ backup: publicBackupRecord(backup), preview });
     } catch (error: any) {
+      insertAuditLog("encrypted_backup_import_failed", "database", "encrypted-import", encryptedImportFailureAuditMetadata(req.body, error), (req as any).actor?.type, (req as any).actor?.id);
       res.status(400).json({ error: error.message || "Encrypted backup import failed" });
     }
   });

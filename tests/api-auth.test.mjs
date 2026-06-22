@@ -831,6 +831,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.ok(auditActions.includes("backup_schedule_updated"));
   assert.ok(auditActions.includes("encrypted_backup_exported"));
   assert.ok(auditActions.includes("encrypted_backup_imported"));
+  assert.ok(auditActions.includes("encrypted_backup_import_failed"));
   assert.ok(auditActions.includes("data_export_created"));
   assert.ok(auditActions.includes("data_cleanup_previewed"));
   assert.ok(auditActions.includes("diagnostic_bundle_exported"));
@@ -859,6 +860,12 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const encryptedImportAudit = auditAfterExports.logs.find((log) => log.action === "encrypted_backup_imported");
   assert.equal(encryptedImportAudit.metadata.preview.tableCount >= 1, true);
   assert.equal(typeof encryptedImportAudit.metadata.preview.warningCount, "number");
+  const encryptedImportFailureAudits = auditAfterExports.logs.filter((log) => log.action === "encrypted_backup_import_failed");
+  assert.equal(encryptedImportFailureAudits.some((log) => log.metadata.reason === "decrypt_failed"), true);
+  assert.equal(encryptedImportFailureAudits.some((log) => log.metadata.reason === "malformed_payload"), true);
+  assert.equal(encryptedImportFailureAudits.some((log) => log.metadata.reason === "unsupported_file" && log.metadata.payload.originalFileStatus === "unsafe_path"), true);
+  assert.equal(encryptedImportFailureAudits.every((log) => log.targetId === "encrypted-import"), true);
+  assert.equal(encryptedImportFailureAudits.every((log) => typeof log.metadata.payload.encryptedBytesEstimate === "number"), true);
   const exportAudits = auditAfterExports.logs.filter((log) => log.action === "data_export_created");
   const fullExportAudit = exportAudits.find((log) => Array.isArray(log.metadata.scopes) && log.metadata.scopes.includes("auditLogs"));
   assert.deepEqual(fullExportAudit.metadata.scopes, ["chat", "memories", "devices", "auditLogs"]);
