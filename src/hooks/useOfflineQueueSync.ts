@@ -48,8 +48,7 @@ export function useOfflineQueueSync(flushOfflineMessages: () => Promise<number>)
 
   const clearQueuedMessages = useCallback(() => {
     if (!window.confirm("Clear all unsynced offline messages? These messages will not be written to the desktop SQLite database.")) return;
-    clearOfflineMessageQueue();
-    refreshQueueState();
+    void clearOfflineMessageQueue().finally(refreshQueueState);
   }, [refreshQueueState]);
 
   useEffect(() => {

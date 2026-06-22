@@ -165,7 +165,7 @@ test("offline message queue deduplicates and persists retry state", async () => 
 
   queueModule.enqueueOfflineMessage({ role: "user", parts: [{ text: "clear me" }] });
   assert.equal(queueModule.getOfflineMessageQueueCount(), 1);
-  queueModule.clearOfflineMessageQueue();
+  await queueModule.clearOfflineMessageQueue();
   assert.equal(queueModule.getOfflineMessageQueueCount(), 0);
   assert.ok(dispatchedEvents.some((event) => event.type === "lifeos-offline-message-queue-changed" && event.detail.count === 0));
   await Promise.resolve();
@@ -264,7 +264,7 @@ test("single offline message retry and remove only change the selected queue ite
   assert.deepEqual(afterRemove.map((item) => item.id).sort(), [firstId, secondId].sort());
   assert.equal(afterRemove.find((item) => item.id === secondId)?.status, "failed");
 
-  queueModule.clearOfflineMessageQueue();
+  await queueModule.clearOfflineMessageQueue();
   assert.deepEqual(queueModule.getOfflineMessageQueue(), []);
   assert.equal(storage.has("lifeos_offline_message_queue"), false);
   assert.ok(dispatchedEvents.some((event) => event.type === "lifeos-offline-message-queue-changed" && event.detail.count === 0));
@@ -301,11 +301,14 @@ test("offline message queue migrates legacy localStorage into IndexedDB primary 
   assert.equal(status.legacyLocalStoragePresent, true);
   assert.equal(status.count, 1);
 
-  queueModule.clearOfflineMessageQueue();
+  await queueModule.clearOfflineMessageQueue();
   assert.equal(storage.has("lifeos_offline_message_queue"), false);
   const afterClear = await queueModule.getOfflineMessageQueueStorageStatus();
   assert.equal(afterClear.storage, "indexeddb");
   assert.equal(afterClear.count, 0);
+  const reloadedQueueModule = await import(`../src/services/offlineMessageQueue.ts?case=indexeddb-after-clear-${Date.now()}`);
+  await reloadedQueueModule.hydrateOfflineMessageQueue();
+  assert.deepEqual(reloadedQueueModule.getOfflineMessageQueue(), []);
   delete globalThis.indexedDB;
 });
 

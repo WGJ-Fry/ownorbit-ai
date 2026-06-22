@@ -432,10 +432,10 @@ export function resetFailedOfflineMessages() {
   )));
 }
 
-export function clearOfflineMessageQueue() {
+export async function clearOfflineMessageQueue() {
   queueCache = [];
   if (localStorageAvailable()) localStorage.removeItem(QUEUE_KEY);
-  void deleteIndexedQueue().catch(() => undefined);
+  await deleteIndexedQueue().catch(() => false);
   emitQueueChanged();
 }
 

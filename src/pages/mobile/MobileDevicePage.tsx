@@ -154,9 +154,9 @@ export default function MobileDevicePage() {
     }
   };
 
-  const handleClearQueue = () => {
+  const handleClearQueue = async () => {
     if (!window.confirm(t("mobileDevice.confirmClearQueue"))) return;
-    clearOfflineMessageQueue();
+    await clearOfflineMessageQueue();
     refreshQueue();
     setStatus(t("mobileDevice.queueCleared"));
   };
