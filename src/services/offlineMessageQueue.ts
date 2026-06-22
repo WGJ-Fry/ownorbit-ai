@@ -1,6 +1,7 @@
 import type { Message } from "../types";
 
 const QUEUE_KEY = "lifeos_offline_message_queue";
+const QUEUE_SYNC_META_KEY = "lifeos_offline_message_queue_sync_meta";
 const DB_NAME = "lifeos-offline-queue";
 const STORE_NAME = "queues";
 const QUEUE_RECORD_ID = "primary";
@@ -42,6 +43,11 @@ export type OfflineMessageQueueStorageStatus = {
   recommendations: string[];
 };
 
+export type OfflineMessageQueueSyncMeta = {
+  lastSyncedAt?: number;
+  lastSyncedCount?: number;
+};
+
 type WriteQueueOptions = {
   requestSync?: boolean;
 };
@@ -69,6 +75,26 @@ function indexedDbAvailable() {
 function readRawQueue() {
   if (!localStorageAvailable()) return "";
   return localStorage.getItem(QUEUE_KEY) || "";
+}
+
+function readSyncMeta(): OfflineMessageQueueSyncMeta {
+  if (!localStorageAvailable()) return {};
+  try {
+    const raw = localStorage.getItem(QUEUE_SYNC_META_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return {
+      lastSyncedAt: Number.isFinite(parsed?.lastSyncedAt) ? parsed.lastSyncedAt : undefined,
+      lastSyncedCount: Number.isFinite(parsed?.lastSyncedCount) ? parsed.lastSyncedCount : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
+function writeSyncMeta(meta: OfflineMessageQueueSyncMeta) {
+  if (!localStorageAvailable()) return;
+  localStorage.setItem(QUEUE_SYNC_META_KEY, JSON.stringify(meta));
 }
 
 function normalizeQueue(value: unknown): OfflineQueuedMessage[] {
@@ -379,6 +405,7 @@ export function getOfflineMessageQueueCount() {
 
 export function getOfflineMessageQueueSummary() {
   const queue = readQueue();
+  const syncMeta = readSyncMeta();
   const failed = queue.filter((item) => item.status === "failed").length;
   const syncing = queue.filter((item) => item.status === "syncing").length;
   const pending = queue.length - failed - syncing;
@@ -387,12 +414,18 @@ export function getOfflineMessageQueueSummary() {
     .map(getOfflineMessageNextRetryAt)
     .filter((value): value is number => typeof value === "number")
     .sort((a, b) => a - b)[0];
-  return { count: queue.length, pending, syncing, failed, lastError, nextRetryAt };
+  return { count: queue.length, pending, syncing, failed, lastError, nextRetryAt, ...syncMeta };
 }
 
 export function removeOfflineMessages(ids: string[]) {
   const idSet = new Set(ids);
   writeQueue(readQueue().filter((item) => !idSet.has(item.id)), { requestSync: false });
+}
+
+export function markOfflineMessagesSynced(ids: string[]) {
+  if (ids.length === 0) return;
+  writeSyncMeta({ lastSyncedAt: Date.now(), lastSyncedCount: ids.length });
+  removeOfflineMessages(ids);
 }
 
 export function retryOfflineMessage(id: string) {

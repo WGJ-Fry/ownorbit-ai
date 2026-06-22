@@ -399,6 +399,17 @@ export default function MobileDevicePage() {
             <Metric label={t("mobileDevice.syncing")} value={queueSummary.syncing} tone="text-amber-200" />
             <Metric label={t("mobileDevice.failed")} value={queueSummary.failed} tone="text-red-200" />
           </div>
+          {queueSummary.lastSyncedAt && queueSummary.lastSyncedCount ? (
+            <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-xs leading-relaxed text-emerald-100">
+              <div className="font-bold">{t("offlineQueue.lastSyncedTitle")}</div>
+              <div className="mt-1 opacity-85">
+                {t("offlineQueue.lastSyncedBody", {
+                  count: queueSummary.lastSyncedCount,
+                  time: new Date(queueSummary.lastSyncedAt).toLocaleString(),
+                })}
+              </div>
+            </div>
+          ) : null}
           {queueSummary.count > 0 ? (
             <div className={`mt-4 rounded-2xl border p-3 text-xs leading-relaxed ${currentEntry.okForRemote ? "border-cyan-400/20 bg-cyan-500/10 text-cyan-100" : "border-amber-400/20 bg-amber-500/10 text-amber-100"}`}>
               <div className="font-bold">{t("offlineQueue.remoteEntryTitle", { entry: t(currentEntry.titleKey as any) })}</div>

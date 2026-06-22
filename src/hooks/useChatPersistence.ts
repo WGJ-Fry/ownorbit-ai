@@ -5,10 +5,10 @@ import { loadActiveChatSessionId, saveActiveChatSessionId } from "../services/ch
 import {
   enqueueOfflineMessage,
   getOfflineMessagesReadyToSync,
+  markOfflineMessagesSynced,
   markOfflineMessageFailed,
   markOfflineMessageSyncing,
   recoverStaleOfflineMessages,
-  removeOfflineMessages,
 } from "../services/offlineMessageQueue";
 
 export function useChatPersistence() {
@@ -80,7 +80,7 @@ export function useChatPersistence() {
       }
     }
 
-    removeOfflineMessages(syncedIds);
+    markOfflineMessagesSynced(syncedIds);
     return syncedIds.length;
   }, [ensureChatSessionId]);
 

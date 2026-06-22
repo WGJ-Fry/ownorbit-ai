@@ -270,6 +270,34 @@ test("single offline message retry and remove only change the selected queue ite
   assert.ok(dispatchedEvents.some((event) => event.type === "lifeos-offline-message-queue-changed" && event.detail.count === 0));
 });
 
+test("offline message queue records the latest successful write-back without storing message content", async () => {
+  storage.clear();
+  dispatchedEvents = [];
+  postedMessages = [];
+  registeredSyncTags = [];
+  const queueModule = await import(`../src/services/offlineMessageQueue.ts?case=sync-meta-${Date.now()}`);
+
+  const firstId = queueModule.enqueueOfflineMessage({ role: "user", parts: [{ text: "write me back" }] });
+  const secondId = queueModule.enqueueOfflineMessage({ role: "user", parts: [{ text: "still waiting" }] });
+  queueModule.markOfflineMessagesSynced([firstId]);
+
+  const queue = queueModule.getOfflineMessageQueue();
+  assert.deepEqual(queue.map((item) => item.id), [secondId]);
+  const summary = queueModule.getOfflineMessageQueueSummary();
+  assert.equal(summary.count, 1);
+  assert.equal(summary.lastSyncedCount, 1);
+  assert.equal(typeof summary.lastSyncedAt, "number");
+  const syncMetaRaw = storage.get("lifeos_offline_message_queue_sync_meta");
+  assert.ok(syncMetaRaw);
+  assert.equal(syncMetaRaw.includes("write me back"), false);
+
+  await queueModule.clearOfflineMessageQueue();
+  const afterClear = queueModule.getOfflineMessageQueueSummary();
+  assert.equal(afterClear.count, 0);
+  assert.equal(afterClear.lastSyncedCount, 1);
+  assert.equal(afterClear.lastSyncedAt, summary.lastSyncedAt);
+});
+
 test("offline message queue migrates legacy localStorage into IndexedDB primary storage", async () => {
   storage.clear();
   dispatchedEvents = [];
