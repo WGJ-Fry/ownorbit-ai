@@ -1371,6 +1371,8 @@ function checkAssets() {
     systemActionsServiceSource.includes("javascript") &&
     systemActionsServiceSource.includes("view-source") &&
     systemActionsServiceSource.includes("redactActionUrl") &&
+    systemActionsServiceSource.includes("redactActionTarget") &&
+    systemActionStorageSource.includes("redactActionTarget(log.target || log.url, log.scheme)") &&
     systemActionsSource.includes("../../services/systemActions") &&
     packageJson.scripts.test.includes("tests/system-actions.test.mjs") &&
     systemActionsTestSource.includes("../src/services/systemActions.ts") &&
@@ -1382,6 +1384,8 @@ function checkAssets() {
     systemActionsTestSource.includes("data") &&
     systemActionsTestSource.includes("file") &&
     systemActionsTestSource.includes("sms:[redacted]?body=[redacted]") &&
+    systemActionsTestSource.includes("[redacted phone]") &&
+    systemActionsTestSource.includes("[redacted email]") &&
     systemActionsTestSource.includes("shortcuts://run-shortcut?name=[redacted]&text=[redacted]")
   ) pass("mobile action URL scheme whitelist rejects blocked and malformed schemes");
   else warn("mobile action URL scheme whitelist lacks blocked-scheme hardening or tests");

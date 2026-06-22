@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   DEFAULT_ALLOWED_SCHEMES,
   buildShortcutUrl,
+  redactActionTarget,
   redactActionUrl,
   riskForScheme,
   summarizeActionParams,
@@ -39,6 +40,10 @@ test("system action URL logs redact sensitive targets and query values", () => {
   assert.equal(redactActionUrl("https://example.test/path?token=abc&code=123#frag"), "https://example.test/path?token=[redacted]&code=[redacted]");
   assert.equal(redactActionUrl("weixin://dl/business/?ticket=secret"), "weixin://[redacted]?ticket=[redacted]");
   assert.equal(redactActionUrl("not a url"), "[invalid-url]");
+  assert.equal(redactActionTarget("+15551234567", "tel"), "[redacted phone]");
+  assert.equal(redactActionTarget("user@example.test", "mailto"), "[redacted email]");
+  assert.equal(redactActionTarget("https://example.test/path?token=abc", "https"), "https://example.test/path?token=[redacted]");
+  assert.equal(redactActionTarget("Open Maps", "maps"), "Open Maps");
 });
 
 test("system action helpers classify risk and summarize params", () => {
@@ -106,7 +111,9 @@ test("system action storage normalizes whitelist, saved actions, and redacted lo
   const logs = loadSystemActionLogs(storage);
   assert.equal(logs.length, 1);
   assert.equal(logs[0].url, "tel:[redacted]");
+  assert.equal(logs[0].target, "[redacted phone]");
   assert.equal(logs[0].paramsSummary, "-");
   assert.equal(writeSystemActionStorage(SYSTEM_ACTION_LOGS_STORAGE_KEY, logs, storage), true);
   assert.match(values[SYSTEM_ACTION_LOGS_STORAGE_KEY], /tel:\[redacted\]/);
+  assert.doesNotMatch(values[SYSTEM_ACTION_LOGS_STORAGE_KEY], /\+15551234567/);
 });

@@ -1,6 +1,7 @@
 import {
   DEFAULT_ALLOWED_SCHEMES,
   normalizeAllowedUrlSchemes,
+  redactActionTarget,
   redactActionUrl,
   summarizeActionParams,
   type ActionRisk,
@@ -47,7 +48,7 @@ export function normalizeSystemActionLog(log: Partial<SystemActionLog>): SystemA
     url: redactActionUrl(log.url),
     scheme: log.scheme,
     source: log.source || "Manual action",
-    target: log.target || log.url,
+    target: redactActionTarget(log.target || log.url, log.scheme),
     paramsSummary: log.paramsSummary || summarizeActionParams(log.url),
     status: log.status,
     risk: log.risk,

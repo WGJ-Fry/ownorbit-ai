@@ -56,6 +56,15 @@ export function redactActionUrl(url: string) {
   }
 }
 
+export function redactActionTarget(target: string, scheme: string) {
+  const trimmed = target.trim();
+  const normalizedScheme = scheme.trim().toLowerCase();
+  if (["tel", "sms"].includes(normalizedScheme)) return "[redacted phone]";
+  if (normalizedScheme === "mailto") return "[redacted email]";
+  if (getUrlScheme(trimmed)) return redactActionUrl(trimmed);
+  return trimmed.slice(0, 160) || "[redacted]";
+}
+
 export function buildShortcutUrl(name: string, input: string) {
   const params = new URLSearchParams({ name: name.trim() });
   if (input.trim()) {
