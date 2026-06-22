@@ -389,6 +389,8 @@ test("release check verifies packaged macOS app contains runtime entrypoints", a
     "dist/index.html": "<!doctype html>",
     "package.json": JSON.stringify({ name: "lifeos-ai", main: "desktop/main.cjs" }),
   });
+  await mkdir(path.join(releaseDir, "win-unpacked"), { recursive: true });
+  await writeFile(path.join(releaseDir, "win-unpacked", "LifeOS AI.exe"), "unpacked executable is not a release asset");
 
   const result = runReleaseCheck({
     LIFEOS_RELEASE_DIR: releaseDir,
@@ -462,6 +464,7 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /unsigned macOS zip packaging uses electron-builder ad-hoc signing and verifies before zipping/);
   assert.match(result.stdout, /desktop artifact smoke verifies packaged mobile pairing install manifest/);
   assert.match(result.stdout, /release SHA256SUMS includes artifact: LifeOS AI-0\.1\.0-arm64-unsigned\.zip/);
+  assert.match(result.stdout, /release manifest\/checksums (?:exclude unpacked build directories|do not reference unpacked build directories)/);
   assert.match(result.stdout, /desktop release smoke workflow covers macOS, Windows, and Linux/);
   assert.match(result.stdout, /desktop release smoke workflow runs the release smoke script/);
   assert.match(result.stdout, /desktop release smoke workflow launches the packaged macOS app/);
@@ -542,6 +545,35 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /release checklist documents unsigned\/signed distribution, update feed, and signing inputs/);
   assert.match(result.stdout, /desktop release guide covers cross-platform packaging, update channel, and diagnostics/);
   assert.match(result.stdout, /Release check: .*0 warnings, 0 failures/);
+});
+
+test("release check rejects manifests that reference unpacked app internals", async (t) => {
+  const releaseDir = await mkdtemp(path.join(tmpdir(), "lifeos-release-check-unpacked-ref-"));
+  t.after(async () => {
+    await rm(releaseDir, { recursive: true, force: true });
+  });
+
+  await createPackagedMacApp(releaseDir, {
+    "desktop/main.cjs": packagedDesktopMain,
+    "dist/server.cjs": "module.exports = {};",
+    "dist/index.html": "<!doctype html>",
+    "package.json": JSON.stringify({ name: "lifeos-ai", main: "desktop/main.cjs" }),
+  });
+  await mkdir(path.join(releaseDir, "win-unpacked"), { recursive: true });
+  await writeFile(path.join(releaseDir, "win-unpacked", "LifeOS AI.exe"), "unpacked executable is not a release asset");
+  const manifestPath = path.join(releaseDir, "update-feed", "release-manifest.json");
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  manifest.artifacts[0].fileName = "win-unpacked/LifeOS AI.exe";
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  await writeFile(path.join(releaseDir, "SHA256SUMS"), "abc123  win-unpacked/LifeOS AI.exe\n");
+
+  const result = runReleaseCheck({
+    LIFEOS_RELEASE_DIR: releaseDir,
+    LIFEOS_DISTRIBUTION: "unsigned",
+    LIFEOS_RELEASE_STRICT: "1",
+  });
+  assert.notEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stdout, /release manifest or SHA256SUMS references unpacked app internals/);
 });
 
 test("release check signed strategy fails strict mode without signing env", () => {

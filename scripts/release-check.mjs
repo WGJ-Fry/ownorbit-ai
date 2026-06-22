@@ -1737,6 +1737,23 @@ function checkUpdateFeed() {
   if (artifacts.length > 0) pass(`release manifest lists ${artifacts.length} artifact(s)`);
   else fail("release manifest does not list any artifacts");
 
+  const unpackedReleaseDirs = fs.readdirSync(releaseDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && /(?:^|-)unpacked$/i.test(entry.name))
+    .map((entry) => entry.name);
+  const unpackedArtifactRefs = artifacts
+    .map((artifact) => String(artifact.fileName || ""))
+    .filter((fileName) => /(?:^|\/)(?:[^/]+-)?unpacked(?:\/|$)/i.test(fileName) || /(?:^|\/)(?:LifeOS AI\.exe|lifeos-ai)$/i.test(fileName));
+  const checksumUnpackedRefs = checksums
+    .split(/\r?\n/)
+    .filter((line) => /(?:^|\/)(?:[^/]+-)?unpacked(?:\/|$)/i.test(line) || /(?:^|\/)(?:LifeOS AI\.exe|lifeos-ai)$/i.test(line));
+  if (unpackedArtifactRefs.length === 0 && checksumUnpackedRefs.length === 0) {
+    pass(unpackedReleaseDirs.length > 0
+      ? `release manifest/checksums exclude unpacked build directories: ${unpackedReleaseDirs.join(", ")}`
+      : "release manifest/checksums do not reference unpacked build directories");
+  } else {
+    fail(`release manifest or SHA256SUMS references unpacked app internals: ${[...unpackedArtifactRefs, ...checksumUnpackedRefs].join(", ")}`);
+  }
+
   for (const artifact of artifacts) {
     const artifactPath = path.join(feedDir, artifact.fileName || "");
     const rootArtifactPath = path.join(releaseDir, artifact.fileName || "");
