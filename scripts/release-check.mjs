@@ -1843,7 +1843,7 @@ function checkReleaseDocs() {
     "LOCAL_MODEL_BASE_URL=http://ollama:11434/v1",
     "LIFEOS_VAULT_DIR=/app/vault",
     "docker/build-push-action@v6",
-    "docs/assets/real-demo.gif",
+    "docs/assets/real-demo-en.gif",
     "What am I forgetting?",
   ];
   const missingDockerMarkers = requiredDockerQuickstartMarkers.filter((marker) => !dockerCombined.includes(marker));
@@ -1851,6 +1851,18 @@ function checkReleaseDocs() {
     pass("Docker quickstart covers Ollama, local Markdown vault, quickstart login, GHCR image, and README proof path");
   } else {
     fail(`Docker quickstart is incomplete; missing files: ${missingDockerFiles.join(", ") || "none"}; missing markers: ${missingDockerMarkers.join(", ") || "none"}`);
+  }
+
+  const readmeEn = dockerQuickstartFiles["README.md"];
+  const readmeZh = exists("README.zh-CN.md") ? fs.readFileSync(path.join(rootDir, "README.zh-CN.md"), "utf8") : "";
+  if (
+    readmeEn.includes("docs/assets/real-demo-en.gif")
+    && !readmeEn.includes("docs/assets/real-demo.gif")
+    && readmeZh.includes("docs/assets/real-demo.gif")
+  ) {
+    pass("Bilingual README demo GIFs match their language");
+  } else {
+    fail("Bilingual README demo GIFs are mismatched; English must use docs/assets/real-demo-en.gif and Chinese must use docs/assets/real-demo.gif");
   }
 
   const publicReleaseDocPaths = [

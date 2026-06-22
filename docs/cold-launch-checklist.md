@@ -16,7 +16,8 @@ return passport, proposal, and tax deadline
 - [ ] `README.md` is the focused English quickstart.
 - [ ] `README.zh-CN.md` is the focused Chinese quickstart.
 - [ ] `README.md` and `README.zh-CN.md` link to each other.
-- [ ] `docs/assets/real-demo.gif` exists.
+- [ ] `docs/assets/real-demo-en.gif` exists for the English README.
+- [ ] `docs/assets/real-demo.gif` exists for the Chinese README.
 - [ ] `package.json` is `0.1.1-alpha.0`, `private: false`, and `MIT`.
 - [ ] `Dockerfile` exists and builds the app.
 - [ ] `docker-compose.yml` points to `ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha`.
@@ -123,4 +124,3 @@ Do not install:
 - API keys
 
 Blind test passes only when the Docker quickstart works and returns the demo Markdown reminders.
-

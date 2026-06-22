@@ -150,7 +150,7 @@ Expected result: LifeOS should mention the passport expiry, Tom’s proposal, an
 First startup can take several minutes because Ollama downloads `llama3.2`.
 
 <p align="center">
-  <img src="docs/assets/real-demo.gif" alt="LifeOS local Markdown demo asking what am I forgetting" width="420">
+  <img src="docs/assets/real-demo-en.gif" alt="LifeOS local Markdown demo asking what am I forgetting" width="420">
 </p>
 
 ## What Starts In Docker
