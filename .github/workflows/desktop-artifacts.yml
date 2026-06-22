@@ -7,7 +7,7 @@ on:
       - "v*"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   package:
@@ -75,6 +75,25 @@ jobs:
           if-no-files-found: error
           retention-days: 14
           path: |
+            release/*.dmg
+            release/*.zip
+            release/*.exe
+            release/*.AppImage
+            release/SHA256SUMS
+            release/USER-INSTALL.md
+            release/INSTALL-unsigned-mac.md
+            release/update-feed/latest*.yml
+            release/update-feed/release-manifest.json
+
+      - name: Upload files to GitHub Release draft
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+          name: LifeOS AI ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
             release/*.dmg
             release/*.zip
             release/*.exe

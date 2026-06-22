@@ -14,11 +14,29 @@ npm run release:check:signed:file
 
 `release:artifacts:check` 会阻止误上传旧版本安装包。当前仓库已经通过严格 unsigned 发布检查。做 signed macOS 公开发布时，使用 `.env.signing.local` 或当前 shell 注入签名/公证环境后，再运行 `npm run release:check:signed:file`。
 
+## 推荐：用 CI 生成 Release 草稿
+
+当前仓库包含 `Desktop Package Artifacts` GitHub Actions workflow。推送 `v*` tag 后，它会在 macOS、Windows、Linux 三个平台分别构建并验证安装包，然后把安装包、`SHA256SUMS`、安装说明、`latest*.yml` 和 `release-manifest.json` 上传到同一个 GitHub Release 草稿。
+
+```bash
+git tag v0.1.1-alpha.0
+git push origin v0.1.1-alpha.0
+```
+
+然后打开 GitHub Actions，等待 `Desktop Package Artifacts` 三个平台都成功。成功后到 Releases 页面检查 draft：
+
+1. 确认 macOS、Windows、Linux 资产都已上传。
+2. 确认 `SHA256SUMS`、`USER-INSTALL.md`、`latest*.yml`、`release-manifest.json` 都在 Release 资产里。
+3. 从 Release 页面下载一次安装包，在另一台机器或干净用户目录验证首次启动。
+4. 没问题后再把 draft 发布为正式 Release。
+
+手动触发这个 workflow 时，它只会生成 Actions artifact；只有 `v*` tag 触发时才会写入 GitHub Release 草稿。
+
 ## 创建 Release
 
 1. 在 GitHub 创建仓库。
 2. 上传代码，不要上传 `release/`、`node_modules/`、`.env*`、证书、数据库。
-3. 打开 GitHub 仓库的 Releases。
+3. 优先使用上面的 CI 草稿流程；如果必须手工发布，再打开 GitHub 仓库的 Releases。
 4. New release。
 5. Tag 填：
 
@@ -141,11 +159,29 @@ LIFEOS_DISTRIBUTION=signed npm run release:check
 
 `release:artifacts:check` blocks accidental uploads of stale installers from an older package version. If `LIFEOS_UPDATE_URL` is not set, manual download/install can still be ready while auto-update remains disabled.
 
+## Recommended: Generate a Release Draft with CI
+
+This repository includes the `Desktop Package Artifacts` GitHub Actions workflow. When you push a `v*` tag, it builds and verifies packages on macOS, Windows, and Linux, then uploads the installers, `SHA256SUMS`, install guides, `latest*.yml`, and `release-manifest.json` to one GitHub Release draft.
+
+```bash
+git tag v0.1.1-alpha.0
+git push origin v0.1.1-alpha.0
+```
+
+Then open GitHub Actions and wait until all three `Desktop Package Artifacts` jobs pass. After that, open the draft Release:
+
+1. Confirm macOS, Windows, and Linux assets are present.
+2. Confirm `SHA256SUMS`, `USER-INSTALL.md`, `latest*.yml`, and `release-manifest.json` are attached.
+3. Download from the Release page and test first launch on another machine or clean user profile.
+4. Publish the draft only after the downloaded package is verified.
+
+Manual workflow runs still produce Actions artifacts only; GitHub Release drafts are updated only for `v*` tag runs.
+
 ## Create a Release
 
 1. Create the GitHub repository.
 2. Push source code, but do not push `release/`, `node_modules/`, `.env*`, certificates, or databases.
-3. Open GitHub Releases.
+3. Prefer the CI draft flow above; if you must publish manually, open GitHub Releases.
 4. New release.
 5. Tag:
 

@@ -485,7 +485,7 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /desktop release smoke blocks stale installer artifacts before verification/);
   assert.match(result.stdout, /desktop release smoke verifies packaged artifacts after building/);
   assert.match(result.stdout, /desktop release smoke can launch the packaged macOS app when requested/);
-  assert.match(result.stdout, /desktop package artifact workflow uploads macOS, Windows, Linux packages and update metadata/);
+  assert.match(result.stdout, /desktop package artifact workflow uploads macOS, Windows, Linux packages and draft GitHub Release assets/);
   assert.match(result.stdout, /desktop artifact launch smoke script starts the packaged app/);
   assert.match(result.stdout, /desktop artifact smoke verifies update feed, packaged asar, and optional launch/);
   assert.match(result.stdout, /desktop artifact smoke verifies unsigned macOS ad-hoc signature/);

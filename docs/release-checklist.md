@@ -122,6 +122,8 @@ The smoke script builds a platform artifact on each runner:
 
 `npm run release:check:unsigned` verifies that the workflow covers all three platforms, disables opportunistic signing, and that the smoke script really calls the Windows and Linux package commands. A local macOS run still only proves the macOS artifact; the GitHub Actions matrix is the cross-platform packaging proof.
 
+For publishable CI artifacts, use the `Desktop Package Artifacts` workflow. Manual runs produce downloadable Actions artifacts for review. A `v*` tag run also attaches the generated installers, `SHA256SUMS`, install guides, `latest*.yml`, and `release-manifest.json` to a GitHub Release draft.
+
 ## Unsigned GitHub Release Strategy
 
 Use this path when you do not want app-store style signing:
@@ -145,6 +147,15 @@ release/update-feed/release-manifest.json
 ```
 
 Users unzip the app, move it to Applications, and open it manually. Share `release/USER-INSTALL.md` with them so first launch, phone binding, backup, update, and troubleshooting steps are clear. Publish `release/SHA256SUMS` next to the download so users or support can verify the artifact with `shasum -a 256 -c SHA256SUMS` on macOS/Linux or `Get-FileHash` on Windows. Auto-update can stay disabled unless you also publish the complete `release/update-feed/` directory to a stable HTTPS URL and set `LIFEOS_UPDATE_URL`.
+
+Preferred GitHub Release path:
+
+```bash
+git tag v0.1.1-alpha.0
+git push origin v0.1.1-alpha.0
+```
+
+Wait for `Desktop Package Artifacts`, open the generated GitHub Release draft, download the assets once for a clean install test, then publish the draft.
 
 ## Signed macOS Distribution Strategy
 

@@ -259,6 +259,12 @@ function checkScripts() {
     const artifactsWorkflow = fs.readFileSync(desktopArtifactsWorkflowPath, "utf8");
     if (
       artifactsWorkflow.includes("actions/upload-artifact@v4") &&
+      artifactsWorkflow.includes("softprops/action-gh-release@v2") &&
+      artifactsWorkflow.includes("contents: write") &&
+      artifactsWorkflow.includes("draft: true") &&
+      artifactsWorkflow.includes("prerelease:") &&
+      artifactsWorkflow.includes("generate_release_notes: true") &&
+      artifactsWorkflow.includes("startsWith(github.ref, 'refs/tags/')") &&
       artifactsWorkflow.includes("npm run desktop:release:smoke") &&
       artifactsWorkflow.includes("macos-latest") &&
       artifactsWorkflow.includes("windows-latest") &&
@@ -270,8 +276,8 @@ function checkScripts() {
       artifactsWorkflow.includes("release/SHA256SUMS") &&
       artifactsWorkflow.includes("release/update-feed/latest*.yml") &&
       artifactsWorkflow.includes("release/update-feed/release-manifest.json")
-    ) pass("desktop package artifact workflow uploads macOS, Windows, Linux packages and update metadata");
-    else fail("desktop package artifact workflow must build, verify, and upload package artifacts plus update metadata for all platforms");
+    ) pass("desktop package artifact workflow uploads macOS, Windows, Linux packages and draft GitHub Release assets");
+    else fail("desktop package artifact workflow must build, verify, upload package artifacts, and attach update metadata to draft GitHub Releases for all platforms");
   } else {
     fail("missing desktop package artifact workflow: .github/workflows/desktop-artifacts.yml");
   }
@@ -2044,6 +2050,8 @@ function checkReleaseDocs() {
       "CSC_KEY_PASSWORD",
       "APPLE_ID",
       "APPLE_TEAM_ID",
+      "Desktop Package Artifacts",
+      "Release draft",
     ];
     const missingMarkers = requiredChecklistMarkers.filter((marker) => !checklist.includes(marker));
     if (missingMarkers.length === 0) {
@@ -2053,6 +2061,26 @@ function checkReleaseDocs() {
     }
   } else {
     warn("release checklist is missing: docs/release-checklist.md");
+  }
+
+  if (exists("docs/github-release.md")) {
+    const githubReleaseGuide = fs.readFileSync(path.join(rootDir, "docs/github-release.md"), "utf8");
+    const requiredGithubReleaseMarkers = [
+      "Desktop Package Artifacts",
+      "GitHub Release 草稿",
+      "GitHub Release draft",
+      "git tag v0.1.1-alpha.0",
+      "Manual workflow runs still produce Actions artifacts only",
+      "只有 `v*` tag 触发时才会写入 GitHub Release 草稿",
+    ];
+    const missingMarkers = requiredGithubReleaseMarkers.filter((marker) => !githubReleaseGuide.includes(marker));
+    if (missingMarkers.length === 0) {
+      pass("GitHub release guide documents CI-generated draft releases");
+    } else {
+      warn(`GitHub release guide is missing CI draft release markers: ${missingMarkers.join(", ")}`);
+    }
+  } else {
+    warn("GitHub release guide is missing: docs/github-release.md");
   }
 
   if (exists("docs/desktop-release.md")) {
