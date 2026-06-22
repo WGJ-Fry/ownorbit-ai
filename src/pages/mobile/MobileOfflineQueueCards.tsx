@@ -48,7 +48,7 @@ export function QueueStorageCard({ storage }: { storage: OfflineMessageQueueStor
   );
 }
 
-export function QueueItem({ item, onRetry, onRemove }: { item: OfflineQueuedMessage; onRetry: () => void; onRemove: () => void }) {
+export function QueueItem({ item, onRetry, onRemove, onCopy }: { item: OfflineQueuedMessage; onRetry: () => void; onRemove: () => void; onCopy?: () => void }) {
   const { t } = useI18n();
   const preview = item.message.parts.find((part) => part.text)?.text || t("offlineQueue.attachmentMessage");
   const nextRetryAt = getOfflineMessageNextRetryAt(item);
@@ -80,11 +80,14 @@ export function QueueItem({ item, onRetry, onRemove }: { item: OfflineQueuedMess
         </div>
       ) : null}
       {manualRetryLabel ? <div className="mt-2 rounded-xl border border-cyan-400/20 bg-cyan-500/10 p-2 leading-relaxed text-cyan-100">{manualRetryLabel}</div> : null}
-      <div className="mt-3 flex items-center gap-2">
-        <button aria-label={t("offlineQueue.retryAria", { preview })} onClick={onRetry} className="inline-flex flex-1 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-500/10 px-3 py-2 font-bold text-amber-100">
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <button aria-label={t("offlineQueue.retryAria", { preview })} onClick={onRetry} className="inline-flex items-center justify-center rounded-xl border border-amber-400/20 bg-amber-500/10 px-3 py-2 font-bold text-amber-100">
           {t("offlineQueue.retryOne")}
         </button>
-        <button aria-label={t("offlineQueue.removeAria", { preview })} onClick={onRemove} className="inline-flex flex-1 items-center justify-center rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 font-bold text-red-200">
+        <button aria-label={t("offlineQueue.copyAria", { preview })} onClick={onCopy} className="inline-flex items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-3 py-2 font-bold text-cyan-100">
+          {t("offlineQueue.copy")}
+        </button>
+        <button aria-label={t("offlineQueue.removeAria", { preview })} onClick={onRemove} className="inline-flex items-center justify-center rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 font-bold text-red-200">
           {t("offlineQueue.remove")}
         </button>
       </div>

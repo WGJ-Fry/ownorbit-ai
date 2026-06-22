@@ -1,0 +1,42 @@
+<svg width="1280" height="620" viewBox="0 0 1280 620" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">LifeOS remote access</title>
+  <desc id="desc">Remote access paths for LifeOS mobile companion: LAN, Tailscale VPN, and Cloudflare Tunnel with safety checks.</desc>
+  <rect width="1280" height="620" rx="32" fill="#071019"/>
+  <text x="64" y="76" fill="#F8FAFC" font-family="Inter, Arial, sans-serif" font-size="42" font-weight="850">Use your phone even when it is not on the same Wi-Fi</text>
+  <text x="64" y="116" fill="#94A3B8" font-family="Inter, Arial, sans-serif" font-size="21">LifeOS keeps the AI core on your computer. The phone connects back through a safe entry.</text>
+  <g transform="translate(78 210)">
+    <rect width="260" height="232" rx="26" fill="#102033" stroke="#334155"/>
+    <text x="30" y="54" fill="#A7F3D0" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="850">LAN</text>
+    <text x="30" y="96" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="18">Same Wi-Fi</text>
+    <text x="30" y="128" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="18">Auto-detected local IP</text>
+    <text x="30" y="178" fill="#86EFAC" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="800">Fast local setup</text>
+  </g>
+  <g transform="translate(390 180)">
+    <rect width="300" height="292" rx="28" fill="#0B2239" stroke="#60A5FA" stroke-width="2"/>
+    <text x="32" y="58" fill="#93C5FD" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="850">Tailscale / VPN</text>
+    <text x="32" y="104" fill="#DBEAFE" font-family="Inter, Arial, sans-serif" font-size="18">Long-term personal use</text>
+    <text x="32" y="136" fill="#DBEAFE" font-family="Inter, Arial, sans-serif" font-size="18">Device and Tailnet detection</text>
+    <text x="32" y="168" fill="#DBEAFE" font-family="Inter, Arial, sans-serif" font-size="18">Phone access address guidance</text>
+    <rect x="32" y="210" width="222" height="44" rx="14" fill="#1D4ED8"/>
+    <text x="52" y="238" fill="#EFF6FF" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="800">Recommended for daily use</text>
+  </g>
+  <g transform="translate(742 180)">
+    <rect width="300" height="292" rx="28" fill="#211A0B" stroke="#F59E0B" stroke-width="2"/>
+    <text x="32" y="58" fill="#FDE68A" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="850">Cloudflare Tunnel</text>
+    <text x="32" y="104" fill="#FEF3C7" font-family="Inter, Arial, sans-serif" font-size="18">HTTPS public entry</text>
+    <text x="32" y="136" fill="#FEF3C7" font-family="Inter, Arial, sans-serif" font-size="18">Command and env guidance</text>
+    <text x="32" y="168" fill="#FEF3C7" font-family="Inter, Arial, sans-serif" font-size="18">Connection diagnostics</text>
+    <rect x="32" y="210" width="232" height="44" rx="14" fill="#92400E"/>
+    <text x="52" y="238" fill="#FFF7ED" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="800">Good for external testing</text>
+  </g>
+  <g transform="translate(1080 216)">
+    <rect width="112" height="214" rx="28" fill="#020617" stroke="#334155" stroke-width="2"/>
+    <rect x="14" y="22" width="84" height="170" rx="18" fill="#0F172A"/>
+    <circle cx="56" cy="170" r="8" fill="#67E8F9"/>
+  </g>
+  <path d="M338 326H390" stroke="#334155" stroke-width="4"/>
+  <path d="M690 326H742" stroke="#334155" stroke-width="4"/>
+  <path d="M1042 326H1080" stroke="#334155" stroke-width="4"/>
+  <text x="64" y="550" fill="#FCA5A5" font-family="Inter, Arial, sans-serif" font-size="19" font-weight="800">Safety rule:</text>
+  <text x="170" y="550" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="19">do not expose the desktop core directly to the public internet without admin auth, HTTPS, backups, and diagnostics.</text>
+</svg>

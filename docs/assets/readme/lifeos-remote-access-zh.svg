@@ -1,0 +1,42 @@
+<svg width="1280" height="620" viewBox="0 0 1280 620" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">LifeOS 异地连接</title>
+  <desc id="desc">LifeOS 手机端异地连接路径：局域网、Tailscale/VPN、Cloudflare Tunnel 和安全自检。</desc>
+  <rect width="1280" height="620" rx="32" fill="#071019"/>
+  <text x="64" y="76" fill="#F8FAFC" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="42" font-weight="850">手机不在同一个局域网，也能连回电脑端</text>
+  <text x="64" y="116" fill="#94A3B8" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="21">LifeOS 的 AI 核心仍在你的电脑上，手机通过安全入口连接回来。</text>
+  <g transform="translate(78 210)">
+    <rect width="260" height="232" rx="26" fill="#102033" stroke="#334155"/>
+    <text x="30" y="54" fill="#A7F3D0" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="26" font-weight="850">局域网</text>
+    <text x="30" y="96" fill="#CBD5E1" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="18">同一个 Wi-Fi</text>
+    <text x="30" y="128" fill="#CBD5E1" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="18">自动识别本机 IP</text>
+    <text x="30" y="178" fill="#86EFAC" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="18" font-weight="800">最快完成绑定</text>
+  </g>
+  <g transform="translate(390 180)">
+    <rect width="300" height="292" rx="28" fill="#0B2239" stroke="#60A5FA" stroke-width="2"/>
+    <text x="32" y="58" fill="#93C5FD" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="28" font-weight="850">Tailscale / VPN</text>
+    <text x="32" y="104" fill="#DBEAFE" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="18">长期自用推荐</text>
+    <text x="32" y="136" fill="#DBEAFE" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="18">检测安装状态和设备名</text>
+    <text x="32" y="168" fill="#DBEAFE" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="18">生成手机访问地址</text>
+    <rect x="32" y="210" width="222" height="44" rx="14" fill="#1D4ED8"/>
+    <text x="52" y="238" fill="#EFF6FF" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="17" font-weight="800">适合日常长期使用</text>
+  </g>
+  <g transform="translate(742 180)">
+    <rect width="300" height="292" rx="28" fill="#211A0B" stroke="#F59E0B" stroke-width="2"/>
+    <text x="32" y="58" fill="#FDE68A" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="28" font-weight="850">Cloudflare Tunnel</text>
+    <text x="32" y="104" fill="#FEF3C7" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="18">HTTPS 公网入口</text>
+    <text x="32" y="136" fill="#FEF3C7" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="18">生成命令和环境配置</text>
+    <text x="32" y="168" fill="#FEF3C7" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="18">连接诊断和风险提示</text>
+    <rect x="32" y="210" width="232" height="44" rx="14" fill="#92400E"/>
+    <text x="52" y="238" fill="#FFF7ED" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="17" font-weight="800">适合外网测试入口</text>
+  </g>
+  <g transform="translate(1080 216)">
+    <rect width="112" height="214" rx="28" fill="#020617" stroke="#334155" stroke-width="2"/>
+    <rect x="14" y="22" width="84" height="170" rx="18" fill="#0F172A"/>
+    <circle cx="56" cy="170" r="8" fill="#67E8F9"/>
+  </g>
+  <path d="M338 326H390" stroke="#334155" stroke-width="4"/>
+  <path d="M690 326H742" stroke="#334155" stroke-width="4"/>
+  <path d="M1042 326H1080" stroke="#334155" stroke-width="4"/>
+  <text x="64" y="550" fill="#FCA5A5" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="19" font-weight="800">安全原则：</text>
+  <text x="170" y="550" fill="#CBD5E1" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="19">不要在没有管理员认证、HTTPS、备份和诊断的情况下直接暴露电脑端核心。</text>
+</svg>

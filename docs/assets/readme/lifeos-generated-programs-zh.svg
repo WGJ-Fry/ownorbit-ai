@@ -1,0 +1,41 @@
+<svg width="1280" height="620" viewBox="0 0 1280 620" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">LifeOS 自动生成解决问题的程序</title>
+  <desc id="desc">LifeOS Studio 可以针对记账、规划、查询、整理、打卡、计算、表单和流程面板等具体需求生成可运行程序。</desc>
+  <rect width="1280" height="620" rx="32" fill="#080F18"/>
+  <text x="64" y="76" fill="#F8FAFC" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="42" font-weight="850">自动生成解决问题的程序</text>
+  <text x="64" y="116" fill="#94A3B8" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="21">当聊天不够用时，LifeOS Studio 会把当前问题变成一个可运行的工具。</text>
+  <g transform="translate(76 170)">
+    <rect width="338" height="330" rx="28" fill="#111827" stroke="#334155"/>
+    <text x="28" y="52" fill="#FDE68A" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="25" font-weight="850">真实需求</text>
+    <text x="28" y="98" fill="#E5E7EB" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="19">记账</text>
+    <text x="28" y="135" fill="#E5E7EB" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="19">规划</text>
+    <text x="28" y="172" fill="#E5E7EB" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="19">查询、整理</text>
+    <text x="28" y="209" fill="#E5E7EB" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="19">打卡、表单</text>
+    <text x="28" y="246" fill="#E5E7EB" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="19">计算器、流程面板</text>
+  </g>
+  <path d="M438 335H520" stroke="#64748B" stroke-width="5"/>
+  <path d="M506 316L526 335L506 354" stroke="#64748B" stroke-width="5" fill="none"/>
+  <g transform="translate(544 144)">
+    <rect width="390" height="382" rx="30" fill="#0F172A" stroke="#38BDF8" stroke-width="2"/>
+    <text x="30" y="54" fill="#67E8F9" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="26" font-weight="850">LifeOS Studio</text>
+    <rect x="30" y="88" width="330" height="72" rx="18" fill="#172554" stroke="#2563EB"/>
+    <text x="52" y="118" fill="#DBEAFE" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="17">描述你要解决的问题，</text>
+    <text x="52" y="143" fill="#DBEAFE" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="17">不是描述一个固定 app。</text>
+    <rect x="30" y="188" width="330" height="132" rx="18" fill="#020617" stroke="#334155"/>
+    <text x="52" y="224" fill="#A7F3D0" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="17">HTML / CSS / JS</text>
+    <text x="52" y="256" fill="#CBD5E1" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="17">可运行的离线程序</text>
+    <text x="52" y="288" fill="#CBD5E1" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="17">可继续调试和完善</text>
+  </g>
+  <path d="M958 335H1040" stroke="#64748B" stroke-width="5"/>
+  <path d="M1026 316L1046 335L1026 354" stroke="#64748B" stroke-width="5" fill="none"/>
+  <g transform="translate(1064 190)">
+    <rect width="152" height="290" rx="26" fill="#111827" stroke="#334155"/>
+    <rect x="22" y="28" width="108" height="58" rx="14" fill="#134E4A"/>
+    <rect x="22" y="108" width="108" height="58" rx="14" fill="#172554"/>
+    <rect x="22" y="188" width="108" height="58" rx="14" fill="#422006"/>
+    <text x="44" y="62" fill="#CCFBF1" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="17" font-weight="800">工具</text>
+    <text x="44" y="142" fill="#DBEAFE" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="17" font-weight="800">面板</text>
+    <text x="44" y="222" fill="#FEF3C7" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="17" font-weight="800">流程</text>
+  </g>
+  <text x="64" y="566" fill="#CBD5E1" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="19">不是“根据描述生成一个小程序”，而是根据当前问题生成能帮你处理问题的程序。</text>
+</svg>

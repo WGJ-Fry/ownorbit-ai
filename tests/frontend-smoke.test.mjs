@@ -478,6 +478,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
 
   assert.match(mobileDeviceSource, /retryOfflineMessage/);
   assert.match(mobileDeviceSource, /removeOfflineMessages/);
+  assert.match(mobileDeviceSource, /navigator\.clipboard\.writeText/);
   assert.match(mobileDeviceSource, /pairingInstallPath/);
   assert.doesNotMatch(mobileDeviceSource, /window\.location\.href = `\/mobile\/pair\?token=/);
   assert.match(mobileDeviceSource, /getOfflineMessageQueueStorageStatus/);
@@ -497,6 +498,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceSource, /IndexedDB/);
   assert.match(mobileDeviceStatusCardsSource, /mobileDevice\.legacyCredential/);
   assert.match(translationsSource, /删除这条离线消息/);
+  assert.match(translationsSource, /已复制这条离线消息内容/);
   assert.match(translationsSource, /清空离线消息队列/);
   assert.match(translationsSource, /粘贴电脑端绑定链接/);
   assert.match(translationsSource, /重新绑定或切换入口/);
@@ -522,6 +524,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.persistentStorage/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.failureReason/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.retryOne/);
+  assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.copyAria/);
+  assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.copy/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.manualRetryMeta/);
   assert.match(mobileOfflineQueueCardsSource, /recommendationKey/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.recommendation\.browserStorage/);

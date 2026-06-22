@@ -144,6 +144,16 @@ export default function MobileDevicePage() {
     setStatus(t("mobileDevice.itemRemoved"));
   };
 
+  const handleCopyItem = async (item: OfflineQueuedMessage) => {
+    const text = item.message.parts.map((part) => part.text).filter(Boolean).join("\n\n") || JSON.stringify(item.message);
+    try {
+      await navigator.clipboard.writeText(text);
+      setStatus(t("mobileDevice.itemCopied"));
+    } catch (error: any) {
+      setStatus(error.message || t("mobileDevice.copyFailed"));
+    }
+  };
+
   const handleClearQueue = () => {
     if (!window.confirm(t("mobileDevice.confirmClearQueue"))) return;
     clearOfflineMessageQueue();
@@ -418,6 +428,7 @@ export default function MobileDevicePage() {
                   <QueueItem
                     item={item}
                     onRetry={() => handleRetryItem(item)}
+                    onCopy={() => handleCopyItem(item)}
                     onRemove={() => handleRemoveItem(item)}
                   />
                 </div>
