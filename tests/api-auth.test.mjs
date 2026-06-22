@@ -499,6 +499,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(testedMissingLocalProvider.mode, "configuration");
   assert.equal(testedMissingLocalProvider.liveSupported, true);
   assert.equal(testedMissingLocalProvider.result, "not_configured");
+  assert.equal(testedMissingLocalProvider.reason, "missing_local_endpoint");
+  assert.equal(testedMissingLocalProvider.credentialKind, "endpoint");
   assert.match(testedMissingLocalProvider.message, /endpoint configured/);
   assert.doesNotMatch(testedMissingLocalProvider.message, /key configured/);
   const openAiKey = "sk-test-openai-value-should-not-leak";
@@ -522,6 +524,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(testedOpenAi.liveSupported, false);
   assert.equal(testedOpenAi.selectedModel, "gpt-4o");
   assert.equal(testedOpenAi.result, "ready");
+  assert.equal(testedOpenAi.reason, "ready");
+  assert.equal(testedOpenAi.credentialKind, "api_key");
   assert.equal(typeof testedOpenAi.checkedAt, "number");
   assert.match(testedOpenAi.message, /configuration is ready/);
   assert.match(testedOpenAi.message, /Live API call was not run/);
@@ -993,10 +997,19 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(openAiTestAudit.metadata.provider, "OpenAI");
   assert.equal(openAiTestAudit.metadata.configured, true);
   assert.equal(openAiTestAudit.metadata.result, "ready");
+  assert.equal(openAiTestAudit.metadata.reason, "ready");
+  assert.equal(openAiTestAudit.metadata.credentialKind, "api_key");
   assert.equal(openAiTestAudit.metadata.mode, "configuration");
   assert.equal(openAiTestAudit.metadata.liveSupported, false);
   assert.equal(openAiTestAudit.metadata.selectedModel, "gpt-4o");
   assert.equal(typeof openAiTestAudit.metadata.checkedAt, "number");
+  const localTestAudit = findConfigAudit("ai_provider_tested", "local");
+  assert.equal(localTestAudit.metadata.provider, "Local Model");
+  assert.equal(localTestAudit.metadata.configured, false);
+  assert.equal(localTestAudit.metadata.result, "not_configured");
+  assert.equal(localTestAudit.metadata.reason, "missing_local_endpoint");
+  assert.equal(localTestAudit.metadata.credentialKind, "endpoint");
+  assert.equal(localTestAudit.metadata.liveSupported, true);
   const openAiDefaultAudit = findConfigAudit("ai_provider_default_updated", "openai");
   assert.equal(openAiDefaultAudit.metadata.provider, "OpenAI");
   assert.equal(openAiDefaultAudit.metadata.active, true);

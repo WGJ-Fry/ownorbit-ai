@@ -51,6 +51,32 @@ function aiStatusAuditMetadata(status: ReturnType<typeof getAiProviderStatus>) {
   };
 }
 
+function getAiProviderTestSummary(status: ReturnType<typeof getAiProviderStatus>) {
+  const credentialKind = status.id === "local" ? "endpoint" : "api_key";
+  if (!status.enabled) {
+    return {
+      ok: false,
+      result: "disabled",
+      reason: "provider_disabled",
+      credentialKind,
+    };
+  }
+  if (!status.configured) {
+    return {
+      ok: false,
+      result: "not_configured",
+      reason: status.id === "local" ? "missing_local_endpoint" : "missing_provider_key",
+      credentialKind,
+    };
+  }
+  return {
+    ok: true,
+    result: "ready",
+    reason: "ready",
+    credentialKind,
+  };
+}
+
 function getDataDirDiagnosticLabel() {
   return process.env.LIFEOS_DATA_DIR ? "Custom data directory configured" : "Default data directory";
 }
@@ -452,26 +478,29 @@ export function registerAdminRoutes(app: express.Express) {
     if (!providerId) return res.status(404).json({ error: "Unknown AI provider" });
     const status = getAiProviderStatus(providerId);
     const checkedAt = Date.now();
-    const ok = Boolean(status.enabled && status.configured);
     const mode = req.body?.mode === "live" ? "live" : "configuration";
     const liveSupported = status.id === "local";
-    const result = ok ? "ready" : "not_configured";
+    const summary = getAiProviderTestSummary(status);
     insertAuditLog("ai_provider_tested", "config", providerId, {
       ...aiStatusAuditMetadata(status),
-      result,
+      result: summary.result,
+      reason: summary.reason,
+      credentialKind: summary.credentialKind,
       mode,
       liveSupported,
       selectedModel: status.selectedModel,
       checkedAt,
     });
     res.json({
-      ok,
+      ok: summary.ok,
       provider: status,
       mode,
       liveSupported,
       selectedModel: status.selectedModel,
       checkedAt,
-      result,
+      result: summary.result,
+      reason: summary.reason,
+      credentialKind: summary.credentialKind,
       message: status.enabled
         ? status.configured
           ? `${status.provider} configuration is ready for ${status.selectedModel}. Live API call was not run.`

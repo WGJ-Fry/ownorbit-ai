@@ -1518,9 +1518,16 @@ function checkAssets() {
     adminRoutesSource.includes("ai_provider_default_updated") &&
     adminRoutesSource.includes("Live API call was not run") &&
     adminRoutesSource.includes("liveSupported") &&
+    adminRoutesSource.includes("getAiProviderTestSummary") &&
+    adminRoutesSource.includes("missing_local_endpoint") &&
+    adminRoutesSource.includes("missing_provider_key") &&
+    adminRoutesSource.includes("credentialKind") &&
     apiAuthTestSource.includes("file:///tmp/ollama.sock") &&
     apiAuthTestSource.includes("endpoint-secret") &&
     apiAuthTestSource.includes("ai_provider_default_updated") &&
+    apiAuthTestSource.includes("testedMissingLocalProvider.reason") &&
+    apiAuthTestSource.includes("localTestAudit.metadata.reason") &&
+    apiAuthTestSource.includes("openAiTestAudit.metadata.credentialKind") &&
     apiAuthTestSource.includes("legacyByokProviderState") &&
     apiAuthTestSource.includes("legacyModelEngineState") &&
     apiAuthTestSource.includes("testedOpenAi.mode") &&
