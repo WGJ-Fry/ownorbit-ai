@@ -20,11 +20,11 @@ flowchart LR
 
 | 系统 | 下载 |
 | --- | --- |
-| macOS Apple Silicon | `LifeOS.AI-0.1.0-arm64.dmg` |
-| Windows x64 | `LifeOS.AI.Setup.0.1.0.exe` |
-| Linux x64 | `LifeOS.AI-0.1.0.AppImage` |
+| macOS Apple Silicon | `LifeOS.AI-0.1.0-arm64-unsigned.zip` |
+| Windows x64 | 准备中 |
+| Linux x64 | 准备中 |
 
-Windows 当前未配置 Authenticode 正式签名，可能出现 SmartScreen 提示。请只从 GitHub Release 下载，并对照 `SHA256SUMS` 校验。
+macOS 当前公开的是 unsigned ZIP，解压后把 `LifeOS AI.app` 拖入 Applications；如遇 Gatekeeper 提示，请查看 Release 附件里的 `INSTALL-unsigned-mac.md`。Windows 和 Linux 安装包仍在准备上传。请只从 GitHub Release 下载，并对照 `SHA256SUMS` 校验。
 
 ## 第 2 步：首次打开
 
@@ -132,11 +132,11 @@ Open [GitHub Releases](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.0)
 
 | System | Download |
 | --- | --- |
-| macOS Apple Silicon | `LifeOS.AI-0.1.0-arm64.dmg` |
-| Windows x64 | `LifeOS.AI.Setup.0.1.0.exe` |
-| Linux x64 | `LifeOS.AI-0.1.0.AppImage` |
+| macOS Apple Silicon | `LifeOS.AI-0.1.0-arm64-unsigned.zip` |
+| Windows x64 | Preparing |
+| Linux x64 | Preparing |
 
-The Windows build is not Authenticode signed yet, so SmartScreen may warn. Download only from GitHub Releases and verify `SHA256SUMS`.
+The current public macOS artifact is an unsigned ZIP. Unzip it and drag `LifeOS AI.app` into Applications; if Gatekeeper warns, see `INSTALL-unsigned-mac.md` in the release assets. Windows and Linux installers are still being prepared for upload. Download only from GitHub Releases and verify `SHA256SUMS`.
 
 ## Step 2: First Launch
 

@@ -83,28 +83,26 @@ LifeOS AI 的目标不是再做一个普通聊天窗口，而是把个人 AI 放
 
 直接下载：
 
-- [macOS Apple Silicon DMG](https://github.com/WGJ-Fry/lifeos-ai/releases/download/v0.1.0/LifeOS.AI-0.1.0-arm64.dmg)
-- [Windows x64 Installer](https://github.com/WGJ-Fry/lifeos-ai/releases/download/v0.1.0/LifeOS.AI.Setup.0.1.0.exe)
-- [Linux x64 AppImage](https://github.com/WGJ-Fry/lifeos-ai/releases/download/v0.1.0/LifeOS.AI-0.1.0.AppImage)
+- [macOS Apple Silicon unsigned ZIP](https://github.com/WGJ-Fry/lifeos-ai/releases/download/v0.1.0/LifeOS.AI-0.1.0-arm64-unsigned.zip)
 - [SHA256SUMS](https://github.com/WGJ-Fry/lifeos-ai/releases/download/v0.1.0/SHA256SUMS)
 
 安装说明：
 
-- macOS：下载 DMG，打开后拖入 Applications。
-- Windows：下载安装器并运行。当前 Windows 包未配置 Authenticode 正式签名，可能出现 SmartScreen 提示。
-- Linux：下载 AppImage 后执行 `chmod +x "LifeOS AI-0.1.0.AppImage"` 再运行。
+- macOS：下载 unsigned ZIP，解压后把 `LifeOS AI.app` 拖入 Applications；如遇 Gatekeeper 提示，请查看 Release 附件里的 `INSTALL-unsigned-mac.md`。
+- Windows：安装器仍在准备上传；当前公开 Release 暂未提供 Windows 安装包。
+- Linux：AppImage 仍在准备上传；当前公开 Release 暂未提供 Linux 安装包。
 
 完整说明见 [用户安装使用指南](docs/user-install-guide.md)。
 
 ## 当前发布状态
 
-已生成三平台包：
+当前公开 Release 已上传真实可下载产物：
 
 | 平台 | 文件 | 状态 |
 | --- | --- | --- |
-| macOS Apple Silicon | `release/LifeOS AI-0.1.0-arm64.dmg` | 支持 Developer ID 签名 + Apple 公证发布；未签名构建会触发 Gatekeeper 提示 |
-| Windows x64 | `release/LifeOS AI Setup 0.1.0.exe` | 可安装 NSIS 包，未配置 Windows Authenticode 正式签名 |
-| Linux x64 | `release/LifeOS AI-0.1.0.AppImage` | 可运行 AppImage |
+| macOS Apple Silicon | `release/LifeOS AI-0.1.0-arm64-unsigned.zip` | unsigned ZIP，已上传到 GitHub Release |
+| Windows x64 | 准备中 | NSIS 安装器待重新打包并上传 |
+| Linux x64 | 准备中 | AppImage 待重新打包并上传 |
 
 当前仓库已验证的发布校验：
 
@@ -467,28 +465,26 @@ Latest release:
 
 Direct downloads:
 
-- [macOS Apple Silicon DMG](https://github.com/WGJ-Fry/lifeos-ai/releases/download/v0.1.0/LifeOS.AI-0.1.0-arm64.dmg)
-- [Windows x64 Installer](https://github.com/WGJ-Fry/lifeos-ai/releases/download/v0.1.0/LifeOS.AI.Setup.0.1.0.exe)
-- [Linux x64 AppImage](https://github.com/WGJ-Fry/lifeos-ai/releases/download/v0.1.0/LifeOS.AI-0.1.0.AppImage)
+- [macOS Apple Silicon unsigned ZIP](https://github.com/WGJ-Fry/lifeos-ai/releases/download/v0.1.0/LifeOS.AI-0.1.0-arm64-unsigned.zip)
 - [SHA256SUMS](https://github.com/WGJ-Fry/lifeos-ai/releases/download/v0.1.0/SHA256SUMS)
 
 Install notes:
 
-- macOS: download the DMG, open it, and drag LifeOS AI into Applications.
-- Windows: download and run the installer. This build is not Authenticode signed yet, so SmartScreen may warn about an unknown publisher.
-- Linux: download the AppImage, run `chmod +x "LifeOS AI-0.1.0.AppImage"`, then open it.
+- macOS: download the unsigned ZIP, unzip it, and drag `LifeOS AI.app` into Applications. If Gatekeeper warns, see `INSTALL-unsigned-mac.md` in the release assets.
+- Windows: the installer is still being prepared for upload; the current public Release does not provide a Windows installer yet.
+- Linux: the AppImage is still being prepared for upload; the current public Release does not provide a Linux package yet.
 
 See [User Install Guide](docs/user-install-guide.md) for details.
 
 ## Release Status
 
-Three desktop artifacts have been generated:
+The current public Release only links to artifacts that really exist:
 
 | Platform | File | Status |
 | --- | --- | --- |
-| macOS Apple Silicon | `release/LifeOS AI-0.1.0-arm64.dmg` | Supports a signed + notarized release path; unsigned local builds can still hit Gatekeeper |
-| Windows x64 | `release/LifeOS AI Setup 0.1.0.exe` | Installable NSIS package, not Authenticode signed yet |
-| Linux x64 | `release/LifeOS AI-0.1.0.AppImage` | Runnable AppImage |
+| macOS Apple Silicon | `release/LifeOS AI-0.1.0-arm64-unsigned.zip` | Unsigned ZIP uploaded to GitHub Release |
+| Windows x64 | Preparing | NSIS installer needs a fresh packaged upload |
+| Linux x64 | Preparing | AppImage needs a fresh packaged upload |
 
 Release gate:
 
