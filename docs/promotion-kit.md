@@ -65,15 +65,13 @@ LifeOS AI turns your desktop into a private AI core and your phone into an alway
 
 Downloads:
 
-- macOS Apple Silicon DMG
-- Windows x64 Installer
-- Linux x64 AppImage
+- macOS Apple Silicon unsigned ZIP
 - SHA256SUMS
 
 Notes:
 
-- macOS build is Developer ID signed and Apple notarized.
-- Windows build is installable but not Authenticode signed yet, so SmartScreen may warn.
+- The current public macOS build is unsigned; follow the release Gatekeeper guide if macOS blocks first launch.
+- Windows NSIS and Linux AppImage packaging are wired into the build/check pipeline but are not uploaded in the current public release yet.
 - Auto-update is not enabled yet; update manually from GitHub Releases.
 - On first launch, set an admin password, configure an AI provider, create a backup, and pair your phone.
 ```
@@ -85,7 +83,7 @@ Notes:
 
 它的思路是：电脑端运行私有核心，负责连接 AI、网络、本地数据、备份和安全设置；手机端作为随身入口，用 PWA 的方式扫码绑定后使用。
 
-现在已经有 macOS / Windows / Linux 安装包。
+当前公开版本提供 macOS Apple Silicon unsigned ZIP；Windows NSIS 和 Linux AppImage 已接入构建/校验路线，等真实资产验证后再上传。
 
 目前支持：
 - 电脑端管理核心
@@ -128,7 +126,7 @@ https://github.com/WGJ-Fry/lifeos-ai
 
 另外还有 Studio 工坊：当你遇到具体问题时，AI 可以自动生成一个可运行的离线程序来辅助解决，然后继续调试 HTML/CSS/JS。
 
-当前已经有 macOS / Windows / Linux 安装包。macOS 包已 Developer ID 签名和 Apple 公证；Windows 包暂未 Authenticode 签名，可能会有 SmartScreen 提示。
+当前公开版本提供 macOS Apple Silicon unsigned ZIP；Windows NSIS 和 Linux AppImage 已接入构建/校验路线，等真实资产验证后再上传。macOS 当前包不是正式签名公证版，首次打开可能需要按 Release 里的 Gatekeeper 说明操作。
 
 项目地址：
 https://github.com/WGJ-Fry/lifeos-ai
@@ -142,7 +140,7 @@ I built LifeOS AI, a local-first personal AI assistant.
 The desktop app runs the private core: AI providers, local SQLite data, device pairing, VPN/tunnel access, generated solution apps, backups, diagnostics, and safer local actions. The phone works as a paired mobile PWA companion for everyday use.
 
 Current release includes:
-- macOS / Windows / Linux desktop builds
+- macOS Apple Silicon unsigned ZIP
 - Mobile PWA pairing and chat
 - SQLite local storage
 - Multi-provider AI configuration
@@ -152,6 +150,8 @@ Current release includes:
 - Offline message queue
 - URL Scheme allowlist for navigation, web, phone, SMS, mail, shortcuts, and dangerous-action confirmation
 - Redacted diagnostics and audit logs
+
+Windows NSIS and Linux AppImage packaging are wired into the build/check pipeline, but those public assets are not uploaded in the current release yet.
 
 Repo:
 https://github.com/WGJ-Fry/lifeos-ai
@@ -182,7 +182,7 @@ The phone handles:
 
 There is also a Studio workshop for generated solution apps: explain the current problem, generate a runnable offline program that helps solve it, then refine its HTML/CSS/JS.
 
-The current release includes macOS / Windows / Linux desktop builds. The macOS build is Developer ID signed and Apple notarized. The Windows build is installable but not Authenticode signed yet, so SmartScreen may warn.
+The current public release provides a macOS Apple Silicon unsigned ZIP. Windows NSIS and Linux AppImage packaging are wired into the build/check pipeline, but those public assets are not uploaded yet. The current macOS package is not the signed/notarized build, so users may need the release Gatekeeper guide on first launch.
 
 Repo:
 https://github.com/WGJ-Fry/lifeos-ai
@@ -235,17 +235,18 @@ Your private AI core on desktop. Your personal AI assistant on phone.
 ## 发布前检查
 
 - README 顶部有安装包下载入口。
-- Release 页面上传 DMG、EXE、AppImage、SHA256SUMS 和 update feed 文件。
+- Release 页面只写真实已上传资产；当前公开版本是 macOS Apple Silicon unsigned ZIP、SHA256SUMS 和 update feed 文件。
+- DMG、EXE、AppImage 只有在真实生成、校验并上传后才能写成可下载资产。
 - 截图使用 `public/screenshots/real-*.jpg`，不要使用概念图。
 - GitHub Topics 已包含 `personal-ai`、`local-first`、`pwa`、`electron`、`sqlite`、`tailscale`、`cloudflare-tunnel`。
 - Issues 已开启，建议同时开启 Discussions 收集使用反馈。
-- Windows 未签名、自动更新未启用、许可证保留所有权利，这三点要主动说明。
+- Windows/Linux 安装包暂未上传、自动更新未启用、许可证保留所有权利，这三点要主动说明。
 
 ## 注意事项
 
 - 不要承诺“完全开源可商用”，当前仓库是 All Rights Reserved。
 - 不要宣传“自动更新已可用”，当前版本是手动下载更新。
-- Windows 版本未 Authenticode 签名，要主动说明 SmartScreen 可能提示。
+- Windows/Linux 安装包暂未上传；后续 Windows 版本若未 Authenticode 签名，要主动说明 SmartScreen 可能提示。
 - 异地连接建议 Tailscale、Cloudflare Tunnel 或可信 HTTPS 反向代理，不建议直接暴露公网 IP。
 
 ---
