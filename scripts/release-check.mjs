@@ -1955,7 +1955,10 @@ function checkReleaseDocs() {
     "LIFEOS_ADMIN_PASSWORD=lifeos-local-demo",
     "LOCAL_MODEL_BASE_URL=http://ollama:11434/v1",
     "LIFEOS_VAULT_DIR=/app/vault",
+    'tags:\n      - "v*"',
+    "packages: write",
     "docker/build-push-action@v6",
+    "push: true",
     "docs/assets/real-demo-en.gif",
     "What am I forgetting?",
   ];

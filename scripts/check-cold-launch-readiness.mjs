@@ -99,12 +99,19 @@ const coldLaunch = read("docs/cold-launch-checklist.md");
 const appSecrets = read("server/appSecrets.ts");
 const aiRuntime = read("server/aiProviderRuntime.ts");
 const aiRoutes = read("server/aiRoutes.ts");
+const dockerWorkflow = exists(".github/workflows/docker.yml") ? read(".github/workflows/docker.yml") : "";
 const releaseNotesPath = `docs/release-notes-${releaseTag}.md`;
 
 check(packageJson.private === false, "package.json is publishable", "package.json must keep private=false for public launch");
 check(version === "0.1.1-alpha.0", "package version is the current alpha package version", `package.json version is ${version}, expected 0.1.1-alpha.0`);
 check(exists("Dockerfile"), "Dockerfile exists");
 check(exists("docker-compose.yml"), "docker-compose.yml exists");
+check(Boolean(dockerWorkflow), "Docker image workflow exists", ".github/workflows/docker.yml is missing");
+check(
+  dockerWorkflow.includes('tags:\n      - "v*"') && dockerWorkflow.includes("packages: write") && dockerWorkflow.includes("docker/build-push-action@v6") && dockerWorkflow.includes("push: true"),
+  "Docker image workflow builds and pushes GHCR images for version tags",
+  "Docker image workflow must trigger on v* tags, allow packages: write, and push images to GHCR",
+);
 check(compose.includes(`image: ${image}`), "docker-compose image uses the current public alpha tag", `docker-compose.yml must use image: ${image}`);
 check(compose.includes("LOCAL_MODEL_NAME=llama3.2"), "docker-compose selects llama3.2 for the quickstart local model");
 check(readme.includes(image), "README exposes the same GHCR image tag", `README.md must mention ${image}`);
