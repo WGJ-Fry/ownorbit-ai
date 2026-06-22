@@ -100,6 +100,12 @@ docker logout ghcr.io || true
 docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha
 ```
 
+Automated equivalent:
+
+```bash
+LIFEOS_CHECK_GHCR=1 npm run check:cold-launch
+```
+
 Create GitHub Release:
 
 ```text
@@ -107,6 +113,14 @@ Tag: v0.1.1-alpha
 Title: v0.1.1-alpha: Ask "What am I forgetting?" from local Markdown notes
 Body: docs/release-notes-v0.1.1-alpha.md
 ```
+
+Before announcing on Reddit, Hacker News, Product Hunt, or Chinese communities, the public Release must be visible without authentication:
+
+```bash
+LIFEOS_CHECK_GHCR=1 LIFEOS_CHECK_GITHUB_RELEASE=1 npm run check:cold-launch
+```
+
+If this fails with `GitHub public Release is not visible`, publish the generated Release draft or create the `v0.1.1-alpha` Release before sharing the README.
 
 ## Blind Test
 

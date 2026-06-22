@@ -62,6 +62,36 @@ async function checkGhcrManifest() {
   passes.push(`GHCR image is anonymously pullable: ${image}`);
 }
 
+async function checkGithubRelease() {
+  if (process.env.LIFEOS_CHECK_GITHUB_RELEASE !== "1") {
+    passes.push("GitHub public Release check skipped; set LIFEOS_CHECK_GITHUB_RELEASE=1 before public announcement");
+    return;
+  }
+
+  const response = await fetch(`https://api.github.com/repos/WGJ-Fry/lifeos-ai/releases/tags/${releaseTag}`, {
+    headers: {
+      Accept: "application/vnd.github+json",
+      "User-Agent": "lifeos-cold-launch-check",
+    },
+  });
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    failures.push(`GitHub public Release is not visible for ${releaseTag}: HTTP ${response.status} ${body.slice(0, 240)}`.trim());
+    return;
+  }
+
+  const release = await response.json().catch(() => ({}));
+  if (release.draft) {
+    failures.push(`GitHub Release ${releaseTag} is still a draft; publish it before public announcement`);
+    return;
+  }
+  if (release.tag_name !== releaseTag) {
+    failures.push(`GitHub Release tag mismatch: expected ${releaseTag}, got ${release.tag_name || "(missing)"}`);
+    return;
+  }
+  passes.push(`GitHub public Release is visible: ${releaseTag}`);
+}
+
 const readme = read("README.md");
 const compose = read("docker-compose.yml");
 const coldLaunch = read("docs/cold-launch-checklist.md");
@@ -94,6 +124,7 @@ check(aiRuntime.includes('if (providerId === "local") return selectedModel'), "l
 check(aiRoutes.includes("loadVaultMarkdownContext()") && aiRoutes.includes("LOCAL MARKDOWN VAULT CONTEXT - UNTRUSTED USER DATA"), "chat route injects local Markdown vault context safely");
 
 await checkGhcrManifest();
+await checkGithubRelease();
 
 for (const message of passes) console.log(`[PASS] ${message}`);
 for (const message of failures) console.error(`[FAIL] ${message}`);
