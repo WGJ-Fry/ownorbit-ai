@@ -93,6 +93,7 @@ async function checkGithubRelease() {
 }
 
 const readme = read("README.md");
+const readmeZh = exists("README.zh-CN.md") ? read("README.zh-CN.md") : "";
 const compose = read("docker-compose.yml");
 const coldLaunch = read("docs/cold-launch-checklist.md");
 const appSecrets = read("server/appSecrets.ts");
@@ -112,10 +113,15 @@ check(coldLaunch.includes(image), "cold launch checklist verifies the same GHCR 
 check(coldLaunch.includes(`docker pull ${image}`), "cold launch checklist includes anonymous docker pull proof", `docs/cold-launch-checklist.md must include docker pull ${image}`);
 check(coldLaunch.includes(`Tag: ${releaseTag}`), "cold launch checklist uses the current release tag", `docs/cold-launch-checklist.md must use Tag: ${releaseTag}`);
 check(exists(releaseNotesPath), "release notes exist for the current alpha tag", `missing ${releaseNotesPath}`);
-check(exists("README.zh-CN.md"), "Chinese README exists");
-check(readme.includes("README.zh-CN.md") || read("README.zh-CN.md").includes("README.md"), "README files link across languages", "README.md and README.zh-CN.md must link across languages");
+check(Boolean(readmeZh), "Chinese README exists");
+check(readme.includes("README.zh-CN.md") && readmeZh.includes("README.md"), "README files link across languages", "README.md and README.zh-CN.md must link across languages");
 check(exists("docs/assets/real-demo-en.gif"), "English README demo GIF exists");
 check(exists("docs/assets/real-demo.gif"), "Chinese README demo GIF exists");
+check(readme.includes("docs/assets/real-demo-en.gif"), "English README uses the English demo GIF", "README.md must use docs/assets/real-demo-en.gif");
+check(readmeZh.includes("docs/assets/real-demo.gif"), "Chinese README uses the Chinese demo GIF", "README.zh-CN.md must use docs/assets/real-demo.gif");
+check(readmeZh.includes(image), "Chinese README exposes the same GHCR image tag", `README.zh-CN.md must mention ${image}`);
+check(readmeZh.includes(`release tag 是 \`${releaseTag}\``), "Chinese README explains release tag versus package version", `README.zh-CN.md must explain release tag ${releaseTag}`);
+check(readmeZh.includes(`package version 是 \`${version}\``), "Chinese README explains the package version", `README.zh-CN.md must explain package version ${version}`);
 check(appSecrets.includes('defaultModel: "llama3.2"'), "local provider defaults to llama3.2");
 check(appSecrets.includes('models: ["llama3.2", "llama3.2:1b", "llama3.1", "qwen2.5", "mistral"]'), "local provider catalog includes llama3.2 and compatible alternatives");
 check(appSecrets.includes("process.env.LIFEOS_LOCAL_MODEL_NAME || process.env.LOCAL_MODEL_NAME"), "selected local model honors LOCAL_MODEL_NAME");
