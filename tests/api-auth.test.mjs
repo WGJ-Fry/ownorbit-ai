@@ -1036,6 +1036,23 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const tokenizedPairingBaseUrlBody = await tokenizedPairingBaseUrl.json();
   assert.match(tokenizedPairingBaseUrlBody.error, /username, password, token, query, or fragment/);
 
+  for (const unsafePhoneBaseUrl of [
+    `http://127.0.0.1:${port}`,
+    "http://localhost:3000",
+    "http://0.0.0.0:3000",
+    "http://169.254.10.20:3000",
+    "http://[::1]:3000",
+  ]) {
+    const localOnlyPairingBaseUrl = await request(port, "/api/v1/devices/bind/start", {
+      method: "POST",
+      headers: adminHeaders,
+      body: JSON.stringify({ baseUrl: unsafePhoneBaseUrl }),
+    });
+    assert.equal(localOnlyPairingBaseUrl.status, 400);
+    const localOnlyPairingBaseUrlBody = await localOnlyPairingBaseUrl.json();
+    assert.match(localOnlyPairingBaseUrlBody.error, /reachable from the phone/);
+  }
+
   const credential = await request(port, "/api/v1/devices/bind/confirm", {
     method: "POST",
     body: JSON.stringify({ token: binding.token, deviceName: "Test Phone", deviceType: "mobile" }),

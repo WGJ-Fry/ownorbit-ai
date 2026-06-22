@@ -29,6 +29,16 @@ function normalizePairingBaseUrl(value: unknown) {
   }
   const normalized = normalizePublicBaseUrl(raw);
   if (!normalized) throw new Error("Only HTTP/HTTPS baseUrl is allowed");
+  const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  const isUnreachableFromPhone = host === "localhost"
+    || host === "0.0.0.0"
+    || host === "::"
+    || host === "::1"
+    || host.startsWith("127.")
+    || host.startsWith("169.254.");
+  if (isUnreachableFromPhone) {
+    throw new Error("baseUrl must be reachable from the phone. Use a LAN IP, Tailscale HTTPS Serve, Cloudflare Tunnel, or another trusted HTTPS address.");
+  }
   return normalized;
 }
 
