@@ -19,6 +19,21 @@ type ConnectionProbeStep = {
   error?: string;
 };
 
+type ConnectionRepairHintId =
+  | "desktop-service-unreachable"
+  | "wrong-lifeos-target"
+  | "mobile-shell-missing"
+  | "websocket-upgrade-blocked"
+  | "localhost-phone-unreachable"
+  | "https-required"
+  | "public-mode-risk";
+
+type ConnectionRepairHint = {
+  id: ConnectionRepairHintId;
+  stepId?: ConnectionProbeStep["id"];
+  severity: "warning" | "danger";
+};
+
 type ConnectionCandidate = ReturnType<typeof connectionCandidate>;
 type RemoteReadinessItemId =
   | "noRemoteEntry"
@@ -595,6 +610,51 @@ async function probeWebSocketStep(url: URL, timeoutMs: number): Promise<Connecti
   };
 }
 
+function isLoopbackHost(hostname: string) {
+  const host = hostname.toLowerCase();
+  return host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "[::1]";
+}
+
+function buildConnectionRepairHints(input: {
+  parsed: URL;
+  steps: ConnectionProbeStep[];
+  publicAccessWarning?: boolean;
+}) {
+  const hints: ConnectionRepairHint[] = [];
+  const add = (hint: ConnectionRepairHint) => {
+    if (!hints.some((item) => item.id === hint.id && item.stepId === hint.stepId)) hints.push(hint);
+  };
+
+  if (isLoopbackHost(input.parsed.hostname)) {
+    add({ id: "localhost-phone-unreachable", severity: "warning" });
+  }
+  if (input.parsed.protocol !== "https:") {
+    add({ id: "https-required", severity: "warning" });
+  }
+  if (input.publicAccessWarning) {
+    add({ id: "public-mode-risk", severity: "danger" });
+  }
+
+  for (const step of input.steps) {
+    if (step.ok) continue;
+    if (step.id === "health") {
+      add({
+        id: step.status === 0 ? "desktop-service-unreachable" : "wrong-lifeos-target",
+        stepId: step.id,
+        severity: "danger",
+      });
+    }
+    if (step.id === "mobile-shell") {
+      add({ id: "mobile-shell-missing", stepId: step.id, severity: "warning" });
+    }
+    if (step.id === "websocket") {
+      add({ id: "websocket-upgrade-blocked", stepId: step.id, severity: "warning" });
+    }
+  }
+
+  return hints;
+}
+
 export async function testConnectionUrl(baseUrl: string, options: { includeWebSocket?: boolean } = {}) {
   let parsed: URL;
   try {
@@ -636,6 +696,7 @@ export async function testConnectionUrl(baseUrl: string, options: { includeWebSo
       steps.push(await probeWebSocketStep(wsUrl, 3000));
     }
     const ok = steps.every((step) => step.ok);
+    const fixes = buildConnectionRepairHints({ parsed, steps, publicAccessWarning });
     return {
       ok,
       httpsStatus: {
@@ -651,9 +712,11 @@ export async function testConnectionUrl(baseUrl: string, options: { includeWebSo
       service: health.ok ? "lifeos-local-core" : "",
       publicAccessWarning,
       steps,
+      fixes,
       error: ok ? undefined : steps.find((step) => !step.ok)?.error || "Remote entry check failed",
     };
   } catch (error: any) {
+    const steps: ConnectionProbeStep[] = [];
     return {
       ok: false,
       httpsStatus: {
@@ -666,7 +729,8 @@ export async function testConnectionUrl(baseUrl: string, options: { includeWebSo
       status: 0,
       url: healthUrl.toString(),
       latencyMs: Date.now() - startedAt,
-      steps: [],
+      steps,
+      fixes: buildConnectionRepairHints({ parsed, steps }),
       error: error?.name === "AbortError" ? "Connection test timed out" : error?.message || "Connection test failed",
     };
   } finally {

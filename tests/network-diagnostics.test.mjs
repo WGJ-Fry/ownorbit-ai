@@ -183,6 +183,7 @@ test("connection URL tests strip credentials, query secrets, and fragments from 
   ]);
   assert.equal(result.publicAccessWarning, true);
   assert.deepEqual(result.steps.map((step) => step.id), ["health", "mobile-shell"]);
+  assert.deepEqual(result.fixes.map((fix) => fix.id), ["public-mode-risk"]);
   assert.equal(JSON.stringify(result).includes("connection-secret"), false);
   assert.equal(JSON.stringify(result).includes("user:password"), false);
   assert.equal(JSON.stringify(result).includes("#debug"), false);
@@ -228,6 +229,47 @@ test("connection URL tests health, mobile shell, and websocket under a remote ba
   assert.equal(result.url, `http://127.0.0.1:${port}/lifeos/api/v1/health`);
   assert.deepEqual(result.steps.map((step) => step.id), ["health", "mobile-shell", "websocket"]);
   assert.equal(result.steps.find((step) => step.id === "websocket").status, 101);
+  assert.deepEqual(result.fixes.map((fix) => fix.id), ["localhost-phone-unreachable", "https-required"]);
+});
+
+test("connection URL returns structured repair hints for blocked websocket and unsafe phone entry", async (t) => {
+  const server = createServer((req, res) => {
+    if (req.url === "/lifeos/api/v1/health") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ service: "lifeos-local-core", publicAccessWarning: false }));
+      return;
+    }
+    if (req.url === "/lifeos/mobile/chat") {
+      res.writeHead(200, { "content-type": "text/html" });
+      res.end("<!doctype html><html><title>LifeOS AI</title></html>");
+      return;
+    }
+    res.writeHead(404);
+    res.end("not found");
+  });
+  server.on("upgrade", (_req, socket) => {
+    socket.destroy();
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(async () => {
+    await new Promise((resolve) => server.close(resolve));
+  });
+
+  const { port } = server.address();
+  const { testConnectionUrl } = await import(`../server/networkDiagnostics.ts?repair-hints=${Date.now()}`);
+  const result = await testConnectionUrl(`http://127.0.0.1:${port}/lifeos?token=secret#debug`);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.url, `http://127.0.0.1:${port}/lifeos/api/v1/health`);
+  assert.deepEqual(result.steps.map((step) => step.id), ["health", "mobile-shell", "websocket"]);
+  assert.deepEqual(result.fixes.map((fix) => fix.id), [
+    "localhost-phone-unreachable",
+    "https-required",
+    "websocket-upgrade-blocked",
+  ]);
+  assert.equal(result.fixes.find((fix) => fix.id === "websocket-upgrade-blocked").stepId, "websocket");
+  assert.equal(JSON.stringify(result).includes("secret"), false);
+  assert.equal(JSON.stringify(result).includes("#debug"), false);
 });
 
 test("Tailscale HTTPS Serve helpers run controlled start and stop commands", async (t) => {

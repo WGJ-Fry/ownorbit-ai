@@ -503,6 +503,18 @@ export type ConnectionTestResult = {
     latencyMs: number;
     error?: string;
   }>;
+  fixes?: Array<{
+    id:
+      | "desktop-service-unreachable"
+      | "wrong-lifeos-target"
+      | "mobile-shell-missing"
+      | "websocket-upgrade-blocked"
+      | "localhost-phone-unreachable"
+      | "https-required"
+      | "public-mode-risk";
+    stepId?: "health" | "mobile-shell" | "websocket";
+    severity: "warning" | "danger";
+  }>;
 };
 
 export type MobilePairingIntent = {
