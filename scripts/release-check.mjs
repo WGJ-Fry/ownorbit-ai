@@ -259,7 +259,11 @@ function checkScripts() {
     const artifactsWorkflow = fs.readFileSync(desktopArtifactsWorkflowPath, "utf8");
     if (
       artifactsWorkflow.includes("actions/upload-artifact@v4") &&
+      artifactsWorkflow.includes("actions/download-artifact@v4") &&
       artifactsWorkflow.includes("softprops/action-gh-release@v2") &&
+      artifactsWorkflow.includes("publish-draft:") &&
+      artifactsWorkflow.includes("needs: package") &&
+      artifactsWorkflow.includes("node scripts/assemble-release-draft-assets.mjs") &&
       artifactsWorkflow.includes("contents: write") &&
       artifactsWorkflow.includes("draft: true") &&
       artifactsWorkflow.includes("prerelease:") &&
@@ -275,9 +279,17 @@ function checkScripts() {
       artifactsWorkflow.includes("release/*.AppImage") &&
       artifactsWorkflow.includes("release/SHA256SUMS") &&
       artifactsWorkflow.includes("release/update-feed/latest*.yml") &&
-      artifactsWorkflow.includes("release/update-feed/release-manifest.json")
-    ) pass("desktop package artifact workflow uploads macOS, Windows, Linux packages and draft GitHub Release assets");
-    else fail("desktop package artifact workflow must build, verify, upload package artifacts, and attach update metadata to draft GitHub Releases for all platforms");
+      artifactsWorkflow.includes("release/update-feed/release-manifest.json") &&
+      artifactsWorkflow.includes("release-draft/*.dmg") &&
+      artifactsWorkflow.includes("release-draft/*.zip") &&
+      artifactsWorkflow.includes("release-draft/*.exe") &&
+      artifactsWorkflow.includes("release-draft/*.AppImage") &&
+      artifactsWorkflow.includes("release-draft/SHA256SUMS") &&
+      artifactsWorkflow.includes("release-draft/latest*.yml") &&
+      artifactsWorkflow.includes("release-draft/release-manifest.json") &&
+      exists("scripts/assemble-release-draft-assets.mjs")
+    ) pass("desktop package artifact workflow aggregates macOS, Windows, Linux packages into one draft GitHub Release");
+    else fail("desktop package artifact workflow must build, verify, aggregate, and attach all platform package artifacts plus update metadata to one draft GitHub Release");
   } else {
     fail("missing desktop package artifact workflow: .github/workflows/desktop-artifacts.yml");
   }

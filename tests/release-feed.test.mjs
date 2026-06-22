@@ -361,6 +361,81 @@ test("release feed generator writes Windows and Linux updater metadata", async (
   assert.match(linuxFeed, new RegExp(linux.sha512.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
 
+test("release draft assembler merges platform artifacts into one payload", async (t) => {
+  const artifactsDir = await mkdtemp(path.join(tmpdir(), "lifeos-release-draft-artifacts-"));
+  const outputDir = await mkdtemp(path.join(tmpdir(), "lifeos-release-draft-output-"));
+  t.after(async () => {
+    await rm(artifactsDir, { recursive: true, force: true });
+    await rm(outputDir, { recursive: true, force: true });
+  });
+
+  async function writePlatformArtifact(platform, fileName, feedFile, bytes) {
+    const dir = path.join(artifactsDir, `lifeos-ai-${platform}-1`);
+    await mkdir(dir, { recursive: true });
+    const sha256 = crypto.createHash("sha256").update(bytes).digest("hex");
+    const sha512 = crypto.createHash("sha512").update(bytes).digest("base64");
+    await writeFile(path.join(dir, fileName), bytes);
+    await writeFile(path.join(dir, "SHA256SUMS"), `${sha256}  ${fileName}\n`);
+    await writeFile(path.join(dir, feedFile), [
+      `version: "${currentVersion}"`,
+      `path: "${fileName}"`,
+      `sha512: "${sha512}"`,
+      "",
+    ].join("\n"));
+    await writeFile(path.join(dir, "release-manifest.json"), `${JSON.stringify({
+      version: currentVersion,
+      generatedAt: new Date(0).toISOString(),
+      artifacts: [{
+        platform,
+        feedFile,
+        fileName,
+        size: Buffer.byteLength(bytes),
+        sha512,
+        sha256,
+        releaseDate: new Date(0).toISOString(),
+      }],
+    }, null, 2)}\n`);
+    if (platform === "mac") {
+      await writeFile(path.join(dir, "USER-INSTALL.md"), "# install\n");
+      await writeFile(path.join(dir, "INSTALL-unsigned-mac.md"), "# mac install\n");
+    }
+  }
+
+  await writePlatformArtifact("mac", currentMacZipName, "latest-mac.yml", "mac zip bytes");
+  await writePlatformArtifact("windows", currentWinInstallerName, "latest.yml", "windows exe bytes");
+  await writePlatformArtifact("linux", currentLinuxAppImageName, "latest-linux.yml", "linux appimage bytes");
+
+  const result = spawnSync(process.execPath, ["scripts/assemble-release-draft-assets.mjs"], {
+    cwd: rootDir,
+    env: {
+      ...process.env,
+      LIFEOS_RELEASE_ARTIFACTS_DIR: artifactsDir,
+      LIFEOS_RELEASE_DRAFT_DIR: outputDir,
+    },
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stdout, /Release draft assets assembled/);
+  assert.equal(await fileExists(path.join(outputDir, currentMacZipName)), true);
+  assert.equal(await fileExists(path.join(outputDir, currentWinInstallerName)), true);
+  assert.equal(await fileExists(path.join(outputDir, currentLinuxAppImageName)), true);
+  assert.equal(await fileExists(path.join(outputDir, "latest-mac.yml")), true);
+  assert.equal(await fileExists(path.join(outputDir, "latest.yml")), true);
+  assert.equal(await fileExists(path.join(outputDir, "latest-linux.yml")), true);
+  assert.equal(await fileExists(path.join(outputDir, "USER-INSTALL.md")), true);
+  assert.equal(await fileExists(path.join(outputDir, "INSTALL-unsigned-mac.md")), true);
+
+  const checksums = await readFile(path.join(outputDir, "SHA256SUMS"), "utf8");
+  assert.match(checksums, new RegExp(currentMacZipName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(checksums, new RegExp(currentWinInstallerName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(checksums, new RegExp(currentLinuxAppImageName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+
+  const manifest = JSON.parse(await readFile(path.join(outputDir, "release-manifest.json"), "utf8"));
+  assert.equal(manifest.version, currentVersion);
+  assert.deepEqual(manifest.artifacts.map((artifact) => artifact.platform).sort(), ["linux", "mac", "windows"]);
+  assert.deepEqual(manifest.artifacts.map((artifact) => artifact.feedFile).sort(), ["latest-linux.yml", "latest-mac.yml", "latest.yml"]);
+});
+
 test("release feed generator removes stale metadata before rewriting feeds", async (t) => {
   const releaseDir = await mkdtemp(path.join(tmpdir(), "lifeos-release-feed-stale-"));
   t.after(async () => {
@@ -485,7 +560,7 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /desktop release smoke blocks stale installer artifacts before verification/);
   assert.match(result.stdout, /desktop release smoke verifies packaged artifacts after building/);
   assert.match(result.stdout, /desktop release smoke can launch the packaged macOS app when requested/);
-  assert.match(result.stdout, /desktop package artifact workflow uploads macOS, Windows, Linux packages and draft GitHub Release assets/);
+  assert.match(result.stdout, /desktop package artifact workflow aggregates macOS, Windows, Linux packages into one draft GitHub Release/);
   assert.match(result.stdout, /desktop artifact launch smoke script starts the packaged app/);
   assert.match(result.stdout, /desktop artifact smoke verifies update feed, packaged asar, and optional launch/);
   assert.match(result.stdout, /desktop artifact smoke verifies unsigned macOS ad-hoc signature/);

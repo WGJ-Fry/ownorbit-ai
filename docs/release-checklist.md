@@ -122,7 +122,7 @@ The smoke script builds a platform artifact on each runner:
 
 `npm run release:check:unsigned` verifies that the workflow covers all three platforms, disables opportunistic signing, and that the smoke script really calls the Windows and Linux package commands. A local macOS run still only proves the macOS artifact; the GitHub Actions matrix is the cross-platform packaging proof.
 
-For publishable CI artifacts, use the `Desktop Package Artifacts` workflow. Manual runs produce downloadable Actions artifacts for review. A `v*` tag run also attaches the generated installers, `SHA256SUMS`, install guides, `latest*.yml`, and `release-manifest.json` to a GitHub Release draft.
+For publishable CI artifacts, use the `Desktop Package Artifacts` workflow. Manual runs produce downloadable Actions artifacts for review. A `v*` tag run waits for all platform package jobs, then the `publish-draft` job aggregates the generated installers, `SHA256SUMS`, install guides, `latest*.yml`, and `release-manifest.json` into one GitHub Release draft.
 
 ## Unsigned GitHub Release Strategy
 

@@ -16,7 +16,7 @@ npm run release:check:signed:file
 
 ## 推荐：用 CI 生成 Release 草稿
 
-当前仓库包含 `Desktop Package Artifacts` GitHub Actions workflow。推送 `v*` tag 后，它会在 macOS、Windows、Linux 三个平台分别构建并验证安装包，然后把安装包、`SHA256SUMS`、安装说明、`latest*.yml` 和 `release-manifest.json` 上传到同一个 GitHub Release 草稿。
+当前仓库包含 `Desktop Package Artifacts` GitHub Actions workflow。推送 `v*` tag 后，它会在 macOS、Windows、Linux 三个平台分别构建并验证安装包，然后由 `publish-draft` job 聚合安装包、`SHA256SUMS`、安装说明、`latest*.yml` 和 `release-manifest.json`，一次性上传到同一个 GitHub Release 草稿，避免多个平台同时上传同名元数据。
 
 ```bash
 git tag v0.1.1-alpha.0
@@ -161,7 +161,7 @@ LIFEOS_DISTRIBUTION=signed npm run release:check
 
 ## Recommended: Generate a Release Draft with CI
 
-This repository includes the `Desktop Package Artifacts` GitHub Actions workflow. When you push a `v*` tag, it builds and verifies packages on macOS, Windows, and Linux, then uploads the installers, `SHA256SUMS`, install guides, `latest*.yml`, and `release-manifest.json` to one GitHub Release draft.
+This repository includes the `Desktop Package Artifacts` GitHub Actions workflow. When you push a `v*` tag, it builds and verifies packages on macOS, Windows, and Linux. A separate `publish-draft` job then aggregates the installers, `SHA256SUMS`, install guides, `latest*.yml`, and `release-manifest.json`, and uploads them to one GitHub Release draft so platform jobs do not race while uploading same-name metadata.
 
 ```bash
 git tag v0.1.1-alpha.0
