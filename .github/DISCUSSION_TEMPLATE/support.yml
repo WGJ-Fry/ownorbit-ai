@@ -36,7 +36,7 @@ body:
     id: version
     attributes:
       label: Version / 版本
-      placeholder: "0.1.0"
+      placeholder: "0.1.1-alpha.0 / v0.1.1-alpha"
     validations:
       required: false
   - type: input

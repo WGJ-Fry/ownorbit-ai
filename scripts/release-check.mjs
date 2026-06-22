@@ -2010,6 +2010,25 @@ function checkReleaseDocs() {
     fail("promotion kit is missing: docs/promotion-kit.md");
   }
 
+  const communityTemplatePaths = [
+    ".github/ISSUE_TEMPLATE/bug_report.yml",
+    ".github/DISCUSSION_TEMPLATE/support.yml",
+  ];
+  const communityTemplateFindings = communityTemplatePaths
+    .filter((relativePath) => exists(relativePath))
+    .flatMap((relativePath) => {
+      const source = fs.readFileSync(path.join(rootDir, relativePath), "utf8");
+      const findings = [];
+      if (source.includes('placeholder: "0.1.0"')) findings.push(`${relativePath}: stale 0.1.0 placeholder`);
+      if (!source.includes("0.1.1-alpha.0 / v0.1.1-alpha")) findings.push(`${relativePath}: missing current alpha version placeholder`);
+      return findings;
+    });
+  if (communityTemplateFindings.length === 0 && communityTemplatePaths.every((relativePath) => exists(relativePath))) {
+    pass("GitHub support templates ask for the current alpha version");
+  } else {
+    fail(`GitHub support templates need current version placeholders: ${communityTemplateFindings.join("; ") || "missing template"}`);
+  }
+
   const publicReleaseDocPaths = [
     "README.md",
     "docs/release-assets.md",
