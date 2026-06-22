@@ -362,6 +362,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceSource, /Background Sync/);
   assert.match(mobileDeviceSource, /IndexedDB/);
   assert.match(mobileDeviceSource, /pwaCapabilities\.recommendations/);
+  assert.match(mobileDeviceSource, /pwaRecommendationKey/);
+  assert.match(mobileDeviceSource, /mobileDevice\.pwaRecommendation\.addToHome/);
+  assert.match(mobileDeviceSource, /mobileDevice\.pwaRecommendation\.indexedDbUnavailable/);
   assert.match(mobileDeviceSource, /getHealth/);
   assert.match(mobileDeviceSource, /mobileDevice\.remoteEntryTitle/);
   assert.match(mobileDeviceSource, /mobileDevice\.remoteVerdict/);
@@ -399,6 +402,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /同局域网入口/);
   assert.match(translationsSource, /当前使用临时 Cloudflare 地址/);
   assert.match(translationsSource, /当前入口与电脑端配置不一致/);
+  assert.match(translationsSource, /添加到手机主屏幕/);
+  assert.match(translationsSource, /IndexedDB 不可用/);
+  assert.match(translationsSource, /add LifeOS to the home screen/);
 
   const pwaCapabilitiesSource = await readFile(path.join(rootDir, "src", "services", "pwaCapabilities.ts"), "utf8");
   assert.match(pwaCapabilitiesSource, /serviceWorkerControlled/);

@@ -13,6 +13,16 @@ import MobileConnectivityCard from "./MobileConnectivityCard";
 import { CapabilityRow, CredentialStorageCard, Metric, PairingLinkPanel, Row } from "./MobileDeviceStatusCards";
 import { useI18n } from "../../i18n/I18nProvider";
 
+function pwaRecommendationKey(recommendation: string) {
+  if (recommendation.includes("add LifeOS to the home screen")) return "mobileDevice.pwaRecommendation.addToHome";
+  if (recommendation.includes("does not support the offline shell")) return "mobileDevice.pwaRecommendation.offlineShellUnsupported";
+  if (recommendation.includes("offline shell is taking control")) return "mobileDevice.pwaRecommendation.refreshForShell";
+  if (recommendation.includes("background sync is unavailable")) return "mobileDevice.pwaRecommendation.openChatToSync";
+  if (recommendation.includes("IndexedDB is unavailable")) return "mobileDevice.pwaRecommendation.indexedDbUnavailable";
+  if (recommendation.includes("You are offline")) return "mobileDevice.pwaRecommendation.offlineQueue";
+  return "";
+}
+
 export default function MobileDevicePage() {
   const { t } = useI18n();
   const [credential, setCredential] = useState(() => getStoredDeviceCredential());
@@ -282,9 +292,10 @@ export default function MobileDevicePage() {
           </div>
           {pwaCapabilities.recommendations.length ? (
             <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-100">
-              {pwaCapabilities.recommendations.map((recommendation) => (
-                <div key={recommendation}>{recommendation}</div>
-              ))}
+              {pwaCapabilities.recommendations.map((recommendation) => {
+                const key = pwaRecommendationKey(recommendation);
+                return <div key={recommendation}>{key ? t(key as any) : recommendation}</div>;
+              })}
             </div>
           ) : (
             <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-xs leading-relaxed text-emerald-100">

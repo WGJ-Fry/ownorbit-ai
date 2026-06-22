@@ -1120,6 +1120,9 @@ function checkAssets() {
     mobileConnectivityCardSource.includes("mobileDevice.connectivityTestedAt") &&
     translationsSource.includes("mobileDevice.connectivityTestedAt") &&
     mobileDeviceSource.includes("pwaCapabilities.recommendations") &&
+    mobileDeviceSource.includes("pwaRecommendationKey") &&
+    mobileDeviceSource.includes("mobileDevice.pwaRecommendation.addToHome") &&
+    mobileDeviceSource.includes("mobileDevice.pwaRecommendation.indexedDbUnavailable") &&
     adminDashboardSource.includes("connectivityReport") &&
     adminDashboardSource.includes("DeviceConnectivityStatus") &&
     deviceConnectivityStatusSource.includes("mobileShellOk") &&
@@ -1164,7 +1167,9 @@ function checkAssets() {
     translationsSource.includes("connectivityIssueCloudflareNamedOffline") &&
     translationsSource.includes("connectivityIssueWebSocket") &&
     translationsSource.includes("connectivityMobileShell") &&
-    translationsSource.includes("mobileDevice.pwaTitle")
+    translationsSource.includes("mobileDevice.pwaTitle") &&
+    translationsSource.includes("mobileDevice.pwaRecommendation.addToHome") &&
+    translationsSource.includes("mobileDevice.pwaRecommendation.offlineQueue")
   ) pass("mobile device page surfaces PWA install, background sync, and remote recovery guidance");
   else warn("mobile device page lacks PWA install/background sync/remote recovery guidance or coverage");
   if (
