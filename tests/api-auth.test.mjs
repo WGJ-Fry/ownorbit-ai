@@ -678,7 +678,14 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(downloadedBackup.status, 200);
   assert.match(downloadedBackup.headers.get("content-disposition") || "", /attachment/);
 
-  const encryptedPassphrase = "correct horse backup";
+  const weakEncryptedExport = await request(port, `/api/v1/backups/${encodeURIComponent(backup.backup.file)}/encrypted-export`, {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ passphrase: "correcthorsebackup" }),
+  });
+  assert.equal(weakEncryptedExport.status, 400);
+
+  const encryptedPassphrase = "Correct-Horse-Backup-2026";
   const encryptedExport = await request(port, `/api/v1/backups/${encodeURIComponent(backup.backup.file)}/encrypted-export`, {
     method: "POST",
     headers: adminHeaders,

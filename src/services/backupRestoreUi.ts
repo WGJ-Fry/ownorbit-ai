@@ -17,6 +17,33 @@ export type CleanupPolicyResult =
   | { ok: true; options: CleanupPolicyInput; error?: never }
   | { ok: false; error: string; options?: never };
 
+export type BackupPassphraseStrength = "empty" | "weak" | "fair" | "strong";
+
+export type BackupPassphraseValidation =
+  | { ok: true; strength: BackupPassphraseStrength; reason?: never }
+  | { ok: false; strength: BackupPassphraseStrength; reason: "too_short" | "mismatch" | "too_weak" };
+
+export function getBackupPassphraseStrength(passphrase: string): BackupPassphraseStrength {
+  if (!passphrase) return "empty";
+  let score = 0;
+  if (passphrase.length >= 12) score += 1;
+  if (passphrase.length >= 16) score += 1;
+  if (/[a-z]/.test(passphrase) && /[A-Z]/.test(passphrase)) score += 1;
+  if (/\d/.test(passphrase)) score += 1;
+  if (/[^A-Za-z0-9]/.test(passphrase)) score += 1;
+  if (score >= 4) return "strong";
+  if (score >= 3) return "fair";
+  return "weak";
+}
+
+export function validateBackupExportPassphrase(passphrase: string, confirmation: string): BackupPassphraseValidation {
+  const strength = getBackupPassphraseStrength(passphrase);
+  if (passphrase.length < 12) return { ok: false, strength, reason: "too_short" };
+  if (passphrase !== confirmation) return { ok: false, strength, reason: "mismatch" };
+  if (strength === "weak") return { ok: false, strength, reason: "too_weak" };
+  return { ok: true, strength };
+}
+
 export function formatBackupTableSummary(tables: BackupPreview["tables"]) {
   return Object.entries(tables).map(([table, count]) => `${table}: ${count ?? "-"}`).join("\n");
 }

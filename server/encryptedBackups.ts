@@ -40,6 +40,18 @@ function normalizePassphrase(passphrase: unknown) {
   return passphrase;
 }
 
+function assertStrongExportPassphrase(passphrase: string) {
+  let score = 0;
+  if (passphrase.length >= 12) score += 1;
+  if (passphrase.length >= 16) score += 1;
+  if (/[a-z]/.test(passphrase) && /[A-Z]/.test(passphrase)) score += 1;
+  if (/\d/.test(passphrase)) score += 1;
+  if (/[^A-Za-z0-9]/.test(passphrase)) score += 1;
+  if (passphrase.length < 12 || score < 3) {
+    throw new Error("Encryption passphrase is too weak for new backup exports");
+  }
+}
+
 function deriveKey(passphrase: string, salt: Buffer, iterations = PBKDF2_ITERATIONS) {
   if (!Number.isFinite(iterations) || iterations < 100_000 || iterations > 1_000_000) {
     throw new Error("Unsupported backup KDF parameters");
@@ -62,6 +74,7 @@ function decodeBase64UrlField(value: unknown, expectedBytes: number | { min: num
 
 export function encryptBackupFile(file: string, passphraseInput: unknown): EncryptedBackupPayload {
   const passphrase = normalizePassphrase(passphraseInput);
+  assertStrongExportPassphrase(passphrase);
   const backupPath = getBackupPath(file);
   if (!backupPath) throw new Error("Backup file not found");
 

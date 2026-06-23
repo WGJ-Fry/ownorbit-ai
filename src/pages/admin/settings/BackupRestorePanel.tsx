@@ -2,13 +2,12 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, DatabaseBackup, Download, LockKeyhole, Plus, Sparkles, Upload, XCircle } from "lucide-react";
 import { backupDownloadUrl, cancelPendingRestore, cleanupData, createBackup, dataExportDownloadUrl, exportEncryptedBackup, getBackupSchedule, importEncryptedBackup, listBackups, previewBackup, previewDataCleanup, restoreBackup, runBackupScheduleNow, updateBackupSchedule } from "../../../services/lifeosApi";
 import type { BackupPreview, BackupSchedule, DataExportScope, PendingRestore } from "../../../services/lifeosApi";
-import { buildCleanupConfirmMessage, buildCleanupPolicyOptions, buildRestoreConfirmMessage, formatCleanupSummary } from "../../../services/backupRestoreUi";
+import { buildCleanupConfirmMessage, buildCleanupPolicyOptions, buildRestoreConfirmMessage, formatCleanupSummary, getBackupPassphraseStrength, validateBackupExportPassphrase } from "../../../services/backupRestoreUi";
 import { useI18n } from "../../../i18n/I18nProvider";
 import type { TranslationKey } from "../../../i18n/translations";
 import { BackupList } from "./BackupList";
 import { BackupPreviewCard } from "./BackupPreviewCard";
 import { BackupScheduleCard } from "./BackupScheduleCard";
-
 type BackupItem = Awaited<ReturnType<typeof listBackups>>["backups"][number];
 const dataExportScopeIds: DataExportScope[] = ["chat", "memories", "devices", "auditLogs"];
 
@@ -34,8 +33,10 @@ export default function BackupRestorePanel({
   const [cleanupPreview, setCleanupPreview] = useState<Awaited<ReturnType<typeof previewDataCleanup>>["cleanup"] | null>(null);
   const [exportScopes, setExportScopes] = useState<DataExportScope[]>(dataExportScopeIds);
   const [encryptionPassphrase, setEncryptionPassphrase] = useState("");
+  const [encryptionPassphraseConfirm, setEncryptionPassphraseConfirm] = useState("");
   const [importPassphrase, setImportPassphrase] = useState("");
   const exportHref = dataExportDownloadUrl(exportScopes);
+  const exportPassphraseStrength = getBackupPassphraseStrength(encryptionPassphrase);
 
   useEffect(() => {
     getBackupSchedule()
@@ -210,8 +211,9 @@ export default function BackupRestorePanel({
   };
 
   const handleEncryptedExport = async (backup: BackupItem) => {
-    if (encryptionPassphrase.length < 10) {
-      setStatus(t("backup.exportPassphraseShort"));
+    const passphraseValidation = validateBackupExportPassphrase(encryptionPassphrase, encryptionPassphraseConfirm);
+    if (!passphraseValidation.ok) {
+      setStatus(t(`backup.exportPassphrase.${passphraseValidation.reason}` as TranslationKey));
       return;
     }
     setBusy(`encrypt-${backup.file}`);
@@ -226,6 +228,7 @@ export default function BackupRestorePanel({
       link.click();
       URL.revokeObjectURL(url);
       setEncryptionPassphrase("");
+      setEncryptionPassphraseConfirm("");
       setStatus(t("backup.encryptedExportDone", { file: link.download }));
     } catch (error: any) {
       setStatus(error.message || t("backup.encryptedExportFailed"));
@@ -437,22 +440,36 @@ export default function BackupRestorePanel({
           <div className="mb-3 text-xs leading-relaxed text-zinc-500">
             {t("backup.encryptedExportBody")}
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <input
-              type="password"
-              value={encryptionPassphrase}
-              onChange={(event) => setEncryptionPassphrase(event.target.value)}
-              placeholder={t("backup.exportPassphrasePlaceholder")}
-              className="min-w-0 flex-1 rounded-xl border border-white/[0.08] bg-[#060a10] px-3 py-2 text-sm text-zinc-100 outline-none"
-            />
-            <button
-              onClick={() => backups[0] && handleEncryptedExport(backups[0])}
-              disabled={Boolean(busy) || !backups[0]}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Download className="h-3.5 w-3.5" />
-              {busy?.startsWith("encrypt-") ? t("backup.encrypting") : t("backup.exportLatest")}
-            </button>
+          <div className="grid gap-2">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input
+                type="password"
+                value={encryptionPassphrase}
+                onChange={(event) => setEncryptionPassphrase(event.target.value)}
+                placeholder={t("backup.exportPassphrasePlaceholder")}
+                className="min-w-0 rounded-xl border border-white/[0.08] bg-[#060a10] px-3 py-2 text-sm text-zinc-100 outline-none"
+              />
+              <input
+                type="password"
+                value={encryptionPassphraseConfirm}
+                onChange={(event) => setEncryptionPassphraseConfirm(event.target.value)}
+                placeholder={t("backup.exportPassphraseConfirmPlaceholder")}
+                className="min-w-0 rounded-xl border border-white/[0.08] bg-[#060a10] px-3 py-2 text-sm text-zinc-100 outline-none"
+              />
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-xs text-zinc-500">
+                {t("backup.exportPassphraseStrength", { strength: t(`backup.passphraseStrength.${exportPassphraseStrength}` as TranslationKey) })}
+              </div>
+              <button
+                onClick={() => backups[0] && handleEncryptedExport(backups[0])}
+                disabled={Boolean(busy) || !backups[0]}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Download className="h-3.5 w-3.5" />
+                {busy?.startsWith("encrypt-") ? t("backup.encrypting") : t("backup.exportLatest")}
+              </button>
+            </div>
           </div>
         </div>
         <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
@@ -523,7 +540,6 @@ function NumberField({
     </label>
   );
 }
-
 function MetricPill({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-xl border border-cyan-200/10 bg-black/10 px-3 py-2">
