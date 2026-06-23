@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import type React from "react";
-import { AlertTriangle, ArrowRight, CheckCircle2, DatabaseBackup, KeyRound, Loader2, ShieldAlert, Smartphone, Sparkles } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2, DatabaseBackup, KeyRound, Loader2, ShieldAlert, Sparkles } from "lucide-react";
 import { completeOnboarding, createBackup, getBackupSchedule, getConfigDiagnostics, getOnboardingStatus, listAiProviders, listBackups, listDevices, saveAiProviderKey, testAiProvider, updateActiveAiProvider, updateAiProviderModel, updateBackupSchedule } from "../../services/lifeosApi";
 import type { AiProviderId, AiProviderStatus, BackupRecord, BackupSchedule, BoundDevice, ConfigDiagnostics, OnboardingStatus } from "../../services/lifeosApi";
 import LanguageSwitcher from "../../i18n/LanguageSwitcher";
 import { useI18n } from "../../i18n/I18nProvider";
+import OnboardingMobileCard from "./OnboardingMobileCard";
 
 const providerLabels: Record<AiProviderId, string> = {
   gemini: "Google Gemini",
@@ -520,33 +521,7 @@ export default function AdminOnboardingPage() {
             </div>
           </section>
 
-          <section className="rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
-            <StepHeader done={hasDevice} icon={<Smartphone className="h-5 w-5" />} title={t("onboarding.mobileTitle")} />
-            <p className="mt-3 text-sm leading-relaxed text-zinc-400">
-              {t("onboarding.mobileDescription")}
-            </p>
-            <div className="mt-5 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-xs leading-relaxed text-zinc-400">
-              <div>{t("onboarding.boundDevices", { count: devices.filter((device) => device.status !== "revoked").length })}</div>
-              <div className="mt-2">{hasDevice ? t("onboarding.mobileReady") : t("onboarding.mobileTodo")}</div>
-              <div className="mt-2">{t("onboarding.remoteHint")}</div>
-            </div>
-            <div className="mt-5 grid gap-3">
-              <a
-                href="/admin/devices/pair"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm font-bold text-cyan-200"
-              >
-                <Smartphone className="h-4 w-4" />
-                {t("onboarding.openPairing")}
-              </a>
-              <a
-                href="/admin/settings#mobile-connect"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm font-bold text-zinc-200"
-              >
-                <ArrowRight className="h-4 w-4" />
-                {t("onboarding.openConnectionGuide")}
-              </a>
-            </div>
-          </section>
+          <OnboardingMobileCard devices={devices} diagnostics={diagnostics?.network} done={hasDevice} />
         </div>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

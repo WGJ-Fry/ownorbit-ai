@@ -514,6 +514,7 @@ function checkAssets() {
   const onboardingSource = exists("server/onboarding.ts") ? fs.readFileSync(path.join(rootDir, "server/onboarding.ts"), "utf8") : "";
   const adminLoginSource = exists("src/pages/admin/AdminLoginPage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/AdminLoginPage.tsx"), "utf8") : "";
   const adminOnboardingSource = exists("src/pages/admin/AdminOnboardingPage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/AdminOnboardingPage.tsx"), "utf8") : "";
+  const onboardingMobileSource = exists("src/pages/admin/OnboardingMobileCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/OnboardingMobileCard.tsx"), "utf8") : "";
   const translationsSource = exists("src/i18n/translations.ts") ? fs.readFileSync(path.join(rootDir, "src/i18n/translations.ts"), "utf8") : "";
   if (
     adminRoutesSource.includes("/api/v1/admin/onboarding") &&
@@ -533,9 +534,13 @@ function checkAssets() {
     adminOnboardingSource.includes("incompleteStepLabels") &&
     adminOnboardingSource.includes("onboarding.finishBlocked") &&
     adminOnboardingSource.includes("onboarding.finishReady") &&
-    adminOnboardingSource.includes("/admin/settings#mobile-connect") &&
+    adminOnboardingSource.includes("OnboardingMobileCard") &&
+    onboardingMobileSource.includes("/admin/settings#mobile-connect") &&
+    onboardingMobileSource.includes("remoteReadiness") &&
+    onboardingMobileSource.includes("onboarding.remoteReadinessTitle") &&
     translationsSource.includes("onboarding.enableDailyBackup") &&
     translationsSource.includes("onboarding.longTermBackupReminderBody") &&
+    translationsSource.includes("onboarding.remoteReadinessTitle") &&
     translationsSource.includes("onboarding.finishBlocked") &&
     translationsSource.includes("onboarding.finishReady") &&
     translationsSource.includes("Set as Default Chat Provider")

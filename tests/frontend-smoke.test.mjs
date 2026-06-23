@@ -307,8 +307,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.localEndpointLabel/);
   assert.match(onboardingSource, /type=\{isLocalProvider \? "url" : "password"\}/);
   assert.match(onboardingSource, /onboarding\.apiKeyHint/);
-  assert.match(onboardingSource, /onboarding\.openConnectionGuide/);
-  assert.match(onboardingSource, /\/admin\/settings#mobile-connect/);
+  assert.match(onboardingSource, /OnboardingMobileCard/);
   assert.match(onboardingSource, /lifeosDesktop/);
   assert.match(onboardingSource, /handleDesktopRecoveryAction/);
   assert.match(onboardingSource, /onboarding\.openLogsFolder/);
@@ -318,6 +317,13 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.finishBlocked/);
   assert.match(onboardingSource, /onboarding\.finishReady/);
   assert.match(onboardingSource, /completedSteps} \/ 4/);
+  const onboardingMobileSource = await readFile(path.join(rootDir, "src", "pages", "admin", "OnboardingMobileCard.tsx"), "utf8");
+  assert.match(onboardingMobileSource, /remoteReadiness/);
+  assert.match(onboardingMobileSource, /onboarding\.remoteReadinessTitle/);
+  assert.match(onboardingMobileSource, /connection\.readiness\.item\.needsHttps/);
+  assert.match(onboardingMobileSource, /onboarding\.openConnectionGuide/);
+  assert.match(onboardingMobileSource, /\/admin\/settings#mobile-connect/);
+  assert.match(translationsSource, /onboarding\.remoteReadinessTitle/);
   assert.match(translationsSource, /开启每日自动备份/);
   assert.match(translationsSource, /长期使用建议开启自动备份/);
   assert.match(translationsSource, /还不能完成向导/);
