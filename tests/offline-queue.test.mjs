@@ -479,3 +479,36 @@ test("offline message queue trims oldest items when storage budget is exceeded",
   assert.equal(status.count, queue.length);
   assert.equal(status.bytes <= status.maxBytes, true);
 });
+
+test("offline queue health prioritizes storage, failed sync, remote entry, and network guidance", async () => {
+  const { buildOfflineQueueHealth } = await import(`../src/services/offlineQueueHealth.ts?case=health-${Date.now()}`);
+  const baseSummary = { count: 0, pending: 0, syncing: 0, failed: 0 };
+  const baseStorage = {
+    storage: "indexeddb",
+    available: true,
+    indexedDbAvailable: true,
+    legacyLocalStoragePresent: false,
+    bytes: 0,
+    maxBytes: 512 * 1024,
+    nearByteLimit: false,
+    count: 0,
+    maxItems: 100,
+    nearItemLimit: false,
+    persistentStorageGranted: true,
+    recommendations: [],
+  };
+  const online = { online: true, quality: "ok", labelKey: "network.available", label: "Network is available." };
+  const weak = { online: true, quality: "poor", labelKey: "network.weak", label: "The network is weak." };
+  const offline = { online: false, quality: "offline", labelKey: "network.offline", label: "Offline." };
+  const remoteOk = { okForRemote: true };
+  const remoteBlocked = { okForRemote: false };
+
+  assert.equal(buildOfflineQueueHealth(baseSummary, { ...baseStorage, available: false }, online, remoteOk).titleKey, "offlineQueue.healthStorageBlockedTitle");
+  assert.equal(buildOfflineQueueHealth(baseSummary, { ...baseStorage, nearByteLimit: true }, online, remoteOk).titleKey, "offlineQueue.healthStorageRiskTitle");
+  assert.equal(buildOfflineQueueHealth({ ...baseSummary, count: 2, failed: 1 }, baseStorage, online, remoteBlocked).titleKey, "offlineQueue.healthFailedTitle");
+  assert.equal(buildOfflineQueueHealth({ ...baseSummary, count: 1, pending: 1 }, baseStorage, online, remoteBlocked).titleKey, "offlineQueue.healthEntryBlockedTitle");
+  assert.equal(buildOfflineQueueHealth(baseSummary, baseStorage, offline, remoteOk).titleKey, "offlineQueue.healthOfflineTitle");
+  assert.equal(buildOfflineQueueHealth(baseSummary, baseStorage, weak, remoteOk).titleKey, "offlineQueue.healthWeakNetworkTitle");
+  assert.equal(buildOfflineQueueHealth({ ...baseSummary, count: 1, pending: 1 }, baseStorage, online, remoteOk).titleKey, "offlineQueue.healthPendingTitle");
+  assert.equal(buildOfflineQueueHealth(baseSummary, baseStorage, online, remoteOk).titleKey, "offlineQueue.healthReadyTitle");
+});

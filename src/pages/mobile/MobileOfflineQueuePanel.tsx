@@ -3,9 +3,11 @@ import { Copy, RefreshCw, Trash2, Wifi } from "lucide-react";
 import type { NetworkStatus } from "../../services/networkStatus";
 import type { OfflineMessageQueueStorageStatus, OfflineMessageQueueSummary, OfflineQueuedMessage } from "../../services/offlineMessageQueue";
 import { buildOfflineQueueBackupText } from "../../services/offlineQueueBackup";
+import { buildOfflineQueueHealth } from "../../services/offlineQueueHealth";
 import type { RemoteEntryStatus } from "../../services/pwaCapabilities";
 import { useI18n } from "../../i18n/I18nProvider";
 import { Metric } from "./MobileDeviceStatusCards";
+import { MobileOfflineQueueHealthCard } from "./MobileOfflineQueueHealthCard";
 import { QueueItem, QueueStorageCard } from "./MobileOfflineQueueCards";
 
 type MobileOfflineQueuePanelProps = {
@@ -44,6 +46,7 @@ export default function MobileOfflineQueuePanel({
   const { t } = useI18n();
   const [copiedQueueBackup, setCopiedQueueBackup] = useState(false);
   const visibleQueueItems = showAllQueueItems ? queueItems : queueItems.slice(0, 5);
+  const queueHealth = buildOfflineQueueHealth(queueSummary, queueStorage, network, currentEntry);
   const networkTone = network.quality === "offline"
     ? "border-red-400/20 bg-red-500/10 text-red-300"
     : network.quality === "poor"
@@ -72,6 +75,7 @@ export default function MobileOfflineQueuePanel({
         <Metric label={t("mobileDevice.syncing")} value={queueSummary.syncing} tone="text-amber-200" />
         <Metric label={t("mobileDevice.failed")} value={queueSummary.failed} tone="text-red-200" />
       </div>
+      <MobileOfflineQueueHealthCard health={queueHealth} />
       {queueSummary.oldestQueuedAt ? (
         <div className="mt-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3 text-xs leading-relaxed text-zinc-300">
           <div className="font-bold text-zinc-100">{t("offlineQueue.waitingSinceTitle")}</div>

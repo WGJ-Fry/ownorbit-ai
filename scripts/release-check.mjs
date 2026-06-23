@@ -1274,9 +1274,11 @@ function checkAssets() {
   else warn("active chat session cache can still crash when browser storage is unavailable");
 
   const offlineQueueSource = exists("src/services/offlineMessageQueue.ts") ? fs.readFileSync(path.join(rootDir, "src/services/offlineMessageQueue.ts"), "utf8") : "";
+  const offlineQueueHealthSource = exists("src/services/offlineQueueHealth.ts") ? fs.readFileSync(path.join(rootDir, "src/services/offlineQueueHealth.ts"), "utf8") : "";
   const offlineQueueBackupSource = exists("src/services/offlineQueueBackup.ts") ? fs.readFileSync(path.join(rootDir, "src/services/offlineQueueBackup.ts"), "utf8") : "";
   const offlineQueueBannerSource = exists("src/components/chat/OfflineQueueBanner.tsx") ? fs.readFileSync(path.join(rootDir, "src/components/chat/OfflineQueueBanner.tsx"), "utf8") : "";
   const mobileOfflineQueueCardsSource = exists("src/pages/mobile/MobileOfflineQueueCards.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileOfflineQueueCards.tsx"), "utf8") : "";
+  const mobileOfflineQueueHealthCardSource = exists("src/pages/mobile/MobileOfflineQueueHealthCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileOfflineQueueHealthCard.tsx"), "utf8") : "";
   const mobileOfflineQueuePanelSource = exists("src/pages/mobile/MobileOfflineQueuePanel.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileOfflineQueuePanel.tsx"), "utf8") : "";
   const offlineQueueSyncHookSource = exists("src/hooks/useOfflineQueueSync.ts") ? fs.readFileSync(path.join(rootDir, "src/hooks/useOfflineQueueSync.ts"), "utf8") : "";
   const offlineQueueTestSource = exists("tests/offline-queue.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/offline-queue.test.mjs"), "utf8") : "";
@@ -1478,6 +1480,16 @@ function checkAssets() {
     mobileOfflineQueuePanelSource.includes("offlineQueue.emptyBody") &&
     mobileOfflineQueuePanelSource.includes("showAllQueueItems") &&
     mobileOfflineQueuePanelSource.includes("offlineQueue.showAll") &&
+    mobileOfflineQueuePanelSource.includes("buildOfflineQueueHealth(queueSummary, queueStorage, network, currentEntry)") &&
+    mobileOfflineQueuePanelSource.includes("MobileOfflineQueueHealthCard") &&
+    mobileOfflineQueueHealthCardSource.includes("health.titleKey") &&
+    mobileOfflineQueueHealthCardSource.includes("health.bodyKey") &&
+    mobileOfflineQueueHealthCardSource.includes("health.actionKey") &&
+    offlineQueueHealthSource.includes("healthStorageBlockedTitle") &&
+    offlineQueueHealthSource.includes("healthStorageRiskTitle") &&
+    offlineQueueHealthSource.includes("healthFailedTitle") &&
+    offlineQueueHealthSource.includes("healthEntryBlockedTitle") &&
+    offlineQueueHealthSource.includes("healthWeakNetworkTitle") &&
     mobileOfflineQueuePanelSource.includes("currentEntryGuidance.map") &&
     mobileOfflineQueuePanelSource.includes("onRequestPersistentStorage") &&
     mobileOfflineQueuePanelSource.includes("network.labelKey") &&
@@ -1523,6 +1535,8 @@ function checkAssets() {
     translationsSource.includes("offlineQueue.readyToRetry") &&
     translationsSource.includes("offlineQueue.recommendation.browserStorage") &&
     translationsSource.includes("offlineQueue.recommendation.empty") &&
+    translationsSource.includes("offlineQueue.healthStorageBlockedTitle") &&
+    translationsSource.includes("offlineQueue.healthReadyTitle") &&
     translationsSource.includes("network.offline") &&
     translationsSource.includes("network.weak") &&
     offlineQueueTestSource.includes("getOfflineMessageStatusLabel") &&
@@ -1534,6 +1548,9 @@ function checkAssets() {
     offlineQueueBackupSource.includes("Failure reason") &&
     offlineQueueTestSource.includes("offline queue backup text preserves queued messages before clearing") &&
     offlineQueueTestSource.includes("getOfflineMessageQueueStorageStatus") &&
+    offlineQueueTestSource.includes("offline queue health prioritizes storage, failed sync, remote entry, and network guidance") &&
+    offlineQueueTestSource.includes("buildOfflineQueueHealth") &&
+    offlineQueueTestSource.includes("offlineQueue.healthEntryBlockedTitle") &&
     offlineQueueTestSource.includes("summary.oldestQueuedAt") &&
     offlineQueueSource.includes("oldestQueuedAt") &&
     offlineQueueSource.includes("newestQueuedAt") &&
