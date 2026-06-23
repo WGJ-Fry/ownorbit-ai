@@ -75,6 +75,14 @@ async function createPackagedMacApp(releaseDir, entries) {
   ].join("\n"));
   await writeFile(path.join(releaseDir, "USER-INSTALL.md"), [
     "# User Install Guide",
+    "## 先看这里：当前公开版本状态",
+    "只写已经存在并能被干净机器下载的资产",
+    "## Read This First: Current Public Release Status",
+    "Docker Compose alpha uses ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha.",
+    "Verify with docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha before promotion.",
+    "Only claim assets that already exist and can be downloaded from a clean machine.",
+    "Do not market it as downloadable until the real NSIS installer is built, verified, and uploaded.",
+    "Do not market it as downloadable until the real AppImage is built, verified, and uploaded.",
     "## macOS Unsigned Zip",
     "Use Open Anyway if macOS blocks the unsigned app.",
     "## Windows NSIS Installer",

@@ -13,6 +13,15 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"
 const translationsSource = exists("src/i18n/translations.ts") ? fs.readFileSync(path.join(rootDir, "src/i18n/translations.ts"), "utf8") : "";
 const require = createRequire(import.meta.url);
 const results = [];
+const userInstallStatusMarkers = [
+  "Read This First: Current Public Release Status",
+  "先看这里：当前公开版本状态",
+  "Only claim assets that already exist and can be downloaded from a clean machine",
+  "只写已经存在并能被干净机器下载的资产",
+  "docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha",
+  "Do not market it as downloadable until the real NSIS installer is built, verified, and uploaded",
+  "Do not market it as downloadable until the real AppImage is built, verified, and uploaded",
+];
 
 function pass(message) {
   results.push({ level: "PASS", message });
@@ -2381,13 +2390,7 @@ function checkReleaseDocs() {
       "Wait until the phone shows the bound chat or device page",
       "Do not add the unbound QR page to the home screen",
       "delete the old home-screen icon",
-      "Read This First: Current Public Release Status",
-      "先看这里：当前公开版本状态",
-      "Only claim assets that already exist and can be downloaded from a clean machine",
-      "只写已经存在并能被干净机器下载的资产",
-      "docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha",
-      "Do not market it as downloadable until the real NSIS installer is built, verified, and uploaded",
-      "Do not market it as downloadable until the real AppImage is built, verified, and uploaded",
+      ...userInstallStatusMarkers,
     ];
     const missingMarkers = requiredUserGuideMarkers.filter((marker) => !userGuide.includes(marker));
     if (missingMarkers.length === 0) {
@@ -2605,10 +2608,11 @@ function checkUnsignedPackage() {
     }
     if (fs.existsSync(userInstallGuidePath)) {
       const userInstallGuide = fs.readFileSync(userInstallGuidePath, "utf8");
-      if (/First Launch/i.test(userInstallGuide) && /Bind The Phone PWA/i.test(userInstallGuide) && /daily automatic backups/i.test(userInstallGuide) && /Troubleshooting/i.test(userInstallGuide) && /Open Local Console In Browser/i.test(userInstallGuide) && /Copy Local Address/i.test(userInstallGuide) && /Do not add the unbound QR page to the home screen/i.test(userInstallGuide) && /delete the old home-screen icon/i.test(userInstallGuide)) {
+      const missingStatusMarkers = userInstallStatusMarkers.filter((marker) => !userInstallGuide.includes(marker));
+      if (/First Launch/i.test(userInstallGuide) && /Bind The Phone PWA/i.test(userInstallGuide) && /daily automatic backups/i.test(userInstallGuide) && /Troubleshooting/i.test(userInstallGuide) && /Open Local Console In Browser/i.test(userInstallGuide) && /Copy Local Address/i.test(userInstallGuide) && /Do not add the unbound QR page to the home screen/i.test(userInstallGuide) && /delete the old home-screen icon/i.test(userInstallGuide) && missingStatusMarkers.length === 0) {
         pass("unsigned macOS release includes non-developer user install guide");
       } else {
-        fail("release USER-INSTALL.md should explain first launch, browser fallback recovery, phone binding, add-to-home-screen recovery, daily backups, and troubleshooting");
+        fail(`release USER-INSTALL.md should explain current public asset status, first launch, browser fallback recovery, phone binding, add-to-home-screen recovery, daily backups, and troubleshooting${missingStatusMarkers.length ? `; missing status markers: ${missingStatusMarkers.join(", ")}` : ""}`);
       }
     } else {
       fail("unsigned macOS release is missing USER-INSTALL.md");
