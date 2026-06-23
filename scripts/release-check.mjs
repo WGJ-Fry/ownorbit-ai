@@ -1006,6 +1006,9 @@ function checkAssets() {
     securityDiagnosticsSource.includes("getBackupSchedule") &&
     securityDiagnosticsSource.includes("inspectConfiguredPublicBaseUrlInput") &&
     securityDiagnosticsSource.includes('id: "publicBaseUrlInput"') &&
+    securityDiagnosticsSource.includes('id: "trustedProxy"') &&
+    securityDiagnosticsSource.includes("LIFEOS_TRUST_PROXY") &&
+    securityDiagnosticsSource.includes("usesLikelyTrustedPublicProxy") &&
     securityDiagnosticsSource.includes("hasLongRepeatedRun") &&
     securityDiagnosticsSource.includes("hasSequentialRun") &&
     securityDiagnosticsSource.includes("noLongRepeats") &&
@@ -1023,6 +1026,8 @@ function checkAssets() {
     publicModeTestSource.includes("backupSchedule") &&
     publicModeTestSource.includes("health exposes saved desktop remote entry mode for mobile recovery") &&
     publicModeTestSource.includes("public mode security diagnostics flag unsafe raw PUBLIC_BASE_URL input") &&
+    publicModeTestSource.includes("public mode diagnostics accept trusted proxy headers when explicitly enabled") &&
+    publicModeTestSource.includes('item.id === "trustedProxy"') &&
     publicModeTestSource.includes("public-secret") &&
     publicModeTestSource.includes("aaaaaaaaaaaa1!") &&
     publicModeTestSource.includes("abcdef123456!") &&

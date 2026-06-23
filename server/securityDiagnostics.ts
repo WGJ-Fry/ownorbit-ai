@@ -28,6 +28,28 @@ const weakPasswordSamples = new Set([
 ]);
 const staleBackupAgeMs = 7 * 24 * 60 * 60 * 1000;
 
+function isLoopbackOrPrivateHost(hostname: string) {
+  const normalized = hostname.toLowerCase();
+  return (
+    normalized === "localhost" ||
+    normalized === "127.0.0.1" ||
+    normalized === "::1" ||
+    normalized.startsWith("10.") ||
+    normalized.startsWith("192.168.") ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(normalized)
+  );
+}
+
+function usesLikelyTrustedPublicProxy(publicBaseUrl: string) {
+  if (!publicBaseUrl) return false;
+  try {
+    const url = new URL(publicBaseUrl);
+    return url.protocol === "https:" && !isLoopbackOrPrivateHost(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 function hasLongRepeatedRun(password: string) {
   return /(.)\1{5,}/i.test(password);
 }
@@ -76,6 +98,8 @@ export function getSecurityDiagnostics() {
   const backupAgeMs = latestBackupModifiedAt ? Date.now() - latestBackupModifiedAt : null;
   const backupFresh = backupCount > 0 && backupAgeMs !== null && backupAgeMs <= staleBackupAgeMs;
   const backupSchedule = getBackupSchedule();
+  const publicProxyCandidate = usesLikelyTrustedPublicProxy(publicBaseUrl);
+  const trustedProxyHeadersEnabled = process.env.LIFEOS_TRUST_PROXY === "1";
 
   const items: SecurityCheckItem[] = [
     {
@@ -126,6 +150,19 @@ export function getSecurityDiagnostics() {
       status: !publicMode || process.env.LIFEOS_ALLOW_PUBLIC === "1" ? "ok" : "critical",
       message: !publicMode ? "Public/LAN exposure is not enabled." : process.env.LIFEOS_ALLOW_PUBLIC === "1" ? "Public/LAN mode is explicitly allowed." : "Missing LIFEOS_ALLOW_PUBLIC=1.",
       action: "Set LIFEOS_ALLOW_PUBLIC=1 only after confirming a trusted network or tunnel.",
+    },
+    {
+      id: "trustedProxy",
+      label: "Trusted Proxy Client Identity",
+      status: !publicProxyCandidate || trustedProxyHeadersEnabled ? "ok" : "warning",
+      message: !publicProxyCandidate
+        ? "No HTTPS public proxy or tunnel address is configured."
+        : trustedProxyHeadersEnabled
+          ? "Trusted proxy headers are enabled for client IP based protections."
+          : "An HTTPS public address is configured, but trusted proxy headers are not enabled; login and binding rate limits may only see the proxy or tunnel IP.",
+      action: !publicProxyCandidate || trustedProxyHeadersEnabled
+        ? "No action needed."
+        : "If this address is served by a trusted reverse proxy or tunnel, set LIFEOS_TRUST_PROXY=1. Do not enable it on untrusted raw networks.",
     },
     {
       id: "ai",

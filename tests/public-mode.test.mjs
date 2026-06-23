@@ -326,6 +326,7 @@ test("public mode security diagnostics flag unsafe raw PUBLIC_BASE_URL input", a
     LIFEOS_DATA_DIR: dataDir,
     LIFEOS_HOST: "127.0.0.1",
     LIFEOS_ALLOW_PUBLIC: "1",
+    LIFEOS_TRUST_PROXY: "",
     PUBLIC_BASE_URL: "https://user:password@lifeos.example.test/mobile?token=public-secret#debug",
   });
 
@@ -348,10 +349,43 @@ test("public mode security diagnostics flag unsafe raw PUBLIC_BASE_URL input", a
   const adminHeaders = cookieHeader(setupResponse);
   const diagnostics = await request(port, "/api/v1/admin/config-diagnostics", { headers: adminHeaders }).then((res) => res.json());
   const unsafeInput = diagnostics.securityCheck.items.find((item) => item.id === "publicBaseUrlInput");
+  const trustedProxy = diagnostics.securityCheck.items.find((item) => item.id === "trustedProxy");
   assert.equal(unsafeInput.status, "critical");
+  assert.equal(trustedProxy.status, "warning");
+  assert.match(trustedProxy.action, /LIFEOS_TRUST_PROXY/);
   assert.match(unsafeInput.action, /PUBLIC_BASE_URL/);
   assert.equal(JSON.stringify(diagnostics).includes("public-secret"), false);
   assert.equal(JSON.stringify(diagnostics).includes("user:password"), false);
+});
+
+test("public mode diagnostics accept trusted proxy headers when explicitly enabled", async (t) => {
+  const port = 12910 + Math.floor(Math.random() * 1000);
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-public-trusted-proxy-test-"));
+  const { child, output } = startServer({
+    LIFEOS_PORT: String(port),
+    LIFEOS_DATA_DIR: dataDir,
+    LIFEOS_HOST: "127.0.0.1",
+    LIFEOS_ALLOW_PUBLIC: "1",
+    LIFEOS_TRUST_PROXY: "1",
+    PUBLIC_BASE_URL: "https://lifeos.example.test",
+  });
+
+  t.after(async () => {
+    await stopServer(child);
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  await waitForHealth(port, child, output);
+
+  const setupResponse = await request(port, "/api/v1/admin/setup", {
+    method: "POST",
+    body: JSON.stringify({ password: "correct horse battery staple" }),
+  });
+  assert.equal(setupResponse.status, 200);
+  const diagnostics = await request(port, "/api/v1/admin/config-diagnostics", { headers: cookieHeader(setupResponse) }).then((res) => res.json());
+  const trustedProxy = diagnostics.securityCheck.items.find((item) => item.id === "trustedProxy");
+  assert.equal(trustedProxy.status, "ok");
+  assert.match(trustedProxy.message, /Trusted proxy headers are enabled/);
 });
 
 test("explicit public access opt-in exposes health warning metadata", async (t) => {
@@ -362,6 +396,7 @@ test("explicit public access opt-in exposes health warning metadata", async (t) 
     LIFEOS_DATA_DIR: dataDir,
     LIFEOS_HOST: "0.0.0.0",
     LIFEOS_ALLOW_PUBLIC: "1",
+    LIFEOS_TRUST_PROXY: "",
     PUBLIC_BASE_URL: "https://lifeos.example.test",
   });
 
@@ -380,6 +415,7 @@ test("explicit public access opt-in exposes health warning metadata", async (t) 
   assert.equal(health.publicSetupRisk, true);
   assert.equal(health.publicRisk.overall, "critical");
   assert.equal(health.publicRisk.items.some((item) => item.id === "admin"), true);
+  assert.equal(health.publicRisk.items.some((item) => item.id === "trustedProxy" && item.status === "warning"), true);
 });
 
 test("health exposes saved desktop remote entry mode for mobile recovery", async (t) => {
