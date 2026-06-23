@@ -1637,6 +1637,9 @@ function checkAssets() {
     translationsSource.includes("聊天路由已启用") &&
     !translationsSource.includes("聊天路由暂未启用") &&
     adminRoutesSource.includes("ai_provider_default_updated") &&
+    adminRoutesSource.includes("previousActiveProvider") &&
+    adminRoutesSource.includes("previousModel") &&
+    adminRoutesSource.includes("aiStatusAuditMetadata(status)") &&
     adminRoutesSource.includes("Live API call was not run") &&
     adminRoutesSource.includes("/models") &&
     adminRoutesSource.includes("models_endpoint_ok") &&
@@ -1652,6 +1655,8 @@ function checkAssets() {
     apiAuthTestSource.includes("testedMissingLocalProvider.reason") &&
     apiAuthTestSource.includes("testedLocalLive.result") &&
     apiAuthTestSource.includes("localLiveTestAudit.metadata.modelCount") &&
+    apiAuthTestSource.includes("openAiDefaultAudit.metadata.previousActiveProvider") &&
+    apiAuthTestSource.includes("openAiModelAudit.metadata.previousModel") &&
     apiAuthTestSource.includes("localTestAudit.metadata.reason") &&
     apiAuthTestSource.includes("openAiTestAudit.metadata.credentialKind") &&
     apiAuthTestSource.includes("legacyByokProviderState") &&

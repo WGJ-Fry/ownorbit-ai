@@ -1,7 +1,7 @@
 import type express from "express";
 import { db } from "../db";
 import { insertAuditLog, listAuditLogs } from "../audit";
-import { aiProviders, deleteAiApiKey, getAiApiKey, getAiConfigStatus, getAiProviderStatus, listAiProviderStatuses, saveActiveAiProvider, saveAiApiKey, saveSelectedAiModel, type AiProviderId } from "../appSecrets";
+import { aiProviders, deleteAiApiKey, getActiveAiProviderId, getAiApiKey, getAiConfigStatus, getAiProviderStatus, listAiProviderStatuses, saveActiveAiProvider, saveAiApiKey, saveSelectedAiModel, type AiProviderId } from "../appSecrets";
 import { createAdminCredential, createAdminSession, getAdminSessionByToken, getBearerToken, isAdminConfigured, requireAdmin, verifyAdminPassword } from "../auth";
 import { createDiagnosticBundle, getReleaseDiagnostics } from "../diagnosticBundle";
 import { clearHttpOnlyCookie, getClientIp, rateLimit, setClientCookie, setHttpOnlyCookie } from "../httpSecurity";
@@ -566,10 +566,13 @@ export function registerAdminRoutes(app: express.Express) {
     if (!providerId) return res.status(404).json({ error: "Unknown AI provider" });
     const model = String(req.body?.model || "").trim();
     try {
+      const previousStatus = getAiProviderStatus(providerId);
       const status = saveSelectedAiModel(providerId, model, { type: "admin", id: "owner" });
       insertAuditLog("ai_provider_model_updated", "config", providerId, {
-        provider: status.provider,
+        ...aiStatusAuditMetadata(status),
         model: status.selectedModel,
+        previousModel: previousStatus.selectedModel,
+        changed: previousStatus.selectedModel !== status.selectedModel,
       });
       res.json({ provider: status });
     } catch (error: any) {
@@ -581,13 +584,14 @@ export function registerAdminRoutes(app: express.Express) {
     const providerId = getProviderId(req.params.providerId);
     if (!providerId) return res.status(404).json({ error: "Unknown AI provider" });
     try {
+      const previousActiveProvider = getActiveAiProviderId();
       saveActiveAiProvider(providerId, { type: "admin", id: "owner" });
       const status = getAiProviderStatus(providerId);
       insertAuditLog("ai_provider_default_updated", "config", providerId, {
-        provider: status.provider,
+        ...aiStatusAuditMetadata(status),
         active: status.active,
-        configured: status.configured,
-        selectedModel: status.selectedModel,
+        previousActiveProvider,
+        changed: previousActiveProvider !== providerId,
       });
       res.json({ provider: status, providers: listAiProviderStatuses() });
     } catch (error: any) {
