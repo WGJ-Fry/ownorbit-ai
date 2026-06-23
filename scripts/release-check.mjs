@@ -1353,6 +1353,10 @@ function checkAssets() {
     frontendSmokeTestSource.includes("queueSummary=\\{queueSummary\\}") &&
     frontendSmokeTestSource.includes("getMobileRecoveryHints") &&
     frontendSmokeTestSource.includes("getMobileConnectivityIssue") &&
+    mobileDeviceSource.includes("refreshServerState") &&
+    mobileDeviceSource.includes("serverRefreshBusy") &&
+    mobileDeviceSource.includes("mobileDevice.serverStateRefreshed") &&
+    mobileDeviceSource.includes("void refreshServerState()") &&
     pwaCapabilitiesSource.includes("mobileConnectivityResultFromReport") &&
     pwaCapabilitiesSource.includes("StoredMobileConnectivityReport") &&
     translationsSource.includes("connectivityGuidanceHealth") &&
@@ -1369,6 +1373,7 @@ function checkAssets() {
     translationsSource.includes("mobileDevice.lastConnectivityFixTitle") &&
     translationsSource.includes("mobileDevice.freshConnectivityReport") &&
     translationsSource.includes("mobileDevice.staleConnectivityReport") &&
+    translationsSource.includes("mobileDevice.serverStateRefreshed") &&
     translationsSource.includes("mobileDevice.pwaRecommendation.addToHome") &&
     translationsSource.includes("mobileDevice.pwaRecommendation.offlineQueue")
   ) pass("mobile device page surfaces PWA install, background sync, and remote recovery guidance");

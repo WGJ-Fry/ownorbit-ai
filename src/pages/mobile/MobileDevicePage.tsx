@@ -40,6 +40,7 @@ export default function MobileDevicePage() {
   const [connectivityTest, setConnectivityTest] = useState<MobileConnectivityResult | null>(null);
   const [lastConnectivityReport, setLastConnectivityReport] = useState<DeviceConnectivityReport | null>(null);
   const [connectivityBusy, setConnectivityBusy] = useState(false);
+  const [serverRefreshBusy, setServerRefreshBusy] = useState(false);
   const expiresAt = useMemo(() => credential?.accessTokenExpiresAt ? new Date(credential.accessTokenExpiresAt).toLocaleString() : t("mobileDevice.longLivedSignature"), [credential, t]);
   const currentEntry = useMemo(() => getRemoteEntryStatus({ configuredBaseUrl: health?.publicBaseUrl, configuredMode: health?.remoteEntryMode }), [health]);
   const currentEntryGuidance = useMemo(() => getRemoteEntryGuidance(currentEntry, queueSummary), [currentEntry, queueSummary]);
@@ -53,20 +54,37 @@ export default function MobileDevicePage() {
     setCredentialStorage(storage);
   };
 
+  const refreshServerState = async (options: { announce?: boolean } = {}) => {
+    if (options.announce) {
+      setServerRefreshBusy(true);
+      setStatus(null);
+    }
+    try {
+      const [healthResult, reportResult] = await Promise.allSettled([
+        getHealth(),
+        getLatestMobileConnectivityReport(),
+      ]);
+      if (healthResult.status === "fulfilled") setHealth(healthResult.value);
+      if (reportResult.status === "fulfilled") setLastConnectivityReport(reportResult.value.report);
+      if (options.announce) setStatus(t("mobileDevice.serverStateRefreshed"));
+    } catch (error: any) {
+      if (options.announce) setStatus(error.message || t("mobileDevice.serverStateRefreshFailed"));
+    } finally {
+      if (options.announce) setServerRefreshBusy(false);
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
     getStoredDeviceCredentialAsync().then((next) => {
       if (!cancelled) setCredential(next);
       return refreshCredentialStorage();
     });
-    getHealth().then((next) => {
-      if (!cancelled) setHealth(next);
-    }).catch(() => {
-      if (!cancelled) setHealth(null);
+    Promise.allSettled([getHealth(), getLatestMobileConnectivityReport()]).then(([healthResult, reportResult]) => {
+      if (cancelled) return;
+      setHealth(healthResult.status === "fulfilled" ? healthResult.value : null);
+      if (reportResult.status === "fulfilled") setLastConnectivityReport(reportResult.value.report);
     });
-    getLatestMobileConnectivityReport().then((next) => {
-      if (!cancelled) setLastConnectivityReport(next.report);
-    }).catch(() => null);
     return () => {
       cancelled = true;
     };
@@ -100,6 +118,7 @@ export default function MobileDevicePage() {
     setNetwork(getNetworkStatus());
     setPwaCapabilities(getPwaCapabilityStatus());
     refreshQueue();
+    void refreshServerState();
   };
 
   useEffect(() => {
@@ -372,6 +391,14 @@ export default function MobileDevicePage() {
             <Row label={t("mobileDevice.networkMode")} value={health?.networkMode || "-"} />
             <Row label={t("mobileDevice.remoteVerdict")} value={t(currentEntry.titleKey as any)} />
           </div>
+          <button
+            onClick={() => refreshServerState({ announce: true })}
+            disabled={serverRefreshBusy}
+            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm font-bold text-zinc-200 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${serverRefreshBusy ? "animate-spin" : ""}`} />
+            {serverRefreshBusy ? t("mobileDevice.refreshingServerState") : t("mobile.refreshConnection")}
+          </button>
           <div className={`mt-4 rounded-2xl border p-3 text-sm leading-relaxed ${currentEntry.okForRemote ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100" : "border-amber-400/20 bg-amber-500/10 text-amber-100"}`}>
             <div className="font-bold">{t(currentEntry.titleKey as any)}</div>
             <div className={`mt-1 ${currentEntry.okForRemote ? "text-emerald-100/75" : "text-amber-100/75"}`}>{t(currentEntry.bodyKey as any)}</div>
