@@ -1,9 +1,10 @@
 import fs from "fs";
 import path from "path";
 import { getAiConfigStatus, listAiProviderStatuses } from "./appSecrets";
-import { listAuditLogs, redactAuditMetadata } from "./audit";
+import { listAuditLogs, redactAuditMetadata, redactAuditString } from "./audit";
 import { db, getPendingRestore, listBackups } from "./db";
 import { getDevices } from "./devices";
+import { getClientState } from "./clientState";
 import { getNetworkDiagnostics } from "./networkDiagnostics";
 import { getOnlineDeviceCount } from "./realtime";
 import { buildRemoteAcceptanceChecklist, getRemoteAcceptanceRecords, getRemoteAcceptanceRunbookRecords, summarizeRemoteAcceptanceChecklist } from "./remoteAcceptance";
@@ -83,6 +84,90 @@ function summarizeAuditMetadata(metadata: unknown) {
     if (typeof value === "string") return [key, value.length > 180 ? `${value.slice(0, 177)}...` : value];
     return [key, value];
   }));
+}
+
+function diagnosticUrlScheme(value: string) {
+  return value.trim().match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/)?.[1]?.toLowerCase() || "";
+}
+
+function redactDiagnosticActionUrl(value: unknown) {
+  const raw = typeof value === "string" ? value.trim() : "";
+  const scheme = diagnosticUrlScheme(raw);
+  if (!scheme) return "[invalid-url]";
+  try {
+    const parsed = new URL(raw);
+    const query = Array.from(parsed.searchParams.keys()).slice(0, 6)
+      .map((key) => `${encodeURIComponent(key)}=[redacted]`)
+      .join("&");
+    const redactedQuery = query ? `?${query}` : "";
+    if (["tel", "sms", "mailto"].includes(scheme)) return `${scheme}:[redacted]${redactedQuery}`;
+    if (scheme === "shortcuts") return `${parsed.protocol}//${parsed.host || "run-shortcut"}${redactedQuery}`;
+    if (scheme === "http" || scheme === "https") return `${parsed.origin}${parsed.pathname}${redactedQuery}`;
+    return `${scheme}://[redacted]${redactedQuery}`;
+  } catch {
+    return `${scheme}:[redacted]`;
+  }
+}
+
+function redactDiagnosticActionText(value: unknown, fallback = "Unknown") {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (!raw) return fallback;
+  const urlScheme = diagnosticUrlScheme(raw);
+  const redacted = (urlScheme ? redactDiagnosticActionUrl(raw) : redactAuditString(raw))
+    .replace(/\b(api[-_]?key|token|secret|password|passphrase|authorization|cookie)=\S+/gi, "$1=[redacted]")
+    .slice(0, 120);
+  return redacted || fallback;
+}
+
+function buildSystemActionDiagnostics() {
+  const value = getClientState("lifeos_system_action_logs")?.value;
+  const logs = Array.isArray(value) ? value.filter((item) => item && typeof item === "object") as Record<string, unknown>[] : [];
+  const sourceCounts = new Map<string, number>();
+  const summary = {
+    totalLogs: logs.length,
+    opened: 0,
+    blocked: 0,
+    cancelled: 0,
+    highRisk: 0,
+    totalSources: 0,
+    topSource: "Unknown",
+    topSourceCount: 0,
+    recent: [] as Array<{
+      label: string;
+      scheme: string;
+      status: string;
+      risk: string;
+      source: string;
+      url: string;
+    }>,
+  };
+
+  for (const log of logs) {
+    const status = ["opened", "blocked", "cancelled"].includes(String(log.status)) ? String(log.status) : "unknown";
+    const risk = ["low", "medium", "high"].includes(String(log.risk)) ? String(log.risk) : "unknown";
+    const source = redactDiagnosticActionText(log.source);
+    sourceCounts.set(source, (sourceCounts.get(source) || 0) + 1);
+    if (status === "opened") summary.opened += 1;
+    if (status === "blocked") summary.blocked += 1;
+    if (status === "cancelled") summary.cancelled += 1;
+    if (risk === "high") summary.highRisk += 1;
+    if (summary.recent.length < 5) {
+      summary.recent.push({
+        label: redactDiagnosticActionText(log.label, "Action"),
+        scheme: String(log.scheme || "").trim().toLowerCase().slice(0, 32),
+        status,
+        risk,
+        source,
+        url: redactDiagnosticActionUrl(log.url),
+      });
+    }
+  }
+
+  const [topSource, topSourceCount] = [...sourceCounts.entries()].sort((a, b) => b[1] - a[1])[0] || ["Unknown", 0];
+  summary.totalSources = sourceCounts.size;
+  summary.topSource = topSource;
+  summary.topSourceCount = topSourceCount;
+  return summary;
 }
 
 export function getReleaseDiagnostics() {
@@ -190,6 +275,7 @@ export function createDiagnosticBundle() {
       },
     },
     security: getSecurityDiagnostics(),
+    systemActions: buildSystemActionDiagnostics(),
     release: getReleaseDiagnostics(),
     devices: {
       total: getDevices(true).length,

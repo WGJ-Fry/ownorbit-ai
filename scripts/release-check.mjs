@@ -1695,6 +1695,7 @@ function checkAssets() {
     diagnosticBundleSource.includes("publicReleaseArtifactSummary") &&
     diagnosticBundleSource.includes("release: getReleaseDiagnostics()") &&
     diagnosticBundleSource.includes("remote: {") &&
+    diagnosticBundleSource.includes("systemActions: buildSystemActionDiagnostics()") &&
     diagnosticBundleSource.includes("recoveryReport") &&
     diagnosticBundleSource.includes("acceptanceChecklist") &&
     diagnosticBundleSource.includes("acceptanceSummary") &&
@@ -1708,6 +1709,8 @@ function checkAssets() {
     diagnosticBundleTestSource.includes("bundle.release.version, packageJson.version") &&
     diagnosticBundleTestSource.includes("bundle.remote.healthSummary.status") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceSummary.ready") &&
+    diagnosticBundleTestSource.includes("bundle.systemActions.topSource") &&
+    diagnosticBundleTestSource.includes("diagnostic-action-secret") &&
     apiAuthTestSource.includes("diagnosticBundle.remote.recoveryReport") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceRecords.total") &&
     diagnosticBundleTestSource.includes("evidence.requirements") &&

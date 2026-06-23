@@ -845,7 +845,11 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     "remote",
     "security",
     "service",
+    "systemActions",
   ]);
+  assert.equal(typeof diagnosticBundle.systemActions.totalLogs, "number");
+  assert.equal(typeof diagnosticBundle.systemActions.topSource, "string");
+  assert.equal(Array.isArray(diagnosticBundle.systemActions.recent), true);
   assert.deepEqual(Object.keys(diagnosticBundle.database.tables).sort(), [
     "auditLogs",
     "backups",

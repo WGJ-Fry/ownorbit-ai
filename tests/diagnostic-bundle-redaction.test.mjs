@@ -80,6 +80,33 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   });
   const remoteValidationModule = await import(`../server/remoteValidationReport.ts?diagnostic=${Date.now()}`);
   const remoteAcceptanceModule = await import(`../server/remoteAcceptance.ts?diagnostic=${Date.now()}`);
+  const clientStateModule = await import(`../server/clientState.ts?diagnostic=${Date.now()}`);
+  clientStateModule.setClientState("lifeos_system_action_logs", [
+    {
+      id: "diagnostic-action-log-1",
+      label: "Call private phone token=diagnostic-action-secret",
+      url: "tel:+15551234567?token=diagnostic-action-secret",
+      scheme: "tel",
+      source: "AI Agent token=diagnostic-action-secret",
+      target: "+15551234567",
+      paramsSummary: "token=diagnostic-action-secret",
+      status: "blocked",
+      risk: "high",
+      createdAt: Date.now(),
+    },
+    {
+      id: "diagnostic-action-log-2",
+      label: "Shortcut run",
+      url: "shortcuts://run-shortcut?name=LifeOS&text=diagnostic-action-secret",
+      scheme: "shortcuts",
+      source: "https://example.com/mobile/chat?token=diagnostic-action-secret",
+      target: "shortcuts://run-shortcut?name=LifeOS&text=diagnostic-action-secret",
+      paramsSummary: "text",
+      status: "opened",
+      risk: "high",
+      createdAt: Date.now(),
+    },
+  ], { type: "device", id: "diagnostic-device" });
   remoteValidationModule.saveRemoteValidationReport({
     label: "Remote health check after auto-restore",
     baseUrl: "https://example.com/lifeos",
@@ -138,6 +165,8 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(serialized.includes("sk-or-diagnostic-secret"), false);
   assert.equal(serialized.includes("local-secret"), false);
   assert.equal(serialized.includes("remote-secret"), false);
+  assert.equal(serialized.includes("diagnostic-action-secret"), false);
+  assert.equal(serialized.includes("+15551234567"), false);
   assert.equal(serialized.includes("Z2l0aHViOmRpYWdub3N0aWM"), false);
   assert.equal(serialized.includes("github_pat_diagnosticSecret"), false);
   assert.equal(bundle.remote.acceptanceRunbooks.total, 1);
@@ -160,6 +189,12 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(bundle.remote.acceptanceSummary.hasLongTermEntry, false);
   assert.equal(bundle.remote.acceptanceSummary.hasRealWorldEvidence, false);
   assert.equal(typeof bundle.remote.acceptanceSummary.manualRequired, "number");
+  assert.equal(bundle.systemActions.totalLogs, 2);
+  assert.equal(bundle.systemActions.blocked, 1);
+  assert.equal(bundle.systemActions.highRisk, 2);
+  assert.equal(bundle.systemActions.topSource, "AI Agent token=[redacted]");
+  assert.equal(bundle.systemActions.recent[0].url, "tel:[redacted]?token=[redacted]");
+  assert.equal(bundle.systemActions.recent[1].source, "https://example.com/mobile/chat?[redacted]");
   const redactionAudit = bundle.recentAudit.find((log) => log.action === "diagnostic_redaction_seed");
   assert.equal(redactionAudit.metadataSummary.localPath, "[redacted]");
   assert.match(redactionAudit.metadataSummary.command, /Authorization: Basic \[redacted\]/);
