@@ -6,7 +6,7 @@ import { clearOfflineMessageQueue, getOfflineMessageQueue, getOfflineMessageQueu
 import type { OfflineMessageQueueStorageStatus, OfflineQueuedMessage } from "../../services/offlineMessageQueue";
 import { getNetworkStatus } from "../../services/networkStatus";
 import { extractPairingToken, pairingInstallPath } from "../../services/mobilePairingIntent";
-import { getPwaCapabilityStatus, getRemoteEntryGuidance, getRemoteEntryStatus, testMobileRemoteConnectivity } from "../../services/pwaCapabilities";
+import { getMobileConnectivityIssue, getMobileRecoveryHints, getPwaCapabilityStatus, getRemoteEntryGuidance, getRemoteEntryStatus, mobileConnectivityResultFromReport, testMobileRemoteConnectivity } from "../../services/pwaCapabilities";
 import type { MobileConnectivityResult } from "../../services/pwaCapabilities";
 import { QueueItem, QueueStorageCard } from "./MobileOfflineQueueCards";
 import MobileConnectivityCard from "./MobileConnectivityCard";
@@ -42,6 +42,9 @@ export default function MobileDevicePage() {
   const expiresAt = useMemo(() => credential?.accessTokenExpiresAt ? new Date(credential.accessTokenExpiresAt).toLocaleString() : t("mobileDevice.longLivedSignature"), [credential, t]);
   const currentEntry = useMemo(() => getRemoteEntryStatus({ configuredBaseUrl: health?.publicBaseUrl, configuredMode: health?.remoteEntryMode }), [health]);
   const currentEntryGuidance = useMemo(() => getRemoteEntryGuidance(currentEntry, queueSummary), [currentEntry, queueSummary]);
+  const lastConnectivityResult = useMemo(() => lastConnectivityReport ? mobileConnectivityResultFromReport(lastConnectivityReport) : null, [lastConnectivityReport]);
+  const lastConnectivityIssue = useMemo(() => lastConnectivityResult ? getMobileConnectivityIssue(lastConnectivityResult, currentEntry.kind, queueSummary) : null, [currentEntry.kind, lastConnectivityResult, queueSummary]);
+  const lastConnectivityHints = useMemo(() => lastConnectivityResult ? getMobileRecoveryHints(lastConnectivityResult, currentEntry.kind, queueSummary) : [], [currentEntry.kind, lastConnectivityResult, queueSummary]);
 
   const refreshCredentialStorage = async () => {
     const storage = await getStoredDeviceCredentialStorageStatus().catch(() => null);
@@ -371,6 +374,15 @@ export default function MobileDevicePage() {
                 </div>
               </div>
               {lastConnectivityReport.error ? <div className="mt-2 opacity-85">{t("mobileDevice.lastConnectivityError", { message: lastConnectivityReport.error })}</div> : null}
+              {lastConnectivityIssue && lastConnectivityIssue !== "mobileDevice.connectivityIssueOk" ? (
+                <div className="mt-3 rounded-xl border border-white/[0.08] bg-black/10 p-2">
+                  <div className="font-bold">{t("mobileDevice.lastConnectivityFixTitle")}</div>
+                  <div className="mt-1 font-bold opacity-90">{t(lastConnectivityIssue as any)}</div>
+                  <div className="mt-2 space-y-1 opacity-80">
+                    {lastConnectivityHints.map((hint) => <div key={hint}>{t(hint as any)}</div>)}
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : null}
           <button

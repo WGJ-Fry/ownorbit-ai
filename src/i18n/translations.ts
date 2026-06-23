@@ -325,6 +325,7 @@ export const translations = {
     "mobileDevice.lastConnectivityFailed": "上次连接测试失败",
     "mobileDevice.lastConnectivityBody": "{{time}} 使用 {{entry}}，总延迟 {{latency}}ms。",
     "mobileDevice.lastConnectivityError": "失败原因：{{message}}",
+    "mobileDevice.lastConnectivityFixTitle": "上次失败的修复建议",
 
     "aiKey.details.openrouter": "多模型聚合路由",
     "aiKey.storage.system": "系统安全存储",
@@ -1833,6 +1834,7 @@ export const translations = {
     "mobileDevice.lastConnectivityFailed": "Last Connection Test Failed",
     "mobileDevice.lastConnectivityBody": "{{time}} via {{entry}}, total latency {{latency}}ms.",
     "mobileDevice.lastConnectivityError": "Failure reason: {{message}}",
+    "mobileDevice.lastConnectivityFixTitle": "Suggested Fix From Last Failure",
 
     "aiKey.details.openrouter": "Multi-model routing aggregator",
     "aiKey.storage.system": "System secure storage",

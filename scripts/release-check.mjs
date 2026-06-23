@@ -1266,12 +1266,17 @@ function checkAssets() {
     pwaCapabilitiesTestSource.includes("connectivityIssueQueueBlocked") &&
     pwaCapabilitiesTestSource.includes("connectedButQueueFailed") &&
     pwaCapabilitiesTestSource.includes("remote entry guidance is visible before manual connectivity tests") &&
+    pwaCapabilitiesTestSource.includes("stored mobile connectivity reports restore actionable recovery diagnostics") &&
     pwaCapabilitiesTestSource.includes("degraded offline sync support") &&
     frontendSmokeTestSource.includes("mobileDevice\\.pwaTitle") &&
     frontendSmokeTestSource.includes("getRemoteEntryGuidance") &&
+    frontendSmokeTestSource.includes("mobileConnectivityResultFromReport") &&
+    frontendSmokeTestSource.includes("lastConnectivityIssue") &&
     frontendSmokeTestSource.includes("queueSummary=\\{queueSummary\\}") &&
     frontendSmokeTestSource.includes("getMobileRecoveryHints") &&
     frontendSmokeTestSource.includes("getMobileConnectivityIssue") &&
+    pwaCapabilitiesSource.includes("mobileConnectivityResultFromReport") &&
+    pwaCapabilitiesSource.includes("StoredMobileConnectivityReport") &&
     translationsSource.includes("connectivityGuidanceHealth") &&
     translationsSource.includes("connectivityGuidanceCloudflareNamed") &&
     translationsSource.includes("connectivityGuidanceTailscaleHttp") &&
@@ -1283,6 +1288,7 @@ function checkAssets() {
     translationsSource.includes("connectivityIssueWebSocket") &&
     translationsSource.includes("connectivityMobileShell") &&
     translationsSource.includes("mobileDevice.pwaTitle") &&
+    translationsSource.includes("mobileDevice.lastConnectivityFixTitle") &&
     translationsSource.includes("mobileDevice.pwaRecommendation.addToHome") &&
     translationsSource.includes("mobileDevice.pwaRecommendation.offlineQueue")
   ) pass("mobile device page surfaces PWA install, background sync, and remote recovery guidance");

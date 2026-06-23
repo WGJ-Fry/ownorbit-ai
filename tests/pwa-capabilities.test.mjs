@@ -402,3 +402,32 @@ test("remote entry guidance is visible before manual connectivity tests", async 
     "mobileDevice.connectivityGuidanceDefault",
   ]);
 });
+
+test("stored mobile connectivity reports restore actionable recovery diagnostics", async () => {
+  const { getMobileConnectivityIssue, getMobileRecoveryHints, mobileConnectivityResultFromReport } = await import(`../src/services/pwaCapabilities.ts?case=stored-connectivity-report-${Date.now()}`);
+
+  const result = mobileConnectivityResultFromReport({
+    ok: false,
+    currentBaseUrl: "https://lifeos.example.com/",
+    healthOk: true,
+    mobileShellOk: true,
+    websocketOk: false,
+    latencyMs: 240,
+    error: "WebSocket connection failed",
+    createdAt: 1710000000000,
+  });
+
+  assert.equal(result.currentBase, "https://lifeos.example.com");
+  assert.equal(result.testedAt, 1710000000000);
+  assert.equal(result.steps.length, 3);
+  assert.deepEqual(result.steps.map((step) => step.id), ["health", "mobile-shell", "websocket"]);
+  assert.equal(result.steps[0].url, "https://lifeos.example.com/api/v1/health");
+  assert.equal(result.steps[1].url, "https://lifeos.example.com/mobile/chat");
+  assert.equal(result.steps[2].url, "wss://lifeos.example.com/api/v1/ws");
+  assert.equal(getMobileConnectivityIssue(result, "stable-https"), "mobileDevice.connectivityIssueWebSocket");
+  assert.deepEqual(getMobileRecoveryHints(result, "stable-https", { failed: 1 }), [
+    "mobileDevice.connectivityGuidanceHttps",
+    "mobileDevice.connectivityGuidanceWebSocket",
+    "mobileDevice.connectivityGuidanceFailedQueue",
+  ]);
+});

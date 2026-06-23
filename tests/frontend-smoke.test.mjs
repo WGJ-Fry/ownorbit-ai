@@ -379,8 +379,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceSource, /reportMobileConnectivity/);
   assert.match(mobileDeviceSource, /getLatestMobileConnectivityReport/);
   assert.match(mobileDeviceSource, /lastConnectivityReport/);
+  assert.match(mobileDeviceSource, /mobileConnectivityResultFromReport/);
+  assert.match(mobileDeviceSource, /lastConnectivityIssue/);
+  assert.match(mobileDeviceSource, /lastConnectivityHints/);
   assert.match(mobileDeviceSource, /mobileDevice\.lastConnectivityOk/);
   assert.match(mobileDeviceSource, /mobileDevice\.lastConnectivityFailed/);
+  assert.match(mobileDeviceSource, /mobileDevice\.lastConnectivityFixTitle/);
   assert.match(mobileDeviceSource, /MobileConnectivityCard/);
   assert.match(mobileDeviceSource, /queueSummary=\{queueSummary\}/);
   assert.match(mobileDeviceSource, /onRetry=\{handleConnectivityTest\}/);
@@ -425,6 +429,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(pwaCapabilitiesSource, /getRemoteEntryGuidance/);
   assert.match(pwaCapabilitiesSource, /getMobileRecoveryHints/);
   assert.match(pwaCapabilitiesSource, /getMobileConnectivityIssue/);
+  assert.match(pwaCapabilitiesSource, /mobileConnectivityResultFromReport/);
+  assert.match(pwaCapabilitiesSource, /StoredMobileConnectivityReport/);
   assert.match(pwaCapabilitiesSource, /connectivityGuidanceTailscaleHttp/);
   assert.match(pwaCapabilitiesSource, /connectivityGuidanceFailedQueue/);
   assert.match(pwaCapabilitiesSource, /connectivityIssueTemporaryExpired/);

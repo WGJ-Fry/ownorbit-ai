@@ -47,6 +47,17 @@ export type MobileConnectivityResult = {
   error?: string;
 };
 
+export type StoredMobileConnectivityReport = {
+  ok: boolean;
+  currentBaseUrl: string;
+  healthOk: boolean;
+  mobileShellOk: boolean;
+  websocketOk: boolean;
+  latencyMs: number;
+  error?: string;
+  createdAt: number;
+};
+
 export type MobileRecoveryHintKey =
   | "mobileDevice.connectivityGuidanceTemporary"
   | "mobileDevice.connectivityGuidanceCloudflareNamed"
@@ -116,6 +127,37 @@ export function isHttpRemoteBase(value?: string | null) {
   } catch {
     return value.startsWith("http://");
   }
+}
+
+function websocketUrlFromBase(base: string) {
+  if (!base) return "/api/v1/ws";
+  try {
+    const url = new URL(base);
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    url.pathname = `${url.pathname.replace(/\/+$/, "")}/api/v1/ws`;
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return `${base.replace(/\/+$/, "")}/api/v1/ws`;
+  }
+}
+
+export function mobileConnectivityResultFromReport(report: StoredMobileConnectivityReport): MobileConnectivityResult {
+  const base = normalizeBaseUrl(report.currentBaseUrl);
+  const failure = report.error || "Last connectivity probe failed";
+  return {
+    ok: report.ok,
+    currentBase: base,
+    latencyMs: report.latencyMs,
+    testedAt: report.createdAt,
+    error: report.ok ? undefined : failure,
+    steps: [
+      { id: "health", ok: report.healthOk, url: `${base}/api/v1/health`, latencyMs: report.latencyMs, error: report.healthOk ? undefined : failure },
+      { id: "mobile-shell", ok: report.mobileShellOk, url: `${base}/mobile/chat`, latencyMs: report.latencyMs, error: report.mobileShellOk ? undefined : failure },
+      { id: "websocket", ok: report.websocketOk, url: websocketUrlFromBase(base), latencyMs: report.latencyMs, error: report.websocketOk ? undefined : failure },
+    ],
+  };
 }
 
 function isPrivateIpv4(hostname: string) {
