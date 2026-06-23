@@ -4,11 +4,10 @@ import App from "../../App";
 import { useLifeOSRealtime } from "../../hooks/useLifeOSRealtime";
 import { getMobilePairingIntent, getStoredDeviceCredential, getStoredDeviceCredentialAsync } from "../../services/lifeosApi";
 import { consumePendingPairingToken, extractPairingToken, pairingInstallPath, peekPendingPairingToken, savePendingPairingToken, setPairingManifestToken } from "../../services/mobilePairingIntent";
+import { loadMobileInstallHintDismissed, saveMobileInstallHintDismissed } from "../../services/mobileInstallHintStorage";
 import LanguageSwitcher from "../../i18n/LanguageSwitcher";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { TranslationKey } from "../../i18n/translations";
-
-const INSTALL_HINT_DISMISSED_KEY = "lifeos_mobile_install_hint_dismissed";
 
 const STATUS_CLASS = {
   unbound: "border-amber-400/20 bg-amber-500/10 text-amber-200",
@@ -25,7 +24,7 @@ export default function MobileChatPage() {
   const [pairingInput, setPairingInput] = useState("");
   const [pairingInputError, setPairingInputError] = useState<string | null>(null);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
-  const [installHintDismissed, setInstallHintDismissed] = useState(() => localStorage.getItem(INSTALL_HINT_DISMISSED_KEY) === "1");
+  const [installHintDismissed, setInstallHintDismissed] = useState(() => loadMobileInstallHintDismissed());
   const [recoveringPairingIntent, setRecoveringPairingIntent] = useState(() => Boolean(peekPendingPairingToken()));
   const isStandalone =
     window.matchMedia("(display-mode: standalone)").matches || Boolean((window.navigator as any).standalone);
@@ -107,7 +106,7 @@ export default function MobileChatPage() {
   };
 
   const dismissInstallHint = () => {
-    localStorage.setItem(INSTALL_HINT_DISMISSED_KEY, "1");
+    saveMobileInstallHintDismissed();
     setInstallHintDismissed(true);
   };
 

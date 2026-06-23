@@ -510,6 +510,14 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(sensitiveLocalStorageSource, /try \{/);
   assert.match(sensitiveLocalStorageSource, /Some browser modes expose localStorage/);
 
+  const mobileChatPageSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileChatPage.tsx"), "utf8");
+  const mobileInstallHintStorageSource = await readFile(path.join(rootDir, "src", "services", "mobileInstallHintStorage.ts"), "utf8");
+  assert.match(mobileChatPageSource, /loadMobileInstallHintDismissed/);
+  assert.match(mobileChatPageSource, /saveMobileInstallHintDismissed/);
+  assert.doesNotMatch(mobileChatPageSource, /localStorage\.(getItem|setItem)\(INSTALL_HINT_DISMISSED_KEY/);
+  assert.match(mobileInstallHintStorageSource, /MOBILE_INSTALL_HINT_DISMISSED_KEY/);
+  assert.match(mobileInstallHintStorageSource, /catch \{/);
+
   const syncedStateSource = await readFile(path.join(rootDir, "src", "hooks", "useSyncedClientState.ts"), "utf8");
   assert.match(syncedStateSource, /isSensitiveLocalStorageKey/);
   assert.match(syncedStateSource, /localStorage\.removeItem\(key\)/);

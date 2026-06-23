@@ -1179,6 +1179,8 @@ function checkAssets() {
   const sensitiveLocalStorageSource = exists("src/services/sensitiveLocalStorage.ts") ? fs.readFileSync(path.join(rootDir, "src/services/sensitiveLocalStorage.ts"), "utf8") : "";
   const sensitiveLocalStorageTestSource = exists("tests/sensitive-local-storage.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/sensitive-local-storage.test.mjs"), "utf8") : "";
   const syncedClientStateSource = exists("src/hooks/useSyncedClientState.ts") ? fs.readFileSync(path.join(rootDir, "src/hooks/useSyncedClientState.ts"), "utf8") : "";
+  const mobileInstallHintStorageSource = exists("src/services/mobileInstallHintStorage.ts") ? fs.readFileSync(path.join(rootDir, "src/services/mobileInstallHintStorage.ts"), "utf8") : "";
+  const mobileInstallHintStorageTestSource = exists("tests/mobile-install-hint-storage.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/mobile-install-hint-storage.test.mjs"), "utf8") : "";
   const studioConnectionSource = exists("src/components/apps/studio/useStudioConnectionSettings.ts") ? fs.readFileSync(path.join(rootDir, "src/components/apps/studio/useStudioConnectionSettings.ts"), "utf8") : "";
   const sensitiveMainSource = exists("src/main.tsx") ? fs.readFileSync(path.join(rootDir, "src/main.tsx"), "utf8") : "";
   const appSource = exists("src/App.tsx") ? fs.readFileSync(path.join(rootDir, "src/App.tsx"), "utf8") : "";
@@ -1197,6 +1199,14 @@ function checkAssets() {
     sensitiveLocalStorageTestSource.includes("without breaking pairing or credential migration") &&
     sensitiveLocalStorageTestSource.includes("reports failed removals without crashing startup") &&
     sensitiveLocalStorageTestSource.includes("blocked key enumeration") &&
+    mobileChatPageSource.includes("loadMobileInstallHintDismissed") &&
+    mobileChatPageSource.includes("saveMobileInstallHintDismissed") &&
+    !mobileChatPageSource.includes("localStorage.getItem(INSTALL_HINT_DISMISSED_KEY") &&
+    !mobileChatPageSource.includes("localStorage.setItem(INSTALL_HINT_DISMISSED_KEY") &&
+    mobileInstallHintStorageSource.includes("MOBILE_INSTALL_HINT_DISMISSED_KEY") &&
+    mobileInstallHintStorageSource.includes("catch") &&
+    mobileInstallHintStorageTestSource.includes("best-effort when browser storage is blocked") &&
+    packageJson.scripts.test.includes("tests/mobile-install-hint-storage.test.mjs") &&
     syncedClientStateSource.includes("isSensitiveLocalStorageKey") &&
     syncedClientStateSource.includes("localStorage.removeItem(key)") &&
     syncedClientStateSource.includes("export function readLocalState") &&
