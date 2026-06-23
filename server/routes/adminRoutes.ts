@@ -35,11 +35,18 @@ function getLegacyGeminiProvider() {
 
 function aiStatusAuditMetadata(status: ReturnType<typeof getAiProviderStatus>) {
   return {
+    providerId: status.id,
     provider: status.provider,
     configured: status.configured,
     enabled: status.enabled,
+    active: status.active,
     source: status.source,
+    envVar: status.envVar,
+    envManaged: status.source === "environment",
+    defaultModel: status.defaultModel,
     selectedModel: status.selectedModel,
+    modelCatalogCount: status.models?.length || 0,
+    restartRequired: status.restartRequired,
     secureStorage: {
       current: status.secureStorage?.current || null,
       preferred: status.secureStorage?.preferred,
@@ -48,6 +55,18 @@ function aiStatusAuditMetadata(status: ReturnType<typeof getAiProviderStatus>) {
       fallbackActive: Boolean(status.secureStorage?.fallbackActive),
       migrationRecommended: Boolean(status.secureStorage?.migrationRecommended),
     },
+  };
+}
+
+function aiProviderChangeAuditMetadata(previousStatus: ReturnType<typeof getAiProviderStatus>, status: ReturnType<typeof getAiProviderStatus>) {
+  return {
+    previousConfigured: previousStatus.configured,
+    previousSource: previousStatus.source,
+    previousSelectedModel: previousStatus.selectedModel,
+    previousSecureStorageCurrent: previousStatus.secureStorage?.current || null,
+    storageChanged: (previousStatus.secureStorage?.current || null) !== (status.secureStorage?.current || null),
+    configuredChanged: previousStatus.configured !== status.configured,
+    sourceChanged: previousStatus.source !== status.source,
   };
 }
 
@@ -699,10 +718,12 @@ export function registerAdminRoutes(app: express.Express) {
       return res.status(400).json({ error: "API key is too short" });
     }
 
+    const previousStatus = getAiProviderStatus(provider.id);
     saveAiApiKey(apiKey, provider.id);
     const status = getAiProviderStatus(provider.id);
     insertAuditLog("ai_key_saved", "config", "google_gemini", {
       ...aiStatusAuditMetadata(status),
+      ...aiProviderChangeAuditMetadata(previousStatus, status),
       ...aiCredentialAuditMetadata(provider.id, apiKey),
       compatibilityEndpoint: true,
     });
@@ -722,10 +743,12 @@ export function registerAdminRoutes(app: express.Express) {
     }
 
     try {
+      const previousStatus = getAiProviderStatus(providerId);
       saveAiApiKey(apiKey, providerId);
       const status = getAiProviderStatus(providerId);
       insertAuditLog("ai_key_saved", "config", providerId, {
         ...aiStatusAuditMetadata(status),
+        ...aiProviderChangeAuditMetadata(previousStatus, status),
         ...aiCredentialAuditMetadata(providerId, apiKey),
       });
       res.json({ provider: status });
@@ -739,10 +762,12 @@ export function registerAdminRoutes(app: express.Express) {
     if (process.env[provider.envVar]) {
       return res.status(409).json({ error: `AI key is managed by ${provider.envVar} environment variable` });
     }
+    const previousStatus = getAiProviderStatus(provider.id);
     deleteAiApiKey(provider.id);
     const status = getAiProviderStatus(provider.id);
     insertAuditLog("ai_key_deleted", "config", "google_gemini", {
       ...aiStatusAuditMetadata(status),
+      ...aiProviderChangeAuditMetadata(previousStatus, status),
       compatibilityEndpoint: true,
     });
     res.json({ ai: status });
@@ -755,9 +780,13 @@ export function registerAdminRoutes(app: express.Express) {
     if (process.env[provider.envVar]) {
       return res.status(409).json({ error: `AI key is managed by ${provider.envVar} environment variable` });
     }
+    const previousStatus = getAiProviderStatus(providerId);
     deleteAiApiKey(providerId);
     const status = getAiProviderStatus(providerId);
-    insertAuditLog("ai_key_deleted", "config", providerId, aiStatusAuditMetadata(status));
+    insertAuditLog("ai_key_deleted", "config", providerId, {
+      ...aiStatusAuditMetadata(status),
+      ...aiProviderChangeAuditMetadata(previousStatus, status),
+    });
     res.json({ provider: status });
   });
 

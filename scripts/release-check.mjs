@@ -1775,6 +1775,11 @@ function checkAssets() {
     adminRoutesSource.includes("ai_provider_default_updated") &&
     adminRoutesSource.includes("previousActiveProvider") &&
     adminRoutesSource.includes("previousModel") &&
+    adminRoutesSource.includes("aiProviderChangeAuditMetadata") &&
+    adminRoutesSource.includes("previousConfigured") &&
+    adminRoutesSource.includes("sourceChanged") &&
+    adminRoutesSource.includes("modelCatalogCount") &&
+    adminRoutesSource.includes("envManaged") &&
     adminRoutesSource.includes("aiStatusAuditMetadata(status)") &&
     adminRoutesSource.includes("Live API call was not run") &&
     adminRoutesSource.includes("/models") &&
@@ -1793,6 +1798,10 @@ function checkAssets() {
     apiAuthTestSource.includes("localLiveTestAudit.metadata.modelCount") &&
     apiAuthTestSource.includes("openAiDefaultAudit.metadata.previousActiveProvider") &&
     apiAuthTestSource.includes("openAiModelAudit.metadata.previousModel") &&
+    apiAuthTestSource.includes("openAiKeySavedAudit.metadata.previousConfigured") &&
+    apiAuthTestSource.includes("openAiKeyDeletedAudit.metadata.configuredChanged") &&
+    apiAuthTestSource.includes("openAiTestAudit.metadata.modelCatalogCount") &&
+    apiAuthTestSource.includes("geminiKeySavedAudit.metadata.envManaged") &&
     apiAuthTestSource.includes("localTestAudit.metadata.reason") &&
     apiAuthTestSource.includes("openAiTestAudit.metadata.credentialKind") &&
     apiAuthTestSource.includes("legacyByokProviderState") &&
