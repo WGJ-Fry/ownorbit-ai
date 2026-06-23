@@ -1146,6 +1146,7 @@ function checkAssets() {
   else warn("PWA install path malformed-token hardening lacks source or test coverage");
 
   const mobileDeviceSource = exists("src/pages/mobile/MobileDevicePage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileDevicePage.tsx"), "utf8") : "";
+  const mobileDeviceHealthSummarySource = exists("src/pages/mobile/MobileDeviceHealthSummary.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileDeviceHealthSummary.tsx"), "utf8") : "";
   const mobileDeviceStatusCardsSource = exists("src/pages/mobile/MobileDeviceStatusCards.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileDeviceStatusCards.tsx"), "utf8") : "";
   if (
     mobileDeviceStatusCardsSource.includes("mobileDevice.pastePairingLink") &&
@@ -1302,6 +1303,11 @@ function checkAssets() {
     pwaCapabilitiesSource.includes("backgroundSyncSupported") &&
     pwaCapabilitiesSource.includes("indexedDbSupported") &&
     mobileDeviceSource.includes("mobileDevice.pwaTitle") &&
+    mobileDeviceSource.includes("MobileDeviceHealthSummary") &&
+    mobileDeviceHealthSummarySource.includes("mobileDevice.healthTitle") &&
+    mobileDeviceHealthSummarySource.includes("queueSummary.failed") &&
+    mobileDeviceHealthSummarySource.includes("currentEntry.okForRemote") &&
+    mobileDeviceHealthSummarySource.includes("lastConnectivityResult?.ok") &&
     mobileDeviceSource.includes("mobileDevice.remoteVerdict") &&
     mobileDeviceSource.includes("health?.remoteEntryMode") &&
     lifeosApiSourceForRouting.includes("remoteEntryMode") &&
@@ -1414,6 +1420,7 @@ function checkAssets() {
     translationsSource.includes("connectivityIssueWebSocket") &&
     translationsSource.includes("connectivityMobileShell") &&
     translationsSource.includes("mobileDevice.pwaTitle") &&
+    translationsSource.includes("mobileDevice.healthTitle") &&
     translationsSource.includes("mobileDevice.lastConnectivityFixTitle") &&
     translationsSource.includes("mobileDevice.freshConnectivityReport") &&
     translationsSource.includes("mobileDevice.staleConnectivityReport") &&

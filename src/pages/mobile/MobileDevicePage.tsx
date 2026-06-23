@@ -9,6 +9,7 @@ import { extractPairingToken, pairingInstallPath } from "../../services/mobilePa
 import { getMobileConnectivityIssue, getMobileRecoveryHints, getPwaCapabilityStatus, getRemoteEntryGuidance, getRemoteEntryStatus, mobileConnectivityResultFromReport, testMobileRemoteConnectivity } from "../../services/pwaCapabilities";
 import type { MobileConnectivityResult } from "../../services/pwaCapabilities";
 import MobileConnectivityCard from "./MobileConnectivityCard";
+import MobileDeviceHealthSummary from "./MobileDeviceHealthSummary";
 import MobileLastConnectivityCard from "./MobileLastConnectivityCard";
 import MobileOfflineQueuePanel from "./MobileOfflineQueuePanel";
 import { CapabilityRow, CredentialStorageCard, Metric, PairingLinkPanel, Row } from "./MobileDeviceStatusCards";
@@ -257,6 +258,14 @@ export default function MobileDevicePage() {
       </header>
 
       <main className="mx-auto max-w-md p-4">
+        <MobileDeviceHealthSummary
+          credential={credential}
+          credentialStorage={credentialStorage}
+          pwaCapabilities={pwaCapabilities}
+          queueSummary={queueSummary}
+          currentEntry={currentEntry}
+          lastConnectivityResult={lastConnectivityResult}
+        />
         <section className="rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
           {credential ? (
             <>

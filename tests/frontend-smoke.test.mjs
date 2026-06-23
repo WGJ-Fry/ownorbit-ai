@@ -391,6 +391,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /测试当前手机连通性/);
 
   const mobileDeviceSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileDevicePage.tsx"), "utf8");
+  const mobileDeviceHealthSummarySource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileDeviceHealthSummary.tsx"), "utf8");
   const mobileDeviceStatusCardsSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileDeviceStatusCards.tsx"), "utf8");
   assert.match(mobileDeviceSource, /getPwaCapabilityStatus/);
   assert.match(mobileDeviceSource, /getRemoteEntryStatus/);
@@ -405,6 +406,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceSource, /pwaRecommendationKey/);
   assert.match(mobileDeviceSource, /mobileDevice\.pwaRecommendation\.addToHome/);
   assert.match(mobileDeviceSource, /mobileDevice\.pwaRecommendation\.indexedDbUnavailable/);
+  assert.match(mobileDeviceSource, /MobileDeviceHealthSummary/);
+  assert.match(mobileDeviceHealthSummarySource, /mobileDevice\.healthTitle/);
+  assert.match(mobileDeviceHealthSummarySource, /queueSummary\.failed/);
+  assert.match(mobileDeviceHealthSummarySource, /currentEntry\.okForRemote/);
+  assert.match(mobileDeviceHealthSummarySource, /lastConnectivityResult\?\.ok/);
+  assert.match(translationsSource, /手机端健康摘要/);
   assert.match(mobileDeviceSource, /getHealth/);
   assert.match(mobileDeviceSource, /mobileDevice\.remoteEntryTitle/);
   assert.match(mobileDeviceSource, /mobileDevice\.remoteVerdict/);
