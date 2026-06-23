@@ -244,6 +244,9 @@ test("single offline message retry and remove only change the selected queue ite
   let summary = queueModule.getOfflineMessageQueueSummary();
   assert.equal(summary.count, 3);
   assert.equal(summary.failed, 3);
+  const queuedTimes = queueModule.getOfflineMessageQueue().map((item) => item.queuedAt).sort((a, b) => a - b);
+  assert.equal(summary.oldestQueuedAt, queuedTimes[0]);
+  assert.equal(summary.newestQueuedAt, queuedTimes.at(-1));
 
   queueModule.retryOfflineMessage(firstId);
   const afterRetry = queueModule.getOfflineMessageQueue();

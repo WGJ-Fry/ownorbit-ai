@@ -48,6 +48,17 @@ export type OfflineMessageQueueSyncMeta = {
   lastSyncedCount?: number;
 };
 
+export type OfflineMessageQueueSummary = {
+  count: number;
+  pending: number;
+  syncing: number;
+  failed: number;
+  lastError?: string;
+  nextRetryAt?: number;
+  oldestQueuedAt?: number;
+  newestQueuedAt?: number;
+} & OfflineMessageQueueSyncMeta;
+
 type WriteQueueOptions = {
   requestSync?: boolean;
 };
@@ -430,11 +441,22 @@ export function getOfflineMessageQueueSummary() {
   const syncing = queue.filter((item) => item.status === "syncing").length;
   const pending = queue.length - failed - syncing;
   const lastError = [...queue].reverse().find((item) => item.lastError)?.lastError;
+  const queuedTimes = queue.map((item) => item.queuedAt).filter(Number.isFinite).sort((a, b) => a - b);
   const nextRetryAt = queue
     .map(getOfflineMessageNextRetryAt)
     .filter((value): value is number => typeof value === "number")
     .sort((a, b) => a - b)[0];
-  return { count: queue.length, pending, syncing, failed, lastError, nextRetryAt, ...syncMeta };
+  return {
+    count: queue.length,
+    pending,
+    syncing,
+    failed,
+    lastError,
+    nextRetryAt,
+    oldestQueuedAt: queuedTimes[0],
+    newestQueuedAt: queuedTimes.at(-1),
+    ...syncMeta,
+  } satisfies OfflineMessageQueueSummary;
 }
 
 export function removeOfflineMessages(ids: string[]) {

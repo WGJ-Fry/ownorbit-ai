@@ -1322,6 +1322,8 @@ function checkAssets() {
     mobileDeviceSource.includes("getOfflineMessageQueueStorageStatus") &&
     mobileDeviceSource.includes("MobileOfflineQueueCards") &&
     mobileDeviceSource.includes("offlineQueue.remoteEntryTitle") &&
+    mobileDeviceSource.includes("offlineQueue.waitingSinceTitle") &&
+    mobileDeviceSource.includes("queueSummary.oldestQueuedAt") &&
     mobileDeviceSource.includes("showAllQueueItems") &&
     mobileDeviceSource.includes("offlineQueue.showAll") &&
     mobileDeviceSource.includes("currentEntryGuidance.map") &&
@@ -1352,6 +1354,8 @@ function checkAssets() {
     translationsSource.includes("offlineQueue.requestPersistentStorage") &&
     translationsSource.includes("offlineQueue.failureReason") &&
     translationsSource.includes("offlineQueue.remoteEntryTitle") &&
+    translationsSource.includes("offlineQueue.waitingSinceTitle") &&
+    translationsSource.includes("offlineQueue.waitingSinceBody") &&
     translationsSource.includes("offlineQueue.showAll") &&
     translationsSource.includes("offlineQueue.showRecentOnly") &&
     translationsSource.includes("offlineQueue.status.pending") &&
@@ -1366,6 +1370,9 @@ function checkAssets() {
     offlineQueueTestSource.includes("getOfflineMessageQueueStorageLabel") &&
     offlineQueueTestSource.includes("getOfflineMessageQueueUsageLabel") &&
     offlineQueueTestSource.includes("getOfflineMessageQueueStorageStatus") &&
+    offlineQueueTestSource.includes("summary.oldestQueuedAt") &&
+    offlineQueueSource.includes("oldestQueuedAt") &&
+    offlineQueueSource.includes("newestQueuedAt") &&
     offlineQueueTestSource.includes("can request persistent browser storage") &&
     offlineQueueSource.includes("requestOfflineMessageQueuePersistentStorage") &&
     offlineQueueSource.includes("storageManager.persist") &&

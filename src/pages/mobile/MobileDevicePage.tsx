@@ -423,6 +423,17 @@ export default function MobileDevicePage() {
             <Metric label={t("mobileDevice.syncing")} value={queueSummary.syncing} tone="text-amber-200" />
             <Metric label={t("mobileDevice.failed")} value={queueSummary.failed} tone="text-red-200" />
           </div>
+          {queueSummary.oldestQueuedAt ? (
+            <div className="mt-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3 text-xs leading-relaxed text-zinc-300">
+              <div className="font-bold text-zinc-100">{t("offlineQueue.waitingSinceTitle")}</div>
+              <div className="mt-1">
+                {t("offlineQueue.waitingSinceBody", {
+                  oldest: new Date(queueSummary.oldestQueuedAt).toLocaleString(),
+                  newest: queueSummary.newestQueuedAt ? new Date(queueSummary.newestQueuedAt).toLocaleString() : "-",
+                })}
+              </div>
+            </div>
+          ) : null}
           {queueSummary.lastSyncedAt && queueSummary.lastSyncedCount ? (
             <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-xs leading-relaxed text-emerald-100">
               <div className="font-bold">{t("offlineQueue.lastSyncedTitle")}</div>
