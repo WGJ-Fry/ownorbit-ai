@@ -1336,6 +1336,8 @@ function checkAssets() {
     mobileDeviceHealthSummarySource.includes("buildOfflineQueueHealth") &&
     mobileDeviceHealthSummarySource.includes("queueHealth.titleKey") &&
     mobileDeviceHealthSummarySource.includes("queueStorage") &&
+    mobileDeviceHealthSummarySource.includes("swLifecycle") &&
+    mobileDeviceHealthSummarySource.includes("mobileDevice.healthOfflineShell") &&
     mobileDeviceHealthSummarySource.includes("currentEntry.okForRemote") &&
     mobileDeviceHealthSummarySource.includes("lastConnectivityResult?.ok") &&
     mobileDeviceSource.includes("mobileDevice.remoteVerdict") &&

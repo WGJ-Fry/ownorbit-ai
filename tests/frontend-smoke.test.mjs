@@ -415,6 +415,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceHealthSummarySource, /queueHealth\.titleKey/);
   assert.match(mobileDeviceHealthSummarySource, /queueStorage/);
   assert.match(mobileDeviceSource, /queueStorage=\{queueStorage\}/);
+  assert.match(mobileDeviceHealthSummarySource, /swLifecycle/);
+  assert.match(mobileDeviceSource, /swLifecycle=\{swLifecycle\}/);
+  assert.match(mobileDeviceHealthSummarySource, /mobileDevice\.healthOfflineShell/);
   assert.match(mobileDeviceHealthSummarySource, /currentEntry\.okForRemote/);
   assert.match(mobileDeviceHealthSummarySource, /lastConnectivityResult\?\.ok/);
   assert.match(translationsSource, /手机端健康摘要/);

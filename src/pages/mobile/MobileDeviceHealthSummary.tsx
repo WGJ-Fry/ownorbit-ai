@@ -4,6 +4,7 @@ import type { OfflineMessageQueueStorageStatus, OfflineMessageQueueSummary } fro
 import { buildOfflineQueueHealth } from "../../services/offlineQueueHealth";
 import type { NetworkStatus } from "../../services/networkStatus";
 import type { MobileConnectivityResult, PwaCapabilityStatus, RemoteEntryStatus } from "../../services/pwaCapabilities";
+import type { PwaServiceWorkerLifecycleStatus } from "../../services/pwaServiceWorkerLifecycle";
 import { useI18n } from "../../i18n/I18nProvider";
 
 type HealthTone = "ok" | "warn" | "risk";
@@ -21,6 +22,7 @@ export default function MobileDeviceHealthSummary({
   queueSummary,
   queueStorage,
   network,
+  swLifecycle,
   currentEntry,
   lastConnectivityResult,
 }: {
@@ -30,6 +32,7 @@ export default function MobileDeviceHealthSummary({
   queueSummary: OfflineMessageQueueSummary;
   queueStorage: OfflineMessageQueueStorageStatus | null;
   network: NetworkStatus;
+  swLifecycle: PwaServiceWorkerLifecycleStatus | null;
   currentEntry: RemoteEntryStatus;
   lastConnectivityResult: MobileConnectivityResult | null;
 }) {
@@ -51,6 +54,11 @@ export default function MobileDeviceHealthSummary({
       tone: pwaCapabilities.standalone && pwaCapabilities.serviceWorkerControlled && pwaCapabilities.indexedDbSupported ? "ok" : "warn",
       label: t("mobileDevice.healthPwa"),
       value: pwaCapabilities.standalone ? t("mobileDevice.startedFromIcon") : t("mobileDevice.browserTab"),
+    },
+    {
+      tone: swLifecycle?.tone === "risk" ? "risk" : swLifecycle?.tone === "ok" ? "ok" : "warn",
+      label: t("mobileDevice.healthOfflineShell"),
+      value: swLifecycle ? t(swLifecycle.titleKey as any) : t("mobileDevice.swNotRegisteredTitle"),
     },
     {
       tone: queueTone,

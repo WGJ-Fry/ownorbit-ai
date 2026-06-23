@@ -277,6 +277,7 @@ export default function MobileDevicePage() {
           queueSummary={queueSummary}
           queueStorage={queueStorage}
           network={network}
+          swLifecycle={swLifecycle}
           currentEntry={currentEntry}
           lastConnectivityResult={lastConnectivityResult}
         />
