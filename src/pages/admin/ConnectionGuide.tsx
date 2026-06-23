@@ -10,8 +10,8 @@ import GuideCard from "./ConnectionGuideCard";
 import RemoteStabilitySection from "./RemoteStabilitySection";
 import RemoteReadinessCard from "./RemoteReadinessCard";
 import TailscaleServeActions from "./TailscaleServeActions";
-import NoPhoneReachableNotice from "./NoPhoneReachableNotice";
 import ConnectionMobileEntryPanel from "./ConnectionMobileEntryPanel";
+import ConnectionRecommendedEntryCard from "./ConnectionRecommendedEntryCard";
 type Health = Awaited<ReturnType<typeof getHealth>>;
 type ConnectionResult = Awaited<ReturnType<typeof testConnectionUrl>>["result"];
 function connectionStatusMessage(result: ConnectionResult, t: ReturnType<typeof useI18n>["t"]) {
@@ -193,104 +193,21 @@ export default function ConnectionGuide({ health }: { health: Health | null }) {
       </div>
       {diagnostics ? (
         <>
-        <div className="mt-4 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 p-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-sm font-bold text-cyan-100">
-                <CheckCircle2 className="h-4 w-4" />
-                {t("connection.recommendedAddress")}
-              </div>
-              <div className="mt-2 font-mono text-sm text-cyan-50">{recommendedCandidate?.baseUrl || baseUrl}</div>
-              <div className="mt-2 text-xs leading-relaxed text-cyan-100/75">
-                {!recommendedCandidate
-                  ? t("connection.noPhoneReachableDescription")
-                  : recommendedCandidate.stability === "temporary"
-                  ? t("connection.temporaryRecommendedDescription")
-                  : recommendedCandidate.requiresRestart
-                  ? t("connection.restartRequiredDescription")
-                  : t("connection.activeDescription")}
-              </div>
-              {recommendedCandidate?.envTemplate ? (
-                <div className="mt-3 rounded-xl border border-cyan-100/15 bg-[#061016]/45 p-3">
-                  <div className="mb-1 text-[11px] font-bold text-cyan-100/80">{t("connection.recommendedEnv")}</div>
-                  <div className="font-mono text-[11px] leading-relaxed text-cyan-50/85">{recommendedCandidate.envTemplate}</div>
-                  {recommendedCandidate.requiresRestart ? (
-                    <div className="mt-2 text-[11px] leading-relaxed text-cyan-100/60">
-                      {t("connection.packageRestartHint", { instruction: recommendedCandidate.restartInstruction })}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-              {diagnostics.desktopRuntimeConfig ? (
-                <div className="mt-3 rounded-xl border border-emerald-400/15 bg-emerald-500/10 p-3 text-[11px] leading-relaxed text-emerald-100">
-                  {t("connection.savedDesktopConfig", { label: diagnostics.desktopRuntimeConfig.label, url: diagnostics.desktopRuntimeConfig.baseUrl })} <a href="/admin/devices/pair" className="font-bold text-emerald-50 underline decoration-emerald-200/50 underline-offset-4">{t("connection.openPairingQr")}</a>
-                </div>
-              ) : null}
-              {!recommendedCandidate ? (
-                <NoPhoneReachableNotice />
-              ) : null}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {recommendedCandidate ? (
-                <button
-                  onClick={() => copyText("recommended-mobile", recommendedCandidate.mobileChatUrl || mobileChatUrl)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-cyan-100/20 bg-[#061016]/45 px-3 py-2 text-xs font-bold text-cyan-50"
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                  {copied === "recommended-mobile" ? t("connection.copiedMobileEntry") : t("connection.copyMobileEntry")}
-                </button>
-              ) : null}
-              {recommendedCandidate?.envTemplate ? (
-                <button
-                  aria-label={t("connection.copyRecommendedEnvAria")}
-                  onClick={() => copyText("recommended-env", recommendedCandidate.envTemplate)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-cyan-100/20 bg-[#061016]/45 px-3 py-2 text-xs font-bold text-cyan-50"
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                  {copied === "recommended-env" ? t("connection.copiedRecommendedEnv") : t("connection.copyRecommendedEnv")}
-                </button>
-              ) : null}
-              {recommendedCandidate ? (
-                <button
-                  onClick={() => handleTestCandidate(recommendedCandidate.id, recommendedCandidate.baseUrl)}
-                  disabled={testingCandidate === recommendedCandidate.id}
-                  className="inline-flex items-center gap-2 rounded-xl border border-cyan-100/20 bg-[#061016]/45 px-3 py-2 text-xs font-bold text-cyan-50 disabled:opacity-50"
-                >
-                  <PlugZap className="h-3.5 w-3.5" />
-                  {testingCandidate === recommendedCandidate.id ? t("connection.testing") : t("connection.testRecommended")}
-                </button>
-              ) : null}
-              {recommendedCandidate ? (
-                <button
-                  onClick={() => handleSaveCandidate(recommendedCandidate)}
-                  disabled={savingCandidate === recommendedCandidate.id}
-                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-100 disabled:opacity-50"
-                >
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  {savingCandidate === recommendedCandidate.id ? t("connection.saving") : t("connection.saveDesktopConfig")}
-                </button>
-              ) : null}
-              {diagnostics.desktopRuntimeConfig?.publicBaseUrl ? (
-                <button
-                  onClick={() => handleTestCandidate("saved-desktop-config", diagnostics.desktopRuntimeConfig!.publicBaseUrl, true, diagnostics.desktopRuntimeConfig!.label)}
-                  disabled={testingCandidate === "saved-desktop-config"}
-                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-100 disabled:opacity-50"
-                >
-                  <PlugZap className="h-3.5 w-3.5" />
-                  {testingCandidate === "saved-desktop-config" ? t("connection.testing") : t("connection.testSavedRemote")}
-                </button>
-              ) : null}
-              <button
-                onClick={handleRemoteHealthCheck}
-                disabled={remoteHealthBusy}
-                className="inline-flex items-center gap-2 rounded-xl border border-sky-400/20 bg-sky-500/10 px-3 py-2 text-xs font-bold text-sky-100 disabled:opacity-50"
-              >
-                <PlugZap className="h-3.5 w-3.5" />
-                {remoteHealthBusy ? t("connection.testing") : t("connection.runRemoteHealth")}
-              </button>
-            </div>
-          </div>
-          {diagnostics.remoteValidationReport ? (
+        <ConnectionRecommendedEntryCard
+          baseUrl={baseUrl}
+          copied={copied}
+          diagnostics={diagnostics}
+          mobileChatUrl={mobileChatUrl}
+          recommendedCandidate={recommendedCandidate}
+          remoteHealthBusy={remoteHealthBusy}
+          savingCandidate={savingCandidate}
+          testingCandidate={testingCandidate}
+          onCopyText={copyText}
+          onRemoteHealthCheck={handleRemoteHealthCheck}
+          onSaveCandidate={handleSaveCandidate}
+          onTestCandidate={handleTestCandidate}
+        />
+        {diagnostics.remoteValidationReport ? (
             <div className={`mt-4 rounded-2xl border p-3 text-xs leading-relaxed ${diagnostics.remoteValidationReport.ok ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100" : "border-rose-400/20 bg-rose-500/10 text-rose-100"}`}>
               <div className="font-bold">
                 {diagnostics.remoteValidationReport.ok
@@ -308,7 +225,7 @@ export default function ConnectionGuide({ health }: { health: Health | null }) {
               <div className="mt-1 font-mono text-[11px] opacity-85">{diagnostics.remoteValidationReport.baseUrl}</div>
               {diagnostics.remoteValidationReport.error ? <div className="mt-1 opacity-80">{diagnostics.remoteValidationReport.error}</div> : null}
             </div>
-          ) : null}
+        ) : null}
           <RemoteStabilitySection diagnostics={diagnostics} onDiagnostics={setDiagnostics} onStatus={setTestStatus} />
           <RemoteReadinessCard readiness={diagnostics.remoteReadiness} />
           {diagnostics.connectionCandidates?.length ? (
@@ -383,7 +300,6 @@ export default function ConnectionGuide({ health }: { health: Health | null }) {
               onUpdate={setDiagnostics}
             />
           ) : null}
-        </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <ConnectionToolStatus
             title="Cloudflare Tunnel"

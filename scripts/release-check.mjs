@@ -117,6 +117,7 @@ function checkSourceSizeBudgets() {
     { path: "src/pages/mobile/MobileDevicePage.tsx", maxLines: 520, label: "Mobile device page" },
     { path: "src/pages/mobile/MobileOfflineQueuePanel.tsx", maxLines: 180, label: "Mobile offline queue panel" },
     { path: "src/pages/admin/ConnectionGuide.tsx", maxLines: 480, label: "Connection guide" },
+    { path: "src/pages/admin/ConnectionRecommendedEntryCard.tsx", maxLines: 160, label: "Connection recommended entry card" },
     { path: "src/pages/admin/settings/AiKeyPanel.tsx", maxLines: 340, label: "AI key panel" },
     { path: "src/pages/admin/AdminDashboardPage.tsx", maxLines: 430, label: "Admin dashboard" },
   ];
@@ -558,13 +559,14 @@ function checkAssets() {
   const networkDiagnosticsSource = exists("server/networkDiagnostics.ts") ? fs.readFileSync(path.join(rootDir, "server/networkDiagnostics.ts"), "utf8") : "";
   const desktopRuntimeConfigSource = exists("server/desktopRuntimeConfig.ts") ? fs.readFileSync(path.join(rootDir, "server/desktopRuntimeConfig.ts"), "utf8") : "";
   const connectionGuideSource = exists("src/pages/admin/ConnectionGuide.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/ConnectionGuide.tsx"), "utf8") : "";
+  const connectionRecommendedEntrySource = exists("src/pages/admin/ConnectionRecommendedEntryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/ConnectionRecommendedEntryCard.tsx"), "utf8") : "";
   const connectionMobileEntryPanelSource = exists("src/pages/admin/ConnectionMobileEntryPanel.tsx")
     ? fs.readFileSync(path.join(rootDir, "src/pages/admin/ConnectionMobileEntryPanel.tsx"), "utf8")
     : "";
   const noPhoneReachableNoticeSource = exists("src/pages/admin/NoPhoneReachableNotice.tsx")
     ? fs.readFileSync(path.join(rootDir, "src/pages/admin/NoPhoneReachableNotice.tsx"), "utf8")
     : "";
-  const connectionGuideCombinedSource = `${connectionGuideSource}\n${connectionMobileEntryPanelSource}\n${noPhoneReachableNoticeSource}`;
+  const connectionGuideCombinedSource = `${connectionGuideSource}\n${connectionRecommendedEntrySource}\n${connectionMobileEntryPanelSource}\n${noPhoneReachableNoticeSource}`;
   const remoteStabilitySectionSource = exists("src/pages/admin/RemoteStabilitySection.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/RemoteStabilitySection.tsx"), "utf8") : "";
   const remoteHealthSummaryCardSource = exists("src/pages/admin/RemoteHealthSummaryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/RemoteHealthSummaryCard.tsx"), "utf8") : "";
   const remoteAcceptanceChecklistSource = exists("src/pages/admin/RemoteAcceptanceChecklistCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/RemoteAcceptanceChecklistCard.tsx"), "utf8") : "";
@@ -629,14 +631,17 @@ function checkAssets() {
     adminRoutesSource.includes("/api/v1/admin/tailscale-serve/start") &&
     adminRoutesSource.includes("/api/v1/admin/tailscale-serve/stop") &&
     networkDiagnosticsSource.includes("tailscale-serve-https") &&
-    connectionGuideSource.includes("connection.recommendedAddress") &&
-    connectionGuideSource.includes("connection.temporaryRecommendedDescription") &&
+    connectionGuideSource.includes("ConnectionRecommendedEntryCard") &&
+    connectionRecommendedEntrySource.includes("connection.recommendedAddress") &&
+    connectionRecommendedEntrySource.includes("connection.temporaryRecommendedDescription") &&
     connectionGuideSource.includes("tailscale.loginCommand") &&
     connectionGuideSource.includes("connection.notDetected") &&
-    connectionGuideSource.includes("connection.recommendedEnv") &&
-    connectionGuideSource.includes("recommended-env") &&
-    connectionGuideSource.includes("connection.copyRecommendedEnv") &&
-    connectionGuideSource.includes("connection.copyMobileEntry") &&
+    connectionRecommendedEntrySource.includes("connection.recommendedEnv") &&
+    connectionRecommendedEntrySource.includes("recommended-env") &&
+    connectionRecommendedEntrySource.includes("connection.copyRecommendedEnv") &&
+    connectionRecommendedEntrySource.includes("connection.copyMobileEntry") &&
+    connectionRecommendedEntrySource.includes("/admin/devices/pair") &&
+    connectionRecommendedEntrySource.includes("connection.openPairingQr") &&
     connectionGuideCombinedSource.includes("connection.mobileEntry") &&
     connectionGuideCombinedSource.includes("connection.pairingQrHint") &&
     !connectionGuideCombinedSource.includes('copyText("recommended-pair"') &&
@@ -645,8 +650,8 @@ function checkAssets() {
     connectionGuideSource.includes("candidate.envTemplate") &&
     connectionGuideSource.includes("connection.copyEnv") &&
     connectionGuideSource.includes("installCopy") &&
-    connectionGuideSource.includes("connection.testSavedRemote") &&
-    connectionGuideSource.includes("saved-desktop-config") &&
+    connectionRecommendedEntrySource.includes("connection.testSavedRemote") &&
+    connectionRecommendedEntrySource.includes("saved-desktop-config") &&
     connectionGuideSource.includes("remoteValidationReport") &&
     connectionGuideSource.includes("RemoteStabilitySection") &&
     remoteStabilitySectionSource.includes("RemoteHealthSummaryCard") &&
@@ -807,11 +812,11 @@ function checkAssets() {
     translationsSource.includes("connection.remoteValidationOk") &&
     connectionGuideSource.includes("saveDesktopConnectionConfig") &&
     connectionGuideSource.includes("connection.saveDesktopConfig") &&
-    connectionGuideSource.includes("connection.openPairingQr") &&
-    connectionGuideSource.includes('href="/admin/devices/pair"') &&
+    connectionGuideCombinedSource.includes("connection.openPairingQr") &&
+    connectionGuideCombinedSource.includes('href="/admin/devices/pair"') &&
     connectionGuideSource.includes("TailscaleServeActions") &&
     connectionGuideSource.includes("startTailscaleHttpsServe") &&
-    connectionGuideSource.includes("connection.packageRestartHint") &&
+    connectionRecommendedEntrySource.includes("connection.packageRestartHint") &&
     connectionGuideSource.includes("CustomRemoteEntryCard") &&
     connectionGuideSource.includes("RemoteReadinessCard") &&
     customRemoteEntrySource.includes("connection.customTitle") &&
