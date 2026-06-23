@@ -1075,6 +1075,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(backupRestoreUiSource, /formatCleanupSummary/);
 
   const aiKeyPanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "AiKeyPanel.tsx"), "utf8");
+  const aiProviderSecuritySummarySource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "AiProviderSecuritySummary.tsx"), "utf8");
   const chatRuntimeSettingsSource = await readFile(path.join(rootDir, "src", "services", "chatRuntimeSettings.ts"), "utf8");
   const aiRuntimeSource = await readFile(path.join(rootDir, "src", "services", "aiRuntime.ts"), "utf8");
   assert.match(aiKeyPanelSource, /listAiProviders/);
@@ -1095,11 +1096,17 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /aiKey\.details\.openrouter/);
   assert.match(translationsSource, /Ollama \/ LM Studio 本地端点/);
   assert.match(aiKeyPanelSource, /aiKey\.systemUnavailable/);
+  assert.match(aiKeyPanelSource, /AiProviderSecuritySummary/);
+  assert.match(aiProviderSecuritySummarySource, /summaryConfiguredTitle/);
+  assert.match(aiProviderSecuritySummarySource, /summaryStorageSystem/);
+  assert.match(aiProviderSecuritySummarySource, /summaryRestartRequired/);
   assert.match(aiKeyPanelSource, /aiKey\.currentLocation/);
   assert.match(aiKeyPanelSource, /aiKey\.priorityStrategy/);
   assert.match(aiKeyPanelSource, /aiKey\.defaultProviderTitle/);
   assert.match(aiKeyPanelSource, /aiKey\.setDefault/);
   assert.match(aiKeyPanelSource, /aiKey\.migrateHint/);
+  assert.match(translationsSource, /aiKey\.summaryConfiguredTitle/);
+  assert.match(translationsSource, /System Secure Storage Available/);
   assert.match(aiKeyPanelSource, /aiKey\.enabledHint/);
   assert.match(translationsSource, /多模型聚合路由/);
   assert.match(translationsSource, /系统安全存储不可用/);

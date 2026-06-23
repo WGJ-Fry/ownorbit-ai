@@ -3,6 +3,7 @@ import { KeyRound, PlugZap, Save, Trash2 } from "lucide-react";
 import { deleteAiProviderKey, listAiProviders, saveAiProviderKey, testAiProvider, updateActiveAiProvider, updateAiProviderModel } from "../../../services/lifeosApi";
 import type { AiProviderId, AiProviderStatus, ConfigDiagnostics } from "../../../services/lifeosApi";
 import { useI18n } from "../../../i18n/I18nProvider";
+import AiProviderSecuritySummary from "./AiProviderSecuritySummary";
 
 export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: ConfigDiagnostics; onChanged: () => Promise<void> }) {
   const { t } = useI18n();
@@ -155,6 +156,8 @@ export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: Co
           {activeProvider.provider} · {storageLabel}
         </span>
       </div>
+
+      <AiProviderSecuritySummary providers={providers.length ? providers : [activeProvider as AiProviderStatus]} />
 
       <div className="mb-4 grid gap-2 sm:grid-cols-4">
         {providers.map((provider) => {

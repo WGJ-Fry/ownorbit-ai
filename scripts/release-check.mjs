@@ -1780,6 +1780,7 @@ function checkAssets() {
 
   const appSecretsSource = exists("server/appSecrets.ts") ? fs.readFileSync(path.join(rootDir, "server/appSecrets.ts"), "utf8") : "";
   const aiKeyPanelSource = exists("src/pages/admin/settings/AiKeyPanel.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/AiKeyPanel.tsx"), "utf8") : "";
+  const aiProviderSecuritySummarySource = exists("src/pages/admin/settings/AiProviderSecuritySummary.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/AiProviderSecuritySummary.tsx"), "utf8") : "";
   const chatRuntimeSettingsSource = exists("src/services/chatRuntimeSettings.ts") ? fs.readFileSync(path.join(rootDir, "src/services/chatRuntimeSettings.ts"), "utf8") : "";
   const chatRuntimeSettingsTestSource = exists("tests/chat-runtime-settings.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/chat-runtime-settings.test.mjs"), "utf8") : "";
   if (
@@ -1813,6 +1814,11 @@ function checkAssets() {
     aiKeyPanelSource.includes("aiKey.testConfigOnly") &&
     aiKeyPanelSource.includes("aiKey.testLiveOk") &&
     aiKeyPanelSource.includes("aiKey.enabledHint") &&
+    aiKeyPanelSource.includes("AiProviderSecuritySummary") &&
+    aiProviderSecuritySummarySource.includes("summaryConfiguredTitle") &&
+    aiProviderSecuritySummarySource.includes("summaryStorageSystem") &&
+    aiProviderSecuritySummarySource.includes("summaryRestartRequired") &&
+    aiProviderSecuritySummarySource.includes("fallbackActive") &&
     aiKeyPanelSource.includes("aiKey.defaultProviderTitle") &&
     aiKeyPanelSource.includes("aiKey.setDefault") &&
     aiKeyPanelSource.includes("aiKey.details.${provider.id}") &&
@@ -1824,6 +1830,8 @@ function checkAssets() {
     translationsSource.includes("aiKey.details.openai") &&
     translationsSource.includes("aiKey.details.openrouter") &&
     translationsSource.includes("aiKey.details.local") &&
+    translationsSource.includes("aiKey.summaryConfiguredTitle") &&
+    translationsSource.includes("aiKey.summaryStorageFallback") &&
     translationsSource.includes("聊天路由已启用") &&
     !translationsSource.includes("聊天路由暂未启用") &&
     adminRoutesSource.includes("ai_provider_default_updated") &&
