@@ -1582,8 +1582,14 @@ function checkAssets() {
     configDiagnosticsPanelSource.includes("diagnostics.release.checksumAvailable") &&
     configDiagnosticsPanelSource.includes("backupSchedule.enabled") &&
     configDiagnosticsPanelSource.includes("diagnostics.autoBackup") &&
+    configDiagnosticsPanelSource.includes("securityFixHref") &&
+    configDiagnosticsPanelSource.includes("admin-password-strength") &&
+    configDiagnosticsPanelSource.includes("ai-provider") &&
+    configDiagnosticsPanelSource.includes("#mobile-connect") &&
+    configDiagnosticsPanelSource.includes("diagnostics.fixAction") &&
     translationsSource.includes("diagnostics.releasePackage") &&
     translationsSource.includes("diagnostics.autoBackup") &&
+    translationsSource.includes("diagnostics.fixAction") &&
     frontendSmokeTestSource.includes("diagnostics\\.release\\.manifestAvailable")
   ) pass("admin settings diagnostics surfaces release manifest and checksum status");
   else warn("admin settings diagnostics does not surface release manifest/checksum status");

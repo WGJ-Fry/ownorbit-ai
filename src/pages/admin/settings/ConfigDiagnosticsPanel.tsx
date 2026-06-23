@@ -1,4 +1,4 @@
-import { KeyRound, ShieldAlert } from "lucide-react";
+import { ArrowRight, KeyRound, ShieldAlert } from "lucide-react";
 import type { ConfigDiagnostics } from "../../../services/lifeosApi";
 import { useI18n } from "../../../i18n/I18nProvider";
 import DiagnosticCard from "./DiagnosticCard";
@@ -8,6 +8,14 @@ function formatAiSource(diagnostics: ConfigDiagnostics, t: ReturnType<typeof use
   if (diagnostics.ai.source === "encrypted_store") return t("diagnostics.source.encrypted");
   if (diagnostics.ai.source === "environment") return diagnostics.ai.envVar;
   return t("diagnostics.source.unconfigured");
+}
+
+function securityFixHref(itemId: string) {
+  if (itemId === "admin" || itemId === "password") return "/admin/settings#admin-password-strength";
+  if (itemId === "ai") return "/admin/settings#ai-provider";
+  if (itemId === "backup" || itemId === "backupFreshness" || itemId === "backupSchedule") return "/admin/settings#backup-schedule";
+  if (["https", "publicBaseUrlInput", "publicOptIn", "sessionCookies", "trustedProxy"].includes(itemId)) return "/admin/settings#mobile-connect";
+  return "/admin/settings";
 }
 
 export default function ConfigDiagnosticsPanel({ diagnostics }: { diagnostics: ConfigDiagnostics }) {
@@ -102,11 +110,17 @@ export default function ConfigDiagnosticsPanel({ diagnostics }: { diagnostics: C
                   {item.status === "critical" ? t("diagnostics.risk") : item.status === "warning" ? t("diagnostics.notice") : "OK"}
                 </span>
               </div>
-              <div className="mt-2 text-zinc-400">{item.message}</div>
-              <div className="mt-1 text-zinc-500">{item.action}</div>
+                  <div className="mt-2 text-zinc-400">{item.message}</div>
+                  <div className="mt-1 text-zinc-500">{item.action}</div>
+                  {item.status !== "ok" ? (
+                    <a href={securityFixHref(item.id)} className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-cyan-300/20 bg-cyan-500/10 px-2.5 py-1.5 text-[11px] font-bold text-cyan-100">
+                      {t("diagnostics.fixAction")}
+                      <ArrowRight className="h-3 w-3" />
+                    </a>
+                  ) : null}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
       </div>
     </section>
   );

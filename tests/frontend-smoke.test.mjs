@@ -939,15 +939,25 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(configDiagnosticsPanelSource, /latestArtifact/);
   assert.match(configDiagnosticsPanelSource, /backupSchedule\.enabled/);
   assert.match(configDiagnosticsPanelSource, /diagnostics\.autoBackup/);
+  assert.match(configDiagnosticsPanelSource, /securityFixHref/);
+  assert.match(configDiagnosticsPanelSource, /admin-password-strength/);
+  assert.match(configDiagnosticsPanelSource, /ai-provider/);
+  assert.match(configDiagnosticsPanelSource, /#mobile-connect/);
+  assert.match(configDiagnosticsPanelSource, /diagnostics\.fixAction/);
+  assert.match(adminPasswordPanelSource, /id="admin-password-strength"/);
   assert.match(adminPasswordPanelSource, /newPassword\.length >= 12/);
   assert.match(adminPasswordPanelSource, /newPassword\.length < 12/);
   assert.match(translationsSource, /发布包/);
   assert.match(translationsSource, /自动备份/);
+  assert.match(translationsSource, /去处理/);
   assert.match(translationsSource, /至少需要 12 位/);
   assert.doesNotMatch(translationsSource, /新密码至少需要 8 位/);
 
   const backupRestorePanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "BackupRestorePanel.tsx"), "utf8");
   const backupScheduleCardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "BackupScheduleCard.tsx"), "utf8");
+  const aiKeyPanelAnchorSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "AiKeyPanel.tsx"), "utf8");
+  assert.match(aiKeyPanelAnchorSource, /id="ai-provider"/);
+  assert.match(backupRestorePanelSource, /id="backup-restore"/);
   assert.match(backupRestorePanelSource, /BackupScheduleCard/);
   assert.match(backupScheduleCardSource, /id="backup-schedule"/);
   assert.match(backupRestorePanelSource, /runBackupScheduleNow/);

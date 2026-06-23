@@ -150,7 +150,7 @@ export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: Co
   };
 
   return (
-    <section className="mb-6 rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
+    <section id="ai-provider" className="mb-6 scroll-mt-6 rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 font-bold">
           <KeyRound className="h-4 w-4 text-cyan-300" />

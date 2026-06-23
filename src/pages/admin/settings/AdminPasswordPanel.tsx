@@ -48,7 +48,7 @@ export default function AdminPasswordPanel({
   };
 
   return (
-    <section className="mb-6 rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
+    <section id="admin-password-strength" className="mb-6 scroll-mt-6 rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2 font-bold">
