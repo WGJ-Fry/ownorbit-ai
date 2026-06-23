@@ -11,7 +11,11 @@ import {
 } from "../services/offlineMessageQueue";
 import { getNetworkStatus } from "../services/networkStatus";
 
-export function useOfflineQueueSync(flushOfflineMessages: () => Promise<number>) {
+type OfflineQueueSyncOptions = {
+  clearConfirmMessage: string;
+};
+
+export function useOfflineQueueSync(flushOfflineMessages: () => Promise<number>, options: OfflineQueueSyncOptions) {
   const [offlineQueueSummary, setOfflineQueueSummary] = useState(() => getOfflineMessageQueueSummary());
   const [offlineQueueItems, setOfflineQueueItems] = useState(() => getOfflineMessageQueue());
   const [offlineSyncStatus, setOfflineSyncStatus] = useState<"idle" | "syncing" | "error">("idle");
@@ -47,9 +51,9 @@ export function useOfflineQueueSync(flushOfflineMessages: () => Promise<number>)
   }, [refreshQueueState]);
 
   const clearQueuedMessages = useCallback(() => {
-    if (!window.confirm("Clear all unsynced offline messages? These messages will not be written to the desktop SQLite database.")) return;
+    if (!window.confirm(options.clearConfirmMessage)) return;
     void clearOfflineMessageQueue().finally(refreshQueueState);
-  }, [refreshQueueState]);
+  }, [options.clearConfirmMessage, refreshQueueState]);
 
   useEffect(() => {
     const handleRecoverableState = () => {

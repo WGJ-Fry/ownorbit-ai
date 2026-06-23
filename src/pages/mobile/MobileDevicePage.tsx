@@ -96,9 +96,27 @@ export default function MobileDevicePage() {
     void getOfflineMessageQueueStorageStatus().then(setQueueStorage).catch(() => null);
   };
 
+  const refreshRecoverableState = () => {
+    setNetwork(getNetworkStatus());
+    setPwaCapabilities(getPwaCapabilityStatus());
+    refreshQueue();
+  };
+
   useEffect(() => {
     refreshQueue();
     return subscribeOfflineMessageQueue(() => refreshQueue());
+  }, []);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") refreshRecoverableState();
+    };
+    window.addEventListener("focus", refreshRecoverableState);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("focus", refreshRecoverableState);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
   const handleForget = async () => {

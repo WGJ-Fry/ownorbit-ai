@@ -239,7 +239,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(serverSource, /process\.env\.NODE_ENV !== "production" && !RUNNING_BUNDLED_SERVER/);
 
   const appSource = await readFile(path.join(rootDir, "src", "App.tsx"), "utf8");
-  assert.match(appSource, /useOfflineQueueSync\(flushOfflineMessages\)/);
+  assert.match(appSource, /useOfflineQueueSync\(flushOfflineMessages, \{ clearConfirmMessage: t\("mobileDevice\.confirmClearQueue"\) \}\)/);
   assert.match(appSource, /resolveChatStateChanges\(stateChanges\)/);
   assert.match(appSource, /loadStoredChatMessages/);
   assert.match(appSource, /persistStoredChatMessages/);
@@ -265,6 +265,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   const offlineQueueSyncHookSource = await readFile(path.join(rootDir, "src", "hooks", "useOfflineQueueSync.ts"), "utf8");
   assert.match(offlineQueueSyncHookSource, /offlineQueueSummary\.nextRetryAt/);
   assert.match(offlineQueueSyncHookSource, /window\.setTimeout\(\(\) => \{\s*void syncQueuedMessages\(\);/);
+  assert.match(offlineQueueSyncHookSource, /options\.clearConfirmMessage/);
+  assert.doesNotMatch(offlineQueueSyncHookSource, /Clear all unsynced offline messages/);
 
   const realtimeHookSource = await readFile(path.join(rootDir, "src", "hooks", "useLifeOSRealtime.ts"), "utf8");
   assert.match(realtimeHookSource, /reconnectTimerRef/);
@@ -562,6 +564,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileOfflineQueuePanelSource, /offlineQueue\.showAll/);
   assert.match(mobileDeviceSource, /requestOfflineMessageQueuePersistentStorage/);
   assert.match(mobileDeviceSource, /persistentStorageGranted/);
+  assert.match(mobileDeviceSource, /window\.addEventListener\("focus", refreshRecoverableState\)/);
+  assert.match(mobileDeviceSource, /document\.addEventListener\("visibilitychange", handleVisibilityChange\)/);
   assert.match(mobileOfflineQueuePanelSource, /onRequestPersistentStorage/);
   assert.match(mobileOfflineQueuePanelSource, /currentEntryGuidance\.map/);
   assert.match(mobileOfflineQueuePanelSource, /network\.labelKey/);

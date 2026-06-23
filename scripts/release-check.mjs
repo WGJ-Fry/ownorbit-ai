@@ -1211,6 +1211,7 @@ function checkAssets() {
   const offlineQueueBannerSource = exists("src/components/chat/OfflineQueueBanner.tsx") ? fs.readFileSync(path.join(rootDir, "src/components/chat/OfflineQueueBanner.tsx"), "utf8") : "";
   const mobileOfflineQueueCardsSource = exists("src/pages/mobile/MobileOfflineQueueCards.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileOfflineQueueCards.tsx"), "utf8") : "";
   const mobileOfflineQueuePanelSource = exists("src/pages/mobile/MobileOfflineQueuePanel.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileOfflineQueuePanel.tsx"), "utf8") : "";
+  const offlineQueueSyncHookSource = exists("src/hooks/useOfflineQueueSync.ts") ? fs.readFileSync(path.join(rootDir, "src/hooks/useOfflineQueueSync.ts"), "utf8") : "";
   const offlineQueueTestSource = exists("tests/offline-queue.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/offline-queue.test.mjs"), "utf8") : "";
   const pwaCapabilitiesSource = exists("src/services/pwaCapabilities.ts") ? fs.readFileSync(path.join(rootDir, "src/services/pwaCapabilities.ts"), "utf8") : "";
   const pwaCapabilitiesTestSource = exists("tests/pwa-capabilities.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/pwa-capabilities.test.mjs"), "utf8") : "";
@@ -1344,10 +1345,15 @@ function checkAssets() {
     offlineQueueBannerSource.includes("networkLabel") &&
     offlineQueueBannerSource.includes("network.labelKey") &&
     !/network\.label(?!Key)/.test(offlineQueueBannerSource) &&
+    appSource.includes('useOfflineQueueSync(flushOfflineMessages, { clearConfirmMessage: t("mobileDevice.confirmClearQueue") })') &&
+    offlineQueueSyncHookSource.includes("options.clearConfirmMessage") &&
+    !offlineQueueSyncHookSource.includes("Clear all unsynced offline messages") &&
     mobileDeviceSource.includes("getOfflineMessageQueueStorageStatus") &&
     mobileDeviceSource.includes("MobileOfflineQueuePanel") &&
     mobileDeviceSource.includes("requestOfflineMessageQueuePersistentStorage") &&
     mobileDeviceSource.includes("persistentStorageGranted") &&
+    mobileDeviceSource.includes('window.addEventListener("focus", refreshRecoverableState)') &&
+    mobileDeviceSource.includes('document.addEventListener("visibilitychange", handleVisibilityChange)') &&
     mobileOfflineQueuePanelSource.includes("offlineQueue.remoteEntryTitle") &&
     mobileOfflineQueuePanelSource.includes("offlineQueue.waitingSinceTitle") &&
     mobileOfflineQueuePanelSource.includes("queueSummary.oldestQueuedAt") &&
