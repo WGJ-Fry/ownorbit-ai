@@ -1316,6 +1316,10 @@ function checkAssets() {
     mobileLastConnectivityCardSource.includes("mobileDevice.staleConnectivityReport") &&
     mobileLastConnectivityCardSource.includes("mobileDevice.lastConnectivityActionTitle") &&
     mobileLastConnectivityCardSource.includes("mobileDevice.lastConnectivityFixTitle") &&
+    mobileLastConnectivityCardSource.includes("buildLastConnectivityRepairPacket") &&
+    mobileLastConnectivityCardSource.includes("navigator.clipboard.writeText(packet)") &&
+    mobileLastConnectivityCardSource.includes("mobileDevice.copyRepairPacket") &&
+    mobileLastConnectivityCardSource.includes("mobileDevice.repairPacketCopied") &&
     mobileLastConnectivityCardSource.includes("mobileDevice.retryConnectivity") &&
     mobileLastConnectivityCardSource.includes("mobile.refreshConnection") &&
     mobileLastConnectivityCardSource.includes("tailscale://") &&
@@ -1342,6 +1346,8 @@ function checkAssets() {
     translationsSource.includes("mobileDevice.copyRepairPacket") &&
     translationsSource.includes("mobileDevice.repairPacketCopied") &&
     translationsSource.includes("mobileDevice.lastConnectivityActionTitle") &&
+    translationsSource.includes("mobileDevice.lastConnectivityStatus") &&
+    translationsSource.includes("Report freshness") &&
     translationsSource.includes("mobileDevice.connectivitySteps") &&
     mobileDeviceSource.includes("pwaCapabilities.recommendations") &&
     mobileDeviceSource.includes("pwaRecommendationKey") &&

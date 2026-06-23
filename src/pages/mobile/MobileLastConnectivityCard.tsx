@@ -1,7 +1,44 @@
-import { RefreshCw } from "lucide-react";
+import { useState } from "react";
+import { Copy, RefreshCw } from "lucide-react";
 import type { DeviceConnectivityReport } from "../../services/lifeosApi";
 import type { MobileConnectivityIssueKey, MobileRecoveryHintKey, RemoteEntryKind } from "../../services/pwaCapabilities";
 import { useI18n } from "../../i18n/I18nProvider";
+
+function buildLastConnectivityRepairPacket({
+  report,
+  stale,
+  issue,
+  hints,
+  translate,
+}: {
+  report: DeviceConnectivityReport;
+  stale: boolean;
+  issue: MobileConnectivityIssueKey | null;
+  hints: MobileRecoveryHintKey[];
+  translate: (key: any, values?: any) => string;
+}) {
+  const checks = [
+    ["mobileDevice.connectivityHealth", report.healthOk],
+    ["mobileDevice.connectivityMobileShell", report.mobileShellOk],
+    ["mobileDevice.connectivityRealtime", report.websocketOk],
+  ] as const;
+  return [
+    "LifeOS AI last mobile connectivity repair packet",
+    `${translate("mobileDevice.currentEntry")}: ${report.currentBaseUrl || "-"}`,
+    `${translate("mobileDevice.connectivityTestedAt", { time: new Date(report.createdAt).toLocaleString() })}`,
+    `${translate("mobileDevice.lastConnectivityStatus")}: ${report.ok ? translate("mobileDevice.pass") : translate("mobileDevice.fail")}`,
+    `${translate("mobileDevice.latency")}: ${report.latencyMs}ms`,
+    `${translate("mobileDevice.reportFreshness")}: ${stale ? translate("mobileDevice.staleConnectivityReport") : translate("mobileDevice.freshConnectivityReport")}`,
+    report.error ? `${translate("mobileDevice.lastConnectivityError", { message: report.error })}` : "",
+    "",
+    translate("mobileDevice.connectivitySteps"),
+    ...checks.map(([label, ok]) => `- ${translate(label)}: ${ok ? translate("mobileDevice.pass") : translate("mobileDevice.fail")}`),
+    "",
+    translate("mobileDevice.connectivityFixTitle"),
+    issue && issue !== "mobileDevice.connectivityIssueOk" ? `- ${translate(issue)}` : `- ${translate("mobileDevice.connectivityIssueOk")}`,
+    ...hints.map((hint) => `- ${translate(hint)}`),
+  ].filter(Boolean).join("\n");
+}
 
 export default function MobileLastConnectivityCard({
   report,
@@ -25,8 +62,16 @@ export default function MobileLastConnectivityCard({
   onRetry: () => void;
 }) {
   const { t } = useI18n();
+  const [copiedRepairPacket, setCopiedRepairPacket] = useState(false);
   const showTailscale = entryKind === "tailscale";
   const showRebind = entryKind === "temporary-cloudflare" || entryKind === "same-lan" || entryKind === "localhost" || entryKind === "configured-mismatch";
+  const showRepairPacket = !report.ok || stale || (issue && issue !== "mobileDevice.connectivityIssueOk");
+  const copyRepairPacket = async () => {
+    const packet = buildLastConnectivityRepairPacket({ report, stale, issue, hints, translate: t });
+    await navigator.clipboard.writeText(packet).catch(() => null);
+    setCopiedRepairPacket(true);
+    window.setTimeout(() => setCopiedRepairPacket(false), 1200);
+  };
 
   return (
     <div className={`mt-4 rounded-2xl border p-3 text-xs leading-relaxed ${report.ok ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100" : "border-red-400/20 bg-red-500/10 text-red-100"}`}>
@@ -84,6 +129,12 @@ export default function MobileLastConnectivityCard({
             <RefreshCw className={`h-3.5 w-3.5 ${refreshBusy ? "animate-spin" : ""}`} />
             {refreshBusy ? t("mobileDevice.refreshingServerState") : t("mobile.refreshConnection")}
           </button>
+          {showRepairPacket ? (
+            <button onClick={copyRepairPacket} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.1] bg-black/10 px-3 py-2 font-bold text-zinc-100">
+              <Copy className="h-3.5 w-3.5" />
+              {copiedRepairPacket ? t("mobileDevice.repairPacketCopied") : t("mobileDevice.copyRepairPacket")}
+            </button>
+          ) : null}
           {showTailscale ? (
             <a href="tailscale://" className="rounded-xl border border-blue-400/20 bg-blue-500/10 px-3 py-2 text-center font-bold text-blue-100">
               {t("mobileDevice.openTailscale")}
