@@ -17,7 +17,7 @@ import { registerMemoryRoutes } from "./server/routes/memoryRoutes";
 import { registerStateRoutes } from "./server/routes/stateRoutes";
 import { attachRealtimeServer } from "./server/realtime";
 import { runMigrations } from "./server/migrations";
-import { requireCsrf, securityHeaders } from "./server/httpSecurity";
+import { redactApiErrorResponses, requireCsrf, securityHeaders } from "./server/httpSecurity";
 import { startBackupScheduler } from "./server/backupSchedule";
 import { maybeStartConfiguredCloudflareTunnel } from "./server/cloudflareTunnel";
 import { maybeStartConfiguredTailscaleServe } from "./server/networkDiagnostics";
@@ -80,6 +80,7 @@ app.use((req, _res, next) => {
 app.use(express.json({ limit: "64mb" }));
 app.use(express.urlencoded({ limit: "64mb", extended: true }));
 app.use(securityHeaders);
+app.use(redactApiErrorResponses);
 app.use(requireCsrf);
 
 registerCoreRoutes(app, HOST);

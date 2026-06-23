@@ -1539,6 +1539,8 @@ function checkAssets() {
   const clientStateSource = exists("server/clientState.ts") ? fs.readFileSync(path.join(rootDir, "server/clientState.ts"), "utf8") : "";
   const stateRoutesSource = exists("server/routes/stateRoutes.ts") ? fs.readFileSync(path.join(rootDir, "server/routes/stateRoutes.ts"), "utf8") : "";
   const auditSource = exists("server/audit.ts") ? fs.readFileSync(path.join(rootDir, "server/audit.ts"), "utf8") : "";
+  const httpSecuritySource = exists("server/httpSecurity.ts") ? fs.readFileSync(path.join(rootDir, "server/httpSecurity.ts"), "utf8") : "";
+  const httpSecurityTestSource = exists("tests/http-security.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/http-security.test.mjs"), "utf8") : "";
   if (
     clientStateSource.includes("publicClientState") &&
     clientStateSource.includes("SENSITIVE_CLIENT_STATE_KEY") &&
@@ -1564,6 +1566,19 @@ function checkAssets() {
     apiAuthTestSource.includes("returned sensitive strings")
   ) pass("API response audit rejects sensitive URL, path, and token-shaped strings");
   else warn("API response audit may miss sensitive URL, local path, or token-shaped strings");
+  if (
+    httpSecuritySource.includes("redactApiErrorPayload") &&
+    httpSecuritySource.includes("redactApiErrorResponses") &&
+    httpSecuritySource.includes("API_ERROR_TEXT_KEY") &&
+    httpSecuritySource.includes("redactAuditString(value)") &&
+    serverEntrySource.includes("redactApiErrorResponses") &&
+    serverEntrySource.includes("app.use(redactApiErrorResponses)") &&
+    httpSecurityTestSource.includes("API error response redaction removes secrets without changing business tokens") &&
+    httpSecurityTestSource.includes("github_pat_errorSecret") &&
+    httpSecurityTestSource.includes("bind_business_token_must_remain_available") &&
+    String(packageJson.scripts?.test || "").includes("tests/http-security.test.mjs")
+  ) pass("API error responses redact sensitive text without stripping business tokens");
+  else warn("API error response redaction middleware or tests are incomplete");
   if (
     clientStateSource.includes("normalizeClientStateValue") &&
     clientStateSource.includes("normalizeAllowedUrlSchemes") &&

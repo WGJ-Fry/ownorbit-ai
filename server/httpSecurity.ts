@@ -1,4 +1,5 @@
 import type express from "express";
+import { redactAuditString } from "./audit";
 import { getConfiguredPublicBaseUrl, getConfiguredPublicOrigin } from "./publicBaseUrl";
 
 type RateBucket = {
@@ -7,6 +8,7 @@ type RateBucket = {
 };
 
 const buckets = new Map<string, RateBucket>();
+const API_ERROR_TEXT_KEY = /^(error|message|detail|details|reason|lastError)$/i;
 
 export function getCookie(req: express.Request, name: string) {
   const cookieHeader = req.headers.cookie || "";
@@ -100,6 +102,23 @@ export function securityHeaders(_req: express.Request, res: express.Response, ne
   res.setHeader("Referrer-Policy", "same-origin");
   res.setHeader("Permissions-Policy", "camera=(), geolocation=(), microphone=()");
   res.setHeader("X-Frame-Options", "DENY");
+  next();
+}
+
+export function redactApiErrorPayload(value: unknown, key = ""): unknown {
+  if (Array.isArray(value)) return value.map((item) => redactApiErrorPayload(item, key));
+  if (typeof value === "string") return API_ERROR_TEXT_KEY.test(key) ? redactAuditString(value) : value;
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([entryKey, item]) => [
+    entryKey,
+    redactApiErrorPayload(item, entryKey),
+  ]));
+}
+
+export function redactApiErrorResponses(req: express.Request, res: express.Response, next: express.NextFunction) {
+  if (!req.path.startsWith("/api/")) return next();
+  const originalJson = res.json.bind(res);
+  res.json = ((body?: any) => originalJson(redactApiErrorPayload(body))) as typeof res.json;
   next();
 }
 
