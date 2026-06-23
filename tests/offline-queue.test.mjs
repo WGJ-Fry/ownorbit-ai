@@ -212,6 +212,12 @@ test("offline message queue recovers interrupted sync and backs off failed retri
   assert.equal(queueModule.getOfflineMessageStatusLabel(failed), "Failed");
   assert.match(queueModule.getOfflineMessageRetryLabel(failed, failed.lastAttemptAt + 1_000), /Next automatic retry:/);
   assert.equal(queueModule.getOfflineMessageRetryLabel(failed, failed.lastAttemptAt + 15_000), "Ready to retry");
+  assert.equal(queueModule.classifyOfflineMessageFailure("Failed to fetch"), "network");
+  assert.equal(queueModule.classifyOfflineMessageFailure("401 unauthorized device token"), "auth");
+  assert.equal(queueModule.classifyOfflineMessageFailure("503 service unavailable"), "server");
+  assert.equal(queueModule.classifyOfflineMessageFailure("IndexedDB quota exceeded"), "size");
+  assert.equal(queueModule.classifyOfflineMessageFailure("Previous sync was interrupted"), "interrupted");
+  assert.equal(queueModule.classifyOfflineMessageFailure(""), "unknown");
   assert.equal(queueModule.formatOfflineMessageQueueBytes(0), "0 B");
   assert.equal(queueModule.formatOfflineMessageQueueBytes(900), "900 B");
   assert.equal(queueModule.formatOfflineMessageQueueBytes(2_048), "2 KB");

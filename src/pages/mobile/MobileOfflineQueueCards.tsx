@@ -1,4 +1,5 @@
 import {
+  classifyOfflineMessageFailure,
   formatOfflineMessageQueueBytes,
   getOfflineMessageNextRetryAt,
   getOfflineMessageQueueUsageLabel,
@@ -69,6 +70,7 @@ export function QueueItem({ item, onRetry, onRemove, onCopy }: { item: OfflineQu
   const retryReady = typeof nextRetryAt === "number" && nextRetryAt <= Date.now();
   const statusLabel = item.status === "failed" ? t("offlineQueue.status.failed") : item.status === "syncing" ? t("offlineQueue.status.syncing") : t("offlineQueue.status.pending");
   const retryLabel = !nextRetryAt ? "" : retryReady ? t("offlineQueue.readyToRetry") : t("offlineQueue.nextRetry", { time: new Date(nextRetryAt).toLocaleTimeString() });
+  const failureKind = classifyOfflineMessageFailure(item.lastError);
   const statusClass = item.status === "failed" ? "border-red-400/20 bg-red-500/10 text-red-100" : item.status === "syncing" ? "border-amber-400/20 bg-amber-500/10 text-amber-100" : "border-cyan-400/20 bg-cyan-500/10 text-cyan-100";
   const manualRetryLabel = item.lastManualRetryAt
     ? t("offlineQueue.manualRetryMeta", { count: item.manualRetryCount || 1, time: new Date(item.lastManualRetryAt).toLocaleTimeString() })
@@ -84,7 +86,12 @@ export function QueueItem({ item, onRetry, onRemove, onCopy }: { item: OfflineQu
         </div>
         <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${statusClass}`}>{statusLabel}</span>
       </div>
-      {item.lastError ? <div className="mt-2 rounded-xl border border-red-400/20 bg-red-500/10 p-2 leading-relaxed text-red-100">{t("offlineQueue.failureReason", { message: item.lastError })}</div> : null}
+      {item.lastError ? (
+        <div className="mt-2 rounded-xl border border-red-400/20 bg-red-500/10 p-2 leading-relaxed text-red-100">
+          <div className="font-bold">{t(`offlineQueue.failureKind.${failureKind}` as any)}</div>
+          <div className="mt-1 opacity-85">{t("offlineQueue.failureReason", { message: item.lastError })}</div>
+        </div>
+      ) : null}
       {retryLabel ? (
         <div
           aria-label={t("offlineQueue.nextRetryAria", { preview })}

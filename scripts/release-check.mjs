@@ -1533,6 +1533,8 @@ function checkAssets() {
     mobileOfflineQueueCardsSource.includes("offlineQueue.persistentStorage") &&
     mobileOfflineQueueCardsSource.includes("offlineQueue.requestPersistentStorage") &&
     mobileOfflineQueueCardsSource.includes("offlineQueue.failureReason") &&
+    mobileOfflineQueueCardsSource.includes("classifyOfflineMessageFailure") &&
+    mobileOfflineQueueCardsSource.includes("offlineQueue.failureKind.") &&
     mobileOfflineQueueCardsSource.includes("recommendationKey") &&
     mobileOfflineQueueCardsSource.includes("offlineQueue.recommendation.browserStorage") &&
     mobileOfflineQueueCardsSource.includes("offlineQueue.recommendation.persistentStorage") &&
@@ -1545,6 +1547,9 @@ function checkAssets() {
     translationsSource.includes("offlineQueue.persistentStorage") &&
     translationsSource.includes("offlineQueue.requestPersistentStorage") &&
     translationsSource.includes("offlineQueue.failureReason") &&
+    translationsSource.includes("offlineQueue.failureKind.network") &&
+    translationsSource.includes("offlineQueue.failureKind.auth") &&
+    translationsSource.includes("offlineQueue.failureKind.size") &&
     translationsSource.includes("offlineQueue.copyBackup") &&
     translationsSource.includes("Copy Queue Backup") &&
     translationsSource.includes("offlineQueue.remoteEntryTitle") &&
@@ -1564,6 +1569,7 @@ function checkAssets() {
     translationsSource.includes("network.weak") &&
     offlineQueueTestSource.includes("getOfflineMessageStatusLabel") &&
     offlineQueueTestSource.includes("getOfflineMessageRetryLabel") &&
+    offlineQueueTestSource.includes("classifyOfflineMessageFailure") &&
     offlineQueueTestSource.includes("formatOfflineMessageQueueBytes") &&
     offlineQueueTestSource.includes("getOfflineMessageQueueStorageLabel") &&
     offlineQueueTestSource.includes("getOfflineMessageQueueUsageLabel") &&

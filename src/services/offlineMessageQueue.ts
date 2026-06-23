@@ -48,6 +48,8 @@ export type OfflineMessageQueueSyncMeta = {
   lastSyncedCount?: number;
 };
 
+export type OfflineMessageFailureKind = "network" | "auth" | "server" | "storage" | "size" | "interrupted" | "unknown";
+
 export type OfflineMessageQueueSummary = {
   count: number;
   pending: number;
@@ -382,6 +384,19 @@ export function getOfflineMessageRetryLabel(item: OfflineQueuedMessage, now = Da
   if (!nextRetryAt) return "";
   if (nextRetryAt <= now) return "Ready to retry";
   return `Next automatic retry: ${new Date(nextRetryAt).toLocaleTimeString()}`;
+}
+
+export function classifyOfflineMessageFailure(error: unknown): OfflineMessageFailureKind {
+  const message = typeof error === "string" ? error : error instanceof Error ? error.message : "";
+  const normalized = message.toLowerCase();
+  if (!normalized.trim()) return "unknown";
+  if (/exceeded|storage budget|item limit|too large|quota|truncated|near its limit/.test(normalized)) return "size";
+  if (/interrupted|stale syncing|previous sync/.test(normalized)) return "interrupted";
+  if (/unauthori[sz]ed|forbidden|401|403|credential|token|signature|revoked/.test(normalized)) return "auth";
+  if (/indexeddb|localstorage|storage|persist|quotaexceeded/.test(normalized)) return "storage";
+  if (/5\d\d|server|unavailable|bad gateway|gateway timeout|service unavailable|internal/.test(normalized)) return "server";
+  if (/network|offline|failed to fetch|fetch failed|timeout|timed out|econn|enotfound|websocket|connection|dns/.test(normalized)) return "network";
+  return "unknown";
 }
 
 export function formatOfflineMessageQueueBytes(bytes: number | undefined) {
