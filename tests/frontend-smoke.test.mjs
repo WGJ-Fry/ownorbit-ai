@@ -702,6 +702,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileActionsSource, /ActionMetric/);
   assert.match(mobileActionsSource, /actions\.clearLogs/);
   assert.match(mobileActionsSource, /actions\.metricHighRisk/);
+  assert.match(mobileActionsSource, /buildActionLogSourceSummary/);
+  assert.match(mobileActionsSource, /actions\.sourceSummaryTitle/);
+  assert.match(mobileActionsSource, /ActionMiniStat/);
   assert.match(mobileActionsSource, /actions\.latestRecord/);
   assert.match(mobileActionsSource, /actions\.logLineOne/);
   assert.match(mobileActionsSource, /actions\.logLineTwo/);
@@ -712,6 +715,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileActionsSource, /loadAllowedUrlSchemes/);
   assert.match(mobileActionsSource, /writeSystemActionStorage/);
   assert.match(translationsSource, /动作权限中心/);
+  assert.match(translationsSource, /来源摘要/);
   assert.match(translationsSource, /清空记录/);
   assert.match(translationsSource, /清空动作执行记录/);
   assert.doesNotMatch(mobileActionsSource, /localStorage\.getItem\("lifeos_allowed_url_schemes"/);

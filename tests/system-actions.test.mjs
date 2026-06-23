@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   DEFAULT_ALLOWED_SCHEMES,
+  buildActionLogSourceSummary,
   buildShortcutUrl,
   redactActionTarget,
   redactActionUrl,
@@ -52,6 +53,22 @@ test("system action helpers classify risk and summarize params", () => {
   assert.equal(riskForScheme("tel"), "high");
   assert.equal(summarizeActionParams("shortcuts://run-shortcut?name=LifeOS&input=text&text=hello&token=secret&extra=ignored"), "name, input, text, token");
   assert.equal(summarizeActionParams("tel:+15551234567"), "-");
+});
+
+test("system action source summary redacts and aggregates risky origins", () => {
+  const summary = buildActionLogSourceSummary([
+    { source: "AI Agent token=secret-value", status: "opened", risk: "high" },
+    { source: "AI Agent token=other-secret", status: "cancelled", risk: "high" },
+    { source: "https://example.test/run?token=abc", status: "blocked", risk: "medium" },
+    { source: "Manual Action", status: "opened", risk: "low" },
+  ]);
+
+  assert.equal(summary.totalSources, 3);
+  assert.equal(summary.topSource, "AI Agent token=[redacted]");
+  assert.equal(summary.topSourceCount, 2);
+  assert.equal(summary.blockedSources, 1);
+  assert.equal(summary.highRiskSources, 1);
+  assert.doesNotMatch(summary.topSource, /secret/);
 });
 
 test("system action shortcut URL builder encodes name and optional text", () => {

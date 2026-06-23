@@ -3,6 +3,7 @@ import { Command, ExternalLink, Mail, MessageSquare, Phone, Play, Save, Trash2 }
 import { getClientState, setClientState } from "../../services/lifeosApi";
 import {
   DANGEROUS_SCHEMES,
+  buildActionLogSourceSummary,
   buildShortcutUrl,
   getUrlScheme,
   normalizeAllowedUrlSchemes,
@@ -103,6 +104,7 @@ export default function SystemActionsApp({ initialAction }: SystemActionsAppProp
     cancelled: actionLogs.filter((log) => log.status === "cancelled").length,
     highRisk: actionLogs.filter((log) => log.risk === "high").length,
   };
+  const sourceSummary = buildActionLogSourceSummary(actionLogs);
   const localizedUrlOptions = {
     manualSource: t("actions.source.manual"),
     unknownLabel: t("actions.unknown"),
@@ -217,6 +219,17 @@ export default function SystemActionsApp({ initialAction }: SystemActionsAppProp
           <ActionMetric label={t("actions.metricCancelled")} value={actionLogSummary.cancelled} tone="text-zinc-300" />
           <ActionMetric label={t("actions.metricHighRisk")} value={actionLogSummary.highRisk} tone="text-amber-100" />
         </div>
+        {actionLogs.length > 0 ? (
+          <div className="mb-3 rounded-xl border border-white/[0.06] bg-black/20 p-3 text-[10px] leading-relaxed text-zinc-400">
+            <div className="font-bold text-zinc-200">{t("actions.sourceSummaryTitle")}</div>
+            <div className="mt-1 truncate">{t("actions.sourceSummaryTop", { source: sourceSummary.topSource, count: sourceSummary.topSourceCount })}</div>
+            <div className="mt-1 grid grid-cols-3 gap-2">
+              <ActionMiniStat label={t("actions.sourceSummaryTotal")} value={sourceSummary.totalSources} />
+              <ActionMiniStat label={t("actions.sourceSummaryBlocked")} value={sourceSummary.blockedSources} />
+              <ActionMiniStat label={t("actions.sourceSummaryHighRisk")} value={sourceSummary.highRiskSources} />
+            </div>
+          </div>
+        ) : null}
         <div className="flex flex-wrap gap-2">
           {allowedSchemes.map((scheme) => (
             <span key={scheme} className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${riskForScheme(scheme) === "high" ? "border-amber-300/25 bg-amber-500/10 text-amber-100" : riskForScheme(scheme) === "medium" ? "border-blue-300/20 bg-blue-500/10 text-blue-100" : "border-emerald-300/20 bg-emerald-500/10 text-emerald-100"}`}>
@@ -435,6 +448,15 @@ function ActionMetric({ label, value, tone }: { label: string; value: number; to
     <div className="rounded-xl border border-white/[0.06] bg-black/15 px-2 py-2">
       <div className={`font-black ${tone}`}>{value}</div>
       <div className="mt-0.5 font-bold text-zinc-500">{label}</div>
+    </div>
+  );
+}
+
+function ActionMiniStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg border border-white/[0.05] bg-white/[0.03] px-2 py-1.5">
+      <div className="font-black text-zinc-100">{value}</div>
+      <div className="truncate text-zinc-500">{label}</div>
     </div>
   );
 }

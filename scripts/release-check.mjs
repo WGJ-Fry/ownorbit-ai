@@ -1615,7 +1615,10 @@ function checkAssets() {
     translationsSource.includes("actions.clearLogs") &&
     translationsSource.includes("actions.confirmClearLogs") &&
     translationsSource.includes("actions.launcherRiskLine") &&
+    translationsSource.includes("actions.sourceSummaryTitle") &&
+    systemActionsServiceSource.includes("buildActionLogSourceSummary") &&
     systemActionsSource.includes("loadAllowedUrlSchemes") &&
+    systemActionsSource.includes("buildActionLogSourceSummary(actionLogs)") &&
     systemActionsSource.includes("writeSystemActionStorage") &&
     !systemActionsSource.includes('localStorage.getItem("lifeos_allowed_url_schemes"') &&
     !systemActionsSource.includes('localStorage.setItem("lifeos_system_actions"') &&
@@ -1627,8 +1630,10 @@ function checkAssets() {
     systemActionStorageSource.includes("normalizeSystemActionLog") &&
     systemActionsTestSource.includes("system action storage loads safe defaults") &&
     systemActionsTestSource.includes("system action storage normalizes whitelist") &&
+    systemActionsTestSource.includes("system action source summary redacts and aggregates risky origins") &&
     systemActionsTestSource.includes("filters unsafe saved launchers before UI rendering") &&
     frontendSmokeTestSource.includes("actionLogSummary") &&
+    frontendSmokeTestSource.includes("actions\\.sourceSummaryTitle") &&
     frontendSmokeTestSource.includes("actions\\.confirmClearLogs") &&
     frontendSmokeTestSource.includes("actions\\.launcherRiskLine") &&
     frontendSmokeTestSource.includes("actions\\.clearLogs")
