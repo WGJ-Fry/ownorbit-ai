@@ -361,20 +361,27 @@ export default function SystemActionsApp({ initialAction }: SystemActionsAppProp
         <section className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3">
           <h3 className="mb-2 text-sm font-bold">{t("actions.savedLaunchers")}</h3>
           <div className="space-y-2">
-            {savedActions.map((action) => (
-              <div key={action.id} className="flex items-center gap-2 rounded-xl border border-white/[0.05] bg-black/20 p-2">
-                <button onClick={() => openUrl(action.url, allowedSchemes, { ...localizedUrlOptions, confirm: true, label: action.name, source: t("actions.savedLaunchers"), target: action.name, onLog: appendActionLog })} className="min-w-0 flex-1 text-left">
-                  <div className="truncate text-xs font-bold text-zinc-100">{action.name}</div>
-                  <div className="truncate text-[10px] text-zinc-500">{action.url}</div>
-                </button>
-                <button
-                  onClick={() => setSavedActions((items) => items.filter((item) => item.id !== action.id))}
-                  className="rounded-lg p-2 text-zinc-500 hover:bg-red-500/10 hover:text-red-300"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
+            {savedActions.map((action) => {
+              const scheme = getUrlScheme(action.url) || t("actions.unknown");
+              const risk = riskForScheme(scheme);
+              return (
+                <div key={action.id} className="flex items-center gap-2 rounded-xl border border-white/[0.05] bg-black/20 p-2">
+                  <button onClick={() => openUrl(action.url, allowedSchemes, { ...localizedUrlOptions, confirm: true, label: action.name, source: t("actions.savedLaunchers"), target: action.name, onLog: appendActionLog })} className="min-w-0 flex-1 text-left">
+                    <div className="truncate text-xs font-bold text-zinc-100">{action.name}</div>
+                    <div className="truncate text-[10px] text-zinc-500">{action.url}</div>
+                    <div className="mt-1 truncate text-[10px] text-zinc-500">
+                      {t("actions.launcherRiskLine", { scheme, risk: riskLabel(risk, t), params: summarizeActionParams(action.url) })}
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setSavedActions((items) => items.filter((item) => item.id !== action.id))}
+                    className="rounded-lg p-2 text-zinc-500 hover:bg-red-500/10 hover:text-red-300"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </section>
       )}

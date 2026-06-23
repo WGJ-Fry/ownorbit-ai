@@ -1405,9 +1405,12 @@ function checkAssets() {
     systemActionsSource.includes("actions.clearLogs") &&
     systemActionsSource.includes("actions.latestRecord") &&
     systemActionsSource.includes("actions.logLineTwo") &&
+    systemActionsSource.includes("actions.launcherRiskLine") &&
+    systemActionsSource.includes("summarizeActionParams(action.url)") &&
     systemActionsSource.includes("riskLabel(latestActionLog.risk, t)") &&
     translationsSource.includes("actions.permissionCenter") &&
     translationsSource.includes("actions.clearLogs") &&
+    translationsSource.includes("actions.launcherRiskLine") &&
     systemActionsSource.includes("loadAllowedUrlSchemes") &&
     systemActionsSource.includes("writeSystemActionStorage") &&
     !systemActionsSource.includes('localStorage.getItem("lifeos_allowed_url_schemes"') &&
@@ -1419,6 +1422,7 @@ function checkAssets() {
     systemActionsTestSource.includes("system action storage loads safe defaults") &&
     systemActionsTestSource.includes("system action storage normalizes whitelist") &&
     frontendSmokeTestSource.includes("actionLogSummary") &&
+    frontendSmokeTestSource.includes("actions\\.launcherRiskLine") &&
     frontendSmokeTestSource.includes("actions\\.clearLogs")
   ) pass("mobile action permission center summarizes, clears, and audits local app launches");
   else warn("mobile action permission center lacks summary, clear action, launch audit details, or tests");

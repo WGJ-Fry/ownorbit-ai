@@ -595,6 +595,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileActionsSource, /actions\.latestRecord/);
   assert.match(mobileActionsSource, /actions\.logLineOne/);
   assert.match(mobileActionsSource, /actions\.logLineTwo/);
+  assert.match(mobileActionsSource, /actions\.launcherRiskLine/);
+  assert.match(mobileActionsSource, /summarizeActionParams\(action\.url\)/);
   assert.match(mobileActionsSource, /riskLabel\(latestActionLog\.risk, t\)/);
   assert.match(mobileActionsSource, /loadAllowedUrlSchemes/);
   assert.match(mobileActionsSource, /writeSystemActionStorage/);
