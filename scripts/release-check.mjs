@@ -1283,7 +1283,15 @@ function checkAssets() {
     mobileConnectivityCardSource.includes("mobileDevice.rebindRemoteEntry") &&
     mobileConnectivityCardSource.includes("mobileDevice.retryRealtime") &&
     mobileConnectivityCardSource.includes("mobileDevice.connectivityTestedAt") &&
+    mobileConnectivityCardSource.includes("copyRepairPacket") &&
+    mobileConnectivityCardSource.includes("navigator.clipboard.writeText") &&
+    mobileConnectivityCardSource.includes("mobileDevice.copyRepairPacket") &&
+    mobileConnectivityCardSource.includes("mobileDevice.repairPacketCopied") &&
+    mobileConnectivityCardSource.includes("mobileDevice.connectivitySteps") &&
     translationsSource.includes("mobileDevice.connectivityTestedAt") &&
+    translationsSource.includes("mobileDevice.copyRepairPacket") &&
+    translationsSource.includes("mobileDevice.repairPacketCopied") &&
+    translationsSource.includes("mobileDevice.connectivitySteps") &&
     mobileDeviceSource.includes("pwaCapabilities.recommendations") &&
     mobileDeviceSource.includes("pwaRecommendationKey") &&
     mobileDeviceSource.includes("mobileDevice.pwaRecommendation.addToHome") &&

@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { Copy } from "lucide-react";
 import { getMobileConnectivityIssue, getMobileRecoveryHints, isHttpRemoteBase, type MobileConnectivityResult, type RemoteEntryKind } from "../../services/pwaCapabilities";
 import { useI18n } from "../../i18n/I18nProvider";
 
@@ -19,6 +21,7 @@ export default function MobileConnectivityCard({
   onRetry?: () => void;
 }) {
   const { t } = useI18n();
+  const [copied, setCopied] = useState(false);
   const passed = result.steps.filter((step) => step.ok).length;
   const websocketFailed = result.steps.some((step) => step.id === "websocket" && !step.ok);
   const recoveryHints = getMobileRecoveryHints(result, entryKind, queueSummary);
@@ -28,6 +31,28 @@ export default function MobileConnectivityCard({
   const tailscaleHttpFallback = entryKind === "tailscale" && isHttpRemoteBase(result.currentBase);
   const showRebind = tailscaleHttpFallback || entryKind === "temporary-cloudflare" || entryKind === "same-lan" || entryKind === "localhost" || entryKind === "configured-mismatch";
   const showTailscale = entryKind === "tailscale";
+  const copyRepairPacket = async () => {
+    const lines = [
+      "LifeOS AI mobile connectivity repair packet",
+      `${t("mobileDevice.currentEntry")}: ${result.currentBase || "-"}`,
+      `${t("mobileDevice.remoteVerdict")}: ${t(primaryIssue as any)}`,
+      `${t("mobileDevice.connectivityTestedAt", { time: result.testedAt ? new Date(result.testedAt).toLocaleString() : "-" })}`,
+      "",
+      t("mobileDevice.connectivitySteps"),
+      ...result.steps.map((step) => {
+        const label = t(stepLabelKey[step.id] as any);
+        const state = step.ok ? t("mobileDevice.pass") : t("mobileDevice.fail");
+        return `- ${label}: ${state} ${step.status ? `HTTP ${step.status}` : ""} ${step.latencyMs}ms ${step.error || ""}\n  ${step.url}`;
+      }),
+      "",
+      t("mobileDevice.connectivityFixTitle"),
+      `- ${t(primaryIssue as any)}`,
+      ...recoveryHints.map((hint) => `- ${t(hint as any)}`),
+    ];
+    await navigator.clipboard.writeText(lines.join("\n")).catch(() => null);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1200);
+  };
   return (
     <div className={`mt-4 rounded-2xl border p-3 text-sm ${queueBlocked ? "border-amber-400/20 bg-amber-500/10 text-amber-100" : result.ok ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100" : "border-red-400/20 bg-red-500/10 text-red-100"}`}>
       <div className="font-bold">
@@ -58,6 +83,10 @@ export default function MobileConnectivityCard({
             {recoveryHints.map((hint) => <div key={hint}>{t(hint as any)}</div>)}
           </div>
           <div className="mt-3 grid gap-2">
+            <button onClick={copyRepairPacket} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.1] bg-black/10 px-3 py-2 font-bold text-zinc-100">
+              <Copy className="h-3.5 w-3.5" />
+              {copied ? t("mobileDevice.repairPacketCopied") : t("mobileDevice.copyRepairPacket")}
+            </button>
             {onRetry ? (
               <button onClick={onRetry} className="rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-3 py-2 font-bold text-cyan-100">
                 {websocketFailed ? t("mobileDevice.retryRealtime") : t("mobileDevice.retryConnectivity")}
