@@ -1709,6 +1709,13 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(revokedAudit.metadata.publicKeyConfigured, false);
   assert.equal(typeof revokedAudit.metadata.credentialExpiresAt, "number");
   assert.equal(typeof revokedAudit.metadata.lastSeenAt, "number");
+  assert.equal(revokedAudit.metadata.latestConnectivity.ok, true);
+  assert.equal(revokedAudit.metadata.latestConnectivity.currentBaseUrl, "https://phone.example.test/lifeos");
+  assert.equal(revokedAudit.metadata.latestConnectivity.healthOk, true);
+  assert.equal(revokedAudit.metadata.latestConnectivity.mobileShellOk, true);
+  assert.equal(revokedAudit.metadata.latestConnectivity.websocketOk, true);
+  assert.equal(revokedAudit.metadata.latestConnectivity.latencyMs, 42);
+  assert.equal(typeof revokedAudit.metadata.latestConnectivity.createdAt, "number");
   assert.equal(typeof revokedAudit.metadata.wasOnline, "boolean");
   assert.equal(typeof revokedAudit.metadata.revokedAt, "number");
   const onboardingCompletedAudit = finalAudit.logs.find((log) => log.action === "admin_onboarding_completed");

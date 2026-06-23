@@ -1143,10 +1143,13 @@ function checkAssets() {
   if (
     deviceRoutesSource.includes('app.delete("/api/v1/devices/me"') &&
     deviceRoutesSource.includes("device_self_revoked") &&
+    deviceRoutesSource.includes("latestConnectivity") &&
+    deviceRoutesSource.includes("connectivityAuditSummary") &&
     lifeosApiSource.includes("revokeCurrentDeviceBinding") &&
     mobileDeviceSource.includes("mobileDevice.forgetBinding") &&
     apiAuthTestSource.includes("Self Revoke Phone") &&
-    apiAuthTestSource.includes("device_self_revoked")
+    apiAuthTestSource.includes("device_self_revoked") &&
+    apiAuthTestSource.includes("revokedAudit.metadata.latestConnectivity")
   ) pass("mobile device page can revoke its own server-side binding with audit coverage");
   else warn("mobile device self-revoke flow is incomplete across API, UI, or tests");
   const deviceCredentialStoreSource = exists("src/services/deviceCredentialStore.ts") ? fs.readFileSync(path.join(rootDir, "src/services/deviceCredentialStore.ts"), "utf8") : "";

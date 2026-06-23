@@ -54,6 +54,21 @@ function sanitizeDeviceWithConnectivity(device: DeviceRecord) {
   };
 }
 
+function connectivityAuditSummary(deviceId: string) {
+  const report = getLatestDeviceConnectivityReport(deviceId);
+  if (!report) return null;
+  return {
+    ok: report.ok,
+    currentBaseUrl: report.currentBaseUrl,
+    healthOk: report.healthOk,
+    mobileShellOk: report.mobileShellOk,
+    websocketOk: report.websocketOk,
+    latencyMs: report.latencyMs,
+    error: report.error || null,
+    createdAt: report.createdAt,
+  };
+}
+
 function normalizeConnectivityReportPayload(body: any) {
   const steps = Array.isArray(body?.steps) ? body.steps.slice(0, 4) : [];
   const health = steps.find((step) => step?.id === "health");
@@ -96,6 +111,7 @@ function revokeDevice(device: DeviceRecord, actor: { type: string; id: string },
     publicKeyConfigured: Boolean(device.publicKey),
     credentialExpiresAt: device.accessTokenExpiresAt || null,
     lastSeenAt: device.lastSeenAt,
+    latestConnectivity: connectivityAuditSummary(device.id),
     wasOnline,
     revokedAt,
   }, actor.type, actor.id);
