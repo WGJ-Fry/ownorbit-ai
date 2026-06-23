@@ -1,4 +1,4 @@
-import type { OfflineMessageQueueSummary, OfflineQueuedMessage } from "./offlineMessageQueue";
+import { sanitizeOfflineMessageError, type OfflineMessageQueueSummary, type OfflineQueuedMessage } from "./offlineMessageQueue";
 
 function messageText(item: OfflineQueuedMessage) {
   const text = item.message.parts.map((part) => part.text).filter(Boolean).join("\n\n");
@@ -13,7 +13,7 @@ export function buildOfflineQueueBackupText(summary: OfflineMessageQueueSummary,
     `Pending: ${summary.pending}`,
     `Syncing: ${summary.syncing}`,
     `Failed: ${summary.failed}`,
-    summary.lastError ? `Last error: ${summary.lastError}` : "",
+    summary.lastError ? `Last error: ${sanitizeOfflineMessageError(summary.lastError)}` : "",
     summary.nextRetryAt ? `Next retry: ${new Date(summary.nextRetryAt).toISOString()}` : "",
     "",
     "Messages:",
@@ -26,7 +26,7 @@ export function buildOfflineQueueBackupText(summary: OfflineMessageQueueSummary,
       `#${index + 1} ${item.status.toUpperCase()} · attempts=${item.attempts}`,
       `Queued at: ${new Date(item.queuedAt).toISOString()}`,
       item.lastAttemptAt ? `Last attempt: ${new Date(item.lastAttemptAt).toISOString()}` : "",
-      item.lastError ? `Failure reason: ${item.lastError}` : "",
+      item.lastError ? `Failure reason: ${sanitizeOfflineMessageError(item.lastError)}` : "",
       "Content:",
       messageText(item),
     );

@@ -150,7 +150,7 @@ function normalizeQueueItem(item: any): OfflineQueuedMessage | null {
     lastAttemptAt: Number.isFinite(item.lastAttemptAt) ? item.lastAttemptAt : undefined,
     manualRetryCount: Number.isFinite(item.manualRetryCount) ? item.manualRetryCount : undefined,
     lastManualRetryAt: Number.isFinite(item.lastManualRetryAt) ? item.lastManualRetryAt : undefined,
-    lastError: typeof item.lastError === "string" ? item.lastError.slice(0, 500) : undefined,
+    lastError: typeof item.lastError === "string" ? sanitizeOfflineMessageError(item.lastError) : undefined,
   };
 }
 
@@ -399,6 +399,28 @@ export function classifyOfflineMessageFailure(error: unknown): OfflineMessageFai
   return "unknown";
 }
 
+export function sanitizeOfflineMessageError(error: unknown) {
+  const raw = error instanceof Error ? error.message : typeof error === "string" ? error : String(error || "Sync failed");
+  return raw
+    .slice(0, 500)
+    .replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+/gi, "$1 [redacted]")
+    .replace(/\b(?:github_pat_[A-Za-z0-9_]+|ghp_[A-Za-z0-9_]+|sk-[A-Za-z0-9_-]{12,}|AIza[0-9A-Za-z_-]{20,})\b/g, "[redacted-token]")
+    .replace(/([?&](?:token|key|api_key|apikey|access_token|auth|password|signature|sig|secret)=)[^&\s]+/gi, "$1[redacted]")
+    .replace(/\bhttps?:\/\/[^\s]+/gi, (value) => {
+      try {
+        const parsed = new URL(value);
+        parsed.username = "";
+        parsed.password = "";
+        for (const key of Array.from(parsed.searchParams.keys())) {
+          if (/token|key|api|auth|password|signature|sig|secret/i.test(key)) parsed.searchParams.set(key, "[redacted]");
+        }
+        return parsed.toString();
+      } catch {
+        return "[redacted-url]";
+      }
+    });
+}
+
 export function formatOfflineMessageQueueBytes(bytes: number | undefined) {
   if (!bytes) return "0 B";
   if (bytes < 1024) return `${bytes} B`;
@@ -513,7 +535,7 @@ export function markOfflineMessageSyncing(id: string) {
 }
 
 export function markOfflineMessageFailed(id: string, error: unknown) {
-  const message = error instanceof Error ? error.message : String(error || "Sync failed");
+  const message = sanitizeOfflineMessageError(error);
   writeQueue(readQueue().map((item) => (
     item.id === id
       ? { ...item, status: "failed", lastAttemptAt: Date.now(), lastError: message }

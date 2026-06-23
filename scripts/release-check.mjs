@@ -1599,6 +1599,9 @@ function checkAssets() {
     offlineQueueSource.includes("MAX_QUEUE_BYTES") &&
     offlineQueueSource.includes("MAX_QUEUE_ITEM_BYTES") &&
     offlineQueueSource.includes("trimQueueToBudget") &&
+    offlineQueueSource.includes("sanitizeOfflineMessageError") &&
+    offlineQueueBackupSource.includes("sanitizeOfflineMessageError") &&
+    offlineQueueTestSource.includes("offline queue failure reasons are redacted before persistence and export") &&
     offlineQueueSource.includes("msg_${(hash >>> 0).toString(36)}") &&
     offlineQueueSource.includes("Browser storage is near its limit")
   ) pass("offline queue UI uses localized status, retry timing, and storage budget protection");

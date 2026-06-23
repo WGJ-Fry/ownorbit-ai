@@ -218,6 +218,8 @@ test("offline message queue recovers interrupted sync and backs off failed retri
   assert.equal(queueModule.classifyOfflineMessageFailure("IndexedDB quota exceeded"), "size");
   assert.equal(queueModule.classifyOfflineMessageFailure("Previous sync was interrupted"), "interrupted");
   assert.equal(queueModule.classifyOfflineMessageFailure(""), "unknown");
+  assert.equal(queueModule.sanitizeOfflineMessageError("Authorization: Bearer abc.def.ghi"), "Authorization: Bearer [redacted]");
+  assert.equal(queueModule.sanitizeOfflineMessageError("fetch https://lifeos.example.com/api?token=secret&ok=1"), "fetch https://lifeos.example.com/api?token=%5Bredacted%5D&ok=1");
   assert.equal(queueModule.formatOfflineMessageQueueBytes(0), "0 B");
   assert.equal(queueModule.formatOfflineMessageQueueBytes(900), "900 B");
   assert.equal(queueModule.formatOfflineMessageQueueBytes(2_048), "2 KB");
@@ -231,6 +233,31 @@ test("offline message queue recovers interrupted sync and backs off failed retri
   assert.deepEqual(queueModule.getOfflineMessagesReadyToSync(failed.lastAttemptAt + 14_999).map((item) => item.id), [firstId]);
   assert.deepEqual(queueModule.getOfflineMessagesReadyToSync(failed.lastAttemptAt + 15_000).map((item) => item.id).sort(), [firstId, secondId].sort());
   assert.ok(postedMessages.length > afterStatusUpdatePosts);
+});
+
+test("offline queue failure reasons are redacted before persistence and export", async () => {
+  storage.clear();
+  dispatchedEvents = [];
+  postedMessages = [];
+  registeredSyncTags = [];
+  const queueModule = await import(`../src/services/offlineMessageQueue.ts?case=redacted-failure-${Date.now()}`);
+  const { buildOfflineQueueBackupText } = await import(`../src/services/offlineQueueBackup.ts?case=redacted-backup-${Date.now()}`);
+
+  const id = queueModule.enqueueOfflineMessage({ role: "user", parts: [{ text: "sync without leaking secrets" }] });
+  queueModule.markOfflineMessageFailed(id, new Error("POST https://user:pass@lifeos.example.com/api/chat?token=secret-token&ok=1 Authorization: Bearer abc.def.ghi github_pat_leaksecret"));
+  const [item] = queueModule.getOfflineMessageQueue();
+  const summary = queueModule.getOfflineMessageQueueSummary();
+  const backup = buildOfflineQueueBackupText(summary, [item]);
+
+  assert.equal(item.lastError.includes("secret-token"), false);
+  assert.equal(item.lastError.includes("abc.def.ghi"), false);
+  assert.equal(item.lastError.includes("github_pat_leaksecret"), false);
+  assert.match(item.lastError, /token=%5Bredacted%5D/);
+  assert.match(item.lastError, /Authorization: Bearer \[redacted\]/);
+  assert.equal(summary.lastError, item.lastError);
+  assert.equal(backup.includes("secret-token"), false);
+  assert.equal(backup.includes("abc.def.ghi"), false);
+  assert.equal(backup.includes("github_pat_leaksecret"), false);
 });
 
 test("single offline message retry and remove only change the selected queue item", async () => {
