@@ -4,6 +4,8 @@ import {
   DEFAULT_ALLOWED_SCHEMES,
   buildActionLogSourceSummary,
   buildShortcutUrl,
+  redactActionLabel,
+  redactActionSource,
   redactActionTarget,
   redactActionUrl,
   riskForScheme,
@@ -44,7 +46,10 @@ test("system action URL logs redact sensitive targets and query values", () => {
   assert.equal(redactActionTarget("+15551234567", "tel"), "[redacted phone]");
   assert.equal(redactActionTarget("user@example.test", "mailto"), "[redacted email]");
   assert.equal(redactActionTarget("https://example.test/path?token=abc", "https"), "https://example.test/path?token=[redacted]");
-  assert.equal(redactActionTarget("Open Maps", "maps"), "Open Maps");
+  assert.equal(redactActionTarget("Open Maps token=secret", "maps"), "Open Maps token=[redacted]");
+  assert.equal(redactActionSource("AI Agent token=secret phone +1 555 123 4567"), "AI Agent token=[redacted] phone [redacted-phone]");
+  assert.equal(redactActionLabel("Call +1 555 123 4567", "tel"), "Call [redacted-phone]");
+  assert.equal(redactActionLabel("Mail user@example.test token=secret", "mailto"), "Mail [redacted-email] token=[redacted]");
 });
 
 test("system action helpers classify risk and summarize params", () => {
@@ -105,9 +110,10 @@ test("system action storage normalizes whitelist, saved actions, and redacted lo
     [SYSTEM_ACTION_LOGS_STORAGE_KEY]: JSON.stringify([
       {
         id: "log-1",
-        label: "Call",
+        label: "Call +15551234567",
         url: "tel:+15551234567",
         scheme: "tel",
+        source: "AI Agent token=secret",
         status: "opened",
         risk: "high",
       },
@@ -128,11 +134,14 @@ test("system action storage normalizes whitelist, saved actions, and redacted lo
   const logs = loadSystemActionLogs(storage);
   assert.equal(logs.length, 1);
   assert.equal(logs[0].url, "tel:[redacted]");
+  assert.equal(logs[0].label, "Call [redacted-phone]");
+  assert.equal(logs[0].source, "AI Agent token=[redacted]");
   assert.equal(logs[0].target, "[redacted phone]");
   assert.equal(logs[0].paramsSummary, "-");
   assert.equal(writeSystemActionStorage(SYSTEM_ACTION_LOGS_STORAGE_KEY, logs, storage), true);
   assert.match(values[SYSTEM_ACTION_LOGS_STORAGE_KEY], /tel:\[redacted\]/);
   assert.doesNotMatch(values[SYSTEM_ACTION_LOGS_STORAGE_KEY], /\+15551234567/);
+  assert.doesNotMatch(values[SYSTEM_ACTION_LOGS_STORAGE_KEY], /secret/);
 });
 
 test("system action storage filters unsafe saved launchers before UI rendering", () => {

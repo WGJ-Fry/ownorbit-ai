@@ -1637,6 +1637,8 @@ function checkAssets() {
     translationsSource.includes("actions.launcherRiskLine") &&
     translationsSource.includes("actions.sourceSummaryTitle") &&
     systemActionsServiceSource.includes("buildActionLogSourceSummary") &&
+    systemActionsServiceSource.includes("redactActionSource") &&
+    systemActionsServiceSource.includes("redactActionLabel") &&
     systemActionsSource.includes("loadAllowedUrlSchemes") &&
     systemActionsSource.includes("buildActionLogSourceSummary(actionLogs)") &&
     systemActionsSource.includes("writeSystemActionStorage") &&
@@ -1648,8 +1650,11 @@ function checkAssets() {
     systemActionStorageSource.includes("BLOCKED_URL_SCHEMES") &&
     systemActionStorageSource.includes("loadSystemActionLogs") &&
     systemActionStorageSource.includes("normalizeSystemActionLog") &&
+    systemActionStorageSource.includes("redactActionSource(log.source") &&
+    systemActionStorageSource.includes("redactActionLabel(log.label") &&
     systemActionsTestSource.includes("system action storage loads safe defaults") &&
     systemActionsTestSource.includes("system action storage normalizes whitelist") &&
+    systemActionsTestSource.includes("AI Agent token=[redacted]") &&
     systemActionsTestSource.includes("system action source summary redacts and aggregates risky origins") &&
     systemActionsTestSource.includes("filters unsafe saved launchers before UI rendering") &&
     frontendSmokeTestSource.includes("actionLogSummary") &&

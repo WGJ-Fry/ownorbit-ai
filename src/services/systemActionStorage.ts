@@ -3,6 +3,8 @@ import {
   DEFAULT_ALLOWED_SCHEMES,
   getUrlScheme,
   normalizeAllowedUrlSchemes,
+  redactActionLabel,
+  redactActionSource,
   redactActionTarget,
   redactActionUrl,
   summarizeActionParams,
@@ -46,10 +48,10 @@ export function normalizeSystemActionLog(log: Partial<SystemActionLog>): SystemA
   if (!log || !log.url || !log.label || !log.scheme || !log.status || !log.risk) return null;
   return {
     id: log.id || `action-log-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    label: log.label,
+    label: redactActionLabel(log.label, log.scheme),
     url: redactActionUrl(log.url),
     scheme: log.scheme,
-    source: log.source || "Manual action",
+    source: redactActionSource(log.source || "Manual action"),
     target: redactActionTarget(log.target || log.url, log.scheme),
     paramsSummary: log.paramsSummary || summarizeActionParams(log.url),
     status: log.status,

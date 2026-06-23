@@ -62,14 +62,36 @@ export function redactActionTarget(target: string, scheme: string) {
   if (["tel", "sms"].includes(normalizedScheme)) return "[redacted phone]";
   if (normalizedScheme === "mailto") return "[redacted email]";
   if (getUrlScheme(trimmed)) return redactActionUrl(trimmed);
-  return trimmed.slice(0, 160) || "[redacted]";
+  return redactSensitiveActionText(trimmed).slice(0, 160) || "[redacted]";
 }
 
-function safeActionSource(source: unknown) {
+export function redactSensitiveActionText(value: unknown) {
+  const text = typeof value === "string" ? value.trim() : "";
+  if (!text) return "";
+  return text
+    .replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+/gi, "$1 [redacted]")
+    .replace(/\b(?:github_pat_[A-Za-z0-9_]+|ghp_[A-Za-z0-9_]+|sk-[A-Za-z0-9_-]{12,}|AIza[0-9A-Za-z_-]{20,})\b/g, "[redacted-token]")
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[redacted-email]")
+    .replace(/(?:\+?\d[\d\s().-]{6,}\d)/g, "[redacted-phone]")
+    .replace(/(bearer|token|key|secret|password)=\S+/gi, "$1=[redacted]");
+}
+
+export function redactActionSource(source: unknown) {
   const value = typeof source === "string" ? source.trim() : "";
   if (!value) return "Unknown";
   if (getUrlScheme(value)) return redactActionUrl(value);
-  return value.replace(/(bearer|token|key|secret|password)=\S+/gi, "$1=[redacted]").slice(0, 80);
+  return redactSensitiveActionText(value).slice(0, 80);
+}
+
+export function redactActionLabel(label: unknown, scheme = "") {
+  const value = typeof label === "string" ? label.trim() : "";
+  if (!value) return "Action";
+  if (getUrlScheme(value)) return redactActionUrl(value);
+  const normalizedScheme = scheme.trim().toLowerCase();
+  const redacted = redactSensitiveActionText(value);
+  if (["tel", "sms"].includes(normalizedScheme)) return redacted.replace(/\+?\d[\d\s().-]{2,}/g, "[redacted-phone]").slice(0, 80);
+  if (normalizedScheme === "mailto") return redacted.replace(/\S+@\S+/g, "[redacted-email]").slice(0, 80);
+  return redacted.slice(0, 80);
 }
 
 export function buildActionLogSourceSummary(logs: Array<{ source?: unknown; status?: unknown; risk?: unknown }>) {
@@ -78,7 +100,7 @@ export function buildActionLogSourceSummary(logs: Array<{ source?: unknown; stat
   const highRiskSources = new Set<string>();
 
   for (const log of logs) {
-    const source = safeActionSource(log.source);
+    const source = redactActionSource(log.source);
     sourceCounts.set(source, (sourceCounts.get(source) || 0) + 1);
     if (log.status === "blocked") blockedSources.add(source);
     if (log.risk === "high") highRiskSources.add(source);
