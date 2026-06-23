@@ -1,7 +1,7 @@
-import { MessageCircle, Network, Smartphone } from "lucide-react";
+import { ClipboardCheck, MessageCircle, Network, Smartphone } from "lucide-react";
 import { useI18n } from "../../i18n/I18nProvider";
 
-export default function OnboardingHandoffCard() {
+export default function OnboardingHandoffCard({ onCopySummary }: { onCopySummary?: () => void }) {
   const { t } = useI18n();
   const items = [
     {
@@ -32,6 +32,15 @@ export default function OnboardingHandoffCard() {
       <div className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-200/80">{t("onboarding.handoffEyebrow")}</div>
       <h2 className="mt-2 text-xl font-bold text-zinc-50">{t("onboarding.handoffTitle")}</h2>
       <p className="mt-2 max-w-3xl text-sm leading-relaxed text-emerald-50/80">{t("onboarding.handoffBody")}</p>
+      {onCopySummary ? (
+        <button
+          onClick={onCopySummary}
+          className="mt-4 inline-flex items-center gap-2 rounded-xl border border-emerald-300/20 bg-[#060a10]/35 px-4 py-3 text-sm font-bold text-emerald-100 transition-colors hover:bg-white/[0.06]"
+        >
+          <ClipboardCheck className="h-4 w-4" />
+          {t("onboarding.copyHandoffSummary")}
+        </button>
+      ) : null}
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         {items.map((item) => (
           <a key={item.title} href={item.href} className="rounded-2xl border border-white/[0.08] bg-[#060a10]/45 p-4 text-sm text-zinc-200 transition-colors hover:bg-white/[0.06]">

@@ -8,6 +8,7 @@ import { useI18n } from "../../i18n/I18nProvider";
 import OnboardingHandoffCard from "./OnboardingHandoffCard";
 import OnboardingMobileCard from "./OnboardingMobileCard";
 import OnboardingRecoveryCard from "./OnboardingRecoveryCard";
+import { buildOnboardingHandoffSummary } from "../../services/onboardingHandoffSummary";
 
 const providerLabels: Record<AiProviderId, string> = {
   gemini: "Google Gemini",
@@ -208,6 +209,23 @@ export default function AdminOnboardingPage() {
     }
   };
 
+  const handleCopyHandoffSummary = async () => {
+    const summary = buildOnboardingHandoffSummary({
+      providers,
+      backups,
+      backupSchedule,
+      devices,
+      diagnostics,
+      onboarding,
+    });
+    try {
+      await navigator.clipboard.writeText(summary);
+      setStatus(t("onboarding.handoffSummaryCopied"));
+    } catch (error: any) {
+      setStatus(error.message || t("onboarding.handoffSummaryCopyFailed"));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#060a10] p-5 text-zinc-100">
       <main className="mx-auto flex min-h-[calc(100vh-40px)] max-w-5xl flex-col justify-center">
@@ -243,7 +261,7 @@ export default function AdminOnboardingPage() {
 
         {status ? <div className="mb-5 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 text-sm text-zinc-300">{status}</div> : null}
 
-        {onboarding?.completed ? <OnboardingHandoffCard /> : null}
+        {onboarding?.completed ? <OnboardingHandoffCard onCopySummary={handleCopyHandoffSummary} /> : null}
 
         {onboarding ? (
           <section className="mb-5 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">

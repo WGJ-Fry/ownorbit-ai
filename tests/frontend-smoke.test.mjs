@@ -325,6 +325,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.finishBlocked/);
   assert.match(onboardingSource, /onboarding\.finishReady/);
   assert.match(onboardingSource, /onboarding\.firstChatVerificationBody/);
+  assert.match(onboardingSource, /buildOnboardingHandoffSummary/);
+  assert.match(onboardingSource, /onboarding\.handoffSummaryCopied/);
   assert.match(onboardingSource, /completedSteps} \/ 4/);
   const onboardingRecoverySource = await readFile(path.join(rootDir, "src", "pages", "admin", "OnboardingRecoveryCard.tsx"), "utf8");
   assert.match(onboardingRecoverySource, /onboarding\.copyLocalAddress/);
@@ -341,8 +343,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /onboarding\.remoteReadinessTitle/);
   const onboardingHandoffSource = await readFile(path.join(rootDir, "src", "pages", "admin", "OnboardingHandoffCard.tsx"), "utf8");
   assert.match(onboardingHandoffSource, /onboarding\.handoffChatTitle/);
+  assert.match(onboardingHandoffSource, /onboarding\.copyHandoffSummary/);
   assert.match(onboardingHandoffSource, /\/admin\/settings#mobile-connect/);
   assert.match(translationsSource, /onboarding\.handoffTitle/);
+  assert.match(translationsSource, /onboarding\.handoffSummaryCopied/);
   assert.match(translationsSource, /开启每日自动备份/);
   assert.match(translationsSource, /长期使用建议开启自动备份/);
   assert.match(translationsSource, /还不能完成向导/);

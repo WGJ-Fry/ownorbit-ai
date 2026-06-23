@@ -568,6 +568,8 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding.finishBlocked") &&
     adminOnboardingSource.includes("onboarding.finishReady") &&
     adminOnboardingSource.includes("onboarding.firstChatVerificationBody") &&
+    adminOnboardingSource.includes("buildOnboardingHandoffSummary") &&
+    adminOnboardingSource.includes("onboarding.handoffSummaryCopied") &&
     adminOnboardingSource.includes("OnboardingMobileCard") &&
     adminOnboardingSource.includes("OnboardingRecoveryCard") &&
     adminOnboardingSource.includes("OnboardingHandoffCard") &&
@@ -579,7 +581,11 @@ function checkAssets() {
     onboardingRecoverySource.includes("onboarding.openLogsFolder") &&
     onboardingRecoverySource.includes("onboarding.exportDiagnostics") &&
     onboardingHandoffSource.includes("onboarding.handoffChatTitle") &&
+    onboardingHandoffSource.includes("onboarding.copyHandoffSummary") &&
     onboardingHandoffSource.includes("/admin/settings#mobile-connect") &&
+    exists("src/services/onboardingHandoffSummary.ts") &&
+    exists("tests/onboarding-handoff-summary.test.mjs") &&
+    packageJson.scripts.test.includes("tests/onboarding-handoff-summary.test.mjs") &&
     translationsSource.includes("onboarding.enableDailyBackup") &&
     translationsSource.includes("onboarding.longTermBackupReminderBody") &&
     translationsSource.includes("onboarding.remoteReadinessTitle") &&
@@ -587,6 +593,7 @@ function checkAssets() {
     translationsSource.includes("onboarding.finishBlocked") &&
     translationsSource.includes("onboarding.finishReady") &&
     translationsSource.includes("onboarding.firstChatVerificationBody") &&
+    translationsSource.includes("onboarding.handoffSummaryCopied") &&
     translationsSource.includes("onboarding.handoffTitle") &&
     translationsSource.includes("Set as Default Chat Provider")
   ) pass("first-launch onboarding has authoritative status, completion, audit, and login routing");
