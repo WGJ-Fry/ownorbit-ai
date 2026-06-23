@@ -668,6 +668,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileActionsSource, /actions\.logLineOne/);
   assert.match(mobileActionsSource, /actions\.logLineTwo/);
   assert.match(mobileActionsSource, /actions\.launcherRiskLine/);
+  assert.match(mobileActionsSource, /redactActionUrl\(action\.url\)/);
   assert.match(mobileActionsSource, /summarizeActionParams\(action\.url\)/);
   assert.match(mobileActionsSource, /riskLabel\(latestActionLog\.risk, t\)/);
   assert.match(mobileActionsSource, /loadAllowedUrlSchemes/);
@@ -680,6 +681,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
 
   const systemActionStorageSource = await readFile(path.join(rootDir, "src", "services", "systemActionStorage.ts"), "utf8");
   assert.match(systemActionStorageSource, /loadSavedSystemActions/);
+  assert.match(systemActionStorageSource, /normalizeSavedSystemAction/);
+  assert.match(systemActionStorageSource, /BLOCKED_URL_SCHEMES/);
   assert.match(systemActionStorageSource, /loadSystemActionLogs/);
   assert.match(systemActionStorageSource, /normalizeSystemActionLog/);
   assert.match(systemActionStorageSource, /catch/);

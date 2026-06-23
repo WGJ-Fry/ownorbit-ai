@@ -1,5 +1,7 @@
 import {
+  BLOCKED_URL_SCHEMES,
   DEFAULT_ALLOWED_SCHEMES,
+  getUrlScheme,
   normalizeAllowedUrlSchemes,
   redactActionTarget,
   redactActionUrl,
@@ -64,8 +66,23 @@ export function loadSavedSystemActions(storage?: Pick<Storage, "getItem">): Save
   const actions = readJsonStorage<unknown>(SYSTEM_ACTIONS_STORAGE_KEY, [], storage);
   if (!Array.isArray(actions)) return [];
   return actions
-    .filter((action): action is SavedSystemAction => Boolean(action && typeof action === "object" && typeof action.id === "string" && typeof action.name === "string" && typeof action.url === "string"))
+    .map(normalizeSavedSystemAction)
+    .filter(Boolean)
     .slice(0, 12);
+}
+
+export function normalizeSavedSystemAction(action: unknown): SavedSystemAction | null {
+  if (!action || typeof action !== "object") return null;
+  const raw = action as Partial<SavedSystemAction>;
+  if (typeof raw.id !== "string" || typeof raw.name !== "string" || typeof raw.url !== "string") return null;
+  const url = raw.url.trim();
+  const scheme = getUrlScheme(url);
+  if (!scheme || BLOCKED_URL_SCHEMES.has(scheme)) return null;
+  return {
+    id: raw.id.trim().slice(0, 80) || `action-${Date.now()}`,
+    name: raw.name.trim().slice(0, 40) || "Saved Action",
+    url: url.slice(0, 600),
+  };
 }
 
 export function loadSystemActionLogs(storage?: Pick<Storage, "getItem">): SystemActionLog[] {

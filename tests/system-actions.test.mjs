@@ -117,3 +117,25 @@ test("system action storage normalizes whitelist, saved actions, and redacted lo
   assert.match(values[SYSTEM_ACTION_LOGS_STORAGE_KEY], /tel:\[redacted\]/);
   assert.doesNotMatch(values[SYSTEM_ACTION_LOGS_STORAGE_KEY], /\+15551234567/);
 });
+
+test("system action storage filters unsafe saved launchers before UI rendering", () => {
+  const values = {
+    [SYSTEM_ACTIONS_STORAGE_KEY]: JSON.stringify([
+      { id: "safe", name: "Personal phone", url: "tel:+15551234567" },
+      { id: "blocked", name: "Script", url: "javascript:alert(1)" },
+      { id: "missing", name: "Missing scheme", url: "//example.test" },
+      { id: "long", name: "x".repeat(80), url: `sms:+15551234567?body=${"secret".repeat(200)}` },
+    ]),
+  };
+  const storage = {
+    getItem(key) {
+      return values[key] || null;
+    },
+  };
+
+  const actions = loadSavedSystemActions(storage);
+  assert.equal(actions.length, 2);
+  assert.equal(actions[0].url, "tel:+15551234567");
+  assert.equal(actions[1].name.length, 40);
+  assert.equal(actions[1].url.length, 600);
+});

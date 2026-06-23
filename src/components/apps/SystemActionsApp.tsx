@@ -6,6 +6,7 @@ import {
   buildShortcutUrl,
   getUrlScheme,
   normalizeAllowedUrlSchemes,
+  redactActionUrl,
   riskForScheme,
   summarizeActionParams,
 } from "../../services/systemActions";
@@ -375,11 +376,12 @@ export default function SystemActionsApp({ initialAction }: SystemActionsAppProp
             {savedActions.map((action) => {
               const scheme = getUrlScheme(action.url) || t("actions.unknown");
               const risk = riskForScheme(scheme);
+              const redactedUrl = redactActionUrl(action.url);
               return (
                 <div key={action.id} className="flex items-center gap-2 rounded-xl border border-white/[0.05] bg-black/20 p-2">
                   <button onClick={() => openUrl(action.url, allowedSchemes, { ...localizedUrlOptions, confirm: true, label: action.name, source: t("actions.savedLaunchers"), target: action.name, onLog: appendActionLog })} className="min-w-0 flex-1 text-left">
                     <div className="truncate text-xs font-bold text-zinc-100">{action.name}</div>
-                    <div className="truncate text-[10px] text-zinc-500">{action.url}</div>
+                    <div className="truncate text-[10px] text-zinc-500">{redactedUrl}</div>
                     <div className="mt-1 truncate text-[10px] text-zinc-500">
                       {t("actions.launcherRiskLine", { scheme, risk: riskLabel(risk, t), params: summarizeActionParams(action.url) })}
                     </div>
