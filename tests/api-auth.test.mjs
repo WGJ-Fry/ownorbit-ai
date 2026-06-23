@@ -997,6 +997,10 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(typeof diagnosticExportAudit.metadata.remoteAcceptanceHasRealWorldEvidence, "boolean");
   assert.equal(typeof diagnosticExportAudit.metadata.remoteAcceptancePassed, "number");
   assert.equal(typeof diagnosticExportAudit.metadata.remoteAcceptanceManualRequired, "number");
+  assert.equal(typeof diagnosticExportAudit.metadata.systemActionLogCount, "number");
+  assert.equal(typeof diagnosticExportAudit.metadata.systemActionBlockedCount, "number");
+  assert.equal(typeof diagnosticExportAudit.metadata.systemActionHighRiskCount, "number");
+  assert.equal(typeof diagnosticExportAudit.metadata.systemActionSourceCount, "number");
   assert.equal(diagnosticExportAudit.metadata.securityOverall, "warning");
   assert.equal(typeof diagnosticExportAudit.metadata.securityCriticalCount, "number");
   assert.equal(typeof diagnosticExportAudit.metadata.securityWarningCount, "number");

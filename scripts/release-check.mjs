@@ -1942,6 +1942,8 @@ function checkAssets() {
     adminRoutesSource.includes("databaseRowTotal") &&
     adminRoutesSource.includes("securityCriticalCount") &&
     adminRoutesSource.includes("remoteAcceptanceManualRequired") &&
+    adminRoutesSource.includes("systemActionHighRiskCount") &&
+    adminRoutesSource.includes("systemActionSourceCount") &&
     diagnosticBundleSource.includes("summarizeAuditMetadata") &&
     diagnosticBundleSource.includes("metadataSummary") &&
     diagnosticBundleTestSource.includes("metadataSummary.localPath") &&
@@ -1952,7 +1954,9 @@ function checkAssets() {
     apiAuthTestSource.includes("fullExportAudit.metadata.counts.auditLogs") &&
     apiAuthTestSource.includes("scopedExportAudit.metadata.counts.auditLogs") &&
     apiAuthTestSource.includes("diagnosticExportAudit.metadata.databaseRowTotal") &&
-    apiAuthTestSource.includes("diagnosticExportAudit.metadata.securityCriticalCount")
+    apiAuthTestSource.includes("diagnosticExportAudit.metadata.securityCriticalCount") &&
+    apiAuthTestSource.includes("diagnosticExportAudit.metadata.systemActionHighRiskCount") &&
+    apiAuthTestSource.includes("diagnosticExportAudit.metadata.systemActionSourceCount")
   ) pass("high-risk AI key, device, backup, data export, and diagnostic exports include detailed redacted audit metadata");
   else warn("high-risk AI key, device, backup, data export, or diagnostic export audit metadata is too shallow or lacks tests");
 
