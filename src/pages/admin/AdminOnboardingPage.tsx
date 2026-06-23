@@ -251,6 +251,11 @@ export default function AdminOnboardingPage() {
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-cyan-50/85">
                 {nextStep ? localizedStepMeta(nextStep.id, nextStep.done).message : t("onboarding.doneStatus")}
               </p>
+              {!nextStep ? (
+                <div className="mt-3 rounded-2xl border border-white/[0.12] bg-[#060a10]/35 p-3 text-xs leading-relaxed text-cyan-50/80">
+                  {t("onboarding.firstChatVerificationBody")}
+                </div>
+              ) : null}
               <div className="mt-4 flex flex-wrap gap-3">
                 <a
                   href={nextStep?.actionPath || "/chat"}

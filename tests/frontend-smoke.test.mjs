@@ -323,6 +323,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /incompleteStepLabels/);
   assert.match(onboardingSource, /onboarding\.finishBlocked/);
   assert.match(onboardingSource, /onboarding\.finishReady/);
+  assert.match(onboardingSource, /onboarding\.firstChatVerificationBody/);
   assert.match(onboardingSource, /completedSteps} \/ 4/);
   const onboardingRecoverySource = await readFile(path.join(rootDir, "src", "pages", "admin", "OnboardingRecoveryCard.tsx"), "utf8");
   assert.match(onboardingRecoverySource, /onboarding\.copyLocalAddress/);
@@ -340,7 +341,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /开启每日自动备份/);
   assert.match(translationsSource, /长期使用建议开启自动备份/);
   assert.match(translationsSource, /还不能完成向导/);
+  assert.match(translationsSource, /进入聊天后先发送一条测试消息/);
   assert.match(translationsSource, /The guide cannot be finished yet/);
+  assert.match(translationsSource, /send one test message first/);
   assert.match(translationsSource, /打开日志文件夹/);
   assert.match(translationsSource, /导出诊断包/);
   assert.match(translationsSource, /必须处理/);
