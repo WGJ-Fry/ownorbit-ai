@@ -1698,12 +1698,18 @@ function checkAssets() {
   ) pass("admin diagnostic bundle includes redacted release, remote health, and acceptance evidence");
   else warn("admin diagnostic bundle lacks release/remote acceptance metadata or coverage");
   const configDiagnosticsPanelSource = exists("src/pages/admin/settings/ConfigDiagnosticsPanel.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/ConfigDiagnosticsPanel.tsx"), "utf8") : "";
+  const releaseReadinessSummarySource = exists("src/pages/admin/settings/ReleaseReadinessSummary.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/ReleaseReadinessSummary.tsx"), "utf8") : "";
   if (
     adminRoutesSource.includes("release:") &&
     adminRoutesSource.includes("getReleaseDiagnostics()") &&
     configDiagnosticsPanelSource.includes("diagnostics.releasePackage") &&
+    configDiagnosticsPanelSource.includes("ReleaseReadinessSummary") &&
     configDiagnosticsPanelSource.includes("diagnostics.release.manifestAvailable") &&
     configDiagnosticsPanelSource.includes("diagnostics.release.checksumAvailable") &&
+    releaseReadinessSummarySource.includes("releaseReadyTitle") &&
+    releaseReadinessSummarySource.includes("releaseBlockedTitle") &&
+    releaseReadinessSummarySource.includes("release.artifactAvailable") &&
+    releaseReadinessSummarySource.includes("release.artifactCount > 0") &&
     configDiagnosticsPanelSource.includes("backupSchedule.enabled") &&
     configDiagnosticsPanelSource.includes("diagnostics.autoBackup") &&
     configDiagnosticsPanelSource.includes("securityFixHref") &&
@@ -1716,6 +1722,8 @@ function checkAssets() {
     configDiagnosticsPanelSource.includes('securityItemText(item, "label"') &&
     configDiagnosticsPanelSource.includes('securityItemText(item, "action"') &&
     translationsSource.includes("diagnostics.releasePackage") &&
+    translationsSource.includes("diagnostics.releaseReadyTitle") &&
+    translationsSource.includes("diagnostics.releaseBlockedTitle") &&
     translationsSource.includes("diagnostics.autoBackup") &&
     translationsSource.includes("diagnostics.fixAction") &&
     translationsSource.includes("diagnostics.security.action.backup") &&

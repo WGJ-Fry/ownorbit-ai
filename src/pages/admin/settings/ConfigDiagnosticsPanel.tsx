@@ -2,6 +2,7 @@ import { ArrowRight, KeyRound, ShieldAlert } from "lucide-react";
 import type { ConfigDiagnostics } from "../../../services/lifeosApi";
 import { useI18n } from "../../../i18n/I18nProvider";
 import DiagnosticCard from "./DiagnosticCard";
+import ReleaseReadinessSummary from "./ReleaseReadinessSummary";
 
 function formatAiSource(diagnostics: ConfigDiagnostics, t: ReturnType<typeof useI18n>["t"]) {
   if (diagnostics.ai.source === "system_secure_store") return t("diagnostics.source.system");
@@ -85,6 +86,7 @@ export default function ConfigDiagnosticsPanel({ diagnostics }: { diagnostics: C
           recommendations={diagnostics.release.recommendations}
         />
       </div>
+      <ReleaseReadinessSummary release={diagnostics.release} />
       <div className="mt-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm font-bold">

@@ -1007,10 +1007,15 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /普通备份已排除敏感密钥/);
 
   const configDiagnosticsPanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "ConfigDiagnosticsPanel.tsx"), "utf8");
+  const releaseReadinessSummarySource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "ReleaseReadinessSummary.tsx"), "utf8");
   const adminPasswordPanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "AdminPasswordPanel.tsx"), "utf8");
   assert.match(configDiagnosticsPanelSource, /diagnostics\.releasePackage/);
+  assert.match(configDiagnosticsPanelSource, /ReleaseReadinessSummary/);
   assert.match(configDiagnosticsPanelSource, /diagnostics\.release\.manifestAvailable/);
   assert.match(configDiagnosticsPanelSource, /diagnostics\.release\.checksumAvailable/);
+  assert.match(releaseReadinessSummarySource, /releaseReadyTitle/);
+  assert.match(releaseReadinessSummarySource, /releaseBlockedTitle/);
+  assert.match(releaseReadinessSummarySource, /release\.artifactAvailable/);
   assert.match(configDiagnosticsPanelSource, /latestArtifact/);
   assert.match(configDiagnosticsPanelSource, /backupSchedule\.enabled/);
   assert.match(configDiagnosticsPanelSource, /diagnostics\.autoBackup/);
@@ -1027,6 +1032,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(adminPasswordPanelSource, /newPassword\.length >= 12/);
   assert.match(adminPasswordPanelSource, /newPassword\.length < 12/);
   assert.match(translationsSource, /发布包/);
+  assert.match(translationsSource, /发布资产可下载且可校验/);
+  assert.match(translationsSource, /Do Not Claim Public Downloads Yet/);
   assert.match(translationsSource, /自动备份/);
   assert.match(translationsSource, /去处理/);
   assert.match(translationsSource, /公网访问、升级或迁移前先创建一次备份/);
