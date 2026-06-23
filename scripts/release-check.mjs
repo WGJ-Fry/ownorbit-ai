@@ -1465,6 +1465,9 @@ function checkAssets() {
   if (
     systemActionsSource.includes("actions.permissionCenter") &&
     systemActionsSource.includes("actionLogSummary") &&
+    systemActionsSource.includes("clearActionLogs") &&
+    systemActionsSource.includes("actions.confirmClearLogs") &&
+    systemActionsSource.includes("highRisk: actionLogSummary.highRisk") &&
     systemActionsSource.includes("ActionMetric") &&
     systemActionsSource.includes("actions.clearLogs") &&
     systemActionsSource.includes("actions.latestRecord") &&
@@ -1474,6 +1477,7 @@ function checkAssets() {
     systemActionsSource.includes("riskLabel(latestActionLog.risk, t)") &&
     translationsSource.includes("actions.permissionCenter") &&
     translationsSource.includes("actions.clearLogs") &&
+    translationsSource.includes("actions.confirmClearLogs") &&
     translationsSource.includes("actions.launcherRiskLine") &&
     systemActionsSource.includes("loadAllowedUrlSchemes") &&
     systemActionsSource.includes("writeSystemActionStorage") &&
@@ -1486,6 +1490,7 @@ function checkAssets() {
     systemActionsTestSource.includes("system action storage loads safe defaults") &&
     systemActionsTestSource.includes("system action storage normalizes whitelist") &&
     frontendSmokeTestSource.includes("actionLogSummary") &&
+    frontendSmokeTestSource.includes("actions\\.confirmClearLogs") &&
     frontendSmokeTestSource.includes("actions\\.launcherRiskLine") &&
     frontendSmokeTestSource.includes("actions\\.clearLogs")
   ) pass("mobile action permission center summarizes, clears, and audits local app launches");

@@ -122,6 +122,17 @@ export default function SystemActionsApp({ initialAction }: SystemActionsAppProp
     ].slice(0, 20));
   };
 
+  const clearActionLogs = () => {
+    if (actionLogs.length === 0) return;
+    if (!window.confirm(t("actions.confirmClearLogs", {
+      count: actionLogs.length,
+      opened: actionLogSummary.opened,
+      blocked: actionLogSummary.blocked,
+      highRisk: actionLogSummary.highRisk,
+    }))) return;
+    setActionLogs([]);
+  };
+
   useEffect(() => {
     writeSystemActionStorage(SYSTEM_ACTIONS_STORAGE_KEY, savedActions);
     if (hydrated) void setClientState("lifeos_system_actions", savedActions);
@@ -193,7 +204,7 @@ export default function SystemActionsApp({ initialAction }: SystemActionsAppProp
               {t("actions.loggedCount", { count: actionLogs.length })}
             </span>
             {actionLogs.length > 0 ? (
-              <button onClick={() => setActionLogs([])} className="rounded-full border border-red-300/20 bg-red-500/10 px-2.5 py-1 text-[10px] font-bold text-red-100">
+              <button onClick={clearActionLogs} className="rounded-full border border-red-300/20 bg-red-500/10 px-2.5 py-1 text-[10px] font-bold text-red-100">
                 {t("actions.clearLogs")}
               </button>
             ) : null}
@@ -390,7 +401,7 @@ export default function SystemActionsApp({ initialAction }: SystemActionsAppProp
         <section className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3">
           <div className="mb-2 flex items-center justify-between gap-2">
             <h3 className="text-sm font-bold">{t("actions.recentLogs")}</h3>
-            <button onClick={() => setActionLogs([])} className="text-[11px] font-bold text-zinc-500 hover:text-zinc-200">
+            <button onClick={clearActionLogs} className="text-[11px] font-bold text-zinc-500 hover:text-zinc-200">
               {t("actions.clear")}
             </button>
           </div>

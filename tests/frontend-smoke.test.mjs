@@ -629,6 +629,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   const mobileActionsSource = await readFile(path.join(rootDir, "src", "components", "apps", "SystemActionsApp.tsx"), "utf8");
   assert.match(mobileActionsSource, /actions\.loggedCount/);
   assert.match(mobileActionsSource, /actionLogSummary/);
+  assert.match(mobileActionsSource, /clearActionLogs/);
+  assert.match(mobileActionsSource, /actions\.confirmClearLogs/);
+  assert.match(mobileActionsSource, /highRisk: actionLogSummary\.highRisk/);
   assert.match(mobileActionsSource, /ActionMetric/);
   assert.match(mobileActionsSource, /actions\.clearLogs/);
   assert.match(mobileActionsSource, /actions\.metricHighRisk/);
@@ -642,6 +645,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileActionsSource, /writeSystemActionStorage/);
   assert.match(translationsSource, /动作权限中心/);
   assert.match(translationsSource, /清空记录/);
+  assert.match(translationsSource, /清空动作执行记录/);
   assert.doesNotMatch(mobileActionsSource, /localStorage\.getItem\("lifeos_allowed_url_schemes"/);
   assert.doesNotMatch(mobileActionsSource, /localStorage\.setItem\("lifeos_system_actions"/);
 
