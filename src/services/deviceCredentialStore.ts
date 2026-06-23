@@ -14,10 +14,20 @@ export type StoredDeviceCredential = {
   accessTokenExpiresAt?: number;
 };
 
+export type DeviceCredentialExpiryStatus = {
+  state: "long_lived_signature" | "valid" | "expiring_soon" | "expired" | "unknown";
+  tone: "ok" | "warn" | "risk";
+  expiresAt: number | null;
+  msUntilExpiry: number | null;
+  rotationRecommended: boolean;
+  rebindRecommended: boolean;
+};
+
 const DB_NAME = "lifeos-device-keys";
 const STORE_NAME = "credentials";
 const CREDENTIAL_ID = "primary";
 const LEGACY_LOCAL_STORAGE_KEY = "lifeos_device_credential";
+const EXPIRING_SOON_MS = 7 * 24 * 60 * 60 * 1000;
 
 let credentialCache: StoredDeviceCredential | null | undefined;
 let hydrationPromise: Promise<StoredDeviceCredential | null> | null = null;
@@ -50,6 +60,77 @@ function normalizeCredential(value: unknown): StoredDeviceCredential | null {
   if (!credential?.device?.id) return null;
   if (credential.accessTokenExpiresAt && credential.accessTokenExpiresAt <= Date.now()) return null;
   return credential;
+}
+
+export function getDeviceCredentialExpiryStatus(
+  credential: StoredDeviceCredential | null | undefined,
+  now = Date.now(),
+): DeviceCredentialExpiryStatus {
+  if (!credential) {
+    return {
+      state: "unknown",
+      tone: "warn",
+      expiresAt: null,
+      msUntilExpiry: null,
+      rotationRecommended: false,
+      rebindRecommended: true,
+    };
+  }
+
+  if (credential.authMethod === "signature" && !credential.accessToken) {
+    return {
+      state: "long_lived_signature",
+      tone: "ok",
+      expiresAt: credential.accessTokenExpiresAt || null,
+      msUntilExpiry: credential.accessTokenExpiresAt ? credential.accessTokenExpiresAt - now : null,
+      rotationRecommended: false,
+      rebindRecommended: false,
+    };
+  }
+
+  const expiresAt = credential.accessTokenExpiresAt || null;
+  if (!expiresAt) {
+    return {
+      state: "unknown",
+      tone: "warn",
+      expiresAt: null,
+      msUntilExpiry: null,
+      rotationRecommended: true,
+      rebindRecommended: credential.authMethod !== "signature",
+    };
+  }
+
+  const msUntilExpiry = expiresAt - now;
+  if (msUntilExpiry <= 0) {
+    return {
+      state: "expired",
+      tone: "risk",
+      expiresAt,
+      msUntilExpiry,
+      rotationRecommended: false,
+      rebindRecommended: true,
+    };
+  }
+
+  if (msUntilExpiry <= EXPIRING_SOON_MS) {
+    return {
+      state: "expiring_soon",
+      tone: "warn",
+      expiresAt,
+      msUntilExpiry,
+      rotationRecommended: true,
+      rebindRecommended: credential.authMethod !== "signature",
+    };
+  }
+
+  return {
+    state: "valid",
+    tone: "ok",
+    expiresAt,
+    msUntilExpiry,
+    rotationRecommended: false,
+    rebindRecommended: false,
+  };
 }
 
 function openCredentialDb(): Promise<IDBDatabase> {

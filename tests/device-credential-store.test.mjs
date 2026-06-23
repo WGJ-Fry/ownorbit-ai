@@ -178,6 +178,45 @@ test("device credential store never writes new credentials back to localStorage 
   assert.equal(status.legacyLocalStoragePresent, false);
 });
 
+test("device credential expiry status guides refresh and rebind decisions", async () => {
+  const now = 1_800_000_000_000;
+  globalThis.window = {};
+  delete globalThis.indexedDB;
+  const store = await import(`../src/services/deviceCredentialStore.ts?case=expiry-status-${Date.now()}`);
+  const baseCredential = legacyCredential({
+    device: { ...legacyCredential().device, id: "device-expiry-1" },
+    accessTokenExpiresAt: now + 30 * 24 * 60 * 60 * 1000,
+  });
+
+  assert.deepEqual(store.getDeviceCredentialExpiryStatus({
+    ...baseCredential,
+    authMethod: "signature",
+    accessToken: undefined,
+    accessTokenExpiresAt: undefined,
+  }, now), {
+    state: "long_lived_signature",
+    tone: "ok",
+    expiresAt: null,
+    msUntilExpiry: null,
+    rotationRecommended: false,
+    rebindRecommended: false,
+  });
+
+  assert.equal(store.getDeviceCredentialExpiryStatus(baseCredential, now).state, "valid");
+  assert.equal(store.getDeviceCredentialExpiryStatus({
+    ...baseCredential,
+    accessTokenExpiresAt: now + 2 * 24 * 60 * 60 * 1000,
+  }, now).state, "expiring_soon");
+  assert.equal(store.getDeviceCredentialExpiryStatus({
+    ...baseCredential,
+    accessTokenExpiresAt: now - 1,
+  }, now).rebindRecommended, true);
+  assert.equal(store.getDeviceCredentialExpiryStatus({
+    ...baseCredential,
+    accessTokenExpiresAt: undefined,
+  }, now).rotationRecommended, true);
+});
+
 test("clearing a mobile binding removes the WebCrypto private key from IndexedDB", async () => {
   const localStorage = installBrowserStorage();
   const suffix = Date.now();

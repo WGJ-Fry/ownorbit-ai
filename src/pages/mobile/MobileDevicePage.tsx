@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ArrowLeft, Download, KeyRound, LogOut, RefreshCw, ShieldCheck, Smartphone, Wifi } from "lucide-react";
-import { clearStoredDeviceCredential, getHealth, getLatestMobileConnectivityReport, getStoredDeviceCredential, getStoredDeviceCredentialAsync, getStoredDeviceCredentialStorageStatus, reportMobileConnectivity, revokeCurrentDeviceBinding, rotateDeviceToken } from "../../services/lifeosApi";
+import { clearStoredDeviceCredential, getHealth, getLatestMobileConnectivityReport, getStoredDeviceCredential, getStoredDeviceCredentialAsync, getStoredDeviceCredentialExpiryStatus, getStoredDeviceCredentialStorageStatus, reportMobileConnectivity, revokeCurrentDeviceBinding, rotateDeviceToken } from "../../services/lifeosApi";
 import type { DeviceConnectivityReport, DeviceCredentialStorageStatus } from "../../services/lifeosApi";
 import { clearOfflineMessageQueue, getOfflineMessageQueue, getOfflineMessageQueueStorageStatus, getOfflineMessageQueueSummary, removeOfflineMessages, requestOfflineMessageQueuePersistentStorage, resetFailedOfflineMessages, retryOfflineMessage, subscribeOfflineMessageQueue } from "../../services/offlineMessageQueue";
 import type { OfflineMessageQueueStorageStatus, OfflineQueuedMessage } from "../../services/offlineMessageQueue";
@@ -14,7 +14,7 @@ import MobileConnectivityCard from "./MobileConnectivityCard";
 import MobileDeviceHealthSummary from "./MobileDeviceHealthSummary";
 import MobileLastConnectivityCard from "./MobileLastConnectivityCard";
 import MobileOfflineQueuePanel from "./MobileOfflineQueuePanel";
-import { CapabilityRow, CredentialStorageCard, Metric, PairingLinkPanel, Row } from "./MobileDeviceStatusCards";
+import { CapabilityRow, CredentialExpiryCard, CredentialStorageCard, PairingLinkPanel, Row } from "./MobileDeviceStatusCards";
 import { useI18n } from "../../i18n/I18nProvider";
 
 function pwaRecommendationKey(recommendation: string) {
@@ -46,7 +46,9 @@ export default function MobileDevicePage() {
   const [lastConnectivityReport, setLastConnectivityReport] = useState<DeviceConnectivityReport | null>(null);
   const [connectivityBusy, setConnectivityBusy] = useState(false);
   const [serverRefreshBusy, setServerRefreshBusy] = useState(false);
+  const pairingPanelRef = useRef<HTMLDivElement | null>(null);
   const expiresAt = useMemo(() => credential?.accessTokenExpiresAt ? new Date(credential.accessTokenExpiresAt).toLocaleString() : t("mobileDevice.longLivedSignature"), [credential, t]);
+  const credentialExpiry = useMemo(() => getStoredDeviceCredentialExpiryStatus(credential), [credential]);
   const currentEntry = useMemo(() => getRemoteEntryStatus({ configuredBaseUrl: health?.publicBaseUrl, configuredMode: health?.remoteEntryMode }), [health]);
   const currentEntryGuidance = useMemo(() => getRemoteEntryGuidance(currentEntry, queueSummary), [currentEntry, queueSummary]);
   const lastConnectivityResult = useMemo(() => lastConnectivityReport ? mobileConnectivityResultFromReport(lastConnectivityReport) : null, [lastConnectivityReport]);
@@ -181,6 +183,10 @@ export default function MobileDevicePage() {
     }
   };
 
+  const focusPairingPanel = () => {
+    pairingPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
   const handleRetryQueue = () => {
     resetFailedOfflineMessages();
     refreshQueue();
@@ -299,6 +305,11 @@ export default function MobileDevicePage() {
                 <Row label={t("mobileDevice.credentialExpires")} value={expiresAt} />
                 <Row label={t("mobileDevice.lastSeen")} value={new Date(credential.device.lastSeenAt).toLocaleString()} />
               </div>
+              <CredentialExpiryCard
+                status={credentialExpiry}
+                onRefresh={handleRotate}
+                onFocusPairing={focusPairingPanel}
+              />
               {credentialStorage ? <CredentialStorageCard storage={credentialStorage} /> : null}
               {credential.authMethod !== "signature" ? (
                 <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4 text-sm text-amber-100">
@@ -326,18 +337,20 @@ export default function MobileDevicePage() {
                 </div>
               )}
               {status ? <div className="mt-4 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3 text-sm text-zinc-300">{status}</div> : null}
-              <PairingLinkPanel
-                value={pairingInput}
-                error={pairingInputError}
-                onChange={(value) => {
-                  setPairingInput(value);
-                  setPairingInputError(null);
-                }}
-                onSubmit={() => openPairingInput({ clearCurrent: true })}
-                buttonLabel={t("mobileDevice.rebindButton")}
-                title={t("mobileDevice.rebindTitle")}
-                body={t("mobileDevice.rebindBody")}
-              />
+              <div ref={pairingPanelRef}>
+                <PairingLinkPanel
+                  value={pairingInput}
+                  error={pairingInputError}
+                  onChange={(value) => {
+                    setPairingInput(value);
+                    setPairingInputError(null);
+                  }}
+                  onSubmit={() => openPairingInput({ clearCurrent: true })}
+                  buttonLabel={t("mobileDevice.rebindButton")}
+                  title={t("mobileDevice.rebindTitle")}
+                  body={t("mobileDevice.rebindBody")}
+                />
+              </div>
               <div className="mt-5 grid gap-3">
                 <button onClick={handleRotate} className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm font-bold text-cyan-200">
                   <RefreshCw className="h-4 w-4" />

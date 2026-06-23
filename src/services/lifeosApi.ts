@@ -1,8 +1,8 @@
 import type { Message } from "../types";
 import { clearDevicePrivateKey, createDeviceKeyPair, isDeviceSignatureAvailable, sha256Base64Url, signDevicePayload } from "./deviceKeyStore";
-import { clearDeviceCredential, getCachedDeviceCredential, getDeviceCredentialStorageStatus, hydrateDeviceCredential, saveDeviceCredential } from "./deviceCredentialStore";
+import { clearDeviceCredential, getCachedDeviceCredential, getDeviceCredentialExpiryStatus, getDeviceCredentialStorageStatus, hydrateDeviceCredential, saveDeviceCredential } from "./deviceCredentialStore";
 import { clearActiveChatSessionId } from "./chatSessionStorage";
-import type { StoredDeviceCredential } from "./deviceCredentialStore";
+import type { DeviceCredentialExpiryStatus, StoredDeviceCredential } from "./deviceCredentialStore";
 
 export type BoundDevice = {
   id: string;
@@ -46,7 +46,7 @@ export type BindingSession = {
   localName: string;
 };
 
-export type { StoredDeviceCredential };
+export type { DeviceCredentialExpiryStatus, StoredDeviceCredential };
 
 export type DeviceCredentialStorageStatus = Awaited<ReturnType<typeof getDeviceCredentialStorageStatus>>;
 
@@ -649,6 +649,10 @@ export function getStoredDeviceCredentialAsync(): Promise<StoredDeviceCredential
 
 export function getStoredDeviceCredentialStorageStatus() {
   return getDeviceCredentialStorageStatus();
+}
+
+export function getStoredDeviceCredentialExpiryStatus(credential: StoredDeviceCredential | null | undefined, now?: number) {
+  return getDeviceCredentialExpiryStatus(credential, now);
 }
 
 export function saveStoredDeviceCredential(credential: StoredDeviceCredential) {

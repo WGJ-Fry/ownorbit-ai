@@ -1225,6 +1225,19 @@ function checkAssets() {
     translationsSource.includes("mobileDevice.legacyCredential")
   ) pass("mobile device credentials migrate away from localStorage and expose storage status");
   else warn("mobile device credential storage can regress to localStorage or lacks storage status UI");
+  const deviceCredentialStoreTestSource = exists("tests/device-credential-store.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/device-credential-store.test.mjs"), "utf8") : "";
+  if (
+    deviceCredentialStoreSource.includes("getDeviceCredentialExpiryStatus") &&
+    deviceCredentialStoreSource.includes("expiring_soon") &&
+    mobileDeviceSource.includes("getStoredDeviceCredentialExpiryStatus") &&
+    mobileDeviceStatusCardsSource.includes("CredentialExpiryCard") &&
+    mobileDeviceStatusCardsSource.includes("mobileDevice.credentialHealth.${status.state}.title") &&
+    mobileDeviceStatusCardsSource.includes("mobileDevice.credentialHealth.rebindAction") &&
+    translationsSource.includes("mobileDevice.credentialHealth.expired.title") &&
+    translationsSource.includes("mobileDevice.credentialHealth.long_lived_signature.title") &&
+    deviceCredentialStoreTestSource.includes("device credential expiry status guides refresh and rebind decisions")
+  ) pass("mobile device page explains credential expiry, rotation, and rebind actions");
+  else warn("mobile device credential expiry guidance is missing UI, translations, or tests");
 
   const sensitiveLocalStorageSource = exists("src/services/sensitiveLocalStorage.ts") ? fs.readFileSync(path.join(rootDir, "src/services/sensitiveLocalStorage.ts"), "utf8") : "";
   const sensitiveLocalStorageTestSource = exists("tests/sensitive-local-storage.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/sensitive-local-storage.test.mjs"), "utf8") : "";

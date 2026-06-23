@@ -1,5 +1,5 @@
-import { KeyRound, Link2 } from "lucide-react";
-import type { DeviceCredentialStorageStatus } from "../../services/lifeosApi";
+import { AlertTriangle, CheckCircle2, KeyRound, Link2 } from "lucide-react";
+import type { DeviceCredentialExpiryStatus, DeviceCredentialStorageStatus } from "../../services/lifeosApi";
 import { useI18n } from "../../i18n/I18nProvider";
 
 export function CapabilityRow({ label, ok, value }: { label: string; ok: boolean; value: string }) {
@@ -84,6 +84,56 @@ export function CredentialStorageCard({ storage }: { storage: DeviceCredentialSt
             <div>{t("mobileDevice.legacyCredential")}：{storage.legacyLocalStoragePresent ? t("mobileDevice.pendingMigration") : t("mobileDevice.cleaned")}</div>
             <div>{t("mobileDevice.authMethod")}：{storage.authMethod === "signature" ? t("mobileDevice.webCryptoSignature") : storage.authMethod === "token" ? t("mobileDevice.deviceToken") : "-"}</div>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function CredentialExpiryCard({
+  status,
+  onRefresh,
+  onFocusPairing,
+}: {
+  status: DeviceCredentialExpiryStatus;
+  onRefresh: () => void;
+  onFocusPairing: () => void;
+}) {
+  const { t } = useI18n();
+  const tone = status.tone === "ok"
+    ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100"
+    : status.tone === "warn"
+      ? "border-amber-400/20 bg-amber-500/10 text-amber-100"
+      : "border-red-400/20 bg-red-500/10 text-red-100";
+  const Icon = status.tone === "ok" ? CheckCircle2 : AlertTriangle;
+  const titleKey = `mobileDevice.credentialHealth.${status.state}.title`;
+  const bodyKey = `mobileDevice.credentialHealth.${status.state}.body`;
+  return (
+    <div className={`mt-4 rounded-2xl border p-4 text-sm ${tone}`}>
+      <div className="flex gap-3">
+        <Icon className="mt-0.5 h-4 w-4 flex-shrink-0" />
+        <div className="min-w-0 flex-1">
+          <div className="font-bold">{t(titleKey as any)}</div>
+          <p className="mt-1 leading-relaxed opacity-80">{t(bodyKey as any)}</p>
+          {status.expiresAt ? (
+            <div className="mt-2 rounded-xl border border-white/[0.08] bg-black/10 px-3 py-2 text-xs opacity-90">
+              {t("mobileDevice.credentialHealth.expiresAt", { time: new Date(status.expiresAt).toLocaleString() })}
+            </div>
+          ) : null}
+          {status.rotationRecommended || status.rebindRecommended ? (
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {status.rotationRecommended ? (
+                <button onClick={onRefresh} className="rounded-xl border border-white/[0.12] bg-white/[0.08] px-3 py-2 text-xs font-bold">
+                  {t("mobileDevice.credentialHealth.refreshAction")}
+                </button>
+              ) : null}
+              {status.rebindRecommended ? (
+                <button onClick={onFocusPairing} className="rounded-xl border border-white/[0.12] bg-white/[0.08] px-3 py-2 text-xs font-bold">
+                  {t("mobileDevice.credentialHealth.rebindAction")}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
