@@ -1,5 +1,6 @@
 // @ts-nocheck
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import fs from "node:fs";
 import { createServer } from "node:http";
@@ -7,6 +8,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { WebSocketServer } from "ws";
+
+const rootDir = process.cwd();
 
 test("network diagnostics detects mocked Cloudflare and Tailscale CLIs", async (t) => {
   const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-network-bin-"));
@@ -152,6 +155,60 @@ test("network diagnostics normalizes configured public base URLs before UI and p
   assert.equal(diagnostics.remoteReadiness.blockers.some((blocker) => blocker.id === "needsPublicOptIn"), true);
   assert.equal(JSON.stringify(diagnostics).includes("pair-secret"), false);
   assert.equal(JSON.stringify(diagnostics).includes("user:password"), false);
+});
+
+test("network diagnostics recommends saved desktop remote config before local-only entries", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-saved-remote-config-"));
+  const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-empty-network-bin-"));
+  t.after(async () => {
+    await rm(dataDir, { recursive: true, force: true });
+    await rm(binDir, { recursive: true, force: true });
+  });
+
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const { saveDesktopRuntimeConfig } = await import("./server/desktopRuntimeConfig.ts");
+    const { getNetworkDiagnostics } = await import("./server/networkDiagnostics.ts");
+    saveDesktopRuntimeConfig({
+      mode: "configured",
+      label: "Home HTTPS Proxy",
+      baseUrl: "https://lifeos.example.com/base",
+    });
+    const diagnostics = getNetworkDiagnostics();
+    process.stdout.write(JSON.stringify({
+      recommendedBaseUrl: diagnostics.recommendedBaseUrl,
+      firstCandidate: diagnostics.connectionCandidates[0],
+      remoteReadiness: diagnostics.remoteReadiness,
+      desktopRuntimeConfig: diagnostics.desktopRuntimeConfig,
+    }));
+  `], {
+    cwd: rootDir,
+    env: {
+      ...process.env,
+      LIFEOS_DATA_DIR: dataDir,
+      PATH: binDir,
+      LIFEOS_PORT: "4567",
+      LIFEOS_HOST: "127.0.0.1",
+      PUBLIC_BASE_URL: "",
+      APP_URL: "",
+      LIFEOS_ALLOW_PUBLIC: "",
+    },
+    encoding: "utf8",
+  });
+  const diagnostics = JSON.parse(output);
+
+  assert.equal(diagnostics.recommendedBaseUrl, "https://lifeos.example.com/base");
+  assert.equal(diagnostics.firstCandidate.id, "saved-desktop-config");
+  assert.equal(diagnostics.firstCandidate.label, "Home HTTPS Proxy");
+  assert.equal(diagnostics.firstCandidate.baseUrl, "https://lifeos.example.com/base");
+  assert.equal(diagnostics.firstCandidate.mode, "configured");
+  assert.equal(diagnostics.firstCandidate.secure, true);
+  assert.equal(diagnostics.firstCandidate.stability, "stable");
+  assert.equal(diagnostics.firstCandidate.requiresRestart, true);
+  assert.equal(diagnostics.remoteReadiness.status, "blocked");
+  assert.equal(diagnostics.remoteReadiness.baseUrl, "https://lifeos.example.com/base");
+  assert.equal(diagnostics.remoteReadiness.blockers.some((blocker) => blocker.id === "needsPublicOptIn"), true);
+  assert.equal(diagnostics.remoteReadiness.actions.some((action) => action.id === "needsRestart"), true);
+  assert.equal(diagnostics.desktopRuntimeConfig.publicBaseUrl, "https://lifeos.example.com/base");
 });
 
 test("connection URL tests strip credentials, query secrets, and fragments from returned probe URL", async (t) => {

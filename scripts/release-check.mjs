@@ -578,6 +578,8 @@ function checkAssets() {
     networkDiagnosticsSource.includes("envTemplate") &&
     networkDiagnosticsSource.includes("restartInstruction") &&
     networkDiagnosticsSource.includes("desktopRuntimeConfig") &&
+    networkDiagnosticsSource.includes("saved-desktop-config") &&
+    networkDiagnosticsTestSource.includes("recommends saved desktop remote config before local-only entries") &&
     desktopRuntimeConfigSource.includes("desktop-runtime-config.json") &&
     desktopRuntimeConfigSource.includes("normalizeDesktopRuntimeConfig") &&
     desktopRuntimeConfigSource.includes("allowPublic") &&

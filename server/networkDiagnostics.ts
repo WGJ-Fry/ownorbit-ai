@@ -2,7 +2,7 @@ import { execFileSync } from "child_process";
 import os from "os";
 import { WebSocket } from "ws";
 import { extractCloudflareTunnelUrls, getManagedCloudflareTunnelStatus } from "./cloudflareTunnel.ts";
-import { getDesktopRuntimeConfig, saveDesktopRuntimeConfig } from "./desktopRuntimeConfig.ts";
+import { DesktopRuntimeConfig, getDesktopRuntimeConfig, saveDesktopRuntimeConfig } from "./desktopRuntimeConfig.ts";
 import { getConfiguredPublicBaseUrl } from "./publicBaseUrl";
 
 type CommandResult = {
@@ -152,10 +152,35 @@ function buildConnectionCandidates(input: {
   port: string;
   publicBaseUrl: string;
   lanUrls: string[];
+  desktopRuntimeConfig: DesktopRuntimeConfig | null;
   cloudflare: ReturnType<typeof getCloudflareTunnelStatus>;
   tailscale: ReturnType<typeof getTailscaleStatus>;
 }) {
   const candidates: ReturnType<typeof connectionCandidate>[] = [];
+  if (input.desktopRuntimeConfig) {
+    const savedBaseUrl = input.desktopRuntimeConfig.publicBaseUrl || input.desktopRuntimeConfig.baseUrl;
+    const savedStability = savedBaseUrl.includes(".trycloudflare.com")
+      ? "temporary"
+      : input.desktopRuntimeConfig.mode === "local"
+      ? "local"
+      : input.desktopRuntimeConfig.mode === "lan"
+      ? "temporary"
+      : "stable";
+    candidates.push(connectionCandidate({
+      id: "saved-desktop-config",
+      label: input.desktopRuntimeConfig.label || "Saved desktop startup config",
+      baseUrl: savedBaseUrl,
+      mode: input.desktopRuntimeConfig.mode,
+      priority: savedStability === "stable" ? 97 : savedStability === "temporary" ? 74 : 12,
+      requiresRestart: input.publicBaseUrl !== input.desktopRuntimeConfig.publicBaseUrl,
+      stability: savedStability,
+      notes: [
+        input.desktopRuntimeConfig.publicBaseUrl
+          ? "Saved desktop startup config. Quit and reopen LifeOS AI to make this address authoritative for pairing QR codes."
+          : "Saved local/LAN startup config. Use only on the same trusted network.",
+      ],
+    }));
+  }
   if (input.publicBaseUrl) {
     candidates.push(connectionCandidate({
       id: "configured-public",
@@ -510,12 +535,12 @@ export function getNetworkDiagnostics() {
   const port = process.env.LIFEOS_PORT || process.env.PORT || "3000";
   const host = process.env.LIFEOS_HOST || "127.0.0.1";
   const publicBaseUrl = getConfiguredPublicBaseUrl();
+  const desktopRuntimeConfig = getDesktopRuntimeConfig();
   const lanUrls = getLanUrls(port);
   const cloudflare = getCloudflareTunnelStatus(port);
   const tailscale = getTailscaleStatus(port);
-  const connectionCandidates = buildConnectionCandidates({ port, publicBaseUrl, lanUrls, cloudflare, tailscale });
+  const connectionCandidates = buildConnectionCandidates({ port, publicBaseUrl, lanUrls, desktopRuntimeConfig, cloudflare, tailscale });
   const recommendedBaseUrl = connectionCandidates[0]?.baseUrl || `http://127.0.0.1:${port}`;
-  const desktopRuntimeConfig = getDesktopRuntimeConfig();
   const remoteReadiness = buildRemoteReadiness({
     host,
     publicBaseUrl,
