@@ -160,6 +160,10 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(bundle.remote.acceptanceSummary.hasLongTermEntry, false);
   assert.equal(bundle.remote.acceptanceSummary.hasRealWorldEvidence, false);
   assert.equal(typeof bundle.remote.acceptanceSummary.manualRequired, "number");
+  const redactionAudit = bundle.recentAudit.find((log) => log.action === "diagnostic_redaction_seed");
+  assert.equal(redactionAudit.metadataSummary.localPath, "[redacted]");
+  assert.match(redactionAudit.metadataSummary.command, /Authorization: Basic \[redacted\]/);
+  assert.equal(JSON.stringify(redactionAudit.metadataSummary).includes("github_pat_diagnosticSecret"), false);
   assert.equal(bundle.remote.acceptanceRecords.total, 1);
   assert.equal(bundle.remote.acceptanceRecords.latest[0].evidence.entryKind, "stable-https");
   assert.equal(bundle.remote.acceptanceRecords.latest[0].evidence.requirements.some((item) => item.includes("remote-secret")), false);

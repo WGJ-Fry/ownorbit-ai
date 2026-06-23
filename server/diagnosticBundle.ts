@@ -74,6 +74,17 @@ function publicReleaseArtifactSummary(artifact: any) {
   };
 }
 
+function summarizeAuditMetadata(metadata: unknown) {
+  const redacted = redactAuditMetadata(metadata) as Record<string, unknown> | null;
+  if (!redacted || typeof redacted !== "object" || Array.isArray(redacted)) return {};
+  return Object.fromEntries(Object.entries(redacted).slice(0, 10).map(([key, value]) => {
+    if (Array.isArray(value)) return [key, { type: "array", count: value.length }];
+    if (value && typeof value === "object") return [key, { type: "object", keys: Object.keys(value as Record<string, unknown>).slice(0, 8) }];
+    if (typeof value === "string") return [key, value.length > 180 ? `${value.slice(0, 177)}...` : value];
+    return [key, value];
+  }));
+}
+
 export function getReleaseDiagnostics() {
   for (const releaseDir of releaseDirCandidates()) {
     const manifestPath = path.join(releaseDir, "update-feed", "release-manifest.json");
@@ -212,6 +223,7 @@ export function createDiagnosticBundle() {
       action: log.action,
       targetType: log.targetType,
       targetId: log.targetId,
+      metadataSummary: summarizeAuditMetadata(log.metadata),
       createdAt: log.createdAt,
     })),
   };

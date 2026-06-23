@@ -1756,6 +1756,9 @@ function checkAssets() {
     adminRoutesSource.includes("databaseRowTotal") &&
     adminRoutesSource.includes("securityCriticalCount") &&
     adminRoutesSource.includes("remoteAcceptanceManualRequired") &&
+    diagnosticBundleSource.includes("summarizeAuditMetadata") &&
+    diagnosticBundleSource.includes("metadataSummary") &&
+    diagnosticBundleTestSource.includes("metadataSummary.localPath") &&
     apiAuthTestSource.includes("previousCredentialExpiresAt") &&
     apiAuthTestSource.includes("secureStorage.label") &&
     apiAuthTestSource.includes("credentialLengthBucket") &&
