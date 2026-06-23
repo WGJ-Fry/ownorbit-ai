@@ -2131,6 +2131,23 @@ function checkReleaseDocs() {
     fail("Bilingual README demo GIFs are mismatched; English must use docs/assets/real-demo-en.gif and Chinese must use docs/assets/real-demo.gif");
   }
 
+  if (
+    readmeEn.includes("## Choose Your Path") &&
+    readmeEn.includes("Docker Compose alpha") &&
+    readmeEn.includes("ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha") &&
+    readmeEn.includes("LifeOS.AI-0.1.0-arm64-unsigned.zip") &&
+    readmeEn.includes("public EXE/AppImage downloads are not uploaded yet") &&
+    readmeZh.includes("## 选择你的体验路径") &&
+    readmeZh.includes("Docker Compose alpha") &&
+    readmeZh.includes("ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha") &&
+    readmeZh.includes("LifeOS.AI-0.1.0-arm64-unsigned.zip") &&
+    readmeZh.includes("公开 EXE/AppImage 还没有上传")
+  ) {
+    pass("bilingual README clearly separates Docker alpha, macOS ZIP, and unavailable Windows/Linux downloads");
+  } else {
+    fail("bilingual README must clearly separate Docker alpha, macOS ZIP, and unavailable Windows/Linux downloads");
+  }
+
   if (exists("docs/promotion-kit.md")) {
     const promotionKit = fs.readFileSync(path.join(rootDir, "docs/promotion-kit.md"), "utf8");
     if (

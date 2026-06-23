@@ -36,6 +36,16 @@ LifeOS 先从一个很小但有用的工作流开始：
 
 当前 alpha 的承诺很克制：把 Markdown 笔记放进文件夹，本地启动 LifeOS，然后问它你可能漏掉了什么。
 
+## 选择你的体验路径
+
+| 路径 | 适合你在什么时候用 | 当前公开状态 |
+| --- | --- | --- |
+| **Docker Compose alpha** | 想最快体验 Ollama + Markdown 本地记忆演示。 | 推荐第一次体验使用。镜像是 `ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha`。 |
+| **macOS 桌面 ZIP** | 想试用早期桌面端壳。 | 已在 [`v0.1.0` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.0) 提供：`LifeOS.AI-0.1.0-arm64-unsigned.zip`。 |
+| **Windows / Linux 桌面包** | 想要 Windows 或 Linux 原生安装包。 | 打包脚本和 CI smoke 已接入，但公开 EXE/AppImage 还没有上传。 |
+
+如果你是第一次看这个项目，建议从下面的 Docker Compose 开始。如果你明确想试桌面 App，请使用 macOS ZIP Release，并在首次启动前阅读 `INSTALL-unsigned-mac.md`。
+
 ## 真实产品界面
 
 下面是真实项目截图，不是概念图。
