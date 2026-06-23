@@ -8,11 +8,12 @@ import {
   resetFailedOfflineMessages,
   retryOfflineMessage,
   subscribeOfflineMessageQueue,
+  type OfflineMessageQueueSummary,
 } from "../services/offlineMessageQueue";
 import { getNetworkStatus } from "../services/networkStatus";
 
 type OfflineQueueSyncOptions = {
-  clearConfirmMessage: string;
+  clearConfirmMessage: string | ((summary: OfflineMessageQueueSummary) => string);
 };
 
 export function useOfflineQueueSync(flushOfflineMessages: () => Promise<number>, options: OfflineQueueSyncOptions) {
@@ -51,7 +52,10 @@ export function useOfflineQueueSync(flushOfflineMessages: () => Promise<number>,
   }, [refreshQueueState]);
 
   const clearQueuedMessages = useCallback(() => {
-    if (!window.confirm(options.clearConfirmMessage)) return;
+    const message = typeof options.clearConfirmMessage === "function"
+      ? options.clearConfirmMessage(getOfflineMessageQueueSummary())
+      : options.clearConfirmMessage;
+    if (!window.confirm(message)) return;
     void clearOfflineMessageQueue().finally(refreshQueueState);
   }, [options.clearConfirmMessage, refreshQueueState]);
 

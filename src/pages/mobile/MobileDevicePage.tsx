@@ -178,7 +178,12 @@ export default function MobileDevicePage() {
   };
 
   const handleClearQueue = async () => {
-    if (!window.confirm(t("mobileDevice.confirmClearQueue"))) return;
+    if (!window.confirm(t("mobileDevice.confirmClearQueueDetailed", {
+      count: queueSummary.count,
+      pending: queueSummary.pending,
+      syncing: queueSummary.syncing,
+      failed: queueSummary.failed,
+    }))) return;
     await clearOfflineMessageQueue();
     refreshQueue();
     setStatus(t("mobileDevice.queueCleared"));

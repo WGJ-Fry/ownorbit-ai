@@ -1372,10 +1372,15 @@ function checkAssets() {
     offlineQueueBannerSource.includes("networkLabel") &&
     offlineQueueBannerSource.includes("network.labelKey") &&
     !/network\.label(?!Key)/.test(offlineQueueBannerSource) &&
-    appSource.includes('useOfflineQueueSync(flushOfflineMessages, { clearConfirmMessage: t("mobileDevice.confirmClearQueue") })') &&
+    appSource.includes("clearConfirmMessage: (summary)") &&
+    appSource.includes("mobileDevice.confirmClearQueueDetailed") &&
+    appSource.includes("pending: summary.pending") &&
+    appSource.includes("failed: summary.failed") &&
     offlineQueueSyncHookSource.includes("options.clearConfirmMessage") &&
+    offlineQueueSyncHookSource.includes("getOfflineMessageQueueSummary()") &&
     !offlineQueueSyncHookSource.includes("Clear all unsynced offline messages") &&
     mobileDeviceSource.includes("getOfflineMessageQueueStorageStatus") &&
+    mobileDeviceSource.includes("mobileDevice.confirmClearQueueDetailed") &&
     mobileDeviceSource.includes("MobileOfflineQueuePanel") &&
     mobileDeviceSource.includes("requestOfflineMessageQueuePersistentStorage") &&
     mobileDeviceSource.includes("persistentStorageGranted") &&

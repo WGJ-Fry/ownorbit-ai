@@ -239,7 +239,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(serverSource, /process\.env\.NODE_ENV !== "production" && !RUNNING_BUNDLED_SERVER/);
 
   const appSource = await readFile(path.join(rootDir, "src", "App.tsx"), "utf8");
-  assert.match(appSource, /useOfflineQueueSync\(flushOfflineMessages, \{ clearConfirmMessage: t\("mobileDevice\.confirmClearQueue"\) \}\)/);
+  assert.match(appSource, /useOfflineQueueSync\(flushOfflineMessages, \{/);
+  assert.match(appSource, /clearConfirmMessage: \(summary\) => t\("mobileDevice\.confirmClearQueueDetailed"/);
+  assert.match(appSource, /pending: summary\.pending/);
+  assert.match(appSource, /failed: summary\.failed/);
   assert.match(appSource, /resolveChatStateChanges\(stateChanges\)/);
   assert.match(appSource, /loadStoredChatMessages/);
   assert.match(appSource, /persistStoredChatMessages/);
@@ -526,7 +529,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceSource, /clearOfflineMessageQueue/);
 
   assert.match(mobileDeviceSource, /mobileDevice\.confirmRemoveItem/);
-  assert.match(mobileDeviceSource, /mobileDevice\.confirmClearQueue/);
+  assert.match(mobileDeviceSource, /mobileDevice\.confirmClearQueueDetailed/);
   assert.match(mobileDeviceStatusCardsSource, /mobileDevice\.pastePairingLink/);
   assert.match(mobileDeviceSource, /mobileDevice\.rebindTitle/);
   assert.match(mobileDeviceSource, /mobileDevice\.rebindBody/);

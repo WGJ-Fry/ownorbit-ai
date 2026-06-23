@@ -52,7 +52,14 @@ export default function App() {
     removeQueuedMessage,
     retryQueuedMessage,
     syncQueuedMessages,
-  } = useOfflineQueueSync(flushOfflineMessages, { clearConfirmMessage: t("mobileDevice.confirmClearQueue") });
+  } = useOfflineQueueSync(flushOfflineMessages, {
+    clearConfirmMessage: (summary) => t("mobileDevice.confirmClearQueueDetailed", {
+      count: summary.count,
+      pending: summary.pending,
+      syncing: summary.syncing,
+      failed: summary.failed,
+    }),
+  });
 
   useEffect(() => {
     let cancelled = false;
