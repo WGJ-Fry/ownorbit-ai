@@ -414,7 +414,14 @@ function publicDesktopShellStatus() {
     deviceLabel: desktopShellStatus.deviceLabel,
     url: desktopShellStatus.url || localUrl("/admin/login"),
     updatedAt: desktopShellStatus.updatedAt,
+    updateLabel: desktopUpdateLabel(),
   };
+}
+
+function desktopUpdateLabel() {
+  if (desktopUpdateStatus.enabled) return `Auto update ready · ${desktopUpdateStatus.updateUrlHost}`;
+  if (!desktopUpdateStatus.configured) return "Updates: manual download";
+  return `Auto update disabled · ${desktopUpdateStatus.reason}`;
 }
 
 function releaseDirCandidates() {
@@ -652,6 +659,7 @@ function buildTrayMenu() {
     { label: desktopShellStatus.adminLabel, enabled: false },
     { label: desktopShellStatus.aiLabel, enabled: false },
     { label: desktopShellStatus.deviceLabel, enabled: false },
+    { label: desktopUpdateLabel(), enabled: false },
     { label: `Local port ${serverPort}`, enabled: false },
     { type: "separator" },
     { label: "Open Console", click: () => showPreferredAdminWindow("/admin/dashboard") },
@@ -670,7 +678,7 @@ function buildTrayMenu() {
 
 function updateTrayPresentation() {
   if (!tray) return;
-  tray.setToolTip(`LifeOS AI: ${desktopShellStatus.coreLabel} · ${desktopShellStatus.aiLabel} · ${localUrl("/admin/login")}`);
+  tray.setToolTip(`LifeOS AI: ${desktopShellStatus.coreLabel} · ${desktopShellStatus.aiLabel} · ${desktopUpdateLabel()} · ${localUrl("/admin/login")}`);
   tray.setContextMenu(buildTrayMenu());
 }
 
@@ -731,6 +739,7 @@ function buildMenuTemplate() {
 
 async function configureDesktopShell() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate()));
+  desktopUpdateStatus = validateDesktopUpdateUrl(process.env.LIFEOS_UPDATE_URL);
 
   const iconPath = path.join(app.isPackaged ? app.getAppPath() : process.cwd(), "desktop", "icon.icns");
   const icon = fs.existsSync(iconPath) ? nativeImage.createFromPath(iconPath) : nativeImage.createEmpty();
@@ -802,12 +811,12 @@ app.whenReady().then(async () => {
   });
   try {
     await startLocalCore();
+    configureUpdates();
     await configureDesktopShell();
     await createWindow(await resolvePreferredAdminPath("/admin/login"));
     if (process.env.LIFEOS_DESKTOP_EXPORT_DIAGNOSTIC_ON_START) {
       await exportDesktopDiagnosticBundle(process.env.LIFEOS_DESKTOP_EXPORT_DIAGNOSTIC_ON_START);
     }
-    configureUpdates();
   } catch (error) {
     writeDesktopLog("LifeOS startup failed", error?.stack || error?.message || String(error));
     console.error("LifeOS startup failed:", error?.message || error);

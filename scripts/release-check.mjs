@@ -1973,6 +1973,15 @@ function checkSecurityConfig() {
     desktopSmokeTestSource.includes("url_contains_credentials_or_tokens")
   ) pass("desktop runtime disables unsafe auto-update URLs");
   else warn("desktop runtime may accept unsafe auto-update URLs");
+  if (
+    desktopMain.includes("function desktopUpdateLabel") &&
+    desktopMain.includes("Updates: manual download") &&
+    desktopMain.includes("Auto update ready") &&
+    desktopMain.includes("Auto update disabled") &&
+    desktopMain.includes("updateLabel: desktopUpdateLabel()") &&
+    desktopMain.includes("${desktopUpdateLabel()} ·")
+  ) pass("desktop tray surfaces auto-update/manual-update state");
+  else warn("desktop tray does not surface auto-update/manual-update state");
   if (desktopMain.includes("onboardingRequired") && desktopMain.includes("nextPath") && desktopMain.includes("First-run guide pending")) pass("desktop diagnostic captures first-launch onboarding routing state");
   else warn("desktop diagnostic does not capture first-launch onboarding routing state");
   if (
