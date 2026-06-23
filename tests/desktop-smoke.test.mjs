@@ -453,6 +453,8 @@ test("Electron desktop keeps a startup failure window open when local core fails
   await new Promise((resolve) => setTimeout(resolve, 2500));
   assert.equal(child.exitCode, null, `desktop should stay open with failure window\n${output.join("")}`);
   const desktopMain = await readFile(path.join(rootDir, "desktop", "main.cjs"), "utf8");
+  assert.match(desktopMain, /First Launch Guide/);
+  assert.match(desktopMain, /\/admin\/onboarding/);
   assert.match(desktopMain, /Retry LifeOS AI/);
   assert.match(desktopMain, /Open Local Console In Browser/);
   assert.match(desktopMain, /Copy Local Address/);

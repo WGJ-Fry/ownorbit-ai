@@ -655,6 +655,7 @@ function buildTrayMenu() {
     { label: `Local port ${serverPort}`, enabled: false },
     { type: "separator" },
     { label: "Open Console", click: () => showPreferredAdminWindow("/admin/dashboard") },
+    { label: "First Launch Guide", click: () => showMainWindow("/admin/onboarding") },
     { label: "Pair Phone", click: () => showMainWindow("/admin/devices/pair") },
     { label: "System Settings", click: () => showMainWindow("/admin/settings") },
     { type: "separator" },
@@ -692,6 +693,7 @@ function buildMenuTemplate() {
       label: "LifeOS AI",
       submenu: [
         { label: "Open Console", click: () => showPreferredAdminWindow("/admin/dashboard") },
+        { label: "First Launch Guide", click: () => showMainWindow("/admin/onboarding") },
         { label: "Pair Phone", click: () => showMainWindow("/admin/devices/pair") },
         { label: "System Settings", click: () => showMainWindow("/admin/settings") },
         { type: "separator" },

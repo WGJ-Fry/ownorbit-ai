@@ -694,7 +694,7 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /desktop diagnostic includes release manifest and checksum metadata/);
   assert.match(result.stdout, /desktop diagnostic captures first-launch onboarding routing state/);
   assert.match(result.stdout, /desktop smoke verifies first-launch setup routes into onboarding/);
-  assert.match(result.stdout, /desktop tray exposes refreshed health\/admin\/AI\/device status/);
+  assert.match(result.stdout, /desktop tray exposes refreshed health\/admin\/AI\/device status and first-launch entry/);
   assert.match(result.stdout, /desktop startup failure page points users to logs/);
   assert.match(result.stdout, /desktop startup failure menu exposes diagnostics and logs/);
   assert.match(result.stdout, /packaged macOS app desktop diagnostic includes local core health\/admin snapshots/);

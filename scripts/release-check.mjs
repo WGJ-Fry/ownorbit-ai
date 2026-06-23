@@ -1895,7 +1895,7 @@ function checkSecurityConfig() {
     desktopSmokeTestSource.includes('"/admin/onboarding"')
   ) pass("desktop smoke verifies first-launch setup routes into onboarding");
   else warn("desktop smoke does not verify setup-to-onboarding routing");
-  if (desktopMain.includes("refreshDesktopShellStatus") && desktopMain.includes("desktopShell: publicDesktopShellStatus()") && desktopMain.includes("Refresh Status")) pass("desktop tray exposes refreshed health/admin/AI/device status");
+  if (desktopMain.includes("refreshDesktopShellStatus") && desktopMain.includes("desktopShell: publicDesktopShellStatus()") && desktopMain.includes("Refresh Status") && desktopMain.includes("First Launch Guide")) pass("desktop tray exposes refreshed health/admin/AI/device status and first-launch entry");
   else warn("desktop tray does not expose refreshed health/admin/AI/device status");
   if (desktopMain.includes("showStartupFailureWindow") && desktopMain.includes("lifeos-desktop.log")) pass("desktop startup failure page points users to logs");
   else warn("desktop startup failure page does not point users to logs");
