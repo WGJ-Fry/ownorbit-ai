@@ -1553,8 +1553,10 @@ function checkAssets() {
     aiKeyPanelSource.includes("updateActiveAiProvider") &&
     aiKeyPanelSource.includes("updateAiProviderModel") &&
     aiKeyPanelSource.includes("testAiProvider") &&
+    aiKeyPanelSource.includes('selectedProvider === "local" ? "live" : "configuration"') &&
     aiKeyPanelSource.includes("aiKey.testConfigOk") &&
     aiKeyPanelSource.includes("aiKey.testConfigOnly") &&
+    aiKeyPanelSource.includes("aiKey.testLiveOk") &&
     aiKeyPanelSource.includes("aiKey.enabledHint") &&
     aiKeyPanelSource.includes("aiKey.defaultProviderTitle") &&
     aiKeyPanelSource.includes("aiKey.setDefault") &&
@@ -1564,6 +1566,9 @@ function checkAssets() {
     !translationsSource.includes("聊天路由暂未启用") &&
     adminRoutesSource.includes("ai_provider_default_updated") &&
     adminRoutesSource.includes("Live API call was not run") &&
+    adminRoutesSource.includes("/models") &&
+    adminRoutesSource.includes("models_endpoint_ok") &&
+    adminRoutesSource.includes("live_ready") &&
     adminRoutesSource.includes("liveSupported") &&
     adminRoutesSource.includes("getAiProviderTestSummary") &&
     adminRoutesSource.includes("missing_local_endpoint") &&
@@ -1573,6 +1578,8 @@ function checkAssets() {
     apiAuthTestSource.includes("endpoint-secret") &&
     apiAuthTestSource.includes("ai_provider_default_updated") &&
     apiAuthTestSource.includes("testedMissingLocalProvider.reason") &&
+    apiAuthTestSource.includes("testedLocalLive.result") &&
+    apiAuthTestSource.includes("localLiveTestAudit.metadata.modelCount") &&
     apiAuthTestSource.includes("localTestAudit.metadata.reason") &&
     apiAuthTestSource.includes("openAiTestAudit.metadata.credentialKind") &&
     apiAuthTestSource.includes("legacyByokProviderState") &&

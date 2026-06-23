@@ -903,7 +903,11 @@ export type AiProviderTestResult = {
   liveSupported: boolean;
   selectedModel?: string;
   checkedAt: number;
-  result: "ready" | "not_configured";
+  result: "ready" | "not_configured" | "disabled" | "live_ready" | "live_failed";
+  reason?: string;
+  credentialKind?: "api_key" | "endpoint";
+  modelCount?: number;
+  selectedModelAvailable?: boolean;
 };
 
 export function testAiProvider(providerId: AiProviderId, mode: "configuration" | "live" = "configuration") {

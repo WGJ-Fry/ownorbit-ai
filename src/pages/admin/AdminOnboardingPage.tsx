@@ -95,7 +95,7 @@ export default function AdminOnboardingPage() {
       }
       await saveAiProviderKey(selectedProvider, apiKey.trim());
       await updateActiveAiProvider(selectedProvider);
-      const result = await testAiProvider(selectedProvider);
+      const result = await testAiProvider(selectedProvider, selectedProvider === "local" ? "live" : "configuration");
       setApiKey("");
       setStatus(`${result.message} ${t("onboarding.alreadyDefault")}`);
       await refresh();

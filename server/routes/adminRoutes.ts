@@ -1,7 +1,7 @@
 import type express from "express";
 import { db } from "../db";
 import { insertAuditLog, listAuditLogs } from "../audit";
-import { aiProviders, deleteAiApiKey, getAiConfigStatus, getAiProviderStatus, listAiProviderStatuses, saveActiveAiProvider, saveAiApiKey, saveSelectedAiModel, type AiProviderId } from "../appSecrets";
+import { aiProviders, deleteAiApiKey, getAiApiKey, getAiConfigStatus, getAiProviderStatus, listAiProviderStatuses, saveActiveAiProvider, saveAiApiKey, saveSelectedAiModel, type AiProviderId } from "../appSecrets";
 import { createAdminCredential, createAdminSession, getAdminSessionByToken, getBearerToken, isAdminConfigured, requireAdmin, verifyAdminPassword } from "../auth";
 import { createDiagnosticBundle, getReleaseDiagnostics } from "../diagnosticBundle";
 import { clearHttpOnlyCookie, getClientIp, rateLimit, setClientCookie, setHttpOnlyCookie } from "../httpSecurity";
@@ -51,7 +51,46 @@ function aiStatusAuditMetadata(status: ReturnType<typeof getAiProviderStatus>) {
   };
 }
 
-function getAiProviderTestSummary(status: ReturnType<typeof getAiProviderStatus>) {
+type AiProviderTestSummary = {
+  ok: boolean;
+  result: "ready" | "not_configured" | "disabled" | "live_ready" | "live_failed";
+  reason: string;
+  credentialKind: "api_key" | "endpoint";
+  modelCount?: number;
+  selectedModelAvailable?: boolean;
+};
+
+async function testLocalModelEndpoint(status: ReturnType<typeof getAiProviderStatus>): Promise<AiProviderTestSummary> {
+  const credentialKind = "endpoint" as const;
+  const endpoint = getAiApiKey("local");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 3000);
+  try {
+    const response = await fetch(`${endpoint.replace(/\/$/, "")}/models`, { signal: controller.signal });
+    const data = await response.json().catch(() => ({}));
+    const models = Array.isArray(data?.data) ? data.data : [];
+    const modelIds = models.map((model: any) => String(model?.id || model?.name || "")).filter(Boolean);
+    return {
+      ok: response.ok,
+      result: response.ok ? "live_ready" : "live_failed",
+      reason: response.ok ? "models_endpoint_ok" : "models_endpoint_http_error",
+      credentialKind,
+      modelCount: modelIds.length,
+      selectedModelAvailable: modelIds.length ? modelIds.includes(status.selectedModel) : undefined,
+    };
+  } catch (error: any) {
+    return {
+      ok: false,
+      result: "live_failed",
+      reason: error?.name === "AbortError" ? "models_endpoint_timeout" : "models_endpoint_unreachable",
+      credentialKind,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function getAiProviderTestSummary(status: ReturnType<typeof getAiProviderStatus>, mode: "configuration" | "live" = "configuration"): Promise<AiProviderTestSummary> {
   const credentialKind = status.id === "local" ? "endpoint" : "api_key";
   if (!status.enabled) {
     return {
@@ -68,6 +107,9 @@ function getAiProviderTestSummary(status: ReturnType<typeof getAiProviderStatus>
       reason: status.id === "local" ? "missing_local_endpoint" : "missing_provider_key",
       credentialKind,
     };
+  }
+  if (mode === "live" && status.id === "local") {
+    return testLocalModelEndpoint(status);
   }
   return {
     ok: true,
@@ -473,14 +515,14 @@ export function registerAdminRoutes(app: express.Express) {
     res.json({ providers: listAiProviderStatuses() });
   });
 
-  app.post("/api/v1/admin/ai-providers/:providerId/test", requireAdmin, (req, res) => {
+  app.post("/api/v1/admin/ai-providers/:providerId/test", requireAdmin, async (req, res) => {
     const providerId = getProviderId(req.params.providerId);
     if (!providerId) return res.status(404).json({ error: "Unknown AI provider" });
     const status = getAiProviderStatus(providerId);
     const checkedAt = Date.now();
     const mode = req.body?.mode === "live" ? "live" : "configuration";
     const liveSupported = status.id === "local";
-    const summary = getAiProviderTestSummary(status);
+    const summary = await getAiProviderTestSummary(status, mode);
     insertAuditLog("ai_provider_tested", "config", providerId, {
       ...aiStatusAuditMetadata(status),
       result: summary.result,
@@ -489,6 +531,8 @@ export function registerAdminRoutes(app: express.Express) {
       mode,
       liveSupported,
       selectedModel: status.selectedModel,
+      modelCount: summary.modelCount,
+      selectedModelAvailable: summary.selectedModelAvailable,
       checkedAt,
     });
     res.json({
@@ -501,9 +545,15 @@ export function registerAdminRoutes(app: express.Express) {
       result: summary.result,
       reason: summary.reason,
       credentialKind: summary.credentialKind,
+      modelCount: summary.modelCount,
+      selectedModelAvailable: summary.selectedModelAvailable,
       message: status.enabled
         ? status.configured
-          ? `${status.provider} configuration is ready for ${status.selectedModel}. Live API call was not run.`
+          ? mode === "live" && status.id === "local"
+            ? summary.ok
+              ? `${status.provider} live connection succeeded for ${status.selectedModel}. ${summary.modelCount ?? 0} model(s) reported by the endpoint.`
+              : `${status.provider} live connection failed. Check that the local endpoint is running and supports /models.`
+            : `${status.provider} configuration is ready for ${status.selectedModel}. Live API call was not run.`
           : status.id === "local"
             ? `${status.provider} has no endpoint configured.`
             : `${status.provider} has no key configured.`

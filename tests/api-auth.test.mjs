@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 import crypto from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { createServer } from "node:net";
+import { createServer as createHttpServer } from "node:http";
 import test from "node:test";
 import WebSocket from "ws";
 import { fileURLToPath } from "node:url";
@@ -1270,13 +1271,56 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(missingAiAppGeneration.status, 503);
   assert.equal(missingAiAppGeneration.body.code, "AI_CONFIG_MISSING");
 
+  const localModelServer = createHttpServer((req, res) => {
+    if (req.url === "/v1/models") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({
+        data: [
+          { id: "custom-local-model:latest" },
+          { id: "llama3.2" },
+        ],
+      }));
+      return;
+    }
+    res.writeHead(404);
+    res.end("not found");
+  });
+  await new Promise((resolve) => localModelServer.listen(0, "127.0.0.1", resolve));
+  t.after(async () => {
+    await new Promise((resolve) => localModelServer.close(resolve));
+  });
+  const localModelPort = localModelServer.address().port;
+  const localModelEndpoint = `http://127.0.0.1:${localModelPort}/v1`;
   const savedLocalProvider = await request(port, "/api/v1/admin/ai-providers/local/key", {
     method: "PUT",
     headers: adminHeaders,
-    body: JSON.stringify({ apiKey: "http://127.0.0.1:11434/v1" }),
+    body: JSON.stringify({ apiKey: localModelEndpoint }),
   }).then((res) => res.json());
   assert.equal(savedLocalProvider.provider.id, "local");
   assert.equal(savedLocalProvider.provider.configured, true);
+  const testedLocalLive = await request(port, "/api/v1/admin/ai-providers/local/test", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ mode: "live" }),
+  }).then((res) => res.json());
+  assert.equal(testedLocalLive.ok, true);
+  assert.equal(testedLocalLive.mode, "live");
+  assert.equal(testedLocalLive.liveSupported, true);
+  assert.equal(testedLocalLive.result, "live_ready");
+  assert.equal(testedLocalLive.reason, "models_endpoint_ok");
+  assert.equal(testedLocalLive.modelCount, 2);
+  assert.equal(testedLocalLive.selectedModelAvailable, true);
+  assert.match(testedLocalLive.message, /live connection succeeded/);
+  assert.equal(JSON.stringify(testedLocalLive).includes(localModelEndpoint), false);
+  const auditAfterLocalLive = await request(port, "/api/v1/audit-logs", { headers: adminHeaders }).then((res) => res.json());
+  const localLiveTestAudit = auditAfterLocalLive.logs.find((log) => log.action === "ai_provider_tested" && log.targetType === "config" && log.targetId === "local" && log.metadata.result === "live_ready");
+  assert.equal(localLiveTestAudit.metadata.provider, "Local Model");
+  assert.equal(localLiveTestAudit.metadata.configured, true);
+  assert.equal(localLiveTestAudit.metadata.mode, "live");
+  assert.equal(localLiveTestAudit.metadata.reason, "models_endpoint_ok");
+  assert.equal(localLiveTestAudit.metadata.modelCount, 2);
+  assert.equal(localLiveTestAudit.metadata.selectedModelAvailable, true);
+  assert.equal(JSON.stringify(localLiveTestAudit).includes("127.0.0.1"), false);
 
   const completedOnboarding = await request(port, "/api/v1/admin/onboarding/complete", {
     method: "PUT",

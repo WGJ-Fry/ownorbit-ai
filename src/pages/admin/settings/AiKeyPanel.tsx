@@ -104,9 +104,9 @@ export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: Co
     setBusy(true);
     setStatus(null);
     try {
-      const result = await testAiProvider(selectedProvider);
+      const result = await testAiProvider(selectedProvider, selectedProvider === "local" ? "live" : "configuration");
       setStatus(result.ok
-        ? `${t("aiKey.testConfigOk", { provider: result.provider.provider, model: result.selectedModel || result.provider.selectedModel || result.provider.defaultModel || "-" })} ${t("aiKey.testConfigOnly")}`
+        ? `${t("aiKey.testConfigOk", { provider: result.provider.provider, model: result.selectedModel || result.provider.selectedModel || result.provider.defaultModel || "-" })} ${result.mode === "live" ? t("aiKey.testLiveOk", { count: result.modelCount ?? 0 }) : t("aiKey.testConfigOnly")}`
         : result.message);
       await refreshProviders();
     } catch (error: any) {
