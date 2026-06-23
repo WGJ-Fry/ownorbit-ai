@@ -1,5 +1,6 @@
 import { CheckCircle2, Copy, PlugZap, QrCode } from "lucide-react";
 import type { NetworkDiagnostics } from "../../services/lifeosApi";
+import { buildConnectionSetupPacket } from "../../services/connectionSetupPacket";
 import { useI18n } from "../../i18n/I18nProvider";
 import NoPhoneReachableNotice from "./NoPhoneReachableNotice";
 
@@ -89,6 +90,15 @@ export default function ConnectionRecommendedEntryCard({
             >
               <Copy className="h-3.5 w-3.5" />
               {copied === "recommended-env" ? t("connection.copiedRecommendedEnv") : t("connection.copyRecommendedEnv")}
+            </button>
+          ) : null}
+          {recommendedCandidate ? (
+            <button
+              onClick={() => onCopyText("recommended-setup", buildConnectionSetupPacket(recommendedCandidate))}
+              className="inline-flex items-center gap-2 rounded-xl border border-cyan-100/20 bg-[#061016]/45 px-3 py-2 text-xs font-bold text-cyan-50"
+            >
+              <Copy className="h-3.5 w-3.5" />
+              {copied === "recommended-setup" ? t("connection.copiedSetupPacket") : t("connection.copySetupPacket")}
             </button>
           ) : null}
           {recommendedCandidate ? (

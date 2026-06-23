@@ -726,6 +726,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(connectionRecommendedEntrySource, /connection\.recommendedEnv/);
   assert.match(connectionRecommendedEntrySource, /recommended-env/);
   assert.match(connectionRecommendedEntrySource, /connection\.copyRecommendedEnv/);
+  assert.match(connectionRecommendedEntrySource, /buildConnectionSetupPacket/);
+  assert.match(connectionRecommendedEntrySource, /recommended-setup/);
+  assert.match(connectionRecommendedEntrySource, /connection\.copySetupPacket/);
+  const connectionSetupPacketSource = await readFile(path.join(rootDir, "src", "services", "connectionSetupPacket.ts"), "utf8");
+  assert.match(connectionSetupPacketSource, /LifeOS AI remote connection setup/);
+  assert.match(connectionSetupPacketSource, /Requires restart/);
   assert.match(connectionRecommendedEntrySource, /connection\.copyMobileEntry/);
   assert.match(connectionRecommendedEntrySource, /connection\.openPairingQr/);
   assert.match(connectionRecommendedEntrySource, /href="\/admin\/devices\/pair"/);
@@ -910,6 +916,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /项通过/);
   assert.match(translationsSource, /checks passed/);
   assert.match(translationsSource, /Cloudflare Named Tunnel/);
+  assert.match(translationsSource, /复制连接配置摘要/);
   assert.match(translationsSource, /自动检查已通过，仍需完成真实手机\/重启\/断网验收/);
   assert.match(translationsSource, /credentials JSON 已找到/);
   assert.match(translationsSource, /credentials JSON is missing/);

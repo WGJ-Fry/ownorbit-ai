@@ -578,6 +578,7 @@ function checkAssets() {
   const desktopRuntimeConfigSource = exists("server/desktopRuntimeConfig.ts") ? fs.readFileSync(path.join(rootDir, "server/desktopRuntimeConfig.ts"), "utf8") : "";
   const connectionGuideSource = exists("src/pages/admin/ConnectionGuide.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/ConnectionGuide.tsx"), "utf8") : "";
   const connectionRecommendedEntrySource = exists("src/pages/admin/ConnectionRecommendedEntryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/ConnectionRecommendedEntryCard.tsx"), "utf8") : "";
+  const connectionSetupPacketSource = exists("src/services/connectionSetupPacket.ts") ? fs.readFileSync(path.join(rootDir, "src/services/connectionSetupPacket.ts"), "utf8") : "";
   const connectionMobileEntryPanelSource = exists("src/pages/admin/ConnectionMobileEntryPanel.tsx")
     ? fs.readFileSync(path.join(rootDir, "src/pages/admin/ConnectionMobileEntryPanel.tsx"), "utf8")
     : "";
@@ -657,6 +658,11 @@ function checkAssets() {
     connectionRecommendedEntrySource.includes("connection.recommendedEnv") &&
     connectionRecommendedEntrySource.includes("recommended-env") &&
     connectionRecommendedEntrySource.includes("connection.copyRecommendedEnv") &&
+    connectionRecommendedEntrySource.includes("buildConnectionSetupPacket") &&
+    connectionRecommendedEntrySource.includes("recommended-setup") &&
+    connectionRecommendedEntrySource.includes("connection.copySetupPacket") &&
+    connectionSetupPacketSource.includes("LifeOS AI remote connection setup") &&
+    connectionSetupPacketSource.includes("Requires restart") &&
     connectionRecommendedEntrySource.includes("connection.copyMobileEntry") &&
     connectionRecommendedEntrySource.includes("/admin/devices/pair") &&
     connectionRecommendedEntrySource.includes("connection.openPairingQr") &&
@@ -851,6 +857,7 @@ function checkAssets() {
     translationsSource.includes("connection.temporaryRecommendedDescription") &&
     translationsSource.includes("connection.recommendedEnv") &&
     translationsSource.includes("connection.copyRecommendedEnv") &&
+    translationsSource.includes("connection.copySetupPacket") &&
     translationsSource.includes("connection.saveDesktopConfig") &&
     translationsSource.includes("connection.openPairingQr") &&
     translationsSource.includes("绑定手机端”二维码都会自动使用这个入口") &&
