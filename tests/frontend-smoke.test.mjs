@@ -309,6 +309,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.defaultProvider/);
   assert.match(onboardingSource, /onboarding\.setDefault/);
   assert.match(onboardingSource, /onboarding\.alreadyDefault/);
+  assert.match(onboardingSource, /aiKey\.modelCatalogUpdated/);
+  assert.match(onboardingSource, /modelCatalogUpdated/);
   assert.match(onboardingSource, /onboarding\.localEndpointLabel/);
   assert.match(onboardingSource, /type=\{isLocalProvider \? "url" : "password"\}/);
   assert.match(onboardingSource, /onboarding\.apiKeyHint/);

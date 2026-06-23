@@ -534,6 +534,8 @@ function checkAssets() {
     adminOnboardingSource.includes("backupSchedule?.nextRunAt") &&
     adminOnboardingSource.includes("onboarding.defaultProvider") &&
     adminOnboardingSource.includes("onboarding.setDefault") &&
+    adminOnboardingSource.includes("aiKey.modelCatalogUpdated") &&
+    adminOnboardingSource.includes("modelCatalogUpdated") &&
     adminOnboardingSource.includes("incompleteStepLabels") &&
     adminOnboardingSource.includes("onboarding.finishBlocked") &&
     adminOnboardingSource.includes("onboarding.finishReady") &&

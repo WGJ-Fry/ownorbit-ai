@@ -104,8 +104,12 @@ export default function AdminOnboardingPage() {
       await saveAiProviderKey(selectedProvider, apiKey.trim());
       await updateActiveAiProvider(selectedProvider);
       const result = await testAiProvider(selectedProvider, selectedProvider === "local" ? "live" : "configuration");
+      const testDetails = result.mode === "live" ? t("aiKey.testLiveOk", { count: result.modelCount ?? 0 }) : t("aiKey.testConfigOnly");
+      const catalogDetails = result.modelCatalogUpdated ? ` ${t("aiKey.modelCatalogUpdated", { count: result.discoveredModelCount || result.modelCount || 0 })}` : "";
       setApiKey("");
-      setStatus(`${result.message} ${t("onboarding.alreadyDefault")}`);
+      setStatus(result.ok
+        ? `${t("aiKey.testConfigOk", { provider: result.provider.provider, model: result.selectedModel || result.provider.selectedModel || result.provider.defaultModel || "-" })} ${testDetails}${catalogDetails} ${t("onboarding.alreadyDefault")}`
+        : result.message);
       await refresh();
     } catch (error: any) {
       setStatus(error.message || t("onboarding.aiFailed"));
