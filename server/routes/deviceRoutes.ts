@@ -105,14 +105,17 @@ function revokeDevice(device: DeviceRecord, actor: { type: string; id: string },
   revokeDeviceRecord(device.id, revokedAt);
   closeDeviceConnection(device.id, "Device revoked");
   insertAuditLog(reason === "self" ? "device_self_revoked" : "device_revoked", "device", device.id, {
+    revokeReason: reason,
     deviceName: device.name,
     deviceType: device.type,
+    previousStatus: device.status,
     authMethod: device.publicKey ? "signature" : "token",
     publicKeyConfigured: Boolean(device.publicKey),
     credentialExpiresAt: device.accessTokenExpiresAt || null,
     lastSeenAt: device.lastSeenAt,
     latestConnectivity: connectivityAuditSummary(device.id),
     wasOnline,
+    realtimeConnectionClosed: wasOnline,
     revokedAt,
   }, actor.type, actor.id);
 

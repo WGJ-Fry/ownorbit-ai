@@ -1195,11 +1195,16 @@ function checkAssets() {
     deviceRoutesSource.includes("device_self_revoked") &&
     deviceRoutesSource.includes("latestConnectivity") &&
     deviceRoutesSource.includes("connectivityAuditSummary") &&
+    deviceRoutesSource.includes("revokeReason") &&
+    deviceRoutesSource.includes("previousStatus") &&
+    deviceRoutesSource.includes("realtimeConnectionClosed") &&
     lifeosApiSource.includes("revokeCurrentDeviceBinding") &&
     mobileDeviceSource.includes("mobileDevice.forgetBinding") &&
     apiAuthTestSource.includes("Self Revoke Phone") &&
     apiAuthTestSource.includes("device_self_revoked") &&
-    apiAuthTestSource.includes("revokedAudit.metadata.latestConnectivity")
+    apiAuthTestSource.includes("revokedAudit.metadata.latestConnectivity") &&
+    apiAuthTestSource.includes("revokedAudit.metadata.revokeReason") &&
+    apiAuthTestSource.includes("revokedAudit.metadata.previousStatus")
   ) pass("mobile device page can revoke its own server-side binding with audit coverage");
   else warn("mobile device self-revoke flow is incomplete across API, UI, or tests");
   const deviceCredentialStoreSource = exists("src/services/deviceCredentialStore.ts") ? fs.readFileSync(path.join(rootDir, "src/services/deviceCredentialStore.ts"), "utf8") : "";

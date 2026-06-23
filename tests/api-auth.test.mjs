@@ -1754,11 +1754,16 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(selfRevokedAudit.actorType, "device");
   assert.equal(selfRevokedAudit.actorId, selfRevokeCredential.device.id);
   assert.equal(selfRevokedAudit.metadata.deviceName, "Self Revoke Phone");
+  assert.equal(selfRevokedAudit.metadata.revokeReason, "self");
+  assert.equal(selfRevokedAudit.metadata.previousStatus, "offline");
   assert.equal(selfRevokedAudit.metadata.authMethod, "token");
+  assert.equal(typeof selfRevokedAudit.metadata.realtimeConnectionClosed, "boolean");
   assert.equal(typeof selfRevokedAudit.metadata.revokedAt, "number");
   const revokedAudit = findAudit("device_revoked");
   assert.equal(revokedAudit.actorType, "admin");
   assert.equal(revokedAudit.metadata.deviceName, "Test Phone");
+  assert.equal(revokedAudit.metadata.revokeReason, "admin");
+  assert.equal(revokedAudit.metadata.previousStatus, "offline");
   assert.equal(revokedAudit.metadata.authMethod, "token");
   assert.equal(revokedAudit.metadata.publicKeyConfigured, false);
   assert.equal(typeof revokedAudit.metadata.credentialExpiresAt, "number");
@@ -1771,6 +1776,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(revokedAudit.metadata.latestConnectivity.latencyMs, 42);
   assert.equal(typeof revokedAudit.metadata.latestConnectivity.createdAt, "number");
   assert.equal(typeof revokedAudit.metadata.wasOnline, "boolean");
+  assert.equal(typeof revokedAudit.metadata.realtimeConnectionClosed, "boolean");
   assert.equal(typeof revokedAudit.metadata.revokedAt, "number");
   const onboardingCompletedAudit = finalAudit.logs.find((log) => log.action === "admin_onboarding_completed");
   assert.equal(onboardingCompletedAudit.actorType, "admin");
