@@ -190,6 +190,11 @@ function checkScripts() {
   } else {
     fail("npm test must use node --import tsx for every batch that imports TypeScript server modules");
   }
+  if (testScriptForTsRuntime.includes("tests/connection-setup-packet.test.mjs")) {
+    pass("npm test covers remote connection setup packet regressions");
+  } else {
+    fail("npm test must include tests/connection-setup-packet.test.mjs");
+  }
 
   if (exists("scripts/desktop-release-smoke.mjs")) pass("desktop release smoke script exists");
   else fail("missing desktop release smoke script: scripts/desktop-release-smoke.mjs");
