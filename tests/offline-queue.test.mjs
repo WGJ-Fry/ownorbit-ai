@@ -302,6 +302,28 @@ test("offline message queue records successful write-back metadata and clears it
   assert.equal(storage.has("lifeos_offline_message_queue_sync_meta"), false);
 });
 
+test("offline message queue records only actually synced items", async () => {
+  storage.clear();
+  dispatchedEvents = [];
+  postedMessages = [];
+  registeredSyncTags = [];
+  const queueModule = await import(`../src/services/offlineMessageQueue.ts?case=actual-sync-count-${Date.now()}`);
+
+  queueModule.markOfflineMessagesSynced(["missing-before-queue"]);
+  assert.equal(storage.has("lifeos_offline_message_queue_sync_meta"), false);
+
+  const firstId = queueModule.enqueueOfflineMessage({ role: "user", parts: [{ text: "real write back" }] });
+  const secondId = queueModule.enqueueOfflineMessage({ role: "user", parts: [{ text: "keep waiting" }] });
+  queueModule.markOfflineMessagesSynced([firstId, "already-removed", "never-existed"]);
+
+  const queue = queueModule.getOfflineMessageQueue();
+  assert.deepEqual(queue.map((item) => item.id), [secondId]);
+  const summary = queueModule.getOfflineMessageQueueSummary();
+  assert.equal(summary.count, 1);
+  assert.equal(summary.lastSyncedCount, 1);
+  assert.equal(typeof summary.lastSyncedAt, "number");
+});
+
 test("offline message queue can request persistent browser storage", async () => {
   storage.clear();
   dispatchedEvents = [];

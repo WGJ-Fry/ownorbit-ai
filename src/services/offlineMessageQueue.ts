@@ -466,8 +466,13 @@ export function removeOfflineMessages(ids: string[]) {
 
 export function markOfflineMessagesSynced(ids: string[]) {
   if (ids.length === 0) return;
-  writeSyncMeta({ lastSyncedAt: Date.now(), lastSyncedCount: ids.length });
-  removeOfflineMessages(ids);
+  const idSet = new Set(ids);
+  const queue = readQueue();
+  const nextQueue = queue.filter((item) => !idSet.has(item.id));
+  const syncedCount = queue.length - nextQueue.length;
+  if (syncedCount === 0) return;
+  writeSyncMeta({ lastSyncedAt: Date.now(), lastSyncedCount: syncedCount });
+  writeQueue(nextQueue, { requestSync: false });
 }
 
 export function retryOfflineMessage(id: string) {
