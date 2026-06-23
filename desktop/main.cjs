@@ -523,6 +523,7 @@ async function createDesktopDiagnosticBundle() {
       adminStatusError: adminStatusResult.ok ? "" : adminStatusResult.error || "",
     },
     updates: {
+      label: desktopUpdateLabel(),
       configured: desktopUpdateStatus.configured,
       enabled: desktopUpdateStatus.enabled,
       updateUrlHost: desktopUpdateStatus.updateUrlHost,

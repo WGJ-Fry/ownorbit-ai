@@ -396,6 +396,7 @@ test("Electron desktop exports a redacted desktop diagnostic bundle", async (t) 
   assert.equal(diagnostics.mainWindow.visible, true);
   assert.equal(diagnostics.updates.configured, true);
   assert.equal(diagnostics.updates.enabled, false);
+  assert.equal(diagnostics.updates.label, "Auto update disabled · url_contains_credentials_or_tokens");
   assert.equal(diagnostics.updates.updateUrlHost, "updates.example.com");
   assert.equal(diagnostics.updates.reason, "url_contains_credentials_or_tokens");
   assert.equal(diagnostics.release.manifestAvailable, true);

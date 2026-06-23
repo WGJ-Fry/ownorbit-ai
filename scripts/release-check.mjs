@@ -1969,7 +1969,9 @@ function checkSecurityConfig() {
     desktopMain.includes("url_contains_credentials_or_tokens") &&
     desktopMain.includes("url_points_to_artifact") &&
     desktopMain.includes("desktopUpdateStatus.enabled") &&
+    desktopMain.includes("label: desktopUpdateLabel()") &&
     desktopSmokeTestSource.includes("diagnostics.updates.enabled") &&
+    desktopSmokeTestSource.includes("diagnostics.updates.label") &&
     desktopSmokeTestSource.includes("url_contains_credentials_or_tokens")
   ) pass("desktop runtime disables unsafe auto-update URLs");
   else warn("desktop runtime may accept unsafe auto-update URLs");
