@@ -64,6 +64,9 @@ export function buildStudioSandboxSrcDoc(code: string) {
               },
               setState: function(state) {
                 return sendLifeosRequest('set-state', { state });
+              },
+              requestAction: function(action) {
+                return sendLifeosRequest('request-action', action || {});
               }
             };
             window.addEventListener('message', function(event) {
@@ -75,7 +78,7 @@ export function buildStudioSandboxSrcDoc(code: string) {
               if (data.ok === false) {
                 pending.reject(new Error(data.error || 'LifeOS app state request failed'));
               } else {
-                pending.resolve(data.state);
+                pending.resolve(data.result === undefined ? data.state : data.result);
               }
             });
           })();

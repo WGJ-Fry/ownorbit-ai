@@ -565,6 +565,26 @@ export type StoredCustomAppState = {
   updatedAt: number;
 };
 
+export type StoredCustomAppActionRequest = {
+  id: string;
+  appId: string;
+  actionType: "open_url";
+  label: string;
+  targetUrl: string;
+  targetScheme: string;
+  paramsSummary: string;
+  risk: "low" | "medium" | "high";
+  status: "pending" | "approved" | "cancelled" | "blocked";
+  reason?: string | null;
+  createdByType?: string | null;
+  createdById?: string | null;
+  createdAt: number;
+  decidedByType?: string | null;
+  decidedById?: string | null;
+  decidedAt?: number | null;
+  decisionNote?: string | null;
+};
+
 export function getLifeOSBasePath(pathname = typeof window === "undefined" ? "/" : window.location?.pathname || "/") {
   const match = String(pathname || "/").match(/^(.*?)(?:\/(?:admin|mobile|chat)(?:\/|$)|\/?$)/);
   const basePath = (match?.[1] || "").replace(/\/+$/, "");
@@ -1327,6 +1347,24 @@ export function saveCustomAppState(appId: string, state: unknown) {
   return requestJson<{ state: StoredCustomAppState }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/state`, {
     method: "PUT",
     body: JSON.stringify({ state }),
+  });
+}
+
+export function listCustomAppActionRequests(appId: string, limit = 20) {
+  return requestJson<{ requests: StoredCustomAppActionRequest[] }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/action-requests?limit=${encodeURIComponent(String(limit))}`);
+}
+
+export function createCustomAppActionRequest(appId: string, input: { actionType?: "open_url"; type?: "open_url"; label?: string; targetUrl: string; reason?: string }) {
+  return requestJson<{ request: StoredCustomAppActionRequest }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/action-requests`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function decideCustomAppActionRequest(appId: string, requestId: string, decision: "approved" | "cancelled", note?: string) {
+  return requestJson<{ request: StoredCustomAppActionRequest }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/action-requests/${encodeURIComponent(requestId)}/decision`, {
+    method: "POST",
+    body: JSON.stringify({ decision, note }),
   });
 }
 

@@ -1,16 +1,22 @@
 import crypto from "crypto";
 import { db } from "./db";
 import { redactAuditString } from "./audit";
+import { getClientState } from "./clientState";
 
 const MAX_APP_NAME_LENGTH = 120;
 const MAX_APP_DESCRIPTION_LENGTH = 800;
 const MAX_APP_CODE_BYTES = Number(process.env.LIFEOS_MAX_CUSTOM_APP_CODE_BYTES || 512 * 1024);
 const MAX_APP_STATE_BYTES = Number(process.env.LIFEOS_MAX_CUSTOM_APP_STATE_BYTES || 256 * 1024);
 const sensitiveStateKey = /api[-_]?key|byok[-_]?key|token|password|passphrase|secret|authorization|cookie|private/i;
+const DEFAULT_ALLOWED_ACTION_SCHEMES = ["http", "https", "tel", "sms", "mailto", "geo", "maps", "shortcuts", "iosamap", "androidamap", "comgooglemaps"];
+const BLOCKED_ACTION_SCHEMES = new Set(["javascript", "data", "file", "blob", "filesystem", "view-source"]);
+const HIGH_RISK_ACTION_SCHEMES = new Set(["tel", "sms", "shortcuts"]);
 
 export type CustomAppVisibility = "private" | "public";
 export type CustomAppStatus = "active" | "building";
 export type CustomAppSource = "studio" | "chat" | "import" | "migration";
+export type CustomAppActionRisk = "low" | "medium" | "high";
+export type CustomAppActionStatus = "pending" | "approved" | "cancelled" | "blocked";
 
 export type StoredCustomApp = {
   id: string;
@@ -47,6 +53,26 @@ export type StoredCustomAppState = {
   updatedAt: number;
 };
 
+export type StoredCustomAppActionRequest = {
+  id: string;
+  appId: string;
+  actionType: "open_url";
+  label: string;
+  targetUrl: string;
+  targetScheme: string;
+  paramsSummary: string;
+  risk: CustomAppActionRisk;
+  status: CustomAppActionStatus;
+  reason?: string | null;
+  createdByType?: string | null;
+  createdById?: string | null;
+  createdAt: number;
+  decidedByType?: string | null;
+  decidedById?: string | null;
+  decidedAt?: number | null;
+  decisionNote?: string | null;
+};
+
 function statusError(message: string, statusCode = 400) {
   const error = new Error(message);
   (error as any).statusCode = statusCode;
@@ -69,6 +95,12 @@ function sanitizeOptionalText(value: unknown, maxLength: number) {
   if (value === undefined || value === null) return undefined;
   const text = redactAuditString(String(value).replace(/\s+/g, " ").trim());
   return text.slice(0, maxLength);
+}
+
+function sanitizeActionText(value: unknown, maxLength: number, fallback = "") {
+  return redactAuditString(String(value ?? fallback).replace(/\s+/g, " ").trim())
+    .replace(/\+?\d[\d ().-]{6,}\d/g, "[redacted]")
+    .slice(0, maxLength);
 }
 
 function sanitizeCode(value: unknown) {
@@ -98,6 +130,65 @@ function sanitizeStateValue(value: unknown): unknown {
       sanitizeStateValue(item),
     ]),
   );
+}
+
+function getUrlScheme(value: string) {
+  return value.trim().match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/)?.[1]?.toLowerCase() || "";
+}
+
+function redactActionUrl(value: string) {
+  const trimmed = value.trim();
+  const scheme = getUrlScheme(trimmed);
+  if (!scheme) return "[invalid-url]";
+  try {
+    const parsed = new URL(trimmed);
+    const hasQuery = Array.from(parsed.searchParams.keys()).length > 0;
+    const query = hasQuery ? "?[redacted]" : "";
+    if (["tel", "sms", "mailto"].includes(scheme)) return `${scheme}:[redacted]${query}`;
+    if (scheme === "shortcuts") return `${parsed.protocol}//${parsed.host || "run-shortcut"}${query}`;
+    if (["http", "https"].includes(scheme)) return `${parsed.origin}${parsed.pathname}${query}`;
+    return `${scheme}://[redacted]${query}`;
+  } catch {
+    return `${scheme}:[redacted]`;
+  }
+}
+
+function summarizeActionParams(value: string) {
+  try {
+    const parsed = new URL(value);
+    const keys = Array.from(parsed.searchParams.keys());
+    return keys.length ? keys.slice(0, 4).join(", ") : "-";
+  } catch {
+    return "-";
+  }
+}
+
+function riskForActionScheme(scheme: string): CustomAppActionRisk {
+  if (HIGH_RISK_ACTION_SCHEMES.has(scheme)) return "high";
+  if (!["http", "https"].includes(scheme)) return "medium";
+  return "low";
+}
+
+function allowedActionSchemes() {
+  const state = getClientState("lifeos_allowed_url_schemes")?.value;
+  if (!Array.isArray(state)) return DEFAULT_ALLOWED_ACTION_SCHEMES;
+  const normalized = Array.from(new Set(
+    state
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim().toLowerCase())
+      .filter((scheme) => /^[a-z][a-z0-9+.-]{1,31}$/.test(scheme))
+      .filter((scheme) => !BLOCKED_ACTION_SCHEMES.has(scheme)),
+  ));
+  return normalized.length ? normalized : DEFAULT_ALLOWED_ACTION_SCHEMES;
+}
+
+function sanitizeActionTargetUrl(value: unknown) {
+  const targetUrl = String(value || "").trim();
+  if (!targetUrl) throw statusError("targetUrl is required");
+  if (targetUrl.length > 2000) throw statusError("targetUrl is too long", 413);
+  const scheme = getUrlScheme(targetUrl);
+  if (!scheme) throw statusError("targetUrl must include a URL scheme");
+  return { targetUrl, scheme };
 }
 
 function normalizeVisibility(value: unknown): CustomAppVisibility {
@@ -163,6 +254,28 @@ function rowToCustomAppState(row: any): StoredCustomAppState {
     updatedByType: row.updatedByType,
     updatedById: row.updatedById,
     updatedAt: row.updatedAt,
+  };
+}
+
+function rowToCustomAppActionRequest(row: any): StoredCustomAppActionRequest {
+  return {
+    id: row.id,
+    appId: row.appId,
+    actionType: row.actionType,
+    label: row.label,
+    targetUrl: row.targetUrl,
+    targetScheme: row.targetScheme,
+    paramsSummary: row.paramsSummary,
+    risk: row.risk,
+    status: row.status,
+    reason: row.reason,
+    createdByType: row.createdByType,
+    createdById: row.createdById,
+    createdAt: row.createdAt,
+    decidedByType: row.decidedByType,
+    decidedById: row.decidedById,
+    decidedAt: row.decidedAt,
+    decisionNote: row.decisionNote,
   };
 }
 
@@ -361,6 +474,99 @@ export function updateCustomAppState(appId: string, value: unknown, actor?: { ty
       updated_at = excluded.updated_at
   `).run(appId, json, actor?.type || null, actor?.id || null, now);
   return { appId, state, updatedAt: now, updatedByType: actor?.type || null, updatedById: actor?.id || null };
+}
+
+function selectCustomAppActionRequest(appId: string, requestId: string) {
+  return db.prepare(`
+    SELECT id, app_id as appId, action_type as actionType, label, target_url as targetUrl,
+           target_scheme as targetScheme, params_summary as paramsSummary, risk, status, reason,
+           created_by_type as createdByType, created_by_id as createdById, created_at as createdAt,
+           decided_by_type as decidedByType, decided_by_id as decidedById, decided_at as decidedAt,
+           decision_note as decisionNote
+    FROM custom_app_action_requests
+    WHERE app_id = ? AND id = ?
+  `).get(appId, requestId) as any;
+}
+
+export function getCustomAppActionRequest(appId: string, requestId: string) {
+  const row = selectCustomAppActionRequest(appId, requestId);
+  return row ? rowToCustomAppActionRequest(row) : null;
+}
+
+export function listCustomAppActionRequests(appId: string, limitInput?: unknown) {
+  const app = getCustomApp(appId);
+  if (!app) return null;
+  const limit = normalizeLimit(limitInput);
+  return db.prepare(`
+    SELECT id, app_id as appId, action_type as actionType, label, target_url as targetUrl,
+           target_scheme as targetScheme, params_summary as paramsSummary, risk, status, reason,
+           created_by_type as createdByType, created_by_id as createdById, created_at as createdAt,
+           decided_by_type as decidedByType, decided_by_id as decidedById, decided_at as decidedAt,
+           decision_note as decisionNote
+    FROM custom_app_action_requests
+    WHERE app_id = ?
+    ORDER BY created_at DESC
+    LIMIT ?
+  `).all(appId, limit).map(rowToCustomAppActionRequest);
+}
+
+export function createCustomAppActionRequest(appId: string, input: Record<string, unknown>, actor?: { type: string; id: string }) {
+  const app = getCustomApp(appId);
+  if (!app) return null;
+  const actionType = String(input.actionType || input.type || "open_url").trim();
+  if (actionType !== "open_url") throw statusError("Unsupported custom app action type");
+  const { targetUrl, scheme } = sanitizeActionTargetUrl(input.targetUrl);
+  const label = sanitizeActionText(input.label, 120, "Open URL") || "Open URL";
+  const reason = sanitizeActionText(input.reason, 400) || null;
+  const allowedSchemes = allowedActionSchemes();
+  const status: CustomAppActionStatus = BLOCKED_ACTION_SCHEMES.has(scheme) || !allowedSchemes.includes(scheme) ? "blocked" : "pending";
+  const now = Date.now();
+  const id = `app-action-${crypto.randomUUID()}`;
+  const redactedTargetUrl = redactActionUrl(targetUrl);
+  const paramsSummary = summarizeActionParams(targetUrl);
+  const risk = status === "blocked" ? "high" : riskForActionScheme(scheme);
+  db.prepare(`
+    INSERT INTO custom_app_action_requests (
+      id, app_id, action_type, label, target_url, target_scheme, params_summary, risk, status, reason,
+      created_by_type, created_by_id, created_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    appId,
+    actionType,
+    label,
+    redactedTargetUrl,
+    scheme,
+    paramsSummary,
+    risk,
+    status,
+    reason,
+    actor?.type || null,
+    actor?.id || null,
+    now,
+  );
+  return getCustomAppActionRequest(appId, id)!;
+}
+
+export function decideCustomAppActionRequest(
+  appId: string,
+  requestId: string,
+  decision: "approved" | "cancelled",
+  actor?: { type: string; id: string },
+  note?: unknown,
+) {
+  const request = getCustomAppActionRequest(appId, requestId);
+  if (!request) return null;
+  if (request.status !== "pending") throw statusError(`Custom app action request is already ${request.status}`, 409);
+  const decidedAt = Date.now();
+  const decisionNote = sanitizeActionText(note, 240) || null;
+  db.prepare(`
+    UPDATE custom_app_action_requests
+    SET status = ?, decided_by_type = ?, decided_by_id = ?, decided_at = ?, decision_note = ?
+    WHERE app_id = ? AND id = ? AND status = 'pending'
+  `).run(decision, actor?.type || null, actor?.id || null, decidedAt, decisionNote, appId, requestId);
+  return getCustomAppActionRequest(appId, requestId)!;
 }
 
 export function deleteCustomApp(id: string) {

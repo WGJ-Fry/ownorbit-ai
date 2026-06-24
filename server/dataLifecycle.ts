@@ -16,6 +16,7 @@ const previewTables = [
   "custom_apps",
   "custom_app_versions",
   "custom_app_state",
+  "custom_app_action_requests",
   "app_secrets",
   "schema_migrations",
 ];
@@ -192,10 +193,17 @@ export function createDataExport(scopes: DataExportScope[] = [...exportScopeKeys
         updatedAt: row.updatedAt,
       };
     });
+    const actionRequests = db.prepare(`
+      SELECT id, app_id as appId, action_type as actionType, label, target_url as targetUrl,
+             target_scheme as targetScheme, params_summary as paramsSummary, risk, status, reason,
+             created_at as createdAt, decided_at as decidedAt, decision_note as decisionNote
+      FROM custom_app_action_requests ORDER BY created_at DESC
+    `).all();
     exportData.customApps = {
       apps: redactDataExportValue(apps),
       versions: redactDataExportValue(versions),
       state,
+      actionRequests: redactDataExportValue(actionRequests),
     };
   }
 
@@ -207,7 +215,7 @@ export function summarizeDataExport(exportData: Record<string, unknown>) {
   const memories = Array.isArray(exportData.memories) ? exportData.memories : [];
   const devices = Array.isArray(exportData.devices) ? exportData.devices : [];
   const auditLogs = Array.isArray(exportData.auditLogs) ? exportData.auditLogs : [];
-  const customApps = exportData.customApps as { apps?: unknown[]; versions?: unknown[]; state?: unknown[] } | undefined;
+  const customApps = exportData.customApps as { apps?: unknown[]; versions?: unknown[]; state?: unknown[]; actionRequests?: unknown[] } | undefined;
   const scopes = Array.isArray(exportData.scopes) ? exportData.scopes.map((scope) => String(scope)) : [];
   return {
     scopes,
@@ -224,6 +232,7 @@ export function summarizeDataExport(exportData: Record<string, unknown>) {
       customApps: Array.isArray(customApps?.apps) ? customApps.apps.length : 0,
       customAppVersions: Array.isArray(customApps?.versions) ? customApps.versions.length : 0,
       customAppStates: Array.isArray(customApps?.state) ? customApps.state.length : 0,
+      customAppActionRequests: Array.isArray(customApps?.actionRequests) ? customApps.actionRequests.length : 0,
     },
   };
 }

@@ -3,9 +3,12 @@ import { insertAuditLog } from "../audit";
 import { requireActor } from "../auth";
 import {
   createCustomApp,
+  createCustomAppActionRequest,
+  decideCustomAppActionRequest,
   deleteCustomApp,
   getCustomApp,
   getCustomAppState,
+  listCustomAppActionRequests,
   listCustomApps,
   listCustomAppVersions,
   rollbackCustomAppVersion,
@@ -69,6 +72,58 @@ export function registerCustomAppRoutes(app: express.Express) {
       }, actor(req)?.type, actor(req)?.id);
       broadcastRealtime({ type: "custom_app.state_saved", appId: req.params.appId, timestamp: state.updatedAt });
       res.json({ state });
+    } catch (error) {
+      handleCustomAppError(res, error);
+    }
+  });
+
+  app.get("/api/v1/custom-apps/:appId/action-requests", requireActor, (req, res) => {
+    const requests = listCustomAppActionRequests(req.params.appId, req.query.limit);
+    if (!requests) return res.status(404).json({ error: "Custom app not found" });
+    res.json({ requests });
+  });
+
+  app.post("/api/v1/custom-apps/:appId/action-requests", requireActor, (req, res) => {
+    try {
+      const request = createCustomAppActionRequest(req.params.appId, req.body || {}, actor(req));
+      if (!request) return res.status(404).json({ error: "Custom app not found" });
+      insertAuditLog(request.status === "blocked" ? "custom_app_action_blocked" : "custom_app_action_requested", "custom_app", req.params.appId, {
+        requestId: request.id,
+        actionType: request.actionType,
+        label: request.label,
+        targetUrl: request.targetUrl,
+        targetScheme: request.targetScheme,
+        paramsSummary: request.paramsSummary,
+        risk: request.risk,
+        status: request.status,
+        reason: request.reason,
+      }, actor(req)?.type, actor(req)?.id);
+      broadcastRealtime({ type: "custom_app.action_requested", appId: req.params.appId, request, timestamp: request.createdAt });
+      res.json({ request });
+    } catch (error) {
+      handleCustomAppError(res, error);
+    }
+  });
+
+  app.post("/api/v1/custom-apps/:appId/action-requests/:requestId/decision", requireActor, (req, res) => {
+    try {
+      const decision = req.body?.decision === "approved" ? "approved" : req.body?.decision === "cancelled" ? "cancelled" : "";
+      if (!decision) return res.status(400).json({ error: "Invalid custom app action decision" });
+      const request = decideCustomAppActionRequest(req.params.appId, req.params.requestId, decision, actor(req), req.body?.note);
+      if (!request) return res.status(404).json({ error: "Custom app action request not found" });
+      insertAuditLog(decision === "approved" ? "custom_app_action_approved" : "custom_app_action_cancelled", "custom_app", req.params.appId, {
+        requestId: request.id,
+        actionType: request.actionType,
+        label: request.label,
+        targetUrl: request.targetUrl,
+        targetScheme: request.targetScheme,
+        paramsSummary: request.paramsSummary,
+        risk: request.risk,
+        status: request.status,
+        decisionNote: request.decisionNote,
+      }, actor(req)?.type, actor(req)?.id);
+      broadcastRealtime({ type: "custom_app.action_decided", appId: req.params.appId, request, timestamp: request.decidedAt || Date.now() });
+      res.json({ request });
     } catch (error) {
       handleCustomAppError(res, error);
     }

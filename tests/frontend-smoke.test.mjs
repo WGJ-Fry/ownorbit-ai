@@ -314,6 +314,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /rollbackCustomAppVersion/);
   assert.match(lifeosApiSource, /getCustomAppState/);
   assert.match(lifeosApiSource, /saveCustomAppState/);
+  assert.match(lifeosApiSource, /listCustomAppActionRequests/);
+  assert.match(lifeosApiSource, /createCustomAppActionRequest/);
+  assert.match(lifeosApiSource, /decideCustomAppActionRequest/);
   assert.match(lifeosApiSource, /customApps/);
   assert.match(lifeosApiSource, /DataExportScope = "chat" \| "memories" \| "devices" \| "auditLogs" \| "customApps"/);
 
@@ -628,11 +631,24 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(studioSandboxSource, /window\.lifeosApp/);
   assert.match(studioSandboxSource, /getState/);
   assert.match(studioSandboxSource, /setState/);
+  assert.match(studioSandboxSource, /requestAction/);
+  assert.match(studioSandboxSource, /request-action/);
   assert.match(studioSandboxSource, /lifeos-custom-app-host/);
   assert.match(customAppFrameSource, /getCustomAppState/);
   assert.match(customAppFrameSource, /saveCustomAppState/);
+  assert.match(customAppFrameSource, /createCustomAppActionRequest/);
+  assert.match(customAppFrameSource, /decideCustomAppActionRequest/);
+  assert.match(customAppFrameSource, /window\.confirm/);
+  assert.match(customAppFrameSource, /customApp\.actionConfirm/);
+  assert.match(translationsSource, /customApp\.actionMissingTarget/);
+  assert.match(translationsSource, /customApp\.actionBlocked/);
+  assert.match(translationsSource, /customApp\.actionRisk\.high/);
   assert.match(customAppFrameSource, /event\.source !== iframeRef\.current\?\.contentWindow/);
   assert.match(customAppFrameSource, /lifeos-custom-app/);
+
+  const aiRoutesSource = await readFile(path.join(rootDir, "server", "aiRoutes.ts"), "utf8");
+  assert.match(aiRoutesSource, /window\.lifeosApp\.requestAction/);
+  assert.match(aiRoutesSource, /NEVER set window\.location directly/);
 
   assert.match(mobileDeviceSource, /retryOfflineMessage/);
   assert.match(mobileDeviceSource, /removeOfflineMessages/);
