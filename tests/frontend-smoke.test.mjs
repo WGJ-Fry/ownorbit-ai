@@ -286,6 +286,13 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(chatStateChangesSource, /OPEN_APP/);
   assert.match(chatStateChangesSource, /REQUEST_APP_GENERATION/);
   assert.match(chatStateChangesSource, /widgetArgKeys/);
+  const problemBlueprintSource = await readFile(path.join(rootDir, "src", "services", "problemBlueprint.ts"), "utf8");
+  const problemStudioAppSource = await readFile(path.join(rootDir, "src", "components", "apps", "StudioApp.tsx"), "utf8");
+  const studioWorkshopSource = await readFile(path.join(rootDir, "src", "components", "apps", "studio", "StudioWorkshopTab.tsx"), "utf8");
+  assert.match(problemBlueprintSource, /deriveProblemBlueprint/);
+  assert.match(problemBlueprintSource, /runnable problem-solving app/);
+  assert.match(problemStudioAppSource, /deriveProblemBlueprint\(problemInput\)/);
+  assert.match(studioWorkshopSource, /StudioProblemSolverCard/);
 
   const loginSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminLoginPage.tsx"), "utf8");
   assert.match(loginSource, /onboardingRequired/);

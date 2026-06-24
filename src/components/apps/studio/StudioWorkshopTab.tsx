@@ -2,13 +2,19 @@ import { FolderSync, Globe, Lock, Play, Sparkles, Terminal, Trash2, Zap } from "
 import { motion } from "motion/react";
 import type { ChangeEvent, RefObject } from "react";
 import { useI18n } from "../../../i18n/I18nProvider";
+import type { ProblemBlueprint } from "../../../services/problemBlueprint";
 import { CustomApp } from "../../../types";
+import StudioProblemSolverCard from "./StudioProblemSolverCard";
 
 type StudioWorkshopTabProps = {
   customApps: CustomApp[];
   fileInputRef: RefObject<HTMLInputElement>;
+  problemInput: string;
+  problemBlueprint: ProblemBlueprint;
   onClose: () => void;
   onFileInputChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onProblemInputChange: (value: string) => void;
+  onGenerateFromProblem: () => void;
   onOpenImportWizard: () => void;
   onOpenApp?: (id: string) => void;
   onDeleteApp?: (id: string) => void;
@@ -18,8 +24,12 @@ type StudioWorkshopTabProps = {
 export default function StudioWorkshopTab({
   customApps,
   fileInputRef,
+  problemInput,
+  problemBlueprint,
   onClose,
   onFileInputChange,
+  onProblemInputChange,
+  onGenerateFromProblem,
   onOpenImportWizard,
   onOpenApp,
   onDeleteApp,
@@ -54,6 +64,13 @@ export default function StudioWorkshopTab({
           {t("studio.workshop.generate")}
         </button>
       </div>
+
+      <StudioProblemSolverCard
+        problemInput={problemInput}
+        blueprint={problemBlueprint}
+        onProblemInputChange={onProblemInputChange}
+        onGenerateFromBlueprint={onGenerateFromProblem}
+      />
 
       <div
         onClick={() => fileInputRef.current?.click()}

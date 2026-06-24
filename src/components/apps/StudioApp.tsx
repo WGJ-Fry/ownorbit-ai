@@ -3,6 +3,7 @@ import { CustomApp } from "../../types";
 import { motion, AnimatePresence } from "motion/react";
 import { useSyncedClientState } from "../../hooks/useSyncedClientState";
 import { useI18n } from "../../i18n/I18nProvider";
+import { deriveProblemBlueprint } from "../../services/problemBlueprint";
 import { formatHtmlLikeCode } from "./studio/codeUtils";
 import { analyzeFile, generateStudioApp, refineCode } from "./studio/api";
 import StudioByokTab from "./studio/StudioByokTab";
@@ -50,8 +51,10 @@ export default function StudioApp({
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
   const [wizardAppName, setWizardAppName] = useState("");
   const [promptInput, setPromptInput] = useState("");
+  const [problemInput, setProblemInput] = useState("");
   const [isGeneratingApp, setIsGeneratingApp] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
+  const problemBlueprint = useMemo(() => deriveProblemBlueprint(problemInput), [problemInput]);
 
   // States for dragging files & AI analysis
   const [isDragging, setIsDragging] = useState(false);
@@ -211,6 +214,14 @@ export default function StudioApp({
     } finally {
       setIsGeneratingApp(false);
     }
+  };
+
+  const handleGenerateFromProblemBlueprint = () => {
+    if (!problemBlueprint.isReady) return;
+    setWizardAppName(problemBlueprint.suggestedAppName);
+    setPromptInput(problemBlueprint.appPrompt);
+    setGenerationError(null);
+    setIsImportWizardOpen(true);
   };
 
   const handleRefineCode = async () => {
@@ -451,8 +462,12 @@ export default function StudioApp({
               <StudioWorkshopTab
                 customApps={customApps}
                 fileInputRef={fileInputRef}
+                problemInput={problemInput}
+                problemBlueprint={problemBlueprint}
                 onClose={onClose}
                 onFileInputChange={handleFileInputChange}
+                onProblemInputChange={setProblemInput}
+                onGenerateFromProblem={handleGenerateFromProblemBlueprint}
                 onOpenImportWizard={() => {
                   setWizardAppName("");
                   setPromptInput("");

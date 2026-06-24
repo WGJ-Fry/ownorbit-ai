@@ -179,13 +179,15 @@ When the user asks "What am I forgetting?", inspect this vault context and produ
     const selectedProviderId = resolveAiProviderId({ providerId, modelEngine, byokProvider });
   
     try {
-      const prompt = `You are an expert frontend developer. 
-  The user wants an Alpine.js + Tailwind CSS component.
+      const prompt = `You are an expert product-minded frontend developer.
+  The user needs a runnable problem-solving app, not a decorative demo generated from a description.
   App Name: ${appName}
-  Description: ${description}
+  Current Problem And Requirements: ${description}
   
   REQUIREMENTS:
-  - The 'uiCode' MUST be a beautiful, modern, minimalist HTML widget using Tailwind CSS classes. 
+  - The 'uiCode' MUST be a beautiful, modern, minimalist HTML widget using Tailwind CSS classes.
+  - The app must help the user solve the current task directly: include useful inputs, editable sample data, validation, clear empty states, local results, and next-step guidance.
+  - If the task is accounting, planning, lookup, organizing, check-in, calculation, form collection, or workflow management, implement the real interaction model for that task.
   - CRITICAL: You MUST use Alpine.js (via <div x-data="{...}">) for all state management, interaction logic, and dynamic rendering. Do NOT use vanilla JS <script> tags for logic if Alpine can do it.
   - The Alpine.js library and @alpinejs/persist plugin are pre-loaded in the iframe!
   - Use x-data="{ myVar: $persist('default_value') }" for persistent local storage automatically.
