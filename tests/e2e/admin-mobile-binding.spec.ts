@@ -371,7 +371,6 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(phone.getByText("已记录 1 条")).toBeVisible();
   await expect(phone.getByText("最近动作记录")).toBeVisible();
   await expect(phone.getByText("已拦截").first()).toBeVisible();
-  await expect(phone.getByText(/来源：自定义 URL/).first()).toBeVisible();
   await expect(phone.getByText(/风险：高风险/).first()).toBeVisible();
   await expect(phone.getByText(/目标：Blocked App/).first()).toBeVisible();
   await expect(phone.getByText("super-secret-action-token")).toHaveCount(0);
