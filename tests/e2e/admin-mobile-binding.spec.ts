@@ -355,6 +355,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
 
   await phone.goto("/mobile/actions");
   await expect(phone.getByText("生成程序动作审计")).toBeVisible();
+  await expect(phone.getByText("程序权限策略")).toBeVisible();
   await expect(phone.getByText("还没有生成程序动作请求")).toBeVisible();
   await expect(phone.getByText("动作权限中心")).toBeVisible();
   await phone.getByPlaceholder("URL，例如：weixin:// 或 shortcuts://...").fill("weixin://open?token=super-secret-action-token&body=private-message");

@@ -11,12 +11,20 @@ const sensitiveStateKey = /api[-_]?key|byok[-_]?key|token|password|passphrase|se
 const DEFAULT_ALLOWED_ACTION_SCHEMES = ["http", "https", "tel", "sms", "mailto", "geo", "maps", "shortcuts", "iosamap", "androidamap", "comgooglemaps"];
 const BLOCKED_ACTION_SCHEMES = new Set(["javascript", "data", "file", "blob", "filesystem", "view-source"]);
 const HIGH_RISK_ACTION_SCHEMES = new Set(["tel", "sms", "shortcuts"]);
+const CUSTOM_APP_ACTION_POLICY_SCHEMES = {
+  web: ["http", "https"],
+  navigation: ["http", "https", "geo", "maps", "iosamap", "androidamap", "comgooglemaps"],
+  communication: ["tel", "sms", "mailto"],
+  shortcuts: ["shortcuts"],
+  locked: [],
+} as const;
 
 export type CustomAppVisibility = "private" | "public";
 export type CustomAppStatus = "active" | "building";
 export type CustomAppSource = "studio" | "chat" | "import" | "migration";
 export type CustomAppActionRisk = "low" | "medium" | "high";
 export type CustomAppActionStatus = "pending" | "approved" | "cancelled" | "blocked";
+export type CustomAppActionPolicyTemplate = "global" | keyof typeof CUSTOM_APP_ACTION_POLICY_SCHEMES;
 
 export type StoredCustomApp = {
   id: string;
@@ -71,6 +79,16 @@ export type StoredCustomAppActionRequest = {
   decidedById?: string | null;
   decidedAt?: number | null;
   decisionNote?: string | null;
+};
+
+export type StoredCustomAppActionPolicy = {
+  appId: string;
+  template: CustomAppActionPolicyTemplate;
+  allowedSchemes: string[];
+  requireConfirmation: boolean;
+  updatedByType?: string | null;
+  updatedById?: string | null;
+  updatedAt: number;
 };
 
 function statusError(message: string, statusCode = 400) {
@@ -169,17 +187,26 @@ function riskForActionScheme(scheme: string): CustomAppActionRisk {
   return "low";
 }
 
-function allowedActionSchemes() {
-  const state = getClientState("lifeos_allowed_url_schemes")?.value;
-  if (!Array.isArray(state)) return DEFAULT_ALLOWED_ACTION_SCHEMES;
+function normalizeActionSchemes(value: unknown, fallback: string[] = DEFAULT_ALLOWED_ACTION_SCHEMES) {
+  if (!Array.isArray(value)) return fallback;
   const normalized = Array.from(new Set(
-    state
+    value
       .filter((item): item is string => typeof item === "string")
       .map((item) => item.trim().toLowerCase())
       .filter((scheme) => /^[a-z][a-z0-9+.-]{1,31}$/.test(scheme))
       .filter((scheme) => !BLOCKED_ACTION_SCHEMES.has(scheme)),
   ));
-  return normalized.length ? normalized : DEFAULT_ALLOWED_ACTION_SCHEMES;
+  return normalized.length || fallback.length === 0 ? normalized : fallback;
+}
+
+function allowedActionSchemes() {
+  const state = getClientState("lifeos_allowed_url_schemes")?.value;
+  return normalizeActionSchemes(state, DEFAULT_ALLOWED_ACTION_SCHEMES);
+}
+
+function normalizePolicyTemplate(value: unknown): CustomAppActionPolicyTemplate {
+  if (value === "web" || value === "navigation" || value === "communication" || value === "shortcuts" || value === "locked") return value;
+  return "global";
 }
 
 function sanitizeActionTargetUrl(value: unknown) {
@@ -276,6 +303,36 @@ function rowToCustomAppActionRequest(row: any): StoredCustomAppActionRequest {
     decidedById: row.decidedById,
     decidedAt: row.decidedAt,
     decisionNote: row.decisionNote,
+  };
+}
+
+function rowToCustomAppActionPolicy(row: any): StoredCustomAppActionPolicy {
+  let allowedSchemes: string[] = [];
+  try {
+    allowedSchemes = normalizeActionSchemes(JSON.parse(row.allowedSchemesJson || "[]"), []);
+  } catch {
+    allowedSchemes = [];
+  }
+  return {
+    appId: row.appId,
+    template: normalizePolicyTemplate(row.template),
+    allowedSchemes,
+    requireConfirmation: Boolean(row.requireConfirmation),
+    updatedByType: row.updatedByType,
+    updatedById: row.updatedById,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function defaultCustomAppActionPolicy(appId: string): StoredCustomAppActionPolicy {
+  return {
+    appId,
+    template: "global",
+    allowedSchemes: allowedActionSchemes(),
+    requireConfirmation: true,
+    updatedByType: null,
+    updatedById: null,
+    updatedAt: 0,
   };
 }
 
@@ -476,6 +533,60 @@ export function updateCustomAppState(appId: string, value: unknown, actor?: { ty
   return { appId, state, updatedAt: now, updatedByType: actor?.type || null, updatedById: actor?.id || null };
 }
 
+function actionSchemesForPolicyTemplate(template: CustomAppActionPolicyTemplate) {
+  if (template === "global") return allowedActionSchemes();
+  return [...CUSTOM_APP_ACTION_POLICY_SCHEMES[template]];
+}
+
+export function getCustomAppActionPolicy(appId: string) {
+  const app = getCustomApp(appId);
+  if (!app) return null;
+  const row = db.prepare(`
+    SELECT app_id as appId, template, allowed_schemes_json as allowedSchemesJson,
+           require_confirmation as requireConfirmation, updated_by_type as updatedByType,
+           updated_by_id as updatedById, updated_at as updatedAt
+    FROM custom_app_action_policies
+    WHERE app_id = ?
+  `).get(appId) as any;
+  return row ? rowToCustomAppActionPolicy(row) : defaultCustomAppActionPolicy(appId);
+}
+
+export function updateCustomAppActionPolicy(appId: string, input: Record<string, unknown>, actor?: { type: string; id: string }) {
+  const app = getCustomApp(appId);
+  if (!app) return null;
+  const template = normalizePolicyTemplate(input.template);
+  const templateSchemes = actionSchemesForPolicyTemplate(template);
+  const allowedSchemes = input.allowedSchemes === undefined
+    ? templateSchemes
+    : normalizeActionSchemes(input.allowedSchemes, templateSchemes);
+  const requireConfirmation = input.requireConfirmation === undefined ? true : input.requireConfirmation !== false;
+  const updatedAt = Date.now();
+
+  db.prepare(`
+    INSERT INTO custom_app_action_policies (
+      app_id, template, allowed_schemes_json, require_confirmation, updated_by_type, updated_by_id, updated_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(app_id) DO UPDATE SET
+      template = excluded.template,
+      allowed_schemes_json = excluded.allowed_schemes_json,
+      require_confirmation = excluded.require_confirmation,
+      updated_by_type = excluded.updated_by_type,
+      updated_by_id = excluded.updated_by_id,
+      updated_at = excluded.updated_at
+  `).run(
+    appId,
+    template,
+    JSON.stringify(allowedSchemes),
+    requireConfirmation ? 1 : 0,
+    actor?.type || null,
+    actor?.id || null,
+    updatedAt,
+  );
+
+  return getCustomAppActionPolicy(appId)!;
+}
+
 function selectCustomAppActionRequest(appId: string, requestId: string) {
   return db.prepare(`
     SELECT id, app_id as appId, action_type as actionType, label, target_url as targetUrl,
@@ -518,7 +629,8 @@ export function createCustomAppActionRequest(appId: string, input: Record<string
   const { targetUrl, scheme } = sanitizeActionTargetUrl(input.targetUrl);
   const label = sanitizeActionText(input.label, 120, "Open URL") || "Open URL";
   const reason = sanitizeActionText(input.reason, 400) || null;
-  const allowedSchemes = allowedActionSchemes();
+  const policy = getCustomAppActionPolicy(appId) || defaultCustomAppActionPolicy(appId);
+  const allowedSchemes = policy.allowedSchemes;
   const status: CustomAppActionStatus = BLOCKED_ACTION_SCHEMES.has(scheme) || !allowedSchemes.includes(scheme) ? "blocked" : "pending";
   const now = Date.now();
   const id = `app-action-${crypto.randomUUID()}`;

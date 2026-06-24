@@ -317,6 +317,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /listCustomAppActionRequests/);
   assert.match(lifeosApiSource, /createCustomAppActionRequest/);
   assert.match(lifeosApiSource, /decideCustomAppActionRequest/);
+  assert.match(lifeosApiSource, /getCustomAppActionPolicy/);
+  assert.match(lifeosApiSource, /updateCustomAppActionPolicy/);
   assert.match(lifeosApiSource, /customApps/);
   assert.match(lifeosApiSource, /DataExportScope = "chat" \| "memories" \| "devices" \| "auditLogs" \| "customApps"/);
 
@@ -776,8 +778,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileActionsPageSource, /MobileCustomAppActionsPanel/);
   assert.match(mobileCustomAppActionsPanelSource, /listCustomApps\(24\)/);
   assert.match(mobileCustomAppActionsPanelSource, /listCustomAppActionRequests\(app\.id, 6\)/);
+  assert.match(mobileCustomAppActionsPanelSource, /getCustomAppActionPolicy\(app\.id\)/);
+  assert.match(mobileCustomAppActionsPanelSource, /updateCustomAppActionPolicy\(appId, \{ template \}\)/);
   assert.match(mobileCustomAppActionsPanelSource, /decideCustomAppActionRequest\(request\.appId, request\.id, "cancelled"/);
   assert.match(mobileCustomAppActionsPanelSource, /customAppActions\.title/);
+  assert.match(mobileCustomAppActionsPanelSource, /customAppActions\.policyTitle/);
   assert.match(mobileCustomAppActionsPanelSource, /customAppActions\.blockedHint/);
   assert.match(mobileCustomAppActionsPanelSource, /targetUrl/);
   assert.match(mobileActionsSource, /actions\.loggedCount/);
@@ -803,6 +808,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /动作权限中心/);
   assert.match(translationsSource, /生成程序动作审计/);
   assert.match(translationsSource, /Generated Tool Action Audit/);
+  assert.match(translationsSource, /程序权限策略/);
+  assert.match(translationsSource, /Tool Permission Policies/);
   assert.match(translationsSource, /来源摘要/);
   assert.match(translationsSource, /清空记录/);
   assert.match(translationsSource, /清空动作执行记录/);

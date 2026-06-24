@@ -7,12 +7,14 @@ import {
   decideCustomAppActionRequest,
   deleteCustomApp,
   getCustomApp,
+  getCustomAppActionPolicy,
   getCustomAppState,
   listCustomAppActionRequests,
   listCustomApps,
   listCustomAppVersions,
   rollbackCustomAppVersion,
   updateCustomApp,
+  updateCustomAppActionPolicy,
   updateCustomAppState,
 } from "../customApps";
 import { broadcastRealtime } from "../realtime";
@@ -72,6 +74,28 @@ export function registerCustomAppRoutes(app: express.Express) {
       }, actor(req)?.type, actor(req)?.id);
       broadcastRealtime({ type: "custom_app.state_saved", appId: req.params.appId, timestamp: state.updatedAt });
       res.json({ state });
+    } catch (error) {
+      handleCustomAppError(res, error);
+    }
+  });
+
+  app.get("/api/v1/custom-apps/:appId/action-policy", requireActor, (req, res) => {
+    const policy = getCustomAppActionPolicy(req.params.appId);
+    if (!policy) return res.status(404).json({ error: "Custom app not found" });
+    res.json({ policy });
+  });
+
+  app.put("/api/v1/custom-apps/:appId/action-policy", requireActor, (req, res) => {
+    try {
+      const policy = updateCustomAppActionPolicy(req.params.appId, req.body || {}, actor(req));
+      if (!policy) return res.status(404).json({ error: "Custom app not found" });
+      insertAuditLog("custom_app_action_policy_updated", "custom_app", req.params.appId, {
+        template: policy.template,
+        allowedSchemes: policy.allowedSchemes,
+        requireConfirmation: policy.requireConfirmation,
+      }, actor(req)?.type, actor(req)?.id);
+      broadcastRealtime({ type: "custom_app.action_policy_updated", appId: req.params.appId, policy, timestamp: policy.updatedAt });
+      res.json({ policy });
     } catch (error) {
       handleCustomAppError(res, error);
     }

@@ -3,8 +3,13 @@ import { Clock3, RefreshCw, ShieldAlert, ShieldCheck, Wrench, XCircle } from "lu
 import { useI18n } from "../../i18n/I18nProvider";
 import {
   decideCustomAppActionRequest,
+  getCustomAppActionPolicy,
   listCustomAppActionRequests,
   listCustomApps,
+  updateCustomAppActionPolicy,
+  type CustomAppActionPolicyTemplate,
+  type StoredCustomApp,
+  type StoredCustomAppActionPolicy,
   type StoredCustomAppActionRequest,
 } from "../../services/lifeosApi";
 import type { TranslationKey } from "../../i18n/translations";
@@ -12,6 +17,8 @@ import type { TranslationKey } from "../../i18n/translations";
 type ActionRequestWithApp = StoredCustomAppActionRequest & {
   appName: string;
 };
+
+const policyTemplates: CustomAppActionPolicyTemplate[] = ["global", "web", "navigation", "communication", "shortcuts", "locked"];
 
 function statusLabel(status: StoredCustomAppActionRequest["status"], t: (key: TranslationKey, values?: Record<string, string | number>) => string) {
   return t(`customAppActions.status.${status}` as TranslationKey);
@@ -28,12 +35,19 @@ function statusClass(status: StoredCustomAppActionRequest["status"]) {
   return "border-zinc-300/10 bg-zinc-500/10 text-zinc-300";
 }
 
+function policyTemplateLabel(template: CustomAppActionPolicyTemplate, t: (key: TranslationKey, values?: Record<string, string | number>) => string) {
+  return t(`customAppActions.policyTemplate.${template}` as TranslationKey);
+}
+
 export default function MobileCustomAppActionsPanel() {
   const { t } = useI18n();
+  const [apps, setApps] = useState<StoredCustomApp[]>([]);
+  const [policies, setPolicies] = useState<Record<string, StoredCustomAppActionPolicy>>({});
   const [requests, setRequests] = useState<ActionRequestWithApp[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [savingPolicyAppId, setSavingPolicyAppId] = useState<string | null>(null);
 
   const summary = useMemo(() => ({
     pending: requests.filter((request) => request.status === "pending").length,
@@ -41,11 +55,14 @@ export default function MobileCustomAppActionsPanel() {
     highRisk: requests.filter((request) => request.risk === "high").length,
   }), [requests]);
 
+  const policyApps = useMemo(() => apps.slice(0, 6), [apps]);
+
   const loadRequests = async (silent = false) => {
     if (!silent) setIsLoading(true);
     setError(null);
     try {
       const appData = await listCustomApps(24);
+      setApps(appData.apps);
       const requestGroups = await Promise.all(appData.apps.map(async (app) => {
         try {
           const data = await listCustomAppActionRequests(app.id, 6);
@@ -54,11 +71,33 @@ export default function MobileCustomAppActionsPanel() {
           return [];
         }
       }));
+      const policyEntries = await Promise.all(appData.apps.map(async (app) => {
+        try {
+          const data = await getCustomAppActionPolicy(app.id);
+          return [app.id, data.policy] as const;
+        } catch {
+          return null;
+        }
+      }));
+      setPolicies(Object.fromEntries(policyEntries.filter((entry): entry is readonly [string, StoredCustomAppActionPolicy] => Boolean(entry))));
       setRequests(requestGroups.flat().sort((a, b) => b.createdAt - a.createdAt).slice(0, 24));
     } catch (loadError: any) {
       setError(loadError?.message || t("customAppActions.loadFailed"));
     } finally {
       if (!silent) setIsLoading(false);
+    }
+  };
+
+  const changePolicyTemplate = async (appId: string, template: CustomAppActionPolicyTemplate) => {
+    setSavingPolicyAppId(appId);
+    try {
+      const data = await updateCustomAppActionPolicy(appId, { template });
+      setPolicies((items) => ({ ...items, [appId]: data.policy }));
+    } catch (policyError: any) {
+      alert(policyError?.message || t("customAppActions.policyUpdateFailed"));
+      await loadRequests(true);
+    } finally {
+      setSavingPolicyAppId(null);
     }
   };
 
@@ -113,6 +152,63 @@ export default function MobileCustomAppActionsPanel() {
         <SummaryMetric label={t("customAppActions.pending")} value={summary.pending} tone="text-amber-100" />
         <SummaryMetric label={t("customAppActions.blocked")} value={summary.blocked} tone="text-red-100" />
         <SummaryMetric label={t("customAppActions.highRisk")} value={summary.highRisk} tone="text-cyan-100" />
+      </div>
+
+      <div className="mb-3 rounded-2xl border border-white/[0.06] bg-black/15 p-3">
+        <div className="mb-3">
+          <div className="text-xs font-black text-zinc-100">{t("customAppActions.policyTitle")}</div>
+          <p className="mt-1 text-[10px] leading-relaxed text-zinc-500">{t("customAppActions.policyBody")}</p>
+        </div>
+        {policyApps.length === 0 ? (
+          <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 text-[10px] leading-relaxed text-zinc-500">
+            {isLoading ? t("common.reading") : t("customAppActions.policyEmpty")}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {policyApps.map((app) => {
+              const policy = policies[app.id];
+              const template = policy?.template || "global";
+              const allowedSchemes = policy?.allowedSchemes || [];
+              return (
+                <article key={app.id} className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="truncate text-xs font-bold text-zinc-100">{app.name}</div>
+                      <div className="mt-1 text-[10px] text-zinc-500">
+                        {t("customAppActions.policyTemplateLine", { template: policyTemplateLabel(template, t) })}
+                      </div>
+                    </div>
+                    {savingPolicyAppId === app.id ? <RefreshCw className="mt-1 h-3.5 w-3.5 flex-shrink-0 animate-spin text-cyan-200" /> : null}
+                  </div>
+                  <label className="mt-3 block text-[10px] font-bold text-zinc-500">
+                    {t("customAppActions.policyTemplateLabel")}
+                    <select
+                      value={template}
+                      disabled={savingPolicyAppId === app.id}
+                      onChange={(event) => void changePolicyTemplate(app.id, event.target.value as CustomAppActionPolicyTemplate)}
+                      className="mt-1 w-full rounded-xl border border-white/[0.08] bg-[#0b111a] px-3 py-2 text-xs font-bold text-zinc-100 outline-none focus:border-cyan-300/40 disabled:opacity-60"
+                    >
+                      {policyTemplates.map((item) => (
+                        <option key={item} value={item}>{policyTemplateLabel(item, t)}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {allowedSchemes.length > 0 ? allowedSchemes.slice(0, 10).map((scheme) => (
+                      <span key={scheme} className="rounded-full border border-cyan-300/15 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-bold text-cyan-100">
+                        {scheme}
+                      </span>
+                    )) : (
+                      <span className="rounded-full border border-red-300/15 bg-red-500/10 px-2 py-0.5 text-[10px] font-bold text-red-100">
+                        {t("customAppActions.policyNoSchemes")}
+                      </span>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {error ? (

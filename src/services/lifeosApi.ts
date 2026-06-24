@@ -585,6 +585,18 @@ export type StoredCustomAppActionRequest = {
   decisionNote?: string | null;
 };
 
+export type CustomAppActionPolicyTemplate = "global" | "web" | "navigation" | "communication" | "shortcuts" | "locked";
+
+export type StoredCustomAppActionPolicy = {
+  appId: string;
+  template: CustomAppActionPolicyTemplate;
+  allowedSchemes: string[];
+  requireConfirmation: boolean;
+  updatedByType?: string | null;
+  updatedById?: string | null;
+  updatedAt: number;
+};
+
 export function getLifeOSBasePath(pathname = typeof window === "undefined" ? "/" : window.location?.pathname || "/") {
   const match = String(pathname || "/").match(/^(.*?)(?:\/(?:admin|mobile|chat)(?:\/|$)|\/?$)/);
   const basePath = (match?.[1] || "").replace(/\/+$/, "");
@@ -1347,6 +1359,20 @@ export function saveCustomAppState(appId: string, state: unknown) {
   return requestJson<{ state: StoredCustomAppState }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/state`, {
     method: "PUT",
     body: JSON.stringify({ state }),
+  });
+}
+
+export function getCustomAppActionPolicy(appId: string) {
+  return requestJson<{ policy: StoredCustomAppActionPolicy }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/action-policy`);
+}
+
+export function updateCustomAppActionPolicy(
+  appId: string,
+  input: { template?: CustomAppActionPolicyTemplate; allowedSchemes?: string[]; requireConfirmation?: boolean },
+) {
+  return requestJson<{ policy: StoredCustomAppActionPolicy }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/action-policy`, {
+    method: "PUT",
+    body: JSON.stringify(input),
   });
 }
 
