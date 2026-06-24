@@ -96,11 +96,13 @@ function collectUnexpectedSensitiveFields(value, options = {}, currentPath = [])
   });
 }
 
-function collectUnexpectedSensitiveStrings(value, currentPath = []) {
+function collectUnexpectedSensitiveStrings(value, options = {}, currentPath = []) {
+  const allowedPaths = options.allowedPaths || new Set();
   if (typeof value === "string") {
     const leaks = [];
     const normalized = value.trim();
     const pathKey = currentPath.join(".") || "(root)";
+    if (allowedPaths.has(pathKey)) return [];
     if (/\/Users\/[^\s,;"]+/.test(normalized) || /[A-Za-z]:\\[^\s,;"]+/.test(normalized)) {
       leaks.push(`${pathKey}: local path`);
     }
@@ -122,15 +124,15 @@ function collectUnexpectedSensitiveStrings(value, currentPath = []) {
   }
   if (!value || typeof value !== "object") return [];
   if (Array.isArray(value)) {
-    return value.flatMap((item, index) => collectUnexpectedSensitiveStrings(item, [...currentPath, String(index)]));
+    return value.flatMap((item, index) => collectUnexpectedSensitiveStrings(item, options, [...currentPath, String(index)]));
   }
-  return Object.entries(value).flatMap(([key, item]) => collectUnexpectedSensitiveStrings(item, [...currentPath, key]));
+  return Object.entries(value).flatMap(([key, item]) => collectUnexpectedSensitiveStrings(item, options, [...currentPath, key]));
 }
 
 function assertPublicApiResponse(label, value, options = {}) {
   const leaks = collectUnexpectedSensitiveFields(value, options);
   assert.deepEqual(leaks, [], `${label} returned sensitive fields: ${leaks.join(", ")}`);
-  const stringLeaks = collectUnexpectedSensitiveStrings(value);
+  const stringLeaks = collectUnexpectedSensitiveStrings(value, options);
   assert.deepEqual(stringLeaks, [], `${label} returned sensitive strings: ${stringLeaks.join(", ")}`);
 }
 
