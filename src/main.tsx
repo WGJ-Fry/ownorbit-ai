@@ -22,6 +22,7 @@ const MobileActionsPage = lazy(() => import('./pages/mobile/MobileActionsPage.ts
 const MobileChatPage = lazy(() => import('./pages/mobile/MobileChatPage.tsx'));
 const MobileDevicePage = lazy(() => import('./pages/mobile/MobileDevicePage.tsx'));
 const MobilePairPage = lazy(() => import('./pages/mobile/MobilePairPage.tsx'));
+const MobileToolsPage = lazy(() => import('./pages/mobile/MobileToolsPage.tsx'));
 
 function RouteFallback() {
   const { t } = useI18n();
@@ -48,6 +49,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/mobile/device" element={<MobileDevicePage />} />
             <Route path="/mobile/install/:token" element={<MobilePairPage />} />
             <Route path="/mobile/pair" element={<MobilePairPage />} />
+            <Route path="/mobile/tools" element={<MobileToolsPage />} />
             <Route path="/admin/login" element={<AdminLoginPage />} />
             <Route path="/admin/onboarding" element={<AdminOnboardingPage />} />
             <Route path="/admin/chat" element={<AdminChatPage />} />

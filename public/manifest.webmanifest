@@ -69,6 +69,12 @@
       "short_name": "Actions",
       "url": "/mobile/actions",
       "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Problem-Solving Tools",
+      "short_name": "Tools",
+      "url": "/mobile/tools",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }

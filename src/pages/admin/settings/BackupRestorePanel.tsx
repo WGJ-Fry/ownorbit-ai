@@ -9,7 +9,7 @@ import { BackupList } from "./BackupList";
 import { BackupPreviewCard } from "./BackupPreviewCard";
 import { BackupScheduleCard } from "./BackupScheduleCard";
 type BackupItem = Awaited<ReturnType<typeof listBackups>>["backups"][number];
-const dataExportScopeIds: DataExportScope[] = ["chat", "memories", "devices", "auditLogs"];
+const dataExportScopeIds: DataExportScope[] = ["chat", "memories", "devices", "auditLogs", "customApps"];
 
 export default function BackupRestorePanel({
   backups,

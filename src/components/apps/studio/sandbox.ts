@@ -38,6 +38,46 @@ export function buildStudioSandboxSrcDoc(code: string) {
                 message: String(message) + ' (Line: ' + lineno + ')'
               }, '*');
             };
+
+            const pendingLifeosRequests = new Map();
+            let lifeosRequestCounter = 0;
+            function sendLifeosRequest(type, payload) {
+              const requestId = 'lifeos-app-' + Date.now() + '-' + (++lifeosRequestCounter);
+              window.parent.postMessage({
+                source: 'lifeos-custom-app',
+                type,
+                requestId,
+                payload
+              }, '*');
+              return new Promise(function(resolve, reject) {
+                pendingLifeosRequests.set(requestId, { resolve, reject });
+                window.setTimeout(function() {
+                  if (!pendingLifeosRequests.has(requestId)) return;
+                  pendingLifeosRequests.delete(requestId);
+                  reject(new Error('LifeOS app state request timed out'));
+                }, 8000);
+              });
+            }
+            window.lifeosApp = {
+              getState: function() {
+                return sendLifeosRequest('get-state');
+              },
+              setState: function(state) {
+                return sendLifeosRequest('set-state', { state });
+              }
+            };
+            window.addEventListener('message', function(event) {
+              const data = event.data || {};
+              if (data.source !== 'lifeos-custom-app-host' || !data.requestId) return;
+              const pending = pendingLifeosRequests.get(data.requestId);
+              if (!pending) return;
+              pendingLifeosRequests.delete(data.requestId);
+              if (data.ok === false) {
+                pending.reject(new Error(data.error || 'LifeOS app state request failed'));
+              } else {
+                pending.resolve(data.state);
+              }
+            });
           })();
         </script>
         <style>

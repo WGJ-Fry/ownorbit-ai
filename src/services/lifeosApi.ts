@@ -546,6 +546,25 @@ export type StoredCustomApp = CustomApp & {
   deletedAt?: number | null;
 };
 
+export type StoredCustomAppVersion = {
+  id: string;
+  appId: string;
+  version: number;
+  code: string;
+  note?: string | null;
+  createdByType?: string | null;
+  createdById?: string | null;
+  createdAt: number;
+};
+
+export type StoredCustomAppState = {
+  appId: string;
+  state: unknown;
+  updatedByType?: string | null;
+  updatedById?: string | null;
+  updatedAt: number;
+};
+
 export function getLifeOSBasePath(pathname = typeof window === "undefined" ? "/" : window.location?.pathname || "/") {
   const match = String(pathname || "/").match(/^(.*?)(?:\/(?:admin|mobile|chat)(?:\/|$)|\/?$)/);
   const basePath = (match?.[1] || "").replace(/\/+$/, "");
@@ -1164,11 +1183,11 @@ export function backupDownloadUrl(file: string) {
   return `/api/v1/backups/${encodeURIComponent(file)}/download`;
 }
 
-export type DataExportScope = "chat" | "memories" | "devices" | "auditLogs";
+export type DataExportScope = "chat" | "memories" | "devices" | "auditLogs" | "customApps";
 
 export function dataExportDownloadUrl(scopes?: DataExportScope[]) {
   const selected = scopes?.filter(Boolean) || [];
-  if (!selected.length || selected.length === 4) return "/api/v1/data/export";
+  if (!selected.length || selected.length === 5) return "/api/v1/data/export";
   return `/api/v1/data/export?scope=${encodeURIComponent(selected.join(","))}`;
 }
 
@@ -1287,6 +1306,27 @@ export function updateCustomAppRecord(appId: string, input: Partial<Pick<CustomA
   return requestJson<{ app: StoredCustomApp }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}`, {
     method: "PATCH",
     body: JSON.stringify(input),
+  });
+}
+
+export function listCustomAppVersions(appId: string, limit = 20) {
+  return requestJson<{ versions: StoredCustomAppVersion[] }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/versions?limit=${encodeURIComponent(String(limit))}`);
+}
+
+export function rollbackCustomAppVersion(appId: string, version: number) {
+  return requestJson<{ app: StoredCustomApp; version: StoredCustomAppVersion }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/versions/${encodeURIComponent(String(version))}/rollback`, {
+    method: "POST",
+  });
+}
+
+export function getCustomAppState(appId: string) {
+  return requestJson<{ state: StoredCustomAppState }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/state`);
+}
+
+export function saveCustomAppState(appId: string, state: unknown) {
+  return requestJson<{ state: StoredCustomAppState }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/state`, {
+    method: "PUT",
+    body: JSON.stringify({ state }),
   });
 }
 

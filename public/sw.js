@@ -1,4 +1,4 @@
-const CACHE_NAME = "lifeos-ai-shell-v4";
+const CACHE_NAME = "lifeos-ai-shell-v5";
 const BASE_PATH = self.location.pathname.replace(/\/sw\.js$/, "").replace(/\/+$/, "");
 const withBasePath = (path) => `${BASE_PATH}${path.startsWith("/") ? path : `/${path}`}`;
 const withoutBasePath = (pathname) => BASE_PATH && pathname.startsWith(`${BASE_PATH}/`) ? pathname.slice(BASE_PATH.length) || "/" : pathname;
@@ -9,6 +9,7 @@ const SHELL_ASSETS = [
   withBasePath("/mobile/device"),
   withBasePath("/mobile/pair"),
   withBasePath("/mobile/actions"),
+  withBasePath("/mobile/tools"),
   OFFLINE_FALLBACK,
   withBasePath("/manifest.webmanifest"),
   withBasePath("/icon.svg"),

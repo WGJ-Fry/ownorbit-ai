@@ -88,7 +88,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
 
   await waitForServer(port, child, childOutput);
 
-  for (const route of ["/", "/chat", "/admin/login", "/admin/onboarding", "/admin/settings", "/mobile/chat", "/mobile/actions", "/mobile/device", "/mobile/pair?token=demo", "/mobile/install/bind_shell_demo_123"]) {
+  for (const route of ["/", "/chat", "/admin/login", "/admin/onboarding", "/admin/settings", "/mobile/chat", "/mobile/actions", "/mobile/device", "/mobile/tools", "/mobile/pair?token=demo", "/mobile/install/bind_shell_demo_123"]) {
     const response = await request(port, route);
     assert.equal(response.status, 200, `${route} should render the SPA shell`);
     assert.match(response.headers.get("content-type") || "", /text\/html/);
@@ -155,6 +155,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.ok(manifest.icons.some((icon) => icon.src === "/icons/icon-512.png" && icon.sizes === "512x512" && icon.type === "image/png"));
   assert.ok(manifest.icons.some((icon) => icon.purpose?.includes("maskable")));
   assert.ok(manifest.shortcuts?.every((shortcut) => shortcut.icons?.some((icon) => icon.src === "/icons/icon-192.png" && icon.type === "image/png")));
+  assert.ok(manifest.shortcuts?.some((shortcut) => shortcut.url === "/mobile/tools" && shortcut.short_name === "Tools"));
   assert.ok(manifest.screenshots?.length >= 2);
   const screenshotSources = manifest.screenshots.map((screenshot) => screenshot.src);
   assert.deepEqual(screenshotSources, ["/screenshots/real-mobile-chat.jpg", "/screenshots/real-mobile-device.jpg"]);
@@ -210,6 +211,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(serviceWorker, /\/mobile\/chat/);
   assert.match(serviceWorker, /\/mobile\/device/);
   assert.match(serviceWorker, /\/mobile\/actions/);
+  assert.match(serviceWorker, /\/mobile\/tools/);
   assert.match(serviceWorker, /OFFLINE_FALLBACK/);
   assert.match(serviceWorker, /\/offline\.html/);
   assert.match(serviceWorker, /\/screenshots\/real-mobile-chat\.jpg/);
@@ -308,6 +310,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /problem-blueprints/);
   assert.match(lifeosApiSource, /listCustomApps/);
   assert.match(lifeosApiSource, /custom-apps/);
+  assert.match(lifeosApiSource, /listCustomAppVersions/);
+  assert.match(lifeosApiSource, /rollbackCustomAppVersion/);
+  assert.match(lifeosApiSource, /getCustomAppState/);
+  assert.match(lifeosApiSource, /saveCustomAppState/);
+  assert.match(lifeosApiSource, /customApps/);
+  assert.match(lifeosApiSource, /DataExportScope = "chat" \| "memories" \| "devices" \| "auditLogs" \| "customApps"/);
 
   const loginSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminLoginPage.tsx"), "utf8");
   assert.match(loginSource, /onboardingRequired/);
@@ -419,6 +427,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   const mobileDeviceSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileDevicePage.tsx"), "utf8");
   const mobileDeviceHealthSummarySource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileDeviceHealthSummary.tsx"), "utf8");
   const mobileGeneratedToolsCardSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileGeneratedToolsCard.tsx"), "utf8");
+  const mobileToolsSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileToolsPage.tsx"), "utf8");
   const mobileDeviceStatusCardsSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileDeviceStatusCards.tsx"), "utf8");
   assert.match(mobileDeviceSource, /getPwaCapabilityStatus/);
   assert.match(mobileDeviceSource, /getRemoteEntryStatus/);
@@ -451,8 +460,17 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileGeneratedToolsCardSource, /listCustomApps\(8\)/);
   assert.match(mobileGeneratedToolsCardSource, /openApp=\$\{encodeURIComponent\(generatedTools\[0\]\.id\)\}/);
   assert.match(mobileGeneratedToolsCardSource, /mobileDevice\.generatedToolsTitle/);
+  assert.match(mobileToolsSource, /listCustomApps\(100\)/);
+  assert.match(mobileToolsSource, /mobile\.toolsTitle/);
+  assert.match(mobileToolsSource, /mobile\.toolsStateHint/);
+  assert.match(mobileToolsSource, /openApp=\$\{encodeURIComponent\(app\.id\)\}/);
+  assert.match(mobileChatSource, /\/mobile\/tools/);
+  assert.match(mainSource, /MobileToolsPage/);
+  assert.match(mainSource, /path="\/mobile\/tools"/);
   assert.match(translationsSource, /最近生成的解决程序/);
   assert.match(translationsSource, /Recently Generated Problem-Solving Tools/);
+  assert.match(translationsSource, /我的解决程序/);
+  assert.match(translationsSource, /My Problem-Solving Tools/);
   assert.match(translationsSource, /手机端健康摘要/);
   assert.match(translationsSource, /新版离线壳待启用/);
   assert.match(translationsSource, /New Offline Shell Ready/);
@@ -605,6 +623,16 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(studioSimulatorSource, /jarvis-sandbox-frame-log/);
   assert.match(studioSimulatorSource, /setRefineHistory\(\(prev\) => \[version, \.\.\.prev\]\.slice\(0, 10\)\)/);
   assert.match(studioSimulatorSource, /setSimulatorLogs\(\(prev\) => \[\.\.\.prev, log\]\.slice\(-6\)\)/);
+  const studioSandboxSource = await readFile(path.join(rootDir, "src", "components", "apps", "studio", "sandbox.ts"), "utf8");
+  const customAppFrameSource = await readFile(path.join(rootDir, "src", "components", "apps", "CustomAppFrame.tsx"), "utf8");
+  assert.match(studioSandboxSource, /window\.lifeosApp/);
+  assert.match(studioSandboxSource, /getState/);
+  assert.match(studioSandboxSource, /setState/);
+  assert.match(studioSandboxSource, /lifeos-custom-app-host/);
+  assert.match(customAppFrameSource, /getCustomAppState/);
+  assert.match(customAppFrameSource, /saveCustomAppState/);
+  assert.match(customAppFrameSource, /event\.source !== iframeRef\.current\?\.contentWindow/);
+  assert.match(customAppFrameSource, /lifeos-custom-app/);
 
   assert.match(mobileDeviceSource, /retryOfflineMessage/);
   assert.match(mobileDeviceSource, /removeOfflineMessages/);
@@ -1103,6 +1131,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(backupRestorePanelSource, /BackupPreviewCard/);
   assert.match(backupRestorePanelSource, /BackupList/);
   assert.match(backupRestorePanelSource, /onEncryptedExport=\{handleEncryptedExport\}/);
+  assert.match(backupRestorePanelSource, /"customApps"/);
+  assert.match(translationsSource, /backup\.scope\.customApps/);
+  assert.match(translationsSource, /Problem-Solving Tools/);
   assert.match(translationsSource, /预览清理/);
   assert.match(translationsSource, /立即运行一次/);
   assert.match(translationsSource, /加密导出/);

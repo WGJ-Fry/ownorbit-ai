@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Command, Download, Link2, RefreshCw, ShieldCheck, Smartphone, X } from "lucide-react";
+import { Command, Download, Link2, RefreshCw, ShieldCheck, Smartphone, Wrench, X } from "lucide-react";
 import App from "../../App";
 import { useLifeOSRealtime } from "../../hooks/useLifeOSRealtime";
 import { getMobilePairingIntent, getStoredDeviceCredential, getStoredDeviceCredentialAsync } from "../../services/lifeosApi";
@@ -223,6 +223,13 @@ export default function MobileChatPage() {
         title={t("mobile.localActions")}
       >
         <Command className="w-4 h-4 text-cyan-300" />
+      </a>
+      <a
+        href="/mobile/tools"
+        className="fixed right-14 top-2 z-[100] flex h-8 w-8 items-center justify-center rounded-full border border-white/[0.12] bg-[#101722]/90 text-zinc-200 shadow-xl backdrop-blur-xl"
+        title={t("mobile.toolsTitle")}
+      >
+        <Wrench className="w-4 h-4 text-violet-200" />
       </a>
       <a
         href="/mobile/device"

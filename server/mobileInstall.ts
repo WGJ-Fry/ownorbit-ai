@@ -136,9 +136,15 @@ export function mobileManifest(pairingToken = "", basePath = getConfiguredPublic
         icons: [{ src: icon("/icons/icon-192.png"), sizes: "192x192", type: "image/png" }],
       },
       {
-        name: "localActions",
+        name: "Local Actions",
         short_name: "Actions",
         url: withBasePath("/mobile/actions", basePath),
+        icons: [{ src: icon("/icons/icon-192.png"), sizes: "192x192", type: "image/png" }],
+      },
+      {
+        name: "Problem-Solving Tools",
+        short_name: "Tools",
+        url: withBasePath("/mobile/tools", basePath),
         icons: [{ src: icon("/icons/icon-192.png"), sizes: "192x192", type: "image/png" }],
       },
     ],

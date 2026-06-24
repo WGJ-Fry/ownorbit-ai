@@ -5,6 +5,8 @@ import { redactAuditString } from "./audit";
 const MAX_APP_NAME_LENGTH = 120;
 const MAX_APP_DESCRIPTION_LENGTH = 800;
 const MAX_APP_CODE_BYTES = Number(process.env.LIFEOS_MAX_CUSTOM_APP_CODE_BYTES || 512 * 1024);
+const MAX_APP_STATE_BYTES = Number(process.env.LIFEOS_MAX_CUSTOM_APP_STATE_BYTES || 256 * 1024);
+const sensitiveStateKey = /api[-_]?key|byok[-_]?key|token|password|passphrase|secret|authorization|cookie|private/i;
 
 export type CustomAppVisibility = "private" | "public";
 export type CustomAppStatus = "active" | "building";
@@ -24,6 +26,25 @@ export type StoredCustomApp = {
   createdAt: number;
   updatedAt: number;
   deletedAt?: number | null;
+};
+
+export type StoredCustomAppVersion = {
+  id: string;
+  appId: string;
+  version: number;
+  code: string;
+  note?: string | null;
+  createdByType?: string | null;
+  createdById?: string | null;
+  createdAt: number;
+};
+
+export type StoredCustomAppState = {
+  appId: string;
+  state: unknown;
+  updatedByType?: string | null;
+  updatedById?: string | null;
+  updatedAt: number;
 };
 
 function statusError(message: string, statusCode = 400) {
@@ -56,6 +77,27 @@ function sanitizeCode(value: unknown) {
     throw statusError(`custom app code exceeds ${MAX_APP_CODE_BYTES} bytes`, 413);
   }
   return code;
+}
+
+function sanitizeState(value: unknown) {
+  const normalized = sanitizeStateValue(value ?? {});
+  const json = JSON.stringify(normalized);
+  if (Buffer.byteLength(json, "utf8") > MAX_APP_STATE_BYTES) {
+    throw statusError(`custom app state exceeds ${MAX_APP_STATE_BYTES} bytes`, 413);
+  }
+  return { state: normalized, json };
+}
+
+function sanitizeStateValue(value: unknown): unknown {
+  if (typeof value === "string") return redactAuditString(value);
+  if (Array.isArray(value)) return value.map(sanitizeStateValue);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+      sensitiveStateKey.test(key) ? "[redacted]" : redactAuditString(String(key)).slice(0, 120),
+      sanitizeStateValue(item),
+    ]),
+  );
 }
 
 function normalizeVisibility(value: unknown): CustomAppVisibility {
@@ -95,6 +137,69 @@ function rowToCustomApp(row: any): StoredCustomApp {
   };
 }
 
+function rowToCustomAppVersion(row: any): StoredCustomAppVersion {
+  return {
+    id: row.id,
+    appId: row.appId,
+    version: row.version,
+    code: row.code,
+    note: row.note,
+    createdByType: row.createdByType,
+    createdById: row.createdById,
+    createdAt: row.createdAt,
+  };
+}
+
+function rowToCustomAppState(row: any): StoredCustomAppState {
+  let state: unknown = {};
+  try {
+    state = JSON.parse(row.stateJson || "{}");
+  } catch {
+    state = {};
+  }
+  return {
+    appId: row.appId,
+    state,
+    updatedByType: row.updatedByType,
+    updatedById: row.updatedById,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function latestCustomAppVersion(appId: string) {
+  const row = db.prepare(`
+    SELECT id, app_id as appId, version, code, note,
+           created_by_type as createdByType, created_by_id as createdById, created_at as createdAt
+    FROM custom_app_versions
+    WHERE app_id = ?
+    ORDER BY version DESC
+    LIMIT 1
+  `).get(appId) as any;
+  return row ? rowToCustomAppVersion(row) : null;
+}
+
+function appendCustomAppVersionIfChanged(appId: string, code: string, note: string, actor?: { type: string; id: string }) {
+  const latest = latestCustomAppVersion(appId);
+  if (latest && latest.code === code) return latest;
+  const now = Date.now();
+  const nextVersion = (latest?.version || 0) + 1;
+  const id = `appver-${crypto.randomUUID()}`;
+  db.prepare(`
+    INSERT INTO custom_app_versions (id, app_id, version, code, note, created_by_type, created_by_id, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    appId,
+    nextVersion,
+    code,
+    sanitizeOptionalText(note, 240) || null,
+    actor?.type || null,
+    actor?.id || null,
+    now,
+  );
+  return getCustomAppVersion(appId, nextVersion)!;
+}
+
 function selectCustomAppById(id: string) {
   return db.prepare(`
     SELECT id, name, description, visibility, status, source, problem_blueprint_id as problemBlueprintId,
@@ -108,6 +213,30 @@ function selectCustomAppById(id: string) {
 export function getCustomApp(id: string) {
   const row = selectCustomAppById(id);
   return row ? rowToCustomApp(row) : null;
+}
+
+export function getCustomAppVersion(appId: string, version: number) {
+  const row = db.prepare(`
+    SELECT id, app_id as appId, version, code, note,
+           created_by_type as createdByType, created_by_id as createdById, created_at as createdAt
+    FROM custom_app_versions
+    WHERE app_id = ? AND version = ?
+  `).get(appId, version) as any;
+  return row ? rowToCustomAppVersion(row) : null;
+}
+
+export function listCustomAppVersions(appId: string, limitInput?: unknown) {
+  const app = getCustomApp(appId);
+  if (!app) return null;
+  const limit = normalizeLimit(limitInput);
+  return db.prepare(`
+    SELECT id, app_id as appId, version, code, note,
+           created_by_type as createdByType, created_by_id as createdById, created_at as createdAt
+    FROM custom_app_versions
+    WHERE app_id = ?
+    ORDER BY version DESC
+    LIMIT ?
+  `).all(appId, limit).map(rowToCustomAppVersion);
 }
 
 export function listCustomApps(limitInput?: unknown) {
@@ -164,11 +293,12 @@ export function createCustomApp(input: Record<string, unknown>, actor?: { type: 
     now,
     now,
   );
+  appendCustomAppVersionIfChanged(id, code, source === "migration" ? "Imported from legacy client state" : "Initial version", actor);
 
   return getCustomApp(id)!;
 }
 
-export function updateCustomApp(id: string, input: Record<string, unknown>) {
+export function updateCustomApp(id: string, input: Record<string, unknown>, actor?: { type: string; id: string }) {
   const existing = getCustomApp(id);
   if (!existing) return null;
 
@@ -187,8 +317,50 @@ export function updateCustomApp(id: string, input: Record<string, unknown>) {
     SET name = ?, description = ?, visibility = ?, status = ?, problem_blueprint_id = ?, code = ?, updated_at = ?
     WHERE id = ? AND deleted_at IS NULL
   `).run(next.name, next.description, next.visibility, next.status, next.problemBlueprintId, next.code, updatedAt, id);
+  if (input.code !== undefined) appendCustomAppVersionIfChanged(id, next.code, "Saved edit", actor);
 
   return getCustomApp(id);
+}
+
+export function rollbackCustomAppVersion(appId: string, version: number, actor?: { type: string; id: string }) {
+  const app = getCustomApp(appId);
+  if (!app) return null;
+  const target = getCustomAppVersion(appId, version);
+  if (!target) throw statusError("Custom app version not found", 404);
+  const updatedAt = Date.now();
+  db.prepare("UPDATE custom_apps SET code = ?, status = 'active', updated_at = ? WHERE id = ? AND deleted_at IS NULL").run(target.code, updatedAt, appId);
+  const rollbackVersion = appendCustomAppVersionIfChanged(appId, target.code, `Rolled back to v${version}`, actor);
+  return { app: getCustomApp(appId)!, version: rollbackVersion };
+}
+
+export function getCustomAppState(appId: string) {
+  const app = getCustomApp(appId);
+  if (!app) return null;
+  const row = db.prepare(`
+    SELECT app_id as appId, state_json as stateJson, updated_by_type as updatedByType,
+           updated_by_id as updatedById, updated_at as updatedAt
+    FROM custom_app_state
+    WHERE app_id = ?
+  `).get(appId) as any;
+  if (row) return rowToCustomAppState(row);
+  return { appId, state: {}, updatedAt: 0, updatedByType: null, updatedById: null };
+}
+
+export function updateCustomAppState(appId: string, value: unknown, actor?: { type: string; id: string }) {
+  const app = getCustomApp(appId);
+  if (!app) return null;
+  const now = Date.now();
+  const { state, json } = sanitizeState(value);
+  db.prepare(`
+    INSERT INTO custom_app_state (app_id, state_json, updated_by_type, updated_by_id, updated_at)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(app_id) DO UPDATE SET
+      state_json = excluded.state_json,
+      updated_by_type = excluded.updated_by_type,
+      updated_by_id = excluded.updated_by_id,
+      updated_at = excluded.updated_at
+  `).run(appId, json, actor?.type || null, actor?.id || null, now);
+  return { appId, state, updatedAt: now, updatedByType: actor?.type || null, updatedById: actor?.id || null };
 }
 
 export function deleteCustomApp(id: string) {

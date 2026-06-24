@@ -6,8 +6,20 @@ import { getDevices } from "./devices";
 import { getMemories } from "./memories";
 import { listAuditLogs, redactAuditMetadata } from "./audit";
 
-const previewTables = ["devices", "chat_sessions", "messages", "memories", "audit_logs", "client_state", "app_secrets", "schema_migrations"];
-const exportScopeKeys = ["chat", "memories", "devices", "auditLogs"] as const;
+const previewTables = [
+  "devices",
+  "chat_sessions",
+  "messages",
+  "memories",
+  "audit_logs",
+  "client_state",
+  "custom_apps",
+  "custom_app_versions",
+  "custom_app_state",
+  "app_secrets",
+  "schema_migrations",
+];
+const exportScopeKeys = ["chat", "memories", "devices", "auditLogs", "customApps"] as const;
 const sensitiveBackupClientStateKey = /api[-_]?key|byok[-_]?key|token|password|passphrase|secret|authorization|cookie|private/i;
 let cachedPackageVersion: string | null = null;
 
@@ -154,6 +166,39 @@ export function createDataExport(scopes: DataExportScope[] = [...exportScopeKeys
     }));
   }
 
+  if (selectedScopes.has("customApps")) {
+    const apps = db.prepare(`
+      SELECT id, name, description, visibility, status, source, problem_blueprint_id as problemBlueprintId,
+             code, created_at as createdAt, updated_at as updatedAt, deleted_at as deletedAt
+      FROM custom_apps ORDER BY updated_at DESC, created_at DESC
+    `).all();
+    const versions = db.prepare(`
+      SELECT id, app_id as appId, version, code, note, created_at as createdAt
+      FROM custom_app_versions ORDER BY app_id ASC, version ASC
+    `).all();
+    const state = db.prepare(`
+      SELECT app_id as appId, state_json as stateJson, updated_at as updatedAt
+      FROM custom_app_state ORDER BY updated_at DESC
+    `).all().map((row: any) => {
+      let parsedState: unknown = {};
+      try {
+        parsedState = JSON.parse(row.stateJson || "{}");
+      } catch {
+        parsedState = {};
+      }
+      return {
+        appId: row.appId,
+        state: redactDataExportValue(parsedState),
+        updatedAt: row.updatedAt,
+      };
+    });
+    exportData.customApps = {
+      apps: redactDataExportValue(apps),
+      versions: redactDataExportValue(versions),
+      state,
+    };
+  }
+
   return exportData;
 }
 
@@ -162,6 +207,7 @@ export function summarizeDataExport(exportData: Record<string, unknown>) {
   const memories = Array.isArray(exportData.memories) ? exportData.memories : [];
   const devices = Array.isArray(exportData.devices) ? exportData.devices : [];
   const auditLogs = Array.isArray(exportData.auditLogs) ? exportData.auditLogs : [];
+  const customApps = exportData.customApps as { apps?: unknown[]; versions?: unknown[]; state?: unknown[] } | undefined;
   const scopes = Array.isArray(exportData.scopes) ? exportData.scopes.map((scope) => String(scope)) : [];
   return {
     scopes,
@@ -175,6 +221,9 @@ export function summarizeDataExport(exportData: Record<string, unknown>) {
       memories: memories.length,
       devices: devices.length,
       auditLogs: auditLogs.length,
+      customApps: Array.isArray(customApps?.apps) ? customApps.apps.length : 0,
+      customAppVersions: Array.isArray(customApps?.versions) ? customApps.versions.length : 0,
+      customAppStates: Array.isArray(customApps?.state) ? customApps.state.length : 0,
     },
   };
 }

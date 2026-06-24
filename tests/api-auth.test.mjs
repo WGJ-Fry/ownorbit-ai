@@ -756,12 +756,15 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(dataExportResponse.status, 200);
   assert.match(dataExportResponse.headers.get("content-disposition") || "", /lifeos-data-export-.*\.json/);
   const dataExport = await dataExportResponse.json();
-  assert.deepEqual(dataExport.scopes, ["chat", "memories", "devices", "auditLogs"]);
+  assert.deepEqual(dataExport.scopes, ["chat", "memories", "devices", "auditLogs", "customApps"]);
   assert.equal(dataExport.version, packageJson.version);
   assert.ok(Array.isArray(dataExport.chat.sessions));
   assert.ok(Array.isArray(dataExport.memories));
   assert.ok(Array.isArray(dataExport.devices));
   assert.ok(Array.isArray(dataExport.auditLogs));
+  assert.ok(Array.isArray(dataExport.customApps.apps));
+  assert.ok(Array.isArray(dataExport.customApps.versions));
+  assert.ok(Array.isArray(dataExport.customApps.state));
   const exportedConnectionAudit = dataExport.auditLogs.find((log) => log.action === "network_connection_tested");
   assert.ok(exportedConnectionAudit);
   assert.equal(exportedConnectionAudit.targetId, `http://127.0.0.1:${port}/?[redacted]`);
@@ -777,6 +780,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.ok(Array.isArray(scopedDataExport.devices));
   assert.equal(scopedDataExport.memories, undefined);
   assert.equal(scopedDataExport.auditLogs, undefined);
+  assert.equal(scopedDataExport.customApps, undefined);
 
   const invalidDataExport = await request(port, "/api/v1/data/export?scope=chat,secrets", { headers: adminHeaders });
   assert.equal(invalidDataExport.status, 400);
@@ -936,8 +940,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(encryptedImportFailureAudits.every((log) => typeof log.metadata.payload.encryptedBytesEstimate === "number"), true);
   const exportAudits = auditAfterExports.logs.filter((log) => log.action === "data_export_created");
   const fullExportAudit = exportAudits.find((log) => Array.isArray(log.metadata.scopes) && log.metadata.scopes.includes("auditLogs"));
-  assert.deepEqual(fullExportAudit.metadata.scopes, ["chat", "memories", "devices", "auditLogs"]);
-  assert.equal(fullExportAudit.metadata.scopeCount, 4);
+  assert.deepEqual(fullExportAudit.metadata.scopes, ["chat", "memories", "devices", "auditLogs", "customApps"]);
+  assert.equal(fullExportAudit.metadata.scopeCount, 5);
   assert.equal(fullExportAudit.metadata.includesAuditLogs, true);
   assert.equal(fullExportAudit.metadata.delivery, "download");
   assert.match(fullExportAudit.metadata.fileName, /^lifeos-data-export-.*\.json$/);
@@ -948,12 +952,16 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(typeof fullExportAudit.metadata.counts.memories, "number");
   assert.equal(typeof fullExportAudit.metadata.counts.devices, "number");
   assert.equal(typeof fullExportAudit.metadata.counts.auditLogs, "number");
+  assert.equal(typeof fullExportAudit.metadata.counts.customApps, "number");
+  assert.equal(typeof fullExportAudit.metadata.counts.customAppVersions, "number");
+  assert.equal(typeof fullExportAudit.metadata.counts.customAppStates, "number");
   const scopedExportAudit = exportAudits.find((log) => Array.isArray(log.metadata.scopes) && log.metadata.scopes.join(",") === "chat,devices");
   assert.deepEqual(scopedExportAudit.metadata.scopes, ["chat", "devices"]);
   assert.equal(scopedExportAudit.metadata.scopeCount, 2);
   assert.equal(scopedExportAudit.metadata.includesAuditLogs, false);
   assert.equal(scopedExportAudit.metadata.counts.memories, 0);
   assert.equal(scopedExportAudit.metadata.counts.auditLogs, 0);
+  assert.equal(scopedExportAudit.metadata.counts.customApps, 0);
   const restoreScheduledAudit = auditAfterExports.logs.find((log) => log.action === "database_restore_scheduled");
   assert.equal(restoreScheduledAudit.actorType, "admin");
   assert.equal(restoreScheduledAudit.targetId, backup.backup.file);
@@ -1474,6 +1482,10 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(unauthProblemBlueprints.status, 401);
   const unauthCustomApps = await request(port, "/api/v1/custom-apps");
   assert.equal(unauthCustomApps.status, 401);
+  const unauthCustomAppVersions = await request(port, "/api/v1/custom-apps/custom-ledger-1/versions");
+  assert.equal(unauthCustomAppVersions.status, 401);
+  const unauthCustomAppState = await request(port, "/api/v1/custom-apps/custom-ledger-1/state");
+  assert.equal(unauthCustomAppState.status, 401);
 
   const createdProblemBlueprint = await request(port, "/api/v1/problem-blueprints", {
     method: "POST",
@@ -1515,6 +1527,32 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(createdCustomApp.app.code.includes("/Users/wangguojun/private-app.html"), false);
   assert.equal(createdCustomApp.app.description.includes("/Users/wangguojun/private-ledger.csv"), false);
 
+  const customAppVersionsAfterCreate = await request(port, "/api/v1/custom-apps/custom-ledger-1/versions", {
+    headers: adminHeaders,
+  }).then((res) => res.json());
+  assert.equal(customAppVersionsAfterCreate.versions.length, 1);
+  assert.equal(customAppVersionsAfterCreate.versions[0].version, 1);
+  assert.equal(customAppVersionsAfterCreate.versions[0].note, "Initial version");
+  assert.equal(customAppVersionsAfterCreate.versions[0].code.includes("github_pat_customAppSecret"), false);
+  assert.equal(customAppVersionsAfterCreate.versions[0].code.includes("/Users/wangguojun/private-app.html"), false);
+
+  const initialCustomAppState = await request(port, "/api/v1/custom-apps/custom-ledger-1/state", { headers: adminHeaders }).then((res) => res.json());
+  assert.deepEqual(initialCustomAppState.state.state, {});
+  assert.equal(initialCustomAppState.state.updatedAt, 0);
+
+  const savedCustomAppState = await request(port, "/api/v1/custom-apps/custom-ledger-1/state", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      state: {
+        rows: [{ note: "safe", source: "/Users/wangguojun/private-state.csv" }],
+        token: "github_pat_customStateSecret_1234567890",
+      },
+    }),
+  }).then((res) => res.json());
+  assert.equal(JSON.stringify(savedCustomAppState).includes("github_pat_customStateSecret"), false);
+  assert.equal(JSON.stringify(savedCustomAppState).includes("/Users/wangguojun/private-state.csv"), false);
+
   const attachedProblemBlueprint = await request(port, `/api/v1/problem-blueprints/${createdProblemBlueprint.blueprint.id}/generated-app`, {
     method: "PUT",
     headers: adminHeaders,
@@ -1527,6 +1565,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const rawBlueprintDb = new DatabaseSync(path.join(dataDir, "lifeos.db"));
   const rawBlueprint = rawBlueprintDb.prepare("SELECT problem, app_prompt as appPrompt FROM problem_blueprints WHERE id = ?").get(createdProblemBlueprint.blueprint.id);
   const rawCustomApp = rawBlueprintDb.prepare("SELECT description, code FROM custom_apps WHERE id = ?").get("custom-ledger-1");
+  const rawCustomAppVersion = rawBlueprintDb.prepare("SELECT code FROM custom_app_versions WHERE app_id = ? AND version = 1").get("custom-ledger-1");
+  const rawCustomAppState = rawBlueprintDb.prepare("SELECT state_json as stateJson FROM custom_app_state WHERE app_id = ?").get("custom-ledger-1");
   rawBlueprintDb.close();
   assert.equal(rawBlueprint.problem.includes("github_pat_problemSecret"), false);
   assert.equal(rawBlueprint.problem.includes("/Users/wangguojun/private-ledger.csv"), false);
@@ -1534,6 +1574,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(rawCustomApp.code.includes("github_pat_customAppSecret"), false);
   assert.equal(rawCustomApp.code.includes("/Users/wangguojun/private-app.html"), false);
   assert.equal(rawCustomApp.description.includes("/Users/wangguojun/private-ledger.csv"), false);
+  assert.equal(rawCustomAppVersion.code.includes("github_pat_customAppSecret"), false);
+  assert.equal(rawCustomAppState.stateJson.includes("github_pat_customStateSecret"), false);
+  assert.equal(rawCustomAppState.stateJson.includes("/Users/wangguojun/private-state.csv"), false);
 
   const customAppHistory = await request(port, "/api/v1/custom-apps?limit=5", { headers: adminHeaders }).then((res) => res.json());
   assert.equal(customAppHistory.apps.some((app) => app.id === "custom-ledger-1"), true);
@@ -1544,6 +1587,17 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   }).then((res) => res.json());
   assert.equal(updatedCustomApp.app.name, "预算提醒面板 Pro");
   assert.equal(updatedCustomApp.app.code, "<div>safe updated code</div>");
+  const customAppVersionsAfterUpdate = await request(port, "/api/v1/custom-apps/custom-ledger-1/versions", {
+    headers: adminHeaders,
+  }).then((res) => res.json());
+  assert.equal(customAppVersionsAfterUpdate.versions[0].version, 2);
+  assert.equal(customAppVersionsAfterUpdate.versions[0].code, "<div>safe updated code</div>");
+  const rollbackCustomApp = await request(port, "/api/v1/custom-apps/custom-ledger-1/versions/1/rollback", {
+    method: "POST",
+    headers: adminHeaders,
+  }).then((res) => res.json());
+  assert.equal(rollbackCustomApp.app.code, customAppVersionsAfterCreate.versions[0].code);
+  assert.equal(rollbackCustomApp.version.version, 3);
   const deletedCustomApp = await request(port, "/api/v1/custom-apps/custom-ledger-1", {
     method: "DELETE",
     headers: adminHeaders,
@@ -1896,8 +1950,13 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     { label: "problem blueprint history", value: problemBlueprintHistory },
     { label: "attached problem blueprint", value: attachedProblemBlueprint },
     { label: "created custom app", value: createdCustomApp },
+    { label: "custom app versions after create", value: customAppVersionsAfterCreate },
+    { label: "initial custom app state", value: initialCustomAppState },
+    { label: "saved custom app state", value: savedCustomAppState },
     { label: "custom app history", value: customAppHistory },
     { label: "updated custom app", value: updatedCustomApp },
+    { label: "custom app versions after update", value: customAppVersionsAfterUpdate },
+    { label: "rollback custom app", value: rollbackCustomApp },
     { label: "backup", value: backup },
     { label: "backups", value: backups },
     { label: "default backup schedule", value: defaultSchedule },
