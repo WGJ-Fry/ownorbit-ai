@@ -1,4 +1,4 @@
-import type { Message } from "../types";
+import type { CustomApp, Message } from "../types";
 import type { ProblemBlueprint } from "./problemBlueprint";
 import { clearDevicePrivateKey, createDeviceKeyPair, isDeviceSignatureAvailable, sha256Base64Url, signDevicePayload } from "./deviceKeyStore";
 import { clearDeviceCredential, getCachedDeviceCredential, getDeviceCredentialExpiryStatus, getDeviceCredentialStorageStatus, hydrateDeviceCredential, saveDeviceCredential } from "./deviceCredentialStore";
@@ -535,6 +535,15 @@ export type StoredProblemBlueprint = ProblemBlueprint & {
   createdById?: string | null;
   createdAt: number;
   updatedAt: number;
+};
+
+export type StoredCustomApp = CustomApp & {
+  source: "studio" | "chat" | "import" | "migration";
+  problemBlueprintId?: string | null;
+  createdByType?: string | null;
+  createdById?: string | null;
+  updatedAt: number;
+  deletedAt?: number | null;
 };
 
 export function getLifeOSBasePath(pathname = typeof window === "undefined" ? "/" : window.location?.pathname || "/") {
@@ -1261,6 +1270,28 @@ export function attachGeneratedAppToProblemBlueprint(blueprintId: string, input:
     method: "PUT",
     body: JSON.stringify(input),
   });
+}
+
+export function listCustomApps(limit = 100) {
+  return requestJson<{ apps: StoredCustomApp[] }>(`/api/v1/custom-apps?limit=${encodeURIComponent(String(limit))}`);
+}
+
+export function createCustomAppRecord(app: CustomApp, source: StoredCustomApp["source"] = "studio", problemBlueprintId?: string | null) {
+  return requestJson<{ app: StoredCustomApp }>("/api/v1/custom-apps", {
+    method: "POST",
+    body: JSON.stringify({ ...app, source, problemBlueprintId }),
+  });
+}
+
+export function updateCustomAppRecord(appId: string, input: Partial<Pick<CustomApp, "name" | "description" | "visibility" | "status" | "code">> & { problemBlueprintId?: string | null }) {
+  return requestJson<{ app: StoredCustomApp }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteCustomAppRecord(appId: string) {
+  return requestJson<{ ok: true }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}`, { method: "DELETE" });
 }
 
 export function createMemory(input: { title: string; content: string; sensitivity?: "normal" | "sensitive" }) {

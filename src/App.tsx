@@ -9,7 +9,6 @@ import MobileChatHeader from "./components/chat/MobileChatHeader";
 import OfflineQueueBanner from "./components/chat/OfflineQueueBanner";
 import ProfileModal from "./components/chat/ProfileModal";
 import VoiceModeOverlay from "./components/chat/VoiceModeOverlay";
-import { useSyncedClientState } from "./hooks/useSyncedClientState";
 import { generateCustomApp, requestChatCompletion } from "./services/aiRuntime";
 import { loadStoredChatMessages, persistStoredChatMessages } from "./services/chatMessageStorage";
 import { resolveChatStateChanges } from "./services/chatStateChanges";
@@ -17,6 +16,7 @@ import { loadMemoriesForChat, loadRuntimeSettings } from "./services/chatRuntime
 import { useChatPersistence } from "./hooks/useChatPersistence";
 import { useOfflineQueueSync } from "./hooks/useOfflineQueueSync";
 import { useI18n } from "./i18n/I18nProvider";
+import { createCustomAppRecord, deleteCustomAppRecord, listCustomApps, updateCustomAppRecord } from "./services/lifeosApi";
 
 const StudioApp = lazy(() => import("./components/apps/StudioApp"));
 
@@ -30,7 +30,8 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [showVoiceMode, setShowVoiceMode] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [customApps, setCustomApps] = useSyncedClientState<CustomApp[]>("lifeos_apps", []);
+  const [customApps, setCustomApps] = useState<CustomApp[]>([]);
+  const [customAppsHydrated, setCustomAppsHydrated] = useState(false);
   
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [voiceState, setVoiceState] = useState<"speaking" | "listening" | "processing">("listening");
@@ -60,6 +61,41 @@ export default function App() {
       failed: summary.failed,
     }),
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await listCustomApps(100);
+        let nextApps: CustomApp[] = data.apps;
+        try {
+          const rawLegacyApps = localStorage.getItem("lifeos_apps");
+          const legacyApps = rawLegacyApps ? JSON.parse(rawLegacyApps) : [];
+          if (Array.isArray(legacyApps)) {
+            const knownIds = new Set(nextApps.map((app) => app.id));
+            const missingApps = legacyApps.filter((app) => app?.id && !knownIds.has(app.id));
+            for (const app of missingApps) {
+              const saved = await createCustomAppRecord(app, "migration").catch(() => null);
+              if (saved?.app && !knownIds.has(saved.app.id)) {
+                knownIds.add(saved.app.id);
+                nextApps = [saved.app, ...nextApps];
+              }
+            }
+          }
+        } catch (legacyError) {
+          console.warn("Failed to migrate local custom apps:", legacyError);
+        }
+        if (!cancelled) setCustomApps(nextApps);
+      } catch (error) {
+        console.warn("Failed to load custom apps:", error);
+      } finally {
+        if (!cancelled) setCustomAppsHydrated(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -309,6 +345,7 @@ export default function App() {
     if (resolved.generatedApps.length > 0) {
       setCustomApps((prev) => [...prev, ...resolved.generatedApps]);
       for (const app of resolved.generatedApps) {
+        void createCustomAppRecord(app, "chat").catch((error) => console.warn("Failed to save generated custom app draft:", error));
         generateAppBackground(app.id, app.name, app.description);
       }
     }
@@ -321,9 +358,9 @@ export default function App() {
   const generateAppBackground = async (appId: string, appName: string, description: string) => {
     try {
       const data = await generateCustomApp(appName, description);
-      setCustomApps(prev => prev.map(a => 
-        a.id === appId ? { ...a, code: data.uiCode, status: "active" } : a
-      ));
+      const updatedApp = { id: appId, name: data.appName || appName, description, visibility: "private" as const, status: "active" as const, code: data.uiCode, createdAt: Date.now() };
+      setCustomApps(prev => prev.map(a => a.id === appId ? { ...a, ...updatedApp } : a));
+      void updateCustomAppRecord(appId, updatedApp).catch((error) => console.warn("Failed to save generated custom app code:", error));
       
       const readyMessage: Message = {
         role: "model",
@@ -339,6 +376,7 @@ export default function App() {
     } catch (e) {
       console.error(e);
       setCustomApps(prev => prev.filter(a => a.id !== appId));
+      void deleteCustomAppRecord(appId).catch(() => null);
       const failureMessage: Message = {
         role: "model",
         parts: [{ text: e instanceof Error ? e.message : t("chat.appFailed", { appName }) }]
@@ -350,7 +388,35 @@ export default function App() {
 
   const updateCustomAppCode = (id: string, code: string) => {
     setCustomApps(prev => prev.map(app => app.id === id ? { ...app, code } : app));
+    void updateCustomAppRecord(id, { code }).catch((error) => console.warn("Failed to save custom app code:", error));
   };
+
+  const addCustomApp = (app: CustomApp, source: "studio" | "chat" | "import" | "migration" = "studio") => {
+    setCustomApps(prev => [app, ...prev.filter(item => item.id !== app.id)]);
+    void createCustomAppRecord(app, source).then(({ app: savedApp }) => {
+      setCustomApps(prev => [savedApp, ...prev.filter(item => item.id !== savedApp.id)]);
+    }).catch((error) => console.warn("Failed to save custom app:", error));
+  };
+
+  const deleteCustomApp = (id: string) => {
+    setCustomApps(prev => prev.filter(app => app.id !== id));
+    void deleteCustomAppRecord(id).catch((error) => console.warn("Failed to delete custom app:", error));
+  };
+
+  useEffect(() => {
+    if (!customAppsHydrated) return;
+    const params = new URLSearchParams(window.location.search);
+    const appId = params.get("openApp");
+    if (!appId || !customApps.some((app) => app.id === appId)) return;
+    const openAppMessage: Message = {
+      role: "model",
+      parts: [{ text: t("chat.openApp") }],
+      widget: appId,
+    };
+    setMessages(prev => [...prev, openAppMessage]);
+    void persistMessageToCore(openAppMessage);
+    window.history.replaceState(null, "", "/mobile/chat");
+  }, [customAppsHydrated, customApps, persistMessageToCore, t]);
 
   return (
     <div className="flex justify-center bg-black text-zinc-100 h-screen font-sans selection:bg-indigo-500/30 overflow-hidden relative">
@@ -374,8 +440,8 @@ export default function App() {
                 customApps={customApps} 
                 onClose={() => setViewMode("terminal")} 
                 onUpdateCode={updateCustomAppCode}
-                onDeleteApp={(id) => setCustomApps(prev => prev.filter(a => a.id !== id))}
-                onAddApp={(app: CustomApp) => setCustomApps(prev => [...prev, app])}
+                onDeleteApp={deleteCustomApp}
+                onAddApp={(app: CustomApp) => addCustomApp(app, "studio")}
                 onOpenApp={(id) => {
                   setViewMode("terminal");
                   setTimeout(() => {

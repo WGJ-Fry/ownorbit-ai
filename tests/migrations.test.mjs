@@ -54,6 +54,22 @@ function createLegacyDatabase(dataDir) {
     );
     INSERT INTO devices (id, name, type, status, public_key, access_token_hash, created_at, last_seen_at, revoked_at)
     VALUES ('legacy-device', 'Legacy Phone', 'mobile', 'offline', NULL, 'hash', 1, 1, NULL);
+
+    CREATE TABLE client_state (
+      key TEXT PRIMARY KEY,
+      value_json TEXT NOT NULL,
+      updated_at INTEGER NOT NULL,
+      updated_by_type TEXT,
+      updated_by_id TEXT
+    );
+    INSERT INTO client_state (key, value_json, updated_at, updated_by_type, updated_by_id)
+    VALUES (
+      'lifeos_apps',
+      '[{"id":"legacy-app-1","name":"Legacy Ledger","description":"Old local app /Users/wangguojun/private.csv","visibility":"private","status":"active","createdAt":1,"code":"<script>const token = ''github_pat_legacyCustomAppSecret_1234567890'';</script>"}]',
+      1,
+      'device',
+      'legacy-device'
+    );
   `);
   db.close();
 }
@@ -95,10 +111,13 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   const bindingBaseUrlMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 5").get();
   const mobileShellMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 6").get();
   const problemBlueprintMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 7").get();
+  const customAppsMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 8").get();
   const connectivityColumns = db.prepare("PRAGMA table_info(device_connectivity_reports)").all().map((column) => column.name);
   const bindingSessionColumns = db.prepare("PRAGMA table_info(binding_sessions)").all().map((column) => column.name);
   const problemBlueprintColumns = db.prepare("PRAGMA table_info(problem_blueprints)").all().map((column) => column.name);
+  const customAppColumns = db.prepare("PRAGMA table_info(custom_apps)").all().map((column) => column.name);
   const legacyDevice = db.prepare("SELECT id, access_token_expires_at as accessTokenExpiresAt FROM devices WHERE id = 'legacy-device'").get();
+  const legacyCustomApp = db.prepare("SELECT id, name, description, code FROM custom_apps WHERE id = 'legacy-app-1'").get();
   db.close();
 
   assert.ok(columns.includes("access_token_expires_at"));
@@ -107,11 +126,17 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   assert.equal(bindingBaseUrlMigration.name, "binding_session_base_url");
   assert.equal(mobileShellMigration.name, "device_connectivity_mobile_shell");
   assert.equal(problemBlueprintMigration.name, "problem_blueprints");
+  assert.equal(customAppsMigration.name, "custom_apps");
   assert.ok(connectivityColumns.includes("current_base_url"));
   assert.ok(connectivityColumns.includes("mobile_shell_ok"));
   assert.ok(connectivityColumns.includes("websocket_ok"));
   assert.ok(bindingSessionColumns.includes("base_url"));
   assert.ok(problemBlueprintColumns.includes("app_prompt"));
   assert.ok(problemBlueprintColumns.includes("generated_app_id"));
+  assert.ok(customAppColumns.includes("code"));
+  assert.ok(customAppColumns.includes("problem_blueprint_id"));
+  assert.equal(legacyCustomApp.name, "Legacy Ledger");
+  assert.equal(legacyCustomApp.description.includes("/Users/wangguojun/private.csv"), false);
+  assert.equal(legacyCustomApp.code.includes("github_pat_legacyCustomAppSecret"), false);
   assert.equal(legacyDevice.accessTokenExpiresAt, null);
 });

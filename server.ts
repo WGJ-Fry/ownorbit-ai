@@ -12,6 +12,7 @@ import { registerAdminRoutes } from "./server/routes/adminRoutes";
 import { registerBackupRoutes } from "./server/routes/backupRoutes";
 import { registerChatRoutes } from "./server/routes/chatRoutes";
 import { registerCoreRoutes } from "./server/routes/coreRoutes";
+import { registerCustomAppRoutes } from "./server/routes/customAppRoutes";
 import { registerDeviceRoutes } from "./server/routes/deviceRoutes";
 import { registerMemoryRoutes } from "./server/routes/memoryRoutes";
 import { registerProblemBlueprintRoutes } from "./server/routes/problemBlueprintRoutes";
@@ -25,6 +26,7 @@ import { maybeStartConfiguredTailscaleServe } from "./server/networkDiagnostics"
 import { startRemoteHealthMonitor } from "./server/remoteHealthMonitor";
 import { getInstallPairingToken, htmlWithInstallPairingManifest, htmlWithPublicBaseHref, setInstallPairingIntentCookie } from "./server/mobileInstall";
 import { getConfiguredPublicBasePath } from "./server/publicBaseUrl";
+import { migrateLegacyCustomAppsFromClientState } from "./server/customApps";
 
 const app = express();
 const PORT = Number(process.env.LIFEOS_PORT || process.env.PORT || 3000);
@@ -67,6 +69,7 @@ function migrateLegacyJsonStore() {
 
 migrateLegacyJsonStore();
 runMigrations();
+migrateLegacyCustomAppsFromClientState();
 startBackupScheduler();
 startRemoteHealthMonitor();
 
@@ -91,6 +94,7 @@ registerDeviceRoutes(app);
 registerChatRoutes(app);
 registerMemoryRoutes(app);
 registerProblemBlueprintRoutes(app);
+registerCustomAppRoutes(app);
 registerStateRoutes(app);
 
 registerAiRoutes(app);

@@ -240,6 +240,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
 
   const appSource = await readFile(path.join(rootDir, "src", "App.tsx"), "utf8");
   assert.match(appSource, /useOfflineQueueSync\(flushOfflineMessages, \{/);
+  assert.match(appSource, /listCustomApps\(100\)/);
+  assert.match(appSource, /createCustomAppRecord/);
+  assert.match(appSource, /updateCustomAppRecord/);
+  assert.match(appSource, /deleteCustomAppRecord/);
+  assert.match(appSource, /openApp/);
+  assert.doesNotMatch(appSource, /useSyncedClientState<CustomApp\[]>\("lifeos_apps"/);
   assert.match(appSource, /clearConfirmMessage: \(summary\) => t\("mobileDevice\.confirmClearQueueDetailed"/);
   assert.match(appSource, /pending: summary\.pending/);
   assert.match(appSource, /failed: summary\.failed/);
@@ -300,6 +306,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(studioWorkshopSource, /StudioProblemSolverCard/);
   assert.match(lifeosApiSource, /createProblemBlueprint/);
   assert.match(lifeosApiSource, /problem-blueprints/);
+  assert.match(lifeosApiSource, /listCustomApps/);
+  assert.match(lifeosApiSource, /custom-apps/);
 
   const loginSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminLoginPage.tsx"), "utf8");
   assert.match(loginSource, /onboardingRequired/);
@@ -440,8 +448,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceHealthSummarySource, /currentEntry\.okForRemote/);
   assert.match(mobileDeviceHealthSummarySource, /lastConnectivityResult\?\.ok/);
   assert.match(mobileDeviceSource, /MobileGeneratedToolsCard/);
-  assert.match(mobileGeneratedToolsCardSource, /listProblemBlueprints\(8\)/);
-  assert.match(mobileGeneratedToolsCardSource, /blueprint\.status === "generated"/);
+  assert.match(mobileGeneratedToolsCardSource, /listCustomApps\(8\)/);
+  assert.match(mobileGeneratedToolsCardSource, /openApp=\$\{encodeURIComponent\(generatedTools\[0\]\.id\)\}/);
   assert.match(mobileGeneratedToolsCardSource, /mobileDevice\.generatedToolsTitle/);
   assert.match(translationsSource, /最近生成的解决程序/);
   assert.match(translationsSource, /Recently Generated Problem-Solving Tools/);

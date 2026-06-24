@@ -1470,6 +1470,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
 
   const unauthProblemBlueprints = await request(port, "/api/v1/problem-blueprints");
   assert.equal(unauthProblemBlueprints.status, 401);
+  const unauthCustomApps = await request(port, "/api/v1/custom-apps");
+  assert.equal(unauthCustomApps.status, 401);
 
   const createdProblemBlueprint = await request(port, "/api/v1/problem-blueprints", {
     method: "POST",
@@ -1492,6 +1494,25 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(problemBlueprintHistory.blueprints.length, 1);
   assert.equal(problemBlueprintHistory.blueprints[0].id, createdProblemBlueprint.blueprint.id);
 
+  const createdCustomApp = await request(port, "/api/v1/custom-apps", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      id: "custom-ledger-1",
+      name: "本月预算提醒面板",
+      description: "Personal ledger helper /Users/wangguojun/private-ledger.csv",
+      visibility: "private",
+      status: "active",
+      source: "studio",
+      code: "<script>const token='github_pat_customAppSecret_1234567890'; const path='/Users/wangguojun/private-app.html';</script>",
+    }),
+  }).then((res) => res.json());
+  assert.equal(createdCustomApp.app.id, "custom-ledger-1");
+  assert.equal(createdCustomApp.app.source, "studio");
+  assert.equal(createdCustomApp.app.code.includes("github_pat_customAppSecret"), false);
+  assert.equal(createdCustomApp.app.code.includes("/Users/wangguojun/private-app.html"), false);
+  assert.equal(createdCustomApp.app.description.includes("/Users/wangguojun/private-ledger.csv"), false);
+
   const attachedProblemBlueprint = await request(port, `/api/v1/problem-blueprints/${createdProblemBlueprint.blueprint.id}/generated-app`, {
     method: "PUT",
     headers: adminHeaders,
@@ -1503,10 +1524,31 @@ test("admin auth protects APIs and device binding enables mobile access", async 
 
   const rawBlueprintDb = new DatabaseSync(path.join(dataDir, "lifeos.db"));
   const rawBlueprint = rawBlueprintDb.prepare("SELECT problem, app_prompt as appPrompt FROM problem_blueprints WHERE id = ?").get(createdProblemBlueprint.blueprint.id);
+  const rawCustomApp = rawBlueprintDb.prepare("SELECT description, code FROM custom_apps WHERE id = ?").get("custom-ledger-1");
   rawBlueprintDb.close();
   assert.equal(rawBlueprint.problem.includes("github_pat_problemSecret"), false);
   assert.equal(rawBlueprint.problem.includes("/Users/wangguojun/private-ledger.csv"), false);
   assert.equal(rawBlueprint.appPrompt.includes("github_pat_problemSecret"), false);
+  assert.equal(rawCustomApp.code.includes("github_pat_customAppSecret"), false);
+  assert.equal(rawCustomApp.code.includes("/Users/wangguojun/private-app.html"), false);
+  assert.equal(rawCustomApp.description.includes("/Users/wangguojun/private-ledger.csv"), false);
+
+  const customAppHistory = await request(port, "/api/v1/custom-apps?limit=5", { headers: adminHeaders }).then((res) => res.json());
+  assert.equal(customAppHistory.apps.some((app) => app.id === "custom-ledger-1"), true);
+  const updatedCustomApp = await request(port, "/api/v1/custom-apps/custom-ledger-1", {
+    method: "PATCH",
+    headers: adminHeaders,
+    body: JSON.stringify({ name: "预算提醒面板 Pro", code: "<div>safe updated code</div>" }),
+  }).then((res) => res.json());
+  assert.equal(updatedCustomApp.app.name, "预算提醒面板 Pro");
+  assert.equal(updatedCustomApp.app.code, "<div>safe updated code</div>");
+  const deletedCustomApp = await request(port, "/api/v1/custom-apps/custom-ledger-1", {
+    method: "DELETE",
+    headers: adminHeaders,
+  });
+  assert.equal(deletedCustomApp.status, 200);
+  const deletedCustomAppRead = await request(port, "/api/v1/custom-apps/custom-ledger-1", { headers: adminHeaders });
+  assert.equal(deletedCustomAppRead.status, 404);
 
   const unauthState = await request(port, "/api/v1/state/lifeos_system_actions");
   assert.equal(unauthState.status, 401);
@@ -1851,6 +1893,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     { label: "created problem blueprint", value: createdProblemBlueprint },
     { label: "problem blueprint history", value: problemBlueprintHistory },
     { label: "attached problem blueprint", value: attachedProblemBlueprint },
+    { label: "created custom app", value: createdCustomApp },
+    { label: "custom app history", value: customAppHistory },
+    { label: "updated custom app", value: updatedCustomApp },
     { label: "backup", value: backup },
     { label: "backups", value: backups },
     { label: "default backup schedule", value: defaultSchedule },
@@ -1908,6 +1953,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assertSecretNotLeaked(publicResponses, "github_pat_stateSecret");
   assertSecretNotLeaked(publicResponses, "github_pat_problemSecret");
   assertSecretNotLeaked(publicResponses, "/Users/wangguojun/private-ledger.csv");
+  assertSecretNotLeaked(publicResponses, "github_pat_customAppSecret");
+  assertSecretNotLeaked(publicResponses, "/Users/wangguojun/private-app.html");
   assertSecretNotLeaked(publicResponses, "AIzaSy-state-secret-value-should-not-leak");
   assertSecretNotLeaked(publicResponses, "test-key");
   assertSecretNotLeaked(publicResponses, "correct horse battery staple");
