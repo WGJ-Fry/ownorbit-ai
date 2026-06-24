@@ -18,7 +18,7 @@ const userInstallStatusMarkers = [
   "先看这里：当前公开版本状态",
   "Only claim assets that already exist and can be downloaded from a clean machine",
   "只写已经存在并能被干净机器下载的资产",
-  "docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha",
+  "docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha",
   "Do not market it as downloadable until the real NSIS installer is built, verified, and uploaded",
   "Do not market it as downloadable until the real AppImage is built, verified, and uploaded",
 ];
@@ -2423,7 +2423,7 @@ function checkReleaseDocs() {
     "node:24-bookworm-slim",
     "npm ci",
     "npm run build",
-    "ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha",
+    "ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha",
     "ollama/ollama:latest",
     "ollama pull llama3.2",
     "127.0.0.1:8080:3000",
@@ -2475,12 +2475,12 @@ function checkReleaseDocs() {
   if (
     readmeEn.includes("## Choose Your Path") &&
     readmeEn.includes("Docker Compose alpha") &&
-    readmeEn.includes("ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha") &&
+    readmeEn.includes("ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha") &&
     readmeEn.includes("LifeOS.AI-0.1.0-arm64-unsigned.zip") &&
     readmeEn.includes("public EXE/AppImage downloads are not uploaded yet") &&
     readmeZh.includes("## 选择你的体验路径") &&
     readmeZh.includes("Docker Compose alpha") &&
-    readmeZh.includes("ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha") &&
+    readmeZh.includes("ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha") &&
     readmeZh.includes("LifeOS.AI-0.1.0-arm64-unsigned.zip") &&
     readmeZh.includes("公开 EXE/AppImage 还没有上传")
   ) {
@@ -2492,12 +2492,12 @@ function checkReleaseDocs() {
   if (exists("docs/promotion-kit.md")) {
     const promotionKit = fs.readFileSync(path.join(rootDir, "docs/promotion-kit.md"), "utf8");
     if (
-      promotionKit.includes("Cold launch release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.1-alpha`")
+      promotionKit.includes("Cold launch release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha`")
       && promotionKit.includes("Desktop unsigned ZIP release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.0`")
     ) {
-      pass("promotion kit separates the v0.1.1-alpha cold launch from the v0.1.0 desktop ZIP release");
+      pass("promotion kit separates the v0.1.2-alpha cold launch from the v0.1.0 desktop ZIP release");
     } else {
-      fail("promotion kit must link the v0.1.1-alpha cold launch separately from the v0.1.0 desktop ZIP release");
+      fail("promotion kit must link the v0.1.2-alpha cold launch separately from the v0.1.0 desktop ZIP release");
     }
   } else {
     fail("promotion kit is missing: docs/promotion-kit.md");
@@ -2513,7 +2513,7 @@ function checkReleaseDocs() {
       const source = fs.readFileSync(path.join(rootDir, relativePath), "utf8");
       const findings = [];
       if (source.includes('placeholder: "0.1.0"')) findings.push(`${relativePath}: stale 0.1.0 placeholder`);
-      if (!source.includes("0.1.1-alpha.0 / v0.1.1-alpha")) findings.push(`${relativePath}: missing current alpha version placeholder`);
+      if (!source.includes("0.1.2-alpha.0 / v0.1.2-alpha")) findings.push(`${relativePath}: missing current alpha version placeholder`);
       return findings;
     });
   if (communityTemplateFindings.length === 0 && communityTemplatePaths.every((relativePath) => exists(relativePath))) {
@@ -2658,7 +2658,7 @@ function checkReleaseDocs() {
   if (exists("SECURITY.md")) {
     const securityPolicy = fs.readFileSync(path.join(rootDir, "SECURITY.md"), "utf8");
     const requiredSecurityMarkers = [
-      "`v0.1.1-alpha` / `0.1.1-alpha.0`",
+      "`v0.1.2-alpha` / `0.1.2-alpha.0`",
       "`v0.1.0` | 仅保留历史下载说明，建议升级",
       "GitHub 的私密漏洞报告功能",
       "不要附加原始数据库、未加密备份、未脱敏诊断包",
@@ -2710,7 +2710,7 @@ function checkReleaseDocs() {
       "Desktop Package Artifacts",
       "GitHub Release 草稿",
       "GitHub Release draft",
-      "git tag v0.1.1-alpha",
+      "git tag v0.1.2-alpha",
       "LIFEOS_CHECK_GHCR=1 LIFEOS_CHECK_GITHUB_RELEASE=1 npm run check:cold-launch",
       "Manual workflow runs still produce Actions artifacts only",
       "只有 `v*` tag 触发时才会写入 GitHub Release 草稿",

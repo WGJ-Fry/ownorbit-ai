@@ -1,4 +1,4 @@
-# LifeOS v0.1.1-alpha Cold Launch Checklist
+# LifeOS v0.1.2-alpha Cold Launch Checklist
 
 This checklist is intentionally narrow. The alpha launch only needs to prove one path:
 
@@ -18,9 +18,9 @@ return passport, proposal, and tax deadline
 - [ ] `README.md` and `README.zh-CN.md` link to each other.
 - [ ] `docs/assets/real-demo-en.gif` exists for the English README.
 - [ ] `docs/assets/real-demo.gif` exists for the Chinese README.
-- [ ] `package.json` is `0.1.1-alpha.0`, `private: false`, and `MIT`.
+- [ ] `package.json` is `0.1.2-alpha.0`, `private: false`, and `MIT`.
 - [ ] `Dockerfile` exists and builds the app.
-- [ ] `docker-compose.yml` points to `ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha`.
+- [ ] `docker-compose.yml` points to `ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha`.
 - [ ] `LOCAL_MODEL_BASE_URL=http://ollama:11434/v1`.
 - [ ] `LIFEOS_QUICKSTART=1`.
 - [ ] `LIFEOS_ADMIN_PASSWORD=lifeos-local-demo`.
@@ -37,7 +37,7 @@ npm run build
 Docker is required for the next checks:
 
 ```bash
-docker build -t ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha .
+docker build -t ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha .
 
 docker compose down -v
 rm -rf lifeos_vault lifeos_data
@@ -86,7 +86,7 @@ Required answer evidence:
 
 ```bash
 git push origin main
-git push origin v0.1.1-alpha
+git push origin v0.1.2-alpha
 ```
 
 After the tag is pushed:
@@ -97,7 +97,7 @@ After the tag is pushed:
 
 ```bash
 docker logout ghcr.io || true
-docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha
+docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha
 ```
 
 Automated equivalent:
@@ -109,9 +109,9 @@ LIFEOS_CHECK_GHCR=1 npm run check:cold-launch
 Create GitHub Release:
 
 ```text
-Tag: v0.1.1-alpha
-Title: v0.1.1-alpha: Ask "What am I forgetting?" from local Markdown notes
-Body: docs/release-notes-v0.1.1-alpha.md
+Tag: v0.1.2-alpha
+Title: v0.1.2-alpha: Ask "What am I forgetting?" from local Markdown notes
+Body: docs/release-notes-v0.1.2-alpha.md
 ```
 
 Before announcing on Reddit, Hacker News, Product Hunt, or Chinese communities, the public Release must be visible without authentication:
@@ -120,7 +120,7 @@ Before announcing on Reddit, Hacker News, Product Hunt, or Chinese communities, 
 LIFEOS_CHECK_GHCR=1 LIFEOS_CHECK_GITHUB_RELEASE=1 npm run check:cold-launch
 ```
 
-If this fails with `GitHub public Release is not visible`, publish the generated Release draft or create the `v0.1.1-alpha` Release before sharing the README.
+If this fails with `GitHub public Release is not visible`, publish the generated Release draft or create the `v0.1.2-alpha` Release before sharing the README.
 
 ## Blind Test
 

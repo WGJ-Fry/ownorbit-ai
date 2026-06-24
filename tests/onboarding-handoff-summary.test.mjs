@@ -49,7 +49,7 @@ test("onboarding handoff summary is actionable and excludes sensitive values", a
       release: {
         manifestAvailable: true,
         checksumAvailable: true,
-        version: "0.1.1-alpha.0",
+        version: "0.1.2-alpha.0",
         generatedAt: "2026-06-24T00:00:00Z",
         artifactCount: 1,
         artifacts: [],

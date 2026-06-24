@@ -19,8 +19,8 @@ npm run release:check:signed:file
 当前仓库包含 `Desktop Package Artifacts` GitHub Actions workflow。推送 `v*` tag 后，它会在 macOS、Windows、Linux 三个平台分别构建并验证安装包，然后由 `publish-draft` job 聚合安装包、`SHA256SUMS`、安装说明、`latest*.yml` 和 `release-manifest.json`，一次性上传到同一个 GitHub Release 草稿，避免多个平台同时上传同名元数据。
 
 ```bash
-git tag v0.1.1-alpha
-git push origin v0.1.1-alpha
+git tag v0.1.2-alpha
+git push origin v0.1.2-alpha
 ```
 
 然后打开 GitHub Actions，等待 `Desktop Package Artifacts` 三个平台都成功。成功后到 Releases 页面检查 draft：
@@ -30,7 +30,7 @@ git push origin v0.1.1-alpha
 3. 从 Release 页面下载一次安装包，在另一台机器或干净用户目录验证首次启动。
 4. 没问题后再把 draft 发布为正式 Release。
 
-发布 draft 后，跑一次公开入口检查。它会确认 GHCR 镜像不用登录也能拉取，并确认 `v0.1.1-alpha` Release 已经公开可见：
+发布 draft 后，跑一次公开入口检查。它会确认 GHCR 镜像不用登录也能拉取，并确认 `v0.1.2-alpha` Release 已经公开可见：
 
 ```bash
 LIFEOS_CHECK_GHCR=1 LIFEOS_CHECK_GITHUB_RELEASE=1 npm run check:cold-launch
@@ -170,8 +170,8 @@ LIFEOS_DISTRIBUTION=signed npm run release:check
 This repository includes the `Desktop Package Artifacts` GitHub Actions workflow. When you push a `v*` tag, it builds and verifies packages on macOS, Windows, and Linux. A separate `publish-draft` job then aggregates the installers, `SHA256SUMS`, install guides, `latest*.yml`, and `release-manifest.json`, and uploads them to one GitHub Release draft so platform jobs do not race while uploading same-name metadata.
 
 ```bash
-git tag v0.1.1-alpha
-git push origin v0.1.1-alpha
+git tag v0.1.2-alpha
+git push origin v0.1.2-alpha
 ```
 
 Then open GitHub Actions and wait until all three `Desktop Package Artifacts` jobs pass. After that, open the draft Release:
@@ -181,7 +181,7 @@ Then open GitHub Actions and wait until all three `Desktop Package Artifacts` jo
 3. Download from the Release page and test first launch on another machine or clean user profile.
 4. Publish the draft only after the downloaded package is verified.
 
-After publishing the draft, run the public launch check. It confirms the GHCR image is anonymously pullable and that the `v0.1.1-alpha` Release is publicly visible:
+After publishing the draft, run the public launch check. It confirms the GHCR image is anonymously pullable and that the `v0.1.2-alpha` Release is publicly visible:
 
 ```bash
 LIFEOS_CHECK_GHCR=1 LIFEOS_CHECK_GITHUB_RELEASE=1 npm run check:cold-launch

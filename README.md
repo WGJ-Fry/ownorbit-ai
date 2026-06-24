@@ -40,7 +40,7 @@ Current alpha promise: put Markdown notes in a folder, run LifeOS locally, and a
 
 | Path | Use this when | Current public status |
 | --- | --- | --- |
-| **Docker Compose alpha** | You want the fastest local demo with Ollama and Markdown notes. | Recommended first try. Uses `ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha`. |
+| **Docker Compose alpha** | You want the fastest local demo with Ollama and Markdown notes. | Recommended first try. Uses `ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha`. |
 | **macOS desktop ZIP** | You want to try the early desktop shell. | Available in the [`v0.1.0` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.0): `LifeOS.AI-0.1.0-arm64-unsigned.zip`. |
 | **Windows / Linux desktop packages** | You want native installers for those systems. | Packaging and CI smoke checks exist, but public EXE/AppImage downloads are not uploaded yet. |
 
@@ -307,10 +307,10 @@ npm run quality:gate
 Docker image:
 
 ```text
-ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha
+ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha
 ```
 
-Note: the release tag is `v0.1.1-alpha`; the package version is `0.1.1-alpha.0`.
+Note: the release tag is `v0.1.2-alpha`; the package version is `0.1.2-alpha.0`.
 
 ## Roadmap
 

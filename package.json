@@ -1,7 +1,7 @@
 {
   "name": "lifeos-ai",
   "private": false,
-  "version": "0.1.1-alpha.0",
+  "version": "0.1.2-alpha.0",
   "description": "A local AI that answers what you're forgetting from your Markdown notes.",
   "author": "LifeOS",
   "license": "MIT",

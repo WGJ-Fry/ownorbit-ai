@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.2-alpha.0
+
+Current cold-launch alpha aligned to the latest main branch safety and onboarding work.
+
+- Bumped the public Docker alpha path to `v0.1.2-alpha`.
+- Updated README, Docker Compose, release docs, support templates, and release checks to use the current alpha tag.
+- Added release notes for the current alpha cold-launch path.
+- Rebuilt local unsigned macOS release metadata for `0.1.2-alpha.0`.
+- Included the latest mobile credential expiry guidance, IndexedDB-first pairing storage, redacted action metadata, and first-launch handoff summary copy in the current alpha line.
+
 ## 0.1.1-alpha.0
 
 Focused Docker quickstart alpha for the local Markdown memory loop.

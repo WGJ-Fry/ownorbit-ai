@@ -40,7 +40,7 @@ LifeOS 先从一个很小但有用的工作流开始：
 
 | 路径 | 适合你在什么时候用 | 当前公开状态 |
 | --- | --- | --- |
-| **Docker Compose alpha** | 想最快体验 Ollama + Markdown 本地记忆演示。 | 推荐第一次体验使用。镜像是 `ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha`。 |
+| **Docker Compose alpha** | 想最快体验 Ollama + Markdown 本地记忆演示。 | 推荐第一次体验使用。镜像是 `ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha`。 |
 | **macOS 桌面 ZIP** | 想试用早期桌面端壳。 | 已在 [`v0.1.0` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.0) 提供：`LifeOS.AI-0.1.0-arm64-unsigned.zip`。 |
 | **Windows / Linux 桌面包** | 想要 Windows 或 Linux 原生安装包。 | 打包脚本和 CI smoke 已接入，但公开 EXE/AppImage 还没有上传。 |
 
@@ -307,10 +307,10 @@ npm run quality:gate
 Docker 镜像：
 
 ```text
-ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha
+ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha
 ```
 
-说明：release tag 是 `v0.1.1-alpha`；package version 是 `0.1.1-alpha.0`。
+说明：release tag 是 `v0.1.2-alpha`；package version 是 `0.1.2-alpha.0`。
 
 ## Roadmap
 

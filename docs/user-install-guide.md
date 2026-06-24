@@ -8,7 +8,7 @@ LifeOS AI 是电脑端应用 + 手机端 PWA。电脑端负责运行本地核心
 
 | 项目 | 当前状态 | 用户应该怎么做 |
 | --- | --- | --- |
-| Docker Compose alpha | 已使用 `ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha` | 推荐第一次体验使用。先确认 GitHub Packages 页面已经公开，并用 `docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha` 验证能拉取。 |
+| Docker Compose alpha | 已使用 `ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha` | 推荐第一次体验使用。先确认 GitHub Packages 页面已经公开，并用 `docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha` 验证能拉取。 |
 | macOS 桌面包 | `v0.1.0` 已上传 `LifeOS.AI-0.1.0-arm64-unsigned.zip` | 适合早期桌面测试。它是 unsigned ZIP，不是签名公证 DMG。 |
 | Windows 桌面包 | 当前公开 Release 未上传 EXE | 不要在推广文案里写成可下载；等真实 NSIS 安装包生成、校验、上传后再开放。 |
 | Linux 桌面包 | 当前公开 Release 未上传 AppImage | 不要在推广文案里写成可下载；等真实 AppImage 生成、校验、上传后再开放。 |
@@ -238,7 +238,7 @@ LifeOS AI is a desktop app plus a mobile PWA. The desktop app runs the local cor
 
 | Item | Current status | What users should do |
 | --- | --- | --- |
-| Docker Compose alpha | Uses `ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha` | Recommended first try. Confirm the GitHub Packages page is public and verify `docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha` works before promoting it. |
+| Docker Compose alpha | Uses `ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha` | Recommended first try. Confirm the GitHub Packages page is public and verify `docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha` works before promoting it. |
 | macOS desktop package | `v0.1.0` uploads `LifeOS.AI-0.1.0-arm64-unsigned.zip` | Good for early desktop testing. It is an unsigned ZIP, not a signed and notarized DMG. |
 | Windows desktop package | The current public Release does not upload an EXE | Do not market it as downloadable until the real NSIS installer is built, verified, and uploaded. |
 | Linux desktop package | The current public Release does not upload an AppImage | Do not market it as downloadable until the real AppImage is built, verified, and uploaded. |
