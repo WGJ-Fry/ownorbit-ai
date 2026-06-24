@@ -229,7 +229,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   expect(blockedBinding.status()).toBe(403);
 
   await page.getByRole("button", { name: "创建备份" }).click();
-  await expect(page.getByText(/lifeos-.*\.db/)).toBeVisible();
+  await expect(page.locator('a[href*="/api/v1/backups/"][href$="/download"]').first()).toBeVisible();
 
   const bindingResponse = await page.context().request.post("/api/v1/devices/bind/start", { headers: csrf });
   expect(bindingResponse.ok()).toBeTruthy();
