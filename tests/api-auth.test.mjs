@@ -766,6 +766,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.ok(Array.isArray(dataExport.customApps.versions));
   assert.ok(Array.isArray(dataExport.customApps.state));
   assert.ok(Array.isArray(dataExport.customApps.actionRequests));
+  assert.ok(Array.isArray(dataExport.customApps.actionPolicies));
+  assert.ok(Array.isArray(dataExport.customApps.capabilityManifests));
   const exportedConnectionAudit = dataExport.auditLogs.find((log) => log.action === "network_connection_tested");
   assert.ok(exportedConnectionAudit);
   assert.equal(exportedConnectionAudit.targetId, `http://127.0.0.1:${port}/?[redacted]`);
@@ -1489,6 +1491,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(unauthCustomAppVersions.status, 401);
   const unauthCustomAppState = await request(port, "/api/v1/custom-apps/custom-ledger-1/state");
   assert.equal(unauthCustomAppState.status, 401);
+  const unauthCustomAppCapabilities = await request(port, "/api/v1/custom-apps/custom-ledger-1/capabilities");
+  assert.equal(unauthCustomAppCapabilities.status, 401);
   const unauthCustomAppActionPolicy = await request(port, "/api/v1/custom-apps/custom-ledger-1/action-policy");
   assert.equal(unauthCustomAppActionPolicy.status, 401);
   const unauthCustomAppActions = await request(port, "/api/v1/custom-apps/custom-ledger-1/action-requests");
@@ -1559,6 +1563,54 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   }).then((res) => res.json());
   assert.equal(JSON.stringify(savedCustomAppState).includes("github_pat_customStateSecret"), false);
   assert.equal(JSON.stringify(savedCustomAppState).includes("/Users/wangguojun/private-state.csv"), false);
+
+  const defaultCustomAppCapabilities = await request(port, "/api/v1/custom-apps/custom-ledger-1/capabilities", {
+    headers: adminHeaders,
+  }).then((res) => res.json());
+  assert.equal(defaultCustomAppCapabilities.manifest.allowedCapabilities.includes("storage"), true);
+  assert.equal(defaultCustomAppCapabilities.manifest.allowedCapabilities.includes("communication"), true);
+  assert.equal(defaultCustomAppCapabilities.manifest.riskLevel, "high");
+
+  const noCommunicationCustomAppCapabilities = await request(port, "/api/v1/custom-apps/custom-ledger-1/capabilities", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({ allowedCapabilities: ["storage", "openExternal"] }),
+  }).then((res) => res.json());
+  assert.deepEqual(noCommunicationCustomAppCapabilities.manifest.allowedCapabilities, ["storage", "openExternal"]);
+  assert.equal(noCommunicationCustomAppCapabilities.manifest.riskLevel, "medium");
+
+  const capabilityBlockedCustomAppAction = await request(port, "/api/v1/custom-apps/custom-ledger-1/action-requests", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      label: "Capability blocked call +15550002222",
+      targetUrl: "tel:+15550002222",
+      reason: "Generated tool has no communication capability",
+    }),
+  }).then((res) => res.json());
+  assert.equal(capabilityBlockedCustomAppAction.request.status, "blocked");
+  assert.equal(capabilityBlockedCustomAppAction.request.targetUrl, "tel:[redacted]");
+  assert.equal(JSON.stringify(capabilityBlockedCustomAppAction).includes("+15550002222"), false);
+
+  const noStorageCustomAppCapabilities = await request(port, "/api/v1/custom-apps/custom-ledger-1/capabilities", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({ allowedCapabilities: ["openExternal"] }),
+  }).then((res) => res.json());
+  assert.equal(noStorageCustomAppCapabilities.manifest.allowedCapabilities.includes("storage"), false);
+  const deniedCustomAppState = await request(port, "/api/v1/custom-apps/custom-ledger-1/state", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({ state: { note: "should not save" } }),
+  });
+  assert.equal(deniedCustomAppState.status, 403);
+
+  const restoredCustomAppCapabilities = await request(port, "/api/v1/custom-apps/custom-ledger-1/capabilities", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({ allowedCapabilities: ["storage", "openExternal", "navigation", "communication", "shortcuts"] }),
+  }).then((res) => res.json());
+  assert.equal(restoredCustomAppCapabilities.manifest.allowedCapabilities.includes("communication"), true);
 
   const defaultCustomAppActionPolicy = await request(port, "/api/v1/custom-apps/custom-ledger-1/action-policy", {
     headers: adminHeaders,
@@ -1710,6 +1762,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(rawCustomAppState.stateJson.includes("/Users/wangguojun/private-state.csv"), false);
   assert.equal(JSON.stringify(rawCustomAppActions).includes("custom-action-secret"), false);
   assert.equal(JSON.stringify(rawCustomAppActions).includes("+15550001111"), false);
+  assert.equal(JSON.stringify(rawCustomAppActions).includes("+15550002222"), false);
   assert.equal(JSON.stringify(rawCustomAppActions).includes("+15551234567"), false);
   assert.equal(JSON.stringify(rawCustomAppActions).includes("mobile-action-secret"), false);
 
@@ -2070,6 +2123,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(customAppActionBlockedAudit.metadata.status, "blocked");
   const customAppActionPolicyAudit = finalAudit.logs.find((log) => log.action === "custom_app_action_policy_updated" && log.targetId === "custom-ledger-1");
   assert.equal(customAppActionPolicyAudit.metadata.allowedSchemes.includes("https"), true);
+  const customAppCapabilitiesAudit = finalAudit.logs.find((log) => log.action === "custom_app_capabilities_updated" && log.targetId === "custom-ledger-1");
+  assert.equal(customAppCapabilitiesAudit.metadata.allowedCapabilities.includes("openExternal"), true);
+  assert.equal(["medium", "high"].includes(customAppCapabilitiesAudit.metadata.riskLevel), true);
   const mobileCustomAppActionCancelledAudit = finalAudit.logs.find((log) => log.action === "custom_app_action_cancelled" && log.metadata.requestId === mobilePendingCustomAppAction.request.id);
   assert.equal(mobileCustomAppActionCancelledAudit.actorType, "device");
   assert.equal(mobileCustomAppActionCancelledAudit.metadata.targetUrl, "mailto:[redacted]?[redacted]");
@@ -2080,6 +2136,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(finalAuditJson.includes(adminRequestedRotation.accessToken), false);
   assert.equal(finalAuditJson.includes("custom-action-secret"), false);
   assert.equal(finalAuditJson.includes("+15550001111"), false);
+  assert.equal(finalAuditJson.includes("+15550002222"), false);
   assert.equal(finalAuditJson.includes("+15551234567"), false);
   assert.equal(finalAuditJson.includes("mobile-action-secret"), false);
 
@@ -2109,6 +2166,11 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     { label: "custom app versions after create", value: customAppVersionsAfterCreate },
     { label: "initial custom app state", value: initialCustomAppState },
     { label: "saved custom app state", value: savedCustomAppState },
+    { label: "default custom app capabilities", value: defaultCustomAppCapabilities },
+    { label: "no communication custom app capabilities", value: noCommunicationCustomAppCapabilities },
+    { label: "capability blocked custom app action", value: capabilityBlockedCustomAppAction },
+    { label: "no storage custom app capabilities", value: noStorageCustomAppCapabilities },
+    { label: "restored custom app capabilities", value: restoredCustomAppCapabilities },
     { label: "default custom app action policy", value: defaultCustomAppActionPolicy },
     { label: "web-only custom app action policy", value: webOnlyCustomAppActionPolicy },
     { label: "policy blocked custom app action", value: policyBlockedCustomAppAction },

@@ -597,6 +597,27 @@ export type StoredCustomAppActionPolicy = {
   updatedAt: number;
 };
 
+export type CustomAppCapabilityId =
+  | "storage"
+  | "openExternal"
+  | "navigation"
+  | "communication"
+  | "shortcuts"
+  | "network"
+  | "clipboard"
+  | "fileImport"
+  | "backgroundSync";
+
+export type StoredCustomAppCapabilityManifest = {
+  appId: string;
+  allowedCapabilities: CustomAppCapabilityId[];
+  declaredCapabilities: CustomAppCapabilityId[];
+  riskLevel: "low" | "medium" | "high";
+  updatedByType?: string | null;
+  updatedById?: string | null;
+  updatedAt: number;
+};
+
 export function getLifeOSBasePath(pathname = typeof window === "undefined" ? "/" : window.location?.pathname || "/") {
   const match = String(pathname || "/").match(/^(.*?)(?:\/(?:admin|mobile|chat)(?:\/|$)|\/?$)/);
   const basePath = (match?.[1] || "").replace(/\/+$/, "");
@@ -1359,6 +1380,20 @@ export function saveCustomAppState(appId: string, state: unknown) {
   return requestJson<{ state: StoredCustomAppState }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/state`, {
     method: "PUT",
     body: JSON.stringify({ state }),
+  });
+}
+
+export function getCustomAppCapabilityManifest(appId: string) {
+  return requestJson<{ manifest: StoredCustomAppCapabilityManifest }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/capabilities`);
+}
+
+export function updateCustomAppCapabilityManifest(
+  appId: string,
+  input: { allowedCapabilities?: CustomAppCapabilityId[]; declaredCapabilities?: CustomAppCapabilityId[]; capabilities?: CustomAppCapabilityId[] },
+) {
+  return requestJson<{ manifest: StoredCustomAppCapabilityManifest }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/capabilities`, {
+    method: "PUT",
+    body: JSON.stringify(input),
   });
 }
 

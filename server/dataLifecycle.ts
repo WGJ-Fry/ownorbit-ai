@@ -199,11 +199,24 @@ export function createDataExport(scopes: DataExportScope[] = [...exportScopeKeys
              created_at as createdAt, decided_at as decidedAt, decision_note as decisionNote
       FROM custom_app_action_requests ORDER BY created_at DESC
     `).all();
+    const actionPolicies = db.prepare(`
+      SELECT app_id as appId, template, allowed_schemes_json as allowedSchemesJson,
+             require_confirmation as requireConfirmation, updated_at as updatedAt
+      FROM custom_app_action_policies ORDER BY updated_at DESC
+    `).all();
+    const capabilityManifests = db.prepare(`
+      SELECT app_id as appId, allowed_capabilities_json as allowedCapabilitiesJson,
+             declared_capabilities_json as declaredCapabilitiesJson, risk_level as riskLevel,
+             updated_at as updatedAt
+      FROM custom_app_capability_manifests ORDER BY updated_at DESC
+    `).all();
     exportData.customApps = {
       apps: redactDataExportValue(apps),
       versions: redactDataExportValue(versions),
       state,
       actionRequests: redactDataExportValue(actionRequests),
+      actionPolicies: redactDataExportValue(actionPolicies),
+      capabilityManifests: redactDataExportValue(capabilityManifests),
     };
   }
 
@@ -215,7 +228,14 @@ export function summarizeDataExport(exportData: Record<string, unknown>) {
   const memories = Array.isArray(exportData.memories) ? exportData.memories : [];
   const devices = Array.isArray(exportData.devices) ? exportData.devices : [];
   const auditLogs = Array.isArray(exportData.auditLogs) ? exportData.auditLogs : [];
-  const customApps = exportData.customApps as { apps?: unknown[]; versions?: unknown[]; state?: unknown[]; actionRequests?: unknown[] } | undefined;
+  const customApps = exportData.customApps as {
+    apps?: unknown[];
+    versions?: unknown[];
+    state?: unknown[];
+    actionRequests?: unknown[];
+    actionPolicies?: unknown[];
+    capabilityManifests?: unknown[];
+  } | undefined;
   const scopes = Array.isArray(exportData.scopes) ? exportData.scopes.map((scope) => String(scope)) : [];
   return {
     scopes,
@@ -233,6 +253,8 @@ export function summarizeDataExport(exportData: Record<string, unknown>) {
       customAppVersions: Array.isArray(customApps?.versions) ? customApps.versions.length : 0,
       customAppStates: Array.isArray(customApps?.state) ? customApps.state.length : 0,
       customAppActionRequests: Array.isArray(customApps?.actionRequests) ? customApps.actionRequests.length : 0,
+      customAppActionPolicies: Array.isArray(customApps?.actionPolicies) ? customApps.actionPolicies.length : 0,
+      customAppCapabilityManifests: Array.isArray(customApps?.capabilityManifests) ? customApps.capabilityManifests.length : 0,
     },
   };
 }

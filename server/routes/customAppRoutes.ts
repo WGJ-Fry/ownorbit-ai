@@ -6,8 +6,10 @@ import {
   createCustomAppActionRequest,
   decideCustomAppActionRequest,
   deleteCustomApp,
+  customAppHasCapabilities,
   getCustomApp,
   getCustomAppActionPolicy,
+  getCustomAppCapabilityManifest,
   getCustomAppState,
   listCustomAppActionRequests,
   listCustomApps,
@@ -15,6 +17,7 @@ import {
   rollbackCustomAppVersion,
   updateCustomApp,
   updateCustomAppActionPolicy,
+  updateCustomAppCapabilityManifest,
   updateCustomAppState,
 } from "../customApps";
 import { broadcastRealtime } from "../realtime";
@@ -60,6 +63,9 @@ export function registerCustomAppRoutes(app: express.Express) {
   });
 
   app.get("/api/v1/custom-apps/:appId/state", requireActor, (req, res) => {
+    const capabilityCheck = customAppHasCapabilities(req.params.appId, ["storage"]);
+    if (!capabilityCheck) return res.status(404).json({ error: "Custom app not found" });
+    if (!capabilityCheck.ok) return res.status(403).json({ error: "Custom app storage capability is disabled" });
     const state = getCustomAppState(req.params.appId);
     if (!state) return res.status(404).json({ error: "Custom app not found" });
     res.json({ state });
@@ -67,6 +73,9 @@ export function registerCustomAppRoutes(app: express.Express) {
 
   app.put("/api/v1/custom-apps/:appId/state", requireActor, (req, res) => {
     try {
+      const capabilityCheck = customAppHasCapabilities(req.params.appId, ["storage"]);
+      if (!capabilityCheck) return res.status(404).json({ error: "Custom app not found" });
+      if (!capabilityCheck.ok) return res.status(403).json({ error: "Custom app storage capability is disabled" });
       const state = updateCustomAppState(req.params.appId, req.body?.state ?? {}, actor(req));
       if (!state) return res.status(404).json({ error: "Custom app not found" });
       insertAuditLog("custom_app_state_saved", "custom_app", req.params.appId, {
@@ -74,6 +83,28 @@ export function registerCustomAppRoutes(app: express.Express) {
       }, actor(req)?.type, actor(req)?.id);
       broadcastRealtime({ type: "custom_app.state_saved", appId: req.params.appId, timestamp: state.updatedAt });
       res.json({ state });
+    } catch (error) {
+      handleCustomAppError(res, error);
+    }
+  });
+
+  app.get("/api/v1/custom-apps/:appId/capabilities", requireActor, (req, res) => {
+    const manifest = getCustomAppCapabilityManifest(req.params.appId);
+    if (!manifest) return res.status(404).json({ error: "Custom app not found" });
+    res.json({ manifest });
+  });
+
+  app.put("/api/v1/custom-apps/:appId/capabilities", requireActor, (req, res) => {
+    try {
+      const manifest = updateCustomAppCapabilityManifest(req.params.appId, req.body || {}, actor(req));
+      if (!manifest) return res.status(404).json({ error: "Custom app not found" });
+      insertAuditLog("custom_app_capabilities_updated", "custom_app", req.params.appId, {
+        allowedCapabilities: manifest.allowedCapabilities,
+        declaredCapabilities: manifest.declaredCapabilities,
+        riskLevel: manifest.riskLevel,
+      }, actor(req)?.type, actor(req)?.id);
+      broadcastRealtime({ type: "custom_app.capabilities_updated", appId: req.params.appId, manifest, timestamp: manifest.updatedAt });
+      res.json({ manifest });
     } catch (error) {
       handleCustomAppError(res, error);
     }

@@ -3,12 +3,16 @@ import { Clock3, RefreshCw, ShieldAlert, ShieldCheck, Wrench, XCircle } from "lu
 import { useI18n } from "../../i18n/I18nProvider";
 import {
   decideCustomAppActionRequest,
+  getCustomAppCapabilityManifest,
   getCustomAppActionPolicy,
   listCustomAppActionRequests,
   listCustomApps,
+  updateCustomAppCapabilityManifest,
   updateCustomAppActionPolicy,
   type CustomAppActionPolicyTemplate,
+  type CustomAppCapabilityId,
   type StoredCustomApp,
+  type StoredCustomAppCapabilityManifest,
   type StoredCustomAppActionPolicy,
   type StoredCustomAppActionRequest,
 } from "../../services/lifeosApi";
@@ -19,6 +23,8 @@ type ActionRequestWithApp = StoredCustomAppActionRequest & {
 };
 
 const policyTemplates: CustomAppActionPolicyTemplate[] = ["global", "web", "navigation", "communication", "shortcuts", "locked"];
+const capabilityIds: CustomAppCapabilityId[] = ["storage", "openExternal", "navigation", "communication", "shortcuts", "network", "clipboard", "fileImport", "backgroundSync"];
+const defaultCapabilityIds: CustomAppCapabilityId[] = ["storage", "openExternal", "navigation", "communication", "shortcuts"];
 
 function statusLabel(status: StoredCustomAppActionRequest["status"], t: (key: TranslationKey, values?: Record<string, string | number>) => string) {
   return t(`customAppActions.status.${status}` as TranslationKey);
@@ -39,15 +45,21 @@ function policyTemplateLabel(template: CustomAppActionPolicyTemplate, t: (key: T
   return t(`customAppActions.policyTemplate.${template}` as TranslationKey);
 }
 
+function capabilityLabel(capability: CustomAppCapabilityId, t: (key: TranslationKey, values?: Record<string, string | number>) => string) {
+  return t(`customAppActions.capability.${capability}` as TranslationKey);
+}
+
 export default function MobileCustomAppActionsPanel() {
   const { t } = useI18n();
   const [apps, setApps] = useState<StoredCustomApp[]>([]);
   const [policies, setPolicies] = useState<Record<string, StoredCustomAppActionPolicy>>({});
+  const [capabilityManifests, setCapabilityManifests] = useState<Record<string, StoredCustomAppCapabilityManifest>>({});
   const [requests, setRequests] = useState<ActionRequestWithApp[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [savingPolicyAppId, setSavingPolicyAppId] = useState<string | null>(null);
+  const [savingCapabilityAppId, setSavingCapabilityAppId] = useState<string | null>(null);
 
   const summary = useMemo(() => ({
     pending: requests.filter((request) => request.status === "pending").length,
@@ -79,7 +91,16 @@ export default function MobileCustomAppActionsPanel() {
           return null;
         }
       }));
+      const capabilityEntries = await Promise.all(appData.apps.map(async (app) => {
+        try {
+          const data = await getCustomAppCapabilityManifest(app.id);
+          return [app.id, data.manifest] as const;
+        } catch {
+          return null;
+        }
+      }));
       setPolicies(Object.fromEntries(policyEntries.filter((entry): entry is readonly [string, StoredCustomAppActionPolicy] => Boolean(entry))));
+      setCapabilityManifests(Object.fromEntries(capabilityEntries.filter((entry): entry is readonly [string, StoredCustomAppCapabilityManifest] => Boolean(entry))));
       setRequests(requestGroups.flat().sort((a, b) => b.createdAt - a.createdAt).slice(0, 24));
     } catch (loadError: any) {
       setError(loadError?.message || t("customAppActions.loadFailed"));
@@ -98,6 +119,23 @@ export default function MobileCustomAppActionsPanel() {
       await loadRequests(true);
     } finally {
       setSavingPolicyAppId(null);
+    }
+  };
+
+  const toggleCapability = async (appId: string, capability: CustomAppCapabilityId) => {
+    const currentCapabilities = capabilityManifests[appId]?.allowedCapabilities || defaultCapabilityIds;
+    const nextCapabilities = currentCapabilities.includes(capability)
+      ? currentCapabilities.filter((item) => item !== capability)
+      : [...currentCapabilities, capability];
+    setSavingCapabilityAppId(appId);
+    try {
+      const data = await updateCustomAppCapabilityManifest(appId, { allowedCapabilities: nextCapabilities });
+      setCapabilityManifests((items) => ({ ...items, [appId]: data.manifest }));
+    } catch (capabilityError: any) {
+      alert(capabilityError?.message || t("customAppActions.capabilityUpdateFailed"));
+      await loadRequests(true);
+    } finally {
+      setSavingCapabilityAppId(null);
     }
   };
 
@@ -167,8 +205,11 @@ export default function MobileCustomAppActionsPanel() {
           <div className="space-y-2">
             {policyApps.map((app) => {
               const policy = policies[app.id];
+              const manifest = capabilityManifests[app.id];
               const template = policy?.template || "global";
               const allowedSchemes = policy?.allowedSchemes || [];
+              const allowedCapabilities = manifest?.allowedCapabilities || defaultCapabilityIds;
+              const riskLevel = manifest?.riskLevel || "high";
               return (
                 <article key={app.id} className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
                   <div className="flex items-start justify-between gap-2">
@@ -203,6 +244,34 @@ export default function MobileCustomAppActionsPanel() {
                         {t("customAppActions.policyNoSchemes")}
                       </span>
                     )}
+                  </div>
+                  <div className="mt-3 border-t border-white/[0.06] pt-3">
+                    <div className="mb-2 flex items-center justify-between gap-2 text-[10px]">
+                      <span className="font-black text-zinc-100">{t("customAppActions.capabilityTitle")}</span>
+                      <span className="font-bold text-zinc-500">
+                        {t("customAppActions.capabilityRiskLine", { risk: t(`customApp.actionRisk.${riskLevel}` as TranslationKey) })}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {capabilityIds.map((capability) => {
+                        const enabled = allowedCapabilities.includes(capability);
+                        return (
+                          <button
+                            key={capability}
+                            type="button"
+                            disabled={savingCapabilityAppId === app.id}
+                            onClick={() => void toggleCapability(app.id, capability)}
+                            className={`rounded-full border px-2 py-1 text-[10px] font-bold disabled:opacity-60 ${
+                              enabled
+                                ? "border-emerald-300/20 bg-emerald-500/10 text-emerald-100"
+                                : "border-white/[0.06] bg-black/20 text-zinc-500"
+                            }`}
+                          >
+                            {capabilityLabel(capability, t)}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </article>
               );

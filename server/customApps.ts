@@ -18,6 +18,20 @@ const CUSTOM_APP_ACTION_POLICY_SCHEMES = {
   shortcuts: ["shortcuts"],
   locked: [],
 } as const;
+const CUSTOM_APP_CAPABILITY_IDS = [
+  "storage",
+  "openExternal",
+  "navigation",
+  "communication",
+  "shortcuts",
+  "network",
+  "clipboard",
+  "fileImport",
+  "backgroundSync",
+] as const;
+const DEFAULT_CUSTOM_APP_CAPABILITIES: CustomAppCapabilityId[] = ["storage", "openExternal", "navigation", "communication", "shortcuts"];
+const HIGH_RISK_CUSTOM_APP_CAPABILITIES = new Set<CustomAppCapabilityId>(["communication", "shortcuts", "fileImport"]);
+const MEDIUM_RISK_CUSTOM_APP_CAPABILITIES = new Set<CustomAppCapabilityId>(["openExternal", "navigation", "network", "clipboard", "backgroundSync"]);
 
 export type CustomAppVisibility = "private" | "public";
 export type CustomAppStatus = "active" | "building";
@@ -25,6 +39,8 @@ export type CustomAppSource = "studio" | "chat" | "import" | "migration";
 export type CustomAppActionRisk = "low" | "medium" | "high";
 export type CustomAppActionStatus = "pending" | "approved" | "cancelled" | "blocked";
 export type CustomAppActionPolicyTemplate = "global" | keyof typeof CUSTOM_APP_ACTION_POLICY_SCHEMES;
+export type CustomAppCapabilityId = typeof CUSTOM_APP_CAPABILITY_IDS[number];
+export type CustomAppCapabilityRisk = "low" | "medium" | "high";
 
 export type StoredCustomApp = {
   id: string;
@@ -86,6 +102,16 @@ export type StoredCustomAppActionPolicy = {
   template: CustomAppActionPolicyTemplate;
   allowedSchemes: string[];
   requireConfirmation: boolean;
+  updatedByType?: string | null;
+  updatedById?: string | null;
+  updatedAt: number;
+};
+
+export type StoredCustomAppCapabilityManifest = {
+  appId: string;
+  allowedCapabilities: CustomAppCapabilityId[];
+  declaredCapabilities: CustomAppCapabilityId[];
+  riskLevel: CustomAppCapabilityRisk;
   updatedByType?: string | null;
   updatedById?: string | null;
   updatedAt: number;
@@ -209,6 +235,31 @@ function normalizePolicyTemplate(value: unknown): CustomAppActionPolicyTemplate 
   return "global";
 }
 
+function normalizeCustomAppCapabilities(value: unknown, fallback: CustomAppCapabilityId[] = DEFAULT_CUSTOM_APP_CAPABILITIES) {
+  if (!Array.isArray(value)) return fallback;
+  const allowed = new Set<string>(CUSTOM_APP_CAPABILITY_IDS);
+  return Array.from(new Set(
+    value
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter((item): item is CustomAppCapabilityId => allowed.has(item)),
+  ));
+}
+
+function riskForCustomAppCapabilities(capabilities: CustomAppCapabilityId[]): CustomAppCapabilityRisk {
+  if (capabilities.some((capability) => HIGH_RISK_CUSTOM_APP_CAPABILITIES.has(capability))) return "high";
+  if (capabilities.some((capability) => MEDIUM_RISK_CUSTOM_APP_CAPABILITIES.has(capability))) return "medium";
+  return "low";
+}
+
+function requiredCapabilitiesForActionScheme(scheme: string): CustomAppCapabilityId[] {
+  const required = new Set<CustomAppCapabilityId>(["openExternal"]);
+  if (["geo", "maps", "iosamap", "androidamap", "comgooglemaps"].includes(scheme)) required.add("navigation");
+  if (["tel", "sms", "mailto"].includes(scheme)) required.add("communication");
+  if (scheme === "shortcuts") required.add("shortcuts");
+  return Array.from(required);
+}
+
 function sanitizeActionTargetUrl(value: unknown) {
   const targetUrl = String(value || "").trim();
   if (!targetUrl) throw statusError("targetUrl is required");
@@ -330,6 +381,42 @@ function defaultCustomAppActionPolicy(appId: string): StoredCustomAppActionPolic
     template: "global",
     allowedSchemes: allowedActionSchemes(),
     requireConfirmation: true,
+    updatedByType: null,
+    updatedById: null,
+    updatedAt: 0,
+  };
+}
+
+function rowToCustomAppCapabilityManifest(row: any): StoredCustomAppCapabilityManifest {
+  let allowedCapabilities: CustomAppCapabilityId[] = DEFAULT_CUSTOM_APP_CAPABILITIES;
+  let declaredCapabilities: CustomAppCapabilityId[] = [];
+  try {
+    allowedCapabilities = normalizeCustomAppCapabilities(JSON.parse(row.allowedCapabilitiesJson || "[]"), []);
+  } catch {
+    allowedCapabilities = [];
+  }
+  try {
+    declaredCapabilities = normalizeCustomAppCapabilities(JSON.parse(row.declaredCapabilitiesJson || "[]"), []);
+  } catch {
+    declaredCapabilities = [];
+  }
+  return {
+    appId: row.appId,
+    allowedCapabilities,
+    declaredCapabilities,
+    riskLevel: row.riskLevel === "high" || row.riskLevel === "low" ? row.riskLevel : "medium",
+    updatedByType: row.updatedByType,
+    updatedById: row.updatedById,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function defaultCustomAppCapabilityManifest(appId: string): StoredCustomAppCapabilityManifest {
+  return {
+    appId,
+    allowedCapabilities: DEFAULT_CUSTOM_APP_CAPABILITIES,
+    declaredCapabilities: DEFAULT_CUSTOM_APP_CAPABILITIES,
+    riskLevel: riskForCustomAppCapabilities(DEFAULT_CUSTOM_APP_CAPABILITIES),
     updatedByType: null,
     updatedById: null,
     updatedAt: 0,
@@ -587,6 +674,72 @@ export function updateCustomAppActionPolicy(appId: string, input: Record<string,
   return getCustomAppActionPolicy(appId)!;
 }
 
+export function getCustomAppCapabilityManifest(appId: string) {
+  const app = getCustomApp(appId);
+  if (!app) return null;
+  const row = db.prepare(`
+    SELECT app_id as appId, allowed_capabilities_json as allowedCapabilitiesJson,
+           declared_capabilities_json as declaredCapabilitiesJson, risk_level as riskLevel,
+           updated_by_type as updatedByType, updated_by_id as updatedById, updated_at as updatedAt
+    FROM custom_app_capability_manifests
+    WHERE app_id = ?
+  `).get(appId) as any;
+  return row ? rowToCustomAppCapabilityManifest(row) : defaultCustomAppCapabilityManifest(appId);
+}
+
+export function updateCustomAppCapabilityManifest(appId: string, input: Record<string, unknown>, actor?: { type: string; id: string }) {
+  const app = getCustomApp(appId);
+  if (!app) return null;
+  const current = getCustomAppCapabilityManifest(appId) || defaultCustomAppCapabilityManifest(appId);
+  const allowedCapabilities = normalizeCustomAppCapabilities(
+    input.allowedCapabilities ?? input.capabilities,
+    current.allowedCapabilities,
+  );
+  const declaredCapabilities = normalizeCustomAppCapabilities(
+    input.declaredCapabilities,
+    allowedCapabilities,
+  );
+  const riskLevel = riskForCustomAppCapabilities(allowedCapabilities);
+  const updatedAt = Date.now();
+
+  db.prepare(`
+    INSERT INTO custom_app_capability_manifests (
+      app_id, allowed_capabilities_json, declared_capabilities_json, risk_level,
+      updated_by_type, updated_by_id, updated_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(app_id) DO UPDATE SET
+      allowed_capabilities_json = excluded.allowed_capabilities_json,
+      declared_capabilities_json = excluded.declared_capabilities_json,
+      risk_level = excluded.risk_level,
+      updated_by_type = excluded.updated_by_type,
+      updated_by_id = excluded.updated_by_id,
+      updated_at = excluded.updated_at
+  `).run(
+    appId,
+    JSON.stringify(allowedCapabilities),
+    JSON.stringify(declaredCapabilities),
+    riskLevel,
+    actor?.type || null,
+    actor?.id || null,
+    updatedAt,
+  );
+
+  return getCustomAppCapabilityManifest(appId)!;
+}
+
+export function customAppHasCapabilities(appId: string, requiredCapabilities: CustomAppCapabilityId[]) {
+  const manifest = getCustomAppCapabilityManifest(appId);
+  if (!manifest) return null;
+  const allowed = new Set(manifest.allowedCapabilities);
+  const missingCapabilities = requiredCapabilities.filter((capability) => !allowed.has(capability));
+  return {
+    manifest,
+    ok: missingCapabilities.length === 0,
+    missingCapabilities,
+  };
+}
+
 function selectCustomAppActionRequest(appId: string, requestId: string) {
   return db.prepare(`
     SELECT id, app_id as appId, action_type as actionType, label, target_url as targetUrl,
@@ -631,7 +784,11 @@ export function createCustomAppActionRequest(appId: string, input: Record<string
   const reason = sanitizeActionText(input.reason, 400) || null;
   const policy = getCustomAppActionPolicy(appId) || defaultCustomAppActionPolicy(appId);
   const allowedSchemes = policy.allowedSchemes;
-  const status: CustomAppActionStatus = BLOCKED_ACTION_SCHEMES.has(scheme) || !allowedSchemes.includes(scheme) ? "blocked" : "pending";
+  const requiredCapabilities = requiredCapabilitiesForActionScheme(scheme);
+  const capabilityCheck = customAppHasCapabilities(appId, requiredCapabilities);
+  const status: CustomAppActionStatus = BLOCKED_ACTION_SCHEMES.has(scheme) || !allowedSchemes.includes(scheme) || capabilityCheck?.ok === false
+    ? "blocked"
+    : "pending";
   const now = Date.now();
   const id = `app-action-${crypto.randomUUID()}`;
   const redactedTargetUrl = redactActionUrl(targetUrl);
