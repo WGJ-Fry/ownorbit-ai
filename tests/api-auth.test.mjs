@@ -1616,8 +1616,35 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(blockedCustomAppAction.request.targetUrl, "weixin://[redacted]?[redacted]");
   assert.equal(JSON.stringify(blockedCustomAppAction).includes("custom-action-secret"), false);
 
+  const mobilePendingCustomAppAction = await request(port, "/api/v1/custom-apps/custom-ledger-1/action-requests", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      label: "Email budget report",
+      targetUrl: "mailto:owner@example.test?subject=mobile-action-secret",
+      reason: "Created for mobile permission center cancellation",
+    }),
+  }).then((res) => res.json());
+  assert.equal(mobilePendingCustomAppAction.request.status, "pending");
+  assert.equal(mobilePendingCustomAppAction.request.targetUrl, "mailto:[redacted]?[redacted]");
+  assert.equal(JSON.stringify(mobilePendingCustomAppAction).includes("mobile-action-secret"), false);
+
+  const mobileCustomAppActionHistory = await request(port, "/api/v1/custom-apps/custom-ledger-1/action-requests?limit=8", { headers: deviceHeaders }).then((res) => res.json());
+  assert.equal(mobileCustomAppActionHistory.requests.some((request) => request.id === mobilePendingCustomAppAction.request.id), true);
+  assert.equal(JSON.stringify(mobileCustomAppActionHistory).includes("mobile-action-secret"), false);
+
+  const mobileCancelledCustomAppAction = await request(port, `/api/v1/custom-apps/custom-ledger-1/action-requests/${mobilePendingCustomAppAction.request.id}/decision`, {
+    method: "POST",
+    headers: deviceHeaders,
+    body: JSON.stringify({ decision: "cancelled", note: "Cancelled from mobile action permission center" }),
+  }).then((res) => res.json());
+  assert.equal(mobileCancelledCustomAppAction.request.status, "cancelled");
+  assert.equal(mobileCancelledCustomAppAction.request.decidedByType, "device");
+  assert.equal(mobileCancelledCustomAppAction.request.decisionNote, "Cancelled from mobile action permission center");
+  assert.equal(JSON.stringify(mobileCancelledCustomAppAction).includes("mobile-action-secret"), false);
+
   const customAppActionHistory = await request(port, "/api/v1/custom-apps/custom-ledger-1/action-requests?limit=5", { headers: adminHeaders }).then((res) => res.json());
-  assert.equal(customAppActionHistory.requests.length >= 3, true);
+  assert.equal(customAppActionHistory.requests.length >= 4, true);
 
   const attachedProblemBlueprint = await request(port, `/api/v1/problem-blueprints/${createdProblemBlueprint.blueprint.id}/generated-app`, {
     method: "PUT",
@@ -1646,6 +1673,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(rawCustomAppState.stateJson.includes("/Users/wangguojun/private-state.csv"), false);
   assert.equal(JSON.stringify(rawCustomAppActions).includes("custom-action-secret"), false);
   assert.equal(JSON.stringify(rawCustomAppActions).includes("+15551234567"), false);
+  assert.equal(JSON.stringify(rawCustomAppActions).includes("mobile-action-secret"), false);
 
   const customAppHistory = await request(port, "/api/v1/custom-apps?limit=5", { headers: adminHeaders }).then((res) => res.json());
   assert.equal(customAppHistory.apps.some((app) => app.id === "custom-ledger-1"), true);
@@ -2002,6 +2030,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const customAppActionBlockedAudit = finalAudit.logs.find((log) => log.action === "custom_app_action_blocked" && log.metadata.requestId === blockedCustomAppAction.request.id);
   assert.equal(customAppActionBlockedAudit.metadata.targetScheme, "weixin");
   assert.equal(customAppActionBlockedAudit.metadata.status, "blocked");
+  const mobileCustomAppActionCancelledAudit = finalAudit.logs.find((log) => log.action === "custom_app_action_cancelled" && log.metadata.requestId === mobilePendingCustomAppAction.request.id);
+  assert.equal(mobileCustomAppActionCancelledAudit.actorType, "device");
+  assert.equal(mobileCustomAppActionCancelledAudit.metadata.targetUrl, "mailto:[redacted]?[redacted]");
   const finalAuditJson = JSON.stringify(finalAudit);
   assert.equal(finalAuditJson.includes(binding.token), false);
   assert.equal(finalAuditJson.includes(credential.accessToken), false);
@@ -2009,6 +2040,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(finalAuditJson.includes(adminRequestedRotation.accessToken), false);
   assert.equal(finalAuditJson.includes("custom-action-secret"), false);
   assert.equal(finalAuditJson.includes("+15551234567"), false);
+  assert.equal(finalAuditJson.includes("mobile-action-secret"), false);
 
   const publicResponses = [
     { label: "health", value: health },
@@ -2041,6 +2073,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     { label: "phone custom app action", value: phoneCustomAppAction },
     { label: "cancelled custom app action", value: cancelledCustomAppAction },
     { label: "blocked custom app action", value: blockedCustomAppAction },
+    { label: "mobile pending custom app action", value: mobilePendingCustomAppAction },
+    { label: "mobile custom app action history", value: mobileCustomAppActionHistory },
+    { label: "mobile cancelled custom app action", value: mobileCancelledCustomAppAction },
     { label: "custom app action history", value: customAppActionHistory },
     { label: "custom app history", value: customAppHistory },
     { label: "updated custom app", value: updatedCustomApp },

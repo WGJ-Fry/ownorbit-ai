@@ -770,7 +770,16 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(offlineQueueSource, /Browser storage is near its limit/);
   assert.match(offlineQueueSource, /Ready to retry/);
 
+  const mobileActionsPageSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileActionsPage.tsx"), "utf8");
+  const mobileCustomAppActionsPanelSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileCustomAppActionsPanel.tsx"), "utf8");
   const mobileActionsSource = await readFile(path.join(rootDir, "src", "components", "apps", "SystemActionsApp.tsx"), "utf8");
+  assert.match(mobileActionsPageSource, /MobileCustomAppActionsPanel/);
+  assert.match(mobileCustomAppActionsPanelSource, /listCustomApps\(24\)/);
+  assert.match(mobileCustomAppActionsPanelSource, /listCustomAppActionRequests\(app\.id, 6\)/);
+  assert.match(mobileCustomAppActionsPanelSource, /decideCustomAppActionRequest\(request\.appId, request\.id, "cancelled"/);
+  assert.match(mobileCustomAppActionsPanelSource, /customAppActions\.title/);
+  assert.match(mobileCustomAppActionsPanelSource, /customAppActions\.blockedHint/);
+  assert.match(mobileCustomAppActionsPanelSource, /targetUrl/);
   assert.match(mobileActionsSource, /actions\.loggedCount/);
   assert.match(mobileActionsSource, /actionLogSummary/);
   assert.match(mobileActionsSource, /clearActionLogs/);
@@ -792,6 +801,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileActionsSource, /loadAllowedUrlSchemes/);
   assert.match(mobileActionsSource, /writeSystemActionStorage/);
   assert.match(translationsSource, /动作权限中心/);
+  assert.match(translationsSource, /生成程序动作审计/);
+  assert.match(translationsSource, /Generated Tool Action Audit/);
   assert.match(translationsSource, /来源摘要/);
   assert.match(translationsSource, /清空记录/);
   assert.match(translationsSource, /清空动作执行记录/);

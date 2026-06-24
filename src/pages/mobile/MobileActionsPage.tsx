@@ -1,6 +1,7 @@
 import { ArrowLeft, Command } from "lucide-react";
 import SystemActionsApp from "../../components/apps/SystemActionsApp";
 import { useI18n } from "../../i18n/I18nProvider";
+import MobileCustomAppActionsPanel from "./MobileCustomAppActionsPanel";
 
 export default function MobileActionsPage() {
   const { t } = useI18n();
@@ -17,14 +18,15 @@ export default function MobileActionsPage() {
         <div className="h-10 w-10" />
       </header>
 
-      <main className="mx-auto max-w-md p-4">
-        <div className="mb-4 rounded-2xl border border-cyan-400/15 bg-cyan-500/10 p-4">
+      <main className="mx-auto max-w-md space-y-4 p-4">
+        <div className="rounded-2xl border border-cyan-400/15 bg-cyan-500/10 p-4">
           <h1 className="text-base font-bold text-cyan-100">{t("mobile.actionsTitle")}</h1>
           <p className="mt-1 text-xs leading-relaxed text-cyan-100/70">
             {t("mobile.actionsDescription")}
           </p>
         </div>
-        <div className="h-[calc(100vh-150px)] overflow-hidden rounded-3xl border border-white/[0.08] bg-[#111113]">
+        <MobileCustomAppActionsPanel />
+        <div className="h-[620px] max-h-[calc(100vh-170px)] min-h-[460px] overflow-hidden rounded-3xl border border-white/[0.08] bg-[#111113]">
           <SystemActionsApp />
         </div>
       </main>
