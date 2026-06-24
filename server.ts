@@ -14,6 +14,7 @@ import { registerChatRoutes } from "./server/routes/chatRoutes";
 import { registerCoreRoutes } from "./server/routes/coreRoutes";
 import { registerDeviceRoutes } from "./server/routes/deviceRoutes";
 import { registerMemoryRoutes } from "./server/routes/memoryRoutes";
+import { registerProblemBlueprintRoutes } from "./server/routes/problemBlueprintRoutes";
 import { registerStateRoutes } from "./server/routes/stateRoutes";
 import { attachRealtimeServer } from "./server/realtime";
 import { runMigrations } from "./server/migrations";
@@ -89,6 +90,7 @@ registerBackupRoutes(app);
 registerDeviceRoutes(app);
 registerChatRoutes(app);
 registerMemoryRoutes(app);
+registerProblemBlueprintRoutes(app);
 registerStateRoutes(app);
 
 registerAiRoutes(app);

@@ -3,6 +3,7 @@ import { motion } from "motion/react";
 import type { ChangeEvent, RefObject } from "react";
 import { useI18n } from "../../../i18n/I18nProvider";
 import type { ProblemBlueprint } from "../../../services/problemBlueprint";
+import type { StoredProblemBlueprint } from "../../../services/lifeosApi";
 import { CustomApp } from "../../../types";
 import StudioProblemSolverCard from "./StudioProblemSolverCard";
 
@@ -11,10 +12,14 @@ type StudioWorkshopTabProps = {
   fileInputRef: RefObject<HTMLInputElement>;
   problemInput: string;
   problemBlueprint: ProblemBlueprint;
+  recentProblemBlueprints: StoredProblemBlueprint[];
+  isLoadingProblemBlueprints: boolean;
   onClose: () => void;
   onFileInputChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onProblemInputChange: (value: string) => void;
   onGenerateFromProblem: () => void;
+  onRestoreProblemBlueprint: (blueprint: StoredProblemBlueprint) => void;
+  onRegenerateProblemBlueprint: (blueprint: StoredProblemBlueprint) => void;
   onOpenImportWizard: () => void;
   onOpenApp?: (id: string) => void;
   onDeleteApp?: (id: string) => void;
@@ -26,10 +31,14 @@ export default function StudioWorkshopTab({
   fileInputRef,
   problemInput,
   problemBlueprint,
+  recentProblemBlueprints,
+  isLoadingProblemBlueprints,
   onClose,
   onFileInputChange,
   onProblemInputChange,
   onGenerateFromProblem,
+  onRestoreProblemBlueprint,
+  onRegenerateProblemBlueprint,
   onOpenImportWizard,
   onOpenApp,
   onDeleteApp,
@@ -68,8 +77,13 @@ export default function StudioWorkshopTab({
       <StudioProblemSolverCard
         problemInput={problemInput}
         blueprint={problemBlueprint}
+        recentBlueprints={recentProblemBlueprints}
+        isLoadingHistory={isLoadingProblemBlueprints}
         onProblemInputChange={onProblemInputChange}
         onGenerateFromBlueprint={onGenerateFromProblem}
+        onRestoreBlueprint={onRestoreProblemBlueprint}
+        onRegenerateBlueprint={onRegenerateProblemBlueprint}
+        onOpenGeneratedApp={onOpenApp}
       />
 
       <div

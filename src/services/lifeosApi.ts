@@ -1,4 +1,5 @@
 import type { Message } from "../types";
+import type { ProblemBlueprint } from "./problemBlueprint";
 import { clearDevicePrivateKey, createDeviceKeyPair, isDeviceSignatureAvailable, sha256Base64Url, signDevicePayload } from "./deviceKeyStore";
 import { clearDeviceCredential, getCachedDeviceCredential, getDeviceCredentialExpiryStatus, getDeviceCredentialStorageStatus, hydrateDeviceCredential, saveDeviceCredential } from "./deviceCredentialStore";
 import { clearActiveChatSessionId } from "./chatSessionStorage";
@@ -521,6 +522,19 @@ export type ConnectionTestResult = {
 
 export type MobilePairingIntent = {
   token: string;
+};
+
+export type StoredProblemBlueprint = ProblemBlueprint & {
+  id: string;
+  problem: string;
+  status: "planned" | "generated";
+  source: "studio" | "chat" | "mobile";
+  generatedAppId?: string | null;
+  generatedAppName?: string | null;
+  createdByType?: string | null;
+  createdById?: string | null;
+  createdAt: number;
+  updatedAt: number;
 };
 
 export function getLifeOSBasePath(pathname = typeof window === "undefined" ? "/" : window.location?.pathname || "/") {
@@ -1229,6 +1243,24 @@ export function clearActiveChatSession() {
 
 export function listMemories() {
   return requestJson<{ memories: MemoryRecord[] }>("/api/v1/memories");
+}
+
+export function listProblemBlueprints(limit = 12) {
+  return requestJson<{ blueprints: StoredProblemBlueprint[] }>(`/api/v1/problem-blueprints?limit=${encodeURIComponent(String(limit))}`);
+}
+
+export function createProblemBlueprint(problem: string, source: StoredProblemBlueprint["source"] = "studio") {
+  return requestJson<{ blueprint: StoredProblemBlueprint }>("/api/v1/problem-blueprints", {
+    method: "POST",
+    body: JSON.stringify({ problem, source }),
+  });
+}
+
+export function attachGeneratedAppToProblemBlueprint(blueprintId: string, input: { appId: string; appName: string }) {
+  return requestJson<{ blueprint: StoredProblemBlueprint }>(`/api/v1/problem-blueprints/${encodeURIComponent(blueprintId)}/generated-app`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
 }
 
 export function createMemory(input: { title: string; content: string; sensitivity?: "normal" | "sensitive" }) {

@@ -12,6 +12,7 @@ import { getPwaServiceWorkerLifecycleStatus, subscribePwaServiceWorkerLifecycle 
 import type { PwaServiceWorkerLifecycleStatus } from "../../services/pwaServiceWorkerLifecycle";
 import MobileConnectivityCard from "./MobileConnectivityCard";
 import MobileDeviceHealthSummary from "./MobileDeviceHealthSummary";
+import MobileGeneratedToolsCard from "./MobileGeneratedToolsCard";
 import MobileLastConnectivityCard from "./MobileLastConnectivityCard";
 import MobileOfflineQueuePanel from "./MobileOfflineQueuePanel";
 import { CapabilityRow, CredentialExpiryCard, CredentialStorageCard, PairingLinkPanel, Row } from "./MobileDeviceStatusCards";
@@ -287,6 +288,7 @@ export default function MobileDevicePage() {
           currentEntry={currentEntry}
           lastConnectivityResult={lastConnectivityResult}
         />
+        {credential ? <MobileGeneratedToolsCard /> : null}
         <section className="rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
           {credential ? (
             <>

@@ -288,11 +288,18 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(chatStateChangesSource, /widgetArgKeys/);
   const problemBlueprintSource = await readFile(path.join(rootDir, "src", "services", "problemBlueprint.ts"), "utf8");
   const problemStudioAppSource = await readFile(path.join(rootDir, "src", "components", "apps", "StudioApp.tsx"), "utf8");
+  const studioProblemBlueprintHookSource = await readFile(path.join(rootDir, "src", "components", "apps", "studio", "useStudioProblemBlueprintHistory.ts"), "utf8");
   const studioWorkshopSource = await readFile(path.join(rootDir, "src", "components", "apps", "studio", "StudioWorkshopTab.tsx"), "utf8");
   assert.match(problemBlueprintSource, /deriveProblemBlueprint/);
   assert.match(problemBlueprintSource, /runnable problem-solving app/);
   assert.match(problemStudioAppSource, /deriveProblemBlueprint\(problemInput\)/);
+  assert.match(problemStudioAppSource, /useStudioProblemBlueprintHistory/);
+  assert.match(studioProblemBlueprintHookSource, /listProblemBlueprints\(12\)/);
+  assert.match(studioProblemBlueprintHookSource, /attachGeneratedAppToProblemBlueprint/);
+  assert.match(studioProblemBlueprintHookSource, /createProblemBlueprint\(problemInput, "studio"\)/);
   assert.match(studioWorkshopSource, /StudioProblemSolverCard/);
+  assert.match(lifeosApiSource, /createProblemBlueprint/);
+  assert.match(lifeosApiSource, /problem-blueprints/);
 
   const loginSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminLoginPage.tsx"), "utf8");
   assert.match(loginSource, /onboardingRequired/);
@@ -403,6 +410,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
 
   const mobileDeviceSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileDevicePage.tsx"), "utf8");
   const mobileDeviceHealthSummarySource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileDeviceHealthSummary.tsx"), "utf8");
+  const mobileGeneratedToolsCardSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileGeneratedToolsCard.tsx"), "utf8");
   const mobileDeviceStatusCardsSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileDeviceStatusCards.tsx"), "utf8");
   assert.match(mobileDeviceSource, /getPwaCapabilityStatus/);
   assert.match(mobileDeviceSource, /getRemoteEntryStatus/);
@@ -431,6 +439,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceHealthSummarySource, /mobileDevice\.healthOfflineShell/);
   assert.match(mobileDeviceHealthSummarySource, /currentEntry\.okForRemote/);
   assert.match(mobileDeviceHealthSummarySource, /lastConnectivityResult\?\.ok/);
+  assert.match(mobileDeviceSource, /MobileGeneratedToolsCard/);
+  assert.match(mobileGeneratedToolsCardSource, /listProblemBlueprints\(8\)/);
+  assert.match(mobileGeneratedToolsCardSource, /blueprint\.status === "generated"/);
+  assert.match(mobileGeneratedToolsCardSource, /mobileDevice\.generatedToolsTitle/);
+  assert.match(translationsSource, /最近生成的解决程序/);
+  assert.match(translationsSource, /Recently Generated Problem-Solving Tools/);
   assert.match(translationsSource, /手机端健康摘要/);
   assert.match(translationsSource, /新版离线壳待启用/);
   assert.match(translationsSource, /New Offline Shell Ready/);

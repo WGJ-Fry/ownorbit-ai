@@ -1468,6 +1468,46 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   });
   assert.equal(deletedMemory.status, 200);
 
+  const unauthProblemBlueprints = await request(port, "/api/v1/problem-blueprints");
+  assert.equal(unauthProblemBlueprints.status, 401);
+
+  const createdProblemBlueprint = await request(port, "/api/v1/problem-blueprints", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      problem: "帮我做一个本月支出记账、预算提醒和分类汇总面板 github_pat_problemSecret_1234567890 /Users/wangguojun/private-ledger.csv",
+      source: "studio",
+    }),
+  }).then((res) => res.json());
+  assert.equal(createdProblemBlueprint.blueprint.category, "ledger");
+  assert.equal(createdProblemBlueprint.blueprint.status, "planned");
+  assert.equal(createdProblemBlueprint.blueprint.source, "studio");
+  assert.match(createdProblemBlueprint.blueprint.appPrompt, /生成一个可运行的解决程序/);
+  assert.equal(JSON.stringify(createdProblemBlueprint).includes("github_pat_problemSecret"), false);
+  assert.equal(JSON.stringify(createdProblemBlueprint).includes("/Users/wangguojun/private-ledger.csv"), false);
+
+  const problemBlueprintHistory = await request(port, "/api/v1/problem-blueprints?limit=5", {
+    headers: adminHeaders,
+  }).then((res) => res.json());
+  assert.equal(problemBlueprintHistory.blueprints.length, 1);
+  assert.equal(problemBlueprintHistory.blueprints[0].id, createdProblemBlueprint.blueprint.id);
+
+  const attachedProblemBlueprint = await request(port, `/api/v1/problem-blueprints/${createdProblemBlueprint.blueprint.id}/generated-app`, {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({ appId: "custom-ledger-1", appName: "本月预算提醒面板" }),
+  }).then((res) => res.json());
+  assert.equal(attachedProblemBlueprint.blueprint.status, "generated");
+  assert.equal(attachedProblemBlueprint.blueprint.generatedAppId, "custom-ledger-1");
+  assert.equal(attachedProblemBlueprint.blueprint.generatedAppName, "本月预算提醒面板");
+
+  const rawBlueprintDb = new DatabaseSync(path.join(dataDir, "lifeos.db"));
+  const rawBlueprint = rawBlueprintDb.prepare("SELECT problem, app_prompt as appPrompt FROM problem_blueprints WHERE id = ?").get(createdProblemBlueprint.blueprint.id);
+  rawBlueprintDb.close();
+  assert.equal(rawBlueprint.problem.includes("github_pat_problemSecret"), false);
+  assert.equal(rawBlueprint.problem.includes("/Users/wangguojun/private-ledger.csv"), false);
+  assert.equal(rawBlueprint.appPrompt.includes("github_pat_problemSecret"), false);
+
   const unauthState = await request(port, "/api/v1/state/lifeos_system_actions");
   assert.equal(unauthState.status, 401);
 
@@ -1808,6 +1848,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     { label: "saved OpenAI key", value: savedOpenAi },
     { label: "tested OpenAI key", value: testedOpenAi },
     { label: "deleted OpenAI key", value: deletedOpenAi },
+    { label: "created problem blueprint", value: createdProblemBlueprint },
+    { label: "problem blueprint history", value: problemBlueprintHistory },
+    { label: "attached problem blueprint", value: attachedProblemBlueprint },
     { label: "backup", value: backup },
     { label: "backups", value: backups },
     { label: "default backup schedule", value: defaultSchedule },
@@ -1863,6 +1906,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assertSecretNotLeaked(publicResponses, "sk-state-secret-value-should-not-leak");
   assertSecretNotLeaked(publicResponses, "Z2l0aHViOnN0YXRl");
   assertSecretNotLeaked(publicResponses, "github_pat_stateSecret");
+  assertSecretNotLeaked(publicResponses, "github_pat_problemSecret");
+  assertSecretNotLeaked(publicResponses, "/Users/wangguojun/private-ledger.csv");
   assertSecretNotLeaked(publicResponses, "AIzaSy-state-secret-value-should-not-leak");
   assertSecretNotLeaked(publicResponses, "test-key");
   assertSecretNotLeaked(publicResponses, "correct horse battery staple");

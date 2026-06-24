@@ -1,19 +1,30 @@
 import { ArrowRight, ClipboardList, ShieldAlert, Sparkles, WandSparkles } from "lucide-react";
 import type { ProblemBlueprint } from "../../../services/problemBlueprint";
+import type { StoredProblemBlueprint } from "../../../services/lifeosApi";
 import { useI18n } from "../../../i18n/I18nProvider";
 
 type StudioProblemSolverCardProps = {
   problemInput: string;
   blueprint: ProblemBlueprint;
+  recentBlueprints: StoredProblemBlueprint[];
+  isLoadingHistory: boolean;
   onProblemInputChange: (value: string) => void;
   onGenerateFromBlueprint: () => void;
+  onRestoreBlueprint: (blueprint: StoredProblemBlueprint) => void;
+  onRegenerateBlueprint: (blueprint: StoredProblemBlueprint) => void;
+  onOpenGeneratedApp?: (appId: string) => void;
 };
 
 export default function StudioProblemSolverCard({
   problemInput,
   blueprint,
+  recentBlueprints,
+  isLoadingHistory,
   onProblemInputChange,
   onGenerateFromBlueprint,
+  onRestoreBlueprint,
+  onRegenerateBlueprint,
+  onOpenGeneratedApp,
 }: StudioProblemSolverCardProps) {
   const { t } = useI18n();
   const visibleSteps = blueprint.steps.slice(0, 3);
@@ -121,6 +132,65 @@ export default function StudioProblemSolverCard({
             </span>
             <ArrowRight className="w-4 h-4 text-emerald-300 shrink-0" />
           </button>
+        </div>
+      </div>
+
+      <div className="px-6 pb-6">
+        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.025] overflow-hidden">
+          <div className="flex items-center justify-between gap-3 p-4 border-b border-white/[0.06]">
+            <div>
+              <h4 className="text-sm font-black text-white">{t("studio.problemSolver.historyTitle")}</h4>
+              <p className="text-[11px] text-zinc-500 mt-0.5 font-medium">{t("studio.problemSolver.historySubtitle")}</p>
+            </div>
+            {isLoadingHistory && <span className="text-[10px] text-zinc-500 font-mono">{t("common.reading")}</span>}
+          </div>
+
+          {recentBlueprints.length === 0 ? (
+            <p className="p-4 text-xs text-zinc-500 font-medium">{t("studio.problemSolver.historyEmpty")}</p>
+          ) : (
+            <div className="divide-y divide-white/[0.05]">
+              {recentBlueprints.slice(0, 5).map((item) => (
+                <div key={item.id} className="p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[10px] font-bold">
+                        {item.categoryLabel}
+                      </span>
+                      <span className={item.status === "generated" ? "px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-200 text-[10px] font-bold" : "px-2 py-0.5 rounded-full bg-white/[0.04] text-zinc-400 text-[10px] font-bold"}>
+                        {item.status === "generated" ? t("studio.problemSolver.historyGenerated") : t("studio.problemSolver.historyPlanned")}
+                      </span>
+                    </div>
+                    <p className="text-sm text-zinc-200 font-bold truncate">{item.problem}</p>
+                    <p className="text-[11px] text-zinc-500 mt-1 font-medium truncate">
+                      {item.generatedAppName || item.suggestedAppName}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 shrink-0">
+                    <button
+                      onClick={() => onRestoreBlueprint(item)}
+                      className="px-3 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.07] text-[11px] font-bold text-zinc-200 transition-colors"
+                    >
+                      {t("studio.problemSolver.historyRestore")}
+                    </button>
+                    <button
+                      onClick={() => onRegenerateBlueprint(item)}
+                      className="px-3 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-[11px] font-bold text-emerald-200 transition-colors"
+                    >
+                      {t("studio.problemSolver.historyRegenerate")}
+                    </button>
+                    {item.generatedAppId && onOpenGeneratedApp && (
+                      <button
+                        onClick={() => onOpenGeneratedApp(item.generatedAppId!)}
+                        className="px-3 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 text-[11px] font-bold text-cyan-200 transition-colors"
+                      >
+                        {t("studio.problemSolver.historyOpenApp")}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </section>

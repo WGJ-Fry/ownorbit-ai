@@ -21,6 +21,7 @@ import StudioResponsivePreview from "./studio/StudioResponsivePreview";
 import StudioSettingsTab from "./studio/StudioSettingsTab";
 import { useStudioSimulatorState } from "./studio/useStudioSimulatorState";
 import { useStudioConnectionSettings } from "./studio/useStudioConnectionSettings";
+import { useStudioProblemBlueprintHistory } from "./studio/useStudioProblemBlueprintHistory";
 import StudioWorkshopTab from "./studio/StudioWorkshopTab";
 
 export default function StudioApp({ 
@@ -80,6 +81,24 @@ export default function StudioApp({
   } = useStudioSimulatorState();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const {
+    attachGeneratedAppToActiveProblemBlueprint,
+    handleGenerateFromProblemBlueprint,
+    handleRegenerateProblemBlueprint,
+    handleRestoreProblemBlueprint,
+    isLoadingProblemBlueprints,
+    recentProblemBlueprints,
+    setActiveProblemBlueprintId,
+  } = useStudioProblemBlueprintHistory({
+    problemInput,
+    problemBlueprint,
+    t,
+    setProblemInput,
+    setWizardAppName,
+    setPromptInput,
+    setGenerationError,
+    setIsImportWizardOpen,
+  });
 
   const installGeneratedApp = (name: string, description: string, code: string) => {
     if (!code.trim()) {
@@ -100,6 +119,8 @@ export default function StudioApp({
       onAddApp(generatedApp);
     }
 
+    attachGeneratedAppToActiveProblemBlueprint({ appId: generatedApp.id, appName: generatedApp.name });
+
     setLocalCode(generatedApp.code);
     setRunningCode(generatedApp.code);
     setEditingAppId(generatedApp.id);
@@ -113,6 +134,7 @@ export default function StudioApp({
     setGenerationError(null);
     setIsGeneratingApp(true);
     setIsImportWizardOpen(true);
+    setActiveProblemBlueprintId(null);
     setWizardAppName(t("studio.app.analyzing"));
     setPromptInput(t("studio.app.analyzingFile", { file: file.name }));
 
@@ -214,14 +236,6 @@ export default function StudioApp({
     } finally {
       setIsGeneratingApp(false);
     }
-  };
-
-  const handleGenerateFromProblemBlueprint = () => {
-    if (!problemBlueprint.isReady) return;
-    setWizardAppName(problemBlueprint.suggestedAppName);
-    setPromptInput(problemBlueprint.appPrompt);
-    setGenerationError(null);
-    setIsImportWizardOpen(true);
   };
 
   const handleRefineCode = async () => {
@@ -464,13 +478,18 @@ export default function StudioApp({
                 fileInputRef={fileInputRef}
                 problemInput={problemInput}
                 problemBlueprint={problemBlueprint}
+                recentProblemBlueprints={recentProblemBlueprints}
+                isLoadingProblemBlueprints={isLoadingProblemBlueprints}
                 onClose={onClose}
                 onFileInputChange={handleFileInputChange}
                 onProblemInputChange={setProblemInput}
                 onGenerateFromProblem={handleGenerateFromProblemBlueprint}
+                onRestoreProblemBlueprint={handleRestoreProblemBlueprint}
+                onRegenerateProblemBlueprint={handleRegenerateProblemBlueprint}
                 onOpenImportWizard={() => {
                   setWizardAppName("");
                   setPromptInput("");
+                  setActiveProblemBlueprintId(null);
                   setIsImportWizardOpen(true);
                 }}
                 onOpenApp={onOpenApp}
@@ -489,7 +508,10 @@ export default function StudioApp({
                 appName={wizardAppName}
                 promptInput={promptInput}
                 error={generationError}
-                onClose={() => setIsImportWizardOpen(false)}
+                onClose={() => {
+                  setIsImportWizardOpen(false);
+                  setActiveProblemBlueprintId(null);
+                }}
                 onAppNameChange={setWizardAppName}
                 onPromptInputChange={setPromptInput}
                 onGenerate={handleGenerateAppByAI}
