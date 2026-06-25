@@ -636,6 +636,29 @@ export type StoredCustomAppCapabilityRequest = {
   decisionNote?: string | null;
 };
 
+export type StoredCustomAppRuntimeEvent = {
+  id: string;
+  appId: string;
+  eventType:
+    | "opened"
+    | "ready"
+    | "console"
+    | "error"
+    | "state_read"
+    | "state_saved"
+    | "action_requested"
+    | "capability_requested"
+    | "debug_requested"
+    | "debug_applied";
+  severity: "info" | "warning" | "error";
+  label: string;
+  message: string;
+  detail: unknown;
+  createdByType?: string | null;
+  createdById?: string | null;
+  createdAt: number;
+};
+
 export function getLifeOSBasePath(pathname = typeof window === "undefined" ? "/" : window.location?.pathname || "/") {
   const match = String(pathname || "/").match(/^(.*?)(?:\/(?:admin|mobile|chat)(?:\/|$)|\/?$)/);
   const basePath = (match?.[1] || "").replace(/\/+$/, "");
@@ -1399,6 +1422,30 @@ export function saveCustomAppState(appId: string, state: unknown) {
     method: "PUT",
     body: JSON.stringify({ state }),
   });
+}
+
+export function listCustomAppRuntimeEvents(appId: string, limit = 20) {
+  return requestJson<{ events: StoredCustomAppRuntimeEvent[] }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/runtime-events?limit=${encodeURIComponent(String(limit))}`);
+}
+
+export function createCustomAppRuntimeEvent(
+  appId: string,
+  input: Partial<Pick<StoredCustomAppRuntimeEvent, "eventType" | "severity" | "label" | "message" | "detail">>,
+) {
+  return requestJson<{ event: StoredCustomAppRuntimeEvent }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/runtime-events`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function createCustomAppDebugRequest(appId: string, input: { issue?: string; message?: string }) {
+  return requestJson<{ event: StoredCustomAppRuntimeEvent | null; suggestedInstruction: string; recentEvents: StoredCustomAppRuntimeEvent[] }>(
+    `/api/v1/custom-apps/${encodeURIComponent(appId)}/debug-requests`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 export function getCustomAppCapabilityManifest(appId: string) {

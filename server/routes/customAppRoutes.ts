@@ -5,6 +5,8 @@ import {
   createCustomApp,
   createCustomAppActionRequest,
   createCustomAppCapabilityRequest,
+  createCustomAppDebugRequest,
+  createCustomAppRuntimeEvent,
   decideCustomAppActionRequest,
   decideCustomAppCapabilityRequest,
   deleteCustomApp,
@@ -15,6 +17,7 @@ import {
   getCustomAppState,
   listCustomAppActionRequests,
   listCustomAppCapabilityRequests,
+  listCustomAppRuntimeEvents,
   listCustomApps,
   listCustomAppVersions,
   rollbackCustomAppVersion,
@@ -95,6 +98,46 @@ export function registerCustomAppRoutes(app: express.Express) {
     const manifest = getCustomAppCapabilityManifest(req.params.appId);
     if (!manifest) return res.status(404).json({ error: "Custom app not found" });
     res.json({ manifest });
+  });
+
+  app.get("/api/v1/custom-apps/:appId/runtime-events", requireActor, (req, res) => {
+    const events = listCustomAppRuntimeEvents(req.params.appId, req.query.limit);
+    if (!events) return res.status(404).json({ error: "Custom app not found" });
+    res.json({ events });
+  });
+
+  app.post("/api/v1/custom-apps/:appId/runtime-events", requireActor, (req, res) => {
+    try {
+      const event = createCustomAppRuntimeEvent(req.params.appId, req.body || {}, actor(req));
+      if (!event) return res.status(404).json({ error: "Custom app not found" });
+      insertAuditLog("custom_app_runtime_event_recorded", "custom_app", req.params.appId, {
+        eventId: event.id,
+        eventType: event.eventType,
+        severity: event.severity,
+        label: event.label,
+        message: event.message,
+      }, actor(req)?.type, actor(req)?.id);
+      broadcastRealtime({ type: "custom_app.runtime_event", appId: req.params.appId, event, timestamp: event.createdAt });
+      res.json({ event });
+    } catch (error) {
+      handleCustomAppError(res, error);
+    }
+  });
+
+  app.post("/api/v1/custom-apps/:appId/debug-requests", requireActor, (req, res) => {
+    try {
+      const result = createCustomAppDebugRequest(req.params.appId, req.body || {}, actor(req));
+      if (!result) return res.status(404).json({ error: "Custom app not found" });
+      insertAuditLog("custom_app_debug_requested", "custom_app", req.params.appId, {
+        eventId: result.event?.id,
+        suggestedInstructionBytes: Buffer.byteLength(result.suggestedInstruction || "", "utf8"),
+        recentEventCount: result.recentEvents.length,
+      }, actor(req)?.type, actor(req)?.id);
+      broadcastRealtime({ type: "custom_app.debug_requested", appId: req.params.appId, event: result.event, timestamp: result.event?.createdAt || Date.now() });
+      res.json(result);
+    } catch (error) {
+      handleCustomAppError(res, error);
+    }
   });
 
   app.put("/api/v1/custom-apps/:appId/capabilities", requireActor, (req, res) => {

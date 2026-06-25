@@ -22,6 +22,7 @@ import StudioSettingsTab from "./studio/StudioSettingsTab";
 import { useStudioSimulatorState } from "./studio/useStudioSimulatorState";
 import { useStudioConnectionSettings } from "./studio/useStudioConnectionSettings";
 import { useStudioProblemBlueprintHistory } from "./studio/useStudioProblemBlueprintHistory";
+import { useStudioRuntimeDebug } from "./studio/useStudioRuntimeDebug";
 import StudioWorkshopTab from "./studio/StudioWorkshopTab";
 
 export default function StudioApp({ 
@@ -79,6 +80,22 @@ export default function StudioApp({
     simulatorLogs,
     toggleConsole,
   } = useStudioSimulatorState();
+  const {
+    isLoadingRuntimeEvents,
+    isRequestingRuntimeDebug,
+    loadRuntimeEvents,
+    recordRuntimeDebugApplied,
+    requestRuntimeDebug,
+    runtimeDebugIssue,
+    runtimeEvents,
+    runtimeEventsError,
+    setRuntimeDebugIssue,
+  } = useStudioRuntimeDebug({
+    editingAppId,
+    t,
+    setRefineInstruction,
+    appendSimulatorLog,
+  });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
@@ -252,6 +269,7 @@ export default function StudioApp({
 
         // Inject system console initialization log for sandbox
         appendSimulatorLog({ time: "COMPILER", text: t("studio.app.logCompileSuccess", { instruction: `${refineInstruction.trim().substring(0, 20)}${refineInstruction.length > 20 ? "..." : ""}` }), type: "info" });
+        recordRuntimeDebugApplied(refineInstruction);
 
         setLocalCode(data.refinedCode);
         setRunningCode(data.refinedCode); // Immediately refresh iframe simulation
@@ -611,6 +629,11 @@ export default function StudioApp({
                       isRefining={isRefining}
                       refineError={refineError}
                       refineHistory={refineHistory}
+                      runtimeEvents={runtimeEvents}
+                      isLoadingRuntimeEvents={isLoadingRuntimeEvents}
+                      runtimeEventsError={runtimeEventsError}
+                      runtimeDebugIssue={runtimeDebugIssue}
+                      isRequestingRuntimeDebug={isRequestingRuntimeDebug}
                       onInstructionChange={setRefineInstruction}
                       onRefine={handleRefineCode}
                       onRollback={(version) => {
@@ -618,6 +641,9 @@ export default function StudioApp({
                         setRunningCode(version.code);
                         appendSimulatorLog({ time: "ROLLBACK", text: t("studio.app.logRollback", { instruction: version.instruction.substring(0, 15) }), type: "info" });
                       }}
+                      onRuntimeDebugIssueChange={setRuntimeDebugIssue}
+                      onRefreshRuntimeEvents={() => void loadRuntimeEvents(activeAppToEdit.id)}
+                      onRequestRuntimeDebug={() => void requestRuntimeDebug(activeAppToEdit.id)}
                     />
 
                     <StudioResponsivePreview

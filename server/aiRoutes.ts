@@ -192,6 +192,7 @@ When the user asks "What am I forgetting?", inspect this vault context and produ
   - The Alpine.js library and @alpinejs/persist plugin are pre-loaded in the iframe!
   - The iframe also exposes a durable LifeOS bridge: await window.lifeosApp.getState() and await window.lifeosApp.setState(state). Use it in x-init/init() to load and save the app's important user data into the desktop SQLite store.
   - You may still use Alpine $persist for tiny UI preferences, but important records, checklists, tables, calculations, or form drafts should be saved through window.lifeosApp.setState({ ... }).
+  - If the app needs a capability that may not be pre-approved (network, clipboard, file import, communication, shortcuts, background sync), request it first with await window.lifeosApp.requestCapability({ capabilities: ['network'], label, reason }). Never bypass the LifeOS capability manifest.
   - If the app needs to open a web page, map, phone call, SMS, email, shortcut, or URL scheme, NEVER set window.location directly. Use await window.lifeosApp.requestAction({ actionType: 'open_url', label, targetUrl, reason }) so the host can enforce the URL scheme whitelist, ask the user for confirmation, and write an audit record.
   - You can use Chart.js if data visualization is requested.
   - The generated code will be injected right into the <body> of an iframe. Ensure the root element of your code has a proper Tailwind class like max-h-full, overflow-y-auto, bg-[#0a0a0a], text-white, min-h-[350px], p-4.
@@ -240,6 +241,7 @@ When the user asks "What am I forgetting?", inspect this vault context and produ
   3. Build a fully functional, pixel-perfect replication of this design using HTML, Tailwind CSS, and Alpine.js.
      - Leverage Alpine.js for all interactive state management (inputs, calculations, lists, toggle states, graphs, etc.).
      - Use the LifeOS app state bridge for durable records: await window.lifeosApp.getState() in Alpine init(), and call await window.lifeosApp.setState(state) when important user data changes.
+     - If extra capabilities are needed, call await window.lifeosApp.requestCapability({ capabilities: ['network'], label, reason }) before using them.
      - For any external/local app action, use await window.lifeosApp.requestAction({ actionType: 'open_url', label, targetUrl, reason }); never directly navigate the iframe.
      - Make sure to style it beautiful and clean with custom Tailwind classes in high-fidelity dark themes (dark/midnight colors match the workspace's cosmic vibe).
      - Return the result in the requested JSON schema containing appName, description, and uiCode.`,
@@ -261,6 +263,7 @@ When the user asks "What am I forgetting?", inspect this vault context and produ
   4. Reconstruct and compile a complete, highly polished, self-contained client-side micro-app using HTML, Tailwind CSS, and Alpine.js:
      - Make it ultra-interactive: utilize Alpine.js features (such as x-data, x-init, x-model, x-on, x-for, and Alpine.$persist modifier to persist user input, lists, or toggle selections).
      - Persist important app records through the LifeOS bridge when available: await window.lifeosApp.getState() and await window.lifeosApp.setState(state). Use Alpine $persist only for small view preferences.
+     - If extra capabilities are needed, call await window.lifeosApp.requestCapability({ capabilities: ['network'], label, reason }) before using them.
      - For external/local app actions, call await window.lifeosApp.requestAction({ actionType: 'open_url', label, targetUrl, reason }) so the host can confirm and audit the action.
      - Ensure the styling is gorgeous, clean, modern, and perfectly aligned with our cosmos black workstation vibe (use deep sleek dark tones, nice borders like border-white/[0.08], subtle highlights, animations, and typography).
      - If there is mathematical logic, charts, or state modifications (e.g., a line graph in the original python code, or interactive tables in TSX), map them to fully functional, interactive counterparts (e.g., using Chart.js inside the iframe or elegant Tailwind layouts).
@@ -321,7 +324,8 @@ When the user asks "What am I forgetting?", inspect this vault context and produ
   1. Carefully understand the user's intent. They might want styling adjustments (e.g. green background, golden alerts), new interactive features (e.g. a "reset history" button, an additional input field), or layout changes.
   2. Carefully preserve the pre-existing variables, methods, AlpineJS x-data, LifeOS bridge persistence, and stored states ($persist) unless explicitly instructed to remove or replace them.
   2a. If the app stores important records, drafts, tables, checklists, or form data, prefer the host bridge: await window.lifeosApp.getState() and await window.lifeosApp.setState(state).
-  2b. If the app opens URLs, maps, phone/SMS/email, shortcuts, or local apps, route it through await window.lifeosApp.requestAction({ actionType: 'open_url', label, targetUrl, reason }) instead of direct navigation.
+  2b. If the app needs capabilities that are not pre-approved, request them first through await window.lifeosApp.requestCapability({ capabilities: ['network'], label, reason }).
+  2c. If the app opens URLs, maps, phone/SMS/email, shortcuts, or local apps, route it through await window.lifeosApp.requestAction({ actionType: 'open_url', label, targetUrl, reason }) instead of direct navigation.
   3. Make sure to output the ENTIRE modified, fully functional, self-contained micro-app code block. Do NOT omit any sections or write placeholders like "...rest of the code...".
   4. Ensure the output fits the standard dark-themed workspace aesthetic, matching the clean black-slate palette of the application.
   5. Return the result in the requested JSON schema.`;

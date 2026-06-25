@@ -17,6 +17,7 @@ const previewTables = [
   "custom_app_versions",
   "custom_app_state",
   "custom_app_action_requests",
+  "custom_app_runtime_events",
   "app_secrets",
   "schema_migrations",
 ];
@@ -216,6 +217,11 @@ export function createDataExport(scopes: DataExportScope[] = [...exportScopeKeys
              created_at as createdAt, decided_at as decidedAt, decision_note as decisionNote
       FROM custom_app_capability_requests ORDER BY created_at DESC
     `).all();
+    const runtimeEvents = db.prepare(`
+      SELECT id, app_id as appId, event_type as eventType, severity, label, message,
+             detail_json as detailJson, created_at as createdAt
+      FROM custom_app_runtime_events ORDER BY created_at DESC
+    `).all();
     exportData.customApps = {
       apps: redactDataExportValue(apps),
       versions: redactDataExportValue(versions),
@@ -224,6 +230,7 @@ export function createDataExport(scopes: DataExportScope[] = [...exportScopeKeys
       actionPolicies: redactDataExportValue(actionPolicies),
       capabilityManifests: redactDataExportValue(capabilityManifests),
       capabilityRequests: redactDataExportValue(capabilityRequests),
+      runtimeEvents: redactDataExportValue(runtimeEvents),
     };
   }
 
@@ -243,6 +250,7 @@ export function summarizeDataExport(exportData: Record<string, unknown>) {
     actionPolicies?: unknown[];
     capabilityManifests?: unknown[];
     capabilityRequests?: unknown[];
+    runtimeEvents?: unknown[];
   } | undefined;
   const scopes = Array.isArray(exportData.scopes) ? exportData.scopes.map((scope) => String(scope)) : [];
   return {
@@ -264,6 +272,7 @@ export function summarizeDataExport(exportData: Record<string, unknown>) {
       customAppActionPolicies: Array.isArray(customApps?.actionPolicies) ? customApps.actionPolicies.length : 0,
       customAppCapabilityManifests: Array.isArray(customApps?.capabilityManifests) ? customApps.capabilityManifests.length : 0,
       customAppCapabilityRequests: Array.isArray(customApps?.capabilityRequests) ? customApps.capabilityRequests.length : 0,
+      customAppRuntimeEvents: Array.isArray(customApps?.runtimeEvents) ? customApps.runtimeEvents.length : 0,
     },
   };
 }

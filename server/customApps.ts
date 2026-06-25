@@ -7,6 +7,7 @@ const MAX_APP_NAME_LENGTH = 120;
 const MAX_APP_DESCRIPTION_LENGTH = 800;
 const MAX_APP_CODE_BYTES = Number(process.env.LIFEOS_MAX_CUSTOM_APP_CODE_BYTES || 512 * 1024);
 const MAX_APP_STATE_BYTES = Number(process.env.LIFEOS_MAX_CUSTOM_APP_STATE_BYTES || 256 * 1024);
+const MAX_APP_RUNTIME_DETAIL_BYTES = Number(process.env.LIFEOS_MAX_CUSTOM_APP_RUNTIME_DETAIL_BYTES || 8 * 1024);
 const sensitiveStateKey = /api[-_]?key|byok[-_]?key|token|password|passphrase|secret|authorization|cookie|private/i;
 const DEFAULT_ALLOWED_ACTION_SCHEMES = ["http", "https", "tel", "sms", "mailto", "geo", "maps", "shortcuts", "iosamap", "androidamap", "comgooglemaps"];
 const BLOCKED_ACTION_SCHEMES = new Set(["javascript", "data", "file", "blob", "filesystem", "view-source"]);
@@ -42,6 +43,18 @@ export type CustomAppActionPolicyTemplate = "global" | keyof typeof CUSTOM_APP_A
 export type CustomAppCapabilityId = typeof CUSTOM_APP_CAPABILITY_IDS[number];
 export type CustomAppCapabilityRisk = "low" | "medium" | "high";
 export type CustomAppCapabilityRequestStatus = "pending" | "approved" | "denied";
+export type CustomAppRuntimeEventType =
+  | "opened"
+  | "ready"
+  | "console"
+  | "error"
+  | "state_read"
+  | "state_saved"
+  | "action_requested"
+  | "capability_requested"
+  | "debug_requested"
+  | "debug_applied";
+export type CustomAppRuntimeSeverity = "info" | "warning" | "error";
 
 export type StoredCustomApp = {
   id: string;
@@ -134,6 +147,19 @@ export type StoredCustomAppCapabilityRequest = {
   decidedById?: string | null;
   decidedAt?: number | null;
   decisionNote?: string | null;
+};
+
+export type StoredCustomAppRuntimeEvent = {
+  id: string;
+  appId: string;
+  eventType: CustomAppRuntimeEventType;
+  severity: CustomAppRuntimeSeverity;
+  label: string;
+  message: string;
+  detail: unknown;
+  createdByType?: string | null;
+  createdById?: string | null;
+  createdAt: number;
 };
 
 function statusError(message: string, statusCode = 400) {
@@ -307,6 +333,54 @@ function normalizeLimit(value: unknown) {
   return Math.min(parsed, 100);
 }
 
+function normalizeRuntimeEventType(value: unknown): CustomAppRuntimeEventType {
+  const type = String(value || "").trim();
+  if (
+    type === "opened"
+    || type === "ready"
+    || type === "console"
+    || type === "error"
+    || type === "state_read"
+    || type === "state_saved"
+    || type === "action_requested"
+    || type === "capability_requested"
+    || type === "debug_requested"
+    || type === "debug_applied"
+  ) {
+    return type;
+  }
+  return "console";
+}
+
+function normalizeRuntimeSeverity(value: unknown, eventType: CustomAppRuntimeEventType): CustomAppRuntimeSeverity {
+  if (value === "error" || eventType === "error") return "error";
+  if (value === "warning") return "warning";
+  return "info";
+}
+
+function sanitizeRuntimeDetailValue(value: unknown, depth = 0): unknown {
+  if (depth > 5) return "[truncated]";
+  if (typeof value === "string") return sanitizeActionText(value, 1000);
+  if (Array.isArray(value)) return value.slice(0, 20).map((item) => sanitizeRuntimeDetailValue(item, depth + 1));
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .slice(0, 40)
+      .map(([key, item]) => [
+        sensitiveStateKey.test(key) ? "[redacted]" : sanitizeActionText(key, 80, "field"),
+        sanitizeRuntimeDetailValue(item, depth + 1),
+      ]),
+  );
+}
+
+function serializeRuntimeDetail(value: unknown) {
+  const sanitized = sanitizeRuntimeDetailValue(value ?? {});
+  let json = JSON.stringify(sanitized);
+  if (Buffer.byteLength(json, "utf8") <= MAX_APP_RUNTIME_DETAIL_BYTES) return json;
+  json = JSON.stringify({ truncated: true, preview: sanitizeActionText(json, Math.max(120, MAX_APP_RUNTIME_DETAIL_BYTES - 64)) });
+  return json;
+}
+
 function rowToCustomApp(row: any): StoredCustomApp {
   return {
     id: row.id,
@@ -459,6 +533,28 @@ function rowToCustomAppCapabilityRequest(row: any): StoredCustomAppCapabilityReq
     decidedById: row.decidedById,
     decidedAt: row.decidedAt,
     decisionNote: row.decisionNote,
+  };
+}
+
+function rowToCustomAppRuntimeEvent(row: any): StoredCustomAppRuntimeEvent {
+  let detail: unknown = {};
+  try {
+    detail = JSON.parse(row.detailJson || "{}");
+  } catch {
+    detail = {};
+  }
+  const eventType = normalizeRuntimeEventType(row.eventType);
+  return {
+    id: row.id,
+    appId: row.appId,
+    eventType,
+    severity: normalizeRuntimeSeverity(row.severity, eventType),
+    label: row.label,
+    message: row.message,
+    detail,
+    createdByType: row.createdByType,
+    createdById: row.createdById,
+    createdAt: row.createdAt,
   };
 }
 
@@ -789,6 +885,83 @@ export function customAppHasCapabilities(appId: string, requiredCapabilities: Cu
     ok: missingCapabilities.length === 0,
     missingCapabilities,
   };
+}
+
+export function listCustomAppRuntimeEvents(appId: string, limitInput?: unknown) {
+  const app = getCustomApp(appId);
+  if (!app) return null;
+  const limit = normalizeLimit(limitInput);
+  return db.prepare(`
+    SELECT id, app_id as appId, event_type as eventType, severity, label, message,
+           detail_json as detailJson, created_by_type as createdByType, created_by_id as createdById,
+           created_at as createdAt
+    FROM custom_app_runtime_events
+    WHERE app_id = ?
+    ORDER BY created_at DESC
+    LIMIT ?
+  `).all(appId, limit).map(rowToCustomAppRuntimeEvent);
+}
+
+export function createCustomAppRuntimeEvent(appId: string, input: Record<string, unknown>, actor?: { type: string; id: string }) {
+  const app = getCustomApp(appId);
+  if (!app) return null;
+  const eventType = normalizeRuntimeEventType(input.eventType ?? input.type);
+  const severity = normalizeRuntimeSeverity(input.severity, eventType);
+  const label = sanitizeActionText(input.label, 120, eventType.replace(/_/g, " ")) || eventType;
+  const message = sanitizeActionText(input.message, 1000, label) || label;
+  const detailJson = serializeRuntimeDetail(input.detail ?? input.details ?? {});
+  const now = Date.now();
+  const id = `app-event-${crypto.randomUUID()}`;
+  db.prepare(`
+    INSERT INTO custom_app_runtime_events (
+      id, app_id, event_type, severity, label, message, detail_json, created_by_type, created_by_id, created_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    appId,
+    eventType,
+    severity,
+    label,
+    message,
+    detailJson,
+    actor?.type || null,
+    actor?.id || null,
+    now,
+  );
+  return listCustomAppRuntimeEvents(appId, 1)?.[0] || null;
+}
+
+function buildDebugInstruction(app: StoredCustomApp, issue: string, recentEvents: StoredCustomAppRuntimeEvent[]) {
+  const recentErrors = recentEvents
+    .filter((event) => event.severity === "error")
+    .slice(0, 3)
+    .map((event) => `${event.label}: ${event.message}`)
+    .join("；");
+  const context = recentErrors ? `最近运行错误：${recentErrors}。` : "最近没有捕获到明确错误，请检查交互、状态保存和边界输入。";
+  return sanitizeActionText(
+    `请修复这个 LifeOS 生成程序“${app.name}”的问题：${issue}。${context} 保留现有核心功能和本地状态；如果需要新能力，请通过 lifeosApp.requestCapability 申请，不要绕过权限；输出完整可运行 HTML/CSS/JS。`,
+    1200,
+  );
+}
+
+export function createCustomAppDebugRequest(appId: string, input: Record<string, unknown>, actor?: { type: string; id: string }) {
+  const app = getCustomApp(appId);
+  if (!app) return null;
+  const recentEvents = listCustomAppRuntimeEvents(appId, 8) || [];
+  const issue = sanitizeActionText(input.issue ?? input.message, 500, "请根据最近运行日志修复程序问题");
+  const suggestedInstruction = buildDebugInstruction(app, issue, recentEvents);
+  const event = createCustomAppRuntimeEvent(appId, {
+    eventType: "debug_requested",
+    severity: "warning",
+    label: "Debug repair requested",
+    message: issue,
+    detail: {
+      suggestedInstruction,
+      recentEventIds: recentEvents.map((item) => item.id),
+    },
+  }, actor);
+  return { event, suggestedInstruction, recentEvents };
 }
 
 function selectCustomAppCapabilityRequest(appId: string, requestId: string) {

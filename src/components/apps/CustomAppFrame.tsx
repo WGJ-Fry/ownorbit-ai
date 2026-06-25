@@ -3,6 +3,7 @@ import { CustomApp } from "../../types";
 import {
   createCustomAppActionRequest,
   createCustomAppCapabilityRequest,
+  createCustomAppRuntimeEvent,
   decideCustomAppActionRequest,
   decideCustomAppCapabilityRequest,
   getCustomAppState,
@@ -24,6 +25,18 @@ export default function CustomAppFrame({ app }: CustomAppFrameProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   useEffect(() => {
+    const recordRuntimeEvent = (
+      eventType: Parameters<typeof createCustomAppRuntimeEvent>[1]["eventType"],
+      severity: Parameters<typeof createCustomAppRuntimeEvent>[1]["severity"],
+      label: string,
+      message: string,
+      detail?: unknown,
+    ) => {
+      createCustomAppRuntimeEvent(app.id, { eventType, severity, label, message, detail }).catch(() => null);
+    };
+
+    recordRuntimeEvent("opened", "info", "Tool opened", `${app.name} opened`, { appName: app.name });
+
     const respondToFrame = (requestId: string, response: Record<string, unknown>) => {
       iframeRef.current?.contentWindow?.postMessage({
         source: "lifeos-custom-app-host",
@@ -35,16 +48,29 @@ export default function CustomAppFrame({ app }: CustomAppFrameProps) {
     const handleMessage = async (event: MessageEvent) => {
       if (event.source !== iframeRef.current?.contentWindow) return;
       const data = event.data || {};
+      if (data.source === "jarvis-sandbox-frame-log") {
+        const isError = data.type === "error";
+        recordRuntimeEvent(
+          isError ? "error" : "console",
+          isError ? "error" : "info",
+          isError ? "Runtime error" : "Console output",
+          typeof data.message === "string" ? data.message : String(data.message || ""),
+          { source: "iframe" },
+        );
+        return;
+      }
       if (data.source !== "lifeos-custom-app" || !data.requestId) return;
 
       try {
         if (data.type === "get-state") {
           const response = await getCustomAppState(app.id);
+          recordRuntimeEvent("state_read", "info", "State read", "Tool read persisted state", { requestId: data.requestId });
           respondToFrame(data.requestId, { ok: true, state: response.state.state });
           return;
         }
         if (data.type === "set-state") {
           const response = await saveCustomAppState(app.id, data.payload?.state ?? {});
+          recordRuntimeEvent("state_saved", "info", "State saved", "Tool saved persisted state", { requestId: data.requestId });
           respondToFrame(data.requestId, { ok: true, state: response.state.state });
           return;
         }
@@ -61,6 +87,11 @@ export default function CustomAppFrame({ app }: CustomAppFrameProps) {
             requestedCapabilities,
             label: typeof payload.label === "string" ? payload.label : undefined,
             reason: typeof payload.reason === "string" ? payload.reason : undefined,
+          });
+          recordRuntimeEvent("capability_requested", created.request.risk === "high" ? "warning" : "info", created.request.label, `Requested capabilities: ${created.request.requestedCapabilities.join(", ")}`, {
+            requestId: created.request.id,
+            status: created.request.status,
+            missingCapabilities: created.request.missingCapabilities,
           });
           if (created.request.status === "approved") {
             respondToFrame(data.requestId, { ok: true, result: { status: "approved", request: created.request } });
@@ -89,6 +120,11 @@ export default function CustomAppFrame({ app }: CustomAppFrameProps) {
             targetUrl,
             reason: typeof payload.reason === "string" ? payload.reason : undefined,
           });
+          recordRuntimeEvent("action_requested", created.request.risk === "high" ? "warning" : "info", created.request.label, `Requested ${created.request.targetScheme} action`, {
+            requestId: created.request.id,
+            status: created.request.status,
+            scheme: created.request.targetScheme,
+          });
           if (created.request.status === "blocked") {
             respondToFrame(data.requestId, { ok: false, error: t("customApp.actionBlocked", { scheme: created.request.targetScheme }), result: { status: "blocked", request: created.request } });
             return;
@@ -110,13 +146,14 @@ export default function CustomAppFrame({ app }: CustomAppFrameProps) {
         }
         respondToFrame(data.requestId, { ok: false, error: "Unsupported LifeOS app request" });
       } catch (error: any) {
+        recordRuntimeEvent("error", "error", "Host request failed", error?.message || "LifeOS app request failed", { requestType: data.type });
         respondToFrame(data.requestId, { ok: false, error: error?.message || "LifeOS app request failed" });
       }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [app.id, t]);
+  }, [app.id, app.name, t]);
 
   return (
     <div className="w-full min-h-[360px] bg-[#0a0a0a] pointer-events-auto relative">

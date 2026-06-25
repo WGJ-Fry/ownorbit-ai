@@ -38,6 +38,13 @@ export function buildStudioSandboxSrcDoc(code: string) {
                 message: String(message) + ' (Line: ' + lineno + ')'
               }, '*');
             };
+            window.onunhandledrejection = function(event) {
+              window.parent.postMessage({
+                source: 'jarvis-sandbox-frame-log',
+                type: 'error',
+                message: String(event && event.reason && event.reason.message ? event.reason.message : event.reason || 'Unhandled promise rejection')
+              }, '*');
+            };
 
             const pendingLifeosRequests = new Map();
             let lifeosRequestCounter = 0;
@@ -64,6 +71,9 @@ export function buildStudioSandboxSrcDoc(code: string) {
               },
               setState: function(state) {
                 return sendLifeosRequest('set-state', { state });
+              },
+              requestCapability: function(request) {
+                return sendLifeosRequest('request-capability', request || {});
               },
               requestAction: function(action) {
                 return sendLifeosRequest('request-action', action || {});

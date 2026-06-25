@@ -314,6 +314,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /rollbackCustomAppVersion/);
   assert.match(lifeosApiSource, /getCustomAppState/);
   assert.match(lifeosApiSource, /saveCustomAppState/);
+  assert.match(lifeosApiSource, /listCustomAppRuntimeEvents/);
+  assert.match(lifeosApiSource, /createCustomAppRuntimeEvent/);
+  assert.match(lifeosApiSource, /createCustomAppDebugRequest/);
   assert.match(lifeosApiSource, /listCustomAppActionRequests/);
   assert.match(lifeosApiSource, /createCustomAppActionRequest/);
   assert.match(lifeosApiSource, /decideCustomAppActionRequest/);
@@ -628,6 +631,19 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
 
   const studioAppSource = await readFile(path.join(rootDir, "src", "components", "apps", "StudioApp.tsx"), "utf8");
   assert.match(studioAppSource, /useStudioSimulatorState\(\)/);
+  assert.match(studioAppSource, /useStudioRuntimeDebug/);
+  assert.match(studioAppSource, /runtimeEvents={runtimeEvents}/);
+  const studioRuntimeDebugHookSource = await readFile(path.join(rootDir, "src", "components", "apps", "studio", "useStudioRuntimeDebug.ts"), "utf8");
+  assert.match(studioRuntimeDebugHookSource, /listCustomAppRuntimeEvents/);
+  assert.match(studioRuntimeDebugHookSource, /createCustomAppDebugRequest/);
+  assert.match(studioRuntimeDebugHookSource, /createCustomAppRuntimeEvent/);
+
+  const studioRefinePanelSource = await readFile(path.join(rootDir, "src", "components", "apps", "studio", "StudioRefinePanel.tsx"), "utf8");
+  const studioRuntimeEventsPanelSource = await readFile(path.join(rootDir, "src", "components", "apps", "studio", "StudioRuntimeEventsPanel.tsx"), "utf8");
+  assert.match(studioRefinePanelSource, /StudioRuntimeEventsPanel/);
+  assert.match(studioRuntimeEventsPanelSource, /studio\.runtime\.title/);
+  assert.match(studioRuntimeEventsPanelSource, /onRequestDebug/);
+  assert.match(translationsSource, /studio\.runtime\.requestRepair/);
 
   const studioSimulatorSource = await readFile(path.join(rootDir, "src", "components", "apps", "studio", "useStudioSimulatorState.ts"), "utf8");
   assert.match(studioSimulatorSource, /jarvis-sandbox-frame-log/);
@@ -639,10 +655,14 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(studioSandboxSource, /getState/);
   assert.match(studioSandboxSource, /setState/);
   assert.match(studioSandboxSource, /requestAction/);
+  assert.match(studioSandboxSource, /requestCapability/);
+  assert.match(studioSandboxSource, /window\.onunhandledrejection/);
   assert.match(studioSandboxSource, /request-action/);
+  assert.match(studioSandboxSource, /request-capability/);
   assert.match(studioSandboxSource, /lifeos-custom-app-host/);
   assert.match(customAppFrameSource, /getCustomAppState/);
   assert.match(customAppFrameSource, /saveCustomAppState/);
+  assert.match(customAppFrameSource, /createCustomAppRuntimeEvent/);
   assert.match(customAppFrameSource, /createCustomAppActionRequest/);
   assert.match(customAppFrameSource, /decideCustomAppActionRequest/);
   assert.match(customAppFrameSource, /createCustomAppCapabilityRequest/);
@@ -651,6 +671,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(customAppFrameSource, /window\.confirm/);
   assert.match(customAppFrameSource, /customApp\.actionConfirm/);
   assert.match(customAppFrameSource, /customApp\.capabilityConfirm/);
+  assert.match(customAppFrameSource, /jarvis-sandbox-frame-log/);
   assert.match(translationsSource, /customApp\.actionMissingTarget/);
   assert.match(translationsSource, /customApp\.actionBlocked/);
   assert.match(translationsSource, /customApp\.actionRisk\.high/);
@@ -659,6 +680,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
 
   const aiRoutesSource = await readFile(path.join(rootDir, "server", "aiRoutes.ts"), "utf8");
   assert.match(aiRoutesSource, /window\.lifeosApp\.requestAction/);
+  assert.match(aiRoutesSource, /window\.lifeosApp\.requestCapability/);
   assert.match(aiRoutesSource, /NEVER set window\.location directly/);
 
   assert.match(mobileDeviceSource, /retryOfflineMessage/);

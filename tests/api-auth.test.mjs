@@ -769,6 +769,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.ok(Array.isArray(dataExport.customApps.actionPolicies));
   assert.ok(Array.isArray(dataExport.customApps.capabilityManifests));
   assert.ok(Array.isArray(dataExport.customApps.capabilityRequests));
+  assert.ok(Array.isArray(dataExport.customApps.runtimeEvents));
   const exportedConnectionAudit = dataExport.auditLogs.find((log) => log.action === "network_connection_tested");
   assert.ok(exportedConnectionAudit);
   assert.equal(exportedConnectionAudit.targetId, `http://127.0.0.1:${port}/?[redacted]`);
@@ -1494,6 +1495,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(unauthCustomAppState.status, 401);
   const unauthCustomAppCapabilities = await request(port, "/api/v1/custom-apps/custom-ledger-1/capabilities");
   assert.equal(unauthCustomAppCapabilities.status, 401);
+  const unauthCustomAppRuntimeEvents = await request(port, "/api/v1/custom-apps/custom-ledger-1/runtime-events");
+  assert.equal(unauthCustomAppRuntimeEvents.status, 401);
   const unauthCustomAppCapabilityRequests = await request(port, "/api/v1/custom-apps/custom-ledger-1/capability-requests");
   assert.equal(unauthCustomAppCapabilityRequests.status, 401);
   const unauthCustomAppActionPolicy = await request(port, "/api/v1/custom-apps/custom-ledger-1/action-policy");
@@ -1566,6 +1569,44 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   }).then((res) => res.json());
   assert.equal(JSON.stringify(savedCustomAppState).includes("github_pat_customStateSecret"), false);
   assert.equal(JSON.stringify(savedCustomAppState).includes("/Users/wangguojun/private-state.csv"), false);
+
+  const customAppRuntimeEvent = await request(port, "/api/v1/custom-apps/custom-ledger-1/runtime-events", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      eventType: "error",
+      severity: "error",
+      label: "Runtime failed with secret",
+      message: "Unhandled github_pat_runtimeEventSecret_1234567890 from /Users/wangguojun/runtime.log",
+      detail: {
+        token: "github_pat_runtimeEventDetailSecret_1234567890",
+        localPath: "/Users/wangguojun/detail.log",
+        safe: "kept",
+      },
+    }),
+  }).then((res) => res.json());
+  assert.equal(customAppRuntimeEvent.event.eventType, "error");
+  assert.equal(customAppRuntimeEvent.event.severity, "error");
+  assert.equal(JSON.stringify(customAppRuntimeEvent).includes("github_pat_runtimeEventSecret"), false);
+  assert.equal(JSON.stringify(customAppRuntimeEvent).includes("github_pat_runtimeEventDetailSecret"), false);
+  assert.equal(JSON.stringify(customAppRuntimeEvent).includes("/Users/wangguojun/runtime.log"), false);
+
+  const customAppDebugRequest = await request(port, "/api/v1/custom-apps/custom-ledger-1/debug-requests", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      issue: "Fix the ledger crash with github_pat_debugRequestSecret_1234567890 and /Users/wangguojun/debug.txt",
+    }),
+  }).then((res) => res.json());
+  assert.match(customAppDebugRequest.suggestedInstruction, /本月预算提醒面板|LifeOS/);
+  assert.equal(JSON.stringify(customAppDebugRequest).includes("github_pat_debugRequestSecret"), false);
+  assert.equal(JSON.stringify(customAppDebugRequest).includes("/Users/wangguojun/debug.txt"), false);
+
+  const customAppRuntimeEvents = await request(port, "/api/v1/custom-apps/custom-ledger-1/runtime-events?limit=5", {
+    headers: adminHeaders,
+  }).then((res) => res.json());
+  assert.equal(customAppRuntimeEvents.events.length >= 2, true);
+  assert.equal(customAppRuntimeEvents.events.some((event) => event.eventType === "debug_requested"), true);
 
   const defaultCustomAppCapabilities = await request(port, "/api/v1/custom-apps/custom-ledger-1/capabilities", {
     headers: adminHeaders,
@@ -2179,6 +2220,10 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(deniedCustomAppCapabilityAudit.metadata.status, "denied");
   const approvedCustomAppCapabilityAudit = finalAudit.logs.find((log) => log.action === "custom_app_capability_approved" && log.metadata.requestId === approvedCustomAppCapabilityRequest.request.id);
   assert.equal(approvedCustomAppCapabilityAudit.metadata.status, "approved");
+  const runtimeEventAudit = finalAudit.logs.find((log) => log.action === "custom_app_runtime_event_recorded" && log.metadata.eventId === customAppRuntimeEvent.event.id);
+  assert.equal(runtimeEventAudit.metadata.severity, "error");
+  const debugRequestAudit = finalAudit.logs.find((log) => log.action === "custom_app_debug_requested" && log.targetId === "custom-ledger-1");
+  assert.equal(debugRequestAudit.metadata.recentEventCount >= 1, true);
   const mobileCustomAppActionCancelledAudit = finalAudit.logs.find((log) => log.action === "custom_app_action_cancelled" && log.metadata.requestId === mobilePendingCustomAppAction.request.id);
   assert.equal(mobileCustomAppActionCancelledAudit.actorType, "device");
   assert.equal(mobileCustomAppActionCancelledAudit.metadata.targetUrl, "mailto:[redacted]?[redacted]");
@@ -2189,6 +2234,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(finalAuditJson.includes(adminRequestedRotation.accessToken), false);
   assert.equal(finalAuditJson.includes("custom-action-secret"), false);
   assert.equal(finalAuditJson.includes("github_pat_runtimeCapabilitySecret"), false);
+  assert.equal(finalAuditJson.includes("github_pat_runtimeEventSecret"), false);
+  assert.equal(finalAuditJson.includes("github_pat_runtimeEventDetailSecret"), false);
+  assert.equal(finalAuditJson.includes("github_pat_debugRequestSecret"), false);
   assert.equal(finalAuditJson.includes("+15550001111"), false);
   assert.equal(finalAuditJson.includes("+15550002222"), false);
   assert.equal(finalAuditJson.includes("+15551234567"), false);
@@ -2220,6 +2268,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     { label: "custom app versions after create", value: customAppVersionsAfterCreate },
     { label: "initial custom app state", value: initialCustomAppState },
     { label: "saved custom app state", value: savedCustomAppState },
+    { label: "custom app runtime event", value: customAppRuntimeEvent },
+    { label: "custom app debug request", value: customAppDebugRequest },
+    { label: "custom app runtime events", value: customAppRuntimeEvents },
     { label: "default custom app capabilities", value: defaultCustomAppCapabilities },
     { label: "no communication custom app capabilities", value: noCommunicationCustomAppCapabilities },
     { label: "denied custom app capability request", value: deniedCustomAppCapabilityRequest },
@@ -2306,7 +2357,13 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assertSecretNotLeaked(publicResponses, "/Users/wangguojun/private-ledger.csv");
   assertSecretNotLeaked(publicResponses, "github_pat_customAppSecret");
   assertSecretNotLeaked(publicResponses, "github_pat_runtimeCapabilitySecret");
+  assertSecretNotLeaked(publicResponses, "github_pat_runtimeEventSecret");
+  assertSecretNotLeaked(publicResponses, "github_pat_runtimeEventDetailSecret");
+  assertSecretNotLeaked(publicResponses, "github_pat_debugRequestSecret");
   assertSecretNotLeaked(publicResponses, "/Users/wangguojun/private-app.html");
+  assertSecretNotLeaked(publicResponses, "/Users/wangguojun/runtime.log");
+  assertSecretNotLeaked(publicResponses, "/Users/wangguojun/detail.log");
+  assertSecretNotLeaked(publicResponses, "/Users/wangguojun/debug.txt");
   assertSecretNotLeaked(publicResponses, "AIzaSy-state-secret-value-should-not-leak");
   assertSecretNotLeaked(publicResponses, "test-key");
   assertSecretNotLeaked(publicResponses, "correct horse battery staple");

@@ -1,5 +1,7 @@
 import { AlertCircle, RefreshCw, Sparkles } from "lucide-react";
 import { useI18n } from "../../../i18n/I18nProvider";
+import type { StoredCustomAppRuntimeEvent } from "../../../services/lifeosApi";
+import StudioRuntimeEventsPanel from "./StudioRuntimeEventsPanel";
 
 export type StudioRefineHistoryItem = {
   id: string;
@@ -14,9 +16,17 @@ type StudioRefinePanelProps = {
   isRefining: boolean;
   refineError: string | null;
   refineHistory: StudioRefineHistoryItem[];
+  runtimeEvents: StoredCustomAppRuntimeEvent[];
+  isLoadingRuntimeEvents: boolean;
+  runtimeEventsError: string | null;
+  runtimeDebugIssue: string;
+  isRequestingRuntimeDebug: boolean;
   onInstructionChange: (value: string) => void;
   onRefine: () => void;
   onRollback: (version: StudioRefineHistoryItem) => void;
+  onRuntimeDebugIssueChange: (value: string) => void;
+  onRefreshRuntimeEvents: () => void;
+  onRequestRuntimeDebug: () => void;
 };
 
 export default function StudioRefinePanel({
@@ -24,9 +34,17 @@ export default function StudioRefinePanel({
   isRefining,
   refineError,
   refineHistory,
+  runtimeEvents,
+  isLoadingRuntimeEvents,
+  runtimeEventsError,
+  runtimeDebugIssue,
+  isRequestingRuntimeDebug,
   onInstructionChange,
   onRefine,
   onRollback,
+  onRuntimeDebugIssueChange,
+  onRefreshRuntimeEvents,
+  onRequestRuntimeDebug,
 }: StudioRefinePanelProps) {
   const { t } = useI18n();
   const presetInstructions = [
@@ -150,6 +168,17 @@ export default function StudioRefinePanel({
           </div>
         </div>
       )}
+
+      <StudioRuntimeEventsPanel
+        events={runtimeEvents}
+        isLoading={isLoadingRuntimeEvents}
+        error={runtimeEventsError}
+        issue={runtimeDebugIssue}
+        isRequestingDebug={isRequestingRuntimeDebug}
+        onIssueChange={onRuntimeDebugIssueChange}
+        onRefresh={onRefreshRuntimeEvents}
+        onRequestDebug={onRequestRuntimeDebug}
+      />
 
       <div className="mt-auto pt-4 border-t border-white/[0.04] text-[10px] text-zinc-500 flex items-center gap-1.5 justify-center">
         <span>{t("studio.refine.footer")}</span>
