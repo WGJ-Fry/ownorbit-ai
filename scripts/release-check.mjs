@@ -148,7 +148,7 @@ function checkSourceSizeBudgets() {
 }
 
 function checkScripts() {
-  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "remote:acceptance", "remote:mock-smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch"]) {
+  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "remote:acceptance", "remote:mock-smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix"]) {
     if (hasScript(script)) pass(`package script exists: ${script}`);
     else fail(`missing package script: ${script}`);
   }
@@ -166,6 +166,20 @@ function checkScripts() {
     }
   } else {
     fail("missing cold launch readiness checker: scripts/check-cold-launch-readiness.mjs");
+  }
+
+  if (exists("scripts/github-public-state.mjs")) {
+    const githubPublicState = fs.readFileSync(path.join(rootDir, "scripts/github-public-state.mjs"), "utf8");
+    if (
+      githubPublicState.includes("desiredDescription") &&
+      githubPublicState.includes("has_discussions") &&
+      githubPublicState.includes("v0.1.0") &&
+      githubPublicState.includes("v0.0.0") &&
+      githubPublicState.includes("Deprecated / 已废弃")
+    ) pass("GitHub public state checker covers description, Discussions, stale Latest, and deprecated releases");
+    else fail("GitHub public state checker must cover repository description, Discussions, stale Latest release, and deprecated old releases");
+  } else {
+    fail("missing GitHub public state checker: scripts/github-public-state.mjs");
   }
 
   if (exists("scripts/check-release-artifact-versions.mjs")) {

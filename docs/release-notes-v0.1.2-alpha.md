@@ -53,6 +53,8 @@ Password:
 lifeos-local-demo
 ```
 
+This demo password is only for the local Docker quickstart. The Compose file binds LifeOS to `127.0.0.1`; change `LIFEOS_ADMIN_PASSWORD` before any LAN, VPN, tunnel, or public exposure test.
+
 Ask:
 
 ```text

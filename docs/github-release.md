@@ -36,7 +36,46 @@ git push origin v0.1.2-alpha
 LIFEOS_CHECK_GHCR=1 LIFEOS_CHECK_GITHUB_RELEASE=1 npm run check:cold-launch
 ```
 
+然后检查 GitHub 仓库公开展示状态：
+
+```bash
+npm run github:public:check
+```
+
+如果输出提示 Latest 指向旧版本、旧 Release 未标废弃、仓库描述为空或 Discussions 未开启，使用带仓库管理权限的 token 修复：
+
+```bash
+GITHUB_TOKEN="github_pat_..." npm run github:public:fix
+```
+
+`github:public:fix` 会尝试：
+
+1. 把仓库描述改成：
+
+   ```text
+   Local-first personal AI assistant for memory, mobile companion, remote access, and generated problem-solving tools.
+   ```
+
+2. 开启 Discussions，让普通安装/使用问题不要全部进入 Issues。
+3. 把 `v0.1.0` 标记为 prerelease，避免它继续抢 GitHub 的 Latest release。
+4. 把 `v0.0.0` 标记为 deprecated / 已废弃，并引导用户使用 `v0.1.2-alpha`。
+5. 更新 `v0.1.2-alpha` Release 正文，让 Release 页面本身也能独立说明下载、安装、校验和 unsigned alpha 限制。
+
+如果 token 只有 Contents 权限，Release 正文可能能改，但仓库描述和 Discussions 可能会失败。这时需要给 fine-grained token 增加 `Administration: Read and write`，或在 GitHub 网页仓库 Settings 里手动修改。
+
 手动触发这个 workflow 时，它只会生成 Actions artifact；只有 `v*` tag 触发时才会写入 GitHub Release 草稿。
+
+## GitHub 仓库设置
+
+公开推广前，仓库设置必须满足：
+
+- Repository description 已填写，不为空。
+- Discussions 已开启。
+- Issues 保持开启，但 `.github/ISSUE_TEMPLATE/config.yml` 会把普通支持问题引导到 Discussions。
+- `v0.1.2-alpha` 是当前推荐公开入口。
+- `v0.1.0` 不能继续作为 stable Latest 误导用户。
+- `v0.0.0` 必须清楚标记为 deprecated / 已废弃，或直接删除旧 Release。
+- Release 页面正文要写清楚：macOS 是 unsigned ZIP，Windows 未 Authenticode 签名，Linux AppImage 未签名，自动更新尚未启用。
 
 ## 创建 Release
 
@@ -195,7 +234,46 @@ After publishing the draft, run the public launch check. It confirms the GHCR im
 LIFEOS_CHECK_GHCR=1 LIFEOS_CHECK_GITHUB_RELEASE=1 npm run check:cold-launch
 ```
 
+Then check the public GitHub repository state:
+
+```bash
+npm run github:public:check
+```
+
+If it reports a stale Latest release, an undeclared deprecated release, an empty repository description, or disabled Discussions, run the fixer with a token that has repository administration permission:
+
+```bash
+GITHUB_TOKEN="github_pat_..." npm run github:public:fix
+```
+
+`github:public:fix` attempts to:
+
+1. Set the repository description to:
+
+   ```text
+   Local-first personal AI assistant for memory, mobile companion, remote access, and generated problem-solving tools.
+   ```
+
+2. Enable Discussions so user support does not all land in Issues.
+3. Mark `v0.1.0` as a prerelease so it no longer steals GitHub's Latest release label.
+4. Mark `v0.0.0` as deprecated and point users to `v0.1.2-alpha`.
+5. Refresh the `v0.1.2-alpha` Release body so the Release page itself explains downloads, install, verification, and unsigned alpha limits.
+
+If the token only has Contents permission, Release edits may work while repository description and Discussions fail. In that case, add `Administration: Read and write` to the fine-grained token, or update those settings in the GitHub web UI.
+
 Manual workflow runs still produce Actions artifacts only; GitHub Release drafts are updated only for `v*` tag runs.
+
+## GitHub Repository Settings
+
+Before public promotion, the repository should satisfy:
+
+- Repository description is present.
+- Discussions are enabled.
+- Issues stay enabled, while `.github/ISSUE_TEMPLATE/config.yml` routes ordinary support questions to Discussions.
+- `v0.1.2-alpha` is the recommended public entry.
+- `v0.1.0` no longer appears as the stable Latest release.
+- `v0.0.0` is clearly marked deprecated, or the old Release is deleted.
+- The Release body clearly states the unsigned macOS ZIP, unsigned Windows installer, unsigned Linux AppImage, and disabled auto-update status.
 
 ## Create a Release
 

@@ -14,6 +14,8 @@ LifeOS AI 是电脑端应用 + 手机端 PWA。电脑端负责运行本地核心
 | Linux 桌面包 | `v0.1.2-alpha` 已上传 `LifeOS.AI-0.1.2-alpha.0.AppImage` | 适合早期桌面测试。运行前请赋予可执行权限，并按 `SHA256SUMS` 校验。 |
 | 自动更新 | 当前未启用 | 先按手动下载、校验 SHA256、覆盖安装的方式更新。 |
 
+请使用明确的 `v0.1.2-alpha` Release 链接，不要依赖 GitHub 通用的 Latest release 标签；旧的 `v0.1.0` / `v0.0.0` 只应作为历史记录保留。
+
 发布前必须保证 README、Release 说明、`docker-compose.yml`、`release-manifest.json` 和真实 GitHub Release/GHCR 资产一致。只写已经存在并能被干净机器下载的资产。
 
 ## 下载安装
@@ -245,6 +247,8 @@ LifeOS AI is a desktop app plus a mobile PWA. The desktop app runs the local cor
 | Windows desktop package | `v0.1.2-alpha` uploads `LifeOS.AI.Setup.0.1.2-alpha.0.exe` | Good for early desktop testing. It is not Authenticode signed yet, so SmartScreen may warn about an unknown publisher. |
 | Linux desktop package | `v0.1.2-alpha` uploads `LifeOS.AI-0.1.2-alpha.0.AppImage` | Good for early desktop testing. Mark it executable and verify it with `SHA256SUMS`. |
 | Auto-update | Not enabled yet | Update manually by downloading the new build, verifying SHA256, and installing it. |
+
+Use the explicit `v0.1.2-alpha` Release link instead of relying on GitHub's generic Latest release label; older `v0.1.0` / `v0.0.0` releases should remain historical only.
 
 Before publishing, README, Release notes, `docker-compose.yml`, `release-manifest.json`, and the real GitHub Release/GHCR assets must agree. Only claim assets that already exist and can be downloaded from a clean machine.
 

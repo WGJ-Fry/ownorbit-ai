@@ -26,6 +26,8 @@ flowchart LR
 
 当前桌面包仍是 alpha 测试包：macOS 是 unsigned ZIP，Windows EXE 尚未 Authenticode 签名，Linux AppImage 需要赋予可执行权限。请只从 GitHub Release 下载，并对照 `SHA256SUMS` 校验。
 
+请使用上面的 `v0.1.2-alpha` 直链；如果 GitHub 的 Latest release 标签显示旧版本，不要从旧版本下载。
+
 ## 第 2 步：首次打开
 
 打开 LifeOS AI 后，先完成首次启动：
@@ -137,6 +139,8 @@ Open [GitHub Releases](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-
 | Linux x64 | `LifeOS.AI-0.1.2-alpha.0.AppImage` |
 
 The current desktop packages are still alpha test builds: macOS is an unsigned ZIP, the Windows EXE is not Authenticode signed yet, and the Linux AppImage must be marked executable. Download only from GitHub Releases and verify `SHA256SUMS`.
+
+Use the versioned `v0.1.2-alpha` link above; if GitHub's Latest release label shows an older build, do not download from the older release.
 
 ## Step 2: First Launch
 

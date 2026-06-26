@@ -19,12 +19,18 @@ return passport, proposal, and tax deadline
 - [ ] `docs/assets/real-demo-en.gif` exists for the English README.
 - [ ] `docs/assets/real-demo.gif` exists for the Chinese README.
 - [ ] `package.json` is `0.1.2-alpha.0`, `private: false`, and `MIT`.
+- [ ] GitHub repository description is set.
+- [ ] GitHub Discussions is enabled.
+- [ ] `v0.1.0` does not appear as the stable Latest release.
+- [ ] `v0.0.0` is deprecated or removed.
 - [ ] `Dockerfile` exists and builds the app.
 - [ ] `docker-compose.yml` points to `ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha`.
 - [ ] `LOCAL_MODEL_BASE_URL=http://ollama:11434/v1`.
 - [ ] `LIFEOS_QUICKSTART=1`.
 - [ ] `LIFEOS_ADMIN_PASSWORD=lifeos-local-demo`.
 - [ ] `LIFEOS_VAULT_DIR=/app/vault`.
+
+Security note: `lifeos-local-demo` is only acceptable for the local quickstart because Compose binds the app to `127.0.0.1`. Change `LIFEOS_ADMIN_PASSWORD` before LAN, VPN, tunnel, or public testing.
 
 ## Local Verification
 
@@ -93,6 +99,7 @@ After the tag is pushed:
 
 - [ ] GitHub Actions -> Docker Image is green.
 - [ ] GHCR package is public.
+- [ ] `npm run github:public:check` passes, or `GITHUB_TOKEN=... npm run github:public:fix` has been run with sufficient permissions.
 - [ ] Anonymous pull succeeds:
 
 ```bash

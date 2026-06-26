@@ -2,6 +2,11 @@
 
 中文 | [English](#english)
 
+> [!WARNING]
+> `v0.1.0` is superseded by [`v0.1.2-alpha`](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha). It is kept only as an earlier alpha record and should be marked as prerelease on GitHub so it does not appear as the recommended Latest release.
+>
+> `v0.1.0` 已被 [`v0.1.2-alpha`](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha) 取代。它只应作为早期 alpha 记录保留，并应在 GitHub 上标记为 prerelease，避免误导用户下载旧版本。
+
 ## 下载
 
 - macOS Apple Silicon 测试包：`LifeOS.AI-0.1.0-arm64-unsigned.zip`

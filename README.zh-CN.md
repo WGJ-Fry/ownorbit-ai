@@ -41,6 +41,8 @@ LifeOS 先从一个很小但有用的工作流开始：
 
 这份 README 面向 `v0.1.2-alpha` 公开下载包。`main` 分支可能包含后续源码改动；只有你愿意从源码构建时，才需要关注它。
 
+重要：请使用明确的 [`v0.1.2-alpha` Release 页面](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha)。如果 GitHub 通用的 **Latest release** 标签仍指向旧版本，请忽略它，使用这个带版本号的链接。
+
 | 轨道 | 可以期待什么 |
 | --- | --- |
 | `v0.1.2-alpha` 公开发布版 | Docker Compose 本地 Markdown 演示、GHCR 镜像路径、macOS unsigned ZIP、Windows NSIS 安装包、Linux AppImage、管理员认证、AI provider 设置、手机 PWA 绑定、离线队列、SQLite migration、备份恢复、诊断包、发布检查和连接诊断。 |
@@ -157,6 +159,8 @@ http://localhost:8080/admin/login
 lifeos-local-demo
 ```
 
+这个密码只用于本地 Docker 快速演示，因为默认只绑定到 `127.0.0.1`。任何局域网、VPN、Tunnel 或公网暴露测试前，都必须先修改 `LIFEOS_ADMIN_PASSWORD`。
+
 输入：
 
 ```text
@@ -186,6 +190,8 @@ What am I forgetting?
 ```
 
 这个 Docker quickstart 是电脑本机浏览器演示。它不会自动让手机在外网访问你的电脑。
+
+除非你已经设置强管理员密码，并理解连接向导里的远程访问风险提示，否则不要移除 `127.0.0.1` 绑定。
 
 ## 远程与 VPN 访问
 

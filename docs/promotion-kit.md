@@ -29,7 +29,7 @@ The Studio workshop turns the user's current problem into a runnable offline pro
 ## GitHub 仓库描述
 
 ```text
-Local-first personal AI assistant with a desktop private core and mobile PWA companion.
+Local-first personal AI assistant for memory, mobile companion, remote access, and generated problem-solving tools.
 ```
 
 ## GitHub Topics

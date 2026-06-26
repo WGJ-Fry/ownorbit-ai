@@ -41,6 +41,8 @@ Source package version: `0.1.2-alpha.0`
 
 This README is written for the public `v0.1.2-alpha` downloads. The `main` branch may contain later source-only changes; use those only if you are comfortable building from source.
 
+Important: use the explicit [`v0.1.2-alpha` Release page](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha). If GitHub's generic **Latest release** label ever points to an older build, ignore it and use this versioned link.
+
 | Track | What to expect |
 | --- | --- |
 | `v0.1.2-alpha` public release | Docker Compose local Markdown demo, GHCR image path, macOS unsigned ZIP, Windows NSIS installer, Linux AppImage, admin auth, AI provider settings, mobile PWA pairing, offline queue, SQLite migrations, backup/restore, diagnostics, release checks, and connection diagnostics. |
@@ -157,6 +159,8 @@ Demo password:
 lifeos-local-demo
 ```
 
+This password is only for the local Docker quickstart, where the app is bound to `127.0.0.1`. Change `LIFEOS_ADMIN_PASSWORD` before any LAN, VPN, tunnel, or public exposure test.
+
 Ask:
 
 ```text
@@ -186,6 +190,8 @@ The default Compose file binds LifeOS to the local computer:
 ```
 
 This Docker quickstart is for a local browser demo. It does not automatically make the system reachable from your phone outside the local machine.
+
+Do not remove the `127.0.0.1` host binding unless you have already set a strong admin password and understand the remote-access warning in the connection guide.
 
 ## Remote & VPN Access
 
