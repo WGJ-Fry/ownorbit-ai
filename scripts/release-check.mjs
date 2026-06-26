@@ -10,6 +10,17 @@ const strict = process.env.LIFEOS_RELEASE_STRICT === "1";
 const distribution = process.env.LIFEOS_DISTRIBUTION || "";
 const skipReleaseArtifacts = process.env.LIFEOS_RELEASE_SKIP_ARTIFACTS === "1";
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
+const currentPublicVersion = packageJson.version.includes("-") && packageJson.version.endsWith(".0")
+  ? packageJson.version.slice(0, -2)
+  : packageJson.version;
+const currentReleaseTag = `v${currentPublicVersion}`;
+const currentDockerImage = `ghcr.io/wgj-fry/lifeos-ai:${currentReleaseTag}`;
+const publicMacZipName = `LifeOS.AI-${packageJson.version}-arm64-unsigned.zip`;
+const publicWinInstallerName = `LifeOS.AI.Setup.${packageJson.version}.exe`;
+const publicLinuxAppImageName = `LifeOS.AI-${packageJson.version}.AppImage`;
+const builderMacZipName = `LifeOS AI-${packageJson.version}-arm64-unsigned.zip`;
+const builderWinInstallerName = `LifeOS AI Setup ${packageJson.version}.exe`;
+const builderLinuxAppImageName = `LifeOS AI-${packageJson.version}.AppImage`;
 const translationsSource = exists("src/i18n/translations.ts") ? fs.readFileSync(path.join(rootDir, "src/i18n/translations.ts"), "utf8") : "";
 const require = createRequire(import.meta.url);
 const results = [];
@@ -18,9 +29,9 @@ const userInstallStatusMarkers = [
   "先看这里：当前公开版本状态",
   "Only claim assets that already exist and can be downloaded from a clean machine",
   "只写已经存在并能被干净机器下载的资产",
-  "docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha",
-  "LifeOS.AI.Setup.0.1.2-alpha.0.exe",
-  "LifeOS.AI-0.1.2-alpha.0.AppImage",
+  `docker pull ${currentDockerImage}`,
+  publicWinInstallerName,
+  publicLinuxAppImageName,
   "SmartScreen may warn about an unknown publisher",
   "Mark it executable and verify it with `SHA256SUMS`",
 ];
@@ -2453,7 +2464,7 @@ function checkReleaseDocs() {
     "node:24-bookworm-slim",
     "npm ci",
     "npm run build",
-    "ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha",
+    currentDockerImage,
     "ollama/ollama:latest",
     "ollama pull llama3.2",
     "127.0.0.1:8080:3000",
@@ -2509,43 +2520,43 @@ function checkReleaseDocs() {
   if (
 	    readmeEn.includes("## Choose Your Path") &&
 	    readmeEn.includes("Docker Compose alpha") &&
-	    readmeEn.includes("ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha") &&
-	    readmeEn.includes("LifeOS.AI-0.1.2-alpha.0-arm64-unsigned.zip") &&
-	    readmeEn.includes("LifeOS.AI.Setup.0.1.2-alpha.0.exe") &&
-	    readmeEn.includes("LifeOS.AI-0.1.2-alpha.0.AppImage") &&
+	    readmeEn.includes(currentDockerImage) &&
+	    readmeEn.includes(publicMacZipName) &&
+	    readmeEn.includes(publicWinInstallerName) &&
+	    readmeEn.includes(publicLinuxAppImageName) &&
 	    readmeEn.includes("SHA256SUMS") &&
 	    readmeEn.includes("Local memory reads Markdown plus optional read-only `.ics` calendar/task files") &&
 	    readmeEn.includes("supporting `VEVENT` and open `VTODO` items") &&
 	    readmeEn.includes("No Apple Calendar, Google Calendar, or system reminders account sync/write-back yet") &&
-	    readmeEn.includes("blueprint confirmation, permission notes, and failure recovery guidance") &&
+	    readmeEn.includes("blueprint confirmation/template/permission/repair guidance") &&
 	    readmeZh.includes("## 选择你的体验路径") &&
 	    readmeZh.includes("Docker Compose alpha") &&
-	    readmeZh.includes("ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha") &&
-	    readmeZh.includes("LifeOS.AI-0.1.2-alpha.0-arm64-unsigned.zip") &&
-	    readmeZh.includes("LifeOS.AI.Setup.0.1.2-alpha.0.exe") &&
-	    readmeZh.includes("LifeOS.AI-0.1.2-alpha.0.AppImage") &&
+	    readmeZh.includes(currentDockerImage) &&
+	    readmeZh.includes(publicMacZipName) &&
+	    readmeZh.includes(publicWinInstallerName) &&
+	    readmeZh.includes(publicLinuxAppImageName) &&
 	    readmeZh.includes("SHA256SUMS") &&
 	    readmeZh.includes("可以读取 Markdown，也可以读取本地 `.ics` 日历/任务文件") &&
 	    readmeZh.includes("支持 `VEVENT` 和未完成 `VTODO`") &&
 	    readmeZh.includes("还没有接入 Apple Calendar、Google Calendar 或系统提醒事项的账号同步/写回") &&
-	    readmeZh.includes("蓝图确认清单、权限说明和失败修复建议")
+	    readmeZh.includes("蓝图确认/模板/权限/修复提示")
 	  ) {
     pass("bilingual README exposes the current Docker alpha and all uploaded desktop packages");
   } else {
-    fail("bilingual README must expose the current Docker alpha plus macOS, Windows, and Linux v0.1.2-alpha package assets");
+    fail(`bilingual README must expose the current Docker alpha plus macOS, Windows, and Linux ${currentReleaseTag} package assets`);
   }
 
   if (exists("docs/promotion-kit.md")) {
     const promotionKit = fs.readFileSync(path.join(rootDir, "docs/promotion-kit.md"), "utf8");
     if (
-      promotionKit.includes("Cold launch release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha`")
-      && promotionKit.includes("Desktop package release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha`")
+      promotionKit.includes(`Cold launch release: \`https://github.com/WGJ-Fry/lifeos-ai/releases/tag/${currentReleaseTag}\``)
+      && promotionKit.includes(`Desktop package release: \`https://github.com/WGJ-Fry/lifeos-ai/releases/tag/${currentReleaseTag}\``)
       && promotionKit.includes("Windows x64 NSIS installer")
       && promotionKit.includes("Linux x64 AppImage")
     ) {
-      pass("promotion kit points to the v0.1.2-alpha cold launch and desktop package release");
+      pass(`promotion kit points to the ${currentReleaseTag} cold launch and desktop package release`);
     } else {
-      fail("promotion kit must link the v0.1.2-alpha release and mention uploaded Windows/Linux packages");
+      fail(`promotion kit must link the ${currentReleaseTag} release and mention uploaded Windows/Linux packages`);
     }
   } else {
     fail("promotion kit is missing: docs/promotion-kit.md");
@@ -2561,7 +2572,7 @@ function checkReleaseDocs() {
       const source = fs.readFileSync(path.join(rootDir, relativePath), "utf8");
       const findings = [];
       if (source.includes('placeholder: "0.1.0"')) findings.push(`${relativePath}: stale 0.1.0 placeholder`);
-      if (!source.includes("0.1.2-alpha.0 / v0.1.2-alpha")) findings.push(`${relativePath}: missing current alpha version placeholder`);
+      if (!source.includes(`${packageJson.version} / ${currentReleaseTag}`)) findings.push(`${relativePath}: missing current alpha version placeholder`);
       return findings;
     });
   if (communityTemplateFindings.length === 0 && communityTemplatePaths.every((relativePath) => exists(relativePath))) {
@@ -2633,25 +2644,24 @@ function checkReleaseDocs() {
 
   const publicReleaseCombined = publicReleaseDocs.map(([, source]) => source).join("\n");
 	  const requiredPublicReleaseMarkers = [
-	    "LifeOS.AI-0.1.2-alpha.0-arm64-unsigned.zip",
-	    "LifeOS.AI.Setup.0.1.2-alpha.0.exe",
-	    "LifeOS.AI-0.1.2-alpha.0.AppImage",
-	    "LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip",
-	    "LifeOS AI Setup 0.1.2-alpha.0.exe",
-	    "LifeOS AI-0.1.2-alpha.0.AppImage",
+	    publicMacZipName,
+	    publicWinInstallerName,
+	    publicLinuxAppImageName,
+	    builderMacZipName,
+	    builderWinInstallerName,
+	    builderLinuxAppImageName,
 	    "dot-separated filenames",
-	    "af53111d6689f0cc2ad67b118f3d7bb274fc9742141cc760fdf9f3d9f82c909e",
-	    "b1502f090764909ea8be708474e7f5800d202ced2c48cfcded0a13c4c4f03f57",
-    "bd83e1c702f24586a81925a6db34deb74b2f68175416c85235e8750b6bf7c5fc",
+	    "Do not reuse `v0.1.2-alpha` or older SHA256 values.",
+	    "不要复用 `v0.1.2-alpha` 或更早版本的 SHA256。",
     "INSTALL-unsigned-mac.md",
     "SmartScreen",
     "AppImage",
   ];
   const missingPublicReleaseMarkers = requiredPublicReleaseMarkers.filter((marker) => !publicReleaseCombined.includes(marker));
   if (missingPublicReleaseMarkers.length === 0) {
-    pass("public release docs describe the real v0.1.2-alpha uploaded assets and signing limits");
+    pass(`public release docs describe the real ${currentReleaseTag} uploaded assets and signing limits`);
   } else {
-    fail(`public release docs are missing current v0.1.2-alpha asset markers: ${missingPublicReleaseMarkers.join(", ")}`);
+    fail(`public release docs are missing current ${currentReleaseTag} asset markers: ${missingPublicReleaseMarkers.join(", ")}`);
   }
 
   if (exists("docs/user-install-guide.md")) {
@@ -2672,7 +2682,7 @@ function checkReleaseDocs() {
 	      "LIFEOS_UPDATE_URL",
 	      "release-manifest.json",
 	      "SHA256SUMS",
-	      "shasum -a 256 \"LifeOS.AI-0.1.2-alpha.0-arm64-unsigned.zip\"",
+	      `shasum -a 256 "${publicMacZipName}"`,
 	      "filename mismatch",
 	      "Get-FileHash",
       "diagnostic bundle",
@@ -2717,7 +2727,7 @@ function checkReleaseDocs() {
   if (exists("SECURITY.md")) {
     const securityPolicy = fs.readFileSync(path.join(rootDir, "SECURITY.md"), "utf8");
     const requiredSecurityMarkers = [
-      "`v0.1.2-alpha` / `0.1.2-alpha.0`",
+      `\`${currentReleaseTag}\` / \`${packageJson.version}\``,
       "`v0.1.0` | 仅保留历史下载说明，建议升级",
       "GitHub 的私密漏洞报告功能",
       "不要附加原始数据库、未加密备份、未脱敏诊断包",
@@ -2769,7 +2779,7 @@ function checkReleaseDocs() {
       "Desktop Package Artifacts",
       "GitHub Release 草稿",
       "GitHub Release draft",
-      "git tag v0.1.2-alpha",
+      `git tag ${currentReleaseTag}`,
       "LIFEOS_CHECK_GHCR=1 LIFEOS_CHECK_GITHUB_RELEASE=1 npm run check:cold-launch",
       "Manual workflow runs still produce Actions artifacts only",
       "只有 `v*` tag 触发时才会写入 GitHub Release 草稿",

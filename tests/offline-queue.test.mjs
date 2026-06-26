@@ -144,6 +144,7 @@ test("offline message queue deduplicates and persists retry state", async () => 
   let summary = queueModule.getOfflineMessageQueueSummary();
   assert.equal(summary.count, 1);
   assert.equal(summary.failed, 1);
+  assert.equal(summary.conflicts, 0);
   assert.equal(summary.lastError, "network down");
   assert.equal(typeof summary.nextRetryAt, "number");
 
@@ -258,6 +259,31 @@ test("offline queue failure reasons are redacted before persistence and export",
   assert.equal(backup.includes("secret-token"), false);
   assert.equal(backup.includes("abc.def.ghi"), false);
   assert.equal(backup.includes("github_pat_leaksecret"), false);
+  assert.match(backup, /Conflict-risk duplicates: 0/);
+});
+
+test("offline message queue surfaces duplicate fingerprint conflict risk", async () => {
+  storage.clear();
+  dispatchedEvents = [];
+  postedMessages = [];
+  registeredSyncTags = [];
+  const fingerprintModule = await import(`../src/services/offlineMessageQueue.ts?case=conflict-fingerprint-${Date.now()}`);
+  const message = { role: "user", parts: [{ text: "same message restored twice" }] };
+  const fingerprint = fingerprintModule.getMessageFingerprint(message);
+  storage.set("lifeos_offline_message_queue", JSON.stringify([
+    { id: "legacy-a", message, queuedAt: 1_000, fingerprint, status: "pending", attempts: 0 },
+    { id: "legacy-b", message, queuedAt: 2_000, fingerprint, status: "failed", attempts: 1, lastError: "network duplicate" },
+  ]));
+
+  const queueModule = await import(`../src/services/offlineMessageQueue.ts?case=conflict-summary-${Date.now()}`);
+  const { buildOfflineQueueBackupText } = await import(`../src/services/offlineQueueBackup.ts?case=conflict-backup-${Date.now()}`);
+  const summary = queueModule.getOfflineMessageQueueSummary();
+  const queue = queueModule.getOfflineMessageQueue();
+  const backup = buildOfflineQueueBackupText(summary, queue);
+
+  assert.equal(summary.count, 2);
+  assert.equal(summary.conflicts, 1);
+  assert.match(backup, /Conflict-risk duplicates: 1/);
 });
 
 test("single offline message retry and remove only change the selected queue item", async () => {
@@ -515,7 +541,7 @@ test("offline message queue trims oldest items when storage budget is exceeded",
 
 test("offline queue health prioritizes storage, failed sync, remote entry, and network guidance", async () => {
   const { buildOfflineQueueHealth } = await import(`../src/services/offlineQueueHealth.ts?case=health-${Date.now()}`);
-  const baseSummary = { count: 0, pending: 0, syncing: 0, failed: 0 };
+  const baseSummary = { count: 0, pending: 0, syncing: 0, failed: 0, conflicts: 0 };
   const baseStorage = {
     storage: "indexeddb",
     available: true,
@@ -538,6 +564,7 @@ test("offline queue health prioritizes storage, failed sync, remote entry, and n
 
   assert.equal(buildOfflineQueueHealth(baseSummary, { ...baseStorage, available: false }, online, remoteOk).titleKey, "offlineQueue.healthStorageBlockedTitle");
   assert.equal(buildOfflineQueueHealth(baseSummary, { ...baseStorage, nearByteLimit: true }, online, remoteOk).titleKey, "offlineQueue.healthStorageRiskTitle");
+  assert.equal(buildOfflineQueueHealth({ ...baseSummary, count: 2, pending: 1, conflicts: 1 }, baseStorage, online, remoteOk).titleKey, "offlineQueue.healthConflictTitle");
   assert.equal(buildOfflineQueueHealth({ ...baseSummary, count: 2, failed: 1 }, baseStorage, online, remoteBlocked).titleKey, "offlineQueue.healthFailedTitle");
   assert.equal(buildOfflineQueueHealth({ ...baseSummary, count: 1, pending: 1 }, baseStorage, online, remoteBlocked).titleKey, "offlineQueue.healthEntryBlockedTitle");
   assert.equal(buildOfflineQueueHealth(baseSummary, baseStorage, offline, remoteOk).titleKey, "offlineQueue.healthOfflineTitle");

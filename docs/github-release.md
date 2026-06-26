@@ -19,8 +19,8 @@ npm run release:check:signed:file
 当前仓库包含 `Desktop Package Artifacts` GitHub Actions workflow。推送 `v*` tag 后，它会在 macOS、Windows、Linux 三个平台分别构建并验证安装包，然后由 `publish-draft` job 聚合安装包、`SHA256SUMS`、安装说明、`latest*.yml` 和 `release-manifest.json`，一次性上传到同一个 GitHub Release 草稿，避免多个平台同时上传同名元数据。
 
 ```bash
-git tag v0.1.2-alpha
-git push origin v0.1.2-alpha
+git tag v0.1.3-alpha
+git push origin v0.1.3-alpha
 ```
 
 然后打开 GitHub Actions，等待 `Desktop Package Artifacts` 三个平台都成功。成功后到 Releases 页面检查 draft：
@@ -30,7 +30,7 @@ git push origin v0.1.2-alpha
 3. 从 Release 页面下载一次安装包，在另一台机器或干净用户目录验证首次启动。
 4. 没问题后再把 draft 发布为正式 Release。
 
-发布 draft 后，跑一次公开入口检查。它会确认 GHCR 镜像不用登录也能拉取，并确认 `v0.1.2-alpha` Release 已经公开可见：
+发布 draft 后，跑一次公开入口检查。它会确认 GHCR 镜像不用登录也能拉取，并确认 `v0.1.3-alpha` Release 已经公开可见：
 
 ```bash
 LIFEOS_CHECK_GHCR=1 LIFEOS_CHECK_GITHUB_RELEASE=1 npm run check:cold-launch
@@ -58,8 +58,8 @@ GITHUB_TOKEN="github_pat_..." npm run github:public:fix
 
 2. 开启 Discussions，让普通安装/使用问题不要全部进入 Issues。
 3. 把 `v0.1.0` 标记为 prerelease，避免它继续抢 GitHub 的 Latest release。
-4. 把 `v0.0.0` 标记为 deprecated / 已废弃，并引导用户使用 `v0.1.2-alpha`。
-5. 更新 `v0.1.2-alpha` Release 正文，让 Release 页面本身也能独立说明下载、安装、校验和 unsigned alpha 限制。
+4. 把 `v0.0.0` 标记为 deprecated / 已废弃，并引导用户使用 `v0.1.3-alpha`。
+5. 更新 `v0.1.3-alpha` Release 正文，让 Release 页面本身也能独立说明下载、安装、校验和 unsigned alpha 限制。
 
 如果 token 只有 Contents 权限，Release 正文可能能改，但仓库描述和 Discussions 可能会失败。这时需要给 fine-grained token 增加 `Administration: Read and write`，或在 GitHub 网页仓库 Settings 里手动修改。
 
@@ -72,7 +72,7 @@ GITHUB_TOKEN="github_pat_..." npm run github:public:fix
 - Repository description 已填写，不为空。
 - Discussions 已开启。
 - Issues 保持开启，但 `.github/ISSUE_TEMPLATE/config.yml` 会把普通支持问题引导到 Discussions。
-- `v0.1.2-alpha` 是当前推荐公开入口。
+- `v0.1.3-alpha` 是当前推荐公开入口。
 - `v0.1.0` 不能继续作为 stable Latest 误导用户。
 - `v0.0.0` 必须清楚标记为 deprecated / 已废弃，或直接删除旧 Release。
 - Release 页面正文要写清楚：macOS 是 unsigned ZIP，Windows 未 Authenticode 签名，Linux AppImage 未签名，自动更新尚未启用。
@@ -86,13 +86,13 @@ GITHUB_TOKEN="github_pat_..." npm run github:public:fix
 5. Tag 填：
 
    ```text
-   v0.1.2-alpha
+   v0.1.3-alpha
    ```
 
 6. Title 填：
 
    ```text
-   LifeOS AI 0.1.2 Alpha
+   LifeOS AI 0.1.3 Alpha
    ```
 
 7. 上传 [release-assets.md](release-assets.md) 里列出的文件。
@@ -101,15 +101,15 @@ GITHUB_TOKEN="github_pat_..." npm run github:public:fix
 ## Release 正文模板
 
 ```markdown
-## LifeOS AI 0.1.2 Alpha
+## LifeOS AI 0.1.3 Alpha
 
 LifeOS AI is a desktop local core plus mobile PWA personal AI system.
 
 ### Downloads
 
-- macOS Apple Silicon unsigned ZIP: `LifeOS.AI-0.1.2-alpha.0-arm64-unsigned.zip`
-- Windows x64 NSIS installer: `LifeOS.AI.Setup.0.1.2-alpha.0.exe`
-- Linux x64 AppImage: `LifeOS.AI-0.1.2-alpha.0.AppImage`
+- macOS Apple Silicon unsigned ZIP: `LifeOS.AI-0.1.3-alpha.0-arm64-unsigned.zip`
+- Windows x64 NSIS installer: `LifeOS.AI.Setup.0.1.3-alpha.0.exe`
+- Linux x64 AppImage: `LifeOS.AI-0.1.3-alpha.0.AppImage`
 - Checksum: `SHA256SUMS`
 - Install guide: `USER-INSTALL.md`
 - macOS unsigned fallback guide: `INSTALL-unsigned-mac.md`
@@ -120,7 +120,7 @@ macOS: download the unsigned ZIP, unzip it, drag `LifeOS AI.app` to Applications
 
 Windows: download the NSIS `.exe` and follow the SmartScreen warning guidance in `USER-INSTALL.md`.
 
-Linux: download the AppImage, run `chmod +x "LifeOS.AI-0.1.2-alpha.0.AppImage"`, then launch it.
+Linux: download the AppImage, run `chmod +x "LifeOS.AI-0.1.3-alpha.0.AppImage"`, then launch it.
 
 ### Verification
 
@@ -129,9 +129,8 @@ GitHub asset URLs use dot-separated filenames. The uploaded `SHA256SUMS` file ma
 SHA256:
 
 ```text
-af53111d6689f0cc2ad67b118f3d7bb274fc9742141cc760fdf9f3d9f82c909e  LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip
-b1502f090764909ea8be708474e7f5800d202ced2c48cfcded0a13c4c4f03f57  LifeOS AI Setup 0.1.2-alpha.0.exe
-bd83e1c702f24586a81925a6db34deb74b2f68175416c85235e8750b6bf7c5fc  LifeOS AI-0.1.2-alpha.0.AppImage
+Use the SHA256SUMS generated for the current v0.1.3-alpha Release draft.
+Do not reuse hashes from v0.1.2-alpha or earlier releases.
 ```
 
 ### Notes
@@ -180,7 +179,7 @@ node_modules/
 3. 构建桌面包时设置：
 
    ```bash
-   LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.1.2-alpha"
+   LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.1.3-alpha"
    ```
 
 4. 重新打包并发布。
@@ -190,7 +189,7 @@ node_modules/
 ## 我还没有考虑到但发布前很重要的事
 
 - Windows 未签名会影响普通用户信任度，正式对外建议购买 Authenticode 证书。
-- 版本号已升级为 `0.1.2-alpha.0`；后续更稳定后可再考虑 `0.2.0-beta.1`、`1.0.0-beta.1` 或 `1.0.0`。
+- 版本号已升级为 `0.1.3-alpha.0`；后续更稳定后可再考虑 `0.2.0-beta.1`、`1.0.0-beta.1` 或 `1.0.0`。
 - GitHub Release 的资产名包含空格，用户可正常下载，但命令行说明要加引号。
 - macOS 当前包是 Apple Silicon arm64；Intel Mac 需要额外构建 x64 或 universal。
 - 不要公开你的 AI Key、Apple App 专用密码、证书密码、`.p12` 文件。
@@ -217,8 +216,8 @@ LIFEOS_DISTRIBUTION=signed npm run release:check
 This repository includes the `Desktop Package Artifacts` GitHub Actions workflow. When you push a `v*` tag, it builds and verifies packages on macOS, Windows, and Linux. A separate `publish-draft` job then aggregates the installers, `SHA256SUMS`, install guides, `latest*.yml`, and `release-manifest.json`, and uploads them to one GitHub Release draft so platform jobs do not race while uploading same-name metadata.
 
 ```bash
-git tag v0.1.2-alpha
-git push origin v0.1.2-alpha
+git tag v0.1.3-alpha
+git push origin v0.1.3-alpha
 ```
 
 Then open GitHub Actions and wait until all three `Desktop Package Artifacts` jobs pass. After that, open the draft Release:
@@ -228,7 +227,7 @@ Then open GitHub Actions and wait until all three `Desktop Package Artifacts` jo
 3. Download from the Release page and test first launch on another machine or clean user profile.
 4. Publish the draft only after the downloaded package is verified.
 
-After publishing the draft, run the public launch check. It confirms the GHCR image is anonymously pullable and that the `v0.1.2-alpha` Release is publicly visible:
+After publishing the draft, run the public launch check. It confirms the GHCR image is anonymously pullable and that the `v0.1.3-alpha` Release is publicly visible:
 
 ```bash
 LIFEOS_CHECK_GHCR=1 LIFEOS_CHECK_GITHUB_RELEASE=1 npm run check:cold-launch
@@ -256,8 +255,8 @@ GITHUB_TOKEN="github_pat_..." npm run github:public:fix
 
 2. Enable Discussions so user support does not all land in Issues.
 3. Mark `v0.1.0` as a prerelease so it no longer steals GitHub's Latest release label.
-4. Mark `v0.0.0` as deprecated and point users to `v0.1.2-alpha`.
-5. Refresh the `v0.1.2-alpha` Release body so the Release page itself explains downloads, install, verification, and unsigned alpha limits.
+4. Mark `v0.0.0` as deprecated and point users to `v0.1.3-alpha`.
+5. Refresh the `v0.1.3-alpha` Release body so the Release page itself explains downloads, install, verification, and unsigned alpha limits.
 
 If the token only has Contents permission, Release edits may work while repository description and Discussions fail. In that case, add `Administration: Read and write` to the fine-grained token, or update those settings in the GitHub web UI.
 
@@ -270,7 +269,7 @@ Before public promotion, the repository should satisfy:
 - Repository description is present.
 - Discussions are enabled.
 - Issues stay enabled, while `.github/ISSUE_TEMPLATE/config.yml` routes ordinary support questions to Discussions.
-- `v0.1.2-alpha` is the recommended public entry.
+- `v0.1.3-alpha` is the recommended public entry.
 - `v0.1.0` no longer appears as the stable Latest release.
 - `v0.0.0` is clearly marked deprecated, or the old Release is deleted.
 - The Release body clearly states the unsigned macOS ZIP, unsigned Windows installer, unsigned Linux AppImage, and disabled auto-update status.
@@ -284,13 +283,13 @@ Before public promotion, the repository should satisfy:
 5. Tag:
 
    ```text
-   v0.1.2-alpha
+   v0.1.3-alpha
    ```
 
 6. Title:
 
    ```text
-   LifeOS AI 0.1.2 Alpha
+   LifeOS AI 0.1.3 Alpha
    ```
 
 7. Upload the files listed in [release-assets.md](release-assets.md).
@@ -329,7 +328,7 @@ node_modules/
 3. Build with:
 
    ```bash
-   LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.1.2-alpha"
+   LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.1.3-alpha"
    ```
 
 4. Repackage and publish.
@@ -339,7 +338,7 @@ node_modules/
 ## Important Gaps Before Wider Public Distribution
 
 - Windows is not Authenticode signed yet, so SmartScreen may warn users.
-- Version is now `0.1.2-alpha.0`; consider `0.2.0-beta.1`, `1.0.0-beta.1`, or `1.0.0` once the project is ready for a broader stable launch.
+- Version is now `0.1.3-alpha.0`; consider `0.2.0-beta.1`, `1.0.0-beta.1`, or `1.0.0` once the project is ready for a broader stable launch.
 - Asset names contain spaces; command-line examples must quote file names.
 - macOS artifact is Apple Silicon arm64 only; Intel Macs need x64 or universal builds.
 - Never publish AI keys, Apple app-specific passwords, certificate passwords, or `.p12` files.

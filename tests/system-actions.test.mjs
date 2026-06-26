@@ -4,6 +4,7 @@ import {
   DEFAULT_ALLOWED_SCHEMES,
   buildActionLogSourceSummary,
   buildShortcutUrl,
+  getSystemActionCapabilitySummary,
   redactActionLabel,
   redactActionSource,
   redactActionTarget,
@@ -58,6 +59,26 @@ test("system action helpers classify risk and summarize params", () => {
   assert.equal(riskForScheme("tel"), "high");
   assert.equal(summarizeActionParams("shortcuts://run-shortcut?name=LifeOS&input=text&text=hello&token=secret&extra=ignored"), "name, input, text, token");
   assert.equal(summarizeActionParams("tel:+15551234567"), "-");
+});
+
+test("system action capability summary follows the URL scheme whitelist", () => {
+  const summary = getSystemActionCapabilitySummary(["https", "maps", "shortcuts"]);
+  const web = summary.find((item) => item.id === "web");
+  const navigation = summary.find((item) => item.id === "navigation");
+  const phone = summary.find((item) => item.id === "phone");
+  const shortcuts = summary.find((item) => item.id === "shortcuts");
+
+  assert.equal(web.enabled, true);
+  assert.equal(web.status, "browser");
+  assert.equal(web.highestRisk, "low");
+  assert.equal(navigation.enabled, true);
+  assert.deepEqual(navigation.enabledSchemes, ["maps"]);
+  assert.equal(navigation.highestRisk, "medium");
+  assert.equal(phone.enabled, false);
+  assert.equal(shortcuts.enabled, true);
+  assert.equal(shortcuts.status, "shortcut-bridge");
+  assert.equal(shortcuts.requiresConfirmation, true);
+  assert.equal(shortcuts.highestRisk, "high");
 });
 
 test("system action source summary redacts and aggregates risky origins", () => {

@@ -36,29 +36,29 @@ Current release promise: put Markdown notes in a folder, run LifeOS locally, and
 
 ## Release Status
 
-Public release tag: [`v0.1.2-alpha`](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha)<br>
-Source package version: `0.1.2-alpha.0`
+Public release tag: [`v0.1.3-alpha`](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.3-alpha)<br>
+Source package version: `0.1.3-alpha.0`
 
-This README is written for the public `v0.1.2-alpha` downloads. The `main` branch may contain later source-only changes; use those only if you are comfortable building from source.
+This README is written for the public `v0.1.3-alpha` downloads. The `main` branch may contain later source-only changes; use those only if you are comfortable building from source.
 
-Important: use the explicit [`v0.1.2-alpha` Release page](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha). If GitHub's generic **Latest release** label ever points to an older build, ignore it and use this versioned link.
+Important: use the explicit [`v0.1.3-alpha` Release page](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.3-alpha). If GitHub's generic **Latest release** label ever points to an older build, ignore it and use this versioned link.
 
 | Track | What to expect |
 | --- | --- |
-| `v0.1.2-alpha` public release | Docker Compose local Markdown demo, GHCR image path, macOS unsigned ZIP, Windows NSIS installer, Linux AppImage, admin auth, AI provider settings, mobile PWA pairing, offline queue, SQLite migrations, backup/restore, diagnostics, release checks, and connection diagnostics. |
-| Current `main` source | Developer path only: same release foundation, plus read-only local `.ics` calendar/task memory, structured memory signals, and Studio blueprint confirmation/permission/repair guidance. Not a separate packaged download. |
+| `v0.1.3-alpha` public release | Docker Compose local Markdown + read-only `.ics` memory demo, GHCR image path, macOS unsigned ZIP, Windows NSIS installer, Linux AppImage, admin auth, AI provider settings, mobile PWA pairing, offline queue with conflict-risk guidance, SQLite migrations, backup/restore, diagnostics, release checks, connection diagnostics, and Studio blueprint confirmation/template/permission/repair guidance. |
+| Current `main` source | Developer path only. It may contain later source changes after the tagged release; use it only if you are comfortable building from source. |
 | Earlier base | `0.1.1-alpha.0` added Docker quickstart/Ollama/Markdown vault defaults. `0.1.0` started the desktop/PWA foundation. |
 
 ## Choose Your Path
 
 | Path | Use this when | Current public status |
 | --- | --- | --- |
-| **Docker Compose alpha** | You want the fastest local demo with Ollama and Markdown notes. | Recommended first try. Uses `ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha`. |
-| **macOS desktop ZIP** | You want to try the early desktop shell on Apple Silicon. | Available in the [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha): `LifeOS.AI-0.1.2-alpha.0-arm64-unsigned.zip`. |
-| **Windows desktop installer** | You want a native Windows x64 installer. | Available in the [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha): `LifeOS.AI.Setup.0.1.2-alpha.0.exe`. |
-| **Linux AppImage** | You want a portable Linux x64 desktop package. | Available in the [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha): `LifeOS.AI-0.1.2-alpha.0.AppImage`. |
+| **Docker Compose alpha** | You want the fastest local demo with Ollama and Markdown notes. | Recommended first try. Uses `ghcr.io/wgj-fry/lifeos-ai:v0.1.3-alpha`. |
+| **macOS desktop ZIP** | You want to try the early desktop shell on Apple Silicon. | Available in the [`v0.1.3-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.3-alpha): `LifeOS.AI-0.1.3-alpha.0-arm64-unsigned.zip`. |
+| **Windows desktop installer** | You want a native Windows x64 installer. | Available in the [`v0.1.3-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.3-alpha): `LifeOS.AI.Setup.0.1.3-alpha.0.exe`. |
+| **Linux AppImage** | You want a portable Linux x64 desktop package. | Available in the [`v0.1.3-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.3-alpha): `LifeOS.AI-0.1.3-alpha.0.AppImage`. |
 
-If you are new, start with Docker Compose below. If you specifically want the desktop app, use the `v0.1.2-alpha` Release and verify downloads with `SHA256SUMS` before first launch. GitHub asset URLs use dot-separated filenames, while `SHA256SUMS` may list the original builder filenames with spaces; compare the SHA256 value if the local filename differs.
+If you are new, start with Docker Compose below. If you specifically want the desktop app, use the `v0.1.3-alpha` Release and verify downloads with `SHA256SUMS` before first launch. GitHub asset URLs use dot-separated filenames, while `SHA256SUMS` may list the original builder filenames with spaces; compare the SHA256 value if the local filename differs.
 
 ## Real Product Screens
 
@@ -327,10 +327,10 @@ npm run quality:gate
 Docker image:
 
 ```text
-ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha
+ghcr.io/wgj-fry/lifeos-ai:v0.1.3-alpha
 ```
 
-Note: the release tag is `v0.1.2-alpha`; the package version is `0.1.2-alpha.0`.
+Note: the release tag is `v0.1.3-alpha`; the package version is `0.1.3-alpha.0`.
 
 ## License
 

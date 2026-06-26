@@ -1,4 +1,4 @@
-import { ArrowRight, BadgeCheck, ClipboardList, ShieldAlert, Sparkles, WandSparkles, Wrench } from "lucide-react";
+import { ArrowRight, BadgeCheck, ClipboardList, GitBranch, Layers3, ShieldAlert, Sparkles, WandSparkles, Wrench } from "lucide-react";
 import type { ProblemBlueprint } from "../../../services/problemBlueprint";
 import type { StoredProblemBlueprint } from "../../../services/lifeosApi";
 import { useI18n } from "../../../i18n/I18nProvider";
@@ -109,6 +109,21 @@ export default function StudioProblemSolverCard({
             </div>
           </div>
 
+          <div className="rounded-2xl bg-cyan-500/[0.035] border border-cyan-500/15 p-4">
+            <h4 className="text-xs font-black text-cyan-100 flex items-center gap-2 mb-2">
+              <Layers3 className="w-4 h-4 text-cyan-300" />
+              {t("studio.problemSolver.template")}
+            </h4>
+            <p className="text-xs font-black text-cyan-50">{blueprint.templateName}</p>
+            <ul className="mt-2 space-y-1.5">
+              {blueprint.templateFit.map((item) => (
+                <li key={item} className="text-xs text-cyan-50/75 leading-relaxed font-medium">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+
           <div className="rounded-2xl bg-emerald-500/[0.035] border border-emerald-500/15 p-4">
             <h4 className="text-xs font-black text-emerald-100 flex items-center gap-2 mb-2">
               <BadgeCheck className="w-4 h-4 text-emerald-300" />
@@ -121,6 +136,18 @@ export default function StudioProblemSolverCard({
                 </li>
               ))}
             </ul>
+          </div>
+
+          <div className="rounded-2xl bg-white/[0.025] border border-white/[0.06] p-4">
+            <h4 className="text-xs font-black text-zinc-200 flex items-center gap-2 mb-2">
+              <GitBranch className="w-4 h-4 text-emerald-300" />
+              {t("studio.problemSolver.versioning")}
+            </h4>
+            {blueprint.versioningPlan.map((item) => (
+              <p key={item} className="text-xs text-zinc-400 leading-relaxed font-medium">
+                {item}
+              </p>
+            ))}
           </div>
 
           <div className="rounded-2xl bg-amber-500/[0.04] border border-amber-500/15 p-4">
@@ -150,6 +177,15 @@ export default function StudioProblemSolverCard({
                 {item}
               </p>
             ))}
+            {blueprint.repairPrompts.length ? (
+              <div className="mt-3 space-y-1.5 border-t border-white/[0.06] pt-3">
+                {blueprint.repairPrompts.map((item) => (
+                  <p key={item} className="text-xs text-zinc-300 leading-relaxed font-medium">
+                    {item}
+                  </p>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           <button

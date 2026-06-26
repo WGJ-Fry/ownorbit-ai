@@ -3,7 +3,14 @@ import fs from "node:fs";
 const owner = "WGJ-Fry";
 const repo = "lifeos-ai";
 const baseUrl = `https://api.github.com/repos/${owner}/${repo}`;
-const currentTag = "v0.1.2-alpha";
+const packageJson = JSON.parse(fs.readFileSync("package.json", "utf8"));
+const currentPublicVersion = packageJson.version.includes("-") && packageJson.version.endsWith(".0")
+  ? packageJson.version.slice(0, -2)
+  : packageJson.version;
+const currentTag = `v${currentPublicVersion}`;
+const publicMacZipName = `LifeOS.AI-${packageJson.version}-arm64-unsigned.zip`;
+const publicWinInstallerName = `LifeOS.AI.Setup.${packageJson.version}.exe`;
+const publicLinuxAppImageName = `LifeOS.AI-${packageJson.version}.AppImage`;
 const oldStableTag = "v0.1.0";
 const deprecatedTag = "v0.0.0";
 const desiredDescription =
@@ -69,7 +76,7 @@ async function safePatch(label, url, body) {
 }
 
 function releaseBody() {
-  return `## LifeOS AI v0.1.2-alpha
+  return `## LifeOS AI ${currentTag}
 
 LifeOS AI turns your desktop into a private AI core and your phone into a paired personal AI companion.
 
@@ -82,13 +89,13 @@ LifeOS AI turns your desktop into a private AI core and your phone into a paired
 - Desktop admin setup, AI provider settings, backup/restore, diagnostics, and device pairing.
 - Mobile PWA chat, offline queue, device status, and action permissions.
 - LAN, Tailscale, and Cloudflare Tunnel connection diagnostics with public-exposure warnings.
-- Studio generated problem-solving programs with runtime logs, state storage, debug instructions, and rollback.
+- Studio generated problem-solving programs with template matching, runtime logs, state storage, debug instructions, repair guidance, and rollback.
 
 ### Downloads
 
-- macOS Apple Silicon unsigned ZIP: \`LifeOS.AI-0.1.2-alpha.0-arm64-unsigned.zip\`
-- Windows x64 NSIS installer: \`LifeOS.AI.Setup.0.1.2-alpha.0.exe\`
-- Linux x64 AppImage: \`LifeOS.AI-0.1.2-alpha.0.AppImage\`
+- macOS Apple Silicon unsigned ZIP: \`${publicMacZipName}\`
+- Windows x64 NSIS installer: \`${publicWinInstallerName}\`
+- Linux x64 AppImage: \`${publicLinuxAppImageName}\`
 - Checksum: \`SHA256SUMS\`
 - Install guide: \`USER-INSTALL.md\`
 - macOS unsigned fallback guide: \`INSTALL-unsigned-mac.md\`
@@ -99,16 +106,15 @@ macOS: download the unsigned ZIP, unzip it, drag \`LifeOS AI.app\` to Applicatio
 
 Windows: download the NSIS \`.exe\` and follow the SmartScreen guidance in \`USER-INSTALL.md\`.
 
-Linux: download the AppImage, run \`chmod +x "LifeOS.AI-0.1.2-alpha.0.AppImage"\`, then launch it.
+Linux: download the AppImage, run \`chmod +x "${publicLinuxAppImageName}"\`, then launch it.
 
 ### Verification
 
 GitHub asset URLs use dot-separated filenames. The uploaded \`SHA256SUMS\` file may list the original electron-builder filenames with spaces; compare the hash value if your downloaded filename differs.
 
 \`\`\`text
-af53111d6689f0cc2ad67b118f3d7bb274fc9742141cc760fdf9f3d9f82c909e  LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip
-b1502f090764909ea8be708474e7f5800d202ced2c48cfcded0a13c4c4f03f57  LifeOS AI Setup 0.1.2-alpha.0.exe
-bd83e1c702f24586a81925a6db34deb74b2f68175416c85235e8750b6bf7c5fc  LifeOS AI-0.1.2-alpha.0.AppImage
+Use the SHA256SUMS generated for the current ${currentTag} Release draft.
+Do not reuse hashes from v0.1.2-alpha or earlier releases.
 \`\`\`
 
 ### Notes
@@ -135,9 +141,9 @@ function deprecatedBody(existingBody = "") {
   const warning = `> [!WARNING]
 > Deprecated / 已废弃
 >
-> This early release is kept only for historical reference. New users should use [LifeOS AI v0.1.2-alpha](https://github.com/${owner}/${repo}/releases/tag/${currentTag}).
+> This early release is kept only for historical reference. New users should use [LifeOS AI ${currentTag}](https://github.com/${owner}/${repo}/releases/tag/${currentTag}).
 >
-> 这个早期版本仅保留作历史记录。新用户请使用 [LifeOS AI v0.1.2-alpha](https://github.com/${owner}/${repo}/releases/tag/${currentTag})。
+> 这个早期版本仅保留作历史记录。新用户请使用 [LifeOS AI ${currentTag}](https://github.com/${owner}/${repo}/releases/tag/${currentTag})。
 `;
   if (existingBody.includes("Deprecated / 已废弃")) return existingBody;
   return `${warning}\n---\n\n${existingBody}`.trim();
@@ -182,9 +188,9 @@ async function main() {
     record(!currentRelease.draft, `${currentTag} is published`, "Release must not be draft.");
     record(currentRelease.prerelease === true, `${currentTag} is marked as prerelease alpha`);
     for (const asset of [
-      "LifeOS.AI-0.1.2-alpha.0-arm64-unsigned.zip",
-      "LifeOS.AI.Setup.0.1.2-alpha.0.exe",
-      "LifeOS.AI-0.1.2-alpha.0.AppImage",
+      publicMacZipName,
+      publicWinInstallerName,
+      publicLinuxAppImageName,
       "SHA256SUMS",
       "USER-INSTALL.md",
       "INSTALL-unsigned-mac.md",
@@ -200,7 +206,7 @@ async function main() {
     } else {
       record(false, `${currentTag} release body needs launch wording`);
       await safePatch(`${currentTag} release body`, currentRelease.url, {
-        name: "LifeOS AI v0.1.2-alpha - Desktop core + mobile personal AI assistant",
+        name: `LifeOS AI ${currentTag} - Desktop core + mobile personal AI assistant`,
         body: releaseBody(),
         prerelease: true,
       });

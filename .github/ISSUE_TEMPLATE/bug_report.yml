@@ -26,7 +26,7 @@ body:
     id: version
     attributes:
       label: Version / 版本
-      placeholder: "0.1.2-alpha.0 / v0.1.2-alpha"
+      placeholder: "0.1.3-alpha.0 / v0.1.3-alpha"
     validations:
       required: true
   - type: textarea

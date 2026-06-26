@@ -41,10 +41,10 @@ Current verified path:
 - `electron-builder` is upgraded to `26.15.2`.
 - `npm audit` reports `0 vulnerabilities`.
 - `npm run electron:install` verifies or installs `node_modules/electron/dist`.
-- when signing variables are configured, `desktop:dist:mac` can produce `release/LifeOS AI-0.1.2-alpha.0-arm64.dmg`.
+- when signing variables are configured, `desktop:dist:mac` can produce `release/LifeOS AI-0.1.3-alpha.0-arm64.dmg`.
 - the signed macOS target is intended to be Developer ID signed, Apple notarized, and stapled; unsigned local builds still need the Gatekeeper fallback path.
-- Windows x64 NSIS succeeds and creates `release/LifeOS AI Setup 0.1.2-alpha.0.exe`.
-- Linux x64 AppImage succeeds and creates `release/LifeOS AI-0.1.2-alpha.0.AppImage`.
+- Windows x64 NSIS succeeds and creates `release/LifeOS AI Setup 0.1.3-alpha.0.exe`.
+- Linux x64 AppImage succeeds and creates `release/LifeOS AI-0.1.3-alpha.0.AppImage`.
 - `package.json` sets `build.electronDist=node_modules/electron/dist` for macOS local builds. Windows/Linux scripts override it with `-c.electronDist=` so electron-builder downloads the correct target runtime.
 - `npm run release:check` provides an automated pre-release gate. Use `LIFEOS_RELEASE_STRICT=1 npm run release:check` when warnings should fail CI.
 - `npm run desktop:release:smoke` provides a current-platform packaging smoke. The GitHub Actions workflow `.github/workflows/desktop-release-smoke.yml` runs it on macOS, Windows, and Linux with `LIFEOS_RELEASE_SMOKE_FAST=1`. The release check verifies that this workflow and script still cover macOS zip, Windows NSIS, Linux AppImage, and update-feed regeneration.
@@ -166,7 +166,7 @@ Feed file mapping:
 For GitHub Releases, the practical value is usually:
 
 ```bash
-LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.1.2-alpha"
+LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.1.3-alpha"
 ```
 
 For a private update host, use the HTTPS folder that contains `latest-mac.yml`, `latest.yml`, or `latest-linux.yml` next to the installer artifact. Keep `release-manifest.json` in the same folder so release checks and support diagnostics can verify exactly which files were published.

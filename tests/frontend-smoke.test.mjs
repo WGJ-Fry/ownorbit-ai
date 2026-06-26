@@ -303,11 +303,17 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(problemBlueprintSource, /confirmationChecklist/);
   assert.match(problemBlueprintSource, /permissionNotes/);
   assert.match(problemBlueprintSource, /failureRecovery/);
+  assert.match(problemBlueprintSource, /templateFit/);
+  assert.match(problemBlueprintSource, /versioningPlan/);
+  assert.match(problemBlueprintSource, /repairPrompts/);
   assert.match(studioWorkshopSource, /StudioProblemSolverCard/);
   const studioProblemSolverCardSource = await readFile(path.join(rootDir, "src", "components", "apps", "studio", "StudioProblemSolverCard.tsx"), "utf8");
   assert.match(studioProblemSolverCardSource, /blueprint\.confirmationChecklist/);
   assert.match(studioProblemSolverCardSource, /blueprint\.permissionNotes/);
   assert.match(studioProblemSolverCardSource, /blueprint\.failureRecovery/);
+  assert.match(studioProblemSolverCardSource, /blueprint\.templateFit/);
+  assert.match(studioProblemSolverCardSource, /blueprint\.versioningPlan/);
+  assert.match(studioProblemSolverCardSource, /blueprint\.repairPrompts/);
   assert.match(problemStudioAppSource, /deriveProblemBlueprint\(problemInput\)/);
   assert.match(problemStudioAppSource, /useStudioProblemBlueprintHistory/);
   assert.match(studioProblemBlueprintHookSource, /listProblemBlueprints\(12\)/);

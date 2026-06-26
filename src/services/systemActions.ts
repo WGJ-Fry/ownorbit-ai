@@ -1,8 +1,23 @@
 export type ActionRisk = "low" | "medium" | "high";
+export type SystemActionCapabilityStatus = "browser" | "url-scheme" | "shortcut-bridge";
+export type SystemActionCapability = {
+  id: "web" | "navigation" | "phone" | "sms" | "email" | "shortcuts";
+  schemes: string[];
+  status: SystemActionCapabilityStatus;
+  requiresConfirmation: boolean;
+};
 
 export const DEFAULT_ALLOWED_SCHEMES = ["http", "https", "tel", "sms", "mailto", "geo", "maps", "shortcuts", "iosamap", "androidamap", "comgooglemaps"];
 export const BLOCKED_URL_SCHEMES = new Set(["javascript", "data", "file", "blob", "filesystem", "view-source"]);
 export const DANGEROUS_SCHEMES = new Set(["tel", "sms", "shortcuts"]);
+export const SYSTEM_ACTION_CAPABILITIES: SystemActionCapability[] = [
+  { id: "web", schemes: ["http", "https"], status: "browser", requiresConfirmation: false },
+  { id: "navigation", schemes: ["geo", "maps", "iosamap", "androidamap", "comgooglemaps"], status: "url-scheme", requiresConfirmation: true },
+  { id: "phone", schemes: ["tel"], status: "url-scheme", requiresConfirmation: true },
+  { id: "sms", schemes: ["sms"], status: "url-scheme", requiresConfirmation: true },
+  { id: "email", schemes: ["mailto"], status: "url-scheme", requiresConfirmation: false },
+  { id: "shortcuts", schemes: ["shortcuts"], status: "shortcut-bridge", requiresConfirmation: true },
+];
 
 export function getUrlScheme(url: string) {
   const match = url.trim().match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);
@@ -27,6 +42,25 @@ export function riskForScheme(scheme: string): ActionRisk {
   if (DANGEROUS_SCHEMES.has(scheme)) return "high";
   if (!["http", "https"].includes(scheme)) return "medium";
   return "low";
+}
+
+export function getSystemActionCapabilitySummary(allowedSchemes: string[]) {
+  const allowed = new Set(allowedSchemes.map((scheme) => scheme.toLowerCase()));
+  return SYSTEM_ACTION_CAPABILITIES.map((capability) => {
+    const enabledSchemes = capability.schemes.filter((scheme) => allowed.has(scheme));
+    const highestRisk = enabledSchemes.reduce<ActionRisk>((risk, scheme) => {
+      const next = riskForScheme(scheme);
+      if (next === "high") return "high";
+      if (next === "medium" && risk === "low") return "medium";
+      return risk;
+    }, "low");
+    return {
+      ...capability,
+      enabled: enabledSchemes.length > 0,
+      enabledSchemes,
+      highestRisk,
+    };
+  });
 }
 
 export function summarizeActionParams(url: string) {

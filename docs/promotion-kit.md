@@ -53,13 +53,13 @@ generated-apps
 ## Release 标题
 
 ```text
-LifeOS AI v0.1.2-alpha - Desktop core + mobile personal AI assistant
+LifeOS AI v0.1.3-alpha - Desktop core + mobile personal AI assistant
 ```
 
 ## Release 描述
 
 ```markdown
-LifeOS AI v0.1.2-alpha is the first public desktop alpha with Docker quickstart plus macOS, Windows, and Linux desktop packages.
+LifeOS AI v0.1.3-alpha is the first public desktop alpha with Docker quickstart plus macOS, Windows, and Linux desktop packages.
 
 LifeOS AI turns your desktop into a private AI core and your phone into an always-available personal AI assistant. The desktop app manages AI providers, local SQLite data, device pairing, VPN/tunnel access, generated solution apps, backups, diagnostics, and safer local actions. The phone connects as a paired PWA for chat, offline queue, device status, and action permissions.
 
@@ -281,6 +281,6 @@ LifeOS AI turns your desktop into a private AI core for providers, local SQLite 
 ## Links
 
 - Repository: `https://github.com/WGJ-Fry/lifeos-ai`
-- Cold launch release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha`
-- Desktop package release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha`
+- Cold launch release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.3-alpha`
+- Desktop package release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.3-alpha`
 - Install guide: `docs/user-install-guide.md`

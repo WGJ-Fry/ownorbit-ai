@@ -35,6 +35,15 @@ export function buildOfflineQueueHealth(
     };
   }
 
+  if ((summary.conflicts || 0) > 0) {
+    return {
+      tone: "warning",
+      titleKey: "offlineQueue.healthConflictTitle",
+      bodyKey: "offlineQueue.healthConflictBody",
+      actionKey: "offlineQueue.healthConflictAction",
+    };
+  }
+
   if (summary.failed > 0) {
     return {
       tone: "danger",

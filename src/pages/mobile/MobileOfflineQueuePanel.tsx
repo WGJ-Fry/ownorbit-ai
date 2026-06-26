@@ -69,11 +69,12 @@ export default function MobileOfflineQueuePanel({
           <p className="mt-1 text-sm leading-relaxed text-zinc-400">{t(network.labelKey as any)}</p>
         </div>
       </div>
-      <div className="grid grid-cols-4 gap-2 text-center text-xs">
+      <div className="grid grid-cols-5 gap-2 text-center text-xs">
         <Metric label={t("mobileDevice.total")} value={queueSummary.count} tone="text-zinc-100" />
         <Metric label={t("mobileDevice.pending")} value={queueSummary.pending} tone="text-cyan-200" />
         <Metric label={t("mobileDevice.syncing")} value={queueSummary.syncing} tone="text-amber-200" />
         <Metric label={t("mobileDevice.failed")} value={queueSummary.failed} tone="text-red-200" />
+        <Metric label={t("mobileDevice.conflicts")} value={queueSummary.conflicts} tone="text-orange-200" />
       </div>
       <MobileOfflineQueueHealthCard health={queueHealth} />
       {queueSummary.oldestQueuedAt ? (

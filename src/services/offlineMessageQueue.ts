@@ -55,6 +55,7 @@ export type OfflineMessageQueueSummary = {
   pending: number;
   syncing: number;
   failed: number;
+  conflicts: number;
   lastError?: string;
   nextRetryAt?: number;
   oldestQueuedAt?: number;
@@ -477,6 +478,11 @@ export function getOfflineMessageQueueSummary() {
   const failed = queue.filter((item) => item.status === "failed").length;
   const syncing = queue.filter((item) => item.status === "syncing").length;
   const pending = queue.length - failed - syncing;
+  const fingerprintCounts = new Map<string, number>();
+  for (const item of queue) {
+    fingerprintCounts.set(item.fingerprint, (fingerprintCounts.get(item.fingerprint) || 0) + 1);
+  }
+  const conflicts = [...fingerprintCounts.values()].reduce((count, value) => count + Math.max(0, value - 1), 0);
   const lastError = [...queue].reverse().find((item) => item.lastError)?.lastError;
   const queuedTimes = queue.map((item) => item.queuedAt).filter(Number.isFinite).sort((a, b) => a - b);
   const nextRetryAt = queue
@@ -488,6 +494,7 @@ export function getOfflineMessageQueueSummary() {
     pending,
     syncing,
     failed,
+    conflicts,
     lastError,
     nextRetryAt,
     oldestQueuedAt: queuedTimes[0],

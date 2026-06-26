@@ -36,29 +36,29 @@ LifeOS 先从一个很小但有用的工作流开始：
 
 ## 发布状态
 
-公开 Release tag：[`v0.1.2-alpha`](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha)<br>
-源码 package version：`0.1.2-alpha.0`
+公开 Release tag：[`v0.1.3-alpha`](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.3-alpha)<br>
+源码 package version：`0.1.3-alpha.0`
 
-这份 README 面向 `v0.1.2-alpha` 公开下载包。`main` 分支可能包含后续源码改动；只有你愿意从源码构建时，才需要关注它。
+这份 README 面向 `v0.1.3-alpha` 公开下载包。`main` 分支可能包含后续源码改动；只有你愿意从源码构建时，才需要关注它。
 
-重要：请使用明确的 [`v0.1.2-alpha` Release 页面](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha)。如果 GitHub 通用的 **Latest release** 标签仍指向旧版本，请忽略它，使用这个带版本号的链接。
+重要：请使用明确的 [`v0.1.3-alpha` Release 页面](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.3-alpha)。如果 GitHub 通用的 **Latest release** 标签仍指向旧版本，请忽略它，使用这个带版本号的链接。
 
 | 轨道 | 可以期待什么 |
 | --- | --- |
-| `v0.1.2-alpha` 公开发布版 | Docker Compose 本地 Markdown 演示、GHCR 镜像路径、macOS unsigned ZIP、Windows NSIS 安装包、Linux AppImage、管理员认证、AI provider 设置、手机 PWA 绑定、离线队列、SQLite migration、备份恢复、诊断包、发布检查和连接诊断。 |
-| 当前 `main` 源码 | 仅面向开发者：包含公开发布版底座，并增加本地 `.ics` 日历/任务只读记忆、结构化记忆信号、Studio 蓝图确认/权限/修复说明。它不是单独的打包下载。 |
+| `v0.1.3-alpha` 公开发布版 | Docker Compose 本地 Markdown + 只读 `.ics` 记忆演示、GHCR 镜像路径、macOS unsigned ZIP、Windows NSIS 安装包、Linux AppImage、管理员认证、AI provider 设置、手机 PWA 绑定、带冲突风险提示的离线队列、SQLite migration、备份恢复、诊断包、发布检查、连接诊断，以及 Studio 蓝图确认/模板/权限/修复提示。 |
+| 当前 `main` 源码 | 仅面向开发者。它可能包含 tag 发布之后的源码变化；只有你愿意从源码构建时才需要关注。 |
 | 更早基础版本 | `0.1.1-alpha.0` 增加 Docker quickstart/Ollama/Markdown vault 默认路径。`0.1.0` 建立桌面/PWA 底座。 |
 
 ## 选择你的体验路径
 
 | 路径 | 适合你在什么时候用 | 当前公开状态 |
 | --- | --- | --- |
-| **Docker Compose alpha** | 想最快体验 Ollama + Markdown 本地记忆演示。 | 推荐第一次体验使用。镜像是 `ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha`。 |
-| **macOS 桌面 ZIP** | 想在 Apple Silicon Mac 上试用早期桌面端壳。 | 已在 [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha) 提供：`LifeOS.AI-0.1.2-alpha.0-arm64-unsigned.zip`。 |
-| **Windows 桌面安装包** | 想要 Windows x64 原生安装器。 | 已在 [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha) 提供：`LifeOS.AI.Setup.0.1.2-alpha.0.exe`。 |
-| **Linux AppImage** | 想要 Linux x64 便携桌面包。 | 已在 [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha) 提供：`LifeOS.AI-0.1.2-alpha.0.AppImage`。 |
+| **Docker Compose alpha** | 想最快体验 Ollama + Markdown 本地记忆演示。 | 推荐第一次体验使用。镜像是 `ghcr.io/wgj-fry/lifeos-ai:v0.1.3-alpha`。 |
+| **macOS 桌面 ZIP** | 想在 Apple Silicon Mac 上试用早期桌面端壳。 | 已在 [`v0.1.3-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.3-alpha) 提供：`LifeOS.AI-0.1.3-alpha.0-arm64-unsigned.zip`。 |
+| **Windows 桌面安装包** | 想要 Windows x64 原生安装器。 | 已在 [`v0.1.3-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.3-alpha) 提供：`LifeOS.AI.Setup.0.1.3-alpha.0.exe`。 |
+| **Linux AppImage** | 想要 Linux x64 便携桌面包。 | 已在 [`v0.1.3-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.3-alpha) 提供：`LifeOS.AI-0.1.3-alpha.0.AppImage`。 |
 
-如果你是第一次看这个项目，建议从下面的 Docker Compose 开始。如果你明确想试桌面 App，请使用 `v0.1.2-alpha` Release，并在首次启动前用 `SHA256SUMS` 校验下载文件。GitHub 下载资产名使用点号，`SHA256SUMS` 里可能保留构建器生成的空格文件名；如果本地文件名不同，直接比对 SHA256 值即可。
+如果你是第一次看这个项目，建议从下面的 Docker Compose 开始。如果你明确想试桌面 App，请使用 `v0.1.3-alpha` Release，并在首次启动前用 `SHA256SUMS` 校验下载文件。GitHub 下载资产名使用点号，`SHA256SUMS` 里可能保留构建器生成的空格文件名；如果本地文件名不同，直接比对 SHA256 值即可。
 
 ## 真实产品界面
 
@@ -327,10 +327,10 @@ npm run quality:gate
 Docker 镜像：
 
 ```text
-ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha
+ghcr.io/wgj-fry/lifeos-ai:v0.1.3-alpha
 ```
 
-说明：release tag 是 `v0.1.2-alpha`；package version 是 `0.1.2-alpha.0`。
+说明：release tag 是 `v0.1.3-alpha`；package version 是 `0.1.3-alpha.0`。
 
 ## License
 

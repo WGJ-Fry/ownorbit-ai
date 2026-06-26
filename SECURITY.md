@@ -10,7 +10,7 @@
 
 | 版本 | 安全支持 |
 | --- | --- |
-| `v0.1.2-alpha` / `0.1.2-alpha.0` | 当前 alpha，接收安全修复 |
+| `v0.1.3-alpha` / `0.1.3-alpha.0` | 当前 alpha，接收安全修复 |
 | `v0.1.0` | 仅保留历史下载说明，建议升级 |
 
 ## 重要安全建议
@@ -57,7 +57,7 @@ This is an early personal/small-distribution release. It includes admin auth, CS
 
 | Version | Security Support |
 | --- | --- |
-| `v0.1.2-alpha` / `0.1.2-alpha.0` | Current alpha, security fixes accepted |
+| `v0.1.3-alpha` / `0.1.3-alpha.0` | Current alpha, security fixes accepted |
 | `v0.1.0` | Historical download notes only; upgrade recommended |
 
 ## Security Recommendations

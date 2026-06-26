@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.3-alpha.0
+
+Public alpha aligned to the latest main branch and prepared for a fresh `v0.1.3-alpha` Release.
+
+- Bumped the public Docker alpha path to `v0.1.3-alpha`.
+- Added Studio generated-program template matching, version/rollback planning, and category-specific repair prompts.
+- Added offline queue duplicate/conflict-risk detection, visible mobile health guidance, and conflict counts in queue backups.
+- Added a local-action capability matrix so URL Scheme, browser, and iOS Shortcuts bridge boundaries are visible before use.
+- Kept desktop distribution unsigned by policy for this alpha and documented manual download plus SHA256 verification.
+- Clarified that automatic updates, formal signing/notarization, Apple/Google/system reminder write-back, and full native automation remain future work.
+
 ## 0.1.2-alpha.0
 
 Current cold-launch alpha aligned to the latest main branch safety and onboarding work.

@@ -1,6 +1,6 @@
 # LifeOS v0.1.2-alpha
 
-LifeOS v0.1.2-alpha is the current public cold-launch alpha.
+LifeOS v0.1.2-alpha is a previous public cold-launch alpha. It is superseded by [`v0.1.3-alpha`](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.3-alpha).
 
 It keeps the one-minute Docker Compose path focused:
 

@@ -151,8 +151,8 @@ Users unzip the app, move it to Applications, and open it manually. Share `relea
 Preferred GitHub Release path:
 
 ```bash
-git tag v0.1.2-alpha
-git push origin v0.1.2-alpha
+git tag v0.1.3-alpha
+git push origin v0.1.3-alpha
 ```
 
 Wait for `Desktop Package Artifacts`, open the generated GitHub Release draft, download the assets once for a clean install test, then publish the draft.
@@ -209,7 +209,7 @@ For signed DMG/NSIS/AppImage publishing, use the relevant `desktop:dist:*` comma
 Upload the complete contents of `release/update-feed/` to the HTTPS directory used by `LIFEOS_UPDATE_URL`; keep each artifact, its matching `latest*.yml`, and `release-manifest.json` together. For GitHub Releases, use the release download directory, for example:
 
 ```bash
-LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.1.2-alpha"
+LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.1.3-alpha"
 ```
 
 Without this value, the packaged desktop app starts normally and skips update checks.

@@ -4,22 +4,22 @@
 
 ## 当前版本
 
-版本：`0.1.2-alpha.0`
+版本：`0.1.3-alpha.0`
 
 推荐 GitHub Release tag：
 
 ```text
-v0.1.2-alpha
+v0.1.3-alpha
 ```
 
-## 当前已上传的公开文件
+## 发布草稿必须包含的公开文件
 
-`v0.1.2-alpha` 当前 GitHub Release 已上传：
+`v0.1.3-alpha` GitHub Release 草稿必须上传下面这些文件。发布前请先确认 GitHub Actions 产物或本地重新打包产物真实存在：
 
 ```text
-LifeOS.AI-0.1.2-alpha.0-arm64-unsigned.zip
-LifeOS.AI.Setup.0.1.2-alpha.0.exe
-LifeOS.AI-0.1.2-alpha.0.AppImage
+LifeOS.AI-0.1.3-alpha.0-arm64-unsigned.zip
+LifeOS.AI.Setup.0.1.3-alpha.0.exe
+LifeOS.AI-0.1.3-alpha.0.AppImage
 SHA256SUMS
 INSTALL-unsigned-mac.md
 USER-INSTALL.md
@@ -29,13 +29,21 @@ latest-linux.yml
 release-manifest.json
 ```
 
+`SHA256SUMS` 或本地 electron-builder 输出可能使用空格文件名。它们对应同一批资产：
+
+```text
+LifeOS AI-0.1.3-alpha.0-arm64-unsigned.zip
+LifeOS AI Setup 0.1.3-alpha.0.exe
+LifeOS AI-0.1.3-alpha.0.AppImage
+```
+
 ## 仍待正式签名后再上传
 
 下面这些是正式分发目标，不是当前公开 alpha 资产。只有在签名、公证或签名策略确认后再作为正式下载入口：
 
 ```text
-LifeOS AI-0.1.2-alpha.0-arm64.dmg
-signed LifeOS.AI.Setup.0.1.2-alpha.0.exe
+LifeOS AI-0.1.3-alpha.0-arm64.dmg
+signed LifeOS.AI.Setup.0.1.3-alpha.0.exe
 ```
 
 如果未来启用自动更新，安装包会读取这些 feed 文件。当前没有配置 `LIFEOS_UPDATE_URL`，所以 update feed 主要用于诊断和后续准备。
@@ -45,9 +53,8 @@ signed LifeOS.AI.Setup.0.1.2-alpha.0.exe
 GitHub 下载资产名使用点号；上传的 `SHA256SUMS` 可能保留 electron-builder 生成的空格文件名。如果本地文件名不同，直接比对 SHA256 值即可。
 
 ```text
-af53111d6689f0cc2ad67b118f3d7bb274fc9742141cc760fdf9f3d9f82c909e  LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip
-b1502f090764909ea8be708474e7f5800d202ced2c48cfcded0a13c4c4f03f57  LifeOS AI Setup 0.1.2-alpha.0.exe
-bd83e1c702f24586a81925a6db34deb74b2f68175416c85235e8750b6bf7c5fc  LifeOS AI-0.1.2-alpha.0.AppImage
+请以 `v0.1.3-alpha` Release 草稿里的 `SHA256SUMS` 为准。
+不要复用 `v0.1.2-alpha` 或更早版本的 SHA256。
 ```
 
 ## 平台说明
@@ -77,7 +84,7 @@ release/*-unpacked/
 2. 下载 macOS ZIP 后可以解压出 `LifeOS AI.app`。
 3. `SHA256SUMS` 与下载文件校验一致。
 4. `release-manifest.json` 里的文件名、大小和 sha256 与 Release 资产一致。
-5. Windows/Linux 下载说明指向真实存在的 `v0.1.2-alpha` 资产。
+5. Windows/Linux 下载说明指向真实存在的 `v0.1.3-alpha` 资产。
 
 ---
 
@@ -85,22 +92,22 @@ release/*-unpacked/
 
 ## Current Version
 
-Version: `0.1.2-alpha.0`
+Version: `0.1.3-alpha.0`
 
 Recommended GitHub Release tag:
 
 ```text
-v0.1.2-alpha
+v0.1.3-alpha
 ```
 
-## Currently Uploaded Public Assets
+## Public Assets Required In The Release Draft
 
-The current `v0.1.2-alpha` GitHub Release uploads:
+The `v0.1.3-alpha` GitHub Release draft must upload the following files. Before publishing, confirm the GitHub Actions artifacts or locally rebuilt artifacts actually exist:
 
 ```text
-LifeOS.AI-0.1.2-alpha.0-arm64-unsigned.zip
-LifeOS.AI.Setup.0.1.2-alpha.0.exe
-LifeOS.AI-0.1.2-alpha.0.AppImage
+LifeOS.AI-0.1.3-alpha.0-arm64-unsigned.zip
+LifeOS.AI.Setup.0.1.3-alpha.0.exe
+LifeOS.AI-0.1.3-alpha.0.AppImage
 SHA256SUMS
 INSTALL-unsigned-mac.md
 USER-INSTALL.md
@@ -110,13 +117,21 @@ latest-linux.yml
 release-manifest.json
 ```
 
+`SHA256SUMS` or local electron-builder output may use filenames with spaces. They refer to the same assets:
+
+```text
+LifeOS AI-0.1.3-alpha.0-arm64-unsigned.zip
+LifeOS AI Setup 0.1.3-alpha.0.exe
+LifeOS AI-0.1.3-alpha.0.AppImage
+```
+
 ## Upload Later After Formal Signing
 
 These are formal distribution targets, not the current public alpha assets. Upload them only after signing, notarization, or signing-policy review:
 
 ```text
-LifeOS AI-0.1.2-alpha.0-arm64.dmg
-signed LifeOS.AI.Setup.0.1.2-alpha.0.exe
+LifeOS AI-0.1.3-alpha.0-arm64.dmg
+signed LifeOS.AI.Setup.0.1.3-alpha.0.exe
 ```
 
 These feed files are required for future auto-update support. Because `LIFEOS_UPDATE_URL` is not configured yet, the current feed files are mostly for diagnostics and future preparation.
@@ -126,9 +141,8 @@ These feed files are required for future auto-update support. Because `LIFEOS_UP
 GitHub asset URLs use dot-separated filenames. The uploaded `SHA256SUMS` file may keep the original electron-builder filenames with spaces; compare the SHA256 value if your local filename differs.
 
 ```text
-af53111d6689f0cc2ad67b118f3d7bb274fc9742141cc760fdf9f3d9f82c909e  LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip
-b1502f090764909ea8be708474e7f5800d202ced2c48cfcded0a13c4c4f03f57  LifeOS AI Setup 0.1.2-alpha.0.exe
-bd83e1c702f24586a81925a6db34deb74b2f68175416c85235e8750b6bf7c5fc  LifeOS AI-0.1.2-alpha.0.AppImage
+Use the `SHA256SUMS` file attached to the `v0.1.3-alpha` Release draft.
+Do not reuse `v0.1.2-alpha` or older SHA256 values.
 ```
 
 ## Platform Notes
@@ -158,4 +172,4 @@ release/*-unpacked/
 2. The macOS ZIP downloads and extracts to `LifeOS AI.app`.
 3. `SHA256SUMS` verifies the downloaded file.
 4. `release-manifest.json` file names, sizes, and sha256 values match the uploaded assets.
-5. Windows/Linux download instructions point to real `v0.1.2-alpha` assets.
+5. Windows/Linux download instructions point to real `v0.1.3-alpha` assets.

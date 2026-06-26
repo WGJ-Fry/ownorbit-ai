@@ -5,6 +5,7 @@ import {
   DANGEROUS_SCHEMES,
   buildActionLogSourceSummary,
   buildShortcutUrl,
+  getSystemActionCapabilitySummary,
   getUrlScheme,
   normalizeAllowedUrlSchemes,
   redactActionUrl,
@@ -44,6 +45,14 @@ function actionStatusLabel(status: SystemActionLog["status"], t: (key: Translati
 
 function actionStatusClass(status: SystemActionLog["status"]) {
   return status === "opened" ? "bg-emerald-500/15 text-emerald-200" : status === "blocked" ? "bg-red-500/15 text-red-200" : "bg-zinc-500/15 text-zinc-300";
+}
+
+function capabilityLabelKey(id: ReturnType<typeof getSystemActionCapabilitySummary>[number]["id"]) {
+  return `actions.capability.${id}` as TranslationKey;
+}
+
+function capabilityStatusKey(status: ReturnType<typeof getSystemActionCapabilitySummary>[number]["status"]) {
+  return `actions.capabilityStatus.${status}` as TranslationKey;
 }
 
 function openUrl(url: string, allowedSchemes: string[], options?: {
@@ -105,6 +114,7 @@ export default function SystemActionsApp({ initialAction }: SystemActionsAppProp
     highRisk: actionLogs.filter((log) => log.risk === "high").length,
   };
   const sourceSummary = buildActionLogSourceSummary(actionLogs);
+  const capabilitySummary = getSystemActionCapabilitySummary(allowedSchemes);
   const localizedUrlOptions = {
     manualSource: t("actions.source.manual"),
     unknownLabel: t("actions.unknown"),
@@ -238,6 +248,27 @@ export default function SystemActionsApp({ initialAction }: SystemActionsAppProp
           ))}
         </div>
         <div className="mt-2 text-xs text-zinc-500">{t("actions.whitelistHint")}</div>
+        <div className="mt-3 rounded-xl border border-white/[0.06] bg-black/20 p-3">
+          <div className="mb-2 text-[11px] font-bold text-zinc-200">{t("actions.capabilityMatrix")}</div>
+          <div className="grid gap-2 md:grid-cols-2">
+            {capabilitySummary.map((capability) => (
+              <div key={capability.id} className={`rounded-xl border p-2 text-[10px] ${capability.enabled ? "border-emerald-300/15 bg-emerald-500/5 text-emerald-50" : "border-white/[0.06] bg-white/[0.02] text-zinc-500"}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-black">{t(capabilityLabelKey(capability.id))}</span>
+                  <span className={capability.enabled ? "text-emerald-200" : "text-zinc-500"}>
+                    {capability.enabled ? t("actions.capabilityEnabled") : t("actions.capabilityDisabled")}
+                  </span>
+                </div>
+                <div className="mt-1 truncate opacity-80">
+                  {t(capabilityStatusKey(capability.status))} · {capability.enabledSchemes.length ? capability.enabledSchemes.join(", ") : capability.schemes.join(", ")}
+                </div>
+                <div className="mt-1 opacity-70">
+                  {capability.requiresConfirmation ? t("actions.capabilityConfirmRequired") : t("actions.capabilityConfirmWhenRisky")}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
         {latestActionLog ? (
           <div className="mt-3 rounded-xl border border-white/[0.06] bg-black/20 p-3 text-xs">
             <div className="mb-2 flex items-center justify-between gap-2">

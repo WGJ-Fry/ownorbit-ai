@@ -13,6 +13,8 @@ const require = createRequire(import.meta.url);
 const asar = require("@electron/asar");
 const currentVersion = JSON.parse(await readFile(path.join(rootDir, "package.json"), "utf8")).version;
 const currentVersionPattern = currentVersion.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const currentPublicTag = `v${currentVersion.includes("-") && currentVersion.endsWith(".0") ? currentVersion.slice(0, -2) : currentVersion}`;
+const currentDockerImage = `ghcr.io/wgj-fry/lifeos-ai:${currentPublicTag}`;
 const currentMacZipName = `LifeOS AI-${currentVersion}-arm64-unsigned.zip`;
 const currentWinInstallerName = `LifeOS AI Setup ${currentVersion}.exe`;
 const currentLinuxAppImageName = `LifeOS AI-${currentVersion}.AppImage`;
@@ -80,8 +82,8 @@ async function createPackagedMacApp(releaseDir, entries) {
     "## 先看这里：当前公开版本状态",
     "只写已经存在并能被干净机器下载的资产",
     "## Read This First: Current Public Release Status",
-    "Docker Compose alpha uses ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha.",
-    "Verify with docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha before promotion.",
+    `Docker Compose alpha uses ${currentDockerImage}.`,
+    `Verify with docker pull ${currentDockerImage} before promotion.`,
     "Only claim assets that already exist and can be downloaded from a clean machine.",
     `Windows desktop package uploads ${publicWinInstallerName}.`,
     `Linux desktop package uploads ${publicLinuxAppImageName}.`,
