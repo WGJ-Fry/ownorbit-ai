@@ -4,7 +4,7 @@
 >
 > Your computer runs the private AI core. Your phone becomes the everyday companion.
 
-[中文说明](README.zh-CN.md) | [Current Version](#current-version) | [Quick Start](#2-minute-quick-start) | [Generated Programs](#generated-problem-solving-programs) | [Remote Access](#remote--vpn-access) | [Current Limits](#current-alpha-limits)
+[中文说明](README.zh-CN.md) | [Release Status](#release-status) | [Quick Start](#2-minute-setup) | [Generated Programs](#generated-problem-solving-programs) | [Remote Access](#remote--vpn-access) | [Current Limits](#current-alpha-limits)
 
 [![Quality Gate](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/quality.yml/badge.svg)](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/quality.yml)
 [![Docker Image](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/docker.yml/badge.svg)](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/docker.yml)
@@ -32,20 +32,20 @@ It reads local Markdown notes, runs with local Ollama in the alpha demo, and sur
 - **Connection guide:** LAN, Tailscale, and Cloudflare Tunnel diagnostics with safety checks.
 - **Studio tools:** generate and refine runnable problem-solving programs with state storage, runtime logs, and rollback.
 
-Current alpha promise: put Markdown notes in a folder, run LifeOS locally, and ask what you may have missed.
+Current release promise: put Markdown notes in a folder, run LifeOS locally, and ask what you may have missed.
 
-## Current Version
+## Release Status
 
-Current public release: `v0.1.2-alpha`<br>
-Package version: `0.1.2-alpha.0`
+Public release tag: [`v0.1.2-alpha`](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha)<br>
+Source package version: `0.1.2-alpha.0`
 
-Only completed, test-covered capabilities are listed here.
+The table below separates packaged downloads from source-branch capabilities so new users do not confuse a release artifact with later `main` commits.
 
-| Version | Completed capabilities |
+| Track | Completed capabilities |
 | --- | --- |
-| `0.1.2-alpha.0` | Docker Compose local Markdown demo, GHCR image path, macOS unsigned ZIP, Windows NSIS installer, Linux AppImage, admin auth, AI provider settings, mobile PWA pairing, offline queue, SQLite migrations, backup/restore, diagnostics, release checks, connection diagnostics, and Studio generated-program runtime logs/debug instruction/one-click repair save. |
-| `0.1.1-alpha.0` | Docker quickstart with Ollama, local Markdown vault ingestion, quickstart login, GHCR workflow, and local model defaults. |
-| `0.1.0` | Initial desktop/PWA foundation: admin security, device binding, SQLite data, backup/restore, AI provider configuration, URL Scheme safety, and desktop packaging scripts. |
+| `v0.1.2-alpha` public release | Docker Compose local Markdown demo, GHCR image path, macOS unsigned ZIP, Windows NSIS installer, Linux AppImage, admin auth, AI provider settings, mobile PWA pairing, offline queue, SQLite migrations, backup/restore, diagnostics, release checks, and connection diagnostics. |
+| Current `main` source | Everything above, plus the latest Studio generated-program runtime log repair flow in source. Build from source if you want the newest code before the next packaged release. |
+| Earlier base | `0.1.1-alpha.0` added Docker quickstart/Ollama/Markdown vault defaults. `0.1.0` started the desktop/PWA foundation. |
 
 ## Choose Your Path
 
@@ -71,7 +71,7 @@ These are real screens from the current project, not concept art.
   <img src="public/screenshots/en-connection-tunnel-vpn.jpg" alt="LifeOS remote connection guide with Cloudflare Tunnel and Tailscale VPN" width="74%">
 </p>
 
-## Why Star This
+## Why LifeOS AI
 
 Most AI tools wait for you to remember the right prompt. LifeOS starts from the mess you already have: scattered notes, dates, promises, renewals, ideas, and unfinished work.
 
@@ -96,7 +96,7 @@ LifeOS is interesting because the current alpha already combines three working p
 | Desktop app shell | Available as current alpha packages |
 | Mobile companion | Pairing, chat, offline queue, device status, and action permissions are implemented |
 | Remote access guidance | LAN, Tailscale, Cloudflare Tunnel diagnostics and safety checks are implemented |
-| Generated programs | Studio generation, refinement, runtime logs, debug instruction, one-click repair save, state storage, and rollback are implemented |
+| Generated programs | Studio generation, refinement, runtime logs, debug instruction, state storage, and rollback are implemented in the current source. One-click repair save is available on `main` and will be part of the next packaged release. |
 
 ## Generated Problem-Solving Programs
 
@@ -108,7 +108,7 @@ LifeOS Studio turns a concrete need into a small runnable program.
 
 This is not just “generate an app from a prompt.” The goal is more practical:
 
-> When LifeOS finds or receives a real problem, it should be able to create a focused tool that helps you work through it.
+> In Studio, enter a concrete problem. LifeOS generates a focused tool that helps you work through it.
 
 Examples:
 
@@ -118,9 +118,9 @@ Examples:
 - A follow-up board for people you promised to contact.
 - A tiny workflow panel for repeated local actions.
 
-Status in `0.1.2-alpha.0`: generation, manual refinement, durable state, runtime logs, debug instruction generation, one-click repair save, action permission checks, and version rollback are implemented. Fully automatic unattended self-repair is not advertised here until it is shipped.
+Status: generation, manual refinement, durable state, runtime logs, debug instruction generation, action permission checks, and version rollback are implemented. One-click repair save is available on `main`; use source builds until the next packaged release includes it. Fully automatic unattended self-repair is not advertised here until it is shipped.
 
-## 2-Minute Quick Start
+## 2-Minute Setup
 
 Requirements:
 
@@ -165,7 +165,7 @@ What am I forgetting?
 
 Expected result: LifeOS should mention the passport expiry, Tom’s proposal, and the tax filing deadline from `lifeos_vault/demo.md`.
 
-First startup can take several minutes because Ollama downloads `llama3.2`.
+The command setup is short, but first startup can take several minutes because Ollama downloads `llama3.2`.
 
 <p align="center">
   <img src="docs/assets/real-demo-en.gif" alt="LifeOS local Markdown demo asking what am I forgetting" width="420">
@@ -210,6 +210,14 @@ Connection = LAN, VPN, or a carefully configured tunnel
 
 Safety rule: before remote access, enable admin auth, use HTTPS or a private VPN path, understand which URL is public, and keep backups/diagnostics available.
 
+### Phone Outside Home: 3 Steps
+
+1. Start LifeOS on the computer and finish the admin setup.
+2. Use the connection guide to pick a private VPN URL, LAN URL, or carefully configured HTTPS tunnel URL.
+3. Generate the pairing QR from that selected URL, scan it on the phone, then run the built-in reachability check before relying on it outside the local network.
+
+Recommended long-term path: Tailscale or another private VPN. Cloudflare Tunnel is useful for HTTPS testing, but should not be treated as “safe by default” unless access control is configured.
+
 ## Markdown Vault Contract
 
 LifeOS reads your mounted Markdown folder. It does not write back to the vault in this alpha path.
@@ -248,14 +256,14 @@ The desktop/admin path includes provider configuration work for local models, Ge
 
 ## Current Alpha Limits
 
-LifeOS is alpha software.
+LifeOS is alpha software. The Docker quickstart is the most stable demo path; desktop, mobile, remote access, and Studio are usable alpha paths with more moving parts.
 
 - Markdown only in the main Docker demo.
 - No real calendar ingestion yet.
 - No calendar/task write-back yet.
 - Not a perfect deadline detector.
 - Reads a limited number of files for speed and context size.
-- Desktop, mobile, remote access, and Studio-generated programs are earlier than the Docker demo path.
+- Desktop, mobile, remote access, and Studio-generated programs should be validated against the release notes before public demos.
 
 ## Troubleshooting
 
