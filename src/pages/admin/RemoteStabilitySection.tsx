@@ -52,6 +52,7 @@ export default function RemoteStabilitySection({
   const [importingReport, setImportingReport] = useState(false);
   const [runningAcceptance, setRunningAcceptance] = useState(false);
   const [reportText, setReportText] = useState("");
+  const [manualNotes, setManualNotes] = useState<Record<string, string>>({});
   const remoteHealthSummary = diagnostics.remoteHealthSummary || emptyRemoteHealthSummary;
   const remoteAcceptanceChecklist = diagnostics.remoteAcceptanceChecklist || [];
   const remoteAcceptanceSummary = diagnostics.remoteAcceptanceSummary || emptyRemoteAcceptanceSummary;
@@ -87,18 +88,9 @@ export default function RemoteStabilitySection({
   const handleRecordAcceptance = async (id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"]) => {
     setAcceptingId(id);
     try {
-      const note = id === "cellular-mobile-chat"
-        ? "Phone Wi-Fi disabled; /mobile/chat opened through the saved HTTPS entry; chat and realtime state confirmed."
-        : id === "restart-restore"
-          ? "Desktop app restarted; saved HTTPS entry restored; remote health confirmed after restart."
-          : id === "network-switch"
-            ? "Phone switched between Wi-Fi and cellular; /mobile/chat recovered on the same saved HTTPS entry."
-            : id === "stale-qr-repair"
-              ? "Old QR or stale home-screen entry failed safely; fresh QR re-pair restored /mobile/chat."
-              : id === "network-interruption"
-                ? "Remote path was interrupted and restored; diagnostics refreshed; phone recovery guidance and reconnect state confirmed."
-                : "Admin diagnostic bundle exported after real remote acceptance checks.";
+      const note = (manualNotes[id] || "").trim();
       const result = await recordRemoteAcceptance(id, note, acceptanceEvidence(id));
+      setManualNotes((current) => ({ ...current, [id]: "" }));
       onDiagnostics?.(result.diagnostics);
       onStatus?.(t("connection.acceptance.recorded"));
     } catch (error: any) {
@@ -147,9 +139,11 @@ export default function RemoteStabilitySection({
         runbooks={remoteAcceptanceRunbooks}
         runningAcceptance={runningAcceptance}
         smokeCommand={smokeCommand}
+        manualNotes={manualNotes}
         onImportReport={handleImportReport}
         onRunAcceptance={handleRunAcceptance}
         onAccept={handleRecordAcceptance}
+        onManualNoteChange={(id, value) => setManualNotes((current) => ({ ...current, [id]: value }))}
         onReportTextChange={setReportText}
       />
     </>

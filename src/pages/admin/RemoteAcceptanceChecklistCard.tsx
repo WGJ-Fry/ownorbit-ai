@@ -44,12 +44,14 @@ export default function RemoteAcceptanceChecklistCard({
   acceptingId,
   importingReport,
   reportText,
+  manualNotes,
   runbooks,
   runningAcceptance,
   smokeCommand,
   summary,
   onAccept,
   onImportReport,
+  onManualNoteChange,
   onRunAcceptance,
   onReportTextChange,
 }: {
@@ -57,6 +59,7 @@ export default function RemoteAcceptanceChecklistCard({
   checklist: NetworkDiagnostics["remoteAcceptanceChecklist"];
   acceptingId?: string | null;
   importingReport?: boolean;
+  manualNotes?: Record<string, string>;
   reportText?: string;
   runbooks?: NetworkDiagnostics["remoteAcceptanceRunbooks"];
   runningAcceptance?: boolean;
@@ -64,6 +67,7 @@ export default function RemoteAcceptanceChecklistCard({
   summary?: NetworkDiagnostics["remoteAcceptanceSummary"];
   onAccept?: (id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"]) => void;
   onImportReport?: () => void;
+  onManualNoteChange?: (id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"], value: string) => void;
   onRunAcceptance?: () => void;
   onReportTextChange?: (value: string) => void;
 }) {
@@ -226,13 +230,25 @@ export default function RemoteAcceptanceChecklistCard({
                 <div className="mt-2 text-[11px] leading-relaxed opacity-95">{item.action}</div>
                 {item.command ? <code className="mt-2 block break-all rounded-lg bg-black/25 px-2 py-1 text-[10px] opacity-90">{item.command}</code> : null}
                 {onAccept && item.status === "manual-required" && (item.id === "restart-restore" || item.id === "cellular-mobile-chat" || item.id === "network-switch" || item.id === "stale-qr-repair" || item.id === "network-interruption" || item.id === "diagnostic-export") ? (
-                  <button
-                    onClick={() => onAccept(item.id)}
-                    disabled={acceptingId === item.id}
-                    className="mt-3 inline-flex rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-[11px] font-bold text-white disabled:opacity-50"
-                  >
-                    {acceptingId === item.id ? t("connection.acceptance.recording") : t("connection.acceptance.markDone")}
-                  </button>
+                  <div className="mt-3 rounded-lg border border-white/[0.08] bg-black/15 p-2">
+                    <label className="text-[11px] font-bold text-white">{t("connection.acceptance.evidenceNoteLabel")}</label>
+                    <textarea
+                      value={manualNotes?.[item.id] || ""}
+                      onChange={(event) => onManualNoteChange?.(item.id, event.target.value)}
+                      placeholder={t(`connection.acceptance.evidencePlaceholder.${item.id}` as any)}
+                      className="mt-2 min-h-16 w-full resize-y rounded-lg border border-white/10 bg-black/20 px-2 py-2 text-[11px] text-white outline-none placeholder:text-white/40"
+                    />
+                    <div className="mt-1 text-[10px] opacity-75">
+                      {t("connection.acceptance.evidenceNoteHint", { count: (manualNotes?.[item.id] || "").trim().length })}
+                    </div>
+                    <button
+                      onClick={() => onAccept(item.id)}
+                      disabled={acceptingId === item.id || (manualNotes?.[item.id] || "").trim().length < 24}
+                      className="mt-2 inline-flex rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-[11px] font-bold text-white disabled:opacity-50"
+                    >
+                      {acceptingId === item.id ? t("connection.acceptance.recording") : t("connection.acceptance.markDone")}
+                    </button>
+                  </div>
                 ) : null}
               </div>
             ))}

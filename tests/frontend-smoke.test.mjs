@@ -1033,6 +1033,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.manualStillRequired/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.validUntil/);
   assert.match(remoteAcceptanceChecklistSource, /item\.expiresAt/);
+  assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.evidenceNoteLabel/);
+  assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.evidenceNoteHint/);
+  assert.match(remoteAcceptanceChecklistSource, /manualNotes/);
+  assert.match(remoteAcceptanceChecklistSource, /onManualNoteChange/);
+  assert.match(remoteAcceptanceChecklistSource, /trim\(\)\.length < 24/);
   assert.match(remoteAcceptanceChecklistSource, /onImportReport/);
   assert.match(remoteAcceptanceChecklistSource, /runbooks\.latest/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.markDone/);
@@ -1044,10 +1049,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(remoteAcceptanceChecklistSource, /diagnostic-export/);
   assert.match(remoteAcceptanceChecklistSource, /ci-remote-mock/);
   assert.match(remoteStabilitySectionSource, /acceptanceEvidence/);
-  assert.match(remoteStabilitySectionSource, /Phone Wi-Fi disabled/);
-  assert.match(remoteStabilitySectionSource, /Desktop app restarted/);
-  assert.match(remoteStabilitySectionSource, /Phone switched between Wi-Fi and cellular/);
-  assert.match(remoteStabilitySectionSource, /Old QR or stale home-screen entry/);
+  assert.match(remoteStabilitySectionSource, /manualNotes/);
+  assert.match(remoteStabilitySectionSource, /setManualNotes/);
   assert.match(remoteStabilitySectionSource, /acceptingId/);
   assert.match(remoteStabilitySectionSource, /LIFEOS_REMOTE_ACCEPTANCE_OUT/);
   assert.match(remoteStabilitySectionSource, /LIFEOS_REMOTE_BASE_URL/);
@@ -1073,6 +1076,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Latest Auto-Recovery/);
   assert.match(translationsSource, /我已真实验收/);
   assert.match(translationsSource, /I verified this/);
+  assert.match(translationsSource, /真实验收记录/);
+  assert.match(translationsSource, /Real acceptance note/);
   const customRemoteEntrySource = await readFile(path.join(rootDir, "src", "pages", "admin", "CustomRemoteEntryCard.tsx"), "utf8");
   assert.match(customRemoteEntrySource, /connection\.customTitle/);
   assert.match(customRemoteEntrySource, /testConnectionUrl/);

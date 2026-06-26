@@ -733,6 +733,46 @@ test("remote acceptance records reject unsafe or non-HTTPS entries", async (t) =
   assert.match(attempts.join("\\n"), /Only real-world manual acceptance items/);
 });
 
+test("remote acceptance records require a real evidence note", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-remote-acceptance-note-"));
+  t.after(async () => {
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const { getRemoteAcceptanceRecords, saveRemoteAcceptanceRecord } = await import("./server/remoteAcceptance.ts");
+    const results = [];
+    try {
+      saveRemoteAcceptanceRecord({
+        id: "cellular-mobile-chat",
+        baseUrl: "https://lifeos.example.test",
+        note: "done",
+      });
+      results.push("accepted-short");
+    } catch (error) {
+      results.push(error.message);
+    }
+    saveRemoteAcceptanceRecord({
+      id: "cellular-mobile-chat",
+      baseUrl: "https://lifeos.example.test",
+      note: "Phone Wi-Fi was disabled and a cellular chat message was sent successfully.",
+      evidence: {
+        source: "admin-long-term-remote-checklist",
+        requirements: ["Phone Wi-Fi disabled and /mobile/chat verified over cellular data."],
+      },
+    });
+    results.push(getRemoteAcceptanceRecords()[0].note);
+    process.stdout.write(JSON.stringify(results));
+  `], {
+    cwd: process.cwd(),
+    env: { ...process.env, LIFEOS_DATA_DIR: dataDir },
+    encoding: "utf8",
+  });
+  const results = JSON.parse(output);
+  assert.match(results[0], /evidence note/);
+  assert.match(results[1], /cellular chat message/);
+});
+
 test("remote acceptance runbook import persists smoke evidence and rejects unsafe reports", async (t) => {
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-remote-acceptance-runbook-"));
   t.after(async () => {

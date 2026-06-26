@@ -5,6 +5,7 @@ import { redactAuditString } from "./audit";
 const REMOTE_ACCEPTANCE_STATE_KEY = "lifeos_remote_acceptance_records";
 const REMOTE_ACCEPTANCE_RUNBOOK_STATE_KEY = "lifeos_remote_acceptance_runbook_reports";
 const MANUAL_ACCEPTANCE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const MANUAL_ACCEPTANCE_MIN_NOTE_CHARS = 24;
 const manualAcceptanceIds = new Set(["restart-restore", "cellular-mobile-chat", "network-switch", "stale-qr-repair", "network-interruption", "diagnostic-export"]);
 const runbookEntryKinds = new Set(["temporary-cloudflare", "tailscale-https", "local", "stable-https", "insecure-http"]);
 const runbookManualSteps = [
@@ -342,10 +343,14 @@ export function saveRemoteAcceptanceRecord(input: {
 }, actor?: { type: string; id: string }) {
   if (!manualAcceptanceIds.has(input.id)) throw new Error("Only real-world manual acceptance items can be marked manually.");
   const baseUrl = sanitizeBaseUrl(input.baseUrl);
+  const note = safeNote(input.note);
+  if (note.length < MANUAL_ACCEPTANCE_MIN_NOTE_CHARS) {
+    throw new Error("Remote acceptance evidence note must describe the real check you completed.");
+  }
   const record: RemoteAcceptanceRecord = {
     id: input.id,
     baseUrl,
-    note: safeNote(input.note),
+    note,
     evidence: {
       entryKind: entryKind(baseUrl),
       verifiedUrl: baseUrl,
