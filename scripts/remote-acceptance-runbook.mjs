@@ -44,6 +44,18 @@ function manualSteps(kind) {
       required: true,
     },
     {
+      id: "network-switch",
+      title: "Phone network switch recovery",
+      instruction: "Move the phone between Wi-Fi and cellular while /mobile/chat is open, then confirm the same saved HTTPS entry recovers without losing queued messages or realtime state.",
+      required: true,
+    },
+    {
+      id: "stale-qr-repair",
+      title: "Old pairing QR repair",
+      instruction: "Regenerate the pairing QR code, confirm an old QR or stale home-screen entry cannot silently bind, then re-pair with the fresh QR and confirm /mobile/chat works.",
+      required: true,
+    },
+    {
       id: "diagnostic-export",
       title: "Export diagnostic evidence",
       instruction: "Export the admin diagnostic bundle after the manual checks. It should include remote health, smoke report, acceptance checklist, and manual acceptance records.",

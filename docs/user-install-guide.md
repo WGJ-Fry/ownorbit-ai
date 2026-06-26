@@ -146,9 +146,12 @@ chmod +x "LifeOS.AI-0.1.2-alpha.0.AppImage"
 
    `remote:smoke` 会同时验证 `/api/v1/health`、`/mobile/chat` 和 `/api/v1/ws`。`remote:acceptance` 会在此基础上生成长期验收步骤和 `remote-acceptance.json` 证据文件。三项都通过后，再让手机扫码绑定或重新绑定。
    如果你用源码运行，请先 `npm run build`，再用 `npm run start` 或桌面 App 做远程验收；`npm run dev` 的 Vite 开发服务器可能会拒绝临时 Cloudflare 域名，不能代表安装包效果。
-11. 关闭手机 Wi-Fi，用蜂窝网络打开 `/mobile/chat` 并发送一条消息；确认成功后，在管理端“长期异地验收清单”点击“我已真实验收”。
-12. 退出并重新打开电脑端 LifeOS AI，再运行“立即检查异地健康”；确认恢复后，在同一清单记录“重启后自动恢复”。
-13. 从“设置”导出诊断包。诊断包会包含远程健康报告、验收清单和最近的真实验收记录，便于以后排查或发布前复盘。
+11. 关闭手机 Wi-Fi，用蜂窝网络打开 `/mobile/chat` 并发送一条消息；确认成功后，在管理端“长期异地验收清单”记录“手机蜂窝网络访问”。
+12. 手机在 Wi-Fi 和蜂窝网络之间切换一次，保持同一个 HTTPS 入口，确认离线队列、重试状态和实时连接能恢复；记录“手机换网络恢复”。
+13. 重新生成手机绑定二维码，确认旧二维码或旧主屏入口不会静默绑定；用新二维码重新绑定并确认 `/mobile/chat` 可用；记录“旧二维码失效修复”。
+14. 临时断开 Tailscale/Tunnel/网络路径，再恢复连接，运行“立即检查异地健康”，确认手机端给出明确恢复提示；记录“网络中断后恢复”。
+15. 退出并重新打开电脑端 LifeOS AI，再运行“立即检查异地健康”；确认恢复后，在同一清单记录“重启后自动恢复”。
+16. 从“设置”导出诊断包。诊断包会包含远程健康报告、验收清单和最近的真实验收记录，便于以后排查或发布前复盘。
 
 Tailscale HTTPS Serve 会给手机一个 `https://<device>.<tailnet>` 入口，更适合 PWA、Service Worker 和 WebCrypto 设备签名。只有在 HTTPS Serve 不可用时，才退回 Tailnet IP 或 HTTP MagicDNS。
 
@@ -402,7 +405,7 @@ For an HTTPS public entry, use Cloudflare Tunnel:
 
 Quick `trycloudflare.com` tunnels are temporary. LifeOS AI can recreate a Tunnel on the next launch and refresh QR addresses, but an old home-screen icon that points to the previous temporary domain may stop working. For a stable long-term entry, use Tailscale, Cloudflare Named Tunnel, or your own trusted HTTPS reverse proxy.
 
-For long-term acceptance, turn off phone Wi-Fi, open `/mobile/chat` over cellular data, send a message, and mark the cellular item as verified in the desktop `Long-Term Remote Acceptance Checklist`. Then quit and reopen the desktop app, run `Run Remote Health Check`, and mark restart restore as verified. Export a diagnostic bundle from Settings afterward; it includes the remote health summary, latest remote smoke report, acceptance checklist, and recent manual acceptance records.
+For long-term acceptance, complete every manual item in the desktop `Long-Term Remote Acceptance Checklist`: turn off phone Wi-Fi and send a message over cellular data; switch the phone between Wi-Fi and cellular and confirm queue/realtime recovery; regenerate the pairing QR and verify an old QR or stale home-screen entry fails safely before re-pairing with the fresh QR; interrupt and restore Tailscale/Tunnel/network connectivity and confirm the phone shows clear recovery guidance; quit and reopen the desktop app, run `Run Remote Health Check`, and mark restart restore as verified. Export a diagnostic bundle from Settings afterward; it includes the remote health summary, latest remote smoke report, acceptance checklist, and recent manual acceptance records.
 
 ## AI Keys
 

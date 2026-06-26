@@ -357,7 +357,7 @@ export type NetworkDiagnostics = {
     createdAt: number;
   } | null;
   remoteAcceptanceChecklist: Array<{
-    id: "tailscale-https-serve" | "cloudflare-named-tunnel" | "remote-smoke" | "restart-restore" | "cellular-mobile-chat" | "network-interruption" | "diagnostic-export" | "ci-remote-mock";
+    id: "tailscale-https-serve" | "cloudflare-named-tunnel" | "remote-smoke" | "restart-restore" | "cellular-mobile-chat" | "network-switch" | "stale-qr-repair" | "network-interruption" | "diagnostic-export" | "ci-remote-mock";
     status: "passed" | "needs-action" | "manual-required";
     evidence: string;
     action: string;
@@ -374,7 +374,7 @@ export type NetworkDiagnostics = {
     hasLongTermEntry: boolean;
     hasRealWorldEvidence: boolean;
     blockingItems: Array<{
-      id: "tailscale-https-serve" | "cloudflare-named-tunnel" | "remote-smoke" | "restart-restore" | "cellular-mobile-chat" | "network-interruption" | "diagnostic-export" | "ci-remote-mock";
+      id: "tailscale-https-serve" | "cloudflare-named-tunnel" | "remote-smoke" | "restart-restore" | "cellular-mobile-chat" | "network-switch" | "stale-qr-repair" | "network-interruption" | "diagnostic-export" | "ci-remote-mock";
       status: "needs-action" | "manual-required";
       action: string;
       command?: string;

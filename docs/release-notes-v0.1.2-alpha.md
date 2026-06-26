@@ -26,6 +26,7 @@ Note: the source line now includes additional local memory and Studio blueprint 
 - Redacted local action and diagnostic metadata
 - First-launch handoff summary copy
 - Source-line Studio blueprint confirmation checklist, permission notes, and failure recovery guidance
+- Long-term remote acceptance now tracks real phone cellular use, phone Wi-Fi/cellular switching, stale QR/home-screen repair, restart restore, network interruption, and diagnostic export evidence
 
 ## Try It
 

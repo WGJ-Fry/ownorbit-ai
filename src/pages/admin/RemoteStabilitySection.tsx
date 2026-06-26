@@ -77,6 +77,8 @@ export default function RemoteStabilitySection({
         item?.action || "",
         id === "cellular-mobile-chat" ? "Phone Wi-Fi disabled and /mobile/chat verified over cellular data." : "",
         id === "restart-restore" ? "Desktop app restarted and remote health passed after restore." : "",
+        id === "network-switch" ? "Phone switched between Wi-Fi and cellular; /mobile/chat recovered on the same HTTPS entry." : "",
+        id === "stale-qr-repair" ? "Old QR or home-screen entry was confirmed stale; fresh QR re-pair restored /mobile/chat." : "",
         id === "network-interruption" ? "Remote path interrupted, restored, and phone recovery guidance verified." : "",
         id === "diagnostic-export" ? "Diagnostic bundle exported after real-world remote checks." : "",
       ].filter(Boolean),
@@ -89,9 +91,13 @@ export default function RemoteStabilitySection({
         ? "Phone Wi-Fi disabled; /mobile/chat opened through the saved HTTPS entry; chat and realtime state confirmed."
         : id === "restart-restore"
           ? "Desktop app restarted; saved HTTPS entry restored; remote health confirmed after restart."
-          : id === "network-interruption"
-            ? "Remote path was interrupted and restored; diagnostics refreshed; phone recovery guidance and reconnect state confirmed."
-            : "Admin diagnostic bundle exported after real remote acceptance checks.";
+          : id === "network-switch"
+            ? "Phone switched between Wi-Fi and cellular; /mobile/chat recovered on the same saved HTTPS entry."
+            : id === "stale-qr-repair"
+              ? "Old QR or stale home-screen entry failed safely; fresh QR re-pair restored /mobile/chat."
+              : id === "network-interruption"
+                ? "Remote path was interrupted and restored; diagnostics refreshed; phone recovery guidance and reconnect state confirmed."
+                : "Admin diagnostic bundle exported after real remote acceptance checks.";
       const result = await recordRemoteAcceptance(id, note, acceptanceEvidence(id));
       onDiagnostics?.(result.diagnostics);
       onStatus?.(t("connection.acceptance.recorded"));

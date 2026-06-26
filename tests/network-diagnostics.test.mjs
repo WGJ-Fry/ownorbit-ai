@@ -38,7 +38,13 @@ test("network diagnostics detects mocked Cloudflare and Tailscale CLIs", async (
   const cloudflaredPath = path.join(binDir, "cloudflared");
   const pgrepPath = path.join(binDir, "pgrep");
   const tailscalePath = path.join(binDir, "tailscale");
-  await writeFile(cloudflaredPath, "#!/bin/sh\necho 'cloudflared version 2026.6.0'\n");
+  await writeFile(cloudflaredPath, `#!/bin/sh
+if [ "$1" = "--version" ] || [ "$1" = "version" ] || [ -z "$1" ]; then
+  echo 'cloudflared version 2026.6.0'
+  exit 0
+fi
+exit 1
+`);
   await writeFile(pgrepPath, `#!/bin/sh
 if [ "$2" = "cloudflared" ]; then
   echo '123 cloudflared tunnel --url http://127.0.0.1:4567 https://amber-lifeos.trycloudflare.com'
@@ -335,11 +341,14 @@ test("Tailscale HTTPS Serve helpers run controlled start and stop commands", asy
   const commandLog = path.join(binDir, "tailscale.log");
   const oldPath = process.env.PATH || "";
   const oldPort = process.env.LIFEOS_PORT;
+  const oldTailscaleBin = process.env.LIFEOS_TAILSCALE_BIN;
 
   t.after(async () => {
     process.env.PATH = oldPath;
     if (oldPort === undefined) delete process.env.LIFEOS_PORT;
     else process.env.LIFEOS_PORT = oldPort;
+    if (oldTailscaleBin === undefined) delete process.env.LIFEOS_TAILSCALE_BIN;
+    else process.env.LIFEOS_TAILSCALE_BIN = oldTailscaleBin;
     await rm(binDir, { recursive: true, force: true });
   });
 
@@ -368,6 +377,7 @@ exit 1
 
   process.env.PATH = `${binDir}:${oldPath}`;
   process.env.LIFEOS_PORT = "4567";
+  process.env.LIFEOS_TAILSCALE_BIN = tailscalePath;
 
   const { startTailscaleHttpsServe, stopTailscaleHttpsServe } = await import(`../server/networkDiagnostics.ts?tailscale-serve=${Date.now()}`);
   const started = startTailscaleHttpsServe("4567");

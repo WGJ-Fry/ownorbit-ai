@@ -293,11 +293,13 @@ function checkScripts() {
       remoteAcceptance.includes("cellular-mobile-chat") &&
       remoteAcceptance.includes("restart-restore") &&
       remoteAcceptance.includes("network-interruption") &&
+      remoteAcceptance.includes("network-switch") &&
+      remoteAcceptance.includes("stale-qr-repair") &&
       remoteAcceptance.includes("diagnostic-export") &&
       remoteAcceptance.includes("LIFEOS_REMOTE_ACCEPTANCE_OUT") &&
       remoteSmokeTest.includes("remote acceptance runbook writes long-term evidence")
     ) pass("remote acceptance runbook generates evidence for long-term manual validation");
-    else fail("remote acceptance runbook must cover smoke, temporary tunnel status, cellular/restart manual checks, evidence output, and tests");
+    else fail("remote acceptance runbook must cover smoke, temporary tunnel status, cellular/restart/network-switch/stale-QR/interruption manual checks, evidence output, and tests");
   } else {
     fail("missing remote acceptance runbook script: scripts/remote-acceptance-runbook.mjs");
   }
@@ -746,6 +748,8 @@ function checkAssets() {
     remoteAcceptanceChecklistSource.includes("connection.acceptance.markDone") &&
     remoteAcceptanceChecklistSource.includes("onAccept") &&
     remoteAcceptanceChecklistSource.includes("cellular-mobile-chat") &&
+    remoteAcceptanceChecklistSource.includes("network-switch") &&
+    remoteAcceptanceChecklistSource.includes("stale-qr-repair") &&
     remoteAcceptanceChecklistSource.includes("network-interruption") &&
     remoteAcceptanceChecklistSource.includes("diagnostic-export") &&
     remoteAcceptanceChecklistSource.includes("ci-remote-mock") &&

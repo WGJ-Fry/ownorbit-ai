@@ -5,7 +5,7 @@ import { redactAuditString } from "./audit";
 const REMOTE_ACCEPTANCE_STATE_KEY = "lifeos_remote_acceptance_records";
 const REMOTE_ACCEPTANCE_RUNBOOK_STATE_KEY = "lifeos_remote_acceptance_runbook_reports";
 const MANUAL_ACCEPTANCE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-const manualAcceptanceIds = new Set(["restart-restore", "cellular-mobile-chat", "network-interruption", "diagnostic-export"]);
+const manualAcceptanceIds = new Set(["restart-restore", "cellular-mobile-chat", "network-switch", "stale-qr-repair", "network-interruption", "diagnostic-export"]);
 const runbookEntryKinds = new Set(["temporary-cloudflare", "tailscale-https", "local", "stable-https", "insecure-http"]);
 const runbookManualSteps = [
   {
@@ -27,6 +27,18 @@ const runbookManualSteps = [
     required: true,
   },
   {
+    id: "network-switch",
+    title: "Phone network switch recovery",
+    instruction: "Move the phone between Wi-Fi and cellular while using /mobile/chat, then confirm the queue/realtime state recovers without changing the saved HTTPS entry.",
+    required: true,
+  },
+  {
+    id: "stale-qr-repair",
+    title: "Old pairing QR repair",
+    instruction: "Generate a new pairing QR code, verify the old QR or old home-screen entry is treated as stale, then re-pair with the fresh QR and confirm /mobile/chat works.",
+    required: true,
+  },
+  {
     id: "diagnostic-export",
     title: "Export diagnostic evidence",
     instruction: "Export the admin diagnostic bundle after the manual checks.",
@@ -35,7 +47,7 @@ const runbookManualSteps = [
 ];
 
 export type RemoteAcceptanceItem = {
-  id: "tailscale-https-serve" | "cloudflare-named-tunnel" | "remote-smoke" | "restart-restore" | "cellular-mobile-chat" | "network-interruption" | "diagnostic-export" | "ci-remote-mock";
+  id: "tailscale-https-serve" | "cloudflare-named-tunnel" | "remote-smoke" | "restart-restore" | "cellular-mobile-chat" | "network-switch" | "stale-qr-repair" | "network-interruption" | "diagnostic-export" | "ci-remote-mock";
   status: "passed" | "needs-action" | "manual-required";
   evidence: string;
   action: string;
@@ -385,10 +397,14 @@ export function buildRemoteAcceptanceChecklist(input: {
   const restored = Boolean(report?.ok && /auto-restore|startup/i.test(report.label || ""));
   const restartLatestRecord = latestManualRecord(input.records || [], "restart-restore", runtimeUrl);
   const cellularLatestRecord = latestManualRecord(input.records || [], "cellular-mobile-chat", runtimeUrl);
+  const networkSwitchLatestRecord = latestManualRecord(input.records || [], "network-switch", runtimeUrl);
+  const staleQrLatestRecord = latestManualRecord(input.records || [], "stale-qr-repair", runtimeUrl);
   const interruptionLatestRecord = latestManualRecord(input.records || [], "network-interruption", runtimeUrl);
   const diagnosticLatestRecord = latestManualRecord(input.records || [], "diagnostic-export", runtimeUrl);
   const restartRecord = manualRecord(input.records || [], "restart-restore", runtimeUrl, now);
   const cellularRecord = manualRecord(input.records || [], "cellular-mobile-chat", runtimeUrl, now);
+  const networkSwitchRecord = manualRecord(input.records || [], "network-switch", runtimeUrl, now);
+  const staleQrRecord = manualRecord(input.records || [], "stale-qr-repair", runtimeUrl, now);
   const interruptionRecord = manualRecord(input.records || [], "network-interruption", runtimeUrl, now);
   const diagnosticRecord = manualRecord(input.records || [], "diagnostic-export", runtimeUrl, now);
 
@@ -431,6 +447,22 @@ export function buildRemoteAcceptanceChecklist(input: {
       expiresAt: cellularRecord ? cellularRecord.createdAt + MANUAL_ACCEPTANCE_MAX_AGE_MS : undefined,
     },
     {
+      id: "network-switch",
+      status: networkSwitchRecord ? "passed" : "manual-required",
+      evidence: networkSwitchRecord ? `Manually accepted at ${new Date(networkSwitchRecord.createdAt).toISOString()}: ${manualEvidence(networkSwitchRecord)}` : staleManualEvidence(networkSwitchLatestRecord, "Switch the phone between Wi-Fi and cellular while /mobile/chat is open, then confirm it reconnects without changing the saved HTTPS entry."),
+      action: "Switch the phone between Wi-Fi and cellular, keep the same saved HTTPS entry, send a message after reconnect, and confirm the offline queue/realtime state recovers.",
+      acceptedAt: networkSwitchRecord?.createdAt,
+      expiresAt: networkSwitchRecord ? networkSwitchRecord.createdAt + MANUAL_ACCEPTANCE_MAX_AGE_MS : undefined,
+    },
+    {
+      id: "stale-qr-repair",
+      status: staleQrRecord ? "passed" : "manual-required",
+      evidence: staleQrRecord ? `Manually accepted at ${new Date(staleQrRecord.createdAt).toISOString()}: ${manualEvidence(staleQrRecord)}` : staleManualEvidence(staleQrLatestRecord, "Generate a fresh pairing QR and confirm old QR/home-screen entries fail safely with clear re-pair guidance."),
+      action: "Regenerate the pairing QR, confirm an old QR or stale home-screen entry cannot silently bind, then re-pair with the fresh QR and verify /mobile/chat.",
+      acceptedAt: staleQrRecord?.createdAt,
+      expiresAt: staleQrRecord ? staleQrRecord.createdAt + MANUAL_ACCEPTANCE_MAX_AGE_MS : undefined,
+    },
+    {
       id: "network-interruption",
       status: interruptionRecord ? "passed" : "manual-required",
       evidence: interruptionRecord ? `Manually accepted at ${new Date(interruptionRecord.createdAt).toISOString()}: ${manualEvidence(interruptionRecord)}` : staleManualEvidence(interruptionLatestRecord, "Disconnect and reconnect the remote path, then confirm diagnostics refresh and the phone shows a clear recovery message."),
@@ -461,7 +493,7 @@ export function summarizeRemoteAcceptanceChecklist(checklist: RemoteAcceptanceIt
   const needsAction = checklist.filter((item) => item.status === "needs-action").length;
   const manualRequired = checklist.filter((item) => item.status === "manual-required").length;
   const hasLongTermEntry = checklist.some((item) => (item.id === "tailscale-https-serve" || item.id === "cloudflare-named-tunnel") && item.status === "passed");
-  const requiredRealWorldIds = new Set(["remote-smoke", "restart-restore", "cellular-mobile-chat", "network-interruption", "diagnostic-export", "ci-remote-mock"]);
+  const requiredRealWorldIds = new Set(["remote-smoke", "restart-restore", "cellular-mobile-chat", "network-switch", "stale-qr-repair", "network-interruption", "diagnostic-export", "ci-remote-mock"]);
   const hasRealWorldEvidence = checklist
     .filter((item) => requiredRealWorldIds.has(item.id))
     .every((item) => item.status === "passed");

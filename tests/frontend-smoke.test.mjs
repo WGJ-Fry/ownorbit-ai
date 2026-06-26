@@ -1032,12 +1032,16 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.markDone/);
   assert.match(remoteAcceptanceChecklistSource, /onAccept/);
   assert.match(remoteAcceptanceChecklistSource, /cellular-mobile-chat/);
+  assert.match(remoteAcceptanceChecklistSource, /network-switch/);
+  assert.match(remoteAcceptanceChecklistSource, /stale-qr-repair/);
   assert.match(remoteAcceptanceChecklistSource, /network-interruption/);
   assert.match(remoteAcceptanceChecklistSource, /diagnostic-export/);
   assert.match(remoteAcceptanceChecklistSource, /ci-remote-mock/);
   assert.match(remoteStabilitySectionSource, /acceptanceEvidence/);
   assert.match(remoteStabilitySectionSource, /Phone Wi-Fi disabled/);
   assert.match(remoteStabilitySectionSource, /Desktop app restarted/);
+  assert.match(remoteStabilitySectionSource, /Phone switched between Wi-Fi and cellular/);
+  assert.match(remoteStabilitySectionSource, /Old QR or stale home-screen entry/);
   assert.match(remoteStabilitySectionSource, /acceptingId/);
   assert.match(remoteStabilitySectionSource, /LIFEOS_REMOTE_ACCEPTANCE_OUT/);
   assert.match(remoteStabilitySectionSource, /LIFEOS_REMOTE_BASE_URL/);
@@ -1081,7 +1085,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /checks passed/);
   assert.match(translationsSource, /Cloudflare Named Tunnel/);
   assert.match(translationsSource, /复制连接配置摘要/);
-  assert.match(translationsSource, /自动检查已通过，仍需完成真实手机\/重启\/断网验收/);
+  assert.match(translationsSource, /自动检查已通过，仍需完成真实手机、重启、换网络、旧二维码和断网验收/);
   assert.match(translationsSource, /credentials JSON 已找到/);
   assert.match(translationsSource, /credentials JSON is missing/);
 

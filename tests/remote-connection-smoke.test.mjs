@@ -193,6 +193,8 @@ test("remote acceptance runbook writes long-term evidence and manual steps", asy
   assert.equal(report.automatedChecks.httpsStatus.requiredForLongTerm, true);
   assert.match(report.longTermReason, /desktop/);
   assert.equal(report.manualAcceptance.some((step) => step.id === "cellular-mobile-chat"), true);
+  assert.equal(report.manualAcceptance.some((step) => step.id === "network-switch"), true);
+  assert.equal(report.manualAcceptance.some((step) => step.id === "stale-qr-repair"), true);
   assert.equal(JSON.stringify(report).includes("secret"), false);
 
   const outPath = path.join(dataDir, "acceptance.json");
@@ -205,6 +207,8 @@ test("remote acceptance runbook writes long-term evidence and manual steps", asy
   const written = await readFile(outPath, "utf8");
   assert.equal(written.includes("secret"), false);
   assert.match(written, /network-interruption/);
+  assert.match(written, /network-switch/);
+  assert.match(written, /stale-qr-repair/);
   assert.match(written, /realWorldAcceptanceRequired/);
   assert.match(written, /httpsStatus/);
 });

@@ -512,6 +512,16 @@ test("remote acceptance checklist separates automated and real-world verificatio
       note: "Tailscale disconnected and reconnected with token=secret",
     }, { type: "admin", id: "owner" });
     saveRemoteAcceptanceRecord({
+      id: "network-switch",
+      baseUrl: "https://lifeos.tailnet.example.ts.net",
+      note: "Phone switched between Wi-Fi and cellular with token=secret",
+    }, { type: "admin", id: "owner" });
+    saveRemoteAcceptanceRecord({
+      id: "stale-qr-repair",
+      baseUrl: "https://lifeos.tailnet.example.ts.net",
+      note: "Old QR rejected and fresh QR re-pair succeeded with token=secret",
+    }, { type: "admin", id: "owner" });
+    saveRemoteAcceptanceRecord({
       id: "diagnostic-export",
       baseUrl: "https://lifeos.tailnet.example.ts.net",
       note: "Diagnostic bundle exported with token=secret",
@@ -550,6 +560,10 @@ test("remote acceptance checklist separates automated and real-world verificatio
   assert.equal(checklist.find((item) => item.id === "cellular-mobile-chat").evidence.includes("secret"), false);
   assert.equal(checklist.find((item) => item.id === "network-interruption").status, "passed");
   assert.equal(checklist.find((item) => item.id === "network-interruption").evidence.includes("secret"), false);
+  assert.equal(checklist.find((item) => item.id === "network-switch").status, "passed");
+  assert.equal(checklist.find((item) => item.id === "network-switch").evidence.includes("secret"), false);
+  assert.equal(checklist.find((item) => item.id === "stale-qr-repair").status, "passed");
+  assert.equal(checklist.find((item) => item.id === "stale-qr-repair").evidence.includes("secret"), false);
   assert.equal(checklist.find((item) => item.id === "diagnostic-export").status, "passed");
   assert.equal(checklist.find((item) => item.id === "diagnostic-export").evidence.includes("secret"), false);
   assert.equal(checklist.find((item) => item.id === "ci-remote-mock").status, "passed");
@@ -603,6 +617,8 @@ test("remote acceptance checklist requires real network interruption and diagnos
   });
   const checklist = JSON.parse(output);
   assert.equal(checklist.find((item) => item.id === "network-interruption").status, "manual-required");
+  assert.equal(checklist.find((item) => item.id === "network-switch").status, "manual-required");
+  assert.equal(checklist.find((item) => item.id === "stale-qr-repair").status, "manual-required");
   assert.equal(checklist.find((item) => item.id === "diagnostic-export").status, "manual-required");
 });
 
@@ -640,7 +656,7 @@ test("remote acceptance checklist expires stale real-world manual evidence", asy
     });
     const staleCreatedAt = now - 8 * 24 * 60 * 60 * 1000;
     const freshCreatedAt = now - 60 * 60 * 1000;
-    const staleRecords = ["cellular-mobile-chat", "network-interruption", "diagnostic-export"].map((id) => ({
+    const staleRecords = ["cellular-mobile-chat", "network-switch", "stale-qr-repair", "network-interruption", "diagnostic-export"].map((id) => ({
       id,
       baseUrl,
       note: id + " stale proof",
@@ -667,7 +683,7 @@ test("remote acceptance checklist expires stale real-world manual evidence", asy
     encoding: "utf8",
   });
   const { staleChecklist, freshChecklist } = JSON.parse(output);
-  for (const id of ["cellular-mobile-chat", "network-interruption", "diagnostic-export"]) {
+  for (const id of ["cellular-mobile-chat", "network-switch", "stale-qr-repair", "network-interruption", "diagnostic-export"]) {
     const staleItem = staleChecklist.find((item) => item.id === id);
     assert.equal(staleItem.status, "manual-required");
     assert.match(staleItem.evidence, /older than 7 days/);
@@ -901,6 +917,8 @@ test("remote acceptance summary requires a long-term entry and real-world eviden
     { id: "remote-smoke", status: "passed" },
     { id: "restart-restore", status: "manual-required" },
     { id: "cellular-mobile-chat", status: "manual-required" },
+    { id: "network-switch", status: "manual-required" },
+    { id: "stale-qr-repair", status: "manual-required" },
     { id: "network-interruption", status: "manual-required" },
     { id: "diagnostic-export", status: "manual-required" },
     { id: "ci-remote-mock", status: "passed" },
@@ -909,8 +927,8 @@ test("remote acceptance summary requires a long-term entry and real-world eviden
   assert.equal(incomplete.ready, false);
   assert.equal(incomplete.hasLongTermEntry, true);
   assert.equal(incomplete.hasRealWorldEvidence, false);
-  assert.equal(incomplete.manualRequired, 4);
-  assert.equal(incomplete.blockingItems.length, 4);
+  assert.equal(incomplete.manualRequired, 6);
+  assert.equal(incomplete.blockingItems.length, 6);
   assert.equal(incomplete.blockingItems[0].id, "restart-restore");
   assert.equal(incomplete.blockingItems[0].status, "manual-required");
   assert.equal(incomplete.blockingItems.some((item) => item.id === "cloudflare-named-tunnel"), false);
@@ -921,6 +939,6 @@ test("remote acceptance summary requires a long-term entry and real-world eviden
   assert.equal(complete.ready, true);
   assert.equal(complete.hasLongTermEntry, true);
   assert.equal(complete.hasRealWorldEvidence, true);
-  assert.equal(complete.passed, 7);
+  assert.equal(complete.passed, 9);
   assert.deepEqual(complete.blockingItems, []);
 });
