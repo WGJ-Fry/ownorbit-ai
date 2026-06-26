@@ -17,9 +17,9 @@ v0.1.2-alpha
 `v0.1.2-alpha` 当前 GitHub Release 已上传：
 
 ```text
-LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip
-LifeOS AI Setup 0.1.2-alpha.0.exe
-LifeOS AI-0.1.2-alpha.0.AppImage
+LifeOS.AI-0.1.2-alpha.0-arm64-unsigned.zip
+LifeOS.AI.Setup.0.1.2-alpha.0.exe
+LifeOS.AI-0.1.2-alpha.0.AppImage
 SHA256SUMS
 INSTALL-unsigned-mac.md
 USER-INSTALL.md
@@ -35,12 +35,14 @@ release-manifest.json
 
 ```text
 LifeOS AI-0.1.2-alpha.0-arm64.dmg
-signed LifeOS AI Setup 0.1.2-alpha.0.exe
+signed LifeOS.AI.Setup.0.1.2-alpha.0.exe
 ```
 
 如果未来启用自动更新，安装包会读取这些 feed 文件。当前没有配置 `LIFEOS_UPDATE_URL`，所以 update feed 主要用于诊断和后续准备。
 
 ## 当前 SHA256
+
+GitHub 下载资产名使用点号；上传的 `SHA256SUMS` 可能保留 electron-builder 生成的空格文件名。如果本地文件名不同，直接比对 SHA256 值即可。
 
 ```text
 af53111d6689f0cc2ad67b118f3d7bb274fc9742141cc760fdf9f3d9f82c909e  LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip
@@ -96,9 +98,9 @@ v0.1.2-alpha
 The current `v0.1.2-alpha` GitHub Release uploads:
 
 ```text
-LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip
-LifeOS AI Setup 0.1.2-alpha.0.exe
-LifeOS AI-0.1.2-alpha.0.AppImage
+LifeOS.AI-0.1.2-alpha.0-arm64-unsigned.zip
+LifeOS.AI.Setup.0.1.2-alpha.0.exe
+LifeOS.AI-0.1.2-alpha.0.AppImage
 SHA256SUMS
 INSTALL-unsigned-mac.md
 USER-INSTALL.md
@@ -114,12 +116,14 @@ These are formal distribution targets, not the current public alpha assets. Uplo
 
 ```text
 LifeOS AI-0.1.2-alpha.0-arm64.dmg
-signed LifeOS AI Setup 0.1.2-alpha.0.exe
+signed LifeOS.AI.Setup.0.1.2-alpha.0.exe
 ```
 
 These feed files are required for future auto-update support. Because `LIFEOS_UPDATE_URL` is not configured yet, the current feed files are mostly for diagnostics and future preparation.
 
 ## Current SHA256
+
+GitHub asset URLs use dot-separated filenames. The uploaded `SHA256SUMS` file may keep the original electron-builder filenames with spaces; compare the SHA256 value if your local filename differs.
 
 ```text
 af53111d6689f0cc2ad67b118f3d7bb274fc9742141cc760fdf9f3d9f82c909e  LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip

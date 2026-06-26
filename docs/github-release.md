@@ -68,9 +68,9 @@ LifeOS AI is a desktop local core plus mobile PWA personal AI system.
 
 ### Downloads
 
-- macOS Apple Silicon unsigned ZIP: `LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip`
-- Windows x64 NSIS installer: `LifeOS AI Setup 0.1.2-alpha.0.exe`
-- Linux x64 AppImage: `LifeOS AI-0.1.2-alpha.0.AppImage`
+- macOS Apple Silicon unsigned ZIP: `LifeOS.AI-0.1.2-alpha.0-arm64-unsigned.zip`
+- Windows x64 NSIS installer: `LifeOS.AI.Setup.0.1.2-alpha.0.exe`
+- Linux x64 AppImage: `LifeOS.AI-0.1.2-alpha.0.AppImage`
 - Checksum: `SHA256SUMS`
 - Install guide: `USER-INSTALL.md`
 - macOS unsigned fallback guide: `INSTALL-unsigned-mac.md`
@@ -81,9 +81,11 @@ macOS: download the unsigned ZIP, unzip it, drag `LifeOS AI.app` to Applications
 
 Windows: download the NSIS `.exe` and follow the SmartScreen warning guidance in `USER-INSTALL.md`.
 
-Linux: download the AppImage, run `chmod +x "LifeOS AI-0.1.2-alpha.0.AppImage"`, then launch it.
+Linux: download the AppImage, run `chmod +x "LifeOS.AI-0.1.2-alpha.0.AppImage"`, then launch it.
 
 ### Verification
+
+GitHub asset URLs use dot-separated filenames. The uploaded `SHA256SUMS` file may list the original electron-builder filenames with spaces; compare the hash value if your downloaded filename differs.
 
 SHA256:
 

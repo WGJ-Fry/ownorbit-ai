@@ -4,7 +4,7 @@
 >
 > Your computer runs the private AI core. Your phone becomes the everyday companion.
 
-[中文说明](README.zh-CN.md) | [Release Status](#release-status) | [Quick Start](#2-minute-setup) | [Generated Programs](#generated-problem-solving-programs) | [Remote Access](#remote--vpn-access) | [Current Limits](#current-alpha-limits)
+[中文说明](README.zh-CN.md) | [Release Status](#release-status) | [Setup](#2-minute-setup) | [Generated Programs](#generated-problem-solving-programs) | [Remote Access](#remote--vpn-access) | [Current Limits](#current-alpha-limits)
 
 [![Quality Gate](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/quality.yml/badge.svg)](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/quality.yml)
 [![Docker Image](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/docker.yml/badge.svg)](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/docker.yml)
@@ -39,12 +39,12 @@ Current release promise: put Markdown notes in a folder, run LifeOS locally, and
 Public release tag: [`v0.1.2-alpha`](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha)<br>
 Source package version: `0.1.2-alpha.0`
 
-The table below separates packaged downloads from source-branch capabilities so new users do not confuse a release artifact with later `main` commits.
+This README is written for the public `v0.1.2-alpha` downloads. The `main` branch may contain later source-only changes; use those only if you are comfortable building from source.
 
-| Track | Completed capabilities |
+| Track | What to expect |
 | --- | --- |
 | `v0.1.2-alpha` public release | Docker Compose local Markdown demo, GHCR image path, macOS unsigned ZIP, Windows NSIS installer, Linux AppImage, admin auth, AI provider settings, mobile PWA pairing, offline queue, SQLite migrations, backup/restore, diagnostics, release checks, and connection diagnostics. |
-| Current `main` source | Everything above, plus the latest Studio generated-program runtime log repair flow in source. Build from source if you want the newest code before the next packaged release. |
+| Current `main` source | Developer path only: same release foundation, plus source-only Studio runtime log repair changes. Not a separate packaged download. |
 | Earlier base | `0.1.1-alpha.0` added Docker quickstart/Ollama/Markdown vault defaults. `0.1.0` started the desktop/PWA foundation. |
 
 ## Choose Your Path
@@ -52,11 +52,11 @@ The table below separates packaged downloads from source-branch capabilities so 
 | Path | Use this when | Current public status |
 | --- | --- | --- |
 | **Docker Compose alpha** | You want the fastest local demo with Ollama and Markdown notes. | Recommended first try. Uses `ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha`. |
-| **macOS desktop ZIP** | You want to try the early desktop shell on Apple Silicon. | Available in the [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha): `LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip`. |
-| **Windows desktop installer** | You want a native Windows x64 installer. | Available in the [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha): `LifeOS AI Setup 0.1.2-alpha.0.exe`. |
-| **Linux AppImage** | You want a portable Linux x64 desktop package. | Available in the [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha): `LifeOS AI-0.1.2-alpha.0.AppImage`. |
+| **macOS desktop ZIP** | You want to try the early desktop shell on Apple Silicon. | Available in the [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha): `LifeOS.AI-0.1.2-alpha.0-arm64-unsigned.zip`. |
+| **Windows desktop installer** | You want a native Windows x64 installer. | Available in the [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha): `LifeOS.AI.Setup.0.1.2-alpha.0.exe`. |
+| **Linux AppImage** | You want a portable Linux x64 desktop package. | Available in the [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha): `LifeOS.AI-0.1.2-alpha.0.AppImage`. |
 
-If you are new, start with Docker Compose below. If you specifically want the desktop app, use the `v0.1.2-alpha` Release and verify downloads with `SHA256SUMS` before first launch.
+If you are new, start with Docker Compose below. If you specifically want the desktop app, use the `v0.1.2-alpha` Release and verify downloads with `SHA256SUMS` before first launch. GitHub asset URLs use dot-separated filenames, while `SHA256SUMS` may list the original builder filenames with spaces; compare the SHA256 value if the local filename differs.
 
 ## Real Product Screens
 
@@ -96,7 +96,7 @@ LifeOS is interesting because the current alpha already combines three working p
 | Desktop app shell | Available as current alpha packages |
 | Mobile companion | Pairing, chat, offline queue, device status, and action permissions are implemented |
 | Remote access guidance | LAN, Tailscale, Cloudflare Tunnel diagnostics and safety checks are implemented |
-| Generated programs | Studio generation, refinement, runtime logs, debug instruction, state storage, and rollback are implemented in the current source. One-click repair save is available on `main` and will be part of the next packaged release. |
+| Generated programs | Public release packages include Studio generation, refinement, runtime logs, debug instruction, state storage, and rollback. Current `main` source also includes one-click repair save. |
 
 ## Generated Problem-Solving Programs
 
@@ -118,7 +118,7 @@ Examples:
 - A follow-up board for people you promised to contact.
 - A tiny workflow panel for repeated local actions.
 
-Status: generation, manual refinement, durable state, runtime logs, debug instruction generation, action permission checks, and version rollback are implemented. One-click repair save is available on `main`; use source builds until the next packaged release includes it. Fully automatic unattended self-repair is not advertised here until it is shipped.
+Status: generation, manual refinement, durable state, runtime logs, debug instruction generation, action permission checks, and version rollback are implemented in the public release path. One-click repair save is source-only on `main`. Fully automatic unattended self-repair is not advertised here.
 
 ## 2-Minute Setup
 
@@ -212,6 +212,8 @@ Safety rule: before remote access, enable admin auth, use HTTPS or a private VPN
 
 ### Phone Outside Home: 3 Steps
 
+Entry point: desktop admin -> device pairing / connection guide.
+
 1. Start LifeOS on the computer and finish the admin setup.
 2. Use the connection guide to pick a private VPN URL, LAN URL, or carefully configured HTTPS tunnel URL.
 3. Generate the pairing QR from that selected URL, scan it on the phone, then run the built-in reachability check before relying on it outside the local network.
@@ -252,7 +254,7 @@ LOCAL_MODEL_NAME=llama3.2
 LOCAL_MODEL_BASE_URL=http://ollama:11434/v1
 ```
 
-The desktop/admin path includes provider configuration work for local models, Gemini, OpenAI, and OpenRouter-style endpoints. Sensitive keys are intended to stay server-side and out of frontend storage, backups, logs, and API responses.
+The desktop/admin path includes provider settings for local models, Gemini, OpenAI, and OpenRouter-style endpoints. Sensitive keys are intended to stay server-side and out of frontend storage, backups, logs, and API responses.
 
 ## Current Alpha Limits
 
@@ -263,6 +265,7 @@ LifeOS is alpha software. The Docker quickstart is the most stable demo path; de
 - No calendar/task write-back yet.
 - Not a perfect deadline detector.
 - Reads a limited number of files for speed and context size.
+- Local actions currently mean URL Scheme and permission-center flows, not full calendar/task automation.
 - Desktop, mobile, remote access, and Studio-generated programs should be validated against the release notes before public demos.
 
 ## Troubleshooting

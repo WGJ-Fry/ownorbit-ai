@@ -4,7 +4,7 @@
 >
 > 电脑端运行私有 AI 核心，手机端成为日常使用入口。
 
-[English](README.md) | [发布状态](#发布状态) | [快速开始](#2-分钟配置) | [自动生成程序](#自动生成解决问题的程序) | [远程访问](#远程与-vpn-访问) | [当前限制](#当前-alpha-限制)
+[English](README.md) | [发布状态](#发布状态) | [快速配置](#2-分钟配置) | [自动生成程序](#自动生成解决问题的程序) | [远程访问](#远程与-vpn-访问) | [当前限制](#当前-alpha-限制)
 
 [![Quality Gate](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/quality.yml/badge.svg)](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/quality.yml)
 [![Docker Image](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/docker.yml/badge.svg)](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/docker.yml)
@@ -39,12 +39,12 @@ LifeOS 先从一个很小但有用的工作流开始：
 公开 Release tag：[`v0.1.2-alpha`](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha)<br>
 源码 package version：`0.1.2-alpha.0`
 
-下面把“已经打包发布的能力”和“main 分支源码里的最新能力”分开写，避免用户把下载包和后续源码提交混在一起。
+这份 README 面向 `v0.1.2-alpha` 公开下载包。`main` 分支可能包含后续源码改动；只有你愿意从源码构建时，才需要关注它。
 
-| 轨道 | 已完成能力 |
+| 轨道 | 可以期待什么 |
 | --- | --- |
 | `v0.1.2-alpha` 公开发布版 | Docker Compose 本地 Markdown 演示、GHCR 镜像路径、macOS unsigned ZIP、Windows NSIS 安装包、Linux AppImage、管理员认证、AI provider 设置、手机 PWA 绑定、离线队列、SQLite migration、备份恢复、诊断包、发布检查和连接诊断。 |
-| 当前 `main` 源码 | 包含上面能力，并增加最新的 Studio 生成程序运行日志修复流程。想体验下一个打包版之前的最新代码，可以从源码构建。 |
+| 当前 `main` 源码 | 仅面向开发者：包含公开发布版底座，并增加源码中的 Studio 运行日志修复改动。它不是单独的打包下载。 |
 | 更早基础版本 | `0.1.1-alpha.0` 增加 Docker quickstart/Ollama/Markdown vault 默认路径。`0.1.0` 建立桌面/PWA 底座。 |
 
 ## 选择你的体验路径
@@ -52,11 +52,11 @@ LifeOS 先从一个很小但有用的工作流开始：
 | 路径 | 适合你在什么时候用 | 当前公开状态 |
 | --- | --- | --- |
 | **Docker Compose alpha** | 想最快体验 Ollama + Markdown 本地记忆演示。 | 推荐第一次体验使用。镜像是 `ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha`。 |
-| **macOS 桌面 ZIP** | 想在 Apple Silicon Mac 上试用早期桌面端壳。 | 已在 [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha) 提供：`LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip`。 |
-| **Windows 桌面安装包** | 想要 Windows x64 原生安装器。 | 已在 [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha) 提供：`LifeOS AI Setup 0.1.2-alpha.0.exe`。 |
-| **Linux AppImage** | 想要 Linux x64 便携桌面包。 | 已在 [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha) 提供：`LifeOS AI-0.1.2-alpha.0.AppImage`。 |
+| **macOS 桌面 ZIP** | 想在 Apple Silicon Mac 上试用早期桌面端壳。 | 已在 [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha) 提供：`LifeOS.AI-0.1.2-alpha.0-arm64-unsigned.zip`。 |
+| **Windows 桌面安装包** | 想要 Windows x64 原生安装器。 | 已在 [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha) 提供：`LifeOS.AI.Setup.0.1.2-alpha.0.exe`。 |
+| **Linux AppImage** | 想要 Linux x64 便携桌面包。 | 已在 [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha) 提供：`LifeOS.AI-0.1.2-alpha.0.AppImage`。 |
 
-如果你是第一次看这个项目，建议从下面的 Docker Compose 开始。如果你明确想试桌面 App，请使用 `v0.1.2-alpha` Release，并在首次启动前用 `SHA256SUMS` 校验下载文件。
+如果你是第一次看这个项目，建议从下面的 Docker Compose 开始。如果你明确想试桌面 App，请使用 `v0.1.2-alpha` Release，并在首次启动前用 `SHA256SUMS` 校验下载文件。GitHub 下载资产名使用点号，`SHA256SUMS` 里可能保留构建器生成的空格文件名；如果本地文件名不同，直接比对 SHA256 值即可。
 
 ## 真实产品界面
 
@@ -96,7 +96,7 @@ LifeOS 有意思的地方在于当前 alpha 已经把三件事放在一起：
 | 桌面端壳 | 当前 alpha 包已提供 |
 | 手机端伴侣 | 已实现绑定、聊天、离线队列、设备状态和动作权限 |
 | 远程访问向导 | 已实现 LAN、Tailscale、Cloudflare Tunnel 诊断和安全检查 |
-| 自动生成程序 | 当前源码已实现 Studio 生成、改写、运行日志、调试指令、状态存储和回滚。一键修复保存已在 `main` 可用，会进入下一个打包发布版。 |
+| 自动生成程序 | 公开发布包已包含 Studio 生成、改写、运行日志、调试指令、状态存储和回滚。当前 `main` 源码还包含一键修复保存。 |
 
 ## 自动生成解决问题的程序
 
@@ -118,7 +118,7 @@ LifeOS Studio 可以把一个具体需求变成一个小型可运行程序。
 - 为答应联系的人生成 follow-up 面板。
 - 为重复的本地动作生成一个小流程工具。
 
-当前状态：已实现生成、手动改写、持久状态、运行日志、调试指令生成、动作权限检查和版本回滚。一键修复保存已在 `main` 可用；在下一个打包发布版之前，需要从源码构建体验。无人值守的完全自动自修复闭环还没有发布，所以这里不作为功能宣传。
+当前状态：公开发布路径已实现生成、手动改写、持久状态、运行日志、调试指令生成、动作权限检查和版本回滚。一键修复保存目前只在 `main` 源码中可用。无人值守的完全自动自修复闭环没有作为功能宣传。
 
 ## 2 分钟配置
 
@@ -212,6 +212,8 @@ LifeOS 设计的连接模型是：
 
 ### 手机异地连接 3 步
 
+入口：电脑端管理页 -> 设备绑定 / 连接向导。
+
 1. 在电脑上启动 LifeOS，并完成管理员首次设置。
 2. 在连接向导里选择私有 VPN 地址、局域网地址，或谨慎配置后的 HTTPS Tunnel 地址。
 3. 用这个地址生成绑定二维码，在手机上扫码，然后先跑内置可达性检查，再拿到外网长期使用。
@@ -252,7 +254,7 @@ LOCAL_MODEL_NAME=llama3.2
 LOCAL_MODEL_BASE_URL=http://ollama:11434/v1
 ```
 
-桌面/管理端路径包含本地模型、Gemini、OpenAI、OpenRouter 风格 endpoint 的配置能力。敏感 Key 设计目标是只留在后端，不进入前端存储、备份明文、日志和 API 响应。
+桌面/管理端路径包含本地模型、Gemini、OpenAI、OpenRouter 风格 endpoint 的配置入口。敏感 Key 设计目标是只留在后端，不进入前端存储、备份明文、日志和 API 响应。
 
 ## 当前 Alpha 限制
 
@@ -263,6 +265,7 @@ LifeOS 仍是 alpha 软件。Docker quickstart 是目前最稳定的演示路径
 - 还不会写回日历或任务系统。
 - 它不是完美的截止日期检测器。
 - 为了速度和上下文长度，只读取有限数量的文件。
+- 当前本地动作主要是 URL Scheme 和权限中心流程，不是完整日历/任务自动执行。
 - 桌面端、手机端、远程访问和 Studio 生成程序，公开演示前应按 Release 说明重新验证。
 
 ## 常见排查

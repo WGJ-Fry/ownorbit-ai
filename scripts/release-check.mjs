@@ -19,8 +19,8 @@ const userInstallStatusMarkers = [
   "Only claim assets that already exist and can be downloaded from a clean machine",
   "只写已经存在并能被干净机器下载的资产",
   "docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha",
-  "LifeOS AI Setup 0.1.2-alpha.0.exe",
-  "LifeOS AI-0.1.2-alpha.0.AppImage",
+  "LifeOS.AI.Setup.0.1.2-alpha.0.exe",
+  "LifeOS.AI-0.1.2-alpha.0.AppImage",
   "SmartScreen may warn about an unknown publisher",
   "Mark it executable and verify it with `SHA256SUMS`",
 ];
@@ -2485,19 +2485,21 @@ function checkReleaseDocs() {
   }
 
   if (
-    readmeEn.includes("## Choose Your Path") &&
-    readmeEn.includes("Docker Compose alpha") &&
-    readmeEn.includes("ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha") &&
-    readmeEn.includes("LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip") &&
-    readmeEn.includes("LifeOS AI Setup 0.1.2-alpha.0.exe") &&
-    readmeEn.includes("LifeOS AI-0.1.2-alpha.0.AppImage") &&
-    readmeZh.includes("## 选择你的体验路径") &&
-    readmeZh.includes("Docker Compose alpha") &&
-    readmeZh.includes("ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha") &&
-    readmeZh.includes("LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip") &&
-    readmeZh.includes("LifeOS AI Setup 0.1.2-alpha.0.exe") &&
-    readmeZh.includes("LifeOS AI-0.1.2-alpha.0.AppImage")
-  ) {
+	    readmeEn.includes("## Choose Your Path") &&
+	    readmeEn.includes("Docker Compose alpha") &&
+	    readmeEn.includes("ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha") &&
+	    readmeEn.includes("LifeOS.AI-0.1.2-alpha.0-arm64-unsigned.zip") &&
+	    readmeEn.includes("LifeOS.AI.Setup.0.1.2-alpha.0.exe") &&
+	    readmeEn.includes("LifeOS.AI-0.1.2-alpha.0.AppImage") &&
+	    readmeEn.includes("SHA256SUMS") &&
+	    readmeZh.includes("## 选择你的体验路径") &&
+	    readmeZh.includes("Docker Compose alpha") &&
+	    readmeZh.includes("ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha") &&
+	    readmeZh.includes("LifeOS.AI-0.1.2-alpha.0-arm64-unsigned.zip") &&
+	    readmeZh.includes("LifeOS.AI.Setup.0.1.2-alpha.0.exe") &&
+	    readmeZh.includes("LifeOS.AI-0.1.2-alpha.0.AppImage") &&
+	    readmeZh.includes("SHA256SUMS")
+	  ) {
     pass("bilingual README exposes the current Docker alpha and all uploaded desktop packages");
   } else {
     fail("bilingual README must expose the current Docker alpha plus macOS, Windows, and Linux v0.1.2-alpha package assets");
@@ -2600,12 +2602,16 @@ function checkReleaseDocs() {
   }
 
   const publicReleaseCombined = publicReleaseDocs.map(([, source]) => source).join("\n");
-  const requiredPublicReleaseMarkers = [
-    "LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip",
-    "LifeOS AI Setup 0.1.2-alpha.0.exe",
-    "LifeOS AI-0.1.2-alpha.0.AppImage",
-    "af53111d6689f0cc2ad67b118f3d7bb274fc9742141cc760fdf9f3d9f82c909e",
-    "b1502f090764909ea8be708474e7f5800d202ced2c48cfcded0a13c4c4f03f57",
+	  const requiredPublicReleaseMarkers = [
+	    "LifeOS.AI-0.1.2-alpha.0-arm64-unsigned.zip",
+	    "LifeOS.AI.Setup.0.1.2-alpha.0.exe",
+	    "LifeOS.AI-0.1.2-alpha.0.AppImage",
+	    "LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip",
+	    "LifeOS AI Setup 0.1.2-alpha.0.exe",
+	    "LifeOS AI-0.1.2-alpha.0.AppImage",
+	    "dot-separated filenames",
+	    "af53111d6689f0cc2ad67b118f3d7bb274fc9742141cc760fdf9f3d9f82c909e",
+	    "b1502f090764909ea8be708474e7f5800d202ced2c48cfcded0a13c4c4f03f57",
     "bd83e1c702f24586a81925a6db34deb74b2f68175416c85235e8750b6bf7c5fc",
     "INSTALL-unsigned-mac.md",
     "SmartScreen",
@@ -2633,11 +2639,12 @@ function checkReleaseDocs() {
       "Open Anyway",
       "SmartScreen",
       "chmod +x",
-      "LIFEOS_UPDATE_URL",
-      "release-manifest.json",
-      "SHA256SUMS",
-      "shasum -a 256 -c SHA256SUMS",
-      "Get-FileHash",
+	      "LIFEOS_UPDATE_URL",
+	      "release-manifest.json",
+	      "SHA256SUMS",
+	      "shasum -a 256 \"LifeOS.AI-0.1.2-alpha.0-arm64-unsigned.zip\"",
+	      "filename mismatch",
+	      "Get-FileHash",
       "diagnostic bundle",
       "Open Local Console In Browser",
       "Copy Local Address",
