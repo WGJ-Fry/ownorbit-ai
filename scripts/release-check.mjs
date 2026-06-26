@@ -1217,6 +1217,7 @@ function checkAssets() {
   const mobileDeviceSource = exists("src/pages/mobile/MobileDevicePage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileDevicePage.tsx"), "utf8") : "";
   const mobileDeviceHealthSummarySource = exists("src/pages/mobile/MobileDeviceHealthSummary.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileDeviceHealthSummary.tsx"), "utf8") : "";
   const mobileDeviceStatusCardsSource = exists("src/pages/mobile/MobileDeviceStatusCards.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileDeviceStatusCards.tsx"), "utf8") : "";
+  const mobileRemoteEntryCardSource = exists("src/pages/mobile/MobileRemoteEntryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileRemoteEntryCard.tsx"), "utf8") : "";
   if (
     mobileDeviceStatusCardsSource.includes("mobileDevice.pastePairingLink") &&
     mobileDeviceSource.includes("mobileDevice.rebindButton") &&
@@ -1402,20 +1403,22 @@ function checkAssets() {
     mobileDeviceHealthSummarySource.includes("mobileDevice.healthOfflineShell") &&
     mobileDeviceHealthSummarySource.includes("currentEntry.okForRemote") &&
     mobileDeviceHealthSummarySource.includes("lastConnectivityResult?.ok") &&
-    mobileDeviceSource.includes("mobileDevice.remoteVerdict") &&
+    mobileDeviceSource.includes("MobileRemoteEntryCard") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.remoteVerdict") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.remoteReadinessReady") &&
     mobileDeviceSource.includes("health?.remoteEntryMode") &&
     lifeosApiSourceForRouting.includes("remoteEntryMode") &&
     mobileDeviceSource.includes("currentEntryGuidance") &&
-    mobileDeviceSource.includes("mobileDevice.entryGuidanceTitle") &&
-    mobileDeviceSource.includes("mobileDevice.connectivityTest") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.entryGuidanceTitle") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.connectivityTest") &&
     mobileDeviceSource.includes("testMobileRemoteConnectivity") &&
     mobileDeviceSource.includes("reportMobileConnectivity") &&
     mobileDeviceSource.includes("connectivityReportStale") &&
-    mobileDeviceSource.includes("MobileLastConnectivityCard") &&
-    mobileDeviceSource.includes("refreshBusy={serverRefreshBusy}") &&
-    mobileDeviceSource.includes("retryBusy={connectivityBusy}") &&
-    mobileDeviceSource.includes("onRetry={handleConnectivityTest}") &&
-    mobileDeviceSource.includes("queueSummary={queueSummary}") &&
+    mobileRemoteEntryCardSource.includes("MobileLastConnectivityCard") &&
+    mobileRemoteEntryCardSource.includes("refreshBusy={serverRefreshBusy}") &&
+    mobileRemoteEntryCardSource.includes("retryBusy={connectivityBusy}") &&
+    mobileRemoteEntryCardSource.includes("onRetry={onConnectivityTest}") &&
+    mobileRemoteEntryCardSource.includes("queueSummary={queueSummary}") &&
     mobileLastConnectivityCardSource.includes("mobileDevice.lastConnectivityOk") &&
     mobileLastConnectivityCardSource.includes("mobileDevice.lastConnectivityFailed") &&
     mobileLastConnectivityCardSource.includes("mobileDevice.freshConnectivityReport") &&

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowLeft, Download, KeyRound, LogOut, RefreshCw, ShieldCheck, Smartphone, Wifi } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Download, KeyRound, LogOut, RefreshCw, ShieldCheck, Smartphone } from "lucide-react";
 import { clearStoredDeviceCredential, getHealth, getLatestMobileConnectivityReport, getStoredDeviceCredential, getStoredDeviceCredentialAsync, getStoredDeviceCredentialExpiryStatus, getStoredDeviceCredentialStorageStatus, reportMobileConnectivity, revokeCurrentDeviceBinding, rotateDeviceToken } from "../../services/lifeosApi";
 import type { DeviceConnectivityReport, DeviceCredentialStorageStatus } from "../../services/lifeosApi";
 import { clearOfflineMessageQueue, getOfflineMessageQueue, getOfflineMessageQueueStorageStatus, getOfflineMessageQueueSummary, removeOfflineMessages, requestOfflineMessageQueuePersistentStorage, resetFailedOfflineMessages, retryOfflineMessage, subscribeOfflineMessageQueue } from "../../services/offlineMessageQueue";
@@ -10,11 +10,10 @@ import { getMobileConnectivityIssue, getMobileRecoveryHints, getPwaCapabilitySta
 import type { MobileConnectivityResult } from "../../services/pwaCapabilities";
 import { getPwaServiceWorkerLifecycleStatus, subscribePwaServiceWorkerLifecycle } from "../../services/pwaServiceWorkerLifecycle";
 import type { PwaServiceWorkerLifecycleStatus } from "../../services/pwaServiceWorkerLifecycle";
-import MobileConnectivityCard from "./MobileConnectivityCard";
 import MobileDeviceHealthSummary from "./MobileDeviceHealthSummary";
 import MobileGeneratedToolsCard from "./MobileGeneratedToolsCard";
-import MobileLastConnectivityCard from "./MobileLastConnectivityCard";
 import MobileOfflineQueuePanel from "./MobileOfflineQueuePanel";
+import MobileRemoteEntryCard from "./MobileRemoteEntryCard";
 import { CapabilityRow, CredentialExpiryCard, CredentialStorageCard, PairingLinkPanel, Row } from "./MobileDeviceStatusCards";
 import { useI18n } from "../../i18n/I18nProvider";
 
@@ -424,63 +423,21 @@ export default function MobileDevicePage() {
             </div>
           )}
         </section>
-        <section className="mt-4 rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
-          <div className="mb-4 flex items-start gap-3">
-            <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border ${currentEntry.okForRemote ? "border-emerald-400/20 bg-emerald-500/10" : "border-amber-400/20 bg-amber-500/10"}`}>
-              <Wifi className={`h-5 w-5 ${currentEntry.okForRemote ? "text-emerald-300" : "text-amber-300"}`} />
-            </div>
-            <div>
-              <h2 className="text-base font-bold">{t("mobileDevice.remoteEntryTitle")}</h2>
-              <p className="mt-1 text-sm leading-relaxed text-zinc-400">{t("mobileDevice.remoteEntryBody")}</p>
-            </div>
-          </div>
-          <div className="space-y-3 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-sm">
-            <Row label={t("mobileDevice.currentEntry")} value={currentEntry.currentBase || "-"} />
-            <Row label={t("mobileDevice.desktopEntry")} value={currentEntry.configuredBase || t("mobileDevice.desktopEntryUnset")} />
-            <Row label={t("mobileDevice.networkMode")} value={health?.networkMode || "-"} />
-            <Row label={t("mobileDevice.remoteVerdict")} value={t(currentEntry.titleKey as any)} />
-          </div>
-          <button
-            onClick={() => refreshServerState({ announce: true })}
-            disabled={serverRefreshBusy}
-            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm font-bold text-zinc-200 disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 ${serverRefreshBusy ? "animate-spin" : ""}`} />
-            {serverRefreshBusy ? t("mobileDevice.refreshingServerState") : t("mobile.refreshConnection")}
-          </button>
-          <div className={`mt-4 rounded-2xl border p-3 text-sm leading-relaxed ${currentEntry.okForRemote ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100" : "border-amber-400/20 bg-amber-500/10 text-amber-100"}`}>
-            <div className="font-bold">{t(currentEntry.titleKey as any)}</div>
-            <div className={`mt-1 ${currentEntry.okForRemote ? "text-emerald-100/75" : "text-amber-100/75"}`}>{t(currentEntry.bodyKey as any)}</div>
-            <div className="mt-3 rounded-xl border border-white/[0.08] bg-black/10 p-2 text-xs">
-              <div className="font-bold">{t("mobileDevice.entryGuidanceTitle")}</div>
-              <div className="mt-1 space-y-1 opacity-85">
-                {currentEntryGuidance.map((hint) => <div key={hint}>{t(hint as any)}</div>)}
-              </div>
-            </div>
-          </div>
-          {lastConnectivityReport ? (
-            <MobileLastConnectivityCard
-              report={lastConnectivityReport}
-              stale={connectivityReportStale}
-              issue={lastConnectivityIssue}
-              hints={lastConnectivityHints}
-              entryKind={currentEntry.kind}
-              refreshBusy={serverRefreshBusy}
-              retryBusy={connectivityBusy}
-              onRefresh={() => refreshServerState({ announce: true })}
-              onRetry={handleConnectivityTest}
-            />
-          ) : null}
-          <button
-            onClick={handleConnectivityTest}
-            disabled={connectivityBusy}
-            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm font-bold text-cyan-200 disabled:opacity-50"
-          >
-            <RefreshCw className="h-4 w-4" />
-            {connectivityBusy ? t("mobileDevice.connectivityTesting") : t("mobileDevice.connectivityTest")}
-          </button>
-          {connectivityTest ? <MobileConnectivityCard result={connectivityTest} entryKind={currentEntry.kind} queueSummary={queueSummary} onRetry={handleConnectivityTest} /> : null}
-        </section>
+        <MobileRemoteEntryCard
+          connectivityBusy={connectivityBusy}
+          connectivityReportStale={connectivityReportStale}
+          connectivityTest={connectivityTest}
+          currentEntry={currentEntry}
+          currentEntryGuidance={currentEntryGuidance}
+          healthNetworkMode={health?.networkMode}
+          lastConnectivityHints={lastConnectivityHints}
+          lastConnectivityIssue={lastConnectivityIssue}
+          lastConnectivityReport={lastConnectivityReport}
+          queueSummary={queueSummary}
+          serverRefreshBusy={serverRefreshBusy}
+          onConnectivityTest={handleConnectivityTest}
+          onRefreshServer={() => refreshServerState({ announce: true })}
+        />
         <MobileOfflineQueuePanel
           network={network}
           queueSummary={queueSummary}
