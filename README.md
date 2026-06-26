@@ -46,7 +46,7 @@ Important: use the explicit [`v0.1.2-alpha` Release page](https://github.com/WGJ
 | Track | What to expect |
 | --- | --- |
 | `v0.1.2-alpha` public release | Docker Compose local Markdown demo, GHCR image path, macOS unsigned ZIP, Windows NSIS installer, Linux AppImage, admin auth, AI provider settings, mobile PWA pairing, offline queue, SQLite migrations, backup/restore, diagnostics, release checks, and connection diagnostics. |
-| Current `main` source | Developer path only: same release foundation, plus read-only local `.ics` calendar memory, structured memory signals, and Studio blueprint confirmation/permission/repair guidance. Not a separate packaged download. |
+| Current `main` source | Developer path only: same release foundation, plus read-only local `.ics` calendar/task memory, structured memory signals, and Studio blueprint confirmation/permission/repair guidance. Not a separate packaged download. |
 | Earlier base | `0.1.1-alpha.0` added Docker quickstart/Ollama/Markdown vault defaults. `0.1.0` started the desktop/PWA foundation. |
 
 ## Choose Your Path
@@ -91,9 +91,9 @@ LifeOS is interesting because the current alpha already combines three working p
 
 | Area | Current status |
 | --- | --- |
-| Local memory reading | Markdown plus optional read-only `.ics` calendar files in the Docker/local path |
+| Local memory reading | Markdown plus optional read-only `.ics` calendar/task files in the Docker/local path |
 | Ollama local model | Works through Docker Compose |
-| “What am I forgetting?” chat | Works for mounted Markdown notes and upcoming local `.ics` events |
+| “What am I forgetting?” chat | Works for mounted Markdown notes plus upcoming `.ics` events and open `.ics` tasks |
 | Admin login and security diagnostics | Included in the desktop/server path |
 | Desktop app shell | Available as current alpha packages |
 | Mobile companion | Pairing, chat, offline queue, device status, and action permissions are implemented |
@@ -230,20 +230,20 @@ Recommended long-term path: Tailscale or another private VPN. Cloudflare Tunnel 
 
 ## Local Memory Contract
 
-LifeOS reads your mounted Markdown folder and, optionally, local `.ics` calendar files. It does not write back to the vault or calendar files in this alpha path.
+LifeOS reads your mounted Markdown folder and, optionally, local `.ics` calendar/task files. It does not write back to the vault, calendar files, or task files in this alpha path.
 
 | Item | Current behavior |
 | --- | --- |
 | Host folder | `./lifeos_vault` |
 | Container path | `/app/vault` |
 | Markdown files | `.md` |
-| Optional calendar files | `.ics` under `./lifeos_vault/calendar` |
+| Optional calendar/task files | `.ics` under `./lifeos_vault/calendar`, supporting `VEVENT` and open `VTODO` items |
 | Hidden folders | Skipped |
 | `node_modules` | Skipped |
 | Default max files | `30` |
 | Default chars per file | `3000` |
 | Default total chars | `60000` |
-| Calendar behavior | Read-only upcoming events, no account sync, no write-back |
+| Calendar/task behavior | Read-only upcoming events and open dated tasks, no account sync, no write-back |
 
 Relevant environment variables:
 
@@ -274,7 +274,7 @@ The desktop/admin path includes provider settings for local models, Gemini, Open
 
 LifeOS is alpha software. The Docker quickstart is the most stable demo path; desktop, mobile, remote access, and Studio are usable alpha paths with more moving parts.
 
-- Local memory reads Markdown plus optional read-only `.ics` calendar files in the Docker/local path.
+- Local memory reads Markdown plus optional read-only `.ics` calendar/task files in the Docker/local path.
 - No Apple Calendar, Google Calendar, or system reminders account sync/write-back yet.
 - No calendar/task write-back yet.
 - Not a perfect deadline detector.

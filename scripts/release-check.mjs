@@ -2458,6 +2458,8 @@ function checkReleaseDocs() {
     "LOCAL_MODEL_BASE_URL=http://ollama:11434/v1",
     "LIFEOS_VAULT_DIR=/app/vault",
     "LIFEOS_CALENDAR_ICS_DIR=/app/vault/calendar",
+    "VEVENT",
+    "VTODO",
     'tags:\n      - "v*"',
     "packages: write",
     "docker/build-push-action@v6",
@@ -2467,7 +2469,7 @@ function checkReleaseDocs() {
   ];
   const missingDockerMarkers = requiredDockerQuickstartMarkers.filter((marker) => !dockerCombined.includes(marker));
   if (missingDockerFiles.length === 0 && missingDockerMarkers.length === 0) {
-    pass("Docker quickstart covers Ollama, local Markdown vault, optional ICS calendar memory, quickstart login, GHCR image, and README proof path");
+    pass("Docker quickstart covers Ollama, local Markdown vault, optional ICS calendar/task memory, quickstart login, GHCR image, and README proof path");
   } else {
     fail(`Docker quickstart is incomplete; missing files: ${missingDockerFiles.join(", ") || "none"}; missing markers: ${missingDockerMarkers.join(", ") || "none"}`);
   }
@@ -2508,7 +2510,8 @@ function checkReleaseDocs() {
 	    readmeEn.includes("LifeOS.AI.Setup.0.1.2-alpha.0.exe") &&
 	    readmeEn.includes("LifeOS.AI-0.1.2-alpha.0.AppImage") &&
 	    readmeEn.includes("SHA256SUMS") &&
-	    readmeEn.includes("Local memory reads Markdown plus optional read-only `.ics` calendar files") &&
+	    readmeEn.includes("Local memory reads Markdown plus optional read-only `.ics` calendar/task files") &&
+	    readmeEn.includes("supporting `VEVENT` and open `VTODO` items") &&
 	    readmeEn.includes("No Apple Calendar, Google Calendar, or system reminders account sync/write-back yet") &&
 	    readmeEn.includes("blueprint confirmation, permission notes, and failure recovery guidance") &&
 	    readmeZh.includes("## 选择你的体验路径") &&
@@ -2518,7 +2521,8 @@ function checkReleaseDocs() {
 	    readmeZh.includes("LifeOS.AI.Setup.0.1.2-alpha.0.exe") &&
 	    readmeZh.includes("LifeOS.AI-0.1.2-alpha.0.AppImage") &&
 	    readmeZh.includes("SHA256SUMS") &&
-	    readmeZh.includes("可以读取 Markdown，也可以读取本地 `.ics` 日历文件") &&
+	    readmeZh.includes("可以读取 Markdown，也可以读取本地 `.ics` 日历/任务文件") &&
+	    readmeZh.includes("支持 `VEVENT` 和未完成 `VTODO`") &&
 	    readmeZh.includes("还没有接入 Apple Calendar、Google Calendar 或系统提醒事项的账号同步/写回") &&
 	    readmeZh.includes("蓝图确认清单、权限说明和失败修复建议")
 	  ) {

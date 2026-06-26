@@ -4,7 +4,7 @@ LifeOS v0.1.2-alpha is the current public cold-launch alpha.
 
 It keeps the one-minute Docker Compose path focused:
 
-> Read a mounted local Markdown folder, optionally include local `.ics` calendar files, and answer: **"What am I forgetting?"**
+> Read a mounted local Markdown folder, optionally include local `.ics` calendar/task files, and answer: **"What am I forgetting?"**
 
 It also includes the latest safety and mobile reliability work from the main branch.
 
@@ -17,7 +17,7 @@ Note: the source line now includes additional local memory and Studio blueprint 
 - Automatic `llama3.2` pull
 - Local Markdown vault ingestion
 - Structured Markdown memory signals for deadlines, renewals, promises, tasks, and appointments
-- Optional read-only local `.ics` calendar ingestion for upcoming events
+- Optional read-only local `.ics` calendar/task ingestion for upcoming `VEVENT` events and open dated `VTODO` tasks
 - Quickstart onboarding mode
 - Local provider forced through environment variables
 - No cloud API key required
@@ -70,7 +70,7 @@ LifeOS should mention the passport expiry, Tom's project proposal, and the tax f
 
 ## Current Limits
 
-- Markdown and optional local `.ics` files only in the cold-launch memory demo
+- Markdown and optional local `.ics` calendar/task files only in the cold-launch memory demo
 - No Apple Calendar, Google Calendar, or system reminders account sync yet
 - No calendar write-back yet
 - Studio generated programs still run as alpha helper apps, not a full native automation system

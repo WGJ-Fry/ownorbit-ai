@@ -21,11 +21,14 @@ type MemorySignal = {
 
 type CalendarEvent = {
   filePath: string;
+  kind: "event" | "task";
   startsAt: Date;
   endsAt?: Date;
   title: string;
   location?: string;
   description?: string;
+  status?: string;
+  priority?: string;
 };
 
 function isInsidePath(root: string, target: string): boolean {
@@ -42,7 +45,7 @@ function escapeAttribute(value: string): string {
 }
 
 function guardContentTags(value: string): string {
-  return value.replace(/<\/(markdown_file|markdown_digest|memory_signal|calendar_context|calendar_event)>/gi, "<\\/$1>");
+  return value.replace(/<\/(markdown_file|markdown_digest|memory_signal|calendar_context|calendar_event|calendar_task)>/gi, "<\\/$1>");
 }
 
 function compactLine(value: string, maxLength = 220): string {
@@ -185,6 +188,7 @@ function parseIcsEvents(filePath: string, raw: string): CalendarEvent[] {
   const unfolded = unfoldIcs(raw);
   const events: CalendarEvent[] = [];
   const eventPattern = /BEGIN:VEVENT([\s\S]*?)END:VEVENT/g;
+  const taskPattern = /BEGIN:VTODO([\s\S]*?)END:VTODO/g;
   let match: RegExpExecArray | null;
 
   while ((match = eventPattern.exec(unfolded)) && events.length < MAX_CALENDAR_EVENTS) {
@@ -199,11 +203,35 @@ function parseIcsEvents(filePath: string, raw: string): CalendarEvent[] {
 
     events.push({
       filePath,
+      kind: "event",
       startsAt: start,
       endsAt: end || undefined,
       title,
       location: location || undefined,
       description: description || undefined,
+    });
+  }
+
+  while ((match = taskPattern.exec(unfolded)) && events.length < MAX_CALENDAR_EVENTS) {
+    const lines = match[1].split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    const start = parseIcsDate(readIcsProperty(lines, "DUE") || readIcsProperty(lines, "DTSTART"));
+    if (!start) continue;
+
+    const status = compactLine(readIcsProperty(lines, "STATUS"), 60).toUpperCase();
+    if (status === "COMPLETED" || status === "CANCELLED") continue;
+
+    const title = compactLine(readIcsProperty(lines, "SUMMARY") || "Untitled task", 140);
+    const description = compactLine(readIcsProperty(lines, "DESCRIPTION"), 220);
+    const priority = compactLine(readIcsProperty(lines, "PRIORITY"), 20);
+
+    events.push({
+      filePath,
+      kind: "task",
+      startsAt: start,
+      title,
+      description: description || undefined,
+      status: status || undefined,
+      priority: priority || undefined,
     });
   }
 
@@ -243,12 +271,15 @@ function loadCalendarContext(): string {
       `starts_at="${event.startsAt.toISOString()}"`,
       event.endsAt ? `ends_at="${event.endsAt.toISOString()}"` : "",
       event.location ? `location="${escapeAttribute(event.location)}"` : "",
+      event.status ? `status="${escapeAttribute(event.status)}"` : "",
+      event.priority ? `priority="${escapeAttribute(event.priority)}"` : "",
     ].filter(Boolean).join(" ");
     const details = [event.title, event.description].filter(Boolean).join(" - ");
-    return `<calendar_event ${attrs}>${guardContentTags(details)}</calendar_event>`;
+    const tag = event.kind === "task" ? "calendar_task" : "calendar_event";
+    return `<${tag} ${attrs}>${guardContentTags(details)}</${tag}>`;
   });
 
-  return `<calendar_context source="ics-readonly" directory="${escapeAttribute(CALENDAR_ICS_DIR)}">\n${rows.join("\n")}\n</calendar_context>`;
+  return `<calendar_context source="ics-readonly" item_types="VEVENT,VTODO" directory="${escapeAttribute(CALENDAR_ICS_DIR)}">\n${rows.join("\n")}\n</calendar_context>`;
 }
 
 export function loadVaultMarkdownContext(): string {

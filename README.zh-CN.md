@@ -46,7 +46,7 @@ LifeOS 先从一个很小但有用的工作流开始：
 | 轨道 | 可以期待什么 |
 | --- | --- |
 | `v0.1.2-alpha` 公开发布版 | Docker Compose 本地 Markdown 演示、GHCR 镜像路径、macOS unsigned ZIP、Windows NSIS 安装包、Linux AppImage、管理员认证、AI provider 设置、手机 PWA 绑定、离线队列、SQLite migration、备份恢复、诊断包、发布检查和连接诊断。 |
-| 当前 `main` 源码 | 仅面向开发者：包含公开发布版底座，并增加本地 `.ics` 日历只读记忆、结构化记忆信号、Studio 蓝图确认/权限/修复说明。它不是单独的打包下载。 |
+| 当前 `main` 源码 | 仅面向开发者：包含公开发布版底座，并增加本地 `.ics` 日历/任务只读记忆、结构化记忆信号、Studio 蓝图确认/权限/修复说明。它不是单独的打包下载。 |
 | 更早基础版本 | `0.1.1-alpha.0` 增加 Docker quickstart/Ollama/Markdown vault 默认路径。`0.1.0` 建立桌面/PWA 底座。 |
 
 ## 选择你的体验路径
@@ -91,9 +91,9 @@ LifeOS 有意思的地方在于当前 alpha 已经把三件事放在一起：
 
 | 模块 | 当前状态 |
 | --- | --- |
-| 本地记忆读取 | Docker/local 路径可读取 Markdown，并可选读取本地 `.ics` 日历文件 |
+| 本地记忆读取 | Docker/local 路径可读取 Markdown，并可选读取本地 `.ics` 日历/任务文件 |
 | Ollama 本地模型 | 通过 Docker Compose 可用 |
-| “我是不是忘了什么？”聊天 | 可基于挂载的 Markdown 笔记和本地 `.ics` 未来日程回答 |
+| “我是不是忘了什么？”聊天 | 可基于挂载的 Markdown 笔记、本地 `.ics` 未来日程和未完成待办回答 |
 | 管理员登录和安全诊断 | 桌面端/server 路径已包含 |
 | 桌面端壳 | 当前 alpha 包已提供 |
 | 手机端伴侣 | 已实现绑定、聊天、离线队列、设备状态和动作权限 |
@@ -230,20 +230,20 @@ LifeOS 设计的连接模型是：
 
 ## 本地记忆读取规则
 
-LifeOS 会读取你挂载的 Markdown 文件夹，也可以读取本地 `.ics` 日历文件。当前 alpha 路径不会写回你的 vault 或日历文件。
+LifeOS 会读取你挂载的 Markdown 文件夹，也可以读取本地 `.ics` 日历/任务文件。当前 alpha 路径不会写回你的 vault、日历文件或任务文件。
 
 | 项目 | 当前行为 |
 | --- | --- |
 | 电脑端文件夹 | `./lifeos_vault` |
 | 容器内路径 | `/app/vault` |
 | Markdown 文件 | `.md` |
-| 可选日历文件 | `./lifeos_vault/calendar` 下的 `.ics` |
+| 可选日历/任务文件 | `./lifeos_vault/calendar` 下的 `.ics`，支持 `VEVENT` 和未完成 `VTODO` |
 | 隐藏文件夹 | 跳过 |
 | `node_modules` | 跳过 |
 | 默认最多文件数 | `30` |
 | 默认每文件字符数 | `3000` |
 | 默认总字符数 | `60000` |
-| 日历行为 | 只读未来日程，不做账号同步，不写回 |
+| 日历/任务行为 | 只读未来日程和带日期的未完成任务，不做账号同步，不写回 |
 
 相关环境变量：
 
@@ -274,7 +274,7 @@ LOCAL_MODEL_BASE_URL=http://ollama:11434/v1
 
 LifeOS 仍是 alpha 软件。Docker quickstart 是目前最稳定的演示路径；桌面端、手机端、远程访问和 Studio 都是可用的 alpha 路径，但变量更多。
 
-- Docker/local 路径可以读取 Markdown，也可以读取本地 `.ics` 日历文件。
+- Docker/local 路径可以读取 Markdown，也可以读取本地 `.ics` 日历/任务文件。
 - 还没有接入 Apple Calendar、Google Calendar 或系统提醒事项的账号同步/写回。
 - 还不会写回日历或任务系统。
 - 它不是完美的截止日期检测器。

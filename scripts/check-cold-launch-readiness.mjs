@@ -138,6 +138,7 @@ check(
   aiRoutes.includes("loadVaultMarkdownContext()")
     && aiRoutes.includes("LOCAL MEMORY CONTEXT - UNTRUSTED USER DATA")
     && readme.includes("LIFEOS_CALENDAR_ICS_DIR=/app/vault/calendar")
+    && readme.includes("VTODO")
     && readmeZh.includes("LIFEOS_CALENDAR_ICS_DIR=/app/vault/calendar"),
   "chat route injects local Markdown and ICS memory context safely",
 );
