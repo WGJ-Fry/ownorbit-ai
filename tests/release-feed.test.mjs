@@ -701,7 +701,7 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /backup restore UI confirmation copy is shared and tested/);
   assert.match(result.stdout, /ordinary SQLite backups exclude AI keys and sensitive client state by default/);
   assert.match(result.stdout, /data cleanup has dry-run preview, protection backup, UI, audit, and tests/);
-  assert.match(result.stdout, /Docker quickstart chat route proves local Markdown vault context reaches the forced local model/);
+  assert.match(result.stdout, /Docker quickstart chat route proves local memory context reaches the forced local model/);
   assert.match(result.stdout, /desktop logs folder menu action is implemented/);
   assert.match(result.stdout, /desktop diagnostic includes redacted log tail/);
   assert.match(result.stdout, /desktop diagnostic exposes a safe logs directory label/);

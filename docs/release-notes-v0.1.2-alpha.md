@@ -4,9 +4,11 @@ LifeOS v0.1.2-alpha is the current public cold-launch alpha.
 
 It keeps the one-minute Docker Compose path focused:
 
-> Read a mounted local Markdown folder and answer: **"What am I forgetting?"**
+> Read a mounted local Markdown folder, optionally include local `.ics` calendar files, and answer: **"What am I forgetting?"**
 
 It also includes the latest safety and mobile reliability work from the main branch.
+
+Note: the source line now includes additional local memory and Studio blueprint hardening. If you are using an older downloaded desktop asset from this same alpha line, rebuild from source or wait for refreshed release assets before expecting those source-only additions in the desktop package.
 
 ## Included
 
@@ -14,6 +16,8 @@ It also includes the latest safety and mobile reliability work from the main bra
 - Bundled Ollama service
 - Automatic `llama3.2` pull
 - Local Markdown vault ingestion
+- Structured Markdown memory signals for deadlines, renewals, promises, tasks, and appointments
+- Optional read-only local `.ics` calendar ingestion for upcoming events
 - Quickstart onboarding mode
 - Local provider forced through environment variables
 - No cloud API key required
@@ -21,6 +25,7 @@ It also includes the latest safety and mobile reliability work from the main bra
 - IndexedDB-first mobile pairing credentials
 - Redacted local action and diagnostic metadata
 - First-launch handoff summary copy
+- Source-line Studio blueprint confirmation checklist, permission notes, and failure recovery guidance
 
 ## Try It
 
@@ -65,9 +70,10 @@ LifeOS should mention the passport expiry, Tom's project proposal, and the tax f
 
 ## Current Limits
 
-- Markdown only in the cold-launch demo
-- No calendar ingestion yet
+- Markdown and optional local `.ics` files only in the cold-launch memory demo
+- No Apple Calendar, Google Calendar, or system reminders account sync yet
 - No calendar write-back yet
+- Studio generated programs still run as alpha helper apps, not a full native automation system
 - Alpha quality
 - First run can be slow because Ollama downloads the model
 - Desktop installers are still tracked separately from this Docker alpha

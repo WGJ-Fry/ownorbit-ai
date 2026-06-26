@@ -1,4 +1,4 @@
-import { ArrowRight, ClipboardList, ShieldAlert, Sparkles, WandSparkles } from "lucide-react";
+import { ArrowRight, BadgeCheck, ClipboardList, ShieldAlert, Sparkles, WandSparkles, Wrench } from "lucide-react";
 import type { ProblemBlueprint } from "../../../services/problemBlueprint";
 import type { StoredProblemBlueprint } from "../../../services/lifeosApi";
 import { useI18n } from "../../../i18n/I18nProvider";
@@ -109,14 +109,45 @@ export default function StudioProblemSolverCard({
             </div>
           </div>
 
+          <div className="rounded-2xl bg-emerald-500/[0.035] border border-emerald-500/15 p-4">
+            <h4 className="text-xs font-black text-emerald-100 flex items-center gap-2 mb-2">
+              <BadgeCheck className="w-4 h-4 text-emerald-300" />
+              {t("studio.problemSolver.confirmation")}
+            </h4>
+            <ul className="space-y-1.5">
+              {blueprint.confirmationChecklist.map((item) => (
+                <li key={item} className="text-xs text-emerald-50/75 leading-relaxed font-medium">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+
           <div className="rounded-2xl bg-amber-500/[0.04] border border-amber-500/15 p-4">
             <h4 className="text-xs font-black text-amber-200 flex items-center gap-2 mb-2">
               <ShieldAlert className="w-4 h-4 text-amber-300" />
-              {t("studio.problemSolver.risks")}
+              {t("studio.problemSolver.permissions")}
             </h4>
+            {blueprint.permissionNotes.map((note) => (
+              <p key={note} className="text-xs text-amber-100/75 leading-relaxed font-medium">
+                {note}
+              </p>
+            ))}
             {blueprint.riskNotes.map((risk) => (
               <p key={risk} className="text-xs text-amber-100/75 leading-relaxed font-medium">
                 {risk}
+              </p>
+            ))}
+          </div>
+
+          <div className="rounded-2xl bg-white/[0.025] border border-white/[0.06] p-4">
+            <h4 className="text-xs font-black text-zinc-200 flex items-center gap-2 mb-2">
+              <Wrench className="w-4 h-4 text-zinc-300" />
+              {t("studio.problemSolver.repair")}
+            </h4>
+            {blueprint.failureRecovery.map((item) => (
+              <p key={item} className="text-xs text-zinc-400 leading-relaxed font-medium">
+                {item}
               </p>
             ))}
           </div>

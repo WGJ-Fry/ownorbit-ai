@@ -46,7 +46,7 @@ Important: use the explicit [`v0.1.2-alpha` Release page](https://github.com/WGJ
 | Track | What to expect |
 | --- | --- |
 | `v0.1.2-alpha` public release | Docker Compose local Markdown demo, GHCR image path, macOS unsigned ZIP, Windows NSIS installer, Linux AppImage, admin auth, AI provider settings, mobile PWA pairing, offline queue, SQLite migrations, backup/restore, diagnostics, release checks, and connection diagnostics. |
-| Current `main` source | Developer path only: same release foundation, plus source-only Studio runtime log repair changes. Not a separate packaged download. |
+| Current `main` source | Developer path only: same release foundation, plus read-only local `.ics` calendar memory, structured memory signals, and Studio blueprint confirmation/permission/repair guidance. Not a separate packaged download. |
 | Earlier base | `0.1.1-alpha.0` added Docker quickstart/Ollama/Markdown vault defaults. `0.1.0` started the desktop/PWA foundation. |
 
 ## Choose Your Path
@@ -91,14 +91,14 @@ LifeOS is interesting because the current alpha already combines three working p
 
 | Area | Current status |
 | --- | --- |
-| Local Markdown reading | Works in the Docker alpha path |
+| Local memory reading | Markdown plus optional read-only `.ics` calendar files in the Docker/local path |
 | Ollama local model | Works through Docker Compose |
-| “What am I forgetting?” chat | Works for mounted Markdown notes |
+| “What am I forgetting?” chat | Works for mounted Markdown notes and upcoming local `.ics` events |
 | Admin login and security diagnostics | Included in the desktop/server path |
 | Desktop app shell | Available as current alpha packages |
 | Mobile companion | Pairing, chat, offline queue, device status, and action permissions are implemented |
 | Remote access guidance | LAN, Tailscale, Cloudflare Tunnel diagnostics and safety checks are implemented |
-| Generated programs | Public release packages include Studio generation, refinement, runtime logs, debug instruction, state storage, and rollback. Current `main` source also includes one-click repair save. |
+| Generated programs | Studio generation, refinement, runtime logs, debug instruction, state storage, rollback, plus current-source blueprint confirmation, permission notes, and failure recovery guidance. |
 
 ## Generated Problem-Solving Programs
 
@@ -111,6 +111,8 @@ LifeOS Studio turns a concrete need into a small runnable program.
 This is not just “generate an app from a prompt.” The goal is more practical:
 
 > In Studio, enter a concrete problem. LifeOS generates a focused tool that helps you work through it.
+
+The current source also shows the generated-program blueprint before creation: what the user should confirm, what permissions/boundaries the helper should keep, and how to repair or regenerate when the first version misses the task.
 
 Examples:
 
@@ -226,20 +228,22 @@ Entry point: desktop admin -> device pairing / connection guide.
 
 Recommended long-term path: Tailscale or another private VPN. Cloudflare Tunnel is useful for HTTPS testing, but should not be treated as “safe by default” unless access control is configured.
 
-## Markdown Vault Contract
+## Local Memory Contract
 
-LifeOS reads your mounted Markdown folder. It does not write back to the vault in this alpha path.
+LifeOS reads your mounted Markdown folder and, optionally, local `.ics` calendar files. It does not write back to the vault or calendar files in this alpha path.
 
 | Item | Current behavior |
 | --- | --- |
 | Host folder | `./lifeos_vault` |
 | Container path | `/app/vault` |
-| File type | `.md` |
+| Markdown files | `.md` |
+| Optional calendar files | `.ics` under `./lifeos_vault/calendar` |
 | Hidden folders | Skipped |
 | `node_modules` | Skipped |
 | Default max files | `30` |
 | Default chars per file | `3000` |
 | Default total chars | `60000` |
+| Calendar behavior | Read-only upcoming events, no account sync, no write-back |
 
 Relevant environment variables:
 
@@ -248,6 +252,10 @@ LIFEOS_VAULT_DIR=/app/vault
 LIFEOS_VAULT_MAX_FILES=30
 LIFEOS_VAULT_MAX_CHARS_PER_FILE=3000
 LIFEOS_VAULT_MAX_TOTAL_CHARS=60000
+LIFEOS_CALENDAR_ICS_DIR=/app/vault/calendar
+LIFEOS_CALENDAR_MAX_FILES=10
+LIFEOS_CALENDAR_MAX_EVENTS=20
+LIFEOS_CALENDAR_LOOKAHEAD_DAYS=90
 ```
 
 ## AI Providers
@@ -266,8 +274,8 @@ The desktop/admin path includes provider settings for local models, Gemini, Open
 
 LifeOS is alpha software. The Docker quickstart is the most stable demo path; desktop, mobile, remote access, and Studio are usable alpha paths with more moving parts.
 
-- Markdown only in the main Docker demo.
-- No real calendar ingestion yet.
+- Local memory reads Markdown plus optional read-only `.ics` calendar files in the Docker/local path.
+- No Apple Calendar, Google Calendar, or system reminders account sync/write-back yet.
 - No calendar/task write-back yet.
 - Not a perfect deadline detector.
 - Reads a limited number of files for speed and context size.

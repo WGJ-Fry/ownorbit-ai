@@ -46,7 +46,7 @@ LifeOS 先从一个很小但有用的工作流开始：
 | 轨道 | 可以期待什么 |
 | --- | --- |
 | `v0.1.2-alpha` 公开发布版 | Docker Compose 本地 Markdown 演示、GHCR 镜像路径、macOS unsigned ZIP、Windows NSIS 安装包、Linux AppImage、管理员认证、AI provider 设置、手机 PWA 绑定、离线队列、SQLite migration、备份恢复、诊断包、发布检查和连接诊断。 |
-| 当前 `main` 源码 | 仅面向开发者：包含公开发布版底座，并增加源码中的 Studio 运行日志修复改动。它不是单独的打包下载。 |
+| 当前 `main` 源码 | 仅面向开发者：包含公开发布版底座，并增加本地 `.ics` 日历只读记忆、结构化记忆信号、Studio 蓝图确认/权限/修复说明。它不是单独的打包下载。 |
 | 更早基础版本 | `0.1.1-alpha.0` 增加 Docker quickstart/Ollama/Markdown vault 默认路径。`0.1.0` 建立桌面/PWA 底座。 |
 
 ## 选择你的体验路径
@@ -91,14 +91,14 @@ LifeOS 有意思的地方在于当前 alpha 已经把三件事放在一起：
 
 | 模块 | 当前状态 |
 | --- | --- |
-| 本地 Markdown 读取 | Docker alpha 路径可用 |
+| 本地记忆读取 | Docker/local 路径可读取 Markdown，并可选读取本地 `.ics` 日历文件 |
 | Ollama 本地模型 | 通过 Docker Compose 可用 |
-| “我是不是忘了什么？”聊天 | 可基于挂载的 Markdown 笔记回答 |
+| “我是不是忘了什么？”聊天 | 可基于挂载的 Markdown 笔记和本地 `.ics` 未来日程回答 |
 | 管理员登录和安全诊断 | 桌面端/server 路径已包含 |
 | 桌面端壳 | 当前 alpha 包已提供 |
 | 手机端伴侣 | 已实现绑定、聊天、离线队列、设备状态和动作权限 |
 | 远程访问向导 | 已实现 LAN、Tailscale、Cloudflare Tunnel 诊断和安全检查 |
-| 自动生成程序 | 公开发布包已包含 Studio 生成、改写、运行日志、调试指令、状态存储和回滚。当前 `main` 源码还包含一键修复保存。 |
+| 自动生成程序 | Studio 已包含生成、改写、运行日志、调试指令、状态存储、回滚；当前源码还包含蓝图确认清单、权限说明和失败修复建议。 |
 
 ## 自动生成解决问题的程序
 
@@ -111,6 +111,8 @@ LifeOS Studio 可以把一个具体需求变成一个小型可运行程序。
 这不只是“根据一句话生成一个 app”。目标更实际：
 
 > 在 Studio 里输入一个具体问题，LifeOS 会生成一个聚焦的小工具，帮你把这件事处理下去。
+
+当前源码会在生成前展示蓝图：用户需要确认什么、这个辅助程序应该遵守哪些权限边界，以及第一版跑偏时如何修复或重新生成。
 
 例子：
 
@@ -226,20 +228,22 @@ LifeOS 设计的连接模型是：
 
 长期个人使用更推荐 Tailscale 或其他私有 VPN。Cloudflare Tunnel 适合 HTTPS 远程测试，但只有配置了访问控制后，才适合长期暴露。
 
-## Markdown Vault 读取规则
+## 本地记忆读取规则
 
-LifeOS 会读取你挂载的 Markdown 文件夹。当前 alpha 路径不会写回你的 vault。
+LifeOS 会读取你挂载的 Markdown 文件夹，也可以读取本地 `.ics` 日历文件。当前 alpha 路径不会写回你的 vault 或日历文件。
 
 | 项目 | 当前行为 |
 | --- | --- |
 | 电脑端文件夹 | `./lifeos_vault` |
 | 容器内路径 | `/app/vault` |
-| 文件类型 | `.md` |
+| Markdown 文件 | `.md` |
+| 可选日历文件 | `./lifeos_vault/calendar` 下的 `.ics` |
 | 隐藏文件夹 | 跳过 |
 | `node_modules` | 跳过 |
 | 默认最多文件数 | `30` |
 | 默认每文件字符数 | `3000` |
 | 默认总字符数 | `60000` |
+| 日历行为 | 只读未来日程，不做账号同步，不写回 |
 
 相关环境变量：
 
@@ -248,6 +252,10 @@ LIFEOS_VAULT_DIR=/app/vault
 LIFEOS_VAULT_MAX_FILES=30
 LIFEOS_VAULT_MAX_CHARS_PER_FILE=3000
 LIFEOS_VAULT_MAX_TOTAL_CHARS=60000
+LIFEOS_CALENDAR_ICS_DIR=/app/vault/calendar
+LIFEOS_CALENDAR_MAX_FILES=10
+LIFEOS_CALENDAR_MAX_EVENTS=20
+LIFEOS_CALENDAR_LOOKAHEAD_DAYS=90
 ```
 
 ## AI Provider
@@ -266,8 +274,8 @@ LOCAL_MODEL_BASE_URL=http://ollama:11434/v1
 
 LifeOS 仍是 alpha 软件。Docker quickstart 是目前最稳定的演示路径；桌面端、手机端、远程访问和 Studio 都是可用的 alpha 路径，但变量更多。
 
-- 主 Docker 演示目前只读取 Markdown。
-- 还没有接入真实日历。
+- Docker/local 路径可以读取 Markdown，也可以读取本地 `.ics` 日历文件。
+- 还没有接入 Apple Calendar、Google Calendar 或系统提醒事项的账号同步/写回。
 - 还不会写回日历或任务系统。
 - 它不是完美的截止日期检测器。
 - 为了速度和上下文长度，只读取有限数量的文件。

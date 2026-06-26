@@ -2457,6 +2457,7 @@ function checkReleaseDocs() {
     "LIFEOS_ADMIN_PASSWORD=lifeos-local-demo",
     "LOCAL_MODEL_BASE_URL=http://ollama:11434/v1",
     "LIFEOS_VAULT_DIR=/app/vault",
+    "LIFEOS_CALENDAR_ICS_DIR=/app/vault/calendar",
     'tags:\n      - "v*"',
     "packages: write",
     "docker/build-push-action@v6",
@@ -2466,7 +2467,7 @@ function checkReleaseDocs() {
   ];
   const missingDockerMarkers = requiredDockerQuickstartMarkers.filter((marker) => !dockerCombined.includes(marker));
   if (missingDockerFiles.length === 0 && missingDockerMarkers.length === 0) {
-    pass("Docker quickstart covers Ollama, local Markdown vault, quickstart login, GHCR image, and README proof path");
+    pass("Docker quickstart covers Ollama, local Markdown vault, optional ICS calendar memory, quickstart login, GHCR image, and README proof path");
   } else {
     fail(`Docker quickstart is incomplete; missing files: ${missingDockerFiles.join(", ") || "none"}; missing markers: ${missingDockerMarkers.join(", ") || "none"}`);
   }
@@ -2476,14 +2477,15 @@ function checkReleaseDocs() {
   if (
     testScript.includes("tests/chat-vault-route.test.mjs") &&
     chatVaultRouteTest.includes("chat route sends mounted Markdown vault context to the forced local quickstart model") &&
-    chatVaultRouteTest.includes("LOCAL MARKDOWN VAULT CONTEXT - UNTRUSTED USER DATA") &&
+    chatVaultRouteTest.includes("LOCAL MEMORY CONTEXT - UNTRUSTED USER DATA") &&
+    chatVaultRouteTest.includes("<markdown_digest type=\"memory_signals\" source=\"lifeos-vault\">") &&
     chatVaultRouteTest.includes("providerId: \"gemini\"") &&
     chatVaultRouteTest.includes("modelEngine: \"Gemini 2.0 Flash\"") &&
     chatVaultRouteTest.includes("llama3.2")
   ) {
-    pass("Docker quickstart chat route proves local Markdown vault context reaches the forced local model");
+    pass("Docker quickstart chat route proves local memory context reaches the forced local model");
   } else {
-    fail("Docker quickstart chat route lacks coverage for mounted Markdown vault context, forced local provider, or llama3.2");
+    fail("Docker quickstart chat route lacks coverage for mounted local memory context, forced local provider, or llama3.2");
   }
 
   const readmeEn = dockerQuickstartFiles["README.md"];
@@ -2506,13 +2508,19 @@ function checkReleaseDocs() {
 	    readmeEn.includes("LifeOS.AI.Setup.0.1.2-alpha.0.exe") &&
 	    readmeEn.includes("LifeOS.AI-0.1.2-alpha.0.AppImage") &&
 	    readmeEn.includes("SHA256SUMS") &&
+	    readmeEn.includes("Local memory reads Markdown plus optional read-only `.ics` calendar files") &&
+	    readmeEn.includes("No Apple Calendar, Google Calendar, or system reminders account sync/write-back yet") &&
+	    readmeEn.includes("blueprint confirmation, permission notes, and failure recovery guidance") &&
 	    readmeZh.includes("## 选择你的体验路径") &&
 	    readmeZh.includes("Docker Compose alpha") &&
 	    readmeZh.includes("ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha") &&
 	    readmeZh.includes("LifeOS.AI-0.1.2-alpha.0-arm64-unsigned.zip") &&
 	    readmeZh.includes("LifeOS.AI.Setup.0.1.2-alpha.0.exe") &&
 	    readmeZh.includes("LifeOS.AI-0.1.2-alpha.0.AppImage") &&
-	    readmeZh.includes("SHA256SUMS")
+	    readmeZh.includes("SHA256SUMS") &&
+	    readmeZh.includes("可以读取 Markdown，也可以读取本地 `.ics` 日历文件") &&
+	    readmeZh.includes("还没有接入 Apple Calendar、Google Calendar 或系统提醒事项的账号同步/写回") &&
+	    readmeZh.includes("蓝图确认清单、权限说明和失败修复建议")
 	  ) {
     pass("bilingual README exposes the current Docker alpha and all uploaded desktop packages");
   } else {

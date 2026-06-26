@@ -58,6 +58,10 @@ function parseJsonArray(value: string) {
 }
 
 function rowToProblemBlueprint(row: any): StoredProblemBlueprint {
+  const derived = deriveProblemBlueprint(row.problem || row.normalizedProblem || "");
+  const storedPrompt = String(row.appPrompt || "");
+  const hasCurrentPromptGuardrails = storedPrompt.includes("Permission boundary") || storedPrompt.includes("权限边界");
+
   return {
     id: row.id,
     problem: row.problem,
@@ -65,13 +69,17 @@ function rowToProblemBlueprint(row: any): StoredProblemBlueprint {
     isReady: true,
     language: row.language,
     category: row.category,
+    templateId: derived.templateId,
     categoryLabel: row.categoryLabel,
     suggestedAppName: row.suggestedAppName,
     summary: row.summary,
     steps: parseJsonArray(row.stepsJson),
     suggestedModules: parseJsonArray(row.modulesJson),
+    confirmationChecklist: derived.confirmationChecklist,
+    permissionNotes: derived.permissionNotes,
+    failureRecovery: derived.failureRecovery,
     riskNotes: parseJsonArray(row.riskNotesJson),
-    appPrompt: row.appPrompt,
+    appPrompt: hasCurrentPromptGuardrails ? storedPrompt : derived.appPrompt || storedPrompt,
     status: row.status,
     source: row.source,
     generatedAppId: row.generatedAppId,

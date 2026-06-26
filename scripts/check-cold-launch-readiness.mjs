@@ -134,7 +134,13 @@ check(appSecrets.includes('models: ["llama3.2", "llama3.2:1b", "llama3.1", "qwen
 check(appSecrets.includes("process.env.LIFEOS_LOCAL_MODEL_NAME || process.env.LOCAL_MODEL_NAME"), "selected local model honors LOCAL_MODEL_NAME");
 check(aiRuntime.includes('process.env.LIFEOS_QUICKSTART === "1"') && aiRuntime.includes('return "local"'), "quickstart forces local provider over frontend hints");
 check(aiRuntime.includes('if (providerId === "local") return selectedModel'), "local provider rejects frontend non-local model names");
-check(aiRoutes.includes("loadVaultMarkdownContext()") && aiRoutes.includes("LOCAL MARKDOWN VAULT CONTEXT - UNTRUSTED USER DATA"), "chat route injects local Markdown vault context safely");
+check(
+  aiRoutes.includes("loadVaultMarkdownContext()")
+    && aiRoutes.includes("LOCAL MEMORY CONTEXT - UNTRUSTED USER DATA")
+    && readme.includes("LIFEOS_CALENDAR_ICS_DIR=/app/vault/calendar")
+    && readmeZh.includes("LIFEOS_CALENDAR_ICS_DIR=/app/vault/calendar"),
+  "chat route injects local Markdown and ICS memory context safely",
+);
 
 await checkGhcrManifest();
 await checkGithubRelease();

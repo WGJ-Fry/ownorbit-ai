@@ -9,6 +9,11 @@ Current cold-launch alpha aligned to the latest main branch safety and onboardin
 - Added release notes for the current alpha cold-launch path.
 - Rebuilt local unsigned macOS release metadata for `0.1.2-alpha.0`.
 - Included the latest mobile credential expiry guidance, IndexedDB-first pairing storage, redacted action metadata, and first-launch handoff summary copy in the current alpha line.
+- Added structured Markdown memory signals for deadlines, renewals, promises, tasks, and appointments.
+- Added optional read-only local `.ics` calendar ingestion for upcoming events in the local memory context.
+- Added Studio generated-program blueprint confirmation checklists, permission notes, and failure recovery guidance.
+- Added backward-compatible blueprint hydration so older SQLite problem blueprints gain the new Studio guidance fields when read.
+- Clarified that Apple Calendar, Google Calendar, and system reminders account sync/write-back are not yet shipped.
 
 ## 0.1.1-alpha.0
 
