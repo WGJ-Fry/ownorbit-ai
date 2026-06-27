@@ -847,6 +847,7 @@ function checkAssets() {
     remoteStabilitySectionSource.includes("runRemoteAcceptance") &&
     remoteStabilitySectionSource.includes("remoteAcceptanceRunbooks") &&
     remoteStabilitySectionSource.includes("remoteRecoveryReport") &&
+    remoteStabilitySectionSource.includes("remoteHealthEvidence") &&
     remoteStabilitySectionSource.includes("remoteHealthMonitor") &&
     remoteStabilitySectionSource.includes("JSON.parse") &&
     remoteHealthSummaryCardSource.includes("entryKindKey") &&
@@ -861,10 +862,17 @@ function checkAssets() {
     remoteHealthSummaryCardSource.includes("connection.recovery.title") &&
     remoteHealthSummaryCardSource.includes("connection.recovery.summary") &&
     remoteHealthSummaryCardSource.includes("connection.recovery.health") &&
+    remoteHealthSummaryCardSource.includes("connection.evidenceSamples.title") &&
+    remoteHealthSummaryCardSource.includes("evidence.longRunReady") &&
     remoteHealthSummaryCardSource.includes("recoveryActionKey") &&
     remoteHealthSummaryCardSource.includes('recovery?.recoveryAction ?? "none"') &&
     remoteHealthSummaryCardSource.includes("healthOkBefore") &&
     remoteHealthSummaryCardSource.includes("healthOkAfter") &&
+    remoteHealthMonitorSource.includes("REMOTE_HEALTH_SAMPLES_STATE_KEY") &&
+    remoteHealthMonitorSource.includes("getRemoteHealthEvidence") &&
+    remoteHealthMonitorSource.includes("MAX_REMOTE_HEALTH_SAMPLES") &&
+    remoteValidationReportTestSource.includes("getRemoteHealthEvidence") &&
+    remoteValidationReportTestSource.includes("evidence.recoveryRestored") &&
     remoteAcceptanceSource.includes("buildRemoteAcceptanceChecklist") &&
     remoteAcceptanceSource.includes("saveRemoteAcceptanceRecord") &&
     remoteAcceptanceSource.includes("saveRemoteAcceptanceRunbookReport") &&
@@ -2211,6 +2219,7 @@ function checkAssets() {
     diagnosticBundleSource.includes("release: getReleaseDiagnostics()") &&
     diagnosticBundleSource.includes("remote: {") &&
     diagnosticBundleSource.includes("systemActions: buildSystemActionDiagnostics()") &&
+    diagnosticBundleSource.includes("healthEvidence: getRemoteHealthEvidence()") &&
     diagnosticBundleSource.includes("recoveryReport") &&
     diagnosticBundleSource.includes("acceptanceChecklist") &&
     diagnosticBundleSource.includes("acceptanceSummary") &&
@@ -2225,6 +2234,7 @@ function checkAssets() {
     diagnosticBundleTestSource.includes("bundle.service.version, packageJson.version") &&
     diagnosticBundleTestSource.includes("bundle.release.version, packageJson.version") &&
     diagnosticBundleTestSource.includes("bundle.remote.healthSummary.status") &&
+    diagnosticBundleTestSource.includes("bundle.remote.healthEvidence.total") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceSummary.ready") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceEvidencePack.ready") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceEvidencePack.recommendedAction") &&

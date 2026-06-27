@@ -22,6 +22,7 @@ Package version: `0.1.4-alpha.0`
 - Native automation safety gates: URL Scheme/browser/Shortcuts actions remain the primary local action path; the guarded native bridge is disabled by default and only exposes narrow clipboard, allowlisted Shortcuts, Finder reveal, and allowlisted app bundle ID open actions when all opt-in gates pass. Shell, calendar, reminder, and broad file-write automation remain blocked.
 - Release truth checks that keep README, release notes, Docker image tags, asset names, alpha limitations, complete desktop assets, and real-world remote acceptance evidence aligned before public promotion.
 - Remote acceptance release evidence now requires fresh per-scenario coverage, proof text, stable HTTPS, and diagnostic-bundle redaction review before public promotion.
+- Remote health monitoring now keeps recent long-run samples with pass/fail counts, recovery attempts, consecutive successes, and observed duration in network diagnostics and diagnostic bundles. These samples support long-term evidence, but real phone cellular, network-switch, restart, stale-QR, and tunnel-interruption acceptance still remain required.
 - Desktop update diagnostics now show manual mode, blocked feed URLs, or explicitly opted-in HTTPS feed readiness. `LIFEOS_UPDATE_URL` alone does not enable update checks; maintainers must also set `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`.
 
 ## Desktop Packages
@@ -118,6 +119,7 @@ Package version：`0.1.4-alpha.0`
 - 原生自动化安全闸门：URL Scheme / 浏览器 / 快捷指令仍是主要本地动作路径；受控原生桥默认关闭，只在全部开关通过时暴露剪贴板、白名单快捷指令、Finder 定位文件和白名单 bundle id 打开 App。shell、日历、提醒事项和宽泛文件写入仍阻断。
 - Release 事实检查：发布前强制 README、Release notes、Docker tag、安装包名和 alpha 限制保持一致。
 - 远程验收发布证据进一步收紧：公开发布前必须有新鲜的逐场景覆盖、证据文本、稳定 HTTPS 入口，以及诊断包脱敏复核。
+- 远程健康监控现在会保留最近长期样本：通过/失败次数、恢复尝试、连续成功次数和观察时长会进入网络诊断和诊断包。这些样本可作为长期证据辅助，但真实手机蜂窝网络、换网络、重启、旧二维码和隧道中断验收仍然必须完成。
 
 ### 桌面包
 

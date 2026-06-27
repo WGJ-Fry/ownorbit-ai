@@ -65,10 +65,12 @@ function checkDetailText(check: NetworkDiagnostics["remoteHealthSummary"]["check
 }
 
 export default function RemoteHealthSummaryCard({
+  evidence,
   monitor,
   recovery,
   summary,
 }: {
+  evidence?: NetworkDiagnostics["remoteHealthEvidence"];
   monitor?: NetworkDiagnostics["remoteHealthMonitor"];
   recovery?: NetworkDiagnostics["remoteRecoveryReport"];
   summary: NetworkDiagnostics["remoteHealthSummary"];
@@ -129,6 +131,29 @@ export default function RemoteHealthSummaryCard({
               {monitor.nextRunAt ? (
                 <div className="mt-1 opacity-75">{t("connection.monitor.nextRun", { time: new Date(monitor.nextRunAt).toLocaleString() })}</div>
               ) : null}
+            </div>
+          ) : null}
+          {evidence ? (
+            <div className="mt-3 rounded-xl border border-white/10 bg-black/15 p-3 text-xs">
+              <div className="font-bold">{t("connection.evidenceSamples.title")}</div>
+              <div className="mt-1 opacity-90">
+                {t("connection.evidenceSamples.summary", {
+                  total: evidence.total,
+                  passed: evidence.passed,
+                  failed: evidence.failed,
+                  consecutive: evidence.consecutiveOk,
+                  minutes: evidence.observedMinutes,
+                })}
+              </div>
+              <div className="mt-1 opacity-75">
+                {t("connection.evidenceSamples.recovery", {
+                  attempts: evidence.recoveryAttempts,
+                  restored: evidence.recoveryRestored,
+                })}
+              </div>
+              <div className={evidence.longRunReady ? "mt-1 text-emerald-100" : "mt-1 text-amber-100"}>
+                {evidence.longRunReady ? t("connection.evidenceSamples.longRunReady") : t("connection.evidenceSamples.longRunPending")}
+              </div>
             </div>
           ) : null}
           {recovery ? (

@@ -91,21 +91,29 @@ test("remote health monitor persists the saved stable remote entry report", asyn
     await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
     const { port } = server.address();
     const { saveDesktopRuntimeConfig } = await import("./server/desktopRuntimeConfig.ts");
-    const { runRemoteHealthCheck } = await import("./server/remoteHealthMonitor.ts");
+    const { getRemoteHealthEvidence, runRemoteHealthCheck } = await import("./server/remoteHealthMonitor.ts");
     saveDesktopRuntimeConfig({ mode: "tailscale", label: "Stable Test", baseUrl: \`http://127.0.0.1:\${port}/lifeos\` });
     const result = await runRemoteHealthCheck("manual");
+    const evidence = getRemoteHealthEvidence();
     await new Promise((resolve) => wss.close(resolve));
     await new Promise((resolve) => server.close(resolve));
-    process.stdout.write(JSON.stringify(result.report));
+    process.stdout.write(JSON.stringify({ report: result.report, evidence }));
   `], {
     cwd: process.cwd(),
     env: { ...process.env, LIFEOS_DATA_DIR: dataDir },
     encoding: "utf8",
   });
-  const report = JSON.parse(output);
+  const { report, evidence } = JSON.parse(output);
   assert.equal(report.ok, true, JSON.stringify(report, null, 2));
   assert.equal(report.passed, 3);
   assert.match(report.baseUrl, /^http:\/\/127\.0\.0\.1:\d+\/lifeos$/);
+  assert.equal(evidence.total, 1);
+  assert.equal(evidence.passed, 1);
+  assert.equal(evidence.failed, 0);
+  assert.equal(evidence.latestOk, true);
+  assert.equal(evidence.consecutiveOk, 1);
+  assert.equal(evidence.latest[0].reason, "manual");
+  assert.match(evidence.latest[0].baseUrl, /^http:\/\/127\.0\.0\.1:\d+\/lifeos$/);
 });
 
 test("remote health monitor checks configured PUBLIC_BASE_URL without a saved runtime entry", async (t) => {
@@ -303,14 +311,15 @@ while true; do sleep 1; done
     process.env.LIFEOS_CLOUDFLARE_TUNNEL_HOSTNAME = \`127.0.0.1:\${port}\`;
     process.env.LIFEOS_CLOUDFLARE_TUNNEL_CREDENTIALS = ${JSON.stringify(credentialsFile)};
     const { generateCloudflareNamedTunnelConfig, stopManagedCloudflareTunnel } = await import("./server/cloudflareTunnel.ts");
-    const { getRemoteRecoveryReport, runRemoteHealthCheck } = await import("./server/remoteHealthMonitor.ts");
+    const { getRemoteHealthEvidence, getRemoteRecoveryReport, runRemoteHealthCheck } = await import("./server/remoteHealthMonitor.ts");
     generateCloudflareNamedTunnelConfig({});
     const result = await runRemoteHealthCheck("manual");
     const recovery = getRemoteRecoveryReport();
+    const evidence = getRemoteHealthEvidence();
     stopManagedCloudflareTunnel();
     await new Promise((resolve) => wss.close(resolve));
     await new Promise((resolve) => server.close(resolve));
-    process.stdout.write(JSON.stringify({ restored: result.restored, recovery, report: result.report }));
+    process.stdout.write(JSON.stringify({ restored: result.restored, recovery, report: result.report, evidence }));
   `], {
     cwd: process.cwd(),
     env: {
@@ -335,6 +344,10 @@ while true; do sleep 1; done
   assert.equal(result.recovery.healthOkAfter, true);
   assert.equal(result.report.ok, true, JSON.stringify(result.report, null, 2));
   assert.equal(result.report.passed, 3);
+  assert.equal(result.evidence.total, 1);
+  assert.equal(result.evidence.recoveryAttempts, 1);
+  assert.equal(result.evidence.recoveryRestored, 1);
+  assert.equal(result.evidence.latest[0].recoveryAction, "run-remote-health");
 });
 
 test("remote health monitor recommends Tailscale repair when saved serve restore fails", async (t) => {

@@ -1,7 +1,7 @@
 import { getDesktopRuntimeConfig } from "./desktopRuntimeConfig.ts";
 import { maybeStartConfiguredCloudflareTunnel, setCloudflareTunnelReconnectHandler } from "./cloudflareTunnel.ts";
 import { maybeStartConfiguredTailscaleServe, testConnectionUrl } from "./networkDiagnostics.ts";
-import { getRemoteValidationReport, saveRemoteValidationReport } from "./remoteValidationReport.ts";
+import { getRemoteValidationReport, saveRemoteValidationReport, type RemoteValidationReport } from "./remoteValidationReport.ts";
 import { getClientState, setClientState } from "./clientState.ts";
 import { getConfiguredPublicBaseUrl } from "./publicBaseUrl.ts";
 
@@ -11,6 +11,8 @@ let monitorStartedAt: number | null = null;
 let nextRunAt: number | null = null;
 let lastRunAt: number | null = null;
 const REMOTE_RECOVERY_STATE_KEY = "lifeos_remote_recovery_report";
+const REMOTE_HEALTH_SAMPLES_STATE_KEY = "lifeos_remote_health_samples";
+const MAX_REMOTE_HEALTH_SAMPLES = 48;
 
 export type RemoteRecoveryReport = {
   id: string;
@@ -27,6 +29,37 @@ export type RemoteRecoveryReport = {
   healthOkBefore: boolean;
   healthOkAfter: boolean;
   createdAt: number;
+};
+
+export type RemoteHealthEvidenceSample = {
+  id: string;
+  reason: string;
+  baseUrl: string;
+  ok: boolean;
+  passed: number;
+  total: number;
+  latencyMs: number;
+  failedStepIds: string[];
+  recoveryAttempted: boolean;
+  recoveryRestored: boolean;
+  recoveryAction: RemoteRecoveryReport["recoveryAction"];
+  createdAt: number;
+};
+
+export type RemoteHealthEvidence = {
+  total: number;
+  passed: number;
+  failed: number;
+  recoveryAttempts: number;
+  recoveryRestored: number;
+  latestOk: boolean | null;
+  firstCheckedAt: number | null;
+  lastCheckedAt: number | null;
+  observedMinutes: number;
+  consecutiveOk: number;
+  consecutiveFailures: number;
+  longRunReady: boolean;
+  latest: RemoteHealthEvidenceSample[];
 };
 
 function recoveryAction(input: {
@@ -92,6 +125,7 @@ export async function runRemoteHealthCheck(reason = "manual") {
       healthOkBefore,
       healthOkAfter: result.ok,
     });
+    saveRemoteHealthSample({ reason, report, recovery: recoveryReport });
     return { skipped: false, reason, restored: recovery.restored, recovery: recoveryReport, report };
   } finally {
     lastRunAt = Date.now();
@@ -170,6 +204,95 @@ function saveRemoteRecoveryReport(input: {
   };
   setClientState(REMOTE_RECOVERY_STATE_KEY, report, { type: "system", id: "remote-health-monitor" });
   return report;
+}
+
+function readRemoteHealthSamples(): RemoteHealthEvidenceSample[] {
+  const value = getClientState(REMOTE_HEALTH_SAMPLES_STATE_KEY)?.value;
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const candidate = item as Partial<RemoteHealthEvidenceSample>;
+      const baseUrl = typeof candidate.baseUrl === "string" ? candidate.baseUrl : "";
+      const createdAt = typeof candidate.createdAt === "number" && Number.isFinite(candidate.createdAt) ? candidate.createdAt : 0;
+      if (!baseUrl || !createdAt) return null;
+      return {
+        id: typeof candidate.id === "string" ? candidate.id : `remote-health-sample-${createdAt}`,
+        reason: typeof candidate.reason === "string" ? candidate.reason.slice(0, 80) : "unknown",
+        baseUrl,
+        ok: candidate.ok === true,
+        passed: Number.isFinite(Number(candidate.passed)) ? Number(candidate.passed) : 0,
+        total: Number.isFinite(Number(candidate.total)) ? Number(candidate.total) : 0,
+        latencyMs: Number.isFinite(Number(candidate.latencyMs)) ? Number(candidate.latencyMs) : 0,
+        failedStepIds: Array.isArray(candidate.failedStepIds) ? candidate.failedStepIds.map(String).slice(0, 8) : [],
+        recoveryAttempted: candidate.recoveryAttempted === true,
+        recoveryRestored: candidate.recoveryRestored === true,
+        recoveryAction: typeof candidate.recoveryAction === "string" ? candidate.recoveryAction as RemoteRecoveryReport["recoveryAction"] : "none",
+        createdAt,
+      };
+    })
+    .filter((item): item is RemoteHealthEvidenceSample => Boolean(item))
+    .sort((a, b) => a.createdAt - b.createdAt)
+    .slice(-MAX_REMOTE_HEALTH_SAMPLES);
+}
+
+function saveRemoteHealthSample(input: {
+  reason: string;
+  report: RemoteValidationReport;
+  recovery: RemoteRecoveryReport;
+}) {
+  const sample: RemoteHealthEvidenceSample = {
+    id: `remote-health-sample-${Date.now()}`,
+    reason: String(input.reason || "manual").slice(0, 80),
+    baseUrl: input.report.baseUrl,
+    ok: Boolean(input.report.ok),
+    passed: input.report.passed,
+    total: input.report.total,
+    latencyMs: input.report.latencyMs,
+    failedStepIds: (input.report.steps || [])
+      .filter((step) => !step.ok)
+      .map((step) => step.id)
+      .slice(0, 8),
+    recoveryAttempted: input.recovery.attempted,
+    recoveryRestored: input.recovery.restored,
+    recoveryAction: input.recovery.recoveryAction,
+    createdAt: Date.now(),
+  };
+  const samples = [...readRemoteHealthSamples(), sample].slice(-MAX_REMOTE_HEALTH_SAMPLES);
+  setClientState(REMOTE_HEALTH_SAMPLES_STATE_KEY, samples, { type: "system", id: "remote-health-monitor" });
+  return sample;
+}
+
+function countTrailing(samples: RemoteHealthEvidenceSample[], ok: boolean) {
+  let count = 0;
+  for (let index = samples.length - 1; index >= 0; index -= 1) {
+    if (samples[index].ok !== ok) break;
+    count += 1;
+  }
+  return count;
+}
+
+export function getRemoteHealthEvidence(): RemoteHealthEvidence {
+  const samples = readRemoteHealthSamples();
+  const first = samples[0] || null;
+  const latest = samples[samples.length - 1] || null;
+  const failed = samples.filter((sample) => !sample.ok).length;
+  const observedMinutes = first && latest ? Math.max(0, Math.round((latest.createdAt - first.createdAt) / 60_000)) : 0;
+  return {
+    total: samples.length,
+    passed: samples.length - failed,
+    failed,
+    recoveryAttempts: samples.filter((sample) => sample.recoveryAttempted).length,
+    recoveryRestored: samples.filter((sample) => sample.recoveryRestored).length,
+    latestOk: latest ? latest.ok : null,
+    firstCheckedAt: first?.createdAt ?? null,
+    lastCheckedAt: latest?.createdAt ?? null,
+    observedMinutes,
+    consecutiveOk: countTrailing(samples, true),
+    consecutiveFailures: countTrailing(samples, false),
+    longRunReady: samples.length >= 3 && observedMinutes >= 30 && failed === 0,
+    latest: samples.slice(-8).reverse(),
+  };
 }
 
 export function getRemoteRecoveryReport(): RemoteRecoveryReport | null {

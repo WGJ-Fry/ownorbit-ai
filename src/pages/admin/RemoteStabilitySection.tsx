@@ -129,7 +129,7 @@ export default function RemoteStabilitySection({
 
   return (
     <>
-      <RemoteHealthSummaryCard monitor={diagnostics.remoteHealthMonitor} recovery={diagnostics.remoteRecoveryReport} summary={remoteHealthSummary} />
+      <RemoteHealthSummaryCard evidence={diagnostics.remoteHealthEvidence} monitor={diagnostics.remoteHealthMonitor} recovery={diagnostics.remoteRecoveryReport} summary={remoteHealthSummary} />
       <RemoteAcceptanceEvidencePackCard evidencePack={diagnostics.remoteAcceptanceEvidencePack} />
       <RemoteAcceptanceChecklistCard
         acceptanceCommand={acceptanceCommand}

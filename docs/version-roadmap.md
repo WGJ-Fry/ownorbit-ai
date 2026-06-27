@@ -51,7 +51,9 @@ These changes are implemented on `main` after the public `v0.1.4-alpha` release 
 - Studio auto-repair tasks now also include a structured execution session for low-risk repairs: worker steps, completion endpoint, rollback version, smoke checks, and a blocked session for high-risk or retry-limited cases.
 - Applied Studio auto-repairs now require a recorded smoke review before they disappear from the repair queue; passed reviews close the queue item, while failed reviews keep rollback guidance and manual review visible.
 - Low-risk Studio auto-repair completion can now request a conservative server-side static smoke gate. Passing checks automatically record smoke evidence and clear the queue item; failures stay visible with rollback guidance. This is still not a replacement for a real workflow run.
+- Failed server-side static smoke checks can now trigger an automatic rollback to the recorded safe version for low-risk Studio repairs, while keeping the failure and rollback evidence visible.
 - Release promotion truth checks now require a remote acceptance evidence file when running `npm run version:truth:release`; the evidence must show a stable HTTPS entry plus completed cellular, network-switch, restart, stale-QR, network-interruption, and diagnostic-export scenarios.
+- Remote health monitoring now keeps recent long-run samples in diagnostics and diagnostic bundles: pass/fail counts, recovery attempts, consecutive successes, observed duration, and latest samples. This supports long-term evidence but does not replace real phone acceptance.
 - Desktop update diagnostics now distinguish manual mode, blocked feeds, and explicitly opted-in HTTPS feed readiness. A safe `LIFEOS_UPDATE_URL` is not enough by itself; maintainers must also set `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`.
 
 ## Next Planned Alpha: v0.1.5-alpha
@@ -189,6 +191,8 @@ These capabilities should not be described as current release features until the
 - Studio 自动修复队列现在包含结构化门禁：通过项、失败项、回滚状态，以及继续修复/人工复核/烟测验证的明确决策。这提升了可恢复性，但还不是完全无人值守修复。
 - Studio 自动修复任务现在还包含结构化执行会话：低风险修复会给出 worker 步骤、完成端点、回滚版本、烟测项；高风险或超过重试上限时会生成已拦截会话。
 - 已应用的 Studio 自动修复现在必须记录烟测复核后才会从队列消失；通过会关闭队列项，失败会保留回滚建议和人工复核状态。
+- 低风险 Studio 修复如果后端静态烟测失败，现在可以自动回滚到记录的安全版本，同时保留失败和回滚证据。
+- 远程健康监控现在会把最近长期样本写入诊断和诊断包：通过/失败次数、恢复尝试、连续成功、观察时长和最近样本。这能辅助长期证据，但不能替代真实手机验收。
 
 ### 下一计划版本：v0.1.5-alpha
 

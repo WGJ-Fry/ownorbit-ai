@@ -10,7 +10,7 @@ import { getNetworkDiagnostics } from "./networkDiagnostics";
 import { getOnlineDeviceCount } from "./realtime";
 import { buildRemoteAcceptanceChecklist, buildRemoteAcceptanceEvidencePack, getRemoteAcceptanceRecords, getRemoteAcceptanceRunbookRecords, summarizeRemoteAcceptanceChecklist } from "./remoteAcceptance";
 import { getRemoteValidationReport, summarizeRemoteHealth } from "./remoteValidationReport";
-import { getRemoteRecoveryReport } from "./remoteHealthMonitor";
+import { getRemoteHealthEvidence, getRemoteRecoveryReport } from "./remoteHealthMonitor";
 import { getSecurityDiagnostics } from "./securityDiagnostics";
 import { getPackageVersion } from "./version";
 
@@ -253,6 +253,7 @@ export function createDiagnosticBundle() {
     network,
     remote: {
       healthSummary: remoteHealthSummary,
+      healthEvidence: getRemoteHealthEvidence(),
       validationReport: remoteValidationReport,
       recoveryReport: getRemoteRecoveryReport(),
       acceptanceChecklist: remoteAcceptanceChecklist,

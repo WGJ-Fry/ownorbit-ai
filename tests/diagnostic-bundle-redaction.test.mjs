@@ -122,6 +122,22 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
       ],
     },
   }, { type: "system", id: "diagnostic-test" });
+  clientStateModule.setClientState("lifeos_remote_health_samples", [
+    {
+      id: "remote-health-sample-diagnostic",
+      reason: "manual",
+      baseUrl: "https://example.com/lifeos",
+      ok: true,
+      passed: 3,
+      total: 3,
+      latencyMs: 12,
+      failedStepIds: [],
+      recoveryAttempted: true,
+      recoveryRestored: true,
+      recoveryAction: "run-remote-health",
+      createdAt: Date.now(),
+    },
+  ], { type: "system", id: "diagnostic-test" });
   remoteAcceptanceModule.saveRemoteAcceptanceRecord({
     id: "cellular-mobile-chat",
     baseUrl: "https://example.com/lifeos",
@@ -190,6 +206,10 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(bundle.network.publicBaseUrl, "https://example.com/lifeos");
   assert.equal(bundle.network.recommendedBaseUrl, "https://example.com/lifeos");
   assert.equal(bundle.remote.healthSummary.status, "healthy");
+  assert.equal(bundle.remote.healthEvidence.total, 1);
+  assert.equal(bundle.remote.healthEvidence.passed, 1);
+  assert.equal(bundle.remote.healthEvidence.recoveryRestored, 1);
+  assert.equal(bundle.remote.healthEvidence.latest[0].baseUrl, "https://example.com/lifeos");
   assert.equal(bundle.remote.validationReport.ok, true);
   assert.equal(bundle.remote.acceptanceChecklist.some((item) => item.id === "cellular-mobile-chat" && item.status === "passed"), true);
   assert.equal(bundle.remote.acceptanceSummary.ready, false);

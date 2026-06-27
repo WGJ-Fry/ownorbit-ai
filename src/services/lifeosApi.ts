@@ -676,6 +676,34 @@ export type NetworkDiagnostics = {
     lastRunAt: number | null;
     nextRunAt: number | null;
   };
+  remoteHealthEvidence: {
+    total: number;
+    passed: number;
+    failed: number;
+    recoveryAttempts: number;
+    recoveryRestored: number;
+    latestOk: boolean | null;
+    firstCheckedAt: number | null;
+    lastCheckedAt: number | null;
+    observedMinutes: number;
+    consecutiveOk: number;
+    consecutiveFailures: number;
+    longRunReady: boolean;
+    latest: Array<{
+      id: string;
+      reason: string;
+      baseUrl: string;
+      ok: boolean;
+      passed: number;
+      total: number;
+      latencyMs: number;
+      failedStepIds: string[];
+      recoveryAttempted: boolean;
+      recoveryRestored: boolean;
+      recoveryAction: "none" | "run-remote-health" | "check-tailscale" | "check-cloudflare" | "check-tunnel-target";
+      createdAt: number;
+    }>;
+  };
   remoteRecoveryReport: {
     id: string;
     reason: string;
