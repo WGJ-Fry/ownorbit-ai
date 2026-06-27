@@ -17,6 +17,9 @@ const failures = [];
 const passes = [];
 const args = new Set(process.argv.slice(2));
 const promotionMode = args.has("--promotion") || process.env.LIFEOS_RELEASE_PROMOTION === "1";
+const requireReleaseAssets = promotionMode || args.has("--require-assets") || process.env.LIFEOS_REQUIRE_FULL_RELEASE_ARTIFACTS === "1";
+const releaseDir = process.env.LIFEOS_RELEASE_DIR ? path.resolve(process.env.LIFEOS_RELEASE_DIR) : path.join(rootDir, "release");
+const releaseFeedDir = path.join(releaseDir, "update-feed");
 
 function read(relativePath) {
   const fullPath = path.join(rootDir, relativePath);
@@ -52,6 +55,51 @@ function mentionedLifeosTags(content) {
     [...content.matchAll(/ghcr\.io\/wgj-fry\/lifeos-ai:(v\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?)/gi)]
       .map((match) => match[1]),
   ));
+}
+
+function readJsonFile(file) {
+  return JSON.parse(fs.readFileSync(file, "utf8"));
+}
+
+function checkReleaseAssetsReady() {
+  const manifestPath = path.join(releaseFeedDir, "release-manifest.json");
+  const checksumPath = path.join(releaseDir, "SHA256SUMS");
+  check(fs.existsSync(manifestPath), "release artifact manifest exists", `missing release artifact manifest: ${path.relative(rootDir, manifestPath)}`);
+  check(fs.existsSync(checksumPath), "release SHA256SUMS exists", `missing release SHA256SUMS: ${path.relative(rootDir, checksumPath)}`);
+  if (!fs.existsSync(manifestPath) || !fs.existsSync(checksumPath)) return;
+
+  let manifest;
+  try {
+    manifest = readJsonFile(manifestPath);
+  } catch (error) {
+    failures.push(`release artifact manifest is not valid JSON: ${error.message}`);
+    return;
+  }
+
+  const checksums = fs.readFileSync(checksumPath, "utf8");
+  const artifacts = Array.isArray(manifest.artifacts) ? manifest.artifacts : [];
+  check(manifest.version === version, "release artifact manifest version matches package version", `release artifact manifest version must be ${version}, got ${manifest.version || "(missing)"}`);
+  check(artifacts.length > 0, "release artifact manifest lists artifacts", "release artifact manifest must list artifacts");
+
+  const requiredPlatforms = ["mac", "windows", "linux"];
+  const presentPlatforms = new Set(artifacts.map((artifact) => artifact.platform));
+  const missingPlatforms = requiredPlatforms.filter((platform) => !presentPlatforms.has(platform));
+  check(missingPlatforms.length === 0, "release artifacts cover macOS, Windows, and Linux", `release artifacts are missing platform(s): ${missingPlatforms.join(", ")}`);
+
+  for (const artifact of artifacts) {
+    const fileName = String(artifact.fileName || "");
+    const feedFile = String(artifact.feedFile || "");
+    if (!fileName) {
+      failures.push("release artifact manifest contains an artifact without fileName");
+      continue;
+    }
+    const artifactPath = path.join(releaseDir, fileName);
+    const feedPath = feedFile ? path.join(releaseFeedDir, feedFile) : "";
+    check(fileName.includes(version), `release artifact name includes package version: ${fileName}`, `release artifact ${fileName} must include ${version}`);
+    check(fs.existsSync(artifactPath), `release artifact exists: ${fileName}`, `missing release artifact: ${path.relative(rootDir, artifactPath)}`);
+    if (feedFile) check(fs.existsSync(feedPath), `release feed exists: ${feedFile}`, `missing release feed: ${path.relative(rootDir, feedPath)}`);
+    check(checksums.includes(`  ${fileName}`), `SHA256SUMS includes release artifact: ${fileName}`, `SHA256SUMS must include ${fileName}`);
+  }
 }
 
 const readme = read("README.md");
@@ -155,6 +203,12 @@ check(
   "install guide keeps the no-overclaim release rule",
   "docs/user-install-guide.md must keep the no-overclaim release rule in both languages",
 );
+
+if (requireReleaseAssets) {
+  checkReleaseAssetsReady();
+} else {
+  check(true, "full release asset guard is available; run with --require-assets or --promotion before public upload");
+}
 
 if (promotionMode) {
   const status = git(["status", "--porcelain"]);

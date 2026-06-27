@@ -14,6 +14,7 @@ Release candidate for the next public alpha. Do not advertise as publicly availa
 - Added a guarded Google Calendar/Google Tasks connector path with OAuth refresh-token reads, explicitly confirmed create/update/delete/complete operations, rollback guidance, audit summaries, and a `calendar:acceptance` runbook for real-account evidence before public sync claims.
 - Added read-only macOS Apple Calendar/System Reminders external preview so connector-enabled diagnostics can inspect upcoming events and open reminders without enabling external writes.
 - Added release-check and smoke-test guards so README/Release communication cannot claim fully automatic unattended repair, native automation, or calendar/task write-back before matching code, tests, cleanup evidence, and release assets exist.
+- Added a stricter release-promotion truth guard that requires a complete macOS, Windows, and Linux artifact manifest plus `SHA256SUMS` before public upload.
 
 ## 0.1.3-alpha.0
 

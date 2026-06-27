@@ -169,8 +169,12 @@ function checkScripts() {
       cwd: rootDir,
       encoding: "utf8",
     });
-    if (versionTruthCheck.status === 0 && versionTruthCheck.stdout.includes(`Version truth passed for ${currentReleaseTag}`)) {
-      pass("version truth check verifies README, release notes, Docker image, asset names, and alpha limits");
+    if (
+      versionTruthCheck.status === 0 &&
+      versionTruthCheck.stdout.includes(`Version truth passed for ${currentReleaseTag}`) &&
+      versionTruthCheck.stdout.includes("full release asset guard is available")
+    ) {
+      pass("version truth check verifies README, release notes, Docker image, asset names, alpha limits, and release asset guard availability");
     } else {
       fail(`version truth check failed: ${(versionTruthCheck.stderr || versionTruthCheck.stdout || "").trim()}`);
     }

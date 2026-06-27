@@ -76,7 +76,7 @@ npm run version:truth:release
 npm run github:public:check
 ```
 
-`npm run version:truth:release` is intentionally stricter than the daily version check. Run it only when the worktree is clean, `main` has been pushed, and the new public tag already points at the exact commit whose assets will be uploaded. If it fails, fix the release state before editing GitHub Release assets.
+`npm run version:truth:release` is intentionally stricter than the daily version check. Run it only when the worktree is clean, `main` has been pushed, the new public tag already points at the exact commit whose assets will be uploaded, and `LIFEOS_RELEASE_DIR` points at the complete macOS/Windows/Linux release payload if it is not the default `release/` directory. If it fails, fix the release state before editing GitHub Release assets.
 
 When the public assets are uploaded, also run:
 
@@ -177,7 +177,7 @@ These capabilities should not be described as current release features until the
 - 重新构建 macOS unsigned ZIP、Windows NSIS、Linux AppImage、`SHA256SUMS`、`USER-INSTALL.md` 和 `release-manifest.json`。
 - 为 `v0.1.5-alpha` 新增 GitHub Discussions 文章；旧帖不再反复改，除非是事实性废弃提示。
 - 发布前强制版本真相检查：README、中文 README、release notes、Docker 镜像、桌面包名和当前限制必须一致。
-- 发布前运行 `npm run version:truth:release`：工作区必须干净，`main` 必须已推送，新 tag 必须指向准备上传资产的同一个提交。
+- 发布前运行 `npm run version:truth:release`：工作区必须干净，`main` 必须已推送，新 tag 必须指向准备上传资产的同一个提交；如果完整 macOS/Windows/Linux 上传包不在默认 `release/` 目录，必须用 `LIFEOS_RELEASE_DIR` 指向完整发布资产目录。
 - 继续在诊断和发布说明里保留远程长测证据，并增强缺失真实设备证据时的产品内提示。
 - 改进手机弱网后台恢复和多设备冲突复核，重点覆盖手机重启、浏览器存储压力和旧远程入口。
 - 将 macOS 日历/提醒事项连接器从窄写入路径推进到产品化权限复核、回滚计划和冲突预览。
