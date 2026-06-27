@@ -5,6 +5,7 @@ import type { AuditLogRecord, ConfigDiagnostics, PendingRestore, ReleaseUpdateCh
 import ConnectionGuide from "./ConnectionGuide";
 import AuditLogPanel from "./settings/AuditLogPanel";
 import BackupRestorePanel from "./settings/BackupRestorePanel";
+import CalendarSyncControlPanel from "./settings/CalendarSyncControlPanel";
 import ConfigDiagnosticsPanel from "./settings/ConfigDiagnosticsPanel";
 import StatusPanel from "./settings/StatusPanel";
 import AiKeyPanel from "./settings/AiKeyPanel";
@@ -129,6 +130,8 @@ export default function AdminSettingsPage() {
         {diagnostics ? <AiKeyPanel diagnostics={diagnostics} onChanged={refresh} /> : null}
 
         {diagnostics ? <ConfigDiagnosticsPanel diagnostics={diagnostics} updateCheck={releaseUpdate} /> : null}
+
+        {diagnostics ? <CalendarSyncControlPanel initialPreview={diagnostics.calendarSync} onChanged={refresh} /> : null}
 
         <ConnectionGuide health={health} />
 

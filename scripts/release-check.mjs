@@ -2165,6 +2165,7 @@ function checkAssets() {
   const calendarSyncPreviewSource = exists("server/calendarSyncPreview.ts") ? fs.readFileSync(path.join(rootDir, "server/calendarSyncPreview.ts"), "utf8") : "";
   const googleCalendarConnectorSource = exists("server/googleCalendarConnector.ts") ? fs.readFileSync(path.join(rootDir, "server/googleCalendarConnector.ts"), "utf8") : "";
   const googleTasksConnectorSource = exists("server/googleTasksConnector.ts") ? fs.readFileSync(path.join(rootDir, "server/googleTasksConnector.ts"), "utf8") : "";
+  const calendarSyncControlPanelSource = exists("src/pages/admin/settings/CalendarSyncControlPanel.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/CalendarSyncControlPanel.tsx"), "utf8") : "";
   const calendarSyncPreviewTestSource = exists("tests/calendar-sync-preview.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/calendar-sync-preview.test.mjs"), "utf8") : "";
   if (
     (packageJson.scripts?.test || "").includes("tests/calendar-sync-preview.test.mjs") &&
@@ -2203,7 +2204,13 @@ function checkAssets() {
     configDiagnosticsPanelSource.includes("diagnostics.calendarSync") &&
     configDiagnosticsPanelSource.includes("diagnostics.calendarSafetyTitle") &&
     configDiagnosticsPanelSource.includes("diagnostics.syncConflicts") &&
+    calendarSyncControlPanelSource.includes("previewCalendarSync") &&
+    calendarSyncControlPanelSource.includes("executeCalendarSyncOperation") &&
+    calendarSyncControlPanelSource.includes("WRITE TO EXTERNAL CALENDAR") &&
+    calendarSyncControlPanelSource.includes("confirmationText === confirmationPhrase") &&
+    frontendSmokeTestSource.includes("CalendarSyncControlPanel") &&
     translationsSource.includes("diagnostics.calendarSafetyBody") &&
+    translationsSource.includes("calendarSyncControl.title") &&
     translationsSource.includes("diagnostics.syncConflicts") &&
     apiAuthTestSource.includes("blockedCalendarSyncPreview") &&
     apiAuthTestSource.includes("providerId: \"google-calendar\"") &&

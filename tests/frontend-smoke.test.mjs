@@ -304,6 +304,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   const studioRuntimeEventsPanelSource = await readFile(path.join(rootDir, "src", "components", "apps", "studio", "StudioRuntimeEventsPanel.tsx"), "utf8");
   const configDiagnosticsPanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "ConfigDiagnosticsPanel.tsx"), "utf8");
   const adminSettingsPageSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminSettingsPage.tsx"), "utf8");
+  const calendarSyncControlPanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "CalendarSyncControlPanel.tsx"), "utf8");
   const releaseUpdateStatusCardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "ReleaseUpdateStatusCard.tsx"), "utf8");
   assert.match(problemBlueprintSource, /deriveProblemBlueprint/);
   assert.match(problemBlueprintSource, /runnable problem-solving app/);
@@ -444,6 +445,14 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /getCalendarSyncPreview/);
   assert.match(lifeosApiSource, /previewCalendarSync/);
   assert.match(lifeosApiSource, /calendar-sync\/preview/);
+  assert.match(lifeosApiSource, /executeCalendarSyncOperation/);
+  assert.match(adminSettingsPageSource, /CalendarSyncControlPanel/);
+  assert.match(calendarSyncControlPanelSource, /previewCalendarSync/);
+  assert.match(calendarSyncControlPanelSource, /executeCalendarSyncOperation/);
+  assert.match(calendarSyncControlPanelSource, /WRITE TO EXTERNAL CALENDAR/);
+  assert.match(calendarSyncControlPanelSource, /confirmationText === confirmationPhrase/);
+  assert.match(translationsSource, /日历\/任务同步控制台/);
+  assert.match(translationsSource, /Calendar \/ Task Sync Console/);
   assert.match(lifeosApiSource, /listCustomAppActionRequests/);
   assert.match(lifeosApiSource, /createCustomAppActionRequest/);
   assert.match(lifeosApiSource, /decideCustomAppActionRequest/);
