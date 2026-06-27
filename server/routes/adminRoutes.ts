@@ -2,7 +2,7 @@ import type express from "express";
 import { db } from "../db";
 import { insertAuditLog, listAuditLogs } from "../audit";
 import { aiProviders, deleteAiApiKey, getActiveAiProviderId, getAiApiKey, getAiConfigStatus, getAiProviderStatus, listAiProviderStatuses, saveActiveAiProvider, saveAiApiKey, saveDiscoveredAiModelCatalog, saveSelectedAiModel, type AiProviderId } from "../appSecrets";
-import { buildCalendarSyncPreview } from "../calendarSyncPreview";
+import { buildCalendarSyncPreview, executeCalendarSyncOperation } from "../calendarSyncPreview";
 import { createAdminCredential, createAdminSession, getAdminSessionByToken, getBearerToken, isAdminConfigured, requireAdmin, verifyAdminPassword } from "../auth";
 import { createDiagnosticBundle, getReleaseDiagnostics } from "../diagnosticBundle";
 import { clearHttpOnlyCookie, getClientIp, rateLimit, setClientCookie, setHttpOnlyCookie } from "../httpSecurity";
@@ -335,6 +335,31 @@ export function registerAdminRoutes(app: express.Express) {
       externalWritesEnabled: preview.externalWritesEnabled,
     }, (req as any).actor?.type, (req as any).actor?.id);
     res.json(preview);
+  });
+
+  app.post("/api/v1/admin/calendar-sync/execute", requireAdmin, (req, res) => {
+    try {
+      const result = executeCalendarSyncOperation(req.body || {});
+      insertAuditLog("calendar_sync_operation_executed", "calendar_sync", result.providerId, {
+        providerId: result.providerId,
+        action: result.action,
+        kind: result.kind,
+        title: result.title,
+        externalId: result.externalId,
+        writesExternalSystem: result.auditSummary.writesExternalSystem,
+        connector: result.auditSummary.connector,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.json(result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Calendar sync operation failed";
+      insertAuditLog("calendar_sync_operation_blocked", "calendar_sync", "execute", {
+        reason: message,
+        providerId: req.body?.providerId,
+        action: req.body?.action,
+        kind: req.body?.kind,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(400).json({ error: message });
+    }
   });
 
   app.get("/api/v1/admin/network-diagnostics", requireAdmin, (_req, res) => {

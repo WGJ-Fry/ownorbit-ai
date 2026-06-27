@@ -9,6 +9,7 @@ Source-only work queued for the next public alpha. Do not advertise as released 
 - Added Studio UI and i18n coverage for quality score, automatic repair limits, manual-review signals, and post-repair verification.
 - Added mobile offline queue sync identity with mutation IDs, idempotency keys, client sequence numbers, visible sync stages, and backup metadata for weak-network recovery.
 - Added duplicate-safe chat write-back so replayed offline messages with the same idempotency key return the existing SQLite message instead of creating duplicates.
+- Added an opt-in macOS Apple Calendar/System Reminders connector path with explicit admin confirmation, audit logging, and tests; Google Calendar remains preview-only until OAuth is implemented.
 - Added release-check and smoke-test guards so README/Release communication cannot claim fully automatic unattended repair, native automation, or calendar write-back before those features ship.
 
 ## 0.1.3-alpha.0

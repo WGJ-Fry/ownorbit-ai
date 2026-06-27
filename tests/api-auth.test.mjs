@@ -301,6 +301,32 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(proposedCalendarSyncPreview.operations.some((operation) => operation.providerId === "google-calendar" && operation.status === "blocked"), true);
   assert.equal(JSON.stringify(proposedCalendarSyncPreview).includes(dataDir), false);
 
+  const blockedCalendarSyncExecute = await request(port, "/api/v1/admin/calendar-sync/execute", {
+    method: "POST",
+    body: JSON.stringify({
+      providerId: "apple-calendar",
+      kind: "event",
+      action: "create",
+      title: "Blocked event",
+      explicitConsent: true,
+      confirmationText: "WRITE TO EXTERNAL CALENDAR",
+    }),
+  });
+  assert.equal(blockedCalendarSyncExecute.status, 401);
+  const disabledCalendarSyncExecute = await request(port, "/api/v1/admin/calendar-sync/execute", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      providerId: "apple-calendar",
+      kind: "event",
+      action: "create",
+      title: "Blocked event",
+      explicitConsent: true,
+      confirmationText: "WRITE TO EXTERNAL CALENDAR",
+    }),
+  }).then((res) => res.json());
+  assert.match(disabledCalendarSyncExecute.error, /connector is not configured|External calendar writes are disabled/);
+
   const blockedPasswordChange = await request(port, "/api/v1/admin/password", {
     method: "PUT",
     body: JSON.stringify({ currentPassword: "correct horse battery staple", newPassword: "new strong password 123!" }),

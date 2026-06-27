@@ -50,7 +50,7 @@ Scope:
 - Add a mobile offline queue sync recovery plan that separates background-ready, manual-review, blocked, offline, and weak-network states.
 - Add mobile offline queue sync identity: mutation IDs, idempotency keys, client sequence numbers, visible sync stages, backup metadata, and duplicate-safe SQLite chat write-back for replayed offline messages.
 - Add Studio blueprint readiness scoring, generated-tool quality scoring, acceptance criteria, failure triggers, and guarded auto-repair/manual-review boundaries before generating problem-solving apps.
-- Add the calendar/task sync preview safety gate: local `.ics` remains read-only, while proposed Apple Calendar / Google Calendar / system reminders writes are shown as blocked dry-run operations until real connectors ship.
+- Add the calendar/task sync safety gate and first macOS connector path: local `.ics` remains read-only; Apple Calendar and system Reminders writes require macOS connector opt-in, external-write opt-in, explicit admin confirmation, and audit logging; Google Calendar remains preview-only until OAuth ships.
 - Add the native automation safety gate: file, calendar, reminder, clipboard, and shell actions remain blocked preview-only until a native bridge, explicit consent, and audit logging are implemented.
 - Do not claim signed desktop packages, auto-update, two-way calendar/task sync, native automation, or fully automatic unattended Studio repair until they are actually shipped and verified.
 
@@ -85,7 +85,8 @@ These capabilities should not be described as current release features until the
 - Signed and notarized macOS builds.
 - Authenticode-signed Windows builds.
 - Automatic update enabled by default.
-- Apple Calendar, Google Calendar, and system reminders two-way sync.
+- Google Calendar two-way sync.
+- Fully productized Apple Calendar and system Reminders two-way sync beyond the current macOS opt-in connector path.
 - Fully automatic unattended Studio repair.
 - Full native OS automation beyond URL Scheme / browser / Shortcuts bridge actions.
 - Real-world remote acceptance completed for every user's network without user evidence.
@@ -93,7 +94,7 @@ These capabilities should not be described as current release features until the
 | Version | Theme | Planned work |
 | --- | --- | --- |
 | `v0.1.5-alpha` | Mobile reliability | Stronger offline conflict handling, multi-device edit warnings, failed-sync review, and weak-network background recovery. |
-| `v0.2.0-alpha` | Calendar and tasks | Apple Calendar / Google Calendar / system reminders connectors, explicit permission prompts, sync preview, write-back audit log, and rollback path. |
+| `v0.2.0-alpha` | Calendar and tasks | Google Calendar OAuth connector, productized Apple Calendar / system Reminders sync, explicit permission prompts, write-back audit log, and rollback path. |
 | `v0.3.0-alpha` | Studio product loop | Template marketplace polish, multi-version visual comparison, automatic repair proposal flow, capability review center, and stronger generated-tool quality scoring. |
 | `v0.4.0-alpha` | Native action safety | Safer local automation bridge beyond URL Scheme, OS-level permission explanations, action logs, and per-action revoke controls. |
 | `v0.5.0-beta` | Installer confidence | Better first-run desktop experience, clearer unsigned/signed tracks, diagnostic export, manual update ergonomics, and optional update feed trial. |
@@ -150,7 +151,7 @@ These capabilities should not be described as current release features until the
 - 增加手机离线队列同步恢复策略：明确区分可后台补写、需人工复核、远程入口阻塞、离线等待和弱网等待。
 - 增加手机离线队列同步身份：mutation ID、幂等 key、客户端序号、可见同步阶段、备份元数据，以及离线消息重放时 SQLite 聊天写入去重。
 - 增加 Studio 蓝图生成就绪评分、生成程序质量评分、验收标准、失败触发，以及带护栏自动修复/人工复核边界。
-- 增加日历/任务同步预览安全闸门：本地 `.ics` 仍然只读；Apple Calendar、Google Calendar、系统提醒事项的写回请求只显示为 blocked dry-run，等真实连接器发布后才允许进入写回流程。
+- 增加日历/任务同步安全闸门和第一版 macOS 连接器路径：本地 `.ics` 仍然只读；Apple Calendar 和系统提醒事项写入必须启用 macOS connector、启用外部写入开关、管理员明确确认并写审计日志；Google Calendar 仍等 OAuth。
 - 增加原生自动化安全闸门：文件、日历、提醒事项、剪贴板、脚本动作在原生桥、用户确认和审计日志完成前都只允许阻断预览。
 - 未真正发布前，不宣传签名包、自动更新、日历/任务双向同步、原生自动化或完全无人值守 Studio 修复。
 
@@ -161,7 +162,8 @@ These capabilities should not be described as current release features until the
 - macOS 签名和公证包。
 - Windows Authenticode 签名包。
 - 默认启用自动更新。
-- Apple Calendar、Google Calendar、系统提醒事项双向同步。
+- Google Calendar 双向同步。
+- 超出当前 macOS 显式开启连接器路径的 Apple Calendar / 系统提醒事项产品级双向同步。
 - Studio 完全无人值守自动修复。
 - 超出 URL Scheme / 浏览器 / 快捷指令桥的完整原生系统自动化。
 - 不需要用户真实证据即可证明任意网络里的异地长期稳定连接。

@@ -172,9 +172,9 @@ export type BackupSchedule = {
 
 export type CalendarSyncPreview = {
   generatedAt: string;
-  mode: "preview-only";
-  externalWritesEnabled: false;
-  writeBackSupported: false;
+  mode: "preview-only" | "connector-ready";
+  externalWritesEnabled: boolean;
+  writeBackSupported: boolean;
   providers: Array<{
     id: "ics-local" | "apple-calendar" | "google-calendar" | "system-reminders";
     label: string;
@@ -182,7 +182,7 @@ export type CalendarSyncPreview = {
     readSupported: boolean;
     writeSupported: boolean;
     requiresPermission: boolean;
-    status: "ready-readonly" | "not-configured" | "future-connector";
+    status: "ready-readonly" | "ready-write-gated" | "not-configured" | "future-connector" | "permission-needed";
     recommendations: string[];
   }>;
   operations: Array<{
@@ -191,16 +191,16 @@ export type CalendarSyncPreview = {
     providerLabel: string;
     kind: "event" | "task";
     action: "read-only-import" | "create" | "update" | "complete" | "delete";
-    status: "ready" | "blocked" | "needs-review";
+    status: "ready" | "blocked" | "needs-review" | "executed";
     title: string;
     scheduledAt?: string;
     source: string;
-    writesExternalSystem: false;
+    writesExternalSystem: boolean;
     risk: "low" | "medium" | "high";
     reason: string;
   }>;
   safety: {
-    dryRunOnly: true;
+    dryRunOnly: boolean;
     requiresExplicitConsentBeforeWrite: true;
     requiresConnectorAuthBeforeWrite: true;
     requiresAuditLogBeforeWrite: true;
@@ -210,10 +210,43 @@ export type CalendarSyncPreview = {
     readOnlyItems: number;
     blockedWrites: number;
     providersReadyForRead: number;
-    providersReadyForWrite: 0;
+    providersReadyForWrite: number;
     warnings: string[];
   };
   recommendations: string[];
+};
+
+export type CalendarSyncExecuteInput = {
+  providerId?: "apple-calendar" | "system-reminders";
+  kind?: "event" | "task";
+  action?: "create" | "update" | "complete" | "delete";
+  title?: string;
+  startsAt?: string;
+  dueAt?: string;
+  notes?: string;
+  calendarName?: string;
+  reminderListName?: string;
+  externalId?: string;
+  explicitConsent?: boolean;
+  confirmationText?: string;
+  source?: string;
+};
+
+export type CalendarSyncExecutionResult = {
+  ok: boolean;
+  dryRun: boolean;
+  providerId: "apple-calendar" | "system-reminders";
+  action: "read-only-import" | "create" | "update" | "complete" | "delete";
+  kind: "event" | "task";
+  title: string;
+  externalId?: string;
+  executedAt: string;
+  message: string;
+  auditSummary: {
+    connector: "macos-automation" | "not-run";
+    consent: boolean;
+    writesExternalSystem: boolean;
+  };
 };
 
 export type ConfigDiagnostics = {
@@ -978,6 +1011,13 @@ export function previewCalendarSync(proposedItems: Array<{
   return requestJson<CalendarSyncPreview>("/api/v1/admin/calendar-sync/preview", {
     method: "POST",
     body: JSON.stringify({ proposedItems }),
+  });
+}
+
+export function executeCalendarSyncOperation(input: CalendarSyncExecuteInput) {
+  return requestJson<CalendarSyncExecutionResult>("/api/v1/admin/calendar-sync/execute", {
+    method: "POST",
+    body: JSON.stringify(input),
   });
 }
 
