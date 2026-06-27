@@ -47,7 +47,7 @@ Scope:
 - Keep remote acceptance evidence visible in diagnostics and release guidance, then add stronger in-product prompts for missing real-device proof.
 - Improve mobile weak-network background recovery and multi-device conflict review, especially after phone restart, browser storage pressure, and stale remote entries.
 - Expand the macOS calendar/reminders connector from narrow external writes toward a productized permission review, rollback plan, and conflict preview.
-- Begin the Google Calendar OAuth connector behind an explicit admin setup flow; do not ship broad write-back until tests prove token storage, consent, redaction, and rollback.
+- Add the first Google Calendar OAuth event connector behind explicit admin setup, external-write opt-in, consent, audit logging, and rollback guidance; keep Google Tasks and broad two-way account sync out of scope until they have their own tests.
 - Add generated-tool multi-version comparison and a safer repair proposal history so users can inspect what changed before saving.
 - Deepen native automation design without enabling broad shell/file writes until a native bridge, explicit consent, and audit logging are complete.
 - Do not claim signed desktop packages, auto-update, two-way calendar/task sync, native automation, or fully automatic unattended Studio repair until they are actually shipped and verified.
@@ -83,7 +83,7 @@ These capabilities should not be described as current release features until the
 - Signed and notarized macOS builds.
 - Authenticode-signed Windows builds.
 - Automatic update enabled by default.
-- Google Calendar two-way sync.
+- Broad Google Calendar/Google Tasks two-way sync beyond the narrow event connector path.
 - Fully productized Apple Calendar and system Reminders two-way sync beyond the current macOS opt-in connector path.
 - Fully automatic unattended Studio repair.
 - Full native OS automation beyond URL Scheme / browser / Shortcuts bridge actions.
@@ -92,7 +92,7 @@ These capabilities should not be described as current release features until the
 | Version | Theme | Planned work |
 | --- | --- | --- |
 | `v0.1.5-alpha` | Mobile reliability and connector hardening | Stronger offline conflict handling, multi-device edit warnings, failed-sync review, weak-network background recovery, and safer macOS calendar/reminders connector UX. |
-| `v0.2.0-alpha` | Calendar and tasks | Google Calendar OAuth connector, productized Apple Calendar / system Reminders sync, explicit permission prompts, write-back audit log, conflict preview, and rollback path. |
+| `v0.2.0-alpha` | Calendar and tasks | Productized Google Calendar/Tasks sync, Apple Calendar / system Reminders sync, explicit permission prompts, write-back audit log, conflict preview, and rollback path. |
 | `v0.3.0-alpha` | Studio product loop | Template marketplace polish, multi-version visual comparison, automatic repair proposal flow, capability review center, and stronger generated-tool quality scoring. |
 | `v0.4.0-alpha` | Native action safety | Safer local automation bridge beyond URL Scheme, OS-level permission explanations, action logs, and per-action revoke controls. |
 | `v0.5.0-beta` | Installer confidence | Better first-run desktop experience, clearer unsigned/signed tracks, diagnostic export, manual update ergonomics, and optional update feed trial. |
@@ -146,7 +146,7 @@ These capabilities should not be described as current release features until the
 - 继续在诊断和发布说明里保留远程长测证据，并增强缺失真实设备证据时的产品内提示。
 - 改进手机弱网后台恢复和多设备冲突复核，重点覆盖手机重启、浏览器存储压力和旧远程入口。
 - 将 macOS 日历/提醒事项连接器从窄写入路径推进到产品化权限复核、回滚计划和冲突预览。
-- 开始 Google Calendar OAuth connector，但必须先证明 token 存储、用户同意、脱敏和回滚。
+- 增加第一版 Google Calendar OAuth 事件连接器候选：必须经过管理员配置、外部写入开关、用户确认、审计日志和回滚提示；Google Tasks 和宽泛账号双向同步仍不在这一小步范围内。
 - 增加生成程序多版本对比和修复提案历史，用户保存前能看清变化。
 - 继续设计原生自动化桥，但在原生桥、用户确认和审计日志完成前，不启用宽泛 shell/file 写入。
 - 未真正发布前，不宣传签名包、自动更新、日历/任务双向同步、原生自动化或完全无人值守 Studio 修复。
@@ -158,7 +158,7 @@ These capabilities should not be described as current release features until the
 - macOS 签名和公证包。
 - Windows Authenticode 签名包。
 - 默认启用自动更新。
-- Google Calendar 双向同步。
+- 超出窄范围事件连接器路径的 Google Calendar / Google Tasks 宽泛双向同步。
 - 超出当前 macOS 显式开启连接器路径的 Apple Calendar / 系统提醒事项产品级双向同步。
 - Studio 完全无人值守自动修复。
 - 超出 URL Scheme / 浏览器 / 快捷指令桥的完整原生系统自动化。

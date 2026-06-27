@@ -407,8 +407,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Manual Review Required/);
   assert.match(translationsSource, /日历写回安全闸门/);
   assert.match(translationsSource, /Calendar Write-back Safety Gate/);
-  assert.match(translationsSource, /任何未来写回都必须先经过授权/);
-  assert.match(translationsSource, /Any future write must pass authorization/);
+  assert.match(translationsSource, /才允许窄范围写回/);
+  assert.match(translationsSource, /external writes enabled, admin confirmation/);
   assert.match(translationsSource, /原生自动化安全闸门/);
   assert.match(translationsSource, /Native Automation Safety Gate/);
   assert.match(systemActionsAppSource, /getNativeSystemActionPlanSummary/);

@@ -246,3 +246,135 @@ test("macOS calendar connector requires opt-in and explicit confirmation before 
     LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES: "1",
   });
 });
+
+test("Google Calendar connector reads events through OAuth without enabling writes", async () => {
+  await withCalendarPreview("google-oauth-read-preview", {}, async ({ buildCalendarSyncPreviewAsync }) => {
+    const calls = [];
+    const fetchImpl = async (url, init = {}) => {
+      calls.push({ url: String(url), init });
+      if (String(url).includes("oauth2.googleapis.com/token")) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return { access_token: "google-access-token-for-test" };
+          },
+        };
+      }
+      assert.match(String(url), /googleapis\.com\/calendar\/v3\/calendars\/primary\/events/);
+      assert.match(JSON.stringify(init.headers), /Bearer google-access-token-for-test/);
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            items: [
+              {
+                id: "google-event-1",
+                summary: "Google strategy review",
+                start: { dateTime: "2026-07-10T09:00:00.000Z" },
+              },
+            ],
+          };
+        },
+      };
+    };
+    const preview = await buildCalendarSyncPreviewAsync({}, { fetchImpl });
+    assert.equal(preview.mode, "preview-only");
+    assert.equal(preview.externalWritesEnabled, false);
+    assert.equal(preview.writeBackSupported, false);
+    assert.equal(preview.summary.externalReadItems, 1);
+    assert.equal(preview.providers.find((provider) => provider.id === "google-calendar")?.readSupported, true);
+    assert.equal(preview.providers.find((provider) => provider.id === "google-calendar")?.writeSupported, false);
+    assert.equal(preview.operations.some((operation) => operation.providerId === "google-calendar" && operation.title === "Google strategy review"), true);
+    assert.equal(calls.length, 2);
+  }, {
+    LIFEOS_ENABLE_GOOGLE_CALENDAR_CONNECTOR: "1",
+    LIFEOS_GOOGLE_CALENDAR_CLIENT_ID: "client-id",
+    LIFEOS_GOOGLE_CALENDAR_CLIENT_SECRET: "client-secret",
+    LIFEOS_GOOGLE_CALENDAR_REFRESH_TOKEN: "refresh-token",
+  });
+});
+
+test("Google Calendar connector supports consented event writes and blocks task completion", async () => {
+  await withCalendarPreview("google-write-preview", {}, async ({ buildCalendarSyncPreviewAsync, executeCalendarSyncOperationAsync }) => {
+    const preview = await buildCalendarSyncPreviewAsync({
+      proposedItems: [
+        {
+          providerId: "google-calendar",
+          kind: "event",
+          action: "create",
+          title: "Launch planning",
+          startsAt: "2026-07-11T09:00:00.000Z",
+        },
+        {
+          providerId: "google-calendar",
+          kind: "task",
+          action: "complete",
+          title: "Unsupported Google task",
+          dueAt: "2026-07-11T12:00:00.000Z",
+        },
+      ],
+    });
+    assert.equal(preview.mode, "connector-ready");
+    assert.equal(preview.externalWritesEnabled, true);
+    assert.equal(preview.writeBackSupported, true);
+    assert.equal(preview.providers.find((provider) => provider.id === "google-calendar")?.writeSupported, true);
+    assert.equal(preview.operations.some((operation) => operation.providerId === "google-calendar" && operation.action === "create" && operation.status === "needs-review"), true);
+    assert.equal(preview.operations.some((operation) => operation.providerId === "google-calendar" && operation.kind === "task" && operation.status === "blocked" && /Google Tasks/.test(operation.reason)), true);
+
+    await assert.rejects(() => executeCalendarSyncOperationAsync({
+      providerId: "google-calendar",
+      kind: "event",
+      action: "create",
+      title: "Launch planning",
+      startsAt: "2026-07-11T09:00:00.000Z",
+      explicitConsent: true,
+      confirmationText: "wrong confirmation",
+    }), /Explicit confirmation is required/);
+
+    await assert.rejects(() => executeCalendarSyncOperationAsync({
+      providerId: "google-calendar",
+      kind: "task",
+      action: "complete",
+      title: "Unsupported Google task",
+      externalId: "google-task-1",
+      explicitConsent: true,
+      confirmationText: "WRITE TO EXTERNAL CALENDAR",
+    }), /Google Tasks is not shipped/);
+
+    const createResult = await executeCalendarSyncOperationAsync({
+      providerId: "google-calendar",
+      kind: "event",
+      action: "create",
+      title: "Launch planning",
+      startsAt: "2026-07-11T09:00:00.000Z",
+      explicitConsent: true,
+      confirmationText: "WRITE TO EXTERNAL CALENDAR",
+    });
+    assert.equal(createResult.ok, true);
+    assert.equal(createResult.auditSummary.connector, "google-calendar-api");
+    assert.match(createResult.externalId, /^mock-google-calendar-create-/);
+    assert.equal(createResult.rollbackPlan.available, true);
+    assert.match(createResult.rollbackPlan.hint, /delete Google Calendar item/);
+
+    const updateResult = await executeCalendarSyncOperationAsync({
+      providerId: "google-calendar",
+      kind: "event",
+      action: "update",
+      title: "Launch planning moved",
+      startsAt: "2026-07-11T10:00:00.000Z",
+      externalId: "mock-google-event-1",
+      explicitConsent: true,
+      confirmationText: "WRITE TO EXTERNAL CALENDAR",
+    });
+    assert.equal(updateResult.ok, true);
+    assert.equal(updateResult.action, "update");
+    assert.equal(updateResult.rollbackPlan.available, true);
+    assert.equal(updateResult.rollbackPlan.previousState.title, "Previous Launch planning moved");
+  }, {
+    LIFEOS_GOOGLE_CALENDAR_CONNECTOR_MOCK: "1",
+    LIFEOS_ENABLE_GOOGLE_CALENDAR_CONNECTOR: "1",
+    LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES: "1",
+  });
+});

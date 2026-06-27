@@ -2,7 +2,7 @@ import type express from "express";
 import { db } from "../db";
 import { insertAuditLog, listAuditLogs } from "../audit";
 import { aiProviders, deleteAiApiKey, getActiveAiProviderId, getAiApiKey, getAiConfigStatus, getAiProviderStatus, listAiProviderStatuses, saveActiveAiProvider, saveAiApiKey, saveDiscoveredAiModelCatalog, saveSelectedAiModel, type AiProviderId } from "../appSecrets";
-import { buildCalendarSyncPreview, executeCalendarSyncOperation } from "../calendarSyncPreview";
+import { buildCalendarSyncPreview, buildCalendarSyncPreviewAsync, executeCalendarSyncOperationAsync } from "../calendarSyncPreview";
 import { createAdminCredential, createAdminSession, getAdminSessionByToken, getBearerToken, isAdminConfigured, requireAdmin, verifyAdminPassword } from "../auth";
 import { createDiagnosticBundle, getReleaseDiagnostics } from "../diagnosticBundle";
 import { clearHttpOnlyCookie, getClientIp, rateLimit, setClientCookie, setHttpOnlyCookie } from "../httpSecurity";
@@ -335,12 +335,12 @@ export function registerAdminRoutes(app: express.Express) {
     res.json(result);
   });
 
-  app.get("/api/v1/admin/calendar-sync/preview", requireAdmin, (_req, res) => {
-    res.json(buildCalendarSyncPreview());
+  app.get("/api/v1/admin/calendar-sync/preview", requireAdmin, async (_req, res) => {
+    res.json(await buildCalendarSyncPreviewAsync());
   });
 
-  app.post("/api/v1/admin/calendar-sync/preview", requireAdmin, (req, res) => {
-    const preview = buildCalendarSyncPreview({ proposedItems: req.body?.proposedItems });
+  app.post("/api/v1/admin/calendar-sync/preview", requireAdmin, async (req, res) => {
+    const preview = await buildCalendarSyncPreviewAsync({ proposedItems: req.body?.proposedItems });
     insertAuditLog("calendar_sync_preview_created", "calendar_sync", "preview", {
       mode: preview.mode,
       readOnlyItems: preview.summary.readOnlyItems,
@@ -352,9 +352,9 @@ export function registerAdminRoutes(app: express.Express) {
     res.json(preview);
   });
 
-  app.post("/api/v1/admin/calendar-sync/execute", requireAdmin, (req, res) => {
+  app.post("/api/v1/admin/calendar-sync/execute", requireAdmin, async (req, res) => {
     try {
-      const result = executeCalendarSyncOperation(req.body || {});
+      const result = await executeCalendarSyncOperationAsync(req.body || {});
       insertAuditLog("calendar_sync_operation_executed", "calendar_sync", result.providerId, {
         providerId: result.providerId,
         action: result.action,

@@ -2082,19 +2082,27 @@ function checkAssets() {
   else warn("admin settings diagnostics does not surface release manifest/checksum status");
 
   const calendarSyncPreviewSource = exists("server/calendarSyncPreview.ts") ? fs.readFileSync(path.join(rootDir, "server/calendarSyncPreview.ts"), "utf8") : "";
+  const googleCalendarConnectorSource = exists("server/googleCalendarConnector.ts") ? fs.readFileSync(path.join(rootDir, "server/googleCalendarConnector.ts"), "utf8") : "";
   const calendarSyncPreviewTestSource = exists("tests/calendar-sync-preview.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/calendar-sync-preview.test.mjs"), "utf8") : "";
   if (
     (packageJson.scripts?.test || "").includes("tests/calendar-sync-preview.test.mjs") &&
     calendarSyncPreviewSource.includes("buildCalendarSyncPreview") &&
     calendarSyncPreviewSource.includes("LIFEOS_ENABLE_MACOS_CALENDAR_CONNECTOR") &&
     calendarSyncPreviewSource.includes("LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES") &&
+    calendarSyncPreviewSource.includes("buildCalendarSyncPreviewAsync") &&
+    calendarSyncPreviewSource.includes("executeCalendarSyncOperationAsync") &&
     calendarSyncPreviewSource.includes("readMacosConnectorItems") &&
+    calendarSyncPreviewSource.includes("readGoogleCalendarItems") &&
     calendarSyncPreviewSource.includes("externalReadItems") &&
     calendarSyncPreviewSource.includes("executeCalendarSyncOperation") &&
     calendarSyncPreviewSource.includes("WRITE TO EXTERNAL CALENDAR") &&
     calendarSyncPreviewSource.includes("requiresExplicitConsentBeforeWrite") &&
     calendarSyncPreviewSource.includes("requiresAuditLogBeforeWrite") &&
     calendarSyncPreviewSource.includes("Do not advertise full two-way calendar/task sync") &&
+    googleCalendarConnectorSource.includes("LIFEOS_ENABLE_GOOGLE_CALENDAR_CONNECTOR") &&
+    googleCalendarConnectorSource.includes("LIFEOS_GOOGLE_CALENDAR_REFRESH_TOKEN") &&
+    googleCalendarConnectorSource.includes("oauth2.googleapis.com/token") &&
+    googleCalendarConnectorSource.includes("Google Tasks is not shipped yet") &&
     adminRoutesSource.includes("/api/v1/admin/calendar-sync/preview") &&
     adminRoutesSource.includes("/api/v1/admin/calendar-sync/execute") &&
     adminRoutesSource.includes("calendar_sync_preview_created") &&
@@ -2109,9 +2117,11 @@ function checkAssets() {
     diagnosticBundleTestSource.includes("bundle.calendarSync.externalWritesEnabled") &&
     calendarSyncPreviewTestSource.includes("blocks proposed external writes until connectors are shipped") &&
     calendarSyncPreviewTestSource.includes("macOS connector can read external calendar and reminder previews without enabling writes") &&
-    calendarSyncPreviewTestSource.includes("macOS calendar connector requires opt-in and explicit confirmation before writes")
-  ) pass("calendar/task sync has preview safety gates plus opt-in macOS connector execution coverage");
-  else warn("calendar/task sync lacks preview safety, opt-in connector execution, API/auth coverage, diagnostics, or release checks");
+    calendarSyncPreviewTestSource.includes("macOS calendar connector requires opt-in and explicit confirmation before writes") &&
+    calendarSyncPreviewTestSource.includes("Google Calendar connector reads events through OAuth without enabling writes") &&
+    calendarSyncPreviewTestSource.includes("Google Calendar connector supports consented event writes and blocks task completion")
+  ) pass("calendar/task sync has preview safety gates plus opt-in macOS and Google connector coverage");
+  else warn("calendar/task sync lacks preview safety, opt-in macOS/Google connector execution, API/auth coverage, diagnostics, or release checks");
 
   const clientStateSource = exists("server/clientState.ts") ? fs.readFileSync(path.join(rootDir, "server/clientState.ts"), "utf8") : "";
   const stateRoutesSource = exists("server/routes/stateRoutes.ts") ? fs.readFileSync(path.join(rootDir, "server/routes/stateRoutes.ts"), "utf8") : "";

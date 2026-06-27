@@ -219,7 +219,7 @@ export type CalendarSyncPreview = {
 };
 
 export type CalendarSyncExecuteInput = {
-  providerId?: "apple-calendar" | "system-reminders";
+  providerId?: "apple-calendar" | "google-calendar" | "system-reminders";
   kind?: "event" | "task";
   action?: "create" | "update" | "complete" | "delete";
   title?: string;
@@ -237,7 +237,7 @@ export type CalendarSyncExecuteInput = {
 export type CalendarSyncExecutionResult = {
   ok: boolean;
   dryRun: boolean;
-  providerId: "apple-calendar" | "system-reminders";
+  providerId: "apple-calendar" | "google-calendar" | "system-reminders";
   action: "read-only-import" | "create" | "update" | "complete" | "delete";
   kind: "event" | "task";
   title: string;
@@ -256,7 +256,7 @@ export type CalendarSyncExecutionResult = {
     };
   };
   auditSummary: {
-    connector: "macos-automation" | "not-run";
+    connector: "macos-automation" | "google-calendar-api" | "not-run";
     consent: boolean;
     writesExternalSystem: boolean;
   };

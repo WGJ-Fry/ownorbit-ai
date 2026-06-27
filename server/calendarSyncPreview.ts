@@ -1,6 +1,13 @@
 import fs from "fs";
 import path from "path";
 import { spawnSync } from "child_process";
+import {
+  executeGoogleCalendarOperation,
+  googleCalendarRecommendation,
+  isGoogleCalendarConnectorConfigured,
+  readGoogleCalendarItems,
+  validateGoogleCalendarOperation,
+} from "./googleCalendarConnector";
 
 const VAULT_DIR = path.resolve(process.env.LIFEOS_VAULT_DIR || "/app/vault");
 const CALENDAR_ICS_DIR = path.resolve(process.env.LIFEOS_CALENDAR_ICS_DIR || path.join(VAULT_DIR, "calendar"));
@@ -107,7 +114,7 @@ export type CalendarSyncExecutionResult = {
   message: string;
   rollbackPlan: CalendarSyncRollbackPlan;
   auditSummary: {
-    connector: "macos-automation" | "not-run";
+    connector: "macos-automation" | "google-calendar-api" | "not-run";
     consent: boolean;
     writesExternalSystem: boolean;
   };
@@ -140,7 +147,7 @@ type IcsItem = {
 };
 
 type ExternalConnectorReadItem = {
-  providerId: Extract<CalendarSyncProviderId, "apple-calendar" | "system-reminders">;
+  providerId: Extract<CalendarSyncProviderId, "apple-calendar" | "google-calendar" | "system-reminders">;
   kind: CalendarSyncItemKind;
   title: string;
   scheduledAt?: string;
@@ -275,8 +282,10 @@ function macosConnectorRecommendation(providerId: CalendarSyncProviderId) {
 
 function providerStatuses(hasIcsDirectory: boolean): CalendarSyncPreview["providers"] {
   const appleConfigured = isMacosCalendarConnectorConfigured("apple-calendar");
+  const googleConfigured = isGoogleCalendarConnectorConfigured();
   const remindersConfigured = isMacosCalendarConnectorConfigured("system-reminders");
   const appleWriteSupported = appleConfigured && EXTERNAL_WRITES_ENABLED;
+  const googleWriteSupported = googleConfigured && EXTERNAL_WRITES_ENABLED;
   const remindersWriteSupported = remindersConfigured && EXTERNAL_WRITES_ENABLED;
   return [
     {
@@ -304,12 +313,12 @@ function providerStatuses(hasIcsDirectory: boolean): CalendarSyncPreview["provid
     {
       id: "google-calendar",
       label: providerLabel("google-calendar"),
-      configured: false,
-      readSupported: false,
-      writeSupported: false,
+      configured: googleConfigured,
+      readSupported: googleConfigured,
+      writeSupported: googleWriteSupported,
       requiresPermission: true,
-      status: "future-connector",
-      recommendations: ["Future connector must use OAuth scopes narrowly and show every create/update/delete operation before syncing."],
+      status: googleConfigured ? "ready-write-gated" : "not-configured",
+      recommendations: [googleCalendarRecommendation()],
     },
     {
       id: "system-reminders",
@@ -390,7 +399,7 @@ function parseMacosOperationResult(raw: string, fallbackExternalId: string): Mac
 }
 
 function buildRollbackPlan(
-  normalized: ReturnType<typeof validateExternalOperation>,
+  normalized: { providerId: CalendarSyncProviderId; action: Exclude<CalendarSyncOperationAction, "read-only-import"> },
   execution: MacosOperationExecution,
 ): CalendarSyncRollbackPlan {
   if (normalized.action === "create") {
@@ -519,6 +528,15 @@ function loadExternalConnectorReadItems() {
   return {
     items: items.slice(0, MAX_EXTERNAL_READ_ITEMS),
     warnings,
+  };
+}
+
+async function loadExternalConnectorReadItemsAsync(options: { fetchImpl?: typeof fetch } = {}) {
+  const base = loadExternalConnectorReadItems();
+  const google = await readGoogleCalendarItems(options);
+  return {
+    items: [...base.items, ...google.items].slice(0, MAX_EXTERNAL_READ_ITEMS),
+    warnings: [...base.warnings, ...(google.warning ? [google.warning] : [])],
   };
 }
 
@@ -716,13 +734,15 @@ function executeMacosOperation(input: CalendarSyncExecuteInput, normalized: Retu
   throw new Error("Unsupported macOS calendar operation");
 }
 
-export function buildCalendarSyncPreview(input: { proposedItems?: unknown } = {}): CalendarSyncPreview {
+function buildCalendarSyncPreviewWithExternalRead(
+  input: { proposedItems?: unknown } = {},
+  externalReadPreview: { items: ExternalConnectorReadItem[]; warnings: string[] },
+): CalendarSyncPreview {
   const hasIcsDirectory = fs.existsSync(CALENDAR_ICS_DIR);
   const providers = providerStatuses(hasIcsDirectory);
   const externalWritesEnabled = EXTERNAL_WRITES_ENABLED && providers.some((provider) => provider.writeSupported);
   const operations: CalendarSyncPreviewOperation[] = [];
   const icsItems = hasIcsDirectory ? loadIcsItems() : [];
-  const externalReadPreview = loadExternalConnectorReadItems();
 
   icsItems.forEach((item, index) => {
     operations.push({
@@ -766,7 +786,8 @@ export function buildCalendarSyncPreview(input: { proposedItems?: unknown } = {}
     const kind = item.kind === "task" ? "task" : "event";
     const scheduledAt = compact(item.startsAt || item.dueAt);
     const provider = providers.find((candidate) => candidate.id === providerId);
-    const canWrite = Boolean(provider?.writeSupported && externalWritesEnabled);
+    const unsupportedGoogleOperation = providerId === "google-calendar" && (kind === "task" || action === "complete");
+    const canWrite = Boolean(provider?.writeSupported && externalWritesEnabled && !unsupportedGoogleOperation);
     operations.push({
       id: operationId(icsItems.length + externalReadPreview.items.length + index, providerId, action),
       providerId,
@@ -781,6 +802,8 @@ export function buildCalendarSyncPreview(input: { proposedItems?: unknown } = {}
       risk: action === "delete" || action === "complete" ? "high" : "medium",
       reason: canWrite
         ? "Connector is enabled, but the operation still requires explicit consent, audit logging, and a rollback note before execution."
+        : unsupportedGoogleOperation
+          ? "Google Calendar connector currently supports calendar events only. Google Tasks and complete actions are not shipped yet."
         : "External write-back is not shipped yet for this provider or is disabled. This operation is preview-only and must wait for connector auth, explicit consent, audit logging, and rollback planning.",
     });
   });
@@ -791,7 +814,7 @@ export function buildCalendarSyncPreview(input: { proposedItems?: unknown } = {}
   const providersReadyForWrite = providers.filter((provider) => provider.writeSupported).length;
   const warnings = [
     externalWritesEnabled
-      ? "macOS Apple Calendar/Reminders writes are enabled only for explicitly consented admin operations; Google Calendar remains disabled."
+      ? "External calendar writes are enabled only for explicitly consented admin operations. Google Calendar supports events; Google Tasks is not shipped yet."
       : "No Apple Calendar, Google Calendar, or system reminders write-back will run unless a connector and external-write opt-in are enabled.",
     "Any future connector must use this dry-run preview before changing external calendars or tasks.",
   ];
@@ -829,6 +852,14 @@ export function buildCalendarSyncPreview(input: { proposedItems?: unknown } = {}
   };
 }
 
+export function buildCalendarSyncPreview(input: { proposedItems?: unknown } = {}): CalendarSyncPreview {
+  return buildCalendarSyncPreviewWithExternalRead(input, loadExternalConnectorReadItems());
+}
+
+export async function buildCalendarSyncPreviewAsync(input: { proposedItems?: unknown } = {}, options: { fetchImpl?: typeof fetch } = {}): Promise<CalendarSyncPreview> {
+  return buildCalendarSyncPreviewWithExternalRead(input, await loadExternalConnectorReadItemsAsync(options));
+}
+
 export function executeCalendarSyncOperation(input: CalendarSyncExecuteInput): CalendarSyncExecutionResult {
   const normalized = validateExternalOperation(input);
   const execution = executeMacosOperation(input, normalized);
@@ -845,6 +876,29 @@ export function executeCalendarSyncOperation(input: CalendarSyncExecuteInput): C
     rollbackPlan: buildRollbackPlan(normalized, execution),
     auditSummary: {
       connector: "macos-automation",
+      consent: true,
+      writesExternalSystem: true,
+    },
+  };
+}
+
+export async function executeCalendarSyncOperationAsync(input: CalendarSyncExecuteInput, options: { fetchImpl?: typeof fetch } = {}): Promise<CalendarSyncExecutionResult> {
+  if (input.providerId !== "google-calendar") return executeCalendarSyncOperation(input);
+  const normalized = validateGoogleCalendarOperation(input);
+  const execution = await executeGoogleCalendarOperation(input, options);
+  return {
+    ok: true,
+    dryRun: false,
+    providerId: normalized.providerId,
+    action: normalized.action,
+    kind: normalized.kind,
+    title: normalized.title,
+    externalId: execution.externalId,
+    executedAt: new Date().toISOString(),
+    message: `${providerLabel(normalized.providerId)} ${normalized.action} completed after explicit confirmation.`,
+    rollbackPlan: buildRollbackPlan(normalized, execution),
+    auditSummary: {
+      connector: "google-calendar-api",
       consent: true,
       writesExternalSystem: true,
     },
