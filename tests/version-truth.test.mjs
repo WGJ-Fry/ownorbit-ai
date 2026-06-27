@@ -44,6 +44,7 @@ test("version truth remote acceptance guard requires real-world evidence", async
   assert.notEqual(missingEvidence.status, 0, `${missingEvidence.stdout}\n${missingEvidence.stderr}`);
   assert.match(missingEvidence.stderr, /missing remote acceptance evidence file/);
 
+  const now = Date.now();
   const scenarioMatrix = [
     "restart-restore",
     "cellular-mobile-chat",
@@ -51,7 +52,17 @@ test("version truth remote acceptance guard requires real-world evidence", async
     "stale-qr-repair",
     "network-interruption",
     "diagnostic-export",
-  ].map((id) => ({ id, status: "passed", acceptedAt: Date.now(), expiresAt: Date.now() + 86_400_000 }));
+  ].map((id) => ({
+    id,
+    status: "passed",
+    acceptedAt: now - 60_000,
+    expiresAt: now + 86_400_000,
+    evidence: `${id} real remote acceptance proof captured from phone, restart, tunnel, QR repair, and diagnostic evidence.`,
+  }));
+  const coverage = scenarioMatrix.map((item) => ({
+    ...item,
+    evidence: `${item.id} coverage proof reviewed from the real remote acceptance checklist.`,
+  }));
   await writeFile(path.join(releaseDir, "remote-acceptance-evidence.json"), `${JSON.stringify({
     remote: {
       acceptanceEvidencePack: {
@@ -60,9 +71,14 @@ test("version truth remote acceptance guard requires real-world evidence", async
         longTermEntryReady: true,
         automatedReady: true,
         realWorldReady: true,
+        realWorldPassed: scenarioMatrix.length,
+        realWorldTotal: scenarioMatrix.length,
         missingCount: 0,
         expiredCount: 0,
+        missingRealWorldIds: [],
+        expiredRealWorldIds: [],
         scenarioMatrix,
+        coverage,
       },
     },
   }, null, 2)}\n`);
@@ -77,7 +93,49 @@ test("version truth remote acceptance guard requires real-world evidence", async
   });
   assert.equal(completeEvidence.status, 0, `${completeEvidence.stdout}\n${completeEvidence.stderr}`);
   assert.match(completeEvidence.stdout, /remote acceptance evidence covers all real-world scenarios/);
+  assert.match(completeEvidence.stdout, /remote acceptance coverage includes every real-world scenario/);
+  assert.match(completeEvidence.stdout, /remote acceptance evidence is fresh/);
+  assert.match(completeEvidence.stdout, /remote acceptance evidence is redacted/);
   assert.match(completeEvidence.stdout, /remote acceptance base URL is not a temporary trycloudflare tunnel/);
+
+  const staleScenarioMatrix = scenarioMatrix.map((item) => ({
+    ...item,
+    evidence: "",
+    acceptedAt: now - 8 * 24 * 60 * 60 * 1000,
+    expiresAt: now - 60_000,
+  }));
+  await writeFile(path.join(releaseDir, "remote-acceptance-evidence.json"), `${JSON.stringify({
+    remote: {
+      acceptanceEvidencePack: {
+        ready: true,
+        baseUrl: "https://lifeos.example.test",
+        longTermEntryReady: true,
+        automatedReady: true,
+        realWorldReady: true,
+        realWorldPassed: scenarioMatrix.length,
+        realWorldTotal: scenarioMatrix.length,
+        missingCount: 0,
+        expiredCount: 0,
+        missingRealWorldIds: [],
+        expiredRealWorldIds: [],
+        scenarioMatrix: staleScenarioMatrix,
+        coverage: [],
+      },
+    },
+  }, null, 2)}\n`);
+
+  const staleEvidence = spawnSync(process.execPath, ["scripts/check-version-truth.mjs", "--require-remote-acceptance"], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      LIFEOS_RELEASE_DIR: releaseDir,
+    },
+    encoding: "utf8",
+  });
+  assert.notEqual(staleEvidence.status, 0, `${staleEvidence.stdout}\n${staleEvidence.stderr}`);
+  assert.match(staleEvidence.stderr, /remote acceptance coverage is missing passed scenario/);
+  assert.match(staleEvidence.stderr, /remote acceptance evidence is stale/);
+  assert.match(staleEvidence.stderr, /remote acceptance evidence has weak or missing proof text/);
 });
 
 test("version truth release asset guard requires all desktop platforms", async (t) => {

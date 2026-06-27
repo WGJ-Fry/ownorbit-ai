@@ -19,6 +19,7 @@ Package version: `0.1.4-alpha.0`
 - Calendar/task sync run evidence can now be saved from the admin UI: each run records read/write summary counts, conflict and blocked-write reasons, rollback-review signals, and next-step guidance while still clearly marking broad unattended two-way sync as not shipped.
 - Native automation safety gates: URL Scheme/browser/Shortcuts actions remain the primary local action path; the guarded native bridge is disabled by default and only exposes narrow clipboard, allowlisted Shortcuts, Finder reveal, and allowlisted app bundle ID open actions when all opt-in gates pass. Shell, calendar, reminder, and broad file-write automation remain blocked.
 - Release truth checks that keep README, release notes, Docker image tags, asset names, alpha limitations, complete desktop assets, and real-world remote acceptance evidence aligned before public promotion.
+- Remote acceptance release evidence now requires fresh per-scenario coverage, proof text, stable HTTPS, and diagnostic-bundle redaction review before public promotion.
 - Desktop update diagnostics now show manual mode, blocked feed URLs, or explicitly opted-in HTTPS feed readiness. `LIFEOS_UPDATE_URL` alone does not enable update checks; maintainers must also set `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`.
 
 ## Desktop Packages
@@ -112,6 +113,7 @@ Package version：`0.1.4-alpha.0`
 - 日历/任务同步运行证据现在可以在管理端保存：每次运行会记录读取/写入摘要、冲突和阻塞原因、回滚复核信号以及下一步建议，同时继续明确标注“宽泛无人值守双向同步尚未发布”。
 - 原生自动化安全闸门：URL Scheme / 浏览器 / 快捷指令仍是主要本地动作路径；受控原生桥默认关闭，只在全部开关通过时暴露剪贴板、白名单快捷指令、Finder 定位文件和白名单 bundle id 打开 App。shell、日历、提醒事项和宽泛文件写入仍阻断。
 - Release 事实检查：发布前强制 README、Release notes、Docker tag、安装包名和 alpha 限制保持一致。
+- 远程验收发布证据进一步收紧：公开发布前必须有新鲜的逐场景覆盖、证据文本、稳定 HTTPS 入口，以及诊断包脱敏复核。
 
 ### 桌面包
 

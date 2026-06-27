@@ -33,6 +33,7 @@ const scenarioProofRules: Record<typeof realWorldAcceptanceIds[number], { label:
   ],
   "diagnostic-export": [
     { label: "diagnostic bundle export", patterns: [/diagnostic|bundle|export|诊断|导出/i] },
+    { label: "diagnostic redaction review", patterns: [/redact|redacted|no token|no key|no secret|no email|no private path|脱敏|无.*(token|密钥|邮箱|私有路径)|没有.*(token|密钥|邮箱|私有路径)/i] },
   ],
 };
 const runbookEntryKinds = new Set(["temporary-cloudflare", "tailscale-https", "local", "stable-https", "insecure-http"]);

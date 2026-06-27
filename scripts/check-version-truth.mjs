@@ -25,6 +25,7 @@ const remoteAcceptanceEvidencePath = process.env.LIFEOS_REMOTE_ACCEPTANCE_EVIDEN
   ? path.resolve(process.env.LIFEOS_REMOTE_ACCEPTANCE_EVIDENCE)
   : path.join(releaseDir, "remote-acceptance-evidence.json");
 const realWorldRemoteAcceptanceIds = ["restart-restore", "cellular-mobile-chat", "network-switch", "stale-qr-repair", "network-interruption", "diagnostic-export"];
+const remoteAcceptanceMaxAgeMs = 7 * 24 * 60 * 60 * 1000;
 
 function read(relativePath) {
   const fullPath = path.join(rootDir, relativePath);
@@ -115,6 +116,21 @@ function remoteAcceptancePackFromEvidence(evidence) {
     || evidence;
 }
 
+function hasUsefulRemoteEvidenceText(item) {
+  const text = String(item?.evidence || item?.proof || item?.note || "");
+  return text.replace(/\s+/g, " ").trim().length >= 24;
+}
+
+function freshRemoteScenario(item, now = Date.now()) {
+  const acceptedAt = Number(item?.acceptedAt || 0);
+  const expiresAt = Number(item?.expiresAt || 0);
+  return Number.isFinite(acceptedAt) &&
+    Number.isFinite(expiresAt) &&
+    acceptedAt > 0 &&
+    expiresAt > now &&
+    now - acceptedAt <= remoteAcceptanceMaxAgeMs;
+}
+
 function checkRemoteAcceptanceEvidenceReady() {
   check(
     fs.existsSync(remoteAcceptanceEvidencePath),
@@ -135,16 +151,39 @@ function checkRemoteAcceptanceEvidenceReady() {
   const baseUrl = String(pack?.baseUrl || evidence?.network?.recommendedBaseUrl || evidence?.network?.publicBaseUrl || "");
   const scenarioMatrix = Array.isArray(pack?.scenarioMatrix) ? pack.scenarioMatrix : [];
   const coverage = Array.isArray(pack?.coverage) ? pack.coverage : [];
-  const scenarioById = new Map([...scenarioMatrix, ...coverage].map((item) => [item?.id, item]));
-  const missingScenarioIds = realWorldRemoteAcceptanceIds.filter((id) => scenarioById.get(id)?.status !== "passed");
+  const scenarioById = new Map(scenarioMatrix.map((item) => [item?.id, item]));
+  const coverageById = new Map(coverage.map((item) => [item?.id, item]));
+  const mergedScenarioById = new Map([...scenarioMatrix, ...coverage].map((item) => [item?.id, item]));
+  const missingScenarioIds = realWorldRemoteAcceptanceIds.filter((id) => mergedScenarioById.get(id)?.status !== "passed");
+  const missingCoverageIds = realWorldRemoteAcceptanceIds.filter((id) => coverageById.get(id)?.status !== "passed");
+  const staleScenarioIds = realWorldRemoteAcceptanceIds.filter((id) => {
+    const item = coverageById.get(id) || scenarioById.get(id);
+    return item?.status === "passed" && !freshRemoteScenario(item);
+  });
+  const weakEvidenceIds = realWorldRemoteAcceptanceIds.filter((id) => {
+    const item = coverageById.get(id) || scenarioById.get(id);
+    return item?.status === "passed" && !hasUsefulRemoteEvidenceText(item);
+  });
 
   check(pack?.ready === true, "remote acceptance evidence pack is ready", "remote acceptance evidence pack must have ready=true");
   check(pack?.longTermEntryReady === true, "remote acceptance long-term entry is ready", "remote acceptance evidence must include a long-term stable entry");
   check(pack?.automatedReady === true, "remote acceptance automated smoke is ready", "remote acceptance evidence must include passing automated smoke checks");
   check(pack?.realWorldReady === true, "remote acceptance real-world checks are ready", "remote acceptance evidence must include completed real-world checks");
+  check(Number(pack?.realWorldPassed || 0) === realWorldRemoteAcceptanceIds.length, "remote acceptance evidence has all real-world scenarios counted", `remote acceptance evidence must count ${realWorldRemoteAcceptanceIds.length} real-world passes`);
+  check(Number(pack?.realWorldTotal || 0) === realWorldRemoteAcceptanceIds.length, "remote acceptance evidence has expected real-world total", `remote acceptance evidence realWorldTotal must be ${realWorldRemoteAcceptanceIds.length}`);
   check(Number(pack?.missingCount || 0) === 0, "remote acceptance evidence has no missing real-world scenarios", `remote acceptance evidence has missing scenario count: ${pack?.missingCount}`);
   check(Number(pack?.expiredCount || 0) === 0, "remote acceptance evidence has no expired real-world scenarios", `remote acceptance evidence has expired scenario count: ${pack?.expiredCount}`);
+  check(Array.isArray(pack?.missingRealWorldIds) && pack.missingRealWorldIds.length === 0, "remote acceptance evidence missing-id list is empty", "remote acceptance evidence missingRealWorldIds must be empty");
+  check(Array.isArray(pack?.expiredRealWorldIds) && pack.expiredRealWorldIds.length === 0, "remote acceptance evidence expired-id list is empty", "remote acceptance evidence expiredRealWorldIds must be empty");
   check(missingScenarioIds.length === 0, "remote acceptance evidence covers all real-world scenarios", `remote acceptance evidence is missing passed scenario(s): ${missingScenarioIds.join(", ")}`);
+  check(missingCoverageIds.length === 0, "remote acceptance coverage includes every real-world scenario", `remote acceptance coverage is missing passed scenario(s): ${missingCoverageIds.join(", ")}`);
+  check(staleScenarioIds.length === 0, "remote acceptance evidence is fresh", `remote acceptance evidence is stale or missing acceptedAt/expiresAt for: ${staleScenarioIds.join(", ")}`);
+  check(weakEvidenceIds.length === 0, "remote acceptance evidence has proof text for every scenario", `remote acceptance evidence has weak or missing proof text for: ${weakEvidenceIds.join(", ")}`);
+  check(
+    !/(github_pat_|ghp_|sk-[A-Za-z0-9_-]{12,}|AIza[0-9A-Za-z_-]{20,}|token=secret|secret=hidden|\/Users\/[^/\s]+)/.test(JSON.stringify(pack)),
+    "remote acceptance evidence is redacted",
+    "remote acceptance evidence must not contain token-shaped secrets, unredacted token markers, or local private paths",
+  );
 
   try {
     const parsed = new URL(baseUrl);

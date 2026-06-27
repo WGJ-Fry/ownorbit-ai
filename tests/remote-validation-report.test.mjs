@@ -524,7 +524,7 @@ test("remote acceptance checklist separates automated and real-world verificatio
     saveRemoteAcceptanceRecord({
       id: "diagnostic-export",
       baseUrl: "https://lifeos.tailnet.example.ts.net",
-      note: "Diagnostic bundle exported with token=secret",
+      note: "Diagnostic bundle exported; redaction review confirmed no token, no key, no email, and no private path leaked.",
     }, { type: "admin", id: "owner" });
     const checklist = buildRemoteAcceptanceChecklist({
       diagnostics: {
@@ -762,6 +762,16 @@ test("remote acceptance records require a real evidence note", async (t) => {
     } catch (error) {
       results.push(error.message);
     }
+    try {
+      saveRemoteAcceptanceRecord({
+        id: "diagnostic-export",
+        baseUrl: "https://lifeos.example.test",
+        note: "Diagnostic bundle exported after remote checks.",
+      });
+      results.push("accepted-diagnostic-without-redaction");
+    } catch (error) {
+      results.push(error.message);
+    }
     saveRemoteAcceptanceRecord({
       id: "cellular-mobile-chat",
       baseUrl: "https://lifeos.example.test",
@@ -783,7 +793,9 @@ test("remote acceptance records require a real evidence note", async (t) => {
   assert.match(results[1], /missing scenario proof/);
   assert.match(results[1], /interruption or disconnect/);
   assert.match(results[1], /restore or reconnect/);
-  assert.match(results[2], /cellular chat message/);
+  assert.match(results[2], /missing scenario proof/);
+  assert.match(results[2], /diagnostic redaction review/);
+  assert.match(results[3], /cellular chat message/);
 });
 
 test("remote acceptance runbook import persists smoke evidence and rejects unsafe reports", async (t) => {

@@ -177,7 +177,11 @@ function checkScripts() {
       versionTruthCheck.stdout.includes("remote acceptance evidence guard is available") &&
       versionTruthSource.includes("--require-remote-acceptance") &&
       versionTruthSource.includes("LIFEOS_REMOTE_ACCEPTANCE_EVIDENCE") &&
-      versionTruthSource.includes("realWorldRemoteAcceptanceIds")
+      versionTruthSource.includes("realWorldRemoteAcceptanceIds") &&
+      versionTruthSource.includes("remoteAcceptanceMaxAgeMs") &&
+      versionTruthSource.includes("remote acceptance coverage includes every real-world scenario") &&
+      versionTruthSource.includes("remote acceptance evidence is fresh") &&
+      versionTruthSource.includes("remote acceptance evidence is redacted")
     ) {
       pass("version truth check verifies README, release notes, Docker image, asset names, alpha limits, release asset guard, and remote acceptance evidence guard availability");
     } else {
@@ -882,6 +886,7 @@ function checkAssets() {
     remoteAcceptanceSource.includes("scenarioMatrix") &&
     remoteAcceptanceSource.includes("realWorldAcceptanceIds") &&
     remoteAcceptanceSource.includes("scenarioProofRules") &&
+    remoteAcceptanceSource.includes("diagnostic redaction review") &&
     remoteAcceptanceSource.includes("missingScenarioProofLabels") &&
     remoteAcceptanceSource.includes("missingRealWorldIds") &&
     remoteAcceptanceSource.includes("expiredRealWorldIds") &&
@@ -922,6 +927,7 @@ function checkAssets() {
     remoteValidationReportTestSource.includes("remote acceptance checklist expires stale real-world manual evidence") &&
     remoteValidationReportTestSource.includes("accepted-weak-scenario") &&
     remoteValidationReportTestSource.includes("missing scenario proof") &&
+    remoteValidationReportTestSource.includes("diagnostic redaction review") &&
     remoteValidationReportTestSource.includes("scenarioMatrix.length, 6") &&
     remoteValidationReportTestSource.includes('scenario.nextAction === "refresh-evidence"') &&
     remoteValidationReportTestSource.includes("connection.evidencePack.scenario.cellularMobileChat.proof") &&
