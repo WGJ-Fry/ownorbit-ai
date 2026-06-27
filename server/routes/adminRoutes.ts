@@ -348,6 +348,8 @@ export function registerAdminRoutes(app: express.Express) {
         externalId: result.externalId,
         writesExternalSystem: result.auditSummary.writesExternalSystem,
         connector: result.auditSummary.connector,
+        rollbackAvailable: result.rollbackPlan.available,
+        rollbackRequiresManualReview: result.rollbackPlan.requiresManualReview,
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.json(result);
     } catch (error) {

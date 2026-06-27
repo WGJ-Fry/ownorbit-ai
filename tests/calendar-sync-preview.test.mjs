@@ -166,6 +166,26 @@ test("macOS calendar connector requires opt-in and explicit confirmation before 
       confirmationText: "wrong confirmation",
     }), /Explicit confirmation is required/);
 
+    assert.throws(() => executeCalendarSyncOperation({
+      providerId: "apple-calendar",
+      kind: "event",
+      action: "update",
+      title: "Doctor appointment moved",
+      startsAt: "2026-07-05T10:00:00.000Z",
+      explicitConsent: true,
+      confirmationText: "WRITE TO EXTERNAL CALENDAR",
+    }), /externalId is required/);
+
+    assert.throws(() => executeCalendarSyncOperation({
+      providerId: "apple-calendar",
+      kind: "event",
+      action: "complete",
+      title: "Doctor appointment",
+      externalId: "mock-apple-event-1",
+      explicitConsent: true,
+      confirmationText: "WRITE TO EXTERNAL CALENDAR",
+    }), /cannot use the complete action/);
+
     const result = executeCalendarSyncOperation({
       providerId: "apple-calendar",
       kind: "event",
@@ -180,6 +200,46 @@ test("macOS calendar connector requires opt-in and explicit confirmation before 
     assert.equal(result.dryRun, false);
     assert.equal(result.auditSummary.connector, "macos-automation");
     assert.match(result.externalId, /^mock-apple-calendar-create-/);
+    assert.equal(result.rollbackPlan.available, true);
+    assert.equal(result.rollbackPlan.requiresManualReview, false);
+    assert.match(result.rollbackPlan.hint, /delete Apple Calendar item/);
+
+    const updateResult = executeCalendarSyncOperation({
+      providerId: "apple-calendar",
+      kind: "event",
+      action: "update",
+      title: "Doctor appointment moved",
+      startsAt: "2026-07-05T10:00:00.000Z",
+      externalId: "mock-apple-event-1",
+      explicitConsent: true,
+      confirmationText: "WRITE TO EXTERNAL CALENDAR",
+      source: "admin-test",
+    });
+    assert.equal(updateResult.ok, true);
+    assert.equal(updateResult.action, "update");
+    assert.match(updateResult.externalId, /^mock-apple-calendar-update-/);
+    assert.equal(updateResult.rollbackPlan.available, true);
+    assert.equal(updateResult.rollbackPlan.requiresManualReview, true);
+    assert.match(updateResult.rollbackPlan.hint, /captured previous state/);
+    assert.equal(updateResult.rollbackPlan.previousState.title, "Previous Doctor appointment moved");
+
+    const deleteResult = executeCalendarSyncOperation({
+      providerId: "system-reminders",
+      kind: "task",
+      action: "delete",
+      title: "Submit reimbursement",
+      externalId: "mock-reminder-1",
+      explicitConsent: true,
+      confirmationText: "WRITE TO EXTERNAL CALENDAR",
+      source: "admin-test",
+    });
+    assert.equal(deleteResult.ok, true);
+    assert.equal(deleteResult.action, "delete");
+    assert.match(deleteResult.externalId, /^mock-system-reminders-delete-/);
+    assert.equal(deleteResult.rollbackPlan.available, true);
+    assert.equal(deleteResult.rollbackPlan.requiresManualReview, true);
+    assert.match(deleteResult.rollbackPlan.hint, /cannot be undone automatically/);
+    assert.equal(deleteResult.rollbackPlan.previousState.title, "Previous Submit reimbursement");
   }, {
     LIFEOS_MACOS_CALENDAR_CONNECTOR_MOCK: "1",
     LIFEOS_ENABLE_MACOS_CALENDAR_CONNECTOR: "1",

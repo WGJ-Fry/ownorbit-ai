@@ -244,6 +244,17 @@ export type CalendarSyncExecutionResult = {
   externalId?: string;
   executedAt: string;
   message: string;
+  rollbackPlan: {
+    available: boolean;
+    requiresManualReview: boolean;
+    hint: string;
+    previousState?: {
+      title?: string;
+      scheduledAt?: string;
+      notes?: string;
+      completed?: boolean;
+    };
+  };
   auditSummary: {
     connector: "macos-automation" | "not-run";
     consent: boolean;

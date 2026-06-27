@@ -105,11 +105,31 @@ export type CalendarSyncExecutionResult = {
   externalId?: string;
   executedAt: string;
   message: string;
+  rollbackPlan: CalendarSyncRollbackPlan;
   auditSummary: {
     connector: "macos-automation" | "not-run";
     consent: boolean;
     writesExternalSystem: boolean;
   };
+};
+
+export type CalendarSyncPreviousState = {
+  title?: string;
+  scheduledAt?: string;
+  notes?: string;
+  completed?: boolean;
+};
+
+export type CalendarSyncRollbackPlan = {
+  available: boolean;
+  requiresManualReview: boolean;
+  hint: string;
+  previousState?: CalendarSyncPreviousState;
+};
+
+type MacosOperationExecution = {
+  externalId: string;
+  previousState?: CalendarSyncPreviousState;
 };
 
 type IcsItem = {
@@ -319,7 +339,10 @@ function validateExternalOperation(input: CalendarSyncExecuteInput) {
   const kind: CalendarSyncItemKind = input.kind === "task" || providerId === "system-reminders" ? "task" : "event";
   const action: Exclude<CalendarSyncOperationAction, "read-only-import"> = input.action && ["create", "update", "complete", "delete"].includes(input.action) ? input.action : "create";
   const title = compact(input.title, kind === "task" ? "Untitled task" : "Untitled event");
+  const externalId = compact(input.externalId || "");
   if (!title) throw new Error("A title is required");
+  if (providerId === "apple-calendar" && action === "complete") throw new Error("Apple Calendar events cannot use the complete action");
+  if (["update", "complete", "delete"].includes(action) && !externalId) throw new Error("externalId is required for update, complete, and delete operations");
   if (!isMacosCalendarConnectorConfigured(providerId)) throw new Error("macOS calendar/reminders connector is not configured");
   if (!EXTERNAL_WRITES_ENABLED) throw new Error("External calendar writes are disabled. Set LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES=1 to enable consented writes.");
   if (input.explicitConsent !== true || input.confirmationText !== "WRITE TO EXTERNAL CALENDAR") {
@@ -348,6 +371,63 @@ function parseJsonOutput<T>(raw: string, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+function parseMacosOperationResult(raw: string, fallbackExternalId: string): MacosOperationExecution {
+  const parsed = parseJsonOutput<Record<string, unknown> | undefined>(raw, undefined);
+  if (parsed && typeof parsed === "object") {
+    const externalId = compact(parsed.externalId || fallbackExternalId);
+    const previousRecord = parsed.previousState && typeof parsed.previousState === "object" ? parsed.previousState as Record<string, unknown> : undefined;
+    const previousState: CalendarSyncPreviousState | undefined = previousRecord ? {
+      title: compact(previousRecord.title || "") || undefined,
+      scheduledAt: compact(previousRecord.scheduledAt || "") || undefined,
+      notes: compact(previousRecord.notes || "") || undefined,
+      completed: typeof previousRecord.completed === "boolean" ? previousRecord.completed : undefined,
+    } : undefined;
+    return { externalId, previousState };
+  }
+  return { externalId: compact(raw || fallbackExternalId) };
+}
+
+function buildRollbackPlan(
+  normalized: ReturnType<typeof validateExternalOperation>,
+  execution: MacosOperationExecution,
+): CalendarSyncRollbackPlan {
+  if (normalized.action === "create") {
+    return {
+      available: Boolean(execution.externalId),
+      requiresManualReview: false,
+      hint: `To roll back this create, delete ${providerLabel(normalized.providerId)} item ${execution.externalId} after confirming it is the item LifeOS created.`,
+    };
+  }
+  if (normalized.action === "update") {
+    return {
+      available: Boolean(execution.previousState),
+      requiresManualReview: true,
+      hint: execution.previousState
+        ? "To roll back this update, review the captured previous state and restore the old title, time, and notes manually or through a future rollback action."
+        : "To roll back this update, use the external app history or a calendar/reminders backup; LifeOS could not capture the previous state.",
+      previousState: execution.previousState,
+    };
+  }
+  if (normalized.action === "complete") {
+    return {
+      available: Boolean(execution.previousState),
+      requiresManualReview: true,
+      hint: execution.previousState
+        ? "To roll back this completion, reopen the reminder and restore the captured previous completion state after review."
+        : "To roll back this completion, reopen the reminder manually in Reminders.",
+      previousState: execution.previousState,
+    };
+  }
+  return {
+    available: Boolean(execution.previousState),
+    requiresManualReview: true,
+    hint: execution.previousState
+      ? "This delete cannot be undone automatically yet. Recreate the item from the captured previous state after review."
+      : "This delete cannot be undone automatically. Recreate the item manually from your external calendar/reminders backup if needed.",
+    previousState: execution.previousState,
+  };
 }
 
 function normalizeExternalReadItems(providerId: Extract<CalendarSyncProviderId, "apple-calendar" | "system-reminders">, rawItems: unknown): ExternalConnectorReadItem[] {
@@ -394,7 +474,7 @@ function readMacosConnectorItems(providerId: Extract<CalendarSyncProviderId, "ap
             output.push({
               title: String(event.summary() || 'Untitled calendar event'),
               scheduledAt: start.toISOString(),
-              externalId: String(event.uid ? event.uid() : event.id()),
+              externalId: String(event.id ? event.id() : event.uid()),
             });
           }
         }
@@ -442,38 +522,181 @@ function loadExternalConnectorReadItems() {
   };
 }
 
-function executeMacosOperation(input: CalendarSyncExecuteInput, normalized: ReturnType<typeof validateExternalOperation>) {
-  if (MACOS_CONNECTOR_MOCK) return `mock-${normalized.providerId}-${normalized.action}-${Date.now()}`;
+function executeMacosOperation(input: CalendarSyncExecuteInput, normalized: ReturnType<typeof validateExternalOperation>): MacosOperationExecution {
+  if (MACOS_CONNECTOR_MOCK) {
+    return {
+      externalId: `mock-${normalized.providerId}-${normalized.action}-${Date.now()}`,
+      previousState: ["update", "complete", "delete"].includes(normalized.action) ? {
+        title: input.title ? `Previous ${input.title}` : "Previous external item",
+        scheduledAt: input.startsAt || input.dueAt,
+        notes: "Mock previous state captured before LifeOS wrote to the external system.",
+        completed: normalized.action === "complete" ? false : undefined,
+      } : undefined,
+    };
+  }
   const notes = compact(input.notes, "Created by LifeOS AI after explicit admin confirmation.");
   const dateValue = normalized.kind === "task" ? input.dueAt : input.startsAt;
   const listName = compact(input.reminderListName || input.calendarName || "");
   const externalId = compact(input.externalId || "");
   if (normalized.providerId === "apple-calendar") {
-    if (normalized.action !== "create") throw new Error("Apple Calendar connector currently supports consented create operations only");
-    const script = `
-      const Calendar = Application('Calendar');
-      Calendar.includeStandardAdditions = true;
-      const calendars = Calendar.calendars();
-      const calendarName = ${jxaString(listName)};
-      const target = calendarName ? calendars.find(c => c.name() === calendarName) : calendars[0];
-      if (!target) throw new Error('No Apple Calendar calendar is available');
-      const start = new Date(${jxaString(dateValue || new Date().toISOString())});
-      const end = new Date(start.getTime() + 30 * 60 * 1000);
-      const event = Calendar.Event({ summary: ${jxaString(normalized.title)}, startDate: start, endDate: end, description: ${jxaString(notes)} });
-      target.events.push(event);
-      event.uid();
-    `;
-    return runOsascript(script) || `apple-calendar-${Date.now()}`;
+    const script = normalized.action === "delete"
+      ? `
+        const Calendar = Application('Calendar');
+        const targetId = ${jxaString(externalId)};
+        function findEventById(id) {
+          const calendars = Calendar.calendars();
+          for (let calendarIndex = 0; calendarIndex < calendars.length; calendarIndex++) {
+            const events = calendars[calendarIndex].events();
+            for (let eventIndex = 0; eventIndex < events.length; eventIndex++) {
+              const event = events[eventIndex];
+              const eventId = String(event.id ? event.id() : '');
+              const eventUid = String(event.uid ? event.uid() : '');
+              if (eventId === id || eventUid === id) return event;
+            }
+          }
+          throw new Error('Apple Calendar event was not found');
+        }
+        const event = findEventById(targetId);
+        const start = event.startDate ? event.startDate() : null;
+        const previousState = {
+          title: String(event.summary() || ''),
+          scheduledAt: start ? start.toISOString() : '',
+          notes: String(event.description ? event.description() : '')
+        };
+        event.delete();
+        JSON.stringify({ externalId: targetId, previousState });
+      `
+      : normalized.action === "update"
+        ? `
+          const Calendar = Application('Calendar');
+          const targetId = ${jxaString(externalId)};
+          function findEventById(id) {
+            const calendars = Calendar.calendars();
+            for (let calendarIndex = 0; calendarIndex < calendars.length; calendarIndex++) {
+              const events = calendars[calendarIndex].events();
+              for (let eventIndex = 0; eventIndex < events.length; eventIndex++) {
+                const event = events[eventIndex];
+                const eventId = String(event.id ? event.id() : '');
+                const eventUid = String(event.uid ? event.uid() : '');
+                if (eventId === id || eventUid === id) return event;
+              }
+            }
+            throw new Error('Apple Calendar event was not found');
+          }
+          const event = findEventById(targetId);
+          const previousStart = event.startDate ? event.startDate() : null;
+          const previousState = {
+            title: String(event.summary() || ''),
+            scheduledAt: previousStart ? previousStart.toISOString() : '',
+            notes: String(event.description ? event.description() : '')
+          };
+          event.summary = ${jxaString(normalized.title)};
+          const startText = ${jxaString(dateValue || "")};
+          if (startText) {
+            const start = new Date(startText);
+            event.startDate = start;
+            event.endDate = new Date(start.getTime() + 30 * 60 * 1000);
+          }
+          event.description = ${jxaString(notes)};
+          JSON.stringify({ externalId: targetId, previousState });
+        `
+        : `
+          const Calendar = Application('Calendar');
+          Calendar.includeStandardAdditions = true;
+          const calendars = Calendar.calendars();
+          const calendarName = ${jxaString(listName)};
+          const target = calendarName ? calendars.find(c => c.name() === calendarName) : calendars[0];
+          if (!target) throw new Error('No Apple Calendar calendar is available');
+          const start = new Date(${jxaString(dateValue || new Date().toISOString())});
+          const end = new Date(start.getTime() + 30 * 60 * 1000);
+          const event = Calendar.Event({ summary: ${jxaString(normalized.title)}, startDate: start, endDate: end, description: ${jxaString(notes)} });
+          target.events.push(event);
+          JSON.stringify({ externalId: String(event.id()) });
+        `;
+    return parseMacosOperationResult(runOsascript(script), `apple-calendar-${Date.now()}`);
   }
   if (normalized.providerId === "system-reminders") {
-    const script = normalized.action === "complete"
+    const script = normalized.action === "delete"
+      ? `
+        const Reminders = Application('Reminders');
+        const targetId = ${jxaString(externalId)};
+        function findReminderById(id) {
+          const lists = Reminders.lists();
+          for (let listIndex = 0; listIndex < lists.length; listIndex++) {
+            const reminders = lists[listIndex].reminders();
+            for (let reminderIndex = 0; reminderIndex < reminders.length; reminderIndex++) {
+              const reminder = reminders[reminderIndex];
+              if (String(reminder.id()) === id) return reminder;
+            }
+          }
+          throw new Error('Reminder was not found');
+        }
+        const reminder = findReminderById(targetId);
+        const due = reminder.dueDate ? reminder.dueDate() : null;
+        const previousState = {
+          title: String(reminder.name() || ''),
+          scheduledAt: due ? due.toISOString() : '',
+          notes: String(reminder.body ? reminder.body() : ''),
+          completed: Boolean(reminder.completed())
+        };
+        reminder.delete();
+        JSON.stringify({ externalId: targetId, previousState });
+      `
+      : normalized.action === "update"
+        ? `
+          const Reminders = Application('Reminders');
+          const targetId = ${jxaString(externalId)};
+          function findReminderById(id) {
+            const lists = Reminders.lists();
+            for (let listIndex = 0; listIndex < lists.length; listIndex++) {
+              const reminders = lists[listIndex].reminders();
+              for (let reminderIndex = 0; reminderIndex < reminders.length; reminderIndex++) {
+                const reminder = reminders[reminderIndex];
+                if (String(reminder.id()) === id) return reminder;
+              }
+            }
+            throw new Error('Reminder was not found');
+          }
+          const reminder = findReminderById(targetId);
+          const dueBefore = reminder.dueDate ? reminder.dueDate() : null;
+          const previousState = {
+            title: String(reminder.name() || ''),
+            scheduledAt: dueBefore ? dueBefore.toISOString() : '',
+            notes: String(reminder.body ? reminder.body() : ''),
+            completed: Boolean(reminder.completed())
+          };
+          reminder.name = ${jxaString(normalized.title)};
+          reminder.body = ${jxaString(notes)};
+          const due = ${jxaString(dateValue || "")};
+          if (due) reminder.dueDate = new Date(due);
+          JSON.stringify({ externalId: targetId, previousState });
+        `
+        : normalized.action === "complete"
       ? `
         const Reminders = Application('Reminders');
         const targetId = ${jxaString(externalId)};
         if (!targetId) throw new Error('externalId is required to complete a reminder');
-        const reminder = Reminders.reminders.byId(targetId);
+        function findReminderById(id) {
+          const lists = Reminders.lists();
+          for (let listIndex = 0; listIndex < lists.length; listIndex++) {
+            const reminders = lists[listIndex].reminders();
+            for (let reminderIndex = 0; reminderIndex < reminders.length; reminderIndex++) {
+              const reminder = reminders[reminderIndex];
+              if (String(reminder.id()) === id) return reminder;
+            }
+          }
+          throw new Error('Reminder was not found');
+        }
+        const reminder = findReminderById(targetId);
+        const dueBefore = reminder.dueDate ? reminder.dueDate() : null;
+        const previousState = {
+          title: String(reminder.name() || ''),
+          scheduledAt: dueBefore ? dueBefore.toISOString() : '',
+          notes: String(reminder.body ? reminder.body() : ''),
+          completed: Boolean(reminder.completed())
+        };
         reminder.completed = true;
-        targetId;
+        JSON.stringify({ externalId: targetId, previousState });
       `
       : `
         const Reminders = Application('Reminders');
@@ -486,9 +709,9 @@ function executeMacosOperation(input: CalendarSyncExecuteInput, normalized: Retu
         const due = ${jxaString(dateValue || "")};
         if (due) reminder.dueDate = new Date(due);
         target.reminders.push(reminder);
-        reminder.id();
+        JSON.stringify({ externalId: String(reminder.id()) });
       `;
-    return runOsascript(script) || `system-reminders-${Date.now()}`;
+    return parseMacosOperationResult(runOsascript(script), `system-reminders-${Date.now()}`);
   }
   throw new Error("Unsupported macOS calendar operation");
 }
@@ -608,7 +831,7 @@ export function buildCalendarSyncPreview(input: { proposedItems?: unknown } = {}
 
 export function executeCalendarSyncOperation(input: CalendarSyncExecuteInput): CalendarSyncExecutionResult {
   const normalized = validateExternalOperation(input);
-  const externalId = executeMacosOperation(input, normalized);
+  const execution = executeMacosOperation(input, normalized);
   return {
     ok: true,
     dryRun: false,
@@ -616,9 +839,10 @@ export function executeCalendarSyncOperation(input: CalendarSyncExecuteInput): C
     action: normalized.action,
     kind: normalized.kind,
     title: normalized.title,
-    externalId,
+    externalId: execution.externalId,
     executedAt: new Date().toISOString(),
     message: `${providerLabel(normalized.providerId)} ${normalized.action} completed after explicit confirmation.`,
+    rollbackPlan: buildRollbackPlan(normalized, execution),
     auditSummary: {
       connector: "macos-automation",
       consent: true,
