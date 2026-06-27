@@ -159,12 +159,13 @@ test("system action plan blocks unsafe URL schemes and native automation preview
 
 test("native system action summary keeps high-risk OS writes preview-only outside the guarded bridge", () => {
   const summary = getNativeSystemActionPlanSummary();
-  assert.deepEqual(summary.map((item) => item.id), ["file", "calendar", "reminder", "clipboard", "shell"]);
+  assert.deepEqual(summary.map((item) => item.id), ["file", "app", "calendar", "reminder", "clipboard", "shell"]);
   assert.equal(summary.every((item) => item.status === "blocked-preview"), true);
   assert.equal(summary.every((item) => item.supportedNow === false), true);
   assert.equal(summary.every((item) => item.writesExternalSystem === false), true);
   assert.equal(summary.every((item) => item.requiresNativeBridge && item.requiresExplicitConsent && item.requiresAuditLog), true);
   assert.equal(summary.find((item) => item.id === "clipboard").risk, "medium");
+  assert.equal(summary.find((item) => item.id === "app").risk, "medium");
   assert.equal(summary.find((item) => item.id === "shell").risk, "high");
 });
 

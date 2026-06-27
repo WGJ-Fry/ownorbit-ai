@@ -10,7 +10,7 @@ export const NATIVE_AUTOMATION_MOCK_ENV = "LIFEOS_NATIVE_AUTOMATION_BRIDGE_MOCK"
 const MAX_NATIVE_PAYLOAD_CHARS = 4000;
 const DEFAULT_COMMAND_TIMEOUT_MS = 8000;
 
-export type NativeAutomationKind = "clipboard" | "shortcut" | "file" | "calendar" | "reminder" | "shell";
+export type NativeAutomationKind = "clipboard" | "shortcut" | "file" | "app" | "calendar" | "reminder" | "shell";
 export type NativeAutomationRisk = "low" | "medium" | "high";
 export type NativeAutomationPlanStatus = "ready" | "blocked";
 
@@ -20,6 +20,7 @@ export type NativeAutomationInput = {
   target?: string;
   payload?: string;
   shortcutName?: string;
+  appBundleId?: string;
   source?: string;
   explicitConsent?: boolean;
   confirmationText?: string;
@@ -99,6 +100,7 @@ type ResolvedNativeAction = {
   commandPreview: string[];
   shortcutName?: string;
   fileTarget?: string;
+  appBundleId?: string;
 };
 
 function compact(value: unknown, fallback = "") {
@@ -129,13 +131,14 @@ function looksSensitive(value: string) {
 }
 
 function normalizeKind(value: unknown): NativeAutomationKind {
-  return ["clipboard", "shortcut", "file", "calendar", "reminder", "shell"].includes(String(value))
+  return ["clipboard", "shortcut", "file", "app", "calendar", "reminder", "shell"].includes(String(value))
     ? String(value) as NativeAutomationKind
     : "shell";
 }
 
 function riskForNativeKind(kind: NativeAutomationKind): NativeAutomationRisk {
   if (kind === "clipboard") return "medium";
+  if (kind === "app") return "medium";
   return "high";
 }
 
@@ -171,6 +174,14 @@ function safeShortcutName(value: unknown) {
   return name;
 }
 
+function safeBundleId(value: unknown) {
+  const bundleId = compact(value);
+  if (!bundleId || bundleId.length > 128 || !/^[A-Za-z0-9][A-Za-z0-9.-]+$/.test(bundleId) || bundleId.includes("..") || !bundleId.includes(".")) {
+    return "";
+  }
+  return bundleId;
+}
+
 function resolveNativeAction(kind: NativeAutomationKind, input: NativeAutomationInput): ResolvedNativeAction {
   if (kind === "clipboard") {
     return {
@@ -198,6 +209,16 @@ function resolveNativeAction(kind: NativeAutomationKind, input: NativeAutomation
       fileTarget,
     };
   }
+  if (kind === "app") {
+    const appBundleId = safeBundleId(input.appBundleId || input.target || input.title);
+    const rawActionId = appBundleId ? `app:${appBundleId}` : "app:[missing-bundle-id]";
+    return {
+      rawActionId,
+      publicActionId: appBundleId ? rawActionId : "app:[missing-bundle-id]",
+      commandPreview: ["open", "-b", appBundleId || "[bundle-id]"],
+      appBundleId,
+    };
+  }
   return {
     rawActionId: `${kind}:blocked`,
     publicActionId: `${kind}:blocked`,
@@ -218,7 +239,7 @@ function buildBlockedReasons(input: {
   action: ResolvedNativeAction;
 }) {
   const reasons: string[] = [];
-  if (!["clipboard", "shortcut", "file"].includes(input.kind)) reasons.push("unsupported_native_action_kind");
+  if (!["clipboard", "shortcut", "file", "app"].includes(input.kind)) reasons.push("unsupported_native_action_kind");
   if (!input.bridgeEnabled) reasons.push("native_bridge_disabled");
   if (!input.platformSupported) reasons.push("macos_runtime_required");
   if (!input.allowlisted) reasons.push("action_not_in_allowlist");
@@ -229,6 +250,7 @@ function buildBlockedReasons(input: {
   if (input.kind === "shortcut" && !input.action.shortcutName) reasons.push("shortcut_name_required");
   if (input.kind === "file" && !input.action.fileTarget) reasons.push("absolute_file_target_required");
   if (input.kind === "file" && !input.targetWithinAllowedRoots) reasons.push("file_target_not_in_allowed_roots");
+  if (input.kind === "app" && !input.action.appBundleId) reasons.push("app_bundle_id_required");
   return reasons;
 }
 
@@ -274,8 +296,8 @@ export function buildNativeAutomationPlan(input: NativeAutomationInput = {}, opt
     supportedNow: canExecute,
     risk: riskForNativeKind(kind),
     commandPreview: action.commandPreview,
-    title: redactNativeAutomationText(input.title || input.shortcutName || input.target || `${kind} action`) || "Native action",
-    sanitizedTarget: redactNativeAutomationText(input.target || input.shortcutName || action.publicActionId) || "[redacted]",
+    title: redactNativeAutomationText(input.title || input.shortcutName || input.appBundleId || input.target || `${kind} action`) || "Native action",
+    sanitizedTarget: redactNativeAutomationText(input.target || input.shortcutName || input.appBundleId || action.publicActionId) || "[redacted]",
     sanitizedSource: redactNativeAutomationText(input.source || "Admin native automation") || "Admin native automation",
     payloadPreview: payload ? redactNativeAutomationText(payload).slice(0, 160) : "",
     writesExternalSystem: canExecute,
@@ -382,6 +404,8 @@ export async function executeNativeAutomation(input: NativeAutomationInput = {},
     ? await runner(process.env.LIFEOS_PBCOPY_BIN || "/usr/bin/pbcopy", [], { stdin: input.payload || "", timeoutMs })
     : plan.kind === "file"
       ? await runner(process.env.LIFEOS_OPEN_BIN || "/usr/bin/open", ["-R", action.fileTarget || ""], { timeoutMs })
+      : plan.kind === "app"
+        ? await runner(process.env.LIFEOS_OPEN_BIN || "/usr/bin/open", ["-b", action.appBundleId || ""], { timeoutMs })
       : await runner(process.env.LIFEOS_SHORTCUTS_BIN || "/usr/bin/shortcuts", ["run", action.shortcutName || ""], { timeoutMs });
 
   return {

@@ -2123,6 +2123,9 @@ function checkAssets() {
     nativeAutomationBridgeSource.includes("NATIVE_AUTOMATION_FILE_ROOTS_ENV") &&
     nativeAutomationBridgeSource.includes("NATIVE_AUTOMATION_CONFIRMATION_TEXT") &&
     nativeAutomationBridgeSource.includes("file:reveal") &&
+    nativeAutomationBridgeSource.includes("appBundleId") &&
+    nativeAutomationBridgeSource.includes("app_bundle_id_required") &&
+    nativeAutomationBridgeSource.includes("app:") &&
     nativeAutomationBridgeSource.includes("targetWithinAllowedRoots") &&
     nativeAutomationBridgeSource.includes("unsupported_native_action_kind") &&
     nativeAutomationBridgeSource.includes("sensitive_payload_blocked") &&
@@ -2135,11 +2138,13 @@ function checkAssets() {
     nativeAutomationBridgeTestSource.includes("native automation bridge is disabled by default") &&
     nativeAutomationBridgeTestSource.includes("executes only after enable flag, allowlist, and confirmation") &&
     nativeAutomationBridgeTestSource.includes("can reveal an allowlisted file target") &&
+    nativeAutomationBridgeTestSource.includes("can open an allowlisted app bundle id") &&
+    nativeAutomationBridgeTestSource.includes("refuses malformed app bundle ids") &&
     nativeAutomationBridgeTestSource.includes("refuses file targets outside allowed roots") &&
     nativeAutomationBridgeTestSource.includes("refuses shell, calendar, and reminder writes") &&
     nativeAutomationApiTestSource.includes("/api/v1/admin/native-automation/plan") &&
     nativeAutomationApiTestSource.includes("/api/v1/admin/native-automation/execute")
-  ) pass("native local automation supports guarded clipboard, Shortcuts, and allowlisted Finder reveal while blocking unsafe writes");
+  ) pass("native local automation supports guarded clipboard, Shortcuts, allowlisted Finder reveal, and allowlisted app open while blocking unsafe writes");
   else warn("native local automation lacks blocked-preview safety gates or tests");
 
   const dataLifecycleSource = exists("server/dataLifecycle.ts") ? fs.readFileSync(path.join(rootDir, "server/dataLifecycle.ts"), "utf8") : "";

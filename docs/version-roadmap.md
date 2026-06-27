@@ -40,6 +40,7 @@ These are not bugs hidden from users; they are the honest alpha boundary.
 These changes are implemented on `main` after the public `v0.1.4-alpha` release line and should not be advertised as public downloads until a new tag, packages, Docker image, checksums, and Release notes are published.
 
 - Native automation bridge can now execute a narrowly guarded Finder "reveal file" action on macOS when all gates pass: bridge enabled, exact `file:reveal` allowlist, allowed file root, explicit consent, exact confirmation phrase, audit logging, and local path redaction.
+- Native automation bridge can also open allowlisted macOS app bundle IDs when all gates pass: bridge enabled, exact `app:<bundle id>` allowlist, explicit consent, exact confirmation phrase, audit logging, and malformed bundle ID blocking.
 - The bridge still blocks shell, calendar, reminder, and broad file write automation by default.
 - Admin UI now shows whether the selected Finder file target is inside the configured allowed roots.
 - Release checks and tests now guard the Finder reveal path, outside-root blocking, local path redaction, and the still-blocked high-risk native writes.
@@ -178,6 +179,7 @@ These capabilities should not be described as current release features until the
 这些变更已经在 `main` 上实现，但在新 tag、安装包、Docker 镜像、校验文件和 Release notes 发布前，不能当作公开下载版能力宣传。
 
 - 原生自动化桥现在可以执行一个非常窄的 macOS Finder“定位文件”动作；必须同时满足桥开启、精确 `file:reveal` 白名单、文件根目录 allowlist、显式同意、确认短语、审计日志和本地路径脱敏。
+- 原生自动化桥现在也可以打开白名单 macOS App bundle id；必须同时满足桥开启、精确 `app:<bundle id>` 白名单、显式同意、确认短语、审计日志，并阻断畸形 bundle id。
 - shell、日历、提醒事项和宽泛文件写入自动化仍默认阻断。
 - 管理端 UI 会显示 Finder 文件目标是否位于允许的根目录内。
 - 测试和 release check 已覆盖 Finder 定位、根目录外拦截、本地路径脱敏和高风险原生写入继续阻断。

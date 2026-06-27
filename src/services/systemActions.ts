@@ -1,6 +1,6 @@
 export type ActionRisk = "low" | "medium" | "high";
 export type SystemActionCapabilityStatus = "browser" | "url-scheme" | "shortcut-bridge";
-export type NativeSystemActionKind = "file" | "calendar" | "reminder" | "clipboard" | "shell";
+export type NativeSystemActionKind = "file" | "app" | "calendar" | "reminder" | "clipboard" | "shell";
 export type SystemActionPlanKind = "url-scheme" | NativeSystemActionKind;
 export type SystemActionPlanStatus = "executable" | "needs-confirmation" | "blocked-preview";
 export type SystemActionCapability = {
@@ -56,6 +56,7 @@ export const SYSTEM_ACTION_CAPABILITIES: SystemActionCapability[] = [
 ];
 export const NATIVE_SYSTEM_ACTION_CAPABILITIES: NativeSystemActionCapability[] = [
   { id: "file", status: "blocked-preview", risk: "high", requiresNativeBridge: true, requiresExplicitConsent: true, requiresAuditLog: true, supportedNow: false },
+  { id: "app", status: "blocked-preview", risk: "medium", requiresNativeBridge: true, requiresExplicitConsent: true, requiresAuditLog: true, supportedNow: false },
   { id: "calendar", status: "blocked-preview", risk: "high", requiresNativeBridge: true, requiresExplicitConsent: true, requiresAuditLog: true, supportedNow: false },
   { id: "reminder", status: "blocked-preview", risk: "high", requiresNativeBridge: true, requiresExplicitConsent: true, requiresAuditLog: true, supportedNow: false },
   { id: "clipboard", status: "blocked-preview", risk: "medium", requiresNativeBridge: true, requiresExplicitConsent: true, requiresAuditLog: true, supportedNow: false },
@@ -213,7 +214,7 @@ export function buildShortcutUrl(name: string, input: string) {
 }
 
 function nativeRisk(kind: NativeSystemActionKind): ActionRisk {
-  return kind === "clipboard" ? "medium" : "high";
+  return kind === "clipboard" || kind === "app" ? "medium" : "high";
 }
 
 function compactPlanTitle(value: unknown, fallback: string) {

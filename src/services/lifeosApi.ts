@@ -356,7 +356,7 @@ export type CalendarSyncRunRecord = {
   createdById?: string;
 };
 
-export type NativeAutomationKind = "clipboard" | "shortcut" | "file" | "calendar" | "reminder" | "shell";
+export type NativeAutomationKind = "clipboard" | "shortcut" | "file" | "app" | "calendar" | "reminder" | "shell";
 
 export type NativeAutomationInput = {
   kind?: NativeAutomationKind;
@@ -364,6 +364,7 @@ export type NativeAutomationInput = {
   target?: string;
   payload?: string;
   shortcutName?: string;
+  appBundleId?: string;
   source?: string;
   explicitConsent?: boolean;
   confirmationText?: string;

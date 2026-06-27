@@ -105,6 +105,52 @@ test("native automation bridge can reveal an allowlisted file target through the
   assert.doesNotMatch(JSON.stringify(result.plan), /\/tmp\/lifeos-safe-files\/report.md/);
 });
 
+test("native automation bridge can open an allowlisted app bundle id", async () => {
+  const env = {
+    [NATIVE_AUTOMATION_ENABLE_ENV]: "1",
+    [NATIVE_AUTOMATION_ALLOWLIST_ENV]: "app:com.apple.Maps",
+  };
+  const calls = [];
+  const result = await executeNativeAutomation({
+    kind: "app",
+    target: "com.apple.Maps",
+    explicitConsent: true,
+    confirmationText: NATIVE_AUTOMATION_CONFIRMATION_TEXT,
+  }, {
+    env,
+    platform: "darwin",
+    runCommand: async (command, args, options) => {
+      calls.push({ command, args, options });
+      return { exitCode: 0, stdout: "opened", stderr: "", timedOut: false };
+    },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.plan.actionId, "app:com.apple.Maps");
+  assert.equal(result.plan.risk, "medium");
+  assert.deepEqual(calls[0].args, ["-b", "com.apple.Maps"]);
+});
+
+test("native automation bridge refuses malformed app bundle ids", () => {
+  const plan = buildNativeAutomationPlan({
+    kind: "app",
+    target: "com.apple.Maps;rm -rf /",
+    explicitConsent: true,
+    confirmationText: NATIVE_AUTOMATION_CONFIRMATION_TEXT,
+  }, {
+    env: {
+      [NATIVE_AUTOMATION_ENABLE_ENV]: "1",
+      [NATIVE_AUTOMATION_ALLOWLIST_ENV]: "app:com.apple.Maps",
+    },
+    platform: "darwin",
+  });
+
+  assert.equal(plan.canExecute, false);
+  assert.ok(plan.blockedReasons.includes("action_not_in_allowlist"));
+  assert.ok(plan.blockedReasons.includes("app_bundle_id_required"));
+  assert.equal(plan.writesExternalSystem, false);
+});
+
 test("native automation bridge refuses file targets outside allowed roots", () => {
   const plan = buildNativeAutomationPlan({
     kind: "file",

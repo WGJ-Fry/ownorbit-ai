@@ -5,7 +5,7 @@ import type { NativeAutomationInput, NativeAutomationKind, NativeAutomationPlan 
 import { useI18n } from "../../../i18n/I18nProvider";
 
 const confirmationPhrase = "RUN NATIVE ACTION";
-const kindIds: NativeAutomationKind[] = ["clipboard", "shortcut", "file", "calendar", "reminder", "shell"];
+const kindIds: NativeAutomationKind[] = ["clipboard", "shortcut", "file", "app", "calendar", "reminder", "shell"];
 
 function statusTone(plan: NativeAutomationPlan | null) {
   if (!plan) return "border-white/[0.08] bg-white/[0.03] text-zinc-300";
@@ -30,6 +30,7 @@ export default function NativeAutomationControlPanel() {
     title: title.trim() || t("nativeAutomationControl.untitled"),
     target: target.trim() || undefined,
     shortcutName: shortcutName.trim() || undefined,
+    appBundleId: kind === "app" ? target.trim() || undefined : undefined,
     payload,
     source: "admin-settings-native-automation",
     explicitConsent: true,
