@@ -173,6 +173,22 @@ export type CustomAppAutoRepairResult = {
   createdAt: number;
 };
 
+export type CustomAppAutoRepairQueueItem = {
+  id: string;
+  appId: string;
+  eventId: string;
+  taskId: string;
+  status: "pending" | "blocked" | "needs-review";
+  waitingFor: "studio-refine" | "manual-review" | "smoke-verification";
+  canResumeInStudio: boolean;
+  resumeInstruction: string;
+  task: CustomAppAutoRepairTask;
+  repairProposal?: CustomAppRepairProposal | null;
+  latestResult?: CustomAppAutoRepairResult | null;
+  rollbackVersion?: number | null;
+  createdAt: number;
+};
+
 export type StoredCustomAppState = {
   appId: string;
   state: unknown;
@@ -1179,6 +1195,94 @@ export function createCustomAppRuntimeEvent(appId: string, input: Record<string,
     WHERE id = ?
   `).get(id) as any;
   return row ? rowToCustomAppRuntimeEvent(row) : null;
+}
+
+function runtimeEventDetailRecord(event: StoredCustomAppRuntimeEvent): Record<string, unknown> {
+  return event.detail && typeof event.detail === "object" && !Array.isArray(event.detail)
+    ? event.detail as Record<string, unknown>
+    : {};
+}
+
+function readRuntimeAutoRepairTask(event: StoredCustomAppRuntimeEvent): CustomAppAutoRepairTask | null {
+  const task = runtimeEventDetailRecord(event).autoRepairTask;
+  if (!task || typeof task !== "object" || Array.isArray(task)) return null;
+  const candidate = task as Partial<CustomAppAutoRepairTask>;
+  if (!candidate.id || !candidate.appId || !candidate.suggestedInstruction) return null;
+  if (candidate.status !== "ready" && candidate.status !== "blocked") return null;
+  return candidate as CustomAppAutoRepairTask;
+}
+
+function readRuntimeAutoRepairResult(event: StoredCustomAppRuntimeEvent): CustomAppAutoRepairResult | null {
+  const result = runtimeEventDetailRecord(event).autoRepairResult;
+  if (!result || typeof result !== "object" || Array.isArray(result)) return null;
+  const candidate = result as Partial<CustomAppAutoRepairResult>;
+  if (!candidate.id || !candidate.appId || !candidate.taskId) return null;
+  if (
+    candidate.status !== "applied"
+    && candidate.status !== "needs-review"
+    && candidate.status !== "unchanged"
+    && candidate.status !== "blocked"
+  ) return null;
+  return candidate as CustomAppAutoRepairResult;
+}
+
+function readRuntimeRepairProposal(event: StoredCustomAppRuntimeEvent): CustomAppRepairProposal | null {
+  const proposal = runtimeEventDetailRecord(event).repairProposal;
+  if (!proposal || typeof proposal !== "object" || Array.isArray(proposal)) return null;
+  const candidate = proposal as Partial<CustomAppRepairProposal>;
+  if (!candidate.appId || !candidate.suggestedInstruction || !candidate.executionPlan) return null;
+  return candidate as CustomAppRepairProposal;
+}
+
+export function listCustomAppAutoRepairQueue(appId: string, limitInput?: unknown) {
+  const app = getCustomApp(appId);
+  if (!app) return null;
+  const limit = normalizeLimit(limitInput);
+  const events = listCustomAppRuntimeEvents(appId, 100) || [];
+  const resultsByTaskId = new Map<string, CustomAppAutoRepairResult>();
+  for (const event of events) {
+    if (event.eventType !== "auto_repair_applied" && event.eventType !== "auto_repair_needs_review") continue;
+    const result = readRuntimeAutoRepairResult(event);
+    if (result?.taskId && !resultsByTaskId.has(result.taskId)) resultsByTaskId.set(result.taskId, result);
+  }
+
+  const seenTaskIds = new Set<string>();
+  const queue: CustomAppAutoRepairQueueItem[] = [];
+  for (const event of events) {
+    if (event.eventType !== "auto_repair_planned" && event.eventType !== "auto_repair_blocked") continue;
+    const task = readRuntimeAutoRepairTask(event);
+    if (!task || seenTaskIds.has(task.id)) continue;
+    seenTaskIds.add(task.id);
+    const latestResult = resultsByTaskId.get(task.id) || null;
+    if (latestResult?.status === "applied") continue;
+    const status: CustomAppAutoRepairQueueItem["status"] = latestResult
+      ? "needs-review"
+      : task.status === "ready"
+        ? "pending"
+        : "blocked";
+    const waitingFor: CustomAppAutoRepairQueueItem["waitingFor"] = latestResult
+      ? "smoke-verification"
+      : task.canAutoApply && task.status === "ready"
+        ? "studio-refine"
+        : "manual-review";
+    queue.push({
+      id: `repair-queue-${task.id}`,
+      appId,
+      eventId: event.id,
+      taskId: task.id,
+      status,
+      waitingFor,
+      canResumeInStudio: !latestResult && task.canAutoApply && task.status === "ready",
+      resumeInstruction: task.suggestedInstruction,
+      task,
+      repairProposal: readRuntimeRepairProposal(event),
+      latestResult,
+      rollbackVersion: task.rollbackVersion ?? latestResult?.rollbackVersion ?? null,
+      createdAt: event.createdAt || task.createdAt,
+    });
+    if (queue.length >= limit) break;
+  }
+  return queue;
 }
 
 function buildDebugInstruction(app: StoredCustomApp, issue: string, recentEvents: StoredCustomAppRuntimeEvent[]) {

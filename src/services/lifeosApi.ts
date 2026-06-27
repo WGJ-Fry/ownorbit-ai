@@ -924,6 +924,22 @@ export type CustomAppAutoRepairResult = {
   createdAt: number;
 };
 
+export type CustomAppAutoRepairQueueItem = {
+  id: string;
+  appId: string;
+  eventId: string;
+  taskId: string;
+  status: "pending" | "blocked" | "needs-review";
+  waitingFor: "studio-refine" | "manual-review" | "smoke-verification";
+  canResumeInStudio: boolean;
+  resumeInstruction: string;
+  task: CustomAppAutoRepairTask;
+  repairProposal?: CustomAppRepairProposal | null;
+  latestResult?: CustomAppAutoRepairResult | null;
+  rollbackVersion?: number | null;
+  createdAt: number;
+};
+
 export type StoredCustomAppState = {
   appId: string;
   state: unknown;
@@ -1851,6 +1867,10 @@ export function saveCustomAppState(appId: string, state: unknown) {
 
 export function listCustomAppRuntimeEvents(appId: string, limit = 20) {
   return requestJson<{ events: StoredCustomAppRuntimeEvent[] }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/runtime-events?limit=${encodeURIComponent(String(limit))}`);
+}
+
+export function listCustomAppAutoRepairQueue(appId: string, limit = 20) {
+  return requestJson<{ queue: CustomAppAutoRepairQueueItem[] }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/auto-repairs/queue?limit=${encodeURIComponent(String(limit))}`);
 }
 
 export function createCustomAppRuntimeEvent(

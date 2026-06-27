@@ -4,7 +4,9 @@ import {
   createCustomAppAutoRepairPlan,
   createCustomAppDebugRequest,
   createCustomAppRuntimeEvent,
+  listCustomAppAutoRepairQueue,
   listCustomAppRuntimeEvents,
+  type CustomAppAutoRepairQueueItem,
   type CustomAppAutoRepairTask,
   type CustomAppAutoRepairResult,
   type CustomAppRepairProposal,
@@ -33,20 +35,26 @@ export function useStudioRuntimeDebug({
   const [runtimeDebugIssue, setRuntimeDebugIssue] = useState("");
   const [isRequestingRuntimeDebug, setIsRequestingRuntimeDebug] = useState(false);
   const [runtimeRepairProposal, setRuntimeRepairProposal] = useState<CustomAppRepairProposal | null>(null);
+  const [runtimeAutoRepairQueue, setRuntimeAutoRepairQueue] = useState<CustomAppAutoRepairQueueItem[]>([]);
   const [runtimeAutoRepairTask, setRuntimeAutoRepairTask] = useState<CustomAppAutoRepairTask | null>(null);
   const [runtimeAutoRepairResult, setRuntimeAutoRepairResult] = useState<CustomAppAutoRepairResult | null>(null);
 
   const loadRuntimeEvents = useCallback(async (appId = editingAppId) => {
     if (!appId) {
       setRuntimeEvents([]);
+      setRuntimeAutoRepairQueue([]);
       setRuntimeEventsError(null);
       return;
     }
     setIsLoadingRuntimeEvents(true);
     setRuntimeEventsError(null);
     try {
-      const response = await listCustomAppRuntimeEvents(appId, 20);
-      setRuntimeEvents(response.events);
+      const [eventsResponse, queueResponse] = await Promise.all([
+        listCustomAppRuntimeEvents(appId, 20),
+        listCustomAppAutoRepairQueue(appId, 10),
+      ]);
+      setRuntimeEvents(eventsResponse.events);
+      setRuntimeAutoRepairQueue(queueResponse.queue);
     } catch (error: any) {
       setRuntimeEventsError(error?.message || t("studio.runtime.loadFailed"));
     } finally {
@@ -158,6 +166,7 @@ export function useStudioRuntimeDebug({
     planRuntimeAutoRepair,
     recordRuntimeDebugApplied,
     requestRuntimeDebug,
+    runtimeAutoRepairQueue,
     runtimeAutoRepairTask,
     runtimeAutoRepairResult,
     runtimeDebugIssue,

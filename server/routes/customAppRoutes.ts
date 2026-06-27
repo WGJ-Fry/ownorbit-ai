@@ -19,6 +19,7 @@ import {
   getCustomAppCapabilityManifest,
   getCustomAppState,
   listCustomAppActionRequests,
+  listCustomAppAutoRepairQueue,
   listCustomAppCapabilityRequests,
   listCustomAppRuntimeEvents,
   listCustomApps,
@@ -117,6 +118,12 @@ export function registerCustomAppRoutes(app: express.Express) {
     const events = listCustomAppRuntimeEvents(req.params.appId, req.query.limit);
     if (!events) return res.status(404).json({ error: "Custom app not found" });
     res.json({ events });
+  });
+
+  app.get("/api/v1/custom-apps/:appId/auto-repairs/queue", requireActor, (req, res) => {
+    const queue = listCustomAppAutoRepairQueue(req.params.appId, req.query.limit);
+    if (!queue) return res.status(404).json({ error: "Custom app not found" });
+    res.json({ queue });
   });
 
   app.post("/api/v1/custom-apps/:appId/runtime-events", requireActor, (req, res) => {

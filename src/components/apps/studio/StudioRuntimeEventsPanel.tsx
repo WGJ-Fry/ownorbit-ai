@@ -1,6 +1,6 @@
 import { AlertCircle, Bug, RefreshCw, ShieldCheck, WandSparkles } from "lucide-react";
 import { useI18n } from "../../../i18n/I18nProvider";
-import type { CustomAppAutoRepairResult, CustomAppAutoRepairTask, CustomAppRepairProposal, StoredCustomAppRuntimeEvent } from "../../../services/lifeosApi";
+import type { CustomAppAutoRepairQueueItem, CustomAppAutoRepairResult, CustomAppAutoRepairTask, CustomAppRepairProposal, StoredCustomAppRuntimeEvent } from "../../../services/lifeosApi";
 
 type StudioRuntimeEventsPanelProps = {
   events: StoredCustomAppRuntimeEvent[];
@@ -8,6 +8,7 @@ type StudioRuntimeEventsPanelProps = {
   error: string | null;
   issue: string;
   repairProposal: CustomAppRepairProposal | null;
+  autoRepairQueue: CustomAppAutoRepairQueueItem[];
   autoRepairTask: CustomAppAutoRepairTask | null;
   autoRepairResult: CustomAppAutoRepairResult | null;
   isRequestingDebug: boolean;
@@ -16,6 +17,7 @@ type StudioRuntimeEventsPanelProps = {
   onRefresh: () => void;
   onRequestDebug: () => void;
   onApplyRepair: () => void;
+  onResumeAutoRepair: (item: CustomAppAutoRepairQueueItem) => void;
 };
 
 function eventClass(severity: StoredCustomAppRuntimeEvent["severity"]) {
@@ -41,6 +43,7 @@ export default function StudioRuntimeEventsPanel({
   error,
   issue,
   repairProposal,
+  autoRepairQueue,
   autoRepairTask,
   autoRepairResult,
   isRequestingDebug,
@@ -49,6 +52,7 @@ export default function StudioRuntimeEventsPanel({
   onRefresh,
   onRequestDebug,
   onApplyRepair,
+  onResumeAutoRepair,
 }: StudioRuntimeEventsPanelProps) {
   const { t } = useI18n();
   const autoApplyBlocked = Boolean(repairProposal && !repairProposal.executionPlan.canAutoApply);
@@ -74,6 +78,52 @@ export default function StudioRuntimeEventsPanel({
         <div className="text-[10px] text-red-400 bg-red-500/5 border border-red-500/10 rounded-xl p-2.5 flex gap-2">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
           <span>{error}</span>
+        </div>
+      )}
+
+      {autoRepairQueue.length > 0 && (
+        <div className="rounded-xl border border-indigo-500/15 bg-indigo-500/[0.05] p-3 text-[10px] text-indigo-200">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-xs font-black flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              {t("studio.runtime.autoRepairQueueTitle")}
+            </div>
+            <span className="rounded-full border border-indigo-300/15 bg-black/10 px-2 py-0.5 font-bold">
+              {autoRepairQueue.length}
+            </span>
+          </div>
+          <div className="mt-2 space-y-2">
+            {autoRepairQueue.slice(0, 3).map((item) => (
+              <div key={item.id} className="rounded-lg border border-indigo-300/10 bg-black/10 p-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-bold text-indigo-100 truncate">
+                      {t("studio.runtime.autoRepairQueueMeta", {
+                        status: t(`studio.runtime.autoRepairQueueStatus.${item.status}` as any),
+                        waitingFor: t(`studio.runtime.autoRepairQueueWaitingFor.${item.waitingFor}` as any),
+                        rollback: item.rollbackVersion ? `v${item.rollbackVersion}` : "--",
+                      })}
+                    </div>
+                    <div className="mt-1 text-indigo-200/70 line-clamp-2">
+                      {item.task.nextSteps[0] || item.task.suggestedInstruction}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onResumeAutoRepair(item)}
+                    disabled={isRequestingDebug || isApplyingRepair}
+                    className={`shrink-0 rounded px-2 py-1 text-[9px] font-black transition-all disabled:opacity-50 ${
+                      item.canResumeInStudio
+                        ? "bg-emerald-500/15 text-emerald-200 border border-emerald-500/20 hover:bg-emerald-500/25"
+                        : "bg-amber-500/10 text-amber-200 border border-amber-500/20 hover:bg-amber-500/20"
+                    }`}
+                  >
+                    {item.canResumeInStudio ? t("studio.runtime.autoRepairQueueResume") : t("studio.runtime.autoRepairQueueReview")}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

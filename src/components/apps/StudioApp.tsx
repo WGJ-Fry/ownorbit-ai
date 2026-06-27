@@ -6,6 +6,7 @@ import { useI18n } from "../../i18n/I18nProvider";
 import { deriveProblemBlueprint } from "../../services/problemBlueprint";
 import { formatHtmlLikeCode } from "./studio/codeUtils";
 import { analyzeFile, generateStudioApp, refineCode } from "./studio/api";
+import { createStudioRuntimeRepairActions } from "./studio/runtimeRepairActions";
 import StudioByokTab from "./studio/StudioByokTab";
 import StudioSidebar, { StudioTab } from "./studio/StudioSidebar";
 import StudioEditorHeader from "./studio/StudioEditorHeader";
@@ -64,6 +65,7 @@ export default function StudioApp({ customApps, onClose, onUpdateCode, onDeleteA
     planRuntimeAutoRepair,
     recordRuntimeDebugApplied,
     requestRuntimeDebug,
+    runtimeAutoRepairQueue,
     runtimeAutoRepairTask,
     runtimeAutoRepairResult,
     runtimeDebugIssue,
@@ -265,28 +267,16 @@ export default function StudioApp({ customApps, onClose, onUpdateCode, onDeleteA
     }
   };
 
-  const handleApplyRuntimeRepair = async (appId: string) => {
-    setIsApplyingRuntimeRepair(true);
-    try {
-      const response = await planRuntimeAutoRepair(appId);
-      if (response?.suggestedInstruction) {
-        if (!response.autoRepairTask.canAutoApply) {
-          setRefineInstruction(response.suggestedInstruction);
-          appendSimulatorLog({ time: "DEBUG", text: t("studio.runtime.manualReviewRequired"), type: "warning" });
-          return;
-        }
-        const repairedCode = await handleRefineCode(response.suggestedInstruction, true);
-        if (repairedCode) {
-          await completeRuntimeAutoRepair(response.autoRepairTask, response.suggestedInstruction, appId);
-          appendSimulatorLog({ time: "DEBUG", text: t("studio.runtime.debugAppliedAndSaved"), type: "info" });
-        }
-      }
-    } catch (err: any) {
-      setRefineError(err.message || t("studio.runtime.applyFailed"));
-    } finally {
-      setIsApplyingRuntimeRepair(false);
-    }
-  };
+  const { handleApplyRuntimeRepair, handleResumeRuntimeRepair } = createStudioRuntimeRepairActions({
+    t,
+    appendSimulatorLog,
+    completeRuntimeAutoRepair,
+    handleRefineCode,
+    planRuntimeAutoRepair,
+    setIsApplyingRuntimeRepair,
+    setRefineError,
+    setRefineInstruction,
+  });
 
   useEffect(() => {
     if (editingAppId) {
@@ -636,6 +626,7 @@ export default function StudioApp({ customApps, onClose, onUpdateCode, onDeleteA
                       isLoadingRuntimeEvents={isLoadingRuntimeEvents}
                       runtimeEventsError={runtimeEventsError}
                       runtimeDebugIssue={runtimeDebugIssue} runtimeRepairProposal={runtimeRepairProposal}
+                      runtimeAutoRepairQueue={runtimeAutoRepairQueue}
                       runtimeAutoRepairTask={runtimeAutoRepairTask}
                       runtimeAutoRepairResult={runtimeAutoRepairResult}
                       isRequestingRuntimeDebug={isRequestingRuntimeDebug}
@@ -651,6 +642,7 @@ export default function StudioApp({ customApps, onClose, onUpdateCode, onDeleteA
                       onRefreshRuntimeEvents={() => void loadRuntimeEvents(activeAppToEdit.id)}
                       onRequestRuntimeDebug={() => void requestRuntimeDebug(activeAppToEdit.id)}
                       onApplyRuntimeRepair={() => void handleApplyRuntimeRepair(activeAppToEdit.id)}
+                      onResumeRuntimeRepair={(item) => void handleResumeRuntimeRepair(item)}
                       onApplyStoredVersionRepair={(instruction) => void handleRefineCode(instruction, true)}
                     />
 

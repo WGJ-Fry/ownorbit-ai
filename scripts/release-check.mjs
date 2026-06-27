@@ -1329,6 +1329,7 @@ function checkAssets() {
   const customAppRoutesSource = exists("server/routes/customAppRoutes.ts") ? fs.readFileSync(path.join(rootDir, "server/routes/customAppRoutes.ts"), "utf8") : "";
   const studioAppSource = exists("src/components/apps/StudioApp.tsx") ? fs.readFileSync(path.join(rootDir, "src/components/apps/StudioApp.tsx"), "utf8") : "";
   const studioRuntimeDebugHookSource = exists("src/components/apps/studio/useStudioRuntimeDebug.ts") ? fs.readFileSync(path.join(rootDir, "src/components/apps/studio/useStudioRuntimeDebug.ts"), "utf8") : "";
+  const studioRuntimeRepairActionsSource = exists("src/components/apps/studio/runtimeRepairActions.ts") ? fs.readFileSync(path.join(rootDir, "src/components/apps/studio/runtimeRepairActions.ts"), "utf8") : "";
   const studioRuntimeEventsPanelSource = exists("src/components/apps/studio/StudioRuntimeEventsPanel.tsx") ? fs.readFileSync(path.join(rootDir, "src/components/apps/studio/StudioRuntimeEventsPanel.tsx"), "utf8") : "";
   const problemBlueprintSource = exists("src/services/problemBlueprint.ts") ? fs.readFileSync(path.join(rootDir, "src/services/problemBlueprint.ts"), "utf8") : "";
   const problemBlueprintServerSource = exists("server/problemBlueprints.ts") ? fs.readFileSync(path.join(rootDir, "server/problemBlueprints.ts"), "utf8") : "";
@@ -1397,9 +1398,11 @@ function checkAssets() {
 	    customAppsSource.includes("CustomAppRepairProposal") &&
 	    customAppsSource.includes("CustomAppRepairExecutionPlan") &&
 	    customAppsSource.includes("CustomAppAutoRepairTask") &&
+	    customAppsSource.includes("CustomAppAutoRepairQueueItem") &&
 	    customAppsSource.includes("CustomAppAutoRepairResult") &&
 	    customAppsSource.includes("createCustomAppAutoRepairPlan") &&
 	    customAppsSource.includes("completeCustomAppAutoRepair") &&
+	    customAppsSource.includes("listCustomAppAutoRepairQueue") &&
 	    customAppsSource.includes("auto_repair_planned") &&
 	    customAppsSource.includes("auto_repair_blocked") &&
 	    customAppsSource.includes("auto_repair_applied") &&
@@ -1410,6 +1413,7 @@ function checkAssets() {
 	    customAppsSource.includes("versionSafety") &&
 	    customAppsSource.includes("canAutoApply") &&
 	    customAppRoutesSource.includes("/api/v1/custom-apps/:appId/auto-repairs") &&
+	    customAppRoutesSource.includes("/api/v1/custom-apps/:appId/auto-repairs/queue") &&
 	    customAppRoutesSource.includes("/api/v1/custom-apps/:appId/auto-repairs/complete") &&
 	    customAppRoutesSource.includes("custom_app_auto_repair_planned") &&
 	    customAppRoutesSource.includes("custom_app_auto_repair_completed") &&
@@ -1419,19 +1423,24 @@ function checkAssets() {
 	    lifeosApiSource.includes("CustomAppRepairProposal") &&
 	    lifeosApiSource.includes("CustomAppRepairExecutionPlan") &&
 	    lifeosApiSource.includes("CustomAppAutoRepairTask") &&
+	    lifeosApiSource.includes("CustomAppAutoRepairQueueItem") &&
 	    lifeosApiSource.includes("CustomAppAutoRepairResult") &&
 	    lifeosApiSource.includes("createCustomAppAutoRepairPlan") &&
+	    lifeosApiSource.includes("listCustomAppAutoRepairQueue") &&
 	    lifeosApiSource.includes("completeCustomAppAutoRepair") &&
 	    lifeosApiSource.includes("repairProposal: CustomAppRepairProposal") &&
 	    studioRuntimeDebugHookSource.includes("runtimeRepairProposal") &&
 	    studioRuntimeDebugHookSource.includes("runtimeAutoRepairTask") &&
+	    studioRuntimeDebugHookSource.includes("runtimeAutoRepairQueue") &&
 	    studioRuntimeDebugHookSource.includes("runtimeAutoRepairResult") &&
 	    studioRuntimeDebugHookSource.includes("createCustomAppAutoRepairPlan") &&
+	    studioRuntimeDebugHookSource.includes("listCustomAppAutoRepairQueue") &&
 	    studioRuntimeDebugHookSource.includes("completeRuntimeAutoRepair") &&
 	    studioRuntimeDebugHookSource.includes("response.repairProposal") &&
 	    studioRuntimeDebugHookSource.includes("return response") &&
 	    studioRuntimeEventsPanelSource.includes("studio.runtime.proposalTitle") &&
 	    studioRuntimeEventsPanelSource.includes("studio.runtime.autoRepairTaskTitle") &&
+	    studioRuntimeEventsPanelSource.includes("studio.runtime.autoRepairQueueTitle") &&
 	    studioRuntimeEventsPanelSource.includes("studio.runtime.autoRepairResultTitle") &&
 	    studioRuntimeEventsPanelSource.includes("proposalPermissionReview") &&
 	    studioRuntimeEventsPanelSource.includes("proposalVersionSafety") &&
@@ -1439,14 +1448,19 @@ function checkAssets() {
 	    studioRuntimeEventsPanelSource.includes("autoApplyBlocked") &&
 	    studioRuntimeEventsPanelSource.includes("autoRepairResult") &&
 	    studioRuntimeEventsPanelSource.includes("studio.runtime.executionPlan") &&
-	    studioAppSource.includes("autoRepairTask.canAutoApply") &&
-	    studioAppSource.includes("completeRuntimeAutoRepair") &&
-	    studioAppSource.includes("studio.runtime.manualReviewRequired") &&
+	    studioRuntimeRepairActionsSource.includes("autoRepairTask.canAutoApply") &&
+	    studioRuntimeRepairActionsSource.includes("completeRuntimeAutoRepair") &&
+	    studioAppSource.includes("handleResumeRuntimeRepair") &&
+	    studioRuntimeRepairActionsSource.includes("studio.runtime.manualReviewRequired") &&
 	    studioAppSource.includes("runtimeRepairProposal={runtimeRepairProposal}") &&
+	    studioAppSource.includes("runtimeAutoRepairQueue={runtimeAutoRepairQueue}") &&
 	    studioAppSource.includes("runtimeAutoRepairTask={runtimeAutoRepairTask}") &&
 	    studioAppSource.includes("runtimeAutoRepairResult={runtimeAutoRepairResult}") &&
 	    translationsSource.includes("studio.runtime.autoRepairCompleted") &&
+	    translationsSource.includes("studio.runtime.autoRepairQueueTitle") &&
 	    apiAuthTestSource.includes("executionPlan.canAutoApply") &&
+	    apiAuthTestSource.includes("/auto-repairs/queue") &&
+	    apiAuthTestSource.includes("pendingAutoRepair.waitingFor") &&
 	    apiAuthTestSource.includes("autoRepairTask.reasonKey, \"retry-limit\"") &&
 	    apiAuthTestSource.includes("custom_app_auto_repair_planned") &&
 	    apiAuthTestSource.includes("custom_app_auto_repair_completed") &&
@@ -1456,8 +1470,9 @@ function checkAssets() {
 	    apiAuthTestSource.includes("customAppDebugRequest.repairProposal") &&
 	    apiAuthTestSource.includes("debugRuntimeEvent.detail.repairProposal") &&
 	    studioFrontendSmokeSource.includes("Structured Repair Proposal") &&
-	    studioFrontendSmokeSource.includes("Auto-Repair Task")
-	  ) pass("Studio generated app repair flow returns structured proposal, audited auto-repair tasks, permission review, and version safety checks");
+	    studioFrontendSmokeSource.includes("Auto-Repair Task") &&
+	    studioFrontendSmokeSource.includes("Resumable repair queue")
+	  ) pass("Studio generated app repair flow returns structured proposal, resumable audited auto-repair queue, permission review, and version safety checks");
   else warn("Studio generated app repair flow lacks structured repair proposal coverage");
   if (
     sensitiveLocalStorageSource.includes("lifeos_byok_key") &&

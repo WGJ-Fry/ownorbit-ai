@@ -1665,6 +1665,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(unauthCustomAppCapabilities.status, 401);
   const unauthCustomAppRuntimeEvents = await request(port, "/api/v1/custom-apps/custom-ledger-1/runtime-events");
   assert.equal(unauthCustomAppRuntimeEvents.status, 401);
+  const unauthCustomAppAutoRepairQueue = await request(port, "/api/v1/custom-apps/custom-ledger-1/auto-repairs/queue");
+  assert.equal(unauthCustomAppAutoRepairQueue.status, 401);
   const unauthCustomAppCapabilityRequests = await request(port, "/api/v1/custom-apps/custom-ledger-1/capability-requests");
   assert.equal(unauthCustomAppCapabilityRequests.status, 401);
   const unauthCustomAppActionPolicy = await request(port, "/api/v1/custom-apps/custom-ledger-1/action-policy");
@@ -1800,6 +1802,15 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(customAppAutoRepairPlan.autoRepairTask.rollbackVersion >= 1, true);
   assert.equal(customAppAutoRepairPlan.autoRepairTask.requiredChecks.some((item) => item.includes("rollback")), true);
   assert.equal(customAppAutoRepairPlan.repairProposal.suggestedInstruction, customAppAutoRepairPlan.suggestedInstruction);
+  const customAppAutoRepairQueue = await request(port, "/api/v1/custom-apps/custom-ledger-1/auto-repairs/queue?limit=5", {
+    headers: adminHeaders,
+  }).then((res) => res.json());
+  const pendingAutoRepair = customAppAutoRepairQueue.queue.find((item) => item.resumeInstruction === customAppAutoRepairPlan.suggestedInstruction);
+  assert.equal(pendingAutoRepair.status, "pending");
+  assert.equal(pendingAutoRepair.waitingFor, "studio-refine");
+  assert.equal(pendingAutoRepair.canResumeInStudio, true);
+  assert.equal(pendingAutoRepair.resumeInstruction, customAppAutoRepairPlan.suggestedInstruction);
+  assert.equal(pendingAutoRepair.task.rollbackVersion, customAppAutoRepairPlan.autoRepairTask.rollbackVersion);
 
   await request(port, "/api/v1/custom-apps/custom-ledger-1", {
     method: "PATCH",
@@ -1827,6 +1838,10 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(customAppAutoRepairComplete.result.verification.requiredChecks.some((item) => item.includes("workflow")), true);
   assert.equal(customAppAutoRepairComplete.comparison.risk, "low");
   assert.equal(customAppAutoRepairComplete.comparison.toVersion, customAppAutoRepairComplete.result.toVersion);
+  const customAppAutoRepairQueueAfterComplete = await request(port, "/api/v1/custom-apps/custom-ledger-1/auto-repairs/queue?limit=5", {
+    headers: adminHeaders,
+  }).then((res) => res.json());
+  assert.equal(customAppAutoRepairQueueAfterComplete.queue.some((item) => item.resumeInstruction === customAppAutoRepairPlan.suggestedInstruction), false);
 
   const highRiskCustomAppDebugRequest = await request(port, "/api/v1/custom-apps/custom-ledger-1/debug-requests", {
     method: "POST",
@@ -1852,6 +1867,13 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(highRiskCustomAppAutoRepairPlan.autoRepairTask.status, "blocked");
   assert.equal(highRiskCustomAppAutoRepairPlan.autoRepairTask.canAutoApply, false);
   assert.equal(highRiskCustomAppAutoRepairPlan.autoRepairTask.reasonKey, "high-risk-action");
+  const blockedAutoRepairQueue = await request(port, "/api/v1/custom-apps/custom-ledger-1/auto-repairs/queue?limit=10", {
+    headers: adminHeaders,
+  }).then((res) => res.json());
+  const blockedAutoRepair = blockedAutoRepairQueue.queue.find((item) => item.task.reasonKey === "high-risk-action" && item.status === "blocked");
+  assert.equal(blockedAutoRepair.status, "blocked");
+  assert.equal(blockedAutoRepair.waitingFor, "manual-review");
+  assert.equal(blockedAutoRepair.canResumeInStudio, false);
 
   await request(port, "/api/v1/custom-apps/custom-ledger-1/runtime-events", {
     method: "POST",

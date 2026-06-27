@@ -1,6 +1,6 @@
 import { AlertCircle, RefreshCw, Sparkles } from "lucide-react";
 import { useI18n } from "../../../i18n/I18nProvider";
-import type { CustomAppAutoRepairResult, CustomAppAutoRepairTask, CustomAppRepairProposal, StoredCustomAppRuntimeEvent } from "../../../services/lifeosApi";
+import type { CustomAppAutoRepairQueueItem, CustomAppAutoRepairResult, CustomAppAutoRepairTask, CustomAppRepairProposal, StoredCustomAppRuntimeEvent } from "../../../services/lifeosApi";
 import StudioRuntimeEventsPanel from "./StudioRuntimeEventsPanel";
 import StudioRefineVersionCompareCard from "./StudioRefineVersionCompareCard";
 import StudioStoredVersionCompareCard from "./StudioStoredVersionCompareCard";
@@ -25,6 +25,7 @@ type StudioRefinePanelProps = {
   runtimeEventsError: string | null;
   runtimeDebugIssue: string;
   runtimeRepairProposal: CustomAppRepairProposal | null;
+  runtimeAutoRepairQueue: CustomAppAutoRepairQueueItem[];
   runtimeAutoRepairTask: CustomAppAutoRepairTask | null;
   runtimeAutoRepairResult: CustomAppAutoRepairResult | null;
   isRequestingRuntimeDebug: boolean;
@@ -36,6 +37,7 @@ type StudioRefinePanelProps = {
   onRefreshRuntimeEvents: () => void;
   onRequestRuntimeDebug: () => void;
   onApplyRuntimeRepair: () => void;
+  onResumeRuntimeRepair: (item: CustomAppAutoRepairQueueItem) => void;
   onApplyStoredVersionRepair: (instruction: string) => void;
 };
 
@@ -51,6 +53,7 @@ export default function StudioRefinePanel({
   runtimeEventsError,
   runtimeDebugIssue,
   runtimeRepairProposal,
+  runtimeAutoRepairQueue,
   runtimeAutoRepairTask,
   runtimeAutoRepairResult,
   isRequestingRuntimeDebug,
@@ -62,6 +65,7 @@ export default function StudioRefinePanel({
   onRefreshRuntimeEvents,
   onRequestRuntimeDebug,
   onApplyRuntimeRepair,
+  onResumeRuntimeRepair,
   onApplyStoredVersionRepair,
 }: StudioRefinePanelProps) {
   const { t } = useI18n();
@@ -196,6 +200,7 @@ export default function StudioRefinePanel({
         error={runtimeEventsError}
         issue={runtimeDebugIssue}
         repairProposal={runtimeRepairProposal}
+        autoRepairQueue={runtimeAutoRepairQueue}
         autoRepairTask={runtimeAutoRepairTask}
         autoRepairResult={runtimeAutoRepairResult}
         isRequestingDebug={isRequestingRuntimeDebug}
@@ -204,6 +209,7 @@ export default function StudioRefinePanel({
         onRefresh={onRefreshRuntimeEvents}
         onRequestDebug={onRequestRuntimeDebug}
         onApplyRepair={onApplyRuntimeRepair}
+        onResumeAutoRepair={onResumeRuntimeRepair}
       />
 
       <div className="mt-auto pt-4 border-t border-white/[0.04] text-[10px] text-zinc-500 flex items-center gap-1.5 justify-center">
