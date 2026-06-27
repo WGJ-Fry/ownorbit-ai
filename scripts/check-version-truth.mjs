@@ -111,10 +111,12 @@ const missingEnglishLimits = includesEvery(readme, requiredEnglishLimits);
 const missingChineseLimits = includesEvery(readmeZh, requiredChineseLimits);
 const missingReleaseLimits = includesEvery(releaseNotes, [
   "Automatic updates are not enabled",
-  "Apple Calendar, Google Calendar, and system reminders",
+  "Apple Calendar, Google Calendar, Google Tasks, and system reminders",
+  "calendar:acceptance",
   "Remote diagnostics can verify configuration, but long-term remote stability still needs real-device evidence",
   "默认不启用自动更新",
-  "Apple Calendar、Google Calendar、系统提醒事项",
+  "Apple Calendar、Google Calendar、Google Tasks、系统提醒事项",
+  "calendar:acceptance",
   "长期稳定性仍需要用户自己完成真实设备长测",
 ]);
 

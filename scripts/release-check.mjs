@@ -159,7 +159,7 @@ function checkSourceSizeBudgets() {
 }
 
 function checkScripts() {
-  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "remote:acceptance", "remote:mock-smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
+  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
     if (hasScript(script)) pass(`package script exists: ${script}`);
     else fail(`missing package script: ${script}`);
   }
@@ -329,6 +329,31 @@ function checkScripts() {
     else fail("remote acceptance runbook must cover smoke, temporary tunnel status, cellular/restart/network-switch/stale-QR/interruption manual checks, evidence output, and tests");
   } else {
     fail("missing remote acceptance runbook script: scripts/remote-acceptance-runbook.mjs");
+  }
+
+  if (exists("scripts/calendar-acceptance-runbook.mjs")) {
+    const calendarAcceptance = fs.readFileSync(path.join(rootDir, "scripts/calendar-acceptance-runbook.mjs"), "utf8");
+    const calendarAcceptanceTest = exists("tests/calendar-acceptance-runbook.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/calendar-acceptance-runbook.test.mjs"), "utf8") : "";
+    if (
+      packageJson.scripts?.["calendar:acceptance"]?.includes("calendar-acceptance-runbook.mjs") &&
+      packageJson.scripts?.test?.includes("tests/calendar-acceptance-runbook.test.mjs") &&
+      calendarAcceptance.includes("LIFEOS_GOOGLE_CALENDAR_REFRESH_TOKEN") &&
+      calendarAcceptance.includes("LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES") &&
+      calendarAcceptance.includes("LIFEOS_CALENDAR_ACCEPTANCE_CONFIRMATION") &&
+      calendarAcceptance.includes("WRITE TO EXTERNAL CALENDAR") &&
+      calendarAcceptance.includes("calendar-read") &&
+      calendarAcceptance.includes("tasks-read") &&
+      calendarAcceptance.includes("calendar-delete") &&
+      calendarAcceptance.includes("tasks-complete") &&
+      calendarAcceptance.includes("tasks-delete") &&
+      calendarAcceptance.includes("writeEvidenceReady") &&
+      calendarAcceptanceTest.includes("Google Calendar/Tasks acceptance can create, complete, and clean disposable write evidence") &&
+      calendarAcceptanceTest.includes("doesNotMatch(JSON.stringify(report), /created-google-event-secret") &&
+      calendarAcceptanceTest.includes("write-gate-missing")
+    ) pass("Google Calendar/Tasks acceptance runbook records real-account read/write evidence with cleanup and redaction guards");
+    else fail("calendar acceptance runbook must verify OAuth config, explicit write gates, disposable event/task cleanup, redaction, and tests");
+  } else {
+    fail("missing calendar acceptance runbook script: scripts/calendar-acceptance-runbook.mjs");
   }
 
   if (exists("scripts/desktop-release-smoke.mjs")) {

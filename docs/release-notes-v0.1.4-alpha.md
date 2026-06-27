@@ -12,8 +12,8 @@ Package version: `0.1.4-alpha.0`
 - Mobile queue recovery guidance that separates background-ready, manual-review, blocked, offline, and weak-network states.
 - Expanded Studio template variants for ledgers, planners, organizers, habits, calculators, forms, workflows, lookups, and general problem-solving tools.
 - Studio blueprint readiness and generated-tool quality scoring, including acceptance criteria, failure triggers, automatic-repair limits, and manual-review boundaries.
-- Calendar/task sync safety gates plus an opt-in macOS connector path: `.ics` support remains read-only; Apple Calendar and system Reminders can be read as external previews when the connector is enabled. Apple Calendar create/update/delete and Reminders create/update/complete/delete can execute only when the external-write flag is also enabled, the admin confirms `WRITE TO EXTERNAL CALENDAR`, rollback guidance is returned, and an audit log is recorded. Google Calendar remains preview-only until OAuth is implemented.
-- Native automation safety gates: file, calendar, reminder, clipboard, and shell actions remain blocked preview-only until a native bridge, explicit consent, and audit logging are implemented.
+- Calendar/task sync safety gates plus narrow connector paths: `.ics` support remains read-only; Apple Calendar and system Reminders can be read as external previews when the macOS connector is enabled. Apple Calendar create/update/delete and Reminders create/update/complete/delete can execute only when the external-write flag is also enabled, the admin confirms `WRITE TO EXTERNAL CALENDAR`, rollback guidance is returned, and an audit log is recorded. Google Calendar events and Google Tasks now have guarded OAuth connector paths for read preview plus explicitly confirmed write operations, and `npm run calendar:acceptance` can generate real-account read/write evidence before public sync claims.
+- Native automation safety gates: URL Scheme/browser/Shortcuts actions remain the primary local action path; the guarded native bridge is disabled by default and only exposes narrow clipboard, allowlisted Shortcuts, and Finder reveal actions when all opt-in gates pass. Shell, calendar, reminder, and broad file-write automation remain blocked.
 - Release truth checks that keep README, release notes, Docker image tags, asset names, and alpha limitations aligned before public promotion.
 
 ## Desktop Packages
@@ -39,7 +39,7 @@ docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.4-alpha
 
 - Automatic updates are not enabled by default. Use manual download plus SHA256 verification.
 - macOS Developer ID signing/notarization and Windows Authenticode signing are not part of this unsigned alpha.
-- Apple Calendar, Google Calendar, and system reminders full account sync/write-back are not shipped yet. Google Calendar OAuth sync/write-back is still preview-only; Apple Calendar and system Reminders writes require macOS, explicit environment opt-in, explicit admin confirmation, and audit logging.
+- Apple Calendar, Google Calendar, Google Tasks, and system reminders full account sync/write-back are not broadly shipped yet. Narrow connector writes require explicit environment opt-in, explicit admin confirmation, audit logging, rollback guidance, and real-account `calendar:acceptance` evidence before public promotion.
 - `.ics` support is read-only local ingestion, not two-way calendar/task management.
 - Studio generated programs remain alpha: scoring, readiness checks, template expansion, and guarded repair prompts are present, but fully automatic unattended self-repair is not advertised.
 - Local actions are still URL Scheme / browser / Shortcuts bridge based. Full native automation and deep OS permission control are future work.
@@ -60,6 +60,20 @@ npm run github:public:check
 LIFEOS_CHECK_GHCR=1 LIFEOS_CHECK_GITHUB_RELEASE=1 npm run check:cold-launch
 ```
 
+If this release promotes the Google Calendar/Tasks connector, also run the real-account acceptance command with a disposable test calendar/task list or a safe personal test account:
+
+```bash
+LIFEOS_ENABLE_GOOGLE_CALENDAR_CONNECTOR=1 \
+LIFEOS_GOOGLE_CALENDAR_CLIENT_ID="..." \
+LIFEOS_GOOGLE_CALENDAR_CLIENT_SECRET="..." \
+LIFEOS_GOOGLE_CALENDAR_REFRESH_TOKEN="..." \
+LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES=1 \
+LIFEOS_CALENDAR_ACCEPTANCE_CONFIRMATION="WRITE TO EXTERNAL CALENDAR" \
+npm run calendar:acceptance -- --write --out calendar-acceptance.json
+```
+
+Keep the generated `calendar-acceptance.json` with release evidence. It should not contain OAuth secrets or raw Google item IDs.
+
 ## 中文说明
 
 发布前不要公开这份说明。必须等 `v0.1.4-alpha` tag 已创建、GHCR 镜像可以匿名拉取、macOS/Windows/Linux unsigned 安装包和 `SHA256SUMS` 都上传完成后再发布。
@@ -74,8 +88,8 @@ Package version：`0.1.4-alpha.0`
 - 手机队列恢复指引：明确区分可后台补写、需人工复核、远程入口阻塞、离线等待和弱网等待。
 - 扩展 Studio 模板变体：记账、规划、整理、打卡、计算、表单、流程、查询和通用问题解决工具。
 - Studio 蓝图就绪评分和生成工具质量评分：包含验收标准、失败触发、自动修复边界和人工复核边界。
-- 日历/任务同步安全闸门和 macOS 连接器路径：`.ics` 仍然只是本地只读读取；启用 macOS connector 后，Apple Calendar 和系统提醒事项可以作为外部只读预览读取；Apple Calendar 的 create/update/delete 和 Reminders 的 create/update/complete/delete 只有再启用外部写入开关、管理员确认 `WRITE TO EXTERNAL CALENDAR`、返回回滚提示并写入审计日志后才会执行；Google Calendar 仍要等 OAuth 连接器。
-- 原生自动化安全闸门：文件、日历、提醒事项、剪贴板、脚本动作在原生桥、明确同意和审计日志完成前都只允许阻断预览。
+- 日历/任务同步安全闸门和窄连接器路径：`.ics` 仍然只是本地只读读取；启用 macOS connector 后，Apple Calendar 和系统提醒事项可以作为外部只读预览读取；Apple Calendar 的 create/update/delete 和 Reminders 的 create/update/complete/delete 只有再启用外部写入开关、管理员确认 `WRITE TO EXTERNAL CALENDAR`、返回回滚提示并写入审计日志后才会执行。Google Calendar 事件和 Google Tasks 现在有受控 OAuth 连接器路径，支持读取预览和明确确认后的写入操作；公开宣传前应先用 `npm run calendar:acceptance` 生成真实账号读写证据。
+- 原生自动化安全闸门：URL Scheme / 浏览器 / 快捷指令仍是主要本地动作路径；受控原生桥默认关闭，只在全部开关通过时暴露剪贴板、白名单快捷指令和 Finder 定位文件。shell、日历、提醒事项和宽泛文件写入仍阻断。
 - Release 事实检查：发布前强制 README、Release notes、Docker tag、安装包名和 alpha 限制保持一致。
 
 ### 桌面包
@@ -92,8 +106,22 @@ Package version：`0.1.4-alpha.0`
 
 - 默认不启用自动更新，继续使用手动下载 + SHA256 校验。
 - 本 alpha 不包含 macOS Developer ID 签名/公证，也不包含 Windows Authenticode 签名。
-- Apple Calendar、Google Calendar、系统提醒事项的完整账号同步/写回尚未发布。Google Calendar OAuth 同步/写回仍是预览；Apple Calendar 和系统提醒事项写入需要 macOS、环境变量显式开启、管理员明确确认和审计日志。
+- Apple Calendar、Google Calendar、Google Tasks、系统提醒事项的完整账号同步/写回尚未广泛发布。窄连接器写入必须经过环境变量显式开启、管理员明确确认、审计日志、回滚提示和真实账号 `calendar:acceptance` 证据后，才能对外宣传。
 - `.ics` 只是本地只读读取，不是双向日历/任务管理。
 - Studio 生成程序仍是 alpha：已有评分、就绪检查、模板扩展和带护栏修复提示，但不宣传完全无人值守自修复。
 - 本地动作仍基于 URL Scheme / 浏览器 / 快捷指令桥，不是完整原生自动化系统。
 - 远程诊断能验证配置，但长期稳定性仍需要用户自己完成真实设备长测并留下证据。
+
+如果本次发布要宣传 Google Calendar / Google Tasks 连接器，还必须用安全的测试账号或测试日历/任务列表跑真实账号验收：
+
+```bash
+LIFEOS_ENABLE_GOOGLE_CALENDAR_CONNECTOR=1 \
+LIFEOS_GOOGLE_CALENDAR_CLIENT_ID="..." \
+LIFEOS_GOOGLE_CALENDAR_CLIENT_SECRET="..." \
+LIFEOS_GOOGLE_CALENDAR_REFRESH_TOKEN="..." \
+LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES=1 \
+LIFEOS_CALENDAR_ACCEPTANCE_CONFIRMATION="WRITE TO EXTERNAL CALENDAR" \
+npm run calendar:acceptance -- --write --out calendar-acceptance.json
+```
+
+生成的 `calendar-acceptance.json` 应作为发布证据保存，并且不应包含 OAuth 密钥或原始 Google 项目 ID。

@@ -42,6 +42,7 @@ These changes are implemented on `main` after the public `v0.1.4-alpha` release 
 - The bridge still blocks shell, calendar, reminder, and broad file write automation by default.
 - Admin UI now shows whether the selected Finder file target is inside the configured allowed roots.
 - Release checks and tests now guard the Finder reveal path, outside-root blocking, local path redaction, and the still-blocked high-risk native writes.
+- Google Calendar events and Google Tasks now have guarded OAuth connector code paths plus `calendar:acceptance` real-account evidence generation. Public sync claims still require a new Release, uploaded assets, and a passing read/write acceptance report.
 
 ## Next Planned Alpha: v0.1.5-alpha
 
@@ -56,7 +57,7 @@ Scope:
 - Keep remote acceptance evidence visible in diagnostics and release guidance, then add stronger in-product prompts for missing real-device proof.
 - Improve mobile weak-network background recovery and multi-device conflict review, especially after phone restart, browser storage pressure, and stale remote entries.
 - Expand the macOS calendar/reminders connector from narrow external writes toward a productized permission review, rollback plan, and conflict preview.
-- Add first Google Calendar event and Google Tasks connectors behind explicit admin setup, external-write opt-in, consent, audit logging, and rollback guidance; keep broad two-way account sync out of scope until real-account evidence exists.
+- Publish and validate the first Google Calendar event and Google Tasks connectors behind explicit admin setup, external-write opt-in, consent, audit logging, rollback guidance, and a passing `calendar:acceptance` report; keep broad two-way account sync out of scope until real-account evidence exists.
 - Add generated-tool multi-version comparison plus audited auto-repair task planning with risk gates, retry limits, rollback version references, and runtime events so users can inspect what changed before saving.
 - Publish and validate the narrow native automation bridge path only if Release assets include it: disabled by default, admin-only, exact allowlist, explicit confirmation phrase, audit logging, sensitive-payload blocking, mock execution tests, clipboard writes, allowlisted Shortcuts, and Finder reveal inside configured file roots; broad shell/file-write/calendar/reminder automation remains blocked.
 - Do not claim signed desktop packages, auto-update, two-way calendar/task sync, native automation, or fully automatic unattended Studio repair until they are actually shipped and verified.
@@ -81,6 +82,18 @@ When the public assets are uploaded, also run:
 LIFEOS_CHECK_GHCR=1 LIFEOS_CHECK_GITHUB_RELEASE=1 npm run check:cold-launch
 docker logout ghcr.io || true
 docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.5-alpha
+```
+
+If `v0.1.5-alpha` promotes Google Calendar/Tasks connector writes, also run real-account connector acceptance with a safe test account or disposable calendar/task list:
+
+```bash
+LIFEOS_ENABLE_GOOGLE_CALENDAR_CONNECTOR=1 \
+LIFEOS_GOOGLE_CALENDAR_CLIENT_ID="..." \
+LIFEOS_GOOGLE_CALENDAR_CLIENT_SECRET="..." \
+LIFEOS_GOOGLE_CALENDAR_REFRESH_TOKEN="..." \
+LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES=1 \
+LIFEOS_CALENDAR_ACCEPTANCE_CONFIRMATION="WRITE TO EXTERNAL CALENDAR" \
+npm run calendar:acceptance -- --write --out calendar-acceptance.json
 ```
 
 ## Future Milestones
@@ -149,6 +162,7 @@ These capabilities should not be described as current release features until the
 - shell、日历、提醒事项和宽泛文件写入自动化仍默认阻断。
 - 管理端 UI 会显示 Finder 文件目标是否位于允许的根目录内。
 - 测试和 release check 已覆盖 Finder 定位、根目录外拦截、本地路径脱敏和高风险原生写入继续阻断。
+- Google Calendar 事件和 Google Tasks 已有受控 OAuth connector 代码路径，并新增 `calendar:acceptance` 真实账号证据生成。公开宣传同步能力前，仍需要新 Release、安装资产和通过的读写验收报告。
 
 ### 下一计划版本：v0.1.5-alpha
 
@@ -164,10 +178,22 @@ These capabilities should not be described as current release features until the
 - 继续在诊断和发布说明里保留远程长测证据，并增强缺失真实设备证据时的产品内提示。
 - 改进手机弱网后台恢复和多设备冲突复核，重点覆盖手机重启、浏览器存储压力和旧远程入口。
 - 将 macOS 日历/提醒事项连接器从窄写入路径推进到产品化权限复核、回滚计划和冲突预览。
-- 增加第一版 Google Calendar 事件和 Google Tasks 连接器候选：必须经过管理员配置、外部写入开关、用户确认、审计日志和回滚提示；宽泛账号双向同步仍不在这一小步范围内。
+- 发布并验证第一版 Google Calendar 事件和 Google Tasks 连接器：必须经过管理员配置、外部写入开关、用户确认、审计日志、回滚提示和通过的 `calendar:acceptance` 报告；宽泛账号双向同步仍不在这一小步范围内。
 - 增加生成程序多版本对比，以及带审计的自动修复任务计划：包含风险闸门、重试上限、回滚版本引用和运行事件，用户保存前能看清变化。
 - 只有在 Release 资产真实包含时，发布并验证窄口径原生自动化桥：默认关闭、仅管理员可用、精确白名单、确认短语、审计日志、敏感 payload 阻断、mock 执行测试、剪贴板写入、白名单快捷指令和允许根目录内 Finder 定位；宽泛 shell/文件写入/日历/提醒事项自动化仍阻断。
 - 未真正发布前，不宣传签名包、自动更新、日历/任务双向同步、原生自动化或完全无人值守 Studio 修复。
+
+如果 `v0.1.5-alpha` 要宣传 Google Calendar / Google Tasks 连接器写入，还必须用安全的测试账号或一次性测试日历/任务列表跑真实账号验收：
+
+```bash
+LIFEOS_ENABLE_GOOGLE_CALENDAR_CONNECTOR=1 \
+LIFEOS_GOOGLE_CALENDAR_CLIENT_ID="..." \
+LIFEOS_GOOGLE_CALENDAR_CLIENT_SECRET="..." \
+LIFEOS_GOOGLE_CALENDAR_REFRESH_TOKEN="..." \
+LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES=1 \
+LIFEOS_CALENDAR_ACCEPTANCE_CONFIRMATION="WRITE TO EXTERNAL CALENDAR" \
+npm run calendar:acceptance -- --write --out calendar-acceptance.json
+```
 
 ### 尚未发布
 
