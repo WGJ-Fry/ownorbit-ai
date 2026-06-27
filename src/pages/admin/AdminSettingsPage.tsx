@@ -7,6 +7,7 @@ import AuditLogPanel from "./settings/AuditLogPanel";
 import BackupRestorePanel from "./settings/BackupRestorePanel";
 import CalendarSyncControlPanel from "./settings/CalendarSyncControlPanel";
 import ConfigDiagnosticsPanel from "./settings/ConfigDiagnosticsPanel";
+import NativeAutomationControlPanel from "./settings/NativeAutomationControlPanel";
 import StatusPanel from "./settings/StatusPanel";
 import AiKeyPanel from "./settings/AiKeyPanel";
 import AdminPasswordPanel from "./settings/AdminPasswordPanel";
@@ -132,6 +133,8 @@ export default function AdminSettingsPage() {
         {diagnostics ? <ConfigDiagnosticsPanel diagnostics={diagnostics} updateCheck={releaseUpdate} /> : null}
 
         {diagnostics ? <CalendarSyncControlPanel initialPreview={diagnostics.calendarSync} onChanged={refresh} /> : null}
+
+        <NativeAutomationControlPanel />
 
         <ConnectionGuide health={health} />
 

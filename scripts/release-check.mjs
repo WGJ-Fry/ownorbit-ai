@@ -2016,8 +2016,14 @@ function checkAssets() {
     translationsSource.includes("actions.nativeSafetyTitle") &&
     translationsSource.includes("actions.nativeCapability.calendar") &&
     translationsSource.includes("actions.nativeRequirement.native-bridge") &&
+    translationsSource.includes("nativeAutomationControl.title") &&
     frontendSmokeTestSource.includes("Native Automation Safety Gate") &&
     frontendSmokeTestSource.includes("actions\\.nativeStatus\\.blockedPreview") &&
+    frontendSmokeTestSource.includes("NativeAutomationControlPanel") &&
+    frontendSmokeTestSource.includes("RUN NATIVE ACTION") &&
+    lifeosApiSource.includes("NativeAutomationPlan") &&
+    lifeosApiSource.includes("createNativeAutomationPlan") &&
+    lifeosApiSource.includes("executeNativeAutomation") &&
     systemActionsTestSource.includes("system action plan blocks unsafe URL schemes and native automation preview writes") &&
     systemActionsTestSource.includes("native system action summary keeps OS automation blocked") &&
     nativeAutomationBridgeSource.includes("LIFEOS_ENABLE_NATIVE_AUTOMATION_BRIDGE") &&

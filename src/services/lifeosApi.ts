@@ -287,6 +287,70 @@ export type CalendarSyncExecutionResult = {
   };
 };
 
+export type NativeAutomationKind = "clipboard" | "shortcut" | "file" | "calendar" | "reminder" | "shell";
+
+export type NativeAutomationInput = {
+  kind?: NativeAutomationKind;
+  title?: string;
+  target?: string;
+  payload?: string;
+  shortcutName?: string;
+  source?: string;
+  explicitConsent?: boolean;
+  confirmationText?: string;
+};
+
+export type NativeAutomationPlan = {
+  generatedAt: string;
+  mode: "disabled" | "guarded" | "mock";
+  kind: NativeAutomationKind;
+  actionId: string;
+  status: "ready" | "blocked";
+  canExecute: boolean;
+  supportedNow: boolean;
+  risk: "low" | "medium" | "high";
+  commandPreview: string[];
+  title: string;
+  sanitizedTarget: string;
+  sanitizedSource: string;
+  payloadPreview: string;
+  writesExternalSystem: boolean;
+  requirements: string[];
+  blockedReasons: string[];
+  safety: {
+    bridgeEnabled: boolean;
+    mockMode: boolean;
+    allowlisted: boolean;
+    platformSupported: boolean;
+    explicitConsent: boolean;
+    confirmationAccepted: boolean;
+    auditRequired: true;
+    sensitivePayloadBlocked: boolean;
+    payloadWithinLimit: boolean;
+  };
+};
+
+export type NativeAutomationExecutionResult = {
+  ok: boolean;
+  dryRun: boolean;
+  executedAt: string;
+  message: string;
+  plan: NativeAutomationPlan;
+  auditSummary: {
+    actionId: string;
+    kind: NativeAutomationKind;
+    consent: boolean;
+    writesExternalSystem: boolean;
+    connector: "native-automation-bridge";
+  };
+  commandResult?: {
+    exitCode: number | null;
+    stdout: string;
+    stderr: string;
+    timedOut: boolean;
+  };
+};
+
 export type ReleaseUpdateCheck = {
   checkedAt: string;
   status: "up-to-date" | "update-available" | "unavailable" | "error";
@@ -1149,6 +1213,20 @@ export function previewCalendarSync(proposedItems: Array<{
 
 export function executeCalendarSyncOperation(input: CalendarSyncExecuteInput) {
   return requestJson<CalendarSyncExecutionResult>("/api/v1/admin/calendar-sync/execute", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function createNativeAutomationPlan(input: NativeAutomationInput) {
+  return requestJson<NativeAutomationPlan>("/api/v1/admin/native-automation/plan", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function executeNativeAutomation(input: NativeAutomationInput) {
+  return requestJson<NativeAutomationExecutionResult>("/api/v1/admin/native-automation/execute", {
     method: "POST",
     body: JSON.stringify(input),
   });

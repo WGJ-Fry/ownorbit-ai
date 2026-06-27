@@ -305,6 +305,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   const configDiagnosticsPanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "ConfigDiagnosticsPanel.tsx"), "utf8");
   const adminSettingsPageSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminSettingsPage.tsx"), "utf8");
   const calendarSyncControlPanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "CalendarSyncControlPanel.tsx"), "utf8");
+  const nativeAutomationControlPanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "NativeAutomationControlPanel.tsx"), "utf8");
   const releaseUpdateStatusCardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "ReleaseUpdateStatusCard.tsx"), "utf8");
   assert.match(problemBlueprintSource, /deriveProblemBlueprint/);
   assert.match(problemBlueprintSource, /runnable problem-solving app/);
@@ -453,6 +454,16 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(calendarSyncControlPanelSource, /confirmationText === confirmationPhrase/);
   assert.match(translationsSource, /日历\/任务同步控制台/);
   assert.match(translationsSource, /Calendar \/ Task Sync Console/);
+  assert.match(lifeosApiSource, /NativeAutomationPlan/);
+  assert.match(lifeosApiSource, /createNativeAutomationPlan/);
+  assert.match(lifeosApiSource, /executeNativeAutomation/);
+  assert.match(adminSettingsPageSource, /NativeAutomationControlPanel/);
+  assert.match(nativeAutomationControlPanelSource, /RUN NATIVE ACTION/);
+  assert.match(nativeAutomationControlPanelSource, /createNativeAutomationPlan/);
+  assert.match(nativeAutomationControlPanelSource, /executeNativeAutomation/);
+  assert.match(nativeAutomationControlPanelSource, /plan\?\.canExecute/);
+  assert.match(translationsSource, /原生自动化安全桥/);
+  assert.match(translationsSource, /Native Automation Safety Bridge/);
   assert.match(lifeosApiSource, /listCustomAppActionRequests/);
   assert.match(lifeosApiSource, /createCustomAppActionRequest/);
   assert.match(lifeosApiSource, /decideCustomAppActionRequest/);
