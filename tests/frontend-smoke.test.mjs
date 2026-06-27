@@ -832,6 +832,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(studioRuntimeEventsPanelSource, /onApplyRepair/);
   assert.match(lifeosApiSource, /CustomAppRepairProposal/);
   assert.match(lifeosApiSource, /CustomAppAutoRepairTask/);
+  assert.match(lifeosApiSource, /CustomAppAutoRepairReadiness/);
   assert.match(lifeosApiSource, /CustomAppAutoRepairQueueItem/);
   assert.match(lifeosApiSource, /CustomAppAutoRepairResult/);
   assert.match(lifeosApiSource, /repairProposal: CustomAppRepairProposal/);
@@ -851,6 +852,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Auto-Repair Task/);
   assert.match(translationsSource, /可恢复修复队列/);
   assert.match(translationsSource, /Resumable repair queue/);
+  assert.match(translationsSource, /门禁：/);
+  assert.match(translationsSource, /Gate:/);
   assert.match(translationsSource, /自动修复结果/);
   assert.match(translationsSource, /Auto-Repair Result/);
 

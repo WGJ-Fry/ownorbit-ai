@@ -154,6 +154,16 @@ export type CustomAppAutoRepairTask = {
   createdAt: number;
 };
 
+export type CustomAppAutoRepairReadiness = {
+  status: "ready" | "blocked" | "needs-review";
+  canAutoApply: boolean;
+  decision: "resume-in-studio" | "manual-review" | "smoke-verification";
+  passedChecks: string[];
+  failedChecks: string[];
+  rollbackVersion?: number | null;
+  generatedAt: number;
+};
+
 export type CustomAppAutoRepairResult = {
   id: string;
   appId: string;
@@ -183,6 +193,7 @@ export type CustomAppAutoRepairQueueItem = {
   canResumeInStudio: boolean;
   resumeInstruction: string;
   task: CustomAppAutoRepairTask;
+  readiness: CustomAppAutoRepairReadiness;
   repairProposal?: CustomAppRepairProposal | null;
   latestResult?: CustomAppAutoRepairResult | null;
   rollbackVersion?: number | null;
@@ -1234,6 +1245,68 @@ function readRuntimeRepairProposal(event: StoredCustomAppRuntimeEvent): CustomAp
   return candidate as CustomAppRepairProposal;
 }
 
+function buildCustomAppAutoRepairReadiness(
+  task: CustomAppAutoRepairTask,
+  latestResult?: CustomAppAutoRepairResult | null,
+  repairProposal?: CustomAppRepairProposal | null,
+): CustomAppAutoRepairReadiness {
+  const passedChecks: string[] = [];
+  const failedChecks: string[] = [];
+  const requiredChecks = task.requiredChecks.join(" ").toLowerCase();
+
+  if (task.status === "ready") passedChecks.push("Repair task is ready.");
+  else failedChecks.push("Repair task is blocked and must be reviewed manually.");
+
+  if (task.canAutoApply) passedChecks.push("Task allows Studio auto-apply.");
+  else failedChecks.push("Task does not allow Studio auto-apply.");
+
+  if (task.reasonKey === "low-risk-runtime") passedChecks.push("Reason is limited to a low-risk runtime repair.");
+  else failedChecks.push(`Reason requires review: ${task.reasonKey}.`);
+
+  if (task.repairAttempt <= task.retryLimit) passedChecks.push("Retry limit has not been exceeded.");
+  else failedChecks.push("Retry limit has been exceeded.");
+
+  if (task.rollbackVersion) passedChecks.push(`Rollback point is available at v${task.rollbackVersion}.`);
+  else failedChecks.push("No rollback point is available.");
+
+  if (requiredChecks.includes("rollback")) passedChecks.push("Rollback verification is required.");
+  else failedChecks.push("Rollback verification is missing from required checks.");
+
+  if (requiredChecks.includes("runtime events") || requiredChecks.includes("repair result")) {
+    passedChecks.push("Repair completion must be recorded before another auto repair.");
+  } else {
+    failedChecks.push("Repair completion recording is missing from required checks.");
+  }
+
+  if (repairProposal?.risk === "high") failedChecks.push("Repair proposal is high risk.");
+  else if (repairProposal) passedChecks.push(`Repair proposal risk is ${repairProposal.risk}.`);
+
+  if (latestResult) {
+    failedChecks.push("A previous repair result still needs review or smoke verification.");
+  }
+
+  const canAutoApply = failedChecks.length === 0;
+  const status: CustomAppAutoRepairReadiness["status"] = latestResult
+    ? "needs-review"
+    : canAutoApply
+      ? "ready"
+      : "blocked";
+  const decision: CustomAppAutoRepairReadiness["decision"] = latestResult
+    ? "smoke-verification"
+    : canAutoApply
+      ? "resume-in-studio"
+      : "manual-review";
+  return {
+    status,
+    canAutoApply,
+    decision,
+    passedChecks,
+    failedChecks,
+    rollbackVersion: task.rollbackVersion ?? latestResult?.rollbackVersion ?? null,
+    generatedAt: Date.now(),
+  };
+}
+
 export function listCustomAppAutoRepairQueue(appId: string, limitInput?: unknown) {
   const app = getCustomApp(appId);
   if (!app) return null;
@@ -1255,15 +1328,17 @@ export function listCustomAppAutoRepairQueue(appId: string, limitInput?: unknown
     seenTaskIds.add(task.id);
     const latestResult = resultsByTaskId.get(task.id) || null;
     if (latestResult?.status === "applied") continue;
+    const repairProposal = readRuntimeRepairProposal(event);
+    const readiness = buildCustomAppAutoRepairReadiness(task, latestResult, repairProposal);
     const status: CustomAppAutoRepairQueueItem["status"] = latestResult
       ? "needs-review"
-      : task.status === "ready"
+      : readiness.canAutoApply
         ? "pending"
         : "blocked";
-    const waitingFor: CustomAppAutoRepairQueueItem["waitingFor"] = latestResult
-      ? "smoke-verification"
-      : task.canAutoApply && task.status === "ready"
-        ? "studio-refine"
+    const waitingFor: CustomAppAutoRepairQueueItem["waitingFor"] = readiness.decision === "resume-in-studio"
+      ? "studio-refine"
+      : readiness.decision === "smoke-verification"
+        ? "smoke-verification"
         : "manual-review";
     queue.push({
       id: `repair-queue-${task.id}`,
@@ -1272,10 +1347,11 @@ export function listCustomAppAutoRepairQueue(appId: string, limitInput?: unknown
       taskId: task.id,
       status,
       waitingFor,
-      canResumeInStudio: !latestResult && task.canAutoApply && task.status === "ready",
+      canResumeInStudio: readiness.canAutoApply,
       resumeInstruction: task.suggestedInstruction,
       task,
-      repairProposal: readRuntimeRepairProposal(event),
+      readiness,
+      repairProposal,
       latestResult,
       rollbackVersion: task.rollbackVersion ?? latestResult?.rollbackVersion ?? null,
       createdAt: event.createdAt || task.createdAt,

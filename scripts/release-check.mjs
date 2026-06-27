@@ -1423,11 +1423,14 @@ function checkAssets() {
 	    customAppsSource.includes("CustomAppRepairProposal") &&
 	    customAppsSource.includes("CustomAppRepairExecutionPlan") &&
 	    customAppsSource.includes("CustomAppAutoRepairTask") &&
+	    customAppsSource.includes("CustomAppAutoRepairReadiness") &&
 	    customAppsSource.includes("CustomAppAutoRepairQueueItem") &&
 	    customAppsSource.includes("CustomAppAutoRepairResult") &&
 	    customAppsSource.includes("createCustomAppAutoRepairPlan") &&
 	    customAppsSource.includes("completeCustomAppAutoRepair") &&
 	    customAppsSource.includes("listCustomAppAutoRepairQueue") &&
+	    customAppsSource.includes("buildCustomAppAutoRepairReadiness") &&
+	    customAppsSource.includes("failedChecks") &&
 	    customAppsSource.includes("auto_repair_planned") &&
 	    customAppsSource.includes("auto_repair_blocked") &&
 	    customAppsSource.includes("auto_repair_applied") &&
@@ -1448,6 +1451,7 @@ function checkAssets() {
 	    lifeosApiSource.includes("CustomAppRepairProposal") &&
 	    lifeosApiSource.includes("CustomAppRepairExecutionPlan") &&
 	    lifeosApiSource.includes("CustomAppAutoRepairTask") &&
+	    lifeosApiSource.includes("CustomAppAutoRepairReadiness") &&
 	    lifeosApiSource.includes("CustomAppAutoRepairQueueItem") &&
 	    lifeosApiSource.includes("CustomAppAutoRepairResult") &&
 	    lifeosApiSource.includes("createCustomAppAutoRepairPlan") &&
@@ -1471,6 +1475,7 @@ function checkAssets() {
 	    studioRuntimeEventsPanelSource.includes("proposalVersionSafety") &&
 	    studioRuntimeEventsPanelSource.includes("repairProposal.executionPlan") &&
 	    studioRuntimeEventsPanelSource.includes("autoApplyBlocked") &&
+	    studioRuntimeEventsPanelSource.includes("autoRepairReadinessMeta") &&
 	    studioRuntimeEventsPanelSource.includes("autoRepairResult") &&
 	    studioRuntimeEventsPanelSource.includes("studio.runtime.executionPlan") &&
 	    studioRuntimeRepairActionsSource.includes("autoRepairTask.canAutoApply") &&
@@ -1483,9 +1488,13 @@ function checkAssets() {
 	    studioAppSource.includes("runtimeAutoRepairResult={runtimeAutoRepairResult}") &&
 	    translationsSource.includes("studio.runtime.autoRepairCompleted") &&
 	    translationsSource.includes("studio.runtime.autoRepairQueueTitle") &&
+	    translationsSource.includes("studio.runtime.autoRepairReadinessMeta") &&
+	    translationsSource.includes("studio.runtime.autoRepairReadinessStatus.ready") &&
 	    apiAuthTestSource.includes("executionPlan.canAutoApply") &&
 	    apiAuthTestSource.includes("/auto-repairs/queue") &&
 	    apiAuthTestSource.includes("pendingAutoRepair.waitingFor") &&
+	    apiAuthTestSource.includes("pendingAutoRepair.readiness.status") &&
+	    apiAuthTestSource.includes("blockedAutoRepair.readiness.failedChecks") &&
 	    apiAuthTestSource.includes("autoRepairTask.reasonKey, \"retry-limit\"") &&
 	    apiAuthTestSource.includes("custom_app_auto_repair_planned") &&
 	    apiAuthTestSource.includes("custom_app_auto_repair_completed") &&

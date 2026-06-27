@@ -7,6 +7,7 @@ Release candidate for the next public alpha. Do not advertise as publicly availa
 - Expanded Studio problem blueprints with a larger template variant library for ledgers, planners, organizers, habits, calculators, forms, workflows, lookups, and general tasks.
 - Added generated-tool quality scoring, acceptance criteria, failure triggers, and guarded auto-repair/manual-review boundaries before app generation.
 - Added Studio UI and i18n coverage for quality score, automatic repair limits, manual-review signals, and post-repair verification.
+- Added a structured Studio auto-repair readiness gate so each queued repair records passed checks, failed checks, rollback readiness, and whether Studio may safely resume it.
 - Added mobile offline queue sync identity with mutation IDs, idempotency keys, client sequence numbers, visible sync stages, and backup metadata for weak-network recovery.
 - Added duplicate-safe chat write-back so replayed offline messages with the same idempotency key return the existing SQLite message instead of creating duplicates.
 - Added an opt-in macOS Apple Calendar/System Reminders connector path with explicit admin confirmation, rollback guidance, audit logging, and tests; Apple Calendar now supports gated create/update/delete, Reminders supports gated create/update/complete/delete.

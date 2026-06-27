@@ -107,6 +107,18 @@ export default function StudioRuntimeEventsPanel({
                     <div className="mt-1 text-indigo-200/70 line-clamp-2">
                       {item.task.nextSteps[0] || item.task.suggestedInstruction}
                     </div>
+                    <div className="mt-1 text-indigo-200/65">
+                      {t("studio.runtime.autoRepairReadinessMeta", {
+                        status: t(`studio.runtime.autoRepairReadinessStatus.${item.readiness.status}` as any),
+                        passed: String(item.readiness.passedChecks.length),
+                        failed: String(item.readiness.failedChecks.length),
+                      })}
+                    </div>
+                    {item.readiness.failedChecks[0] && (
+                      <div className="mt-1 text-amber-200/75 line-clamp-1">
+                        {item.readiness.failedChecks[0]}
+                      </div>
+                    )}
                   </div>
                   <button
                     type="button"

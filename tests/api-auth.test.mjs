@@ -1811,6 +1811,11 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(pendingAutoRepair.canResumeInStudio, true);
   assert.equal(pendingAutoRepair.resumeInstruction, customAppAutoRepairPlan.suggestedInstruction);
   assert.equal(pendingAutoRepair.task.rollbackVersion, customAppAutoRepairPlan.autoRepairTask.rollbackVersion);
+  assert.equal(pendingAutoRepair.readiness.status, "ready");
+  assert.equal(pendingAutoRepair.readiness.canAutoApply, true);
+  assert.equal(pendingAutoRepair.readiness.decision, "resume-in-studio");
+  assert.equal(pendingAutoRepair.readiness.failedChecks.length, 0);
+  assert.equal(pendingAutoRepair.readiness.passedChecks.some((item) => item.includes("Rollback")), true);
 
   await request(port, "/api/v1/custom-apps/custom-ledger-1", {
     method: "PATCH",
@@ -1874,6 +1879,10 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(blockedAutoRepair.status, "blocked");
   assert.equal(blockedAutoRepair.waitingFor, "manual-review");
   assert.equal(blockedAutoRepair.canResumeInStudio, false);
+  assert.equal(blockedAutoRepair.readiness.status, "blocked");
+  assert.equal(blockedAutoRepair.readiness.canAutoApply, false);
+  assert.equal(blockedAutoRepair.readiness.decision, "manual-review");
+  assert.equal(blockedAutoRepair.readiness.failedChecks.some((item) => item.includes("high-risk-action")), true);
 
   await request(port, "/api/v1/custom-apps/custom-ledger-1/runtime-events", {
     method: "POST",

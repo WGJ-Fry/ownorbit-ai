@@ -906,6 +906,16 @@ export type CustomAppAutoRepairTask = {
   createdAt: number;
 };
 
+export type CustomAppAutoRepairReadiness = {
+  status: "ready" | "blocked" | "needs-review";
+  canAutoApply: boolean;
+  decision: "resume-in-studio" | "manual-review" | "smoke-verification";
+  passedChecks: string[];
+  failedChecks: string[];
+  rollbackVersion?: number | null;
+  generatedAt: number;
+};
+
 export type CustomAppAutoRepairResult = {
   id: string;
   appId: string;
@@ -935,6 +945,7 @@ export type CustomAppAutoRepairQueueItem = {
   canResumeInStudio: boolean;
   resumeInstruction: string;
   task: CustomAppAutoRepairTask;
+  readiness: CustomAppAutoRepairReadiness;
   repairProposal?: CustomAppRepairProposal | null;
   latestResult?: CustomAppAutoRepairResult | null;
   rollbackVersion?: number | null;
