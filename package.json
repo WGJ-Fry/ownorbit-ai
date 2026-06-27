@@ -38,7 +38,7 @@
     "version:truth:release": "node scripts/check-version-truth.mjs --promotion",
     "remote:smoke": "node scripts/remote-connection-smoke.mjs",
     "remote:acceptance": "node scripts/remote-acceptance-runbook.mjs",
-    "calendar:acceptance": "node scripts/calendar-acceptance-runbook.mjs",
+    "calendar:acceptance": "node --import tsx scripts/calendar-acceptance-runbook.mjs",
     "remote:mock-smoke": "node scripts/remote-connection-mock-smoke.mjs",
     "start": "node dist/server.cjs",
     "preview": "vite preview",

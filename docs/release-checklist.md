@@ -80,6 +80,31 @@ For a single local macOS release-smoke command that also launches the packaged a
 LIFEOS_RELEASE_SMOKE_LAUNCH=1 npm run desktop:release:smoke
 ```
 
+## Calendar And Task Connector Acceptance
+
+Do not claim Apple Calendar, Google Calendar, Google Tasks, or system Reminders write-back until the matching provider has a fresh acceptance report. Use disposable calendars/tasks whenever possible.
+
+For Google Calendar/Tasks:
+
+```bash
+LIFEOS_ENABLE_GOOGLE_CALENDAR_CONNECTOR=1 \
+LIFEOS_GOOGLE_CALENDAR_CLIENT_ID="..." \
+LIFEOS_GOOGLE_CALENDAR_CLIENT_SECRET="..." \
+LIFEOS_GOOGLE_CALENDAR_REFRESH_TOKEN="..." \
+LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES=1 \
+LIFEOS_CALENDAR_ACCEPTANCE_CONFIRMATION="WRITE TO EXTERNAL CALENDAR" \
+npm run calendar:acceptance -- --write --out calendar-acceptance.json
+```
+
+For Apple Calendar/System Reminders on macOS:
+
+```bash
+LIFEOS_ENABLE_MACOS_CALENDAR_CONNECTOR=1 \
+LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES=1 \
+LIFEOS_CALENDAR_ACCEPTANCE_CONFIRMATION="WRITE TO EXTERNAL CALENDAR" \
+npm run calendar:acceptance -- --provider macos --write --out macos-calendar-acceptance.json
+```
+
 The unsigned app directory is expected at:
 
 ```text

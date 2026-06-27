@@ -345,8 +345,15 @@ function checkScripts() {
     const calendarAcceptanceTest = exists("tests/calendar-acceptance-runbook.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/calendar-acceptance-runbook.test.mjs"), "utf8") : "";
     if (
       packageJson.scripts?.["calendar:acceptance"]?.includes("calendar-acceptance-runbook.mjs") &&
+      packageJson.scripts?.["calendar:acceptance"]?.includes("--import tsx") &&
       packageJson.scripts?.test?.includes("tests/calendar-acceptance-runbook.test.mjs") &&
       calendarAcceptance.includes("LIFEOS_GOOGLE_CALENDAR_REFRESH_TOKEN") &&
+      calendarAcceptance.includes("LIFEOS_CALENDAR_ACCEPTANCE_PROVIDER") &&
+      calendarAcceptance.includes("LIFEOS_ENABLE_MACOS_CALENDAR_CONNECTOR") &&
+      calendarAcceptance.includes("LIFEOS_MACOS_CALENDAR_CONNECTOR_MOCK") &&
+      calendarAcceptance.includes("macos-calendar-and-reminders") &&
+      calendarAcceptance.includes("apple-calendar-create") &&
+      calendarAcceptance.includes("reminders-complete") &&
       calendarAcceptance.includes("LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES") &&
       calendarAcceptance.includes("LIFEOS_CALENDAR_ACCEPTANCE_CONFIRMATION") &&
       calendarAcceptance.includes("WRITE TO EXTERNAL CALENDAR") &&
@@ -357,10 +364,11 @@ function checkScripts() {
       calendarAcceptance.includes("tasks-delete") &&
       calendarAcceptance.includes("writeEvidenceReady") &&
       calendarAcceptanceTest.includes("Google Calendar/Tasks acceptance can create, complete, and clean disposable write evidence") &&
+      calendarAcceptanceTest.includes("macOS Calendar/Reminders acceptance can create, complete, and clean disposable write evidence") &&
       calendarAcceptanceTest.includes("doesNotMatch(JSON.stringify(report), /created-google-event-secret") &&
       calendarAcceptanceTest.includes("write-gate-missing")
-    ) pass("Google Calendar/Tasks acceptance runbook records real-account read/write evidence with cleanup and redaction guards");
-    else fail("calendar acceptance runbook must verify OAuth config, explicit write gates, disposable event/task cleanup, redaction, and tests");
+    ) pass("Google and macOS Calendar/Tasks acceptance runbook records read/write evidence with cleanup and redaction guards");
+    else fail("calendar acceptance runbook must verify Google OAuth, macOS Calendar/Reminders config, explicit write gates, disposable event/task cleanup, redaction, and tests");
   } else {
     fail("missing calendar acceptance runbook script: scripts/calendar-acceptance-runbook.mjs");
   }

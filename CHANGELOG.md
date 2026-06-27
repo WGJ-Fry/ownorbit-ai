@@ -18,6 +18,7 @@ Release candidate for the next public alpha. Do not advertise as publicly availa
 - Tightened long-term remote acceptance records so each real-world scenario requires scenario-specific proof instead of accepting generic notes.
 - Added a release-promotion remote acceptance evidence guard so public promotion requires stable HTTPS plus cellular, network-switch, restart, stale-QR, tunnel-interruption, and diagnostic-export evidence.
 - Added explicit desktop auto-update feed opt-in state: safe `LIFEOS_UPDATE_URL` alone keeps manual updates, while `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1` marks the HTTPS feed as ready in diagnostics and the admin update card.
+- Extended `calendar:acceptance` with a macOS Apple Calendar/System Reminders provider so real-account/device read/write evidence can be generated for both Google and macOS connector paths.
 
 ## 0.1.3-alpha.0
 

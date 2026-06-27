@@ -7,12 +7,13 @@ const CONFIRMATION_TEXT = "WRITE TO EXTERNAL CALENDAR";
 const DEFAULT_TIMEOUT_MS = 10_000;
 
 function parseArgs(argv) {
-  const result = { out: "", json: false, write: false };
+  const result = { out: "", json: false, write: false, provider: "" };
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
     if (value === "--json") result.json = true;
     else if (value === "--write") result.write = true;
     else if (value === "--out") result.out = argv[++index] || "";
+    else if (value === "--provider") result.provider = argv[++index] || "";
   }
   return result;
 }
@@ -53,6 +54,30 @@ function writeGateFailures(env, writeRequested) {
   if (env.LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES !== "1") failures.push("LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES");
   if (env.LIFEOS_CALENDAR_ACCEPTANCE_CONFIRMATION !== CONFIRMATION_TEXT) failures.push("LIFEOS_CALENDAR_ACCEPTANCE_CONFIRMATION");
   return failures;
+}
+
+function macosConfigFailures(env) {
+  const failures = [];
+  if (env.LIFEOS_ENABLE_MACOS_CALENDAR_CONNECTOR !== "1") failures.push("LIFEOS_ENABLE_MACOS_CALENDAR_CONNECTOR");
+  if (process.platform !== "darwin" && env.LIFEOS_MACOS_CALENDAR_CONNECTOR_MOCK !== "1") failures.push("macOS platform or LIFEOS_MACOS_CALENDAR_CONNECTOR_MOCK");
+  return failures;
+}
+
+async function withTemporaryEnv(env, fn) {
+  const previous = new Map();
+  for (const [key, value] of Object.entries(env || {})) {
+    previous.set(key, process.env[key]);
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = String(value);
+  }
+  try {
+    return await fn();
+  } finally {
+    for (const [key, value] of previous) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
 }
 
 function withTimeout(timeoutMs) {
@@ -131,7 +156,7 @@ async function runStep(report, id, title, fn) {
   }
 }
 
-export async function runCalendarAcceptance(options = {}) {
+async function runGoogleCalendarAcceptance(options = {}) {
   const env = options.env || process.env;
   const fetchImpl = options.fetchImpl || fetch;
   const timeoutMs = Number(env.LIFEOS_CALENDAR_ACCEPTANCE_TIMEOUT_MS || env.LIFEOS_GOOGLE_CALENDAR_TIMEOUT_MS || DEFAULT_TIMEOUT_MS);
@@ -308,8 +333,155 @@ export async function runCalendarAcceptance(options = {}) {
   return report;
 }
 
+async function runMacosCalendarAcceptance(options = {}) {
+  const env = options.env || process.env;
+  const writeRequested = Boolean(options.write || env.LIFEOS_CALENDAR_ACCEPTANCE_WRITE === "1");
+  const missingConfig = macosConfigFailures(env);
+  const missingWriteGates = writeGateFailures(env, writeRequested);
+  const report = {
+    generatedAt: new Date().toISOString(),
+    ok: false,
+    status: "not-run",
+    connector: "macos-calendar-and-reminders",
+    calendarName: env.LIFEOS_MACOS_ACCEPTANCE_CALENDAR_NAME ? redactedId(env.LIFEOS_MACOS_ACCEPTANCE_CALENDAR_NAME) : "default",
+    reminderListName: env.LIFEOS_MACOS_ACCEPTANCE_REMINDER_LIST_NAME ? redactedId(env.LIFEOS_MACOS_ACCEPTANCE_REMINDER_LIST_NAME) : "default",
+    writeRequested,
+    writeEvidenceReady: false,
+    missingConfig,
+    missingWriteGates,
+    steps: [],
+    recommendations: [],
+  };
+
+  if (missingConfig.length) {
+    report.status = "missing-config";
+    report.recommendations.push("Set LIFEOS_ENABLE_MACOS_CALENDAR_CONNECTOR=1 on macOS before claiming Apple Calendar/System Reminders sync evidence.");
+    return report;
+  }
+
+  if (missingWriteGates.length) {
+    report.status = "write-gate-missing";
+    report.recommendations.push(`For write acceptance, set LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES=1 and LIFEOS_CALENDAR_ACCEPTANCE_CONFIRMATION="${CONFIRMATION_TEXT}".`);
+    return report;
+  }
+
+  const module = await withTemporaryEnv(env, async () => import(`../server/calendarSyncPreview.ts?calendarAcceptance=${Date.now()}-${Math.random()}`));
+  const preview = await runStep(report, "macos-read-preview", "Read Apple Calendar and system Reminders preview", async () => {
+    const result = await withTemporaryEnv(env, () => module.buildCalendarSyncPreviewAsync());
+    const appleItems = result.operations.filter((operation) => operation.providerId === "apple-calendar" && operation.action === "read-only-import");
+    const reminderItems = result.operations.filter((operation) => operation.providerId === "system-reminders" && operation.action === "read-only-import");
+    return {
+      appleCalendarCount: appleItems.length,
+      remindersCount: reminderItems.length,
+      providersReadyForRead: result.summary.providersReadyForRead,
+      providersReadyForWrite: result.summary.providersReadyForWrite,
+      warnings: result.summary.warnings.map(redact).slice(0, 5),
+    };
+  });
+
+  if (!preview) {
+    report.status = "read-failed";
+    report.recommendations.push("Repair macOS Calendar/Reminders permissions before running write acceptance.");
+    return report;
+  }
+
+  if (writeRequested) {
+    const stamp = new Date().toISOString();
+    const common = {
+      explicitConsent: true,
+      confirmationText: CONFIRMATION_TEXT,
+      source: "calendar-acceptance-runbook",
+    };
+    let createdEventId = "";
+    const createdEvent = await runStep(report, "apple-calendar-create", "Create disposable Apple Calendar acceptance event", async () => {
+      const result = await withTemporaryEnv(env, () => module.executeCalendarSyncOperationAsync({
+        ...common,
+        providerId: "apple-calendar",
+        kind: "event",
+        action: "create",
+        title: `LifeOS acceptance ${stamp}`,
+        startsAt: stamp,
+        notes: "Created and removed by LifeOS calendar acceptance runbook after explicit maintainer confirmation.",
+        calendarName: env.LIFEOS_MACOS_ACCEPTANCE_CALENDAR_NAME || undefined,
+      }));
+      createdEventId = result.externalId || "";
+      return { externalId: redactedId(result.externalId), rollbackAvailable: Boolean(result.rollbackPlan?.available) };
+    });
+    if (createdEvent?.externalId && createdEventId) {
+      await runStep(report, "apple-calendar-delete", "Delete disposable Apple Calendar acceptance event", async () => {
+        const result = await withTemporaryEnv(env, () => module.executeCalendarSyncOperationAsync({
+          ...common,
+          providerId: "apple-calendar",
+          kind: "event",
+          action: "delete",
+          title: `LifeOS acceptance ${stamp}`,
+          externalId: createdEventId,
+        }));
+        return { externalId: redactedId(result.externalId), rollbackAvailable: Boolean(result.rollbackPlan?.available) };
+      });
+    }
+
+    let createdReminderId = "";
+    const createdReminder = await runStep(report, "reminders-create", "Create disposable system Reminders acceptance item", async () => {
+      const result = await withTemporaryEnv(env, () => module.executeCalendarSyncOperationAsync({
+        ...common,
+        providerId: "system-reminders",
+        kind: "task",
+        action: "create",
+        title: `LifeOS acceptance ${stamp}`,
+        dueAt: stamp,
+        notes: "Created and removed by LifeOS calendar acceptance runbook after explicit maintainer confirmation.",
+        reminderListName: env.LIFEOS_MACOS_ACCEPTANCE_REMINDER_LIST_NAME || undefined,
+      }));
+      createdReminderId = result.externalId || "";
+      return { externalId: redactedId(result.externalId), rollbackAvailable: Boolean(result.rollbackPlan?.available) };
+    });
+    if (createdReminder?.externalId && createdReminderId) {
+      await runStep(report, "reminders-complete", "Complete disposable system Reminders acceptance item", async () => {
+        const result = await withTemporaryEnv(env, () => module.executeCalendarSyncOperationAsync({
+          ...common,
+          providerId: "system-reminders",
+          kind: "task",
+          action: "complete",
+          title: `LifeOS acceptance ${stamp}`,
+          externalId: createdReminderId,
+        }));
+        return { externalId: redactedId(result.externalId), rollbackAvailable: Boolean(result.rollbackPlan?.available) };
+      });
+      await runStep(report, "reminders-delete", "Delete disposable system Reminders acceptance item", async () => {
+        const result = await withTemporaryEnv(env, () => module.executeCalendarSyncOperationAsync({
+          ...common,
+          providerId: "system-reminders",
+          kind: "task",
+          action: "delete",
+          title: `LifeOS acceptance ${stamp}`,
+          externalId: createdReminderId,
+        }));
+        return { externalId: redactedId(result.externalId), rollbackAvailable: Boolean(result.rollbackPlan?.available) };
+      });
+    }
+  }
+
+  const failed = report.steps.filter((step) => !step.ok);
+  report.writeEvidenceReady = writeRequested && failed.length === 0 && report.steps.some((step) => step.id === "apple-calendar-delete") && report.steps.some((step) => step.id === "reminders-delete");
+  report.ok = failed.length === 0 && (!writeRequested || report.writeEvidenceReady);
+  report.status = report.ok ? writeRequested ? "read-write-evidence-ready" : "read-evidence-ready" : "failed";
+  if (!writeRequested) report.recommendations.push(`Run again with --provider macos --write, LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES=1, and LIFEOS_CALENDAR_ACCEPTANCE_CONFIRMATION="${CONFIRMATION_TEXT}" before claiming real Apple Calendar/System Reminders write-back.`);
+  if (failed.length) report.recommendations.push("Fix failed macOS connector checks before publishing Apple Calendar/System Reminders sync claims.");
+  return report;
+}
+
+export async function runCalendarAcceptance(options = {}) {
+  const env = options.env || process.env;
+  const provider = compact(options.provider || env.LIFEOS_CALENDAR_ACCEPTANCE_PROVIDER || "google").toLowerCase();
+  if (["macos", "apple", "apple-calendar", "system-reminders", "reminders"].includes(provider)) {
+    return runMacosCalendarAcceptance(options);
+  }
+  return runGoogleCalendarAcceptance(options);
+}
+
 function printHuman(report) {
-  console.log(`[${report.ok ? "PASS" : "NOT READY"}] Google Calendar/Tasks acceptance`);
+  console.log(`[${report.ok ? "PASS" : "NOT READY"}] ${report.connector} acceptance`);
   console.log(`Status: ${report.status}`);
   console.log(`Write evidence: ${report.writeEvidenceReady ? "ready" : "not ready"}`);
   for (const step of report.steps) {
@@ -320,7 +492,7 @@ function printHuman(report) {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const args = parseArgs(process.argv.slice(2));
-  runCalendarAcceptance({ write: args.write })
+  runCalendarAcceptance({ write: args.write, provider: args.provider })
     .then((report) => {
       const outPath = args.out || process.env.LIFEOS_CALENDAR_ACCEPTANCE_OUT || "";
       if (outPath) {

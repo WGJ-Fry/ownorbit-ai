@@ -136,3 +136,53 @@ test("Google Calendar/Tasks acceptance can create, complete, and clean disposabl
   assert.match(JSON.stringify(report), /sha256:/);
   assert.doesNotMatch(JSON.stringify(report), /created-google-event-secret|created-google-task-secret|refresh-token-secret|access-token-secret/);
 });
+
+test("macOS Calendar/Reminders acceptance reports missing config", async () => {
+  const report = await runCalendarAcceptance({
+    provider: "macos",
+    env: {},
+  });
+  assert.equal(report.ok, false);
+  assert.equal(report.connector, "macos-calendar-and-reminders");
+  assert.equal(report.status, "missing-config");
+  assert.ok(report.missingConfig.includes("LIFEOS_ENABLE_MACOS_CALENDAR_CONNECTOR"));
+});
+
+test("macOS Calendar/Reminders acceptance blocks writes without explicit gates", async () => {
+  const report = await runCalendarAcceptance({
+    provider: "macos",
+    env: {
+      LIFEOS_MACOS_CALENDAR_CONNECTOR_MOCK: "1",
+      LIFEOS_ENABLE_MACOS_CALENDAR_CONNECTOR: "1",
+    },
+    write: true,
+  });
+  assert.equal(report.ok, false);
+  assert.equal(report.status, "write-gate-missing");
+  assert.deepEqual(report.missingWriteGates, ["LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES", "LIFEOS_CALENDAR_ACCEPTANCE_CONFIRMATION"]);
+});
+
+test("macOS Calendar/Reminders acceptance can create, complete, and clean disposable write evidence", async () => {
+  const report = await runCalendarAcceptance({
+    provider: "macos",
+    env: {
+      LIFEOS_MACOS_CALENDAR_CONNECTOR_MOCK: "1",
+      LIFEOS_ENABLE_MACOS_CALENDAR_CONNECTOR: "1",
+      LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES: "1",
+      LIFEOS_CALENDAR_ACCEPTANCE_CONFIRMATION: "WRITE TO EXTERNAL CALENDAR",
+      LIFEOS_MACOS_ACCEPTANCE_CALENDAR_NAME: "Personal calendar secret@example.com",
+      LIFEOS_MACOS_ACCEPTANCE_REMINDER_LIST_NAME: "Private reminders secret@example.com",
+    },
+    write: true,
+  });
+  assert.equal(report.ok, true);
+  assert.equal(report.connector, "macos-calendar-and-reminders");
+  assert.equal(report.status, "read-write-evidence-ready");
+  assert.equal(report.writeEvidenceReady, true);
+  assert.equal(report.steps.some((step) => step.id === "macos-read-preview" && step.ok), true);
+  for (const id of ["apple-calendar-create", "apple-calendar-delete", "reminders-create", "reminders-complete", "reminders-delete"]) {
+    assert.equal(report.steps.some((step) => step.id === id && step.ok), true, `${id} should pass`);
+  }
+  assert.match(JSON.stringify(report), /sha256:/);
+  assert.doesNotMatch(JSON.stringify(report), /secret@example\.com|Personal calendar secret|Private reminders secret/);
+});
