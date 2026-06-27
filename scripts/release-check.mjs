@@ -2297,6 +2297,8 @@ function checkAssets() {
     calendarSyncPreviewSource.includes("buildCalendarSyncPreviewAsync") &&
     calendarSyncPreviewSource.includes("executeCalendarSyncOperationAsync") &&
     calendarSyncPreviewSource.includes("readMacosConnectorItems") &&
+    calendarSyncPreviewSource.includes("completed?: boolean") &&
+    calendarSyncPreviewSource.includes("completion status") &&
     calendarSyncPreviewSource.includes("readGoogleCalendarItems") &&
     calendarSyncPreviewSource.includes("readGoogleTaskItems") &&
     calendarSyncPreviewSource.includes("google-tasks-api") &&
@@ -2318,12 +2320,14 @@ function checkAssets() {
     googleTasksConnectorSource.includes("LIFEOS_GOOGLE_TASKS_LIST_ID") &&
     googleTasksConnectorSource.includes("tasks.googleapis.com/tasks/v1") &&
     googleTasksConnectorSource.includes("executeGoogleTaskOperation") &&
+    googleTasksConnectorSource.includes("body.status = \"needsAction\"") &&
     calendarSyncHistorySource.includes("saveCalendarSyncOperation") &&
     calendarSyncHistorySource.includes("rollbackCalendarSyncOperation") &&
     calendarSyncHistorySource.includes("listCalendarSyncOperations") &&
     calendarSyncHistorySource.includes("CalendarSyncHistoryRecord") &&
     calendarSyncHistorySource.includes("canAutoRollback") &&
     calendarSyncHistorySource.includes("calendar-sync-rollback") &&
+    calendarSyncHistorySource.includes("completed: previousState.completed ?? false") &&
     calendarSyncRunsSource.includes("createCalendarSyncRun") &&
     calendarSyncRunsSource.includes("listCalendarSyncRuns") &&
     calendarSyncRunsSource.includes("CalendarSyncRunConflict") &&
@@ -2379,11 +2383,13 @@ function checkAssets() {
     calendarSyncPreviewTestSource.includes("macOS calendar connector requires opt-in and explicit confirmation before writes") &&
     calendarSyncPreviewTestSource.includes("Google Calendar connector reads events through OAuth without enabling writes") &&
     calendarSyncPreviewTestSource.includes("Google Calendar and Tasks connector supports consented event and task writes") &&
+    calendarSyncPreviewTestSource.includes("Google Tasks connector can reopen a completed task through guarded update") &&
     calendarSyncPreviewTestSource.includes("preview.syncPlan.reviewConflicts, 1") &&
     calendarSyncPreviewTestSource.includes("direction === \"review-conflict\"") &&
     calendarSyncPreviewTestSource.includes("externalSource === \"google-tasks:mock-google-task-1\"") &&
     calendarSyncPreviewTestSource.includes("auditSummary.connector, \"google-tasks-api\"") &&
     calendarSyncPreviewTestSource.includes("calendar sync history persists guarded writes and automatic rollback evidence") &&
+    calendarSyncPreviewTestSource.includes("completeRollback.result.action, \"update\"") &&
     calendarSyncPreviewTestSource.includes("calendar sync run evidence persists conflicts and next steps")
   ) pass("calendar/task sync has preview safety gates, opt-in macOS/Google connector coverage, persistent history, guarded rollback, and run evidence");
   else warn("calendar/task sync lacks preview safety, opt-in macOS/Google connector execution, persistent rollback history, run evidence, API/auth coverage, diagnostics, or release checks");

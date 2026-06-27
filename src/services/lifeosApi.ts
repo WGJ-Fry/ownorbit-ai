@@ -251,6 +251,7 @@ export type CalendarSyncExecuteInput = {
   startsAt?: string;
   dueAt?: string;
   notes?: string;
+  completed?: boolean;
   calendarName?: string;
   reminderListName?: string;
   externalId?: string;

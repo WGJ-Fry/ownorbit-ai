@@ -439,11 +439,86 @@ test("Google Calendar and Tasks connector supports consented event and task writ
     assert.equal(taskCompleteResult.auditSummary.connector, "google-tasks-api");
     assert.match(taskCompleteResult.externalId, /^mock-google-task-complete-/);
     assert.equal(taskCompleteResult.rollbackPlan.available, true);
+    assert.equal(taskCompleteResult.rollbackPlan.requiresManualReview, false);
     assert.equal(taskCompleteResult.rollbackPlan.previousState.title, "Previous Google task");
-    assert.match(taskCompleteResult.rollbackPlan.hint, /reopen the reminder|completion/);
+    assert.match(taskCompleteResult.rollbackPlan.hint, /guarded update|completion status/);
   }, {
     LIFEOS_GOOGLE_CALENDAR_CONNECTOR_MOCK: "1",
     LIFEOS_ENABLE_GOOGLE_CALENDAR_CONNECTOR: "1",
+    LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES: "1",
+  });
+});
+
+test("Google Tasks connector can reopen a completed task through guarded update", async () => {
+  await withCalendarPreview("google-task-reopen-write", {}, async ({ executeCalendarSyncOperationAsync }) => {
+    const calls = [];
+    const fetchImpl = async (url, init = {}) => {
+      calls.push({ url: String(url), init });
+      if (String(url).includes("oauth2.googleapis.com/token")) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return { access_token: "google-access-token-for-test" };
+          },
+        };
+      }
+      assert.match(JSON.stringify(init.headers), /Bearer google-access-token-for-test/);
+      if (String(url).includes("/tasks/v1/lists/%40default/tasks/google-task-1") && !init.method) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              id: "google-task-1",
+              title: "Old task",
+              notes: "Old notes",
+              due: "2026-07-11T12:00:00.000Z",
+              status: "completed",
+            };
+          },
+        };
+      }
+      if (String(url).includes("/tasks/v1/lists/%40default/tasks/google-task-1") && init.method === "PATCH") {
+        const body = JSON.parse(String(init.body));
+        assert.equal(body.status, "needsAction");
+        assert.equal(body.completed, undefined);
+        assert.equal(body.title, "Old task");
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return { id: "google-task-1", title: body.title, status: "needsAction" };
+          },
+        };
+      }
+      throw new Error(`Unexpected URL ${url}`);
+    };
+
+    const result = await executeCalendarSyncOperationAsync({
+      providerId: "google-calendar",
+      kind: "task",
+      action: "update",
+      title: "Old task",
+      dueAt: "2026-07-11T12:00:00.000Z",
+      notes: "Old notes",
+      completed: false,
+      externalId: "google-task-1",
+      explicitConsent: true,
+      confirmationText: "WRITE TO EXTERNAL CALENDAR",
+    }, { fetchImpl });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.action, "update");
+    assert.equal(result.kind, "task");
+    assert.equal(result.auditSummary.connector, "google-tasks-api");
+    assert.equal(calls.filter((call) => String(call.url).includes("oauth2.googleapis.com/token")).length, 2);
+    assert.equal(calls.some((call) => call.init.method === "PATCH"), true);
+  }, {
+    LIFEOS_ENABLE_GOOGLE_CALENDAR_CONNECTOR: "1",
+    LIFEOS_GOOGLE_CALENDAR_CLIENT_ID: "client-id",
+    LIFEOS_GOOGLE_CALENDAR_CLIENT_SECRET: "client-secret",
+    LIFEOS_GOOGLE_CALENDAR_REFRESH_TOKEN: "refresh-token",
     LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES: "1",
   });
 });
@@ -496,6 +571,29 @@ test("calendar sync history persists guarded writes and automatic rollback evide
     assert.equal(rollback.result.action, "delete");
     assert.equal(rollback.result.auditSummary.connector, "google-calendar-api");
     assert.equal(listCalendarSyncOperations()[0].rolledBackAt > 0, true);
+
+    const completeResult = await executeCalendarSyncOperationAsync({
+      providerId: "google-calendar",
+      kind: "task",
+      action: "complete",
+      title: "History task complete",
+      externalId: "mock-google-task-1",
+      explicitConsent: true,
+      confirmationText: "WRITE TO EXTERNAL CALENDAR",
+      source: "history-test",
+    });
+    const completeRecord = saveCalendarSyncOperation({ source: "history-test" }, completeResult);
+    assert.equal(completeRecord.rollback.canAutoRollback, true);
+    assert.equal(completeRecord.rollback.requiresManualReview, false);
+
+    const completeRollback = await rollbackCalendarSyncOperation(completeRecord.id, {
+      explicitConsent: true,
+      confirmationText: "WRITE TO EXTERNAL CALENDAR",
+    });
+    assert.equal(completeRollback.record.status, "rolled_back");
+    assert.equal(completeRollback.result.action, "update");
+    assert.equal(completeRollback.result.kind, "task");
+    assert.equal(completeRollback.result.auditSummary.connector, "google-tasks-api");
   `;
 
   const child = spawn(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {

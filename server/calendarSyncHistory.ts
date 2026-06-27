@@ -95,8 +95,7 @@ function rowToRecord(row: CalendarSyncHistoryRow): CalendarSyncHistoryRecord {
 function rollbackReason(row: CalendarSyncHistoryRow, result: CalendarSyncExecutionResult | null) {
   if (row.status === "rolled_back") return "This operation has already been rolled back.";
   if (!result?.rollbackPlan.available) return "No rollback evidence was captured for this operation.";
-  if (row.action === "complete") return "Completion rollback still requires manual review because external task APIs differ on reopen semantics.";
-  if ((row.action === "update" || row.action === "delete") && !result.rollbackPlan.previousState?.title) {
+  if ((row.action === "update" || row.action === "complete" || row.action === "delete") && !result.rollbackPlan.previousState?.title) {
     return "Previous state is incomplete, so automatic rollback is blocked.";
   }
   return "Automatic rollback is not available for this operation.";
@@ -147,6 +146,19 @@ function buildRollbackInput(row: CalendarSyncHistoryRow, confirmation: Pick<Cale
       startsAt: row.kind === "event" ? previousState.scheduledAt : undefined,
       dueAt: row.kind === "task" ? previousState.scheduledAt : undefined,
       notes: previousState.notes,
+    };
+  }
+
+  if (row.action === "complete") {
+    if (!row.externalId || !previousState?.title) return null;
+    return {
+      ...base,
+      action: "update",
+      title: previousState.title,
+      dueAt: previousState.scheduledAt,
+      notes: previousState.notes,
+      completed: previousState.completed ?? false,
+      externalId: row.externalId,
     };
   }
 

@@ -129,6 +129,7 @@ export type CalendarSyncExecuteInput = {
   startsAt?: string;
   dueAt?: string;
   notes?: string;
+  completed?: boolean;
   calendarName?: string;
   reminderListName?: string;
   externalId?: string;
@@ -586,9 +587,9 @@ function buildRollbackPlan(
   if (normalized.action === "complete") {
     return {
       available: Boolean(execution.previousState),
-      requiresManualReview: true,
+      requiresManualReview: !execution.previousState,
       hint: execution.previousState
-        ? "To roll back this completion, reopen the reminder and restore the captured previous completion state after review."
+        ? "To roll back this completion, use a guarded update to restore the captured title, time, notes, and completion status."
         : "To roll back this completion, reopen the reminder manually in Reminders.",
       previousState: execution.previousState,
     };
@@ -852,6 +853,8 @@ function executeMacosOperation(input: CalendarSyncExecuteInput, normalized: Retu
           reminder.body = ${jxaString(notes)};
           const due = ${jxaString(dateValue || "")};
           if (due) reminder.dueDate = new Date(due);
+          const completedValue = ${typeof input.completed === "boolean" ? JSON.stringify(input.completed) : "null"};
+          if (completedValue !== null) reminder.completed = completedValue;
           JSON.stringify({ externalId: targetId, previousState });
         `
         : normalized.action === "complete"

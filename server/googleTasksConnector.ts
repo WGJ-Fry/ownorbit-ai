@@ -89,7 +89,7 @@ function taskToPreviousState(task: GoogleTask): CalendarSyncPreviousState {
   };
 }
 
-function taskBody(input: CalendarSyncExecuteInput, title: string, completed = false) {
+function taskBody(input: CalendarSyncExecuteInput, title: string, completed?: boolean) {
   const dueText = compact(input.dueAt || input.startsAt || "");
   const body: GoogleTask = {
     title,
@@ -99,9 +99,11 @@ function taskBody(input: CalendarSyncExecuteInput, title: string, completed = fa
     const due = new Date(dueText);
     if (!Number.isNaN(due.getTime())) body.due = due.toISOString();
   }
-  if (completed) {
+  if (completed === true) {
     body.status = "completed";
     body.completed = new Date().toISOString();
+  } else if (completed === false) {
+    body.status = "needsAction";
   }
   return body;
 }
@@ -195,7 +197,7 @@ export async function executeGoogleTaskOperation(
 
   const updated = await googleTasksRequest<GoogleTask>(
     idPath,
-    { method: "PATCH", body: JSON.stringify(taskBody(input, normalized.title)) },
+    { method: "PATCH", body: JSON.stringify(taskBody(input, normalized.title, typeof input.completed === "boolean" ? input.completed : undefined)) },
     fetchImpl,
   );
   return { externalId: compact(updated.id || normalized.externalId), previousState: taskToPreviousState(previous) };
