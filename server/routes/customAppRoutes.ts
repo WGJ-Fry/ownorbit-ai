@@ -4,6 +4,7 @@ import { requireActor } from "../auth";
 import {
   createCustomApp,
   compareCustomAppVersions,
+  completeCustomAppAutoRepair,
   createCustomAppActionRequest,
   createCustomAppAutoRepairPlan,
   createCustomAppCapabilityRequest,
@@ -178,6 +179,34 @@ export function registerCustomAppRoutes(app: express.Express) {
         event: result.autoRepairEvent,
         task: result.autoRepairTask,
         timestamp: result.autoRepairEvent?.createdAt || Date.now(),
+      });
+      res.json(result);
+    } catch (error) {
+      handleCustomAppError(res, error);
+    }
+  });
+
+  app.post("/api/v1/custom-apps/:appId/auto-repairs/complete", requireActor, (req, res) => {
+    try {
+      const result = completeCustomAppAutoRepair(req.params.appId, req.body || {}, actor(req));
+      if (!result) return res.status(404).json({ error: "Custom app not found" });
+      insertAuditLog("custom_app_auto_repair_completed", "custom_app", req.params.appId, {
+        eventId: result.event?.id,
+        taskId: result.result.taskId,
+        status: result.result.status,
+        fromVersion: result.result.fromVersion,
+        toVersion: result.result.toVersion,
+        comparisonRisk: result.result.comparisonRisk,
+        rollbackAvailable: result.result.rollbackAvailable,
+        verificationStatus: result.result.verification.status,
+        changedLines: result.comparison?.totalChangedLines ?? null,
+      }, actor(req)?.type, actor(req)?.id);
+      broadcastRealtime({
+        type: "custom_app.auto_repair_completed",
+        appId: req.params.appId,
+        event: result.event,
+        result: result.result,
+        timestamp: result.event?.createdAt || Date.now(),
       });
       res.json(result);
     } catch (error) {

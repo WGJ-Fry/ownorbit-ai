@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  completeCustomAppAutoRepair,
   createCustomAppAutoRepairPlan,
   createCustomAppDebugRequest,
   createCustomAppRuntimeEvent,
   listCustomAppRuntimeEvents,
   type CustomAppAutoRepairTask,
+  type CustomAppAutoRepairResult,
   type CustomAppRepairProposal,
   type StoredCustomAppRuntimeEvent,
 } from "../../../services/lifeosApi";
@@ -32,6 +34,7 @@ export function useStudioRuntimeDebug({
   const [isRequestingRuntimeDebug, setIsRequestingRuntimeDebug] = useState(false);
   const [runtimeRepairProposal, setRuntimeRepairProposal] = useState<CustomAppRepairProposal | null>(null);
   const [runtimeAutoRepairTask, setRuntimeAutoRepairTask] = useState<CustomAppAutoRepairTask | null>(null);
+  const [runtimeAutoRepairResult, setRuntimeAutoRepairResult] = useState<CustomAppAutoRepairResult | null>(null);
 
   const loadRuntimeEvents = useCallback(async (appId = editingAppId) => {
     if (!appId) {
@@ -66,6 +69,7 @@ export function useStudioRuntimeDebug({
       setRefineInstruction(response.suggestedInstruction);
       setRuntimeRepairProposal(response.repairProposal);
       setRuntimeAutoRepairTask(null);
+      setRuntimeAutoRepairResult(null);
       setRuntimeDebugIssue("");
       appendSimulatorLog({ time: "DEBUG", text: t("studio.runtime.debugInstructionReady"), type: "info" });
       await loadRuntimeEvents(appId);
@@ -74,6 +78,7 @@ export function useStudioRuntimeDebug({
       setRuntimeEventsError(error?.message || t("studio.runtime.requestFailed"));
       setRuntimeRepairProposal(null);
       setRuntimeAutoRepairTask(null);
+      setRuntimeAutoRepairResult(null);
       return null;
     } finally {
       setIsRequestingRuntimeDebug(false);
@@ -91,6 +96,7 @@ export function useStudioRuntimeDebug({
       setRefineInstruction(response.suggestedInstruction);
       setRuntimeRepairProposal(response.repairProposal);
       setRuntimeAutoRepairTask(response.autoRepairTask);
+      setRuntimeAutoRepairResult(null);
       setRuntimeDebugIssue("");
       appendSimulatorLog({
         time: "DEBUG",
@@ -103,6 +109,7 @@ export function useStudioRuntimeDebug({
       setRuntimeEventsError(error?.message || t("studio.runtime.requestFailed"));
       setRuntimeRepairProposal(null);
       setRuntimeAutoRepairTask(null);
+      setRuntimeAutoRepairResult(null);
       return null;
     } finally {
       setIsRequestingRuntimeDebug(false);
@@ -121,7 +128,30 @@ export function useStudioRuntimeDebug({
       .catch(() => null);
   }, [editingAppId, loadRuntimeEvents, t]);
 
+  const completeRuntimeAutoRepair = useCallback(async (task: CustomAppAutoRepairTask, instruction: string, appId = editingAppId) => {
+    if (!appId) return null;
+    try {
+      const response = await completeCustomAppAutoRepair(appId, {
+        taskId: task.id,
+        fromVersion: task.rollbackVersion ?? null,
+        suggestedInstruction: instruction,
+      });
+      setRuntimeAutoRepairResult(response.result);
+      appendSimulatorLog({
+        time: "DEBUG",
+        text: response.result.status === "applied" ? t("studio.runtime.autoRepairCompleted") : t("studio.runtime.autoRepairNeedsReview"),
+        type: response.result.status === "applied" ? "info" : "log",
+      });
+      await loadRuntimeEvents(appId);
+      return response;
+    } catch (error: any) {
+      setRuntimeEventsError(error?.message || t("studio.runtime.applyFailed"));
+      return null;
+    }
+  }, [appendSimulatorLog, editingAppId, loadRuntimeEvents, t]);
+
   return {
+    completeRuntimeAutoRepair,
     isLoadingRuntimeEvents,
     isRequestingRuntimeDebug,
     loadRuntimeEvents,
@@ -129,6 +159,7 @@ export function useStudioRuntimeDebug({
     recordRuntimeDebugApplied,
     requestRuntimeDebug,
     runtimeAutoRepairTask,
+    runtimeAutoRepairResult,
     runtimeDebugIssue,
     runtimeEvents,
     runtimeEventsError,

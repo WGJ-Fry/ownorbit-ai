@@ -56,7 +56,9 @@ export type CustomAppRuntimeEventType =
   | "debug_requested"
   | "debug_applied"
   | "auto_repair_planned"
-  | "auto_repair_blocked";
+  | "auto_repair_blocked"
+  | "auto_repair_applied"
+  | "auto_repair_needs_review";
 export type CustomAppRuntimeSeverity = "info" | "warning" | "error";
 
 export type StoredCustomApp = {
@@ -149,6 +151,25 @@ export type CustomAppAutoRepairTask = {
   repairAttempt: number;
   retryLimit: number;
   rollbackVersion?: number | null;
+  createdAt: number;
+};
+
+export type CustomAppAutoRepairResult = {
+  id: string;
+  appId: string;
+  taskId?: string;
+  status: "applied" | "needs-review" | "unchanged" | "blocked";
+  fromVersion?: number | null;
+  toVersion?: number | null;
+  comparisonRisk?: CustomAppActionRisk | null;
+  rollbackVersion?: number | null;
+  rollbackAvailable: boolean;
+  verification: {
+    status: "pending-smoke" | "needs-review" | "not-changed";
+    requiredChecks: string[];
+    failures: string[];
+  };
+  nextSteps: string[];
   createdAt: number;
 };
 
@@ -475,6 +496,8 @@ function normalizeRuntimeEventType(value: unknown): CustomAppRuntimeEventType {
     || type === "debug_applied"
     || type === "auto_repair_planned"
     || type === "auto_repair_blocked"
+    || type === "auto_repair_applied"
+    || type === "auto_repair_needs_review"
   ) {
     return type;
   }
@@ -1372,6 +1395,93 @@ export function createCustomAppAutoRepairPlan(appId: string, input: Record<strin
     suggestedInstruction: debug.suggestedInstruction,
     recentEvents: recentAfterDebug,
   };
+}
+
+export function completeCustomAppAutoRepair(appId: string, input: Record<string, unknown>, actor?: { type: string; id: string }) {
+  const app = getCustomApp(appId);
+  if (!app) return null;
+  const latestVersion = latestCustomAppVersion(appId);
+  const fromVersionInput = input.fromVersion ?? input.rollbackVersion;
+  const fromVersion = fromVersionInput === undefined || fromVersionInput === null || String(fromVersionInput).trim() === ""
+    ? null
+    : normalizeVersionNumber(fromVersionInput, "source");
+  const taskId = sanitizeOptionalText(input.taskId, 160);
+  const instruction = sanitizeOptionalText(input.suggestedInstruction ?? input.instruction, 800);
+  const requiredChecks = [
+    "Open version compare and verify changed lines are limited to the failing workflow.",
+    "Run the generated tool's main workflow once with sample input.",
+    "Keep rollback available until the repaired version survives real use.",
+  ];
+
+  let status: CustomAppAutoRepairResult["status"] = "blocked";
+  let comparison: CustomAppVersionComparison | null = null;
+  let failures: string[] = [];
+  if (!latestVersion) {
+    failures = ["No saved custom app version exists after auto repair."];
+  } else if (!fromVersion || latestVersion.version <= fromVersion) {
+    status = "unchanged";
+    failures = ["Auto repair did not create a newer saved version."];
+  } else {
+    comparison = compareCustomAppVersions(appId, fromVersion, latestVersion.version);
+    status = comparison?.risk === "high" ? "needs-review" : "applied";
+    if (comparison?.risk === "high") failures = ["Version comparison found high-risk changes that require manual review before continued auto repair."];
+  }
+
+  const verification: CustomAppAutoRepairResult["verification"] = {
+    status: status === "unchanged" ? "not-changed" : status === "applied" ? "pending-smoke" : "needs-review",
+    requiredChecks: comparison
+      ? [...comparison.reviewChecklist.slice(0, 3), ...requiredChecks.slice(1)]
+      : requiredChecks,
+    failures,
+  };
+  const nextSteps = status === "applied"
+    ? [
+        "Run the repaired generated tool with the original failing scenario.",
+        "If the smoke check fails, roll back and request a narrower repair.",
+        "Do not attempt another auto repair until this result is recorded as reviewed.",
+      ]
+    : status === "needs-review"
+      ? [
+          "Review the version comparison before using the repaired app.",
+          "Roll back if the repair added high-risk actions, network access, or permission changes.",
+          "Switch to manual refine for the next repair attempt.",
+        ]
+      : [
+          "Keep the current app version; no new repaired version was saved.",
+          "Retry only after the AI returns complete code and Studio saves it successfully.",
+        ];
+  const now = Date.now();
+  const result: CustomAppAutoRepairResult = {
+    id: `auto-repair-result-${crypto.randomUUID()}`,
+    appId,
+    taskId,
+    status,
+    fromVersion,
+    toVersion: latestVersion?.version || null,
+    comparisonRisk: comparison?.risk || null,
+    rollbackVersion: fromVersion,
+    rollbackAvailable: Boolean(fromVersion && getCustomAppVersion(appId, fromVersion)),
+    verification,
+    nextSteps,
+    createdAt: now,
+  };
+  const event = createCustomAppRuntimeEvent(appId, {
+    eventType: status === "applied" ? "auto_repair_applied" : "auto_repair_needs_review",
+    severity: status === "applied" ? "info" : "warning",
+    label: status === "applied" ? "Auto repair applied" : "Auto repair needs review",
+    message: sanitizeActionText(`${status}: ${instruction || "auto repair completion recorded"}`, 500),
+    detail: {
+      autoRepairResult: result,
+      comparison: comparison ? {
+        fromVersion: comparison.fromVersion,
+        toVersion: comparison.toVersion,
+        risk: comparison.risk,
+        totalChangedLines: comparison.totalChangedLines,
+        riskNotes: comparison.riskNotes,
+      } : null,
+    },
+  }, actor);
+  return { event, result, comparison };
 }
 
 function selectCustomAppCapabilityRequest(appId: string, requestId: string) {

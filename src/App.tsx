@@ -389,7 +389,14 @@ export default function App() {
 
   const updateCustomAppCode = (id: string, code: string) => {
     setCustomApps(prev => prev.map(app => app.id === id ? { ...app, code } : app));
-    void updateCustomAppRecord(id, { code }).catch((error) => console.warn("Failed to save custom app code:", error));
+    return updateCustomAppRecord(id, { code })
+      .then(({ app }) => {
+        setCustomApps(prev => prev.map(item => item.id === id ? { ...item, ...app } : item));
+      })
+      .catch((error) => {
+        console.warn("Failed to save custom app code:", error);
+        throw error;
+      });
   };
 
   const addCustomApp = (app: CustomApp, source: "studio" | "chat" | "import" | "migration" = "studio") => {

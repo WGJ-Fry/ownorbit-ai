@@ -1668,6 +1668,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(unauthCustomAppActionPolicy.status, 401);
   const unauthCustomAppActions = await request(port, "/api/v1/custom-apps/custom-ledger-1/action-requests");
   assert.equal(unauthCustomAppActions.status, 401);
+  const unauthCustomAppAutoRepairComplete = await request(port, "/api/v1/custom-apps/custom-ledger-1/auto-repairs/complete", { method: "POST" });
+  assert.equal(unauthCustomAppAutoRepairComplete.status, 401);
 
   const createdProblemBlueprint = await request(port, "/api/v1/problem-blueprints", {
     method: "POST",
@@ -1796,6 +1798,33 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(customAppAutoRepairPlan.autoRepairTask.requiredChecks.some((item) => item.includes("rollback")), true);
   assert.equal(customAppAutoRepairPlan.repairProposal.suggestedInstruction, customAppAutoRepairPlan.suggestedInstruction);
 
+  await request(port, "/api/v1/custom-apps/custom-ledger-1", {
+    method: "PATCH",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      code: "<main><h1>Fixed ledger workflow</h1><p>Safe repaired version keeps local state and avoids new permissions.</p></main>",
+    }),
+  }).then((res) => res.json());
+  const customAppAutoRepairComplete = await request(port, "/api/v1/custom-apps/custom-ledger-1/auto-repairs/complete", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      taskId: customAppAutoRepairPlan.autoRepairTask.id,
+      fromVersion: customAppAutoRepairPlan.autoRepairTask.rollbackVersion,
+      suggestedInstruction: customAppAutoRepairPlan.suggestedInstruction,
+    }),
+  }).then((res) => res.json());
+  assert.equal(customAppAutoRepairComplete.event.eventType, "auto_repair_applied");
+  assert.equal(customAppAutoRepairComplete.result.status, "applied");
+  assert.equal(customAppAutoRepairComplete.result.taskId, customAppAutoRepairPlan.autoRepairTask.id);
+  assert.equal(customAppAutoRepairComplete.result.fromVersion, customAppAutoRepairPlan.autoRepairTask.rollbackVersion);
+  assert.equal(customAppAutoRepairComplete.result.toVersion > customAppAutoRepairComplete.result.fromVersion, true);
+  assert.equal(customAppAutoRepairComplete.result.rollbackAvailable, true);
+  assert.equal(customAppAutoRepairComplete.result.verification.status, "pending-smoke");
+  assert.equal(customAppAutoRepairComplete.result.verification.requiredChecks.some((item) => item.includes("workflow")), true);
+  assert.equal(customAppAutoRepairComplete.comparison.risk, "low");
+  assert.equal(customAppAutoRepairComplete.comparison.toVersion, customAppAutoRepairComplete.result.toVersion);
+
   const highRiskCustomAppDebugRequest = await request(port, "/api/v1/custom-apps/custom-ledger-1/debug-requests", {
     method: "POST",
     headers: adminHeaders,
@@ -1843,12 +1872,13 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(retryLimitedAutoRepairPlan.autoRepairTask.reasonKey, "retry-limit");
   assert.equal(retryLimitedAutoRepairPlan.autoRepairTask.repairAttempt, 3);
 
-  const customAppRuntimeEvents = await request(port, "/api/v1/custom-apps/custom-ledger-1/runtime-events?limit=12", {
+  const customAppRuntimeEvents = await request(port, "/api/v1/custom-apps/custom-ledger-1/runtime-events?limit=20", {
     headers: adminHeaders,
   }).then((res) => res.json());
   assert.equal(customAppRuntimeEvents.events.length >= 2, true);
   assert.equal(customAppRuntimeEvents.events.some((event) => event.eventType === "debug_requested"), true);
   assert.equal(customAppRuntimeEvents.events.some((event) => event.eventType === "auto_repair_planned"), true);
+  assert.equal(customAppRuntimeEvents.events.some((event) => event.eventType === "auto_repair_applied"), true);
   assert.equal(customAppRuntimeEvents.events.some((event) => event.eventType === "auto_repair_blocked"), true);
   const debugRuntimeEvent = customAppRuntimeEvents.events.find((event) => event.eventType === "debug_requested" && event.detail?.repairProposal?.suspectedArea === "runtime-error");
   assert.equal(debugRuntimeEvent.detail.repairProposal.suspectedArea, "runtime-error");
@@ -2114,32 +2144,32 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const customAppVersionsAfterUpdate = await request(port, "/api/v1/custom-apps/custom-ledger-1/versions", {
     headers: adminHeaders,
   }).then((res) => res.json());
-  assert.equal(customAppVersionsAfterUpdate.versions[0].version, 2);
+  assert.equal(customAppVersionsAfterUpdate.versions[0].version, 3);
   assert.equal(customAppVersionsAfterUpdate.versions[0].code, "<div>safe updated code</div>");
-  const customAppVersionComparison = await request(port, "/api/v1/custom-apps/custom-ledger-1/version-compare?from=1&to=2", {
+  const customAppVersionComparison = await request(port, "/api/v1/custom-apps/custom-ledger-1/version-compare?from=2&to=3", {
     headers: adminHeaders,
   }).then((res) => res.json());
   assert.equal(customAppVersionComparison.comparison.appId, "custom-ledger-1");
-  assert.equal(customAppVersionComparison.comparison.fromVersion, 1);
-  assert.equal(customAppVersionComparison.comparison.toVersion, 2);
+  assert.equal(customAppVersionComparison.comparison.fromVersion, 2);
+  assert.equal(customAppVersionComparison.comparison.toVersion, 3);
   assert.equal(customAppVersionComparison.comparison.totalChangedLines >= 1, true);
   assert.equal(customAppVersionComparison.comparison.risk, "low");
   assert.equal(customAppVersionComparison.comparison.riskNotes.some((note) => note.includes("No high-risk")), true);
   assert.equal(customAppVersionComparison.comparison.reviewChecklist.length >= 3, true);
-  assert.equal(customAppVersionComparison.comparison.repairHints.some((hint) => hint.includes("roll back to v1")), true);
+  assert.equal(customAppVersionComparison.comparison.repairHints.some((hint) => hint.includes("roll back to v2")), true);
   assert.equal(JSON.stringify(customAppVersionComparison).includes("github_pat_customAppSecret"), false);
   assert.equal(JSON.stringify(customAppVersionComparison).includes("/Users/example/private-app.html"), false);
   const defaultCustomAppVersionComparison = await request(port, "/api/v1/custom-apps/custom-ledger-1/version-compare", {
     headers: adminHeaders,
   }).then((res) => res.json());
-  assert.equal(defaultCustomAppVersionComparison.comparison.fromVersion, 1);
-  assert.equal(defaultCustomAppVersionComparison.comparison.toVersion, 2);
+  assert.equal(defaultCustomAppVersionComparison.comparison.fromVersion, 2);
+  assert.equal(defaultCustomAppVersionComparison.comparison.toVersion, 3);
   const rollbackCustomApp = await request(port, "/api/v1/custom-apps/custom-ledger-1/versions/1/rollback", {
     method: "POST",
     headers: adminHeaders,
   }).then((res) => res.json());
   assert.equal(rollbackCustomApp.app.code, customAppVersionsAfterCreate.versions[0].code);
-  assert.equal(rollbackCustomApp.version.version, 3);
+  assert.equal(rollbackCustomApp.version.version, 4);
   const deletedCustomApp = await request(port, "/api/v1/custom-apps/custom-ledger-1", {
     method: "DELETE",
     headers: adminHeaders,
@@ -2505,6 +2535,15 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(autoRepairAudit.metadata.canAutoApply, true);
   assert.equal(autoRepairAudit.metadata.reasonKey, "low-risk-runtime");
   assert.equal(autoRepairAudit.metadata.repairAttempt, 1);
+  const completedAutoRepairAudit = finalAudit.logs.find((log) =>
+    log.action === "custom_app_auto_repair_completed" &&
+    log.targetId === "custom-ledger-1" &&
+    log.metadata.taskId === customAppAutoRepairPlan.autoRepairTask.id
+  );
+  assert.equal(completedAutoRepairAudit.metadata.status, "applied");
+  assert.equal(completedAutoRepairAudit.metadata.rollbackAvailable, true);
+  assert.equal(completedAutoRepairAudit.metadata.verificationStatus, "pending-smoke");
+  assert.equal(completedAutoRepairAudit.metadata.comparisonRisk, "low");
   const blockedAutoRepairAudit = finalAudit.logs.find((log) =>
     log.action === "custom_app_auto_repair_planned" &&
     log.targetId === "custom-ledger-1" &&

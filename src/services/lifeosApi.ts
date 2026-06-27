@@ -823,6 +823,25 @@ export type CustomAppAutoRepairTask = {
   createdAt: number;
 };
 
+export type CustomAppAutoRepairResult = {
+  id: string;
+  appId: string;
+  taskId?: string;
+  status: "applied" | "needs-review" | "unchanged" | "blocked";
+  fromVersion?: number | null;
+  toVersion?: number | null;
+  comparisonRisk?: "low" | "medium" | "high" | null;
+  rollbackVersion?: number | null;
+  rollbackAvailable: boolean;
+  verification: {
+    status: "pending-smoke" | "needs-review" | "not-changed";
+    requiredChecks: string[];
+    failures: string[];
+  };
+  nextSteps: string[];
+  createdAt: number;
+};
+
 export type StoredCustomAppState = {
   appId: string;
   state: unknown;
@@ -917,7 +936,9 @@ export type StoredCustomAppRuntimeEvent = {
     | "debug_requested"
     | "debug_applied"
     | "auto_repair_planned"
-    | "auto_repair_blocked";
+    | "auto_repair_blocked"
+    | "auto_repair_applied"
+    | "auto_repair_needs_review";
   severity: "info" | "warning" | "error";
   label: string;
   message: string;
@@ -1766,6 +1787,26 @@ export function createCustomAppAutoRepairPlan(appId: string, input: { issue?: st
     recentEvents: StoredCustomAppRuntimeEvent[];
   }>(
     `/api/v1/custom-apps/${encodeURIComponent(appId)}/auto-repairs`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function completeCustomAppAutoRepair(appId: string, input: {
+  taskId?: string;
+  fromVersion?: number | null;
+  rollbackVersion?: number | null;
+  suggestedInstruction?: string;
+  instruction?: string;
+}) {
+  return requestJson<{
+    event: StoredCustomAppRuntimeEvent | null;
+    result: CustomAppAutoRepairResult;
+    comparison: CustomAppVersionComparison | null;
+  }>(
+    `/api/v1/custom-apps/${encodeURIComponent(appId)}/auto-repairs/complete`,
     {
       method: "POST",
       body: JSON.stringify(input),
