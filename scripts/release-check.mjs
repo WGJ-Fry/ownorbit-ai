@@ -2144,6 +2144,11 @@ function checkAssets() {
     calendarSyncPreviewSource.includes("readGoogleTaskItems") &&
     calendarSyncPreviewSource.includes("google-tasks-api") &&
     calendarSyncPreviewSource.includes("externalReadItems") &&
+    calendarSyncPreviewSource.includes("CalendarSyncPlan") &&
+    calendarSyncPreviewSource.includes("buildCalendarSyncPlan") &&
+    calendarSyncPreviewSource.includes("review-conflict") &&
+    calendarSyncPreviewSource.includes("canProceedAfterConsent") &&
+    calendarSyncPreviewSource.includes("syncConflicts") &&
     calendarSyncPreviewSource.includes("executeCalendarSyncOperation") &&
     calendarSyncPreviewSource.includes("WRITE TO EXTERNAL CALENDAR") &&
     calendarSyncPreviewSource.includes("requiresExplicitConsentBeforeWrite") &&
@@ -2163,7 +2168,9 @@ function checkAssets() {
     diagnosticBundleSource.includes("calendarSync: buildCalendarSyncPreview()") &&
     configDiagnosticsPanelSource.includes("diagnostics.calendarSync") &&
     configDiagnosticsPanelSource.includes("diagnostics.calendarSafetyTitle") &&
+    configDiagnosticsPanelSource.includes("diagnostics.syncConflicts") &&
     translationsSource.includes("diagnostics.calendarSafetyBody") &&
+    translationsSource.includes("diagnostics.syncConflicts") &&
     apiAuthTestSource.includes("blockedCalendarSyncPreview") &&
     apiAuthTestSource.includes("providerId: \"google-calendar\"") &&
     apiAuthTestSource.includes("blockedCalendarSyncExecute") &&
@@ -2173,6 +2180,9 @@ function checkAssets() {
     calendarSyncPreviewTestSource.includes("macOS calendar connector requires opt-in and explicit confirmation before writes") &&
     calendarSyncPreviewTestSource.includes("Google Calendar connector reads events through OAuth without enabling writes") &&
     calendarSyncPreviewTestSource.includes("Google Calendar and Tasks connector supports consented event and task writes") &&
+    calendarSyncPreviewTestSource.includes("preview.syncPlan.reviewConflicts, 1") &&
+    calendarSyncPreviewTestSource.includes("direction === \"review-conflict\"") &&
+    calendarSyncPreviewTestSource.includes("externalSource === \"google-tasks:mock-google-task-1\"") &&
     calendarSyncPreviewTestSource.includes("auditSummary.connector, \"google-tasks-api\"")
   ) pass("calendar/task sync has preview safety gates plus opt-in macOS, Google Calendar, and Google Tasks connector coverage");
   else warn("calendar/task sync lacks preview safety, opt-in macOS/Google connector execution, API/auth coverage, diagnostics, or release checks");

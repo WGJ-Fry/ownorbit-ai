@@ -38,6 +38,7 @@ export type CalendarSyncProposedItem = {
   title?: string;
   startsAt?: string;
   dueAt?: string;
+  externalId?: string;
   source?: string;
 };
 
@@ -50,10 +51,37 @@ export type CalendarSyncPreviewOperation = {
   status: CalendarSyncOperationStatus;
   title: string;
   scheduledAt?: string;
+  externalId?: string;
   source: string;
   writesExternalSystem: boolean;
   risk: "low" | "medium" | "high";
   reason: string;
+};
+
+export type CalendarSyncPlanItem = {
+  id: string;
+  direction: "pull-external" | "push-local" | "review-conflict" | "blocked";
+  providerId: CalendarSyncProviderId;
+  kind: CalendarSyncItemKind;
+  title: string;
+  scheduledAt?: string;
+  externalId?: string;
+  operationId?: string;
+  localSource?: string;
+  externalSource?: string;
+  reason: string;
+  risk: "low" | "medium" | "high";
+};
+
+export type CalendarSyncPlan = {
+  generatedFrom: "preview";
+  canProceedAfterConsent: boolean;
+  requiresManualReview: boolean;
+  pullExternal: number;
+  pushLocal: number;
+  reviewConflicts: number;
+  blocked: number;
+  items: CalendarSyncPlanItem[];
 };
 
 export type CalendarSyncPreview = {
@@ -72,6 +100,7 @@ export type CalendarSyncPreview = {
     recommendations: string[];
   }>;
   operations: CalendarSyncPreviewOperation[];
+  syncPlan: CalendarSyncPlan;
   safety: {
     dryRunOnly: boolean;
     requiresExplicitConsentBeforeWrite: true;
@@ -84,6 +113,7 @@ export type CalendarSyncPreview = {
     externalReadItems: number;
     externalReadErrors: number;
     blockedWrites: number;
+    syncConflicts: number;
     providersReadyForRead: number;
     providersReadyForWrite: number;
     warnings: string[];
@@ -350,6 +380,129 @@ function operationId(index: number, providerId: CalendarSyncProviderId, action: 
 function normalizeProposedItems(items: unknown): CalendarSyncProposedItem[] {
   if (!Array.isArray(items)) return [];
   return items.slice(0, MAX_PROPOSED_ITEMS).map((item) => item && typeof item === "object" ? item as CalendarSyncProposedItem : {});
+}
+
+function syncTitleKey(title: unknown) {
+  return compact(title).toLowerCase();
+}
+
+function syncTimeKey(value: unknown) {
+  const text = compact(value);
+  if (!text) return "";
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) return text.slice(0, 16);
+  return date.toISOString().slice(0, 16);
+}
+
+function syncIdentity(providerId: CalendarSyncProviderId, kind: CalendarSyncItemKind, title: unknown, scheduledAt?: unknown) {
+  return [providerId, kind, syncTitleKey(title), syncTimeKey(scheduledAt)].join("|");
+}
+
+function buildCalendarSyncPlan(
+  operations: CalendarSyncPreviewOperation[],
+  externalItems: ExternalConnectorReadItem[],
+): CalendarSyncPlan {
+  const usedExternalSources = new Set<string>();
+  const externalById = new Map<string, ExternalConnectorReadItem>();
+  const externalByIdentity = new Map<string, ExternalConnectorReadItem>();
+  for (const item of externalItems) {
+    if (item.externalId) externalById.set(`${item.providerId}|${item.kind}|${item.externalId}`, item);
+    externalByIdentity.set(syncIdentity(item.providerId, item.kind, item.title, item.scheduledAt), item);
+  }
+
+  const planItems: CalendarSyncPlanItem[] = [];
+  for (const operation of operations.filter((candidate) => candidate.action !== "read-only-import")) {
+    const exactMatch = operation.externalId ? externalById.get(`${operation.providerId}|${operation.kind}|${operation.externalId}`) : undefined;
+    const duplicateMatch = operation.action === "create"
+      ? externalByIdentity.get(syncIdentity(operation.providerId, operation.kind, operation.title, operation.scheduledAt))
+      : undefined;
+    const matchedExternal = exactMatch || duplicateMatch;
+    if (matchedExternal) usedExternalSources.add(matchedExternal.source);
+
+    if (operation.status === "blocked") {
+      planItems.push({
+        id: `blocked:${operation.id}`,
+        direction: "blocked",
+        providerId: operation.providerId,
+        kind: operation.kind,
+        title: operation.title,
+        scheduledAt: operation.scheduledAt,
+        externalId: operation.externalId,
+        operationId: operation.id,
+        localSource: operation.source,
+        externalSource: matchedExternal?.source,
+        reason: operation.reason,
+        risk: operation.risk,
+      });
+      continue;
+    }
+
+    if (duplicateMatch) {
+      planItems.push({
+        id: `conflict:${operation.id}`,
+        direction: "review-conflict",
+        providerId: operation.providerId,
+        kind: operation.kind,
+        title: operation.title,
+        scheduledAt: operation.scheduledAt,
+        externalId: duplicateMatch.externalId,
+        operationId: operation.id,
+        localSource: operation.source,
+        externalSource: duplicateMatch.source,
+        reason: "A matching external item already exists. Review before creating another calendar/task item.",
+        risk: "high",
+      });
+      continue;
+    }
+
+    planItems.push({
+      id: `push:${operation.id}`,
+      direction: "push-local",
+      providerId: operation.providerId,
+      kind: operation.kind,
+      title: operation.title,
+      scheduledAt: operation.scheduledAt,
+      externalId: operation.externalId || exactMatch?.externalId,
+      operationId: operation.id,
+      localSource: operation.source,
+      externalSource: exactMatch?.source,
+      reason: exactMatch
+        ? "Existing external item can be updated after explicit consent and audit logging."
+        : "Local proposal can be pushed to the external connector after explicit consent and audit logging.",
+      risk: operation.risk,
+    });
+  }
+
+  for (const item of externalItems) {
+    if (usedExternalSources.has(item.source)) continue;
+    planItems.push({
+      id: `pull:${item.source}`,
+      direction: "pull-external",
+      providerId: item.providerId,
+      kind: item.kind,
+      title: item.title,
+      scheduledAt: item.scheduledAt,
+      externalId: item.externalId,
+      externalSource: item.source,
+      reason: "External item is available as read-only LifeOS memory and can be reviewed before any write-back.",
+      risk: "low",
+    });
+  }
+
+  const pullExternal = planItems.filter((item) => item.direction === "pull-external").length;
+  const pushLocal = planItems.filter((item) => item.direction === "push-local").length;
+  const reviewConflicts = planItems.filter((item) => item.direction === "review-conflict").length;
+  const blocked = planItems.filter((item) => item.direction === "blocked").length;
+  return {
+    generatedFrom: "preview",
+    canProceedAfterConsent: pushLocal > 0 && reviewConflicts === 0 && blocked === 0,
+    requiresManualReview: pushLocal > 0 || reviewConflicts > 0 || blocked > 0,
+    pullExternal,
+    pushLocal,
+    reviewConflicts,
+    blocked,
+    items: planItems,
+  };
 }
 
 function validateExternalOperation(input: CalendarSyncExecuteInput) {
@@ -783,6 +936,7 @@ function buildCalendarSyncPreviewWithExternalRead(
       status: "ready",
       title: item.title,
       scheduledAt: item.scheduledAt,
+      externalId: item.externalId,
       source: item.source,
       writesExternalSystem: false,
       risk: "low",
@@ -797,6 +951,7 @@ function buildCalendarSyncPreviewWithExternalRead(
     const action = item.action && ["create", "update", "complete", "delete"].includes(item.action) ? item.action : "create";
     const kind = item.kind === "task" ? "task" : "event";
     const scheduledAt = compact(item.startsAt || item.dueAt);
+    const externalId = compact(item.externalId || "");
     const provider = providers.find((candidate) => candidate.id === providerId);
     const unsupportedGoogleOperation = providerId === "google-calendar" && action === "complete" && kind !== "task";
     const canWrite = Boolean(provider?.writeSupported && externalWritesEnabled && !unsupportedGoogleOperation);
@@ -809,6 +964,7 @@ function buildCalendarSyncPreviewWithExternalRead(
       status: canWrite ? "needs-review" : "blocked",
       title: compact(item.title, kind === "task" ? "Untitled proposed task" : "Untitled proposed event"),
       scheduledAt: scheduledAt || undefined,
+      externalId: externalId || undefined,
       source: compact(item.source, "admin-sync-preview"),
       writesExternalSystem: canWrite,
       risk: action === "delete" || action === "complete" ? "high" : "medium",
@@ -821,6 +977,7 @@ function buildCalendarSyncPreviewWithExternalRead(
   });
 
   const readOnlyItems = operations.filter((operation) => operation.action === "read-only-import").length;
+  const syncPlan = buildCalendarSyncPlan(operations, externalReadPreview.items);
   const externalReadItems = externalReadPreview.items.length;
   const blockedWrites = operations.filter((operation) => operation.status === "blocked").length;
   const providersReadyForWrite = providers.filter((provider) => provider.writeSupported).length;
@@ -840,6 +997,7 @@ function buildCalendarSyncPreviewWithExternalRead(
     writeBackSupported: externalWritesEnabled,
     providers,
     operations,
+    syncPlan,
     safety: {
       dryRunOnly: !externalWritesEnabled,
       requiresExplicitConsentBeforeWrite: true,
@@ -852,6 +1010,7 @@ function buildCalendarSyncPreviewWithExternalRead(
       externalReadItems,
       externalReadErrors: externalReadPreview.warnings.length,
       blockedWrites,
+      syncConflicts: syncPlan.reviewConflicts,
       providersReadyForRead: providers.filter((provider) => provider.readSupported).length,
       providersReadyForWrite,
       warnings,

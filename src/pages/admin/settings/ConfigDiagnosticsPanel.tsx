@@ -97,6 +97,7 @@ export default function ConfigDiagnosticsPanel({ diagnostics, updateCheck }: { d
             [t("diagnostics.externalReadItems"), String(diagnostics.calendarSync.summary.externalReadItems)],
             [t("diagnostics.externalReadErrors"), String(diagnostics.calendarSync.summary.externalReadErrors)],
             [t("diagnostics.blockedWrites"), String(diagnostics.calendarSync.summary.blockedWrites)],
+            [t("diagnostics.syncConflicts"), String(diagnostics.calendarSync.summary.syncConflicts)],
             [t("diagnostics.providersReadable"), String(diagnostics.calendarSync.summary.providersReadyForRead)],
             [t("diagnostics.providersWritable"), String(diagnostics.calendarSync.summary.providersReadyForWrite)],
           ]}

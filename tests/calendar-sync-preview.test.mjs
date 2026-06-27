@@ -64,6 +64,11 @@ test("calendar sync preview imports local ICS items as read-only operations", as
     assert.equal(preview.summary.readOnlyItems, 2);
     assert.equal(preview.summary.externalReadItems, 0);
     assert.equal(preview.summary.externalReadErrors, 0);
+    assert.equal(preview.summary.syncConflicts, 0);
+    assert.equal(preview.syncPlan.pullExternal, 0);
+    assert.equal(preview.syncPlan.pushLocal, 0);
+    assert.equal(preview.syncPlan.reviewConflicts, 0);
+    assert.equal(preview.syncPlan.canProceedAfterConsent, false);
     assert.equal(preview.summary.providersReadyForRead, 1);
     assert.equal(preview.summary.providersReadyForWrite, 0);
     assert.equal(preview.providers.find((provider) => provider.id === "ics-local")?.status, "ready-readonly");
@@ -85,6 +90,10 @@ test("macOS connector can read external calendar and reminder previews without e
     assert.equal(preview.writeBackSupported, false);
     assert.equal(preview.summary.externalReadItems, 2);
     assert.equal(preview.summary.externalReadErrors, 0);
+    assert.equal(preview.syncPlan.pullExternal, 2);
+    assert.equal(preview.syncPlan.pushLocal, 0);
+    assert.equal(preview.syncPlan.reviewConflicts, 0);
+    assert.equal(preview.syncPlan.items.every((item) => item.direction === "pull-external"), true);
     assert.equal(preview.summary.providersReadyForRead, 2);
     assert.equal(preview.summary.providersReadyForWrite, 0);
     assert.equal(preview.operations.filter((operation) => operation.action === "read-only-import").length, 2);
@@ -119,6 +128,9 @@ test("calendar sync preview blocks proposed external writes until connectors are
       ],
     });
     assert.equal(preview.summary.blockedWrites, 2);
+    assert.equal(preview.syncPlan.blocked, 2);
+    assert.equal(preview.syncPlan.reviewConflicts, 0);
+    assert.equal(preview.syncPlan.canProceedAfterConsent, false);
     assert.equal(preview.operations.filter((operation) => operation.status === "blocked").length, 2);
     assert.equal(preview.operations.some((operation) => operation.providerId === "google-calendar" && operation.action === "create"), true);
     assert.equal(preview.operations.some((operation) => operation.providerId === "system-reminders" && operation.risk === "high"), true);
@@ -333,6 +345,14 @@ test("Google Calendar and Tasks connector supports consented event and task writ
           action: "complete",
           title: "Google task",
           dueAt: "2026-07-11T12:00:00.000Z",
+          externalId: "mock-google-task-1",
+        },
+        {
+          providerId: "google-calendar",
+          kind: "event",
+          action: "create",
+          title: "Mock Google Calendar planning review",
+          startsAt: "2026-07-09T09:00:00.000Z",
         },
       ],
     });
@@ -342,6 +362,13 @@ test("Google Calendar and Tasks connector supports consented event and task writ
     assert.equal(preview.providers.find((provider) => provider.id === "google-calendar")?.writeSupported, true);
     assert.equal(preview.operations.some((operation) => operation.providerId === "google-calendar" && operation.action === "create" && operation.status === "needs-review"), true);
     assert.equal(preview.operations.some((operation) => operation.providerId === "google-calendar" && operation.kind === "task" && operation.status === "needs-review"), true);
+    assert.equal(preview.summary.syncConflicts, 1);
+    assert.equal(preview.syncPlan.pushLocal, 2);
+    assert.equal(preview.syncPlan.reviewConflicts, 1);
+    assert.equal(preview.syncPlan.blocked, 0);
+    assert.equal(preview.syncPlan.canProceedAfterConsent, false);
+    assert.equal(preview.syncPlan.items.some((item) => item.direction === "review-conflict" && item.externalSource === "google-calendar:mock-google-event-1"), true);
+    assert.equal(preview.syncPlan.items.some((item) => item.direction === "push-local" && item.externalSource === "google-tasks:mock-google-task-1"), true);
 
     await assert.rejects(() => executeCalendarSyncOperationAsync({
       providerId: "google-calendar",

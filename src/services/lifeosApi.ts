@@ -194,11 +194,35 @@ export type CalendarSyncPreview = {
     status: "ready" | "blocked" | "needs-review" | "executed";
     title: string;
     scheduledAt?: string;
+    externalId?: string;
     source: string;
     writesExternalSystem: boolean;
     risk: "low" | "medium" | "high";
     reason: string;
   }>;
+  syncPlan: {
+    generatedFrom: "preview";
+    canProceedAfterConsent: boolean;
+    requiresManualReview: boolean;
+    pullExternal: number;
+    pushLocal: number;
+    reviewConflicts: number;
+    blocked: number;
+    items: Array<{
+      id: string;
+      direction: "pull-external" | "push-local" | "review-conflict" | "blocked";
+      providerId: "ics-local" | "apple-calendar" | "google-calendar" | "system-reminders";
+      kind: "event" | "task";
+      title: string;
+      scheduledAt?: string;
+      externalId?: string;
+      operationId?: string;
+      localSource?: string;
+      externalSource?: string;
+      reason: string;
+      risk: "low" | "medium" | "high";
+    }>;
+  };
   safety: {
     dryRunOnly: boolean;
     requiresExplicitConsentBeforeWrite: true;
@@ -211,6 +235,7 @@ export type CalendarSyncPreview = {
     externalReadItems: number;
     externalReadErrors: number;
     blockedWrites: number;
+    syncConflicts: number;
     providersReadyForRead: number;
     providersReadyForWrite: number;
     warnings: string[];
@@ -1074,6 +1099,7 @@ export function previewCalendarSync(proposedItems: Array<{
   title?: string;
   startsAt?: string;
   dueAt?: string;
+  externalId?: string;
   source?: string;
 }>) {
   return requestJson<CalendarSyncPreview>("/api/v1/admin/calendar-sync/preview", {
