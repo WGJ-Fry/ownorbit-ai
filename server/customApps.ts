@@ -54,7 +54,9 @@ export type CustomAppRuntimeEventType =
   | "action_requested"
   | "capability_requested"
   | "debug_requested"
-  | "debug_applied";
+  | "debug_applied"
+  | "auto_repair_planned"
+  | "auto_repair_blocked";
 export type CustomAppRuntimeSeverity = "info" | "warning" | "error";
 
 export type StoredCustomApp = {
@@ -129,9 +131,25 @@ export type CustomAppRepairProposal = {
 export type CustomAppRepairExecutionPlan = {
   mode: "auto-save" | "manual-review" | "blocked";
   canAutoApply: boolean;
-  reasonKey: "low-risk-runtime" | "needs-permission-review" | "high-risk-action" | "unknown-area";
+  reasonKey: "low-risk-runtime" | "needs-permission-review" | "high-risk-action" | "unknown-area" | "retry-limit";
   checks: string[];
   nextSteps: string[];
+};
+
+export type CustomAppAutoRepairTask = {
+  id: string;
+  appId: string;
+  status: "ready" | "blocked";
+  mode: CustomAppRepairExecutionPlan["mode"];
+  canAutoApply: boolean;
+  reasonKey: CustomAppRepairExecutionPlan["reasonKey"];
+  suggestedInstruction: string;
+  requiredChecks: string[];
+  nextSteps: string[];
+  repairAttempt: number;
+  retryLimit: number;
+  rollbackVersion?: number | null;
+  createdAt: number;
 };
 
 export type StoredCustomAppState = {
@@ -455,6 +473,8 @@ function normalizeRuntimeEventType(value: unknown): CustomAppRuntimeEventType {
     || type === "capability_requested"
     || type === "debug_requested"
     || type === "debug_applied"
+    || type === "auto_repair_planned"
+    || type === "auto_repair_blocked"
   ) {
     return type;
   }
@@ -1128,7 +1148,14 @@ export function createCustomAppRuntimeEvent(appId: string, input: Record<string,
     actor?.id || null,
     now,
   );
-  return listCustomAppRuntimeEvents(appId, 1)?.[0] || null;
+  const row = db.prepare(`
+    SELECT id, app_id as appId, event_type as eventType, severity, label, message,
+           detail_json as detailJson, created_by_type as createdByType, created_by_id as createdById,
+           created_at as createdAt
+    FROM custom_app_runtime_events
+    WHERE id = ?
+  `).get(id) as any;
+  return row ? rowToCustomAppRuntimeEvent(row) : null;
 }
 
 function buildDebugInstruction(app: StoredCustomApp, issue: string, recentEvents: StoredCustomAppRuntimeEvent[]) {
@@ -1282,6 +1309,69 @@ export function createCustomAppDebugRequest(appId: string, input: Record<string,
     },
   }, actor);
   return { event, repairProposal, suggestedInstruction, recentEvents };
+}
+
+export function createCustomAppAutoRepairPlan(appId: string, input: Record<string, unknown>, actor?: { type: string; id: string }) {
+  const app = getCustomApp(appId);
+  if (!app) return null;
+  const debug = createCustomAppDebugRequest(appId, input, actor);
+  if (!debug) return null;
+  const retryLimit = 2;
+  const latestVersion = latestCustomAppVersion(appId);
+  const recentAfterDebug = listCustomAppRuntimeEvents(appId, 25) || [];
+  const completedRepairCount = recentAfterDebug.filter((event) => event.eventType === "debug_applied").length;
+  const repairAttempt = completedRepairCount + 1;
+  const exceededRetryLimit = completedRepairCount >= retryLimit;
+  const basePlan = debug.repairProposal.executionPlan;
+  const canAutoApply = basePlan.canAutoApply && !exceededRetryLimit;
+  const status: CustomAppAutoRepairTask["status"] = canAutoApply ? "ready" : "blocked";
+  const reasonKey: CustomAppRepairExecutionPlan["reasonKey"] = exceededRetryLimit ? "retry-limit" : basePlan.reasonKey;
+  const nextSteps = exceededRetryLimit
+    ? [
+        "Stop auto-applying repairs for this app until a human reviews the recent failed attempts.",
+        "Open version compare, roll back to the last working version if needed, then write a narrower repair instruction.",
+        ...basePlan.nextSteps.slice(0, 2),
+      ]
+    : basePlan.nextSteps;
+  const task: CustomAppAutoRepairTask = {
+    id: `auto-repair-${crypto.randomUUID()}`,
+    appId,
+    status,
+    mode: canAutoApply ? basePlan.mode : "blocked",
+    canAutoApply,
+    reasonKey,
+    suggestedInstruction: debug.suggestedInstruction,
+    requiredChecks: [
+      ...basePlan.checks,
+      "Record the repair result in runtime events before attempting another auto repair.",
+      "Use version rollback if the repaired tool fails its main workflow.",
+    ],
+    nextSteps,
+    repairAttempt,
+    retryLimit,
+    rollbackVersion: latestVersion?.version || null,
+    createdAt: Date.now(),
+  };
+  const autoRepairEvent = createCustomAppRuntimeEvent(appId, {
+    eventType: status === "ready" ? "auto_repair_planned" : "auto_repair_blocked",
+    severity: status === "ready" ? "info" : "warning",
+    label: status === "ready" ? "Auto repair task ready" : "Auto repair blocked",
+    message: sanitizeActionText(`${reasonKey}: ${debug.repairProposal.summary}`, 500),
+    detail: {
+      autoRepairTask: task,
+      repairProposal: debug.repairProposal,
+      debugEventId: debug.event?.id || null,
+      recentEventIds: recentAfterDebug.map((item) => item.id),
+    },
+  }, actor);
+  return {
+    debugEvent: debug.event,
+    autoRepairEvent,
+    autoRepairTask: task,
+    repairProposal: debug.repairProposal,
+    suggestedInstruction: debug.suggestedInstruction,
+    recentEvents: recentAfterDebug,
+  };
 }
 
 function selectCustomAppCapabilityRequest(appId: string, requestId: string) {

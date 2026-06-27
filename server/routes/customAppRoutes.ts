@@ -5,6 +5,7 @@ import {
   createCustomApp,
   compareCustomAppVersions,
   createCustomAppActionRequest,
+  createCustomAppAutoRepairPlan,
   createCustomAppCapabilityRequest,
   createCustomAppDebugRequest,
   createCustomAppRuntimeEvent,
@@ -148,6 +149,36 @@ export function registerCustomAppRoutes(app: express.Express) {
         repairStepCount: result.repairProposal.repairSteps.length,
       }, actor(req)?.type, actor(req)?.id);
       broadcastRealtime({ type: "custom_app.debug_requested", appId: req.params.appId, event: result.event, timestamp: result.event?.createdAt || Date.now() });
+      res.json(result);
+    } catch (error) {
+      handleCustomAppError(res, error);
+    }
+  });
+
+  app.post("/api/v1/custom-apps/:appId/auto-repairs", requireActor, (req, res) => {
+    try {
+      const result = createCustomAppAutoRepairPlan(req.params.appId, req.body || {}, actor(req));
+      if (!result) return res.status(404).json({ error: "Custom app not found" });
+      insertAuditLog("custom_app_auto_repair_planned", "custom_app", req.params.appId, {
+        debugEventId: result.debugEvent?.id,
+        autoRepairEventId: result.autoRepairEvent?.id,
+        status: result.autoRepairTask.status,
+        mode: result.autoRepairTask.mode,
+        canAutoApply: result.autoRepairTask.canAutoApply,
+        reasonKey: result.autoRepairTask.reasonKey,
+        repairAttempt: result.autoRepairTask.repairAttempt,
+        retryLimit: result.autoRepairTask.retryLimit,
+        rollbackVersion: result.autoRepairTask.rollbackVersion,
+        repairRisk: result.repairProposal.risk,
+        suspectedArea: result.repairProposal.suspectedArea,
+      }, actor(req)?.type, actor(req)?.id);
+      broadcastRealtime({
+        type: "custom_app.auto_repair_planned",
+        appId: req.params.appId,
+        event: result.autoRepairEvent,
+        task: result.autoRepairTask,
+        timestamp: result.autoRepairEvent?.createdAt || Date.now(),
+      });
       res.json(result);
     } catch (error) {
       handleCustomAppError(res, error);

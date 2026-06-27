@@ -777,9 +777,25 @@ export type CustomAppRepairProposal = {
 export type CustomAppRepairExecutionPlan = {
   mode: "auto-save" | "manual-review" | "blocked";
   canAutoApply: boolean;
-  reasonKey: "low-risk-runtime" | "needs-permission-review" | "high-risk-action" | "unknown-area";
+  reasonKey: "low-risk-runtime" | "needs-permission-review" | "high-risk-action" | "unknown-area" | "retry-limit";
   checks: string[];
   nextSteps: string[];
+};
+
+export type CustomAppAutoRepairTask = {
+  id: string;
+  appId: string;
+  status: "ready" | "blocked";
+  mode: CustomAppRepairExecutionPlan["mode"];
+  canAutoApply: boolean;
+  reasonKey: CustomAppRepairExecutionPlan["reasonKey"];
+  suggestedInstruction: string;
+  requiredChecks: string[];
+  nextSteps: string[];
+  repairAttempt: number;
+  retryLimit: number;
+  rollbackVersion?: number | null;
+  createdAt: number;
 };
 
 export type StoredCustomAppState = {
@@ -874,7 +890,9 @@ export type StoredCustomAppRuntimeEvent = {
     | "action_requested"
     | "capability_requested"
     | "debug_requested"
-    | "debug_applied";
+    | "debug_applied"
+    | "auto_repair_planned"
+    | "auto_repair_blocked";
   severity: "info" | "warning" | "error";
   label: string;
   message: string;
@@ -1705,6 +1723,23 @@ export function createCustomAppRuntimeEvent(
 export function createCustomAppDebugRequest(appId: string, input: { issue?: string; message?: string }) {
   return requestJson<{ event: StoredCustomAppRuntimeEvent | null; repairProposal: CustomAppRepairProposal; suggestedInstruction: string; recentEvents: StoredCustomAppRuntimeEvent[] }>(
     `/api/v1/custom-apps/${encodeURIComponent(appId)}/debug-requests`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function createCustomAppAutoRepairPlan(appId: string, input: { issue?: string; message?: string }) {
+  return requestJson<{
+    debugEvent: StoredCustomAppRuntimeEvent | null;
+    autoRepairEvent: StoredCustomAppRuntimeEvent | null;
+    autoRepairTask: CustomAppAutoRepairTask;
+    repairProposal: CustomAppRepairProposal;
+    suggestedInstruction: string;
+    recentEvents: StoredCustomAppRuntimeEvent[];
+  }>(
+    `/api/v1/custom-apps/${encodeURIComponent(appId)}/auto-repairs`,
     {
       method: "POST",
       body: JSON.stringify(input),

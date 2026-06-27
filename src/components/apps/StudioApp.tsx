@@ -71,8 +71,10 @@ export default function StudioApp({ customApps, onClose, onUpdateCode, onDeleteA
     isLoadingRuntimeEvents,
     isRequestingRuntimeDebug,
     loadRuntimeEvents,
+    planRuntimeAutoRepair,
     recordRuntimeDebugApplied,
     requestRuntimeDebug,
+    runtimeAutoRepairTask,
     runtimeDebugIssue,
     runtimeEvents,
     runtimeEventsError, runtimeRepairProposal, setRuntimeDebugIssue,
@@ -273,9 +275,9 @@ export default function StudioApp({ customApps, onClose, onUpdateCode, onDeleteA
   const handleApplyRuntimeRepair = async (appId: string) => {
     setIsApplyingRuntimeRepair(true);
     try {
-      const response = await requestRuntimeDebug(appId);
+      const response = await planRuntimeAutoRepair(appId);
       if (response?.suggestedInstruction) {
-        if (!response.repairProposal.executionPlan.canAutoApply) {
+        if (!response.autoRepairTask.canAutoApply) {
           setRefineInstruction(response.suggestedInstruction);
           appendSimulatorLog({ time: "DEBUG", text: t("studio.runtime.manualReviewRequired"), type: "warning" });
           return;
@@ -638,6 +640,7 @@ export default function StudioApp({ customApps, onClose, onUpdateCode, onDeleteA
                       isLoadingRuntimeEvents={isLoadingRuntimeEvents}
                       runtimeEventsError={runtimeEventsError}
                       runtimeDebugIssue={runtimeDebugIssue} runtimeRepairProposal={runtimeRepairProposal}
+                      runtimeAutoRepairTask={runtimeAutoRepairTask}
                       isRequestingRuntimeDebug={isRequestingRuntimeDebug}
                       isApplyingRuntimeRepair={isApplyingRuntimeRepair}
                       onInstructionChange={setRefineInstruction}

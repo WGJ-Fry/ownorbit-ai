@@ -1738,6 +1738,24 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(JSON.stringify(customAppDebugRequest).includes("github_pat_debugRequestSecret"), false);
   assert.equal(JSON.stringify(customAppDebugRequest).includes("/Users/example/debug.txt"), false);
 
+  const customAppAutoRepairPlan = await request(port, "/api/v1/custom-apps/custom-ledger-1/auto-repairs", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      issue: "Fix the visible ledger crash without changing permissions",
+    }),
+  }).then((res) => res.json());
+  assert.equal(customAppAutoRepairPlan.debugEvent.eventType, "debug_requested");
+  assert.equal(customAppAutoRepairPlan.autoRepairEvent.eventType, "auto_repair_planned");
+  assert.equal(customAppAutoRepairPlan.autoRepairTask.status, "ready");
+  assert.equal(customAppAutoRepairPlan.autoRepairTask.canAutoApply, true);
+  assert.equal(customAppAutoRepairPlan.autoRepairTask.reasonKey, "low-risk-runtime");
+  assert.equal(customAppAutoRepairPlan.autoRepairTask.repairAttempt, 1);
+  assert.equal(customAppAutoRepairPlan.autoRepairTask.retryLimit, 2);
+  assert.equal(customAppAutoRepairPlan.autoRepairTask.rollbackVersion >= 1, true);
+  assert.equal(customAppAutoRepairPlan.autoRepairTask.requiredChecks.some((item) => item.includes("rollback")), true);
+  assert.equal(customAppAutoRepairPlan.repairProposal.suggestedInstruction, customAppAutoRepairPlan.suggestedInstruction);
+
   const highRiskCustomAppDebugRequest = await request(port, "/api/v1/custom-apps/custom-ledger-1/debug-requests", {
     method: "POST",
     headers: adminHeaders,
@@ -1751,12 +1769,48 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(highRiskCustomAppDebugRequest.repairProposal.executionPlan.reasonKey, "high-risk-action");
   assert.equal(highRiskCustomAppDebugRequest.repairProposal.executionPlan.nextSteps.some((item) => item.includes("permission")), true);
 
-  const customAppRuntimeEvents = await request(port, "/api/v1/custom-apps/custom-ledger-1/runtime-events?limit=5", {
+  const highRiskCustomAppAutoRepairPlan = await request(port, "/api/v1/custom-apps/custom-ledger-1/auto-repairs", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      issue: "Fix SMS and Shortcuts launch permissions before auto-saving",
+    }),
+  }).then((res) => res.json());
+  assert.equal(highRiskCustomAppAutoRepairPlan.autoRepairEvent.eventType, "auto_repair_blocked");
+  assert.equal(highRiskCustomAppAutoRepairPlan.autoRepairTask.status, "blocked");
+  assert.equal(highRiskCustomAppAutoRepairPlan.autoRepairTask.canAutoApply, false);
+  assert.equal(highRiskCustomAppAutoRepairPlan.autoRepairTask.reasonKey, "high-risk-action");
+
+  await request(port, "/api/v1/custom-apps/custom-ledger-1/runtime-events", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ eventType: "debug_applied", severity: "info", label: "Repair 1", message: "first repair" }),
+  }).then((res) => res.json());
+  await request(port, "/api/v1/custom-apps/custom-ledger-1/runtime-events", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ eventType: "debug_applied", severity: "info", label: "Repair 2", message: "second repair" }),
+  }).then((res) => res.json());
+  const retryLimitedAutoRepairPlan = await request(port, "/api/v1/custom-apps/custom-ledger-1/auto-repairs", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      issue: "Fix the same ledger crash again",
+    }),
+  }).then((res) => res.json());
+  assert.equal(retryLimitedAutoRepairPlan.autoRepairEvent.eventType, "auto_repair_blocked");
+  assert.equal(retryLimitedAutoRepairPlan.autoRepairTask.status, "blocked");
+  assert.equal(retryLimitedAutoRepairPlan.autoRepairTask.reasonKey, "retry-limit");
+  assert.equal(retryLimitedAutoRepairPlan.autoRepairTask.repairAttempt, 3);
+
+  const customAppRuntimeEvents = await request(port, "/api/v1/custom-apps/custom-ledger-1/runtime-events?limit=12", {
     headers: adminHeaders,
   }).then((res) => res.json());
   assert.equal(customAppRuntimeEvents.events.length >= 2, true);
   assert.equal(customAppRuntimeEvents.events.some((event) => event.eventType === "debug_requested"), true);
-  const debugRuntimeEvent = customAppRuntimeEvents.events.find((event) => event.eventType === "debug_requested");
+  assert.equal(customAppRuntimeEvents.events.some((event) => event.eventType === "auto_repair_planned"), true);
+  assert.equal(customAppRuntimeEvents.events.some((event) => event.eventType === "auto_repair_blocked"), true);
+  const debugRuntimeEvent = customAppRuntimeEvents.events.find((event) => event.eventType === "debug_requested" && event.detail?.repairProposal?.suspectedArea === "runtime-error");
   assert.equal(debugRuntimeEvent.detail.repairProposal.suspectedArea, "runtime-error");
   assert.equal(debugRuntimeEvent.detail.repairProposal.versionSafety.length >= 2, true);
   assert.equal(typeof debugRuntimeEvent.detail.repairProposal.executionPlan.canAutoApply, "boolean");
@@ -2403,6 +2457,22 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(debugRequestAudit.metadata.repairRisk, "medium");
   assert.equal(debugRequestAudit.metadata.suspectedArea, "runtime-error");
   assert.equal(debugRequestAudit.metadata.repairStepCount >= 3, true);
+  const autoRepairAudit = finalAudit.logs.find((log) =>
+    log.action === "custom_app_auto_repair_planned" &&
+    log.targetId === "custom-ledger-1" &&
+    log.metadata.status === "ready"
+  );
+  assert.equal(autoRepairAudit.metadata.canAutoApply, true);
+  assert.equal(autoRepairAudit.metadata.reasonKey, "low-risk-runtime");
+  assert.equal(autoRepairAudit.metadata.repairAttempt, 1);
+  const blockedAutoRepairAudit = finalAudit.logs.find((log) =>
+    log.action === "custom_app_auto_repair_planned" &&
+    log.targetId === "custom-ledger-1" &&
+    log.metadata.status === "blocked" &&
+    log.metadata.reasonKey === "retry-limit"
+  );
+  assert.equal(blockedAutoRepairAudit.metadata.canAutoApply, false);
+  assert.equal(blockedAutoRepairAudit.metadata.repairAttempt, 3);
   const mobileCustomAppActionCancelledAudit = finalAudit.logs.find((log) => log.action === "custom_app_action_cancelled" && log.metadata.requestId === mobilePendingCustomAppAction.request.id);
   assert.equal(mobileCustomAppActionCancelledAudit.actorType, "device");
   assert.equal(mobileCustomAppActionCancelledAudit.metadata.targetUrl, "mailto:[redacted]?[redacted]");
@@ -2449,6 +2519,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     { label: "saved custom app state", value: savedCustomAppState },
     { label: "custom app runtime event", value: customAppRuntimeEvent },
     { label: "custom app debug request", value: customAppDebugRequest },
+    { label: "custom app auto repair plan", value: customAppAutoRepairPlan },
+    { label: "high risk custom app auto repair plan", value: highRiskCustomAppAutoRepairPlan },
+    { label: "retry limited custom app auto repair plan", value: retryLimitedAutoRepairPlan },
     { label: "custom app runtime events", value: customAppRuntimeEvents },
     { label: "default custom app capabilities", value: defaultCustomAppCapabilities },
     { label: "no communication custom app capabilities", value: noCommunicationCustomAppCapabilities },

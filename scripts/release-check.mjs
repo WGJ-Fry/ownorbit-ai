@@ -1394,38 +1394,53 @@ function checkAssets() {
   ) pass("Studio problem blueprints expose generation readiness, capability review, and repair loop checks");
   else warn("Studio problem blueprints lack readiness scoring, capability review, repair loop UI, or tests");
   if (
-    customAppsSource.includes("CustomAppRepairProposal") &&
-    customAppsSource.includes("CustomAppRepairExecutionPlan") &&
-    customAppsSource.includes("buildRepairProposal") &&
-    customAppsSource.includes("buildRepairExecutionPlan") &&
-    customAppsSource.includes("repairProposal") &&
-    customAppsSource.includes("permissionReview") &&
-    customAppsSource.includes("versionSafety") &&
-    customAppsSource.includes("canAutoApply") &&
-    customAppRoutesSource.includes("repairRisk") &&
-    customAppRoutesSource.includes("suspectedArea") &&
-    customAppRoutesSource.includes("repairStepCount") &&
-    lifeosApiSource.includes("CustomAppRepairProposal") &&
-    lifeosApiSource.includes("CustomAppRepairExecutionPlan") &&
-    lifeosApiSource.includes("repairProposal: CustomAppRepairProposal") &&
-    studioRuntimeDebugHookSource.includes("runtimeRepairProposal") &&
-    studioRuntimeDebugHookSource.includes("response.repairProposal") &&
-    studioRuntimeDebugHookSource.includes("return response") &&
-    studioRuntimeEventsPanelSource.includes("studio.runtime.proposalTitle") &&
-    studioRuntimeEventsPanelSource.includes("proposalPermissionReview") &&
-    studioRuntimeEventsPanelSource.includes("proposalVersionSafety") &&
-    studioRuntimeEventsPanelSource.includes("repairProposal.executionPlan") &&
-    studioRuntimeEventsPanelSource.includes("autoApplyBlocked") &&
-    studioRuntimeEventsPanelSource.includes("studio.runtime.executionPlan") &&
-    studioAppSource.includes("executionPlan.canAutoApply") &&
-    studioAppSource.includes("studio.runtime.manualReviewRequired") &&
-    studioAppSource.includes("runtimeRepairProposal={runtimeRepairProposal}") &&
-    apiAuthTestSource.includes("executionPlan.canAutoApply") &&
-    apiAuthTestSource.includes("reasonKey, \"high-risk-action\"") &&
-    apiAuthTestSource.includes("customAppDebugRequest.repairProposal") &&
-    apiAuthTestSource.includes("debugRuntimeEvent.detail.repairProposal") &&
-    studioFrontendSmokeSource.includes("Structured Repair Proposal")
-  ) pass("Studio generated app repair flow returns structured proposal, permission review, and version safety checks");
+	    customAppsSource.includes("CustomAppRepairProposal") &&
+	    customAppsSource.includes("CustomAppRepairExecutionPlan") &&
+	    customAppsSource.includes("CustomAppAutoRepairTask") &&
+	    customAppsSource.includes("createCustomAppAutoRepairPlan") &&
+	    customAppsSource.includes("auto_repair_planned") &&
+	    customAppsSource.includes("auto_repair_blocked") &&
+	    customAppsSource.includes("buildRepairProposal") &&
+	    customAppsSource.includes("buildRepairExecutionPlan") &&
+	    customAppsSource.includes("repairProposal") &&
+	    customAppsSource.includes("permissionReview") &&
+	    customAppsSource.includes("versionSafety") &&
+	    customAppsSource.includes("canAutoApply") &&
+	    customAppRoutesSource.includes("/api/v1/custom-apps/:appId/auto-repairs") &&
+	    customAppRoutesSource.includes("custom_app_auto_repair_planned") &&
+	    customAppRoutesSource.includes("repairRisk") &&
+	    customAppRoutesSource.includes("suspectedArea") &&
+	    customAppRoutesSource.includes("repairStepCount") &&
+	    lifeosApiSource.includes("CustomAppRepairProposal") &&
+	    lifeosApiSource.includes("CustomAppRepairExecutionPlan") &&
+	    lifeosApiSource.includes("CustomAppAutoRepairTask") &&
+	    lifeosApiSource.includes("createCustomAppAutoRepairPlan") &&
+	    lifeosApiSource.includes("repairProposal: CustomAppRepairProposal") &&
+	    studioRuntimeDebugHookSource.includes("runtimeRepairProposal") &&
+	    studioRuntimeDebugHookSource.includes("runtimeAutoRepairTask") &&
+	    studioRuntimeDebugHookSource.includes("createCustomAppAutoRepairPlan") &&
+	    studioRuntimeDebugHookSource.includes("response.repairProposal") &&
+	    studioRuntimeDebugHookSource.includes("return response") &&
+	    studioRuntimeEventsPanelSource.includes("studio.runtime.proposalTitle") &&
+	    studioRuntimeEventsPanelSource.includes("studio.runtime.autoRepairTaskTitle") &&
+	    studioRuntimeEventsPanelSource.includes("proposalPermissionReview") &&
+	    studioRuntimeEventsPanelSource.includes("proposalVersionSafety") &&
+	    studioRuntimeEventsPanelSource.includes("repairProposal.executionPlan") &&
+	    studioRuntimeEventsPanelSource.includes("autoApplyBlocked") &&
+	    studioRuntimeEventsPanelSource.includes("studio.runtime.executionPlan") &&
+	    studioAppSource.includes("autoRepairTask.canAutoApply") &&
+	    studioAppSource.includes("studio.runtime.manualReviewRequired") &&
+	    studioAppSource.includes("runtimeRepairProposal={runtimeRepairProposal}") &&
+	    studioAppSource.includes("runtimeAutoRepairTask={runtimeAutoRepairTask}") &&
+	    apiAuthTestSource.includes("executionPlan.canAutoApply") &&
+	    apiAuthTestSource.includes("autoRepairTask.reasonKey, \"retry-limit\"") &&
+	    apiAuthTestSource.includes("custom_app_auto_repair_planned") &&
+	    apiAuthTestSource.includes("reasonKey, \"high-risk-action\"") &&
+	    apiAuthTestSource.includes("customAppDebugRequest.repairProposal") &&
+	    apiAuthTestSource.includes("debugRuntimeEvent.detail.repairProposal") &&
+	    studioFrontendSmokeSource.includes("Structured Repair Proposal") &&
+	    studioFrontendSmokeSource.includes("Auto-Repair Task")
+	  ) pass("Studio generated app repair flow returns structured proposal, audited auto-repair tasks, permission review, and version safety checks");
   else warn("Studio generated app repair flow lacks structured repair proposal coverage");
   if (
     sensitiveLocalStorageSource.includes("lifeos_byok_key") &&

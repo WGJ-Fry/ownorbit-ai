@@ -1,6 +1,6 @@
 import { AlertCircle, RefreshCw, Sparkles } from "lucide-react";
 import { useI18n } from "../../../i18n/I18nProvider";
-import type { CustomAppRepairProposal, StoredCustomAppRuntimeEvent } from "../../../services/lifeosApi";
+import type { CustomAppAutoRepairTask, CustomAppRepairProposal, StoredCustomAppRuntimeEvent } from "../../../services/lifeosApi";
 import StudioRuntimeEventsPanel from "./StudioRuntimeEventsPanel";
 import StudioRefineVersionCompareCard from "./StudioRefineVersionCompareCard";
 import StudioStoredVersionCompareCard from "./StudioStoredVersionCompareCard";
@@ -25,6 +25,7 @@ type StudioRefinePanelProps = {
   runtimeEventsError: string | null;
   runtimeDebugIssue: string;
   runtimeRepairProposal: CustomAppRepairProposal | null;
+  runtimeAutoRepairTask: CustomAppAutoRepairTask | null;
   isRequestingRuntimeDebug: boolean;
   isApplyingRuntimeRepair: boolean;
   onInstructionChange: (value: string) => void;
@@ -49,6 +50,7 @@ export default function StudioRefinePanel({
   runtimeEventsError,
   runtimeDebugIssue,
   runtimeRepairProposal,
+  runtimeAutoRepairTask,
   isRequestingRuntimeDebug,
   isApplyingRuntimeRepair,
   onInstructionChange,
@@ -192,6 +194,7 @@ export default function StudioRefinePanel({
         error={runtimeEventsError}
         issue={runtimeDebugIssue}
         repairProposal={runtimeRepairProposal}
+        autoRepairTask={runtimeAutoRepairTask}
         isRequestingDebug={isRequestingRuntimeDebug}
         isApplyingRepair={isApplyingRuntimeRepair}
         onIssueChange={onRuntimeDebugIssueChange}

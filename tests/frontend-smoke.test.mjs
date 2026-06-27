@@ -439,6 +439,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /listCustomAppRuntimeEvents/);
   assert.match(lifeosApiSource, /createCustomAppRuntimeEvent/);
   assert.match(lifeosApiSource, /createCustomAppDebugRequest/);
+  assert.match(lifeosApiSource, /createCustomAppAutoRepairPlan/);
   assert.match(lifeosApiSource, /CalendarSyncPreview/);
   assert.match(lifeosApiSource, /getCalendarSyncPreview/);
   assert.match(lifeosApiSource, /previewCalendarSync/);
@@ -773,8 +774,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   const studioRuntimeDebugHookSource = await readFile(path.join(rootDir, "src", "components", "apps", "studio", "useStudioRuntimeDebug.ts"), "utf8");
   assert.match(studioRuntimeDebugHookSource, /listCustomAppRuntimeEvents/);
   assert.match(studioRuntimeDebugHookSource, /createCustomAppDebugRequest/);
+  assert.match(studioRuntimeDebugHookSource, /createCustomAppAutoRepairPlan/);
   assert.match(studioRuntimeDebugHookSource, /createCustomAppRuntimeEvent/);
   assert.match(studioRuntimeDebugHookSource, /runtimeRepairProposal/);
+  assert.match(studioRuntimeDebugHookSource, /runtimeAutoRepairTask/);
   assert.match(studioRuntimeDebugHookSource, /response\.repairProposal/);
   assert.match(studioRuntimeDebugHookSource, /return response/);
 
@@ -786,17 +789,23 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(studioRuntimeEventsPanelSource, /studio\.runtime\.proposalTitle/);
   assert.match(studioRuntimeEventsPanelSource, /studio\.runtime\.proposalPermissionReview/);
   assert.match(studioRuntimeEventsPanelSource, /studio\.runtime\.proposalVersionSafety/);
+  assert.match(studioRuntimeEventsPanelSource, /autoRepairTask/);
+  assert.match(studioRuntimeEventsPanelSource, /studio\.runtime\.autoRepairTaskTitle/);
   assert.match(studioRuntimeEventsPanelSource, /onRequestDebug/);
   assert.match(studioRuntimeEventsPanelSource, /onApplyRepair/);
   assert.match(lifeosApiSource, /CustomAppRepairProposal/);
+  assert.match(lifeosApiSource, /CustomAppAutoRepairTask/);
   assert.match(lifeosApiSource, /repairProposal: CustomAppRepairProposal/);
   assert.match(studioAppSource, /handleApplyRuntimeRepair/);
   assert.match(studioAppSource, /runtimeRepairProposal=\{runtimeRepairProposal\}/);
+  assert.match(studioAppSource, /runtimeAutoRepairTask=\{runtimeAutoRepairTask\}/);
   assert.match(studioAppSource, /onUpdateCode\(editingAppId, data\.refinedCode\)/);
   assert.match(translationsSource, /studio\.runtime\.requestRepair/);
   assert.match(translationsSource, /studio\.runtime\.applyRepair/);
   assert.match(translationsSource, /结构化修复提案/);
   assert.match(translationsSource, /Structured Repair Proposal/);
+  assert.match(translationsSource, /自动修复任务/);
+  assert.match(translationsSource, /Auto-Repair Task/);
 
   const studioSimulatorSource = await readFile(path.join(rootDir, "src", "components", "apps", "studio", "useStudioSimulatorState.ts"), "utf8");
   assert.match(studioSimulatorSource, /jarvis-sandbox-frame-log/);

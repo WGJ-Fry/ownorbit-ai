@@ -1,6 +1,6 @@
-import { AlertCircle, Bug, RefreshCw, WandSparkles } from "lucide-react";
+import { AlertCircle, Bug, RefreshCw, ShieldCheck, WandSparkles } from "lucide-react";
 import { useI18n } from "../../../i18n/I18nProvider";
-import type { CustomAppRepairProposal, StoredCustomAppRuntimeEvent } from "../../../services/lifeosApi";
+import type { CustomAppAutoRepairTask, CustomAppRepairProposal, StoredCustomAppRuntimeEvent } from "../../../services/lifeosApi";
 
 type StudioRuntimeEventsPanelProps = {
   events: StoredCustomAppRuntimeEvent[];
@@ -8,6 +8,7 @@ type StudioRuntimeEventsPanelProps = {
   error: string | null;
   issue: string;
   repairProposal: CustomAppRepairProposal | null;
+  autoRepairTask: CustomAppAutoRepairTask | null;
   isRequestingDebug: boolean;
   isApplyingRepair: boolean;
   onIssueChange: (value: string) => void;
@@ -39,6 +40,7 @@ export default function StudioRuntimeEventsPanel({
   error,
   issue,
   repairProposal,
+  autoRepairTask,
   isRequestingDebug,
   isApplyingRepair,
   onIssueChange,
@@ -121,6 +123,41 @@ export default function StudioRuntimeEventsPanel({
                 ...repairProposal.executionPlan.checks.slice(0, 2),
               ]}
             />
+          </div>
+        </div>
+      )}
+
+      {autoRepairTask && (
+        <div className={`rounded-xl border p-3 text-[10px] leading-relaxed ${
+          autoRepairTask.status === "ready"
+            ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-200"
+            : "border-amber-500/20 bg-amber-500/[0.06] text-amber-200"
+        }`}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-xs font-black text-current flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                {t("studio.runtime.autoRepairTaskTitle")}
+              </div>
+              <div className="mt-1 text-current/75">
+                {t("studio.runtime.autoRepairTaskMeta", {
+                  status: t(`studio.runtime.autoRepairTaskStatus.${autoRepairTask.status}` as any),
+                  attempt: String(autoRepairTask.repairAttempt),
+                  limit: String(autoRepairTask.retryLimit),
+                  rollback: autoRepairTask.rollbackVersion ? `v${autoRepairTask.rollbackVersion}` : "--",
+                })}
+              </div>
+              <div className="mt-1 text-current/75">
+                {t(`studio.runtime.executionReason.${autoRepairTask.reasonKey}` as any)}
+              </div>
+            </div>
+            <span className="shrink-0 rounded-full border border-current/15 bg-black/10 px-2 py-0.5 font-bold uppercase">
+              {t(`studio.runtime.autoRepairTaskStatus.${autoRepairTask.status}` as any)}
+            </span>
+          </div>
+          <div className="mt-3 space-y-2">
+            <ProposalList title={t("studio.runtime.autoRepairChecks")} items={autoRepairTask.requiredChecks.slice(0, 3)} />
+            <ProposalList title={t("studio.runtime.autoRepairNextSteps")} items={autoRepairTask.nextSteps.slice(0, 3)} />
           </div>
         </div>
       )}
