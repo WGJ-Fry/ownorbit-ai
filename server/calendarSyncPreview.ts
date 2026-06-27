@@ -8,6 +8,11 @@ import {
   readGoogleCalendarItems,
   validateGoogleCalendarOperation,
 } from "./googleCalendarConnector";
+import {
+  executeGoogleTaskOperation,
+  readGoogleTaskItems,
+  validateGoogleTaskOperation,
+} from "./googleTasksConnector";
 
 const VAULT_DIR = path.resolve(process.env.LIFEOS_VAULT_DIR || "/app/vault");
 const CALENDAR_ICS_DIR = path.resolve(process.env.LIFEOS_CALENDAR_ICS_DIR || path.join(VAULT_DIR, "calendar"));
@@ -114,7 +119,7 @@ export type CalendarSyncExecutionResult = {
   message: string;
   rollbackPlan: CalendarSyncRollbackPlan;
   auditSummary: {
-    connector: "macos-automation" | "google-calendar-api" | "not-run";
+    connector: "macos-automation" | "google-calendar-api" | "google-tasks-api" | "not-run";
     consent: boolean;
     writesExternalSystem: boolean;
   };
@@ -260,6 +265,11 @@ function providerLabel(providerId: CalendarSyncProviderId) {
   }[providerId];
 }
 
+function providerItemLabel(providerId: CalendarSyncProviderId, kind?: CalendarSyncItemKind) {
+  if (providerId === "google-calendar" && kind === "task") return "Google Tasks";
+  return providerLabel(providerId);
+}
+
 function isMacosCalendarConnectorConfigured(providerId: CalendarSyncProviderId) {
   if (!["apple-calendar", "system-reminders"].includes(providerId)) return false;
   return MACOS_CONNECTOR_MOCK || (process.platform === "darwin" && MACOS_CONNECTOR_ENABLED);
@@ -399,14 +409,15 @@ function parseMacosOperationResult(raw: string, fallbackExternalId: string): Mac
 }
 
 function buildRollbackPlan(
-  normalized: { providerId: CalendarSyncProviderId; action: Exclude<CalendarSyncOperationAction, "read-only-import"> },
+  normalized: { providerId: CalendarSyncProviderId; kind?: CalendarSyncItemKind; action: Exclude<CalendarSyncOperationAction, "read-only-import"> },
   execution: MacosOperationExecution,
 ): CalendarSyncRollbackPlan {
+  const label = providerItemLabel(normalized.providerId, normalized.kind);
   if (normalized.action === "create") {
     return {
       available: Boolean(execution.externalId),
       requiresManualReview: false,
-      hint: `To roll back this create, delete ${providerLabel(normalized.providerId)} item ${execution.externalId} after confirming it is the item LifeOS created.`,
+      hint: `To roll back this create, delete ${label} item ${execution.externalId} after confirming it is the item LifeOS created.`,
     };
   }
   if (normalized.action === "update") {
@@ -534,9 +545,10 @@ function loadExternalConnectorReadItems() {
 async function loadExternalConnectorReadItemsAsync(options: { fetchImpl?: typeof fetch } = {}) {
   const base = loadExternalConnectorReadItems();
   const google = await readGoogleCalendarItems(options);
+  const googleTasks = await readGoogleTaskItems(options);
   return {
-    items: [...base.items, ...google.items].slice(0, MAX_EXTERNAL_READ_ITEMS),
-    warnings: [...base.warnings, ...(google.warning ? [google.warning] : [])],
+    items: [...base.items, ...google.items, ...googleTasks.items].slice(0, MAX_EXTERNAL_READ_ITEMS),
+    warnings: [...base.warnings, ...(google.warning ? [google.warning] : []), ...(googleTasks.warning ? [googleTasks.warning] : [])],
   };
 }
 
@@ -786,7 +798,7 @@ function buildCalendarSyncPreviewWithExternalRead(
     const kind = item.kind === "task" ? "task" : "event";
     const scheduledAt = compact(item.startsAt || item.dueAt);
     const provider = providers.find((candidate) => candidate.id === providerId);
-    const unsupportedGoogleOperation = providerId === "google-calendar" && (kind === "task" || action === "complete");
+    const unsupportedGoogleOperation = providerId === "google-calendar" && action === "complete" && kind !== "task";
     const canWrite = Boolean(provider?.writeSupported && externalWritesEnabled && !unsupportedGoogleOperation);
     operations.push({
       id: operationId(icsItems.length + externalReadPreview.items.length + index, providerId, action),
@@ -803,7 +815,7 @@ function buildCalendarSyncPreviewWithExternalRead(
       reason: canWrite
         ? "Connector is enabled, but the operation still requires explicit consent, audit logging, and a rollback note before execution."
         : unsupportedGoogleOperation
-          ? "Google Calendar connector currently supports calendar events only. Google Tasks and complete actions are not shipped yet."
+          ? "Google Calendar events cannot use the complete action. Use kind=task to route this through the guarded Google Tasks connector."
         : "External write-back is not shipped yet for this provider or is disabled. This operation is preview-only and must wait for connector auth, explicit consent, audit logging, and rollback planning.",
     });
   });
@@ -814,7 +826,7 @@ function buildCalendarSyncPreviewWithExternalRead(
   const providersReadyForWrite = providers.filter((provider) => provider.writeSupported).length;
   const warnings = [
     externalWritesEnabled
-      ? "External calendar writes are enabled only for explicitly consented admin operations. Google Calendar supports events; Google Tasks is not shipped yet."
+      ? "External calendar/task writes are enabled only for explicitly consented admin operations. Google Calendar events and Google Tasks use narrow connector paths."
       : "No Apple Calendar, Google Calendar, or system reminders write-back will run unless a connector and external-write opt-in are enabled.",
     "Any future connector must use this dry-run preview before changing external calendars or tasks.",
   ];
@@ -884,6 +896,30 @@ export function executeCalendarSyncOperation(input: CalendarSyncExecuteInput): C
 
 export async function executeCalendarSyncOperationAsync(input: CalendarSyncExecuteInput, options: { fetchImpl?: typeof fetch } = {}): Promise<CalendarSyncExecutionResult> {
   if (input.providerId !== "google-calendar") return executeCalendarSyncOperation(input);
+  if (input.action === "complete" && input.kind !== "task") {
+    throw new Error("Google Calendar events cannot use the complete action. Set kind=task to route this through the guarded Google Tasks connector.");
+  }
+  if (input.kind === "task" || input.action === "complete") {
+    const normalized = validateGoogleTaskOperation(input);
+    const execution = await executeGoogleTaskOperation(input, options);
+    return {
+      ok: true,
+      dryRun: false,
+      providerId: normalized.providerId,
+      action: normalized.action,
+      kind: normalized.kind,
+      title: normalized.title,
+      externalId: execution.externalId,
+      executedAt: new Date().toISOString(),
+      message: `${providerItemLabel(normalized.providerId, normalized.kind)} ${normalized.action} completed after explicit confirmation.`,
+      rollbackPlan: buildRollbackPlan(normalized, execution),
+      auditSummary: {
+        connector: "google-tasks-api",
+        consent: true,
+        writesExternalSystem: true,
+      },
+    };
+  }
   const normalized = validateGoogleCalendarOperation(input);
   const execution = await executeGoogleCalendarOperation(input, options);
   return {
@@ -895,7 +931,7 @@ export async function executeCalendarSyncOperationAsync(input: CalendarSyncExecu
     title: normalized.title,
     externalId: execution.externalId,
     executedAt: new Date().toISOString(),
-    message: `${providerLabel(normalized.providerId)} ${normalized.action} completed after explicit confirmation.`,
+    message: `${providerItemLabel(normalized.providerId, normalized.kind)} ${normalized.action} completed after explicit confirmation.`,
     rollbackPlan: buildRollbackPlan(normalized, execution),
     auditSummary: {
       connector: "google-calendar-api",

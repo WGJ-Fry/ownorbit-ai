@@ -2098,6 +2098,7 @@ function checkAssets() {
 
   const calendarSyncPreviewSource = exists("server/calendarSyncPreview.ts") ? fs.readFileSync(path.join(rootDir, "server/calendarSyncPreview.ts"), "utf8") : "";
   const googleCalendarConnectorSource = exists("server/googleCalendarConnector.ts") ? fs.readFileSync(path.join(rootDir, "server/googleCalendarConnector.ts"), "utf8") : "";
+  const googleTasksConnectorSource = exists("server/googleTasksConnector.ts") ? fs.readFileSync(path.join(rootDir, "server/googleTasksConnector.ts"), "utf8") : "";
   const calendarSyncPreviewTestSource = exists("tests/calendar-sync-preview.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/calendar-sync-preview.test.mjs"), "utf8") : "";
   if (
     (packageJson.scripts?.test || "").includes("tests/calendar-sync-preview.test.mjs") &&
@@ -2108,6 +2109,8 @@ function checkAssets() {
     calendarSyncPreviewSource.includes("executeCalendarSyncOperationAsync") &&
     calendarSyncPreviewSource.includes("readMacosConnectorItems") &&
     calendarSyncPreviewSource.includes("readGoogleCalendarItems") &&
+    calendarSyncPreviewSource.includes("readGoogleTaskItems") &&
+    calendarSyncPreviewSource.includes("google-tasks-api") &&
     calendarSyncPreviewSource.includes("externalReadItems") &&
     calendarSyncPreviewSource.includes("executeCalendarSyncOperation") &&
     calendarSyncPreviewSource.includes("WRITE TO EXTERNAL CALENDAR") &&
@@ -2117,7 +2120,10 @@ function checkAssets() {
     googleCalendarConnectorSource.includes("LIFEOS_ENABLE_GOOGLE_CALENDAR_CONNECTOR") &&
     googleCalendarConnectorSource.includes("LIFEOS_GOOGLE_CALENDAR_REFRESH_TOKEN") &&
     googleCalendarConnectorSource.includes("oauth2.googleapis.com/token") &&
-    googleCalendarConnectorSource.includes("Google Tasks is not shipped yet") &&
+    googleCalendarConnectorSource.includes("guarded Google Tasks connector") &&
+    googleTasksConnectorSource.includes("LIFEOS_GOOGLE_TASKS_LIST_ID") &&
+    googleTasksConnectorSource.includes("tasks.googleapis.com/tasks/v1") &&
+    googleTasksConnectorSource.includes("executeGoogleTaskOperation") &&
     adminRoutesSource.includes("/api/v1/admin/calendar-sync/preview") &&
     adminRoutesSource.includes("/api/v1/admin/calendar-sync/execute") &&
     adminRoutesSource.includes("calendar_sync_preview_created") &&
@@ -2134,8 +2140,9 @@ function checkAssets() {
     calendarSyncPreviewTestSource.includes("macOS connector can read external calendar and reminder previews without enabling writes") &&
     calendarSyncPreviewTestSource.includes("macOS calendar connector requires opt-in and explicit confirmation before writes") &&
     calendarSyncPreviewTestSource.includes("Google Calendar connector reads events through OAuth without enabling writes") &&
-    calendarSyncPreviewTestSource.includes("Google Calendar connector supports consented event writes and blocks task completion")
-  ) pass("calendar/task sync has preview safety gates plus opt-in macOS and Google connector coverage");
+    calendarSyncPreviewTestSource.includes("Google Calendar and Tasks connector supports consented event and task writes") &&
+    calendarSyncPreviewTestSource.includes("auditSummary.connector, \"google-tasks-api\"")
+  ) pass("calendar/task sync has preview safety gates plus opt-in macOS, Google Calendar, and Google Tasks connector coverage");
   else warn("calendar/task sync lacks preview safety, opt-in macOS/Google connector execution, API/auth coverage, diagnostics, or release checks");
 
   const clientStateSource = exists("server/clientState.ts") ? fs.readFileSync(path.join(rootDir, "server/clientState.ts"), "utf8") : "";

@@ -256,7 +256,7 @@ export type CalendarSyncExecutionResult = {
     };
   };
   auditSummary: {
-    connector: "macos-automation" | "google-calendar-api" | "not-run";
+    connector: "macos-automation" | "google-calendar-api" | "google-tasks-api" | "not-run";
     consent: boolean;
     writesExternalSystem: boolean;
   };

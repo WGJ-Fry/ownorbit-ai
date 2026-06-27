@@ -63,17 +63,17 @@ export function googleCalendarRecommendation() {
   if (!isGoogleCalendarOAuthConfigured() && !isGoogleCalendarConnectorMock()) {
     return "Google Calendar connector is enabled but OAuth credentials are incomplete. Provide LIFEOS_GOOGLE_CALENDAR_CLIENT_ID, LIFEOS_GOOGLE_CALENDAR_CLIENT_SECRET, and LIFEOS_GOOGLE_CALENDAR_REFRESH_TOKEN.";
   }
-  return "Google Calendar connector can read events and execute explicitly confirmed create/update/delete operations. Complete/Tasks are not supported by Google Calendar yet.";
+  return "Google Calendar connector can read events and execute explicitly confirmed create/update/delete operations. Task read/write uses the guarded Google Tasks connector with the same OAuth setup.";
 }
 
-function withTimeoutSignal() {
+function withTimeoutSignal(timeoutMs = GOOGLE_CONNECTOR_TIMEOUT_MS) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), GOOGLE_CONNECTOR_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   return { signal: controller.signal, clear: () => clearTimeout(timer) };
 }
 
-async function refreshAccessToken(fetchImpl: typeof fetch) {
-  const { signal, clear } = withTimeoutSignal();
+export async function refreshGoogleAccessToken(fetchImpl: typeof fetch, timeoutMs = GOOGLE_CONNECTOR_TIMEOUT_MS) {
+  const { signal, clear } = withTimeoutSignal(timeoutMs);
   try {
     const body = new URLSearchParams({
       grant_type: "refresh_token",
@@ -97,7 +97,7 @@ async function refreshAccessToken(fetchImpl: typeof fetch) {
 }
 
 async function googleCalendarRequest<T>(path: string, options: RequestInit = {}, fetchImpl: typeof fetch = fetch): Promise<T> {
-  const accessToken = await refreshAccessToken(fetchImpl);
+  const accessToken = await refreshGoogleAccessToken(fetchImpl);
   const { signal, clear } = withTimeoutSignal();
   try {
     const response = await fetchImpl(`${GOOGLE_CALENDAR_API_BASE}${path}`, {
@@ -188,7 +188,7 @@ export async function readGoogleCalendarItems(options: { fetchImpl?: typeof fetc
 
 export function validateGoogleCalendarOperation(input: CalendarSyncExecuteInput) {
   const action: Exclude<CalendarSyncOperationAction, "read-only-import"> = input.action && ["create", "update", "delete"].includes(input.action) ? input.action : "create";
-  if (input.kind === "task" || input.action === "complete") throw new Error("Google Calendar connector currently supports calendar events only; Google Tasks is not shipped yet");
+  if (input.kind === "task" || input.action === "complete") throw new Error("Google Calendar event connector supports events only. Use the guarded Google Tasks connector for task operations.");
   const title = compact(input.title, "Untitled Google Calendar event");
   const externalId = compact(input.externalId || "");
   if (!title) throw new Error("A title is required");
