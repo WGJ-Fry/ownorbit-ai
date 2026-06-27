@@ -509,3 +509,79 @@ test("calendar sync history persists guarded writes and automatic rollback evide
   const exitCode = await new Promise((resolve) => child.once("exit", resolve));
   assert.equal(exitCode, 0, output);
 });
+
+test("calendar sync run evidence persists conflicts and next steps without leaking local paths", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-calendar-runs-"));
+  const calendarDir = path.join(dataDir, "calendar");
+  await mkdir(calendarDir, { recursive: true });
+  await writeFile(path.join(calendarDir, "private.ics"), [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "BEGIN:VEVENT",
+    "DTSTART:20260713T090000Z",
+    "SUMMARY:Private planning",
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\n"));
+  t.after(async () => {
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  const script = `
+    import assert from "node:assert/strict";
+    process.env.LIFEOS_DATA_DIR = ${JSON.stringify(dataDir)};
+    process.env.LIFEOS_VAULT_DIR = ${JSON.stringify(dataDir)};
+    process.env.LIFEOS_CALENDAR_ICS_DIR = ${JSON.stringify(calendarDir)};
+    process.env.LIFEOS_GOOGLE_CALENDAR_CONNECTOR_MOCK = "1";
+    process.env.LIFEOS_ENABLE_GOOGLE_CALENDAR_CONNECTOR = "1";
+    process.env.LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES = "1";
+
+    const { runMigrations } = await import("./server/migrations.ts");
+    runMigrations();
+    const { buildCalendarSyncPreviewAsync } = await import("./server/calendarSyncPreview.ts");
+    const { createCalendarSyncRun, listCalendarSyncRuns } = await import("./server/calendarSyncRuns.ts");
+
+    const preview = await buildCalendarSyncPreviewAsync({
+      proposedItems: [
+        {
+          providerId: "google-calendar",
+          kind: "event",
+          action: "create",
+          title: "Mock Google Calendar planning review",
+          startsAt: "2026-07-09T09:00:00.000Z",
+          source: "/Users/secret/calendar-source",
+        },
+      ],
+    });
+    assert.equal(preview.summary.syncConflicts, 1);
+    const record = createCalendarSyncRun({
+      preview,
+      recentHistory: [],
+      createdByType: "admin",
+      createdById: "admin-session",
+    });
+    assert.equal(record.status, "needs-review");
+    assert.equal(record.provider, "mixed");
+    assert.equal(record.summary.plan.reviewConflicts, 1);
+    assert.equal(record.conflicts.some((conflict) => conflict.kind === "duplicate"), true);
+    assert.equal(record.nextSteps.some((step) => step.includes("duplicate") || step.includes("Review")), true);
+    assert.equal(JSON.stringify(record).includes("/Users/secret"), false);
+
+    const saved = listCalendarSyncRuns();
+    assert.equal(saved.length, 1);
+    assert.equal(saved[0].id, record.id);
+    assert.equal(saved[0].conflicts[0].title, "Mock Google Calendar planning review");
+    assert.equal(JSON.stringify(saved[0]).includes(${JSON.stringify(dataDir)}), false);
+  `;
+
+  const child = spawn(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
+    cwd: rootDir,
+    env: { ...process.env, LIFEOS_DATA_DIR: dataDir },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let output = "";
+  child.stdout.on("data", (chunk) => { output += chunk.toString(); });
+  child.stderr.on("data", (chunk) => { output += chunk.toString(); });
+  const exitCode = await new Promise((resolve) => child.once("exit", resolve));
+  assert.equal(exitCode, 0, output);
+});

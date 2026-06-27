@@ -120,6 +120,7 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   const customAppRuntimeEventsMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 14").get();
   const messageOfflineSyncMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 15").get();
   const calendarSyncOperationsMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 16").get();
+  const calendarSyncRunsMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 17").get();
   const connectivityColumns = db.prepare("PRAGMA table_info(device_connectivity_reports)").all().map((column) => column.name);
   const messageColumns = db.prepare("PRAGMA table_info(messages)").all().map((column) => column.name);
   const bindingSessionColumns = db.prepare("PRAGMA table_info(binding_sessions)").all().map((column) => column.name);
@@ -133,6 +134,7 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   const customAppCapabilityRequestColumns = db.prepare("PRAGMA table_info(custom_app_capability_requests)").all().map((column) => column.name);
   const customAppRuntimeEventColumns = db.prepare("PRAGMA table_info(custom_app_runtime_events)").all().map((column) => column.name);
   const calendarSyncOperationColumns = db.prepare("PRAGMA table_info(calendar_sync_operations)").all().map((column) => column.name);
+  const calendarSyncRunColumns = db.prepare("PRAGMA table_info(calendar_sync_runs)").all().map((column) => column.name);
   const legacyDevice = db.prepare("SELECT id, access_token_expires_at as accessTokenExpiresAt FROM devices WHERE id = 'legacy-device'").get();
   const legacyCustomApp = db.prepare("SELECT id, name, description, code FROM custom_apps WHERE id = 'legacy-app-1'").get();
   const legacyCustomAppVersion = db.prepare("SELECT app_id as appId, version, code, note FROM custom_app_versions WHERE app_id = 'legacy-app-1'").get();
@@ -153,6 +155,7 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   assert.equal(customAppRuntimeEventsMigration.name, "custom_app_runtime_events");
   assert.equal(messageOfflineSyncMigration.name, "message_offline_sync_identity");
   assert.equal(calendarSyncOperationsMigration.name, "calendar_sync_operations");
+  assert.equal(calendarSyncRunsMigration.name, "calendar_sync_runs");
   assert.ok(connectivityColumns.includes("current_base_url"));
   assert.ok(connectivityColumns.includes("mobile_shell_ok"));
   assert.ok(connectivityColumns.includes("websocket_ok"));
@@ -186,6 +189,9 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   assert.ok(calendarSyncOperationColumns.includes("rollback_plan_json"));
   assert.ok(calendarSyncOperationColumns.includes("rolled_back_at"));
   assert.ok(calendarSyncOperationColumns.includes("rollback_result_json"));
+  assert.ok(calendarSyncRunColumns.includes("summary_json"));
+  assert.ok(calendarSyncRunColumns.includes("conflicts_json"));
+  assert.ok(calendarSyncRunColumns.includes("next_steps_json"));
   assert.equal(legacyCustomApp.name, "Legacy Ledger");
   assert.equal(legacyCustomApp.description.includes("/Users/example/private.csv"), false);
   assert.equal(legacyCustomApp.code.includes("github_pat_legacyCustomAppSecret"), false);

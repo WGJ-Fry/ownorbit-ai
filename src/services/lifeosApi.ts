@@ -308,6 +308,54 @@ export type CalendarSyncHistoryRecord = {
   };
 };
 
+export type CalendarSyncRunRecord = {
+  id: string;
+  provider: string;
+  mode: "preview" | "external-read" | "external-write" | "acceptance";
+  status: "ready" | "blocked" | "needs-review" | "completed";
+  startedAt: number;
+  finishedAt?: number;
+  summary: {
+    generatedAt: string;
+    previewMode: CalendarSyncPreview["mode"];
+    externalWritesEnabled: boolean;
+    writeBackSupported: boolean;
+    operationCount: number;
+    readOnlyItems: number;
+    externalReadItems: number;
+    blockedWrites: number;
+    syncConflicts: number;
+    providersReadyForRead: number;
+    providersReadyForWrite: number;
+    plan: {
+      pullExternal: number;
+      pushLocal: number;
+      reviewConflicts: number;
+      blocked: number;
+    };
+    recentHistory: {
+      total: number;
+      rollbackReady: number;
+      rollbackNeedsManualReview: number;
+      rollbackFailed: number;
+    };
+  };
+  conflicts: Array<{
+    id: string;
+    kind: "duplicate" | "blocked-write" | "high-risk-write" | "rollback-review";
+    providerId: string;
+    itemKind: "event" | "task";
+    title: string;
+    risk: "low" | "medium" | "high";
+    reason: string;
+    operationId?: string;
+    externalId?: string;
+  }>;
+  nextSteps: string[];
+  createdByType?: string;
+  createdById?: string;
+};
+
 export type NativeAutomationKind = "clipboard" | "shortcut" | "file" | "calendar" | "reminder" | "shell";
 
 export type NativeAutomationInput = {
@@ -1313,6 +1361,26 @@ export function executeCalendarSyncOperation(input: CalendarSyncExecuteInput) {
 
 export function getCalendarSyncHistory() {
   return requestJson<{ records: CalendarSyncHistoryRecord[] }>("/api/v1/admin/calendar-sync/history");
+}
+
+export function getCalendarSyncRuns() {
+  return requestJson<{ records: CalendarSyncRunRecord[] }>("/api/v1/admin/calendar-sync/runs");
+}
+
+export function createCalendarSyncRun(proposedItems: Array<{
+  providerId?: CalendarSyncPreview["providers"][number]["id"];
+  kind?: "event" | "task";
+  action?: "create" | "update" | "complete" | "delete";
+  title?: string;
+  startsAt?: string;
+  dueAt?: string;
+  externalId?: string;
+  source?: string;
+}>) {
+  return requestJson<{ record: CalendarSyncRunRecord }>("/api/v1/admin/calendar-sync/runs", {
+    method: "POST",
+    body: JSON.stringify({ proposedItems }),
+  });
 }
 
 export function rollbackCalendarSyncOperation(operationId: string, confirmationText: string) {

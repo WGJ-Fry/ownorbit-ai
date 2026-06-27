@@ -328,6 +328,31 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(proposedCalendarSyncPreview.operations.some((operation) => operation.providerId === "google-calendar" && operation.status === "blocked"), true);
   assert.equal(JSON.stringify(proposedCalendarSyncPreview).includes(dataDir), false);
 
+  const blockedCalendarSyncRuns = await request(port, "/api/v1/admin/calendar-sync/runs");
+  assert.equal(blockedCalendarSyncRuns.status, 401);
+  const calendarSyncRun = await request(port, "/api/v1/admin/calendar-sync/runs", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      proposedItems: [
+        {
+          providerId: "google-calendar",
+          kind: "event",
+          action: "create",
+          title: "Follow up with Ada",
+          startsAt: "2026-07-03T09:00:00.000Z",
+        },
+      ],
+    }),
+  }).then((res) => res.json());
+  assert.equal(calendarSyncRun.record.status, "blocked");
+  assert.equal(calendarSyncRun.record.summary.blockedWrites, 1);
+  assert.equal(calendarSyncRun.record.conflicts.some((conflict) => conflict.kind === "blocked-write"), true);
+  assert.equal(JSON.stringify(calendarSyncRun.record).includes(dataDir), false);
+  const calendarSyncRuns = await request(port, "/api/v1/admin/calendar-sync/runs", { headers: adminHeaders }).then((res) => res.json());
+  assert.equal(calendarSyncRuns.records.length, 1);
+  assert.equal(calendarSyncRuns.records[0].id, calendarSyncRun.record.id);
+
   const blockedCalendarSyncExecute = await request(port, "/api/v1/admin/calendar-sync/execute", {
     method: "POST",
     body: JSON.stringify({

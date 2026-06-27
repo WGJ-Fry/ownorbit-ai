@@ -2279,7 +2279,9 @@ function checkAssets() {
   const googleCalendarConnectorSource = exists("server/googleCalendarConnector.ts") ? fs.readFileSync(path.join(rootDir, "server/googleCalendarConnector.ts"), "utf8") : "";
   const googleTasksConnectorSource = exists("server/googleTasksConnector.ts") ? fs.readFileSync(path.join(rootDir, "server/googleTasksConnector.ts"), "utf8") : "";
   const calendarSyncHistorySource = exists("server/calendarSyncHistory.ts") ? fs.readFileSync(path.join(rootDir, "server/calendarSyncHistory.ts"), "utf8") : "";
+  const calendarSyncRunsSource = exists("server/calendarSyncRuns.ts") ? fs.readFileSync(path.join(rootDir, "server/calendarSyncRuns.ts"), "utf8") : "";
   const calendarSyncOperationsMigrationSource = exists("server/migrations/016_calendar_sync_operations.sql") ? fs.readFileSync(path.join(rootDir, "server/migrations/016_calendar_sync_operations.sql"), "utf8") : "";
+  const calendarSyncRunsMigrationSource = exists("server/migrations/017_calendar_sync_runs.sql") ? fs.readFileSync(path.join(rootDir, "server/migrations/017_calendar_sync_runs.sql"), "utf8") : "";
   const calendarSyncControlPanelSource = exists("src/pages/admin/settings/CalendarSyncControlPanel.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/CalendarSyncControlPanel.tsx"), "utf8") : "";
   const calendarSyncPreviewTestSource = exists("tests/calendar-sync-preview.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/calendar-sync-preview.test.mjs"), "utf8") : "";
   if (
@@ -2317,14 +2319,23 @@ function checkAssets() {
     calendarSyncHistorySource.includes("CalendarSyncHistoryRecord") &&
     calendarSyncHistorySource.includes("canAutoRollback") &&
     calendarSyncHistorySource.includes("calendar-sync-rollback") &&
+    calendarSyncRunsSource.includes("createCalendarSyncRun") &&
+    calendarSyncRunsSource.includes("listCalendarSyncRuns") &&
+    calendarSyncRunsSource.includes("CalendarSyncRunConflict") &&
+    calendarSyncRunsSource.includes("Do not describe this as full unattended two-way sync") &&
     calendarSyncOperationsMigrationSource.includes("calendar_sync_operations") &&
     calendarSyncOperationsMigrationSource.includes("rollback_result_json") &&
     calendarSyncOperationsMigrationSource.includes("rolled_back_at") &&
+    calendarSyncRunsMigrationSource.includes("calendar_sync_runs") &&
+    calendarSyncRunsMigrationSource.includes("conflicts_json") &&
+    calendarSyncRunsMigrationSource.includes("next_steps_json") &&
     adminRoutesSource.includes("/api/v1/admin/calendar-sync/preview") &&
     adminRoutesSource.includes("/api/v1/admin/calendar-sync/execute") &&
     adminRoutesSource.includes("/api/v1/admin/calendar-sync/history") &&
+    adminRoutesSource.includes("/api/v1/admin/calendar-sync/runs") &&
     adminRoutesSource.includes("/api/v1/admin/calendar-sync/operations/:operationId/rollback") &&
     adminRoutesSource.includes("calendar_sync_preview_created") &&
+    adminRoutesSource.includes("calendar_sync_run_recorded") &&
     adminRoutesSource.includes("calendar_sync_operation_executed") &&
     adminRoutesSource.includes("calendar_sync_operation_rolled_back") &&
     diagnosticBundleSource.includes("calendarSync: buildCalendarSyncPreview()") &&
@@ -2339,6 +2350,8 @@ function checkAssets() {
     calendarSyncControlPanelSource.includes("selectExternalTarget") &&
     calendarSyncControlPanelSource.includes("requiresExternalId") &&
     calendarSyncControlPanelSource.includes("getCalendarSyncHistory") &&
+    calendarSyncControlPanelSource.includes("getCalendarSyncRuns") &&
+    calendarSyncControlPanelSource.includes("recordCalendarSyncRun") &&
     calendarSyncControlPanelSource.includes("rollbackCalendarSyncOperation") &&
     frontendSmokeTestSource.includes("CalendarSyncControlPanel") &&
     translationsSource.includes("diagnostics.calendarSafetyBody") &&
@@ -2346,9 +2359,12 @@ function checkAssets() {
     translationsSource.includes("calendarSyncControl.externalTarget") &&
     translationsSource.includes("calendarSyncControl.historyStatus.rolled_back") &&
     translationsSource.includes("calendarSyncControl.rollbackReady") &&
+    translationsSource.includes("calendarSyncControl.runTitle") &&
+    translationsSource.includes("calendarSyncControl.conflictKind.duplicate") &&
     translationsSource.includes("diagnostics.syncConflicts") &&
     apiAuthTestSource.includes("blockedCalendarSyncPreview") &&
     apiAuthTestSource.includes("providerId: \"google-calendar\"") &&
+    apiAuthTestSource.includes("blockedCalendarSyncRuns") &&
     apiAuthTestSource.includes("blockedCalendarSyncExecute") &&
     apiAuthTestSource.includes("blockedCalendarSyncHistory") &&
     apiAuthTestSource.includes("missingCalendarSyncRollback") &&
@@ -2362,9 +2378,10 @@ function checkAssets() {
     calendarSyncPreviewTestSource.includes("direction === \"review-conflict\"") &&
     calendarSyncPreviewTestSource.includes("externalSource === \"google-tasks:mock-google-task-1\"") &&
     calendarSyncPreviewTestSource.includes("auditSummary.connector, \"google-tasks-api\"") &&
-    calendarSyncPreviewTestSource.includes("calendar sync history persists guarded writes and automatic rollback evidence")
-  ) pass("calendar/task sync has preview safety gates, opt-in macOS/Google connector coverage, persistent history, and guarded rollback");
-  else warn("calendar/task sync lacks preview safety, opt-in macOS/Google connector execution, persistent rollback history, API/auth coverage, diagnostics, or release checks");
+    calendarSyncPreviewTestSource.includes("calendar sync history persists guarded writes and automatic rollback evidence") &&
+    calendarSyncPreviewTestSource.includes("calendar sync run evidence persists conflicts and next steps")
+  ) pass("calendar/task sync has preview safety gates, opt-in macOS/Google connector coverage, persistent history, guarded rollback, and run evidence");
+  else warn("calendar/task sync lacks preview safety, opt-in macOS/Google connector execution, persistent rollback history, run evidence, API/auth coverage, diagnostics, or release checks");
 
   const clientStateSource = exists("server/clientState.ts") ? fs.readFileSync(path.join(rootDir, "server/clientState.ts"), "utf8") : "";
   const stateRoutesSource = exists("server/routes/stateRoutes.ts") ? fs.readFileSync(path.join(rootDir, "server/routes/stateRoutes.ts"), "utf8") : "";

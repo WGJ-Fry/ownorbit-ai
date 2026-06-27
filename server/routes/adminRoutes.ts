@@ -4,6 +4,7 @@ import { insertAuditLog, listAuditLogs } from "../audit";
 import { aiProviders, deleteAiApiKey, getActiveAiProviderId, getAiApiKey, getAiConfigStatus, getAiProviderStatus, listAiProviderStatuses, saveActiveAiProvider, saveAiApiKey, saveDiscoveredAiModelCatalog, saveSelectedAiModel, type AiProviderId } from "../appSecrets";
 import { buildCalendarSyncPreview, buildCalendarSyncPreviewAsync, executeCalendarSyncOperationAsync } from "../calendarSyncPreview";
 import { listCalendarSyncOperations, rollbackCalendarSyncOperation, saveCalendarSyncOperation } from "../calendarSyncHistory";
+import { createCalendarSyncRun, listCalendarSyncRuns } from "../calendarSyncRuns";
 import { createAdminCredential, createAdminSession, getAdminSessionByToken, getBearerToken, isAdminConfigured, requireAdmin, verifyAdminPassword } from "../auth";
 import { createDiagnosticBundle, getReleaseDiagnostics } from "../diagnosticBundle";
 import { clearHttpOnlyCookie, getClientIp, rateLimit, setClientCookie, setHttpOnlyCookie } from "../httpSecurity";
@@ -352,6 +353,32 @@ export function registerAdminRoutes(app: express.Express) {
       externalWritesEnabled: preview.externalWritesEnabled,
     }, (req as any).actor?.type, (req as any).actor?.id);
     res.json(preview);
+  });
+
+  app.get("/api/v1/admin/calendar-sync/runs", requireAdmin, (_req, res) => {
+    res.json({ records: listCalendarSyncRuns() });
+  });
+
+  app.post("/api/v1/admin/calendar-sync/runs", requireAdmin, async (req, res) => {
+    const preview = await buildCalendarSyncPreviewAsync({ proposedItems: req.body?.proposedItems });
+    const run = createCalendarSyncRun({
+      preview,
+      recentHistory: listCalendarSyncOperations(),
+      mode: "preview",
+      createdByType: (req as any).actor?.type,
+      createdById: (req as any).actor?.id,
+    });
+    insertAuditLog("calendar_sync_run_recorded", "calendar_sync", run.id, {
+      provider: run.provider,
+      mode: run.mode,
+      status: run.status,
+      operationCount: run.summary.operationCount,
+      conflictCount: run.conflicts.length,
+      blockedWrites: run.summary.blockedWrites,
+      syncConflicts: run.summary.syncConflicts,
+      nextStepCount: run.nextSteps.length,
+    }, (req as any).actor?.type, (req as any).actor?.id);
+    res.json({ record: run });
   });
 
   app.post("/api/v1/admin/calendar-sync/execute", requireAdmin, async (req, res) => {

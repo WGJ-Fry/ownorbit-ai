@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarClock, Play, RefreshCw, RotateCcw, ShieldCheck } from "lucide-react";
-import { executeCalendarSyncOperation, getCalendarSyncHistory, getCalendarSyncPreview, previewCalendarSync, rollbackCalendarSyncOperation } from "../../../services/lifeosApi";
-import type { CalendarSyncExecuteInput, CalendarSyncHistoryRecord, CalendarSyncPreview } from "../../../services/lifeosApi";
+import { CalendarClock, FileClock, Play, RefreshCw, RotateCcw, ShieldCheck } from "lucide-react";
+import { createCalendarSyncRun as recordCalendarSyncRun, executeCalendarSyncOperation, getCalendarSyncHistory, getCalendarSyncPreview, getCalendarSyncRuns, previewCalendarSync, rollbackCalendarSyncOperation } from "../../../services/lifeosApi";
+import type { CalendarSyncExecuteInput, CalendarSyncHistoryRecord, CalendarSyncPreview, CalendarSyncRunRecord } from "../../../services/lifeosApi";
 import { useI18n } from "../../../i18n/I18nProvider";
 
 type WritableProvider = NonNullable<CalendarSyncExecuteInput["providerId"]>;
@@ -32,12 +32,14 @@ export default function CalendarSyncControlPanel({
   const [notes, setNotes] = useState("");
   const [confirmationText, setConfirmationText] = useState("");
   const [history, setHistory] = useState<CalendarSyncHistoryRecord[]>([]);
+  const [runs, setRuns] = useState<CalendarSyncRunRecord[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => setPreview(initialPreview), [initialPreview]);
   useEffect(() => {
     void refreshHistory();
+    void refreshRuns();
   }, []);
 
   const proposedItem = useMemo(() => ({
@@ -81,6 +83,11 @@ export default function CalendarSyncControlPanel({
     setHistory(result.records);
   };
 
+  const refreshRuns = async () => {
+    const result = await getCalendarSyncRuns();
+    setRuns(result.records);
+  };
+
   const refreshPreview = async () => {
     setBusy("preview");
     setStatus(null);
@@ -88,6 +95,7 @@ export default function CalendarSyncControlPanel({
       const result = await previewCalendarSync([proposedItem]);
       setPreview(result);
       await refreshHistory();
+      await refreshRuns();
       setStatus(t("calendarSyncControl.previewReady"));
     } catch (error: any) {
       setStatus(error.message || t("calendarSyncControl.previewFailed"));
@@ -103,9 +111,24 @@ export default function CalendarSyncControlPanel({
       const result = await getCalendarSyncPreview();
       setPreview(result);
       await refreshHistory();
+      await refreshRuns();
       setStatus(t("calendarSyncControl.refreshed"));
     } catch (error: any) {
       setStatus(error.message || t("calendarSyncControl.previewFailed"));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const saveRunEvidence = async () => {
+    setBusy("run");
+    setStatus(null);
+    try {
+      const result = await recordCalendarSyncRun([proposedItem]);
+      setRuns((prev) => [result.record, ...prev.filter((record) => record.id !== result.record.id)].slice(0, 20));
+      setStatus(t("calendarSyncControl.runSaved", { status: t(`calendarSyncControl.runStatus.${result.record.status}` as any) }));
+    } catch (error: any) {
+      setStatus(error.message || t("calendarSyncControl.runSaveFailed"));
     } finally {
       setBusy(null);
     }
@@ -266,6 +289,10 @@ export default function CalendarSyncControlPanel({
           <ShieldCheck className="h-4 w-4" />
           {t("calendarSyncControl.preview")}
         </button>
+        <button type="button" onClick={saveRunEvidence} disabled={Boolean(busy)} className="inline-flex items-center gap-2 rounded-xl border border-sky-400/20 bg-sky-500/10 px-4 py-2 text-sm font-bold text-sky-100 disabled:opacity-50">
+          <FileClock className="h-4 w-4" />
+          {t("calendarSyncControl.saveRun")}
+        </button>
         <button type="button" onClick={executeSelected} disabled={Boolean(busy) || !canExecute} className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-100 disabled:opacity-40">
           <Play className="h-4 w-4" />
           {t("calendarSyncControl.execute")}
@@ -299,6 +326,51 @@ export default function CalendarSyncControlPanel({
             </div>
           ))}
           {preview.syncPlan.items.length === 0 ? <div className="text-zinc-500">{t("calendarSyncControl.noPlanItems")}</div> : null}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-white/[0.06] bg-[#060a10] p-3 text-xs">
+        <div className="mb-2 flex flex-wrap items-center gap-2 font-bold">
+          {t("calendarSyncControl.runTitle")}
+          <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] text-zinc-400">{runs.length}</span>
+        </div>
+        <div className="space-y-2">
+          {runs.slice(0, 4).map((run) => (
+            <div key={run.id} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="font-bold text-zinc-200">
+                    {t("calendarSyncControl.runStatusLine", {
+                      provider: run.provider,
+                      status: t(`calendarSyncControl.runStatus.${run.status}` as any),
+                    })}
+                  </div>
+                  <div className="mt-1 text-zinc-500">
+                    {new Date(run.startedAt).toLocaleString()} · {t("calendarSyncControl.runStats", {
+                      operations: run.summary.operationCount,
+                      conflicts: run.conflicts.length,
+                      blocked: run.summary.blockedWrites,
+                    })}
+                  </div>
+                </div>
+                <span className="rounded-full border border-white/[0.08] px-2 py-0.5 text-[10px] text-zinc-400">
+                  {t(`calendarSyncControl.runMode.${run.mode}` as any)}
+                </span>
+              </div>
+              {run.conflicts.length > 0 ? (
+                <div className="mt-2 space-y-1">
+                  {run.conflicts.slice(0, 2).map((conflict) => (
+                    <div key={conflict.id} className="rounded-lg border border-amber-400/15 bg-amber-500/5 p-2 text-amber-100">
+                      <span className="font-bold">{t(`calendarSyncControl.conflictKind.${conflict.kind}` as any)}:</span> {conflict.title}
+                      <span className="block text-amber-100/70">{conflict.reason}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              <div className="mt-2 text-zinc-500">{run.nextSteps[0]}</div>
+            </div>
+          ))}
+          {runs.length === 0 ? <div className="text-zinc-500">{t("calendarSyncControl.runEmpty")}</div> : null}
         </div>
       </div>
 

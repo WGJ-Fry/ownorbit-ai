@@ -16,7 +16,7 @@ It includes:
 - Remote acceptance checklist covering cellular use, Wi-Fi/cellular switching, desktop restart recovery, stale QR repair, tunnel interruption recovery, and diagnostic export evidence.
 - Real-world remote acceptance notes now require scenario-specific proof before a manual item can be marked complete, so weak notes cannot stand in for cellular, restart, network-switch, stale-QR, interruption, or diagnostic-export evidence.
 - Studio generated programs with blueprint confirmation, expanded template variants, readiness scoring, quality scoring, acceptance criteria, permission boundaries, runtime logs, state storage, guarded repair boundaries, and version rollback.
-- Calendar/task sync safety gates with read-only `.ics` ingestion plus opt-in Apple Calendar, Google Calendar/Tasks, and system Reminders connector paths for external read previews and explicitly confirmed external writes, with audit logs, SQLite write history, rollback availability, and guarded automatic rollback for safe create/update/delete reversals.
+- Calendar/task sync safety gates with read-only `.ics` ingestion plus opt-in Apple Calendar, Google Calendar/Tasks, and system Reminders connector paths for external read previews and explicitly confirmed external writes, with audit logs, SQLite write history, rollback availability, guarded automatic rollback for safe create/update/delete reversals, and saved run evidence for conflicts, blocked writes, rollback review, and next steps.
 - URL Scheme based local action permission center with dangerous-action confirmation, redacted logs, and preview-only native automation gates for file, calendar, reminder, clipboard, and shell actions.
 - Release hygiene checks for README, Docker image tags, public GitHub Release state, stale releases, stale GitHub Latest labels, and release assets.
 
@@ -29,7 +29,7 @@ These are not bugs hidden from users; they are the honest alpha boundary.
 | Unsigned desktop packages | macOS Developer ID signing/notarization and Windows Authenticode signing are not enabled. | macOS Gatekeeper and Windows SmartScreen may warn. Users should download only from GitHub Releases and verify `SHA256SUMS`. |
 | Manual update | Automatic updates are not enabled. | Users update by downloading the next release manually and verifying SHA256. |
 | Real-device remote acceptance | Automated checks and evidence records exist, but each user must still run real phone/cellular/Wi-Fi/restart/tunnel long tests on their own network. | Remote diagnostics can say the setup is plausible; only real-device evidence proves long-term stability. |
-| Calendar and tasks | Local `.ics` ingestion is read-only. Apple Calendar, Google Calendar/Tasks, and system reminders can be read through opt-in connector previews. Narrow create/update/delete/complete operations require explicit admin confirmation, rollback guidance, SQLite write history, and audit logging; broad unattended account sync is not shipped. | LifeOS can read exported/local calendar data and opt-in external previews, and can perform narrowly gated writes when explicitly enabled, but it is not a full background account sync system yet. |
+| Calendar and tasks | Local `.ics` ingestion is read-only. Apple Calendar, Google Calendar/Tasks, and system reminders can be read through opt-in connector previews. Narrow create/update/delete/complete operations require explicit admin confirmation, rollback guidance, SQLite write history, audit logging, and saved run evidence; broad unattended account sync is not shipped. | LifeOS can read exported/local calendar data and opt-in external previews, save conflict/blocked-write evidence, and perform narrowly gated writes when explicitly enabled, but it is not a full background account sync system yet. |
 | Studio generated programs | Blueprints, templates, readiness/quality scoring, permissions, repair guidance, logs, state, and rollback exist, but product-grade unattended auto-repair and multi-version comparison are not complete. | Users can generate and refine tools, but should review outputs and repair decisions manually. |
 | Mobile offline queue | Retry, clear, failure state, storage health, idempotent replay, and manual-review conflict groups exist. Deep multi-device merge and weak-network background recovery are still improving. | Offline messages are protected from simple loss and duplicate replay, but complex conflicts still need visible user review. |
 | Native automation | Local actions are mainly URL Scheme / browser / Shortcuts bridge based. | It is safer and reviewable, but not a full native OS automation system yet. |
@@ -44,6 +44,7 @@ These changes are implemented on `main` after the public `v0.1.4-alpha` release 
 - Admin UI now shows whether the selected Finder file target is inside the configured allowed roots.
 - Release checks and tests now guard the Finder reveal path, outside-root blocking, local path redaction, and the still-blocked high-risk native writes.
 - Google Calendar events, Google Tasks, Apple Calendar, and system Reminders now have guarded connector code paths plus `calendar:acceptance` real-account/device evidence generation. Public sync claims still require a new Release, uploaded assets, and passing read/write acceptance reports for the provider being promoted.
+- Calendar/task sync checks now save persistent run evidence with conflict summaries, blocked-write reasons, rollback-review signals, and next-step guidance. This improves release evidence and support debugging, but still does not make broad unattended account sync shipped.
 - Studio auto-repair queue items now include a structured readiness gate with passed checks, failed checks, rollback status, and an explicit resume/manual-review/smoke-verification decision. This improves resumability, but does not make Studio fully unattended yet.
 - Studio auto-repair tasks now also include a structured execution session for low-risk repairs: worker steps, completion endpoint, rollback version, smoke checks, and a blocked session for high-risk or retry-limited cases.
 - Applied Studio auto-repairs now require a recorded smoke review before they disappear from the repair queue; passed reviews close the queue item, while failed reviews keep rollback guidance and manual review visible.
@@ -155,7 +156,7 @@ These capabilities should not be described as current release features until the
 - 异地长测验收清单：蜂窝网络、Wi-Fi/蜂窝切换、电脑重启、旧二维码修复、隧道断开恢复、诊断包证据。
 - 真实异地验收备注必须包含场景证明关键词，不能只靠一段泛泛备注把蜂窝、重启、换网、旧二维码、隧道中断或诊断导出标为完成。
 - Studio 生成程序：蓝图确认、扩展模板变体、就绪评分、质量评分、验收标准、权限边界、运行日志、状态保存、带护栏的修复边界和版本回滚。
-- 日历/任务同步安全闸门：本地 `.ics` 只读读取，并提供显式开启的 Apple Calendar、Google Calendar/Tasks、系统提醒事项外部读取预览和确认写入连接器路径，包含审计日志、SQLite 写入历史、回滚可用性，以及安全 create/update/delete 反向操作的受控自动回滚。
+- 日历/任务同步安全闸门：本地 `.ics` 只读读取，并提供显式开启的 Apple Calendar、Google Calendar/Tasks、系统提醒事项外部读取预览和确认写入连接器路径，包含审计日志、SQLite 写入历史、回滚可用性、安全 create/update/delete 反向操作的受控自动回滚，以及保存冲突、阻塞、回滚复核和下一步的运行证据。
 - 基于 URL Scheme 的本地动作权限中心：危险动作确认、脱敏日志，以及文件、日历、提醒事项、剪贴板、脚本动作的阻断预览型原生自动化闸门。
 - Release 卫生检查：README、Docker tag、公开 GitHub Release、旧版本、旧 GitHub Latest 指向和安装包资产一致性。
 
@@ -166,7 +167,7 @@ These capabilities should not be described as current release features until the
 | unsigned 桌面包 | 还没有 macOS Developer ID 签名/公证，也没有 Windows Authenticode 签名。 | macOS Gatekeeper 和 Windows SmartScreen 可能提示；用户应只从 GitHub Release 下载并校验 `SHA256SUMS`。 |
 | 手动更新 | 自动更新未启用。 | 升级需要手动下载新版并校验 SHA256。 |
 | 真实异地长测 | 自动诊断和证据记录已经有，但用户仍需在自己的网络里做手机蜂窝、换 Wi-Fi、电脑重启、隧道断开恢复等长测。 | 程序可以证明配置大体可用，但长期稳定仍要真实设备证据。 |
-| 日历和任务 | 本地 `.ics` 仍是只读读取。Apple Calendar、Google Calendar/Tasks、系统提醒事项可以作为显式开启的 connector 外部读取预览；窄范围 create/update/delete/complete 需要管理员确认、回滚提示、SQLite 写入历史和审计日志；宽泛无人值守账号同步还没发布。 | 可以读导出的/本地日历数据和外部预览，也可以在非常窄的授权路径里执行写入，但还不是完整后台账号同步系统。 |
+| 日历和任务 | 本地 `.ics` 仍是只读读取。Apple Calendar、Google Calendar/Tasks、系统提醒事项可以作为显式开启的 connector 外部读取预览；窄范围 create/update/delete/complete 需要管理员确认、回滚提示、SQLite 写入历史、审计日志和运行证据；宽泛无人值守账号同步还没发布。 | 可以读导出的/本地日历数据和外部预览，也可以保存冲突/阻塞证据并在非常窄的授权路径里执行写入，但还不是完整后台账号同步系统。 |
 | Studio 生成程序 | 已有蓝图、模板、就绪/质量评分、权限、修复提示、日志、状态、回滚，但无人值守自动修复和多版本对比还没完成。 | 用户可以生成和继续调整工具，但仍应人工确认输出和修复决策。 |
 | 手机离线队列 | 已有重试、清空、失败状态、存储健康、幂等重放和人工复核冲突组，复杂多设备合并和弱网后台恢复还在增强。 | 普通离线消息不容易丢，也能避免简单重复写入，但复杂冲突仍需要用户可见地处理。 |
 | 原生自动化 | 本地动作主要还是 URL Scheme / 浏览器 / 快捷指令桥。 | 更安全、更容易审计，但还不是完整系统级自动化。 |
