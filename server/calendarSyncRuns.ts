@@ -42,6 +42,15 @@ export type CalendarSyncRunSummary = {
     rollbackNeedsManualReview: number;
     rollbackFailed: number;
   };
+  twoWayEvidence: {
+    externalReadVerified: boolean;
+    externalWriteVerified: boolean;
+    rollbackEvidenceReady: boolean;
+    conflictReviewClear: boolean;
+    connectorReadWriteReady: boolean;
+    acceptanceReady: boolean;
+    missing: string[];
+  };
 };
 
 export type CalendarSyncRunRecord = {
@@ -181,7 +190,38 @@ function buildCalendarSyncRunConflicts(preview: CalendarSyncPreview, recentHisto
   return conflicts.slice(0, 20);
 }
 
-function buildCalendarSyncRunSummary(preview: CalendarSyncPreview, recentHistory: CalendarSyncHistoryRecord[]): CalendarSyncRunSummary {
+function buildTwoWayEvidence(preview: CalendarSyncPreview, recentHistory: CalendarSyncHistoryRecord[], conflicts: CalendarSyncRunConflict[]) {
+  const externalReadVerified = preview.summary.externalReadItems > 0 && preview.summary.externalReadErrors === 0;
+  const externalWriteVerified = recentHistory.some((record) => record.status === "executed" || record.status === "rolled_back");
+  const rollbackEvidenceReady = recentHistory.some((record) => record.status === "rolled_back" || record.rollback.canAutoRollback);
+  const conflictReviewClear = preview.syncPlan.blocked === 0 &&
+    preview.syncPlan.reviewConflicts === 0 &&
+    !conflicts.some((conflict) => conflict.kind === "duplicate" || conflict.kind === "blocked-write" || conflict.kind === "rollback-review");
+  const connectorReadWriteReady = preview.externalWritesEnabled &&
+    preview.writeBackSupported &&
+    preview.summary.providersReadyForRead > 0 &&
+    preview.summary.providersReadyForWrite > 0;
+  const checks = [
+    { ok: externalReadVerified, label: "external-read" },
+    { ok: externalWriteVerified, label: "external-write-history" },
+    { ok: rollbackEvidenceReady, label: "rollback-evidence" },
+    { ok: conflictReviewClear, label: "conflict-review-clear" },
+    { ok: connectorReadWriteReady, label: "read-write-connector-ready" },
+  ];
+  const missing = checks.filter((check) => !check.ok).map((check) => check.label);
+  return {
+    externalReadVerified,
+    externalWriteVerified,
+    rollbackEvidenceReady,
+    conflictReviewClear,
+    connectorReadWriteReady,
+    acceptanceReady: missing.length === 0,
+    missing,
+  };
+}
+
+function buildCalendarSyncRunSummary(preview: CalendarSyncPreview, recentHistory: CalendarSyncHistoryRecord[], conflicts: CalendarSyncRunConflict[]): CalendarSyncRunSummary {
+  const twoWayEvidence = buildTwoWayEvidence(preview, recentHistory, conflicts);
   return {
     generatedAt: preview.generatedAt,
     previewMode: preview.mode,
@@ -206,17 +246,18 @@ function buildCalendarSyncRunSummary(preview: CalendarSyncPreview, recentHistory
       rollbackNeedsManualReview: recentHistory.filter((record) => record.rollback.requiresManualReview).length,
       rollbackFailed: recentHistory.filter((record) => record.status === "rollback_failed").length,
     },
+    twoWayEvidence,
   };
 }
 
-function statusForRun(preview: CalendarSyncPreview, conflicts: CalendarSyncRunConflict[]): CalendarSyncRunStatus {
+function statusForRun(preview: CalendarSyncPreview, conflicts: CalendarSyncRunConflict[], summary: CalendarSyncRunSummary, mode: CalendarSyncRunMode): CalendarSyncRunStatus {
   if (preview.syncPlan.blocked > 0 || conflicts.some((conflict) => conflict.kind === "blocked-write")) return "blocked";
   if (conflicts.length > 0 || preview.syncPlan.pushLocal > 0 || preview.syncPlan.reviewConflicts > 0) return "needs-review";
-  if (preview.operations.length === 0) return "completed";
+  if (mode === "acceptance" && summary.twoWayEvidence.acceptanceReady) return "completed";
   return "ready";
 }
 
-function nextStepsForRun(preview: CalendarSyncPreview, conflicts: CalendarSyncRunConflict[]) {
+function nextStepsForRun(preview: CalendarSyncPreview, conflicts: CalendarSyncRunConflict[], summary: CalendarSyncRunSummary, mode: CalendarSyncRunMode) {
   const steps: string[] = [];
   if (preview.summary.externalReadErrors > 0) {
     steps.push("Fix connector permission/read errors before trusting this sync preview.");
@@ -236,6 +277,12 @@ function nextStepsForRun(preview: CalendarSyncPreview, conflicts: CalendarSyncRu
   if (preview.syncPlan.pullExternal > 0) {
     steps.push("Review pulled external items as LifeOS memory before using them to generate new write proposals.");
   }
+  if (!summary.twoWayEvidence.acceptanceReady) {
+    steps.push(`Two-way acceptance evidence is incomplete: ${summary.twoWayEvidence.missing.join(", ") || "unknown"}.`);
+  }
+  if (mode === "acceptance" && !summary.twoWayEvidence.acceptanceReady) {
+    steps.push("Keep this acceptance run open until external read, guarded write, rollback evidence, connector readiness, and conflict review are all proven.");
+  }
   if (steps.length === 0) {
     steps.push("No external write is ready. Keep this as read-only sync evidence until a connector is configured.");
   }
@@ -253,13 +300,14 @@ export function createCalendarSyncRun(input: {
   const startedAt = Date.now();
   const recentHistory = input.recentHistory || [];
   const conflicts = buildCalendarSyncRunConflicts(input.preview, recentHistory);
-  const summary = buildCalendarSyncRunSummary(input.preview, recentHistory);
-  const status = statusForRun(input.preview, conflicts);
-  const nextSteps = nextStepsForRun(input.preview, conflicts);
+  const summary = buildCalendarSyncRunSummary(input.preview, recentHistory, conflicts);
+  const mode = input.mode || "preview";
+  const status = statusForRun(input.preview, conflicts, summary, mode);
+  const nextSteps = nextStepsForRun(input.preview, conflicts, summary, mode);
   const record: CalendarSyncRunRecord = {
     id: `cal-run-${crypto.randomUUID()}`,
     provider: providerForRun(input.preview),
-    mode: input.mode || "preview",
+    mode,
     status,
     startedAt,
     finishedAt: Date.now(),

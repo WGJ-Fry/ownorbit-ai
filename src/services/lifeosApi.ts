@@ -340,6 +340,15 @@ export type CalendarSyncRunRecord = {
       rollbackNeedsManualReview: number;
       rollbackFailed: number;
     };
+    twoWayEvidence: {
+      externalReadVerified: boolean;
+      externalWriteVerified: boolean;
+      rollbackEvidenceReady: boolean;
+      conflictReviewClear: boolean;
+      connectorReadWriteReady: boolean;
+      acceptanceReady: boolean;
+      missing: string[];
+    };
   };
   conflicts: Array<{
     id: string;

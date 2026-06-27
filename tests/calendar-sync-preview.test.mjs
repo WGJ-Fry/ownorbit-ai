@@ -661,8 +661,11 @@ test("calendar sync run evidence persists conflicts and next steps without leaki
     assert.equal(record.status, "needs-review");
     assert.equal(record.provider, "mixed");
     assert.equal(record.summary.plan.reviewConflicts, 1);
+    assert.equal(record.summary.twoWayEvidence.acceptanceReady, false);
+    assert.deepEqual(record.summary.twoWayEvidence.missing, ["external-write-history", "rollback-evidence", "conflict-review-clear"]);
     assert.equal(record.conflicts.some((conflict) => conflict.kind === "duplicate"), true);
     assert.equal(record.nextSteps.some((step) => step.includes("duplicate") || step.includes("Review")), true);
+    assert.equal(record.nextSteps.some((step) => step.includes("Two-way acceptance evidence is incomplete")), true);
     assert.equal(JSON.stringify(record).includes("/Users/secret"), false);
 
     const saved = listCalendarSyncRuns();
@@ -670,6 +673,91 @@ test("calendar sync run evidence persists conflicts and next steps without leaki
     assert.equal(saved[0].id, record.id);
     assert.equal(saved[0].conflicts[0].title, "Mock Google Calendar planning review");
     assert.equal(JSON.stringify(saved[0]).includes(${JSON.stringify(dataDir)}), false);
+  `;
+
+  const child = spawn(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
+    cwd: rootDir,
+    env: { ...process.env, LIFEOS_DATA_DIR: dataDir },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let output = "";
+  child.stdout.on("data", (chunk) => { output += chunk.toString(); });
+  child.stderr.on("data", (chunk) => { output += chunk.toString(); });
+  const exitCode = await new Promise((resolve) => child.once("exit", resolve));
+  assert.equal(exitCode, 0, output);
+});
+
+test("calendar sync acceptance run completes only with read, write, rollback, connector, and conflict evidence", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-calendar-acceptance-run-"));
+  t.after(async () => {
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  const script = `
+    import assert from "node:assert/strict";
+    process.env.LIFEOS_DATA_DIR = ${JSON.stringify(dataDir)};
+    process.env.LIFEOS_GOOGLE_CALENDAR_CONNECTOR_MOCK = "1";
+    process.env.LIFEOS_ENABLE_GOOGLE_CALENDAR_CONNECTOR = "1";
+    process.env.LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES = "1";
+
+    const { runMigrations } = await import("./server/migrations.ts");
+    runMigrations();
+    const { buildCalendarSyncPreviewAsync, executeCalendarSyncOperationAsync } = await import("./server/calendarSyncPreview.ts");
+    const { saveCalendarSyncOperation, rollbackCalendarSyncOperation, listCalendarSyncOperations } = await import("./server/calendarSyncHistory.ts");
+    const { createCalendarSyncRun, listCalendarSyncRuns } = await import("./server/calendarSyncRuns.ts");
+
+    const readOnlyPreview = await buildCalendarSyncPreviewAsync();
+    const missingEvidenceRun = createCalendarSyncRun({
+      preview: readOnlyPreview,
+      recentHistory: [],
+      mode: "acceptance",
+      createdByType: "admin",
+      createdById: "acceptance-test",
+    });
+    assert.equal(missingEvidenceRun.status, "ready");
+    assert.equal(missingEvidenceRun.summary.twoWayEvidence.externalReadVerified, true);
+    assert.equal(missingEvidenceRun.summary.twoWayEvidence.externalWriteVerified, false);
+    assert.equal(missingEvidenceRun.summary.twoWayEvidence.rollbackEvidenceReady, false);
+    assert.equal(missingEvidenceRun.summary.twoWayEvidence.connectorReadWriteReady, true);
+    assert.equal(missingEvidenceRun.summary.twoWayEvidence.acceptanceReady, false);
+
+    const writeResult = await executeCalendarSyncOperationAsync({
+      providerId: "google-calendar",
+      kind: "event",
+      action: "create",
+      title: "Two-way acceptance proof",
+      startsAt: "2026-07-14T09:00:00.000Z",
+      explicitConsent: true,
+      confirmationText: "WRITE TO EXTERNAL CALENDAR",
+      source: "acceptance-test",
+    });
+    const historyRecord = saveCalendarSyncOperation({ source: "acceptance-test" }, writeResult);
+    await rollbackCalendarSyncOperation(historyRecord.id, {
+      explicitConsent: true,
+      confirmationText: "WRITE TO EXTERNAL CALENDAR",
+    });
+
+    const cleanPreview = await buildCalendarSyncPreviewAsync();
+    const completeRun = createCalendarSyncRun({
+      preview: cleanPreview,
+      recentHistory: listCalendarSyncOperations(),
+      mode: "acceptance",
+      createdByType: "admin",
+      createdById: "acceptance-test",
+    });
+    assert.equal(completeRun.status, "completed");
+    assert.equal(completeRun.summary.twoWayEvidence.externalReadVerified, true);
+    assert.equal(completeRun.summary.twoWayEvidence.externalWriteVerified, true);
+    assert.equal(completeRun.summary.twoWayEvidence.rollbackEvidenceReady, true);
+    assert.equal(completeRun.summary.twoWayEvidence.conflictReviewClear, true);
+    assert.equal(completeRun.summary.twoWayEvidence.connectorReadWriteReady, true);
+    assert.equal(completeRun.summary.twoWayEvidence.acceptanceReady, true);
+    assert.deepEqual(completeRun.summary.twoWayEvidence.missing, []);
+
+    const saved = listCalendarSyncRuns();
+    assert.equal(saved[0].id, completeRun.id);
+    assert.equal(saved[0].status, "completed");
+    assert.equal(saved[0].summary.twoWayEvidence.acceptanceReady, true);
   `;
 
   const child = spawn(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {

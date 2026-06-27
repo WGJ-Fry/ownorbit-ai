@@ -357,6 +357,15 @@ export default function CalendarSyncControlPanel({
                   {t(`calendarSyncControl.runMode.${run.mode}` as any)}
                 </span>
               </div>
+              <div className={`mt-2 rounded-lg border px-2 py-1 ${
+                run.summary.twoWayEvidence?.acceptanceReady
+                  ? "border-emerald-400/20 bg-emerald-500/5 text-emerald-100"
+                  : "border-amber-400/15 bg-amber-500/5 text-amber-100"
+              }`}>
+                {run.summary.twoWayEvidence?.acceptanceReady
+                  ? t("calendarSyncControl.twoWayReady")
+                  : t("calendarSyncControl.twoWayMissing", { items: run.summary.twoWayEvidence?.missing?.join(", ") || "-" })}
+              </div>
               {run.conflicts.length > 0 ? (
                 <div className="mt-2 space-y-1">
                   {run.conflicts.slice(0, 2).map((conflict) => (

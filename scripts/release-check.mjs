@@ -2354,6 +2354,11 @@ function checkAssets() {
     calendarSyncRunsSource.includes("createCalendarSyncRun") &&
     calendarSyncRunsSource.includes("listCalendarSyncRuns") &&
     calendarSyncRunsSource.includes("CalendarSyncRunConflict") &&
+    calendarSyncRunsSource.includes("twoWayEvidence") &&
+    calendarSyncRunsSource.includes("externalReadVerified") &&
+    calendarSyncRunsSource.includes("rollbackEvidenceReady") &&
+    calendarSyncRunsSource.includes("connectorReadWriteReady") &&
+    calendarSyncRunsSource.includes("acceptanceReady") &&
     calendarSyncRunsSource.includes("Do not describe this as full unattended two-way sync") &&
     calendarSyncOperationsMigrationSource.includes("calendar_sync_operations") &&
     calendarSyncOperationsMigrationSource.includes("rollback_result_json") &&
@@ -2385,6 +2390,7 @@ function checkAssets() {
     calendarSyncControlPanelSource.includes("getCalendarSyncRuns") &&
     calendarSyncControlPanelSource.includes("recordCalendarSyncRun") &&
     calendarSyncControlPanelSource.includes("rollbackCalendarSyncOperation") &&
+    calendarSyncControlPanelSource.includes("twoWayEvidence") &&
     frontendSmokeTestSource.includes("CalendarSyncControlPanel") &&
     translationsSource.includes("diagnostics.calendarSafetyBody") &&
     translationsSource.includes("calendarSyncControl.title") &&
@@ -2392,6 +2398,7 @@ function checkAssets() {
     translationsSource.includes("calendarSyncControl.historyStatus.rolled_back") &&
     translationsSource.includes("calendarSyncControl.rollbackReady") &&
     translationsSource.includes("calendarSyncControl.runTitle") &&
+    translationsSource.includes("calendarSyncControl.twoWayReady") &&
     translationsSource.includes("calendarSyncControl.conflictKind.duplicate") &&
     translationsSource.includes("diagnostics.syncConflicts") &&
     apiAuthTestSource.includes("blockedCalendarSyncPreview") &&
@@ -2413,7 +2420,9 @@ function checkAssets() {
     calendarSyncPreviewTestSource.includes("auditSummary.connector, \"google-tasks-api\"") &&
     calendarSyncPreviewTestSource.includes("calendar sync history persists guarded writes and automatic rollback evidence") &&
     calendarSyncPreviewTestSource.includes("completeRollback.result.action, \"update\"") &&
-    calendarSyncPreviewTestSource.includes("calendar sync run evidence persists conflicts and next steps")
+    calendarSyncPreviewTestSource.includes("calendar sync run evidence persists conflicts and next steps") &&
+    calendarSyncPreviewTestSource.includes("calendar sync acceptance run completes only with read, write, rollback, connector, and conflict evidence") &&
+    calendarSyncPreviewTestSource.includes("summary.twoWayEvidence.acceptanceReady")
   ) pass("calendar/task sync has preview safety gates, opt-in macOS/Google connector coverage, persistent history, guarded rollback, and run evidence");
   else warn("calendar/task sync lacks preview safety, opt-in macOS/Google connector execution, persistent rollback history, run evidence, API/auth coverage, diagnostics, or release checks");
 
