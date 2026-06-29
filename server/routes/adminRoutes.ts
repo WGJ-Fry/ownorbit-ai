@@ -5,6 +5,7 @@ import { aiProviders, deleteAiApiKey, getActiveAiProviderId, getAiApiKey, getAiC
 import { buildCalendarSyncPreview, buildCalendarSyncPreviewAsync, executeCalendarSyncOperationAsync } from "../calendarSyncPreview";
 import { listCalendarSyncOperations, rollbackCalendarSyncOperation, saveCalendarSyncOperation } from "../calendarSyncHistory";
 import { createCalendarSyncRun, listCalendarSyncRuns } from "../calendarSyncRuns";
+import { refreshCalendarSyncReadinessProfile } from "../calendarSyncReadiness";
 import { createAdminCredential, createAdminSession, getAdminSessionByToken, getBearerToken, isAdminConfigured, requireAdmin, verifyAdminPassword } from "../auth";
 import { createDiagnosticBundle, getReleaseDiagnostics } from "../diagnosticBundle";
 import { clearHttpOnlyCookie, getClientIp, rateLimit, setClientCookie, setHttpOnlyCookie } from "../httpSecurity";
@@ -279,6 +280,11 @@ export function registerAdminRoutes(app: express.Express) {
     const aiStatus = getAiConfigStatus();
     const publicAccessWarning = Boolean(publicBaseUrl) || host === "0.0.0.0";
     const backupSchedule = getBackupSchedule();
+    const calendarSync = buildCalendarSyncPreview();
+    const calendarSyncReadiness = refreshCalendarSyncReadinessProfile(
+      { type: "system", id: "config-diagnostics" },
+      { preview: calendarSync },
+    );
 
     res.json({
       ai: {
@@ -320,7 +326,8 @@ export function registerAdminRoutes(app: express.Express) {
         ...getReleaseDiagnostics(),
         recommendations: ["When publishing for regular users, provide installers, USER-INSTALL.md, SHA256SUMS, and release-manifest.json."],
       },
-      calendarSync: buildCalendarSyncPreview(),
+      calendarSync,
+      calendarSyncReadiness,
       securityCheck: getSecurityDiagnostics(),
     });
   });
@@ -369,6 +376,7 @@ export function registerAdminRoutes(app: express.Express) {
       createdByType: (req as any).actor?.type,
       createdById: (req as any).actor?.id,
     });
+    const calendarSyncReadiness = refreshCalendarSyncReadinessProfile((req as any).actor, { preview });
     insertAuditLog("calendar_sync_run_recorded", "calendar_sync", run.id, {
       provider: run.provider,
       mode: run.mode,
@@ -377,15 +385,18 @@ export function registerAdminRoutes(app: express.Express) {
       conflictCount: run.conflicts.length,
       blockedWrites: run.summary.blockedWrites,
       syncConflicts: run.summary.syncConflicts,
+      readinessLevel: calendarSyncReadiness.level,
+      canAdvertiseTwoWaySync: calendarSyncReadiness.canAdvertiseTwoWaySync,
       nextStepCount: run.nextSteps.length,
     }, (req as any).actor?.type, (req as any).actor?.id);
-    res.json({ record: run });
+    res.json({ record: run, readiness: calendarSyncReadiness });
   });
 
   app.post("/api/v1/admin/calendar-sync/execute", requireAdmin, async (req, res) => {
     try {
       const result = await executeCalendarSyncOperationAsync(req.body || {});
       const historyRecord = saveCalendarSyncOperation(req.body || {}, result);
+      const calendarSyncReadiness = refreshCalendarSyncReadinessProfile((req as any).actor);
       insertAuditLog("calendar_sync_operation_executed", "calendar_sync", result.providerId, {
         historyRecordId: historyRecord.id,
         providerId: result.providerId,
@@ -398,8 +409,9 @@ export function registerAdminRoutes(app: express.Express) {
         rollbackAvailable: result.rollbackPlan.available,
         rollbackRequiresManualReview: result.rollbackPlan.requiresManualReview,
         canAutoRollback: historyRecord.rollback.canAutoRollback,
+        readinessLevel: calendarSyncReadiness.level,
       }, (req as any).actor?.type, (req as any).actor?.id);
-      res.json({ ...result, historyRecord });
+      res.json({ ...result, historyRecord, readiness: calendarSyncReadiness });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Calendar sync operation failed";
       insertAuditLog("calendar_sync_operation_blocked", "calendar_sync", "execute", {
@@ -419,6 +431,7 @@ export function registerAdminRoutes(app: express.Express) {
   app.post("/api/v1/admin/calendar-sync/operations/:operationId/rollback", requireAdmin, async (req, res) => {
     try {
       const rollback = await rollbackCalendarSyncOperation(req.params.operationId, req.body || {});
+      const calendarSyncReadiness = refreshCalendarSyncReadinessProfile((req as any).actor);
       insertAuditLog("calendar_sync_operation_rolled_back", "calendar_sync", req.params.operationId, {
         providerId: rollback.record.providerId,
         action: rollback.record.action,
@@ -426,8 +439,9 @@ export function registerAdminRoutes(app: express.Express) {
         rollbackAction: rollback.result.action,
         rollbackExternalId: rollback.result.externalId,
         connector: rollback.result.auditSummary.connector,
+        readinessLevel: calendarSyncReadiness.level,
       }, (req as any).actor?.type, (req as any).actor?.id);
-      res.json(rollback);
+      res.json({ ...rollback, readiness: calendarSyncReadiness });
     } catch (error: any) {
       const message = error instanceof Error ? error.message : "Calendar sync rollback failed";
       insertAuditLog("calendar_sync_rollback_blocked", "calendar_sync", req.params.operationId, {

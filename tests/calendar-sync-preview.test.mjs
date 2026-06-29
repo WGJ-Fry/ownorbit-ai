@@ -771,3 +771,93 @@ test("calendar sync acceptance run completes only with read, write, rollback, co
   const exitCode = await new Promise((resolve) => child.once("exit", resolve));
   assert.equal(exitCode, 0, output);
 });
+
+test("calendar sync readiness profile persists connector evidence and acceptance state", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-calendar-readiness-profile-"));
+  t.after(async () => {
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  const script = `
+    import assert from "node:assert/strict";
+    process.env.LIFEOS_DATA_DIR = ${JSON.stringify(dataDir)};
+    process.env.LIFEOS_GOOGLE_CALENDAR_CONNECTOR_MOCK = "1";
+    process.env.LIFEOS_ENABLE_GOOGLE_CALENDAR_CONNECTOR = "1";
+    process.env.LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES = "1";
+
+    const { runMigrations } = await import("./server/migrations.ts");
+    runMigrations();
+    const { getClientState } = await import("./server/clientState.ts");
+    const { buildCalendarSyncPreviewAsync, executeCalendarSyncOperationAsync } = await import("./server/calendarSyncPreview.ts");
+    const { saveCalendarSyncOperation, listCalendarSyncOperations } = await import("./server/calendarSyncHistory.ts");
+    const { createCalendarSyncRun, listCalendarSyncRuns } = await import("./server/calendarSyncRuns.ts");
+    const {
+      CALENDAR_SYNC_READINESS_STATE_KEY,
+      refreshCalendarSyncReadinessProfile,
+    } = await import("./server/calendarSyncReadiness.ts");
+
+    const readPreview = await buildCalendarSyncPreviewAsync();
+    const readProfile = refreshCalendarSyncReadinessProfile({ type: "test", id: "readiness" }, {
+      preview: readPreview,
+      history: [],
+      runs: [],
+      generatedAt: "2026-07-20T00:00:00.000Z",
+    });
+    assert.equal(readProfile.level, "external-read-ready");
+    assert.equal(readProfile.canReadExternal, true);
+    assert.equal(readProfile.canWriteWithConsent, false);
+    assert.equal(readProfile.canAdvertiseTwoWaySync, false);
+    assert.equal(readProfile.missing.includes("external-write-history"), true);
+
+    const writeResult = await executeCalendarSyncOperationAsync({
+      providerId: "google-calendar",
+      kind: "event",
+      action: "create",
+      title: "Readiness profile proof",
+      startsAt: "2026-07-20T09:00:00.000Z",
+      explicitConsent: true,
+      confirmationText: "WRITE TO EXTERNAL CALENDAR",
+      source: "readiness-test",
+    });
+    saveCalendarSyncOperation({ source: "readiness-test" }, writeResult);
+
+    const cleanPreview = await buildCalendarSyncPreviewAsync();
+    const acceptanceRun = createCalendarSyncRun({
+      preview: cleanPreview,
+      recentHistory: listCalendarSyncOperations(),
+      mode: "acceptance",
+      createdByType: "test",
+      createdById: "readiness",
+    });
+    assert.equal(acceptanceRun.status, "completed");
+
+    const acceptedProfile = refreshCalendarSyncReadinessProfile({ type: "test", id: "readiness" }, {
+      preview: cleanPreview,
+      history: listCalendarSyncOperations(),
+      runs: listCalendarSyncRuns(),
+      generatedAt: "2026-07-20T00:01:00.000Z",
+    });
+    assert.equal(acceptedProfile.level, "two-way-accepted");
+    assert.equal(acceptedProfile.canWriteWithConsent, true);
+    assert.equal(acceptedProfile.canAdvertiseTwoWaySync, true);
+    assert.equal(acceptedProfile.latestAcceptanceRun.id, acceptanceRun.id);
+    assert.equal(acceptedProfile.evidence.guardedWriteRecords, 1);
+    assert.equal(acceptedProfile.evidence.completedAcceptanceRuns, 1);
+    assert.deepEqual(acceptedProfile.latestAcceptanceRun.missing, []);
+
+    const stored = getClientState(CALENDAR_SYNC_READINESS_STATE_KEY);
+    assert.equal(stored.value.level, "two-way-accepted");
+    assert.equal(stored.value.canAdvertiseTwoWaySync, true);
+  `;
+
+  const child = spawn(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
+    cwd: rootDir,
+    env: { ...process.env, LIFEOS_DATA_DIR: dataDir },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let output = "";
+  child.stdout.on("data", (chunk) => { output += chunk.toString(); });
+  child.stderr.on("data", (chunk) => { output += chunk.toString(); });
+  const exitCode = await new Promise((resolve) => child.once("exit", resolve));
+  assert.equal(exitCode, 0, output);
+});

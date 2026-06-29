@@ -366,6 +366,44 @@ export type CalendarSyncRunRecord = {
   createdById?: string;
 };
 
+export type CalendarSyncReadinessProfile = {
+  generatedAt: string;
+  previewGeneratedAt: string;
+  level: "blocked" | "read-only-memory" | "external-read-ready" | "guarded-write-ready" | "two-way-accepted";
+  canUseReadOnlyMemory: boolean;
+  canReadExternal: boolean;
+  canWriteWithConsent: boolean;
+  canAdvertiseTwoWaySync: boolean;
+  providerReadiness: Array<{
+    id: CalendarSyncPreview["providers"][number]["id"];
+    label: string;
+    configured: boolean;
+    readSupported: boolean;
+    writeSupported: boolean;
+    status: CalendarSyncPreview["providers"][number]["status"];
+    missing: string[];
+  }>;
+  latestAcceptanceRun?: {
+    id: string;
+    status: CalendarSyncRunRecord["status"];
+    startedAt: number;
+    acceptanceReady: boolean;
+    missing: string[];
+  };
+  evidence: {
+    externalReadItems: number;
+    externalReadErrors: number;
+    guardedWriteRecords: number;
+    rollbackReadyRecords: number;
+    blockedWrites: number;
+    syncConflicts: number;
+    acceptanceRuns: number;
+    completedAcceptanceRuns: number;
+  };
+  missing: string[];
+  recommendations: string[];
+};
+
 export type NativeAutomationKind = "clipboard" | "shortcut" | "file" | "app" | "calendar" | "reminder" | "shell";
 
 export type NativeAutomationInput = {
@@ -553,6 +591,7 @@ export type ConfigDiagnostics = {
     recommendations: string[];
   };
   calendarSync: CalendarSyncPreview;
+  calendarSyncReadiness: CalendarSyncReadinessProfile;
   securityCheck: {
     publicMode: boolean;
     overall: "ok" | "warning" | "critical";
@@ -1406,7 +1445,7 @@ export function previewCalendarSync(proposedItems: Array<{
 }
 
 export function executeCalendarSyncOperation(input: CalendarSyncExecuteInput) {
-  return requestJson<CalendarSyncExecutionResult>("/api/v1/admin/calendar-sync/execute", {
+  return requestJson<CalendarSyncExecutionResult & { readiness?: CalendarSyncReadinessProfile }>("/api/v1/admin/calendar-sync/execute", {
     method: "POST",
     body: JSON.stringify(input),
   });
@@ -1430,14 +1469,14 @@ export function createCalendarSyncRun(proposedItems: Array<{
   externalId?: string;
   source?: string;
 }>) {
-  return requestJson<{ record: CalendarSyncRunRecord }>("/api/v1/admin/calendar-sync/runs", {
+  return requestJson<{ record: CalendarSyncRunRecord; readiness?: CalendarSyncReadinessProfile }>("/api/v1/admin/calendar-sync/runs", {
     method: "POST",
     body: JSON.stringify({ proposedItems }),
   });
 }
 
 export function rollbackCalendarSyncOperation(operationId: string, confirmationText: string) {
-  return requestJson<{ record: CalendarSyncHistoryRecord; result: CalendarSyncExecutionResult }>(`/api/v1/admin/calendar-sync/operations/${encodeURIComponent(operationId)}/rollback`, {
+  return requestJson<{ record: CalendarSyncHistoryRecord; result: CalendarSyncExecutionResult; readiness?: CalendarSyncReadinessProfile }>(`/api/v1/admin/calendar-sync/operations/${encodeURIComponent(operationId)}/rollback`, {
     method: "POST",
     body: JSON.stringify({ explicitConsent: true, confirmationText }),
   });

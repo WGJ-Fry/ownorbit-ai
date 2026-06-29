@@ -20,6 +20,7 @@ Release candidate for the next public alpha. Do not advertise as publicly availa
 - Added persistent SQLite calendar/task write history and a guarded rollback API/UI so explicitly confirmed external writes keep a reviewable record, rollback availability, and automatic rollback for safe create/update/delete reversals.
 - Added persistent calendar/task sync run evidence with conflict summaries, blocked-write reasons, rollback-review signals, and next-step guidance without claiming full unattended two-way sync.
 - Added two-way calendar/task acceptance evidence gates so a sync run is completed only after external read, guarded write, rollback evidence, connector readiness, and conflict review are all proven.
+- Added a persistent calendar/task sync readiness profile that records provider status, missing evidence, guarded-write availability, latest acceptance run state, and whether the feature may be advertised as two-way ready.
 - Added guarded task-completion rollback so completed Google Tasks and system Reminders can be restored through an audited update that brings back the captured title, time, notes, and unfinished status.
 - Added a guarded native automation path for opening allowlisted macOS app bundle IDs with explicit consent, exact allowlist matching, audit logging, and blocked malformed bundle IDs.
 - Added release-check and smoke-test guards so README/Release communication cannot claim fully automatic unattended repair, native automation, or calendar/task write-back before matching code, tests, cleanup evidence, and release assets exist.

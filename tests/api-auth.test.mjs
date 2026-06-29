@@ -1012,6 +1012,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.deepEqual(Object.keys(diagnosticBundle).sort(), [
     "ai",
     "calendarSync",
+    "calendarSyncReadiness",
     "database",
     "devices",
     "environment",
@@ -1028,6 +1029,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(diagnosticBundle.calendarSync.mode, "preview-only");
   assert.equal(diagnosticBundle.calendarSync.externalWritesEnabled, false);
   assert.equal(diagnosticBundle.calendarSync.summary.providersReadyForWrite, 0);
+  assert.equal(diagnosticBundle.calendarSyncReadiness.canAdvertiseTwoWaySync, false);
   assert.equal(typeof diagnosticBundle.systemActions.topSource, "string");
   assert.equal(Array.isArray(diagnosticBundle.systemActions.recent), true);
   assert.deepEqual(Object.keys(diagnosticBundle.database.tables).sort(), [

@@ -221,6 +221,11 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(bundle.calendarSync.writeBackSupported, false);
   assert.equal(bundle.calendarSync.summary.providersReadyForWrite, 0);
   assert.equal(bundle.calendarSync.providers.some((provider) => provider.id === "apple-calendar" && provider.writeSupported === false), true);
+  assert.equal(bundle.calendarSyncReadiness.canWriteWithConsent, false);
+  assert.equal(bundle.calendarSyncReadiness.canAdvertiseTwoWaySync, false);
+  assert.equal(bundle.calendarSyncReadiness.evidence.guardedWriteRecords, 0);
+  assert.equal(bundle.calendarSyncReadiness.missing.includes("external-write-history"), true);
+  assert.equal(bundle.calendarSyncReadiness.providerReadiness.some((provider) => provider.id === "google-calendar" && provider.missing.includes("connector-not-configured")), true);
   assert.equal(bundle.systemActions.totalLogs, 2);
   assert.equal(bundle.systemActions.blocked, 1);
   assert.equal(bundle.systemActions.highRisk, 2);

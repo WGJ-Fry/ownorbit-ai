@@ -26,11 +26,16 @@ function securityItemText(item: { id: string; label: string; action: string }, f
   return t(`diagnostics.security.${field}.${item.id}` as any);
 }
 
+function calendarReadinessText(level: ConfigDiagnostics["calendarSyncReadiness"]["level"], t: ReturnType<typeof useI18n>["t"]) {
+  return t(`diagnostics.calendarReadiness.${level}` as any);
+}
+
 export default function ConfigDiagnosticsPanel({ diagnostics, updateCheck }: { diagnostics: ConfigDiagnostics; updateCheck?: ReleaseUpdateCheck | null }) {
   const { t } = useI18n();
   const latestArtifact = diagnostics.release.artifacts[0];
   const releaseReady = diagnostics.release.manifestAvailable && diagnostics.release.checksumAvailable && diagnostics.release.artifactCount > 0;
-  const calendarWriteBlocked = !diagnostics.calendarSync.writeBackSupported || diagnostics.calendarSync.summary.blockedWrites > 0;
+  const calendarReadiness = diagnostics.calendarSyncReadiness;
+  const calendarWriteBlocked = !calendarReadiness.canWriteWithConsent || calendarReadiness.evidence.blockedWrites > 0;
   return (
     <section className="mb-6 rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
       <div className="mb-4 flex items-center gap-2 font-bold">
@@ -89,19 +94,23 @@ export default function ConfigDiagnosticsPanel({ diagnostics, updateCheck }: { d
         />
         <DiagnosticCard
           title={t("diagnostics.calendarSync")}
-          status={calendarWriteBlocked ? t("diagnostics.previewOnly") : t("diagnostics.configured")}
+          status={calendarReadinessText(calendarReadiness.level, t)}
           tone={calendarWriteBlocked ? "amber" : "green"}
           rows={[
+            [t("diagnostics.calendarReadinessLevel"), calendarReadinessText(calendarReadiness.level, t)],
             [t("diagnostics.calendarMode"), diagnostics.calendarSync.mode],
             [t("diagnostics.readOnlyItems"), String(diagnostics.calendarSync.summary.readOnlyItems)],
             [t("diagnostics.externalReadItems"), String(diagnostics.calendarSync.summary.externalReadItems)],
             [t("diagnostics.externalReadErrors"), String(diagnostics.calendarSync.summary.externalReadErrors)],
+            [t("diagnostics.guardedWrites"), calendarReadiness.canWriteWithConsent ? t("diagnostics.enabled") : t("diagnostics.disabled")],
+            [t("diagnostics.twoWayAdvertisable"), calendarReadiness.canAdvertiseTwoWaySync ? t("diagnostics.yes") : t("diagnostics.no")],
             [t("diagnostics.blockedWrites"), String(diagnostics.calendarSync.summary.blockedWrites)],
             [t("diagnostics.syncConflicts"), String(diagnostics.calendarSync.summary.syncConflicts)],
             [t("diagnostics.providersReadable"), String(diagnostics.calendarSync.summary.providersReadyForRead)],
             [t("diagnostics.providersWritable"), String(diagnostics.calendarSync.summary.providersReadyForWrite)],
+            [t("diagnostics.missingEvidence"), calendarReadiness.missing.slice(0, 3).join(", ") || "-"],
           ]}
-          recommendations={diagnostics.calendarSync.recommendations}
+          recommendations={calendarReadiness.recommendations.length > 0 ? calendarReadiness.recommendations : diagnostics.calendarSync.recommendations}
         />
       </div>
       <div className="mt-4 rounded-2xl border border-amber-300/10 bg-amber-500/[0.06] p-4 text-xs text-amber-100">

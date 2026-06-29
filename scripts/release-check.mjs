@@ -2327,6 +2327,7 @@ function checkAssets() {
   const googleTasksConnectorSource = exists("server/googleTasksConnector.ts") ? fs.readFileSync(path.join(rootDir, "server/googleTasksConnector.ts"), "utf8") : "";
   const calendarSyncHistorySource = exists("server/calendarSyncHistory.ts") ? fs.readFileSync(path.join(rootDir, "server/calendarSyncHistory.ts"), "utf8") : "";
   const calendarSyncRunsSource = exists("server/calendarSyncRuns.ts") ? fs.readFileSync(path.join(rootDir, "server/calendarSyncRuns.ts"), "utf8") : "";
+  const calendarSyncReadinessSource = exists("server/calendarSyncReadiness.ts") ? fs.readFileSync(path.join(rootDir, "server/calendarSyncReadiness.ts"), "utf8") : "";
   const calendarSyncOperationsMigrationSource = exists("server/migrations/016_calendar_sync_operations.sql") ? fs.readFileSync(path.join(rootDir, "server/migrations/016_calendar_sync_operations.sql"), "utf8") : "";
   const calendarSyncRunsMigrationSource = exists("server/migrations/017_calendar_sync_runs.sql") ? fs.readFileSync(path.join(rootDir, "server/migrations/017_calendar_sync_runs.sql"), "utf8") : "";
   const calendarSyncControlPanelSource = exists("src/pages/admin/settings/CalendarSyncControlPanel.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/CalendarSyncControlPanel.tsx"), "utf8") : "";
@@ -2379,6 +2380,11 @@ function checkAssets() {
     calendarSyncRunsSource.includes("connectorReadWriteReady") &&
     calendarSyncRunsSource.includes("acceptanceReady") &&
     calendarSyncRunsSource.includes("Do not describe this as full unattended two-way sync") &&
+    calendarSyncReadinessSource.includes("CALENDAR_SYNC_READINESS_STATE_KEY") &&
+    calendarSyncReadinessSource.includes("CalendarSyncReadinessProfile") &&
+    calendarSyncReadinessSource.includes("canAdvertiseTwoWaySync") &&
+    calendarSyncReadinessSource.includes("two-way-accepted") &&
+    calendarSyncReadinessSource.includes("refreshCalendarSyncReadinessProfile") &&
     calendarSyncOperationsMigrationSource.includes("calendar_sync_operations") &&
     calendarSyncOperationsMigrationSource.includes("rollback_result_json") &&
     calendarSyncOperationsMigrationSource.includes("rolled_back_at") &&
@@ -2394,8 +2400,10 @@ function checkAssets() {
     adminRoutesSource.includes("calendar_sync_run_recorded") &&
     adminRoutesSource.includes("calendar_sync_operation_executed") &&
     adminRoutesSource.includes("calendar_sync_operation_rolled_back") &&
-    diagnosticBundleSource.includes("calendarSync: buildCalendarSyncPreview()") &&
+    adminRoutesSource.includes("refreshCalendarSyncReadinessProfile") &&
+    diagnosticBundleSource.includes("calendarSyncReadiness") &&
     configDiagnosticsPanelSource.includes("diagnostics.calendarSync") &&
+    configDiagnosticsPanelSource.includes("calendarReadinessText") &&
     configDiagnosticsPanelSource.includes("diagnostics.calendarSafetyTitle") &&
     configDiagnosticsPanelSource.includes("diagnostics.syncConflicts") &&
     calendarSyncControlPanelSource.includes("previewCalendarSync") &&
@@ -2427,6 +2435,7 @@ function checkAssets() {
     apiAuthTestSource.includes("blockedCalendarSyncHistory") &&
     apiAuthTestSource.includes("missingCalendarSyncRollback") &&
     diagnosticBundleTestSource.includes("bundle.calendarSync.externalWritesEnabled") &&
+    diagnosticBundleTestSource.includes("bundle.calendarSyncReadiness.canAdvertiseTwoWaySync") &&
     calendarSyncPreviewTestSource.includes("blocks proposed external writes until connectors are shipped") &&
     calendarSyncPreviewTestSource.includes("macOS connector can read external calendar and reminder previews without enabling writes") &&
     calendarSyncPreviewTestSource.includes("macOS calendar connector requires opt-in and explicit confirmation before writes") &&
@@ -2441,8 +2450,9 @@ function checkAssets() {
     calendarSyncPreviewTestSource.includes("completeRollback.result.action, \"update\"") &&
     calendarSyncPreviewTestSource.includes("calendar sync run evidence persists conflicts and next steps") &&
     calendarSyncPreviewTestSource.includes("calendar sync acceptance run completes only with read, write, rollback, connector, and conflict evidence") &&
+    calendarSyncPreviewTestSource.includes("calendar sync readiness profile persists connector evidence") &&
     calendarSyncPreviewTestSource.includes("summary.twoWayEvidence.acceptanceReady")
-  ) pass("calendar/task sync has preview safety gates, opt-in macOS/Google connector coverage, persistent history, guarded rollback, and run evidence");
+  ) pass("calendar/task sync has preview safety gates, opt-in macOS/Google connector coverage, persistent history, guarded rollback, run evidence, and a persisted readiness profile");
   else warn("calendar/task sync lacks preview safety, opt-in macOS/Google connector execution, persistent rollback history, run evidence, API/auth coverage, diagnostics, or release checks");
 
   const clientStateSource = exists("server/clientState.ts") ? fs.readFileSync(path.join(rootDir, "server/clientState.ts"), "utf8") : "";
