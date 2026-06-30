@@ -1,0 +1,182 @@
+import { ArrowRight, CheckCircle2, Cloud, ExternalLink, Loader2, QrCode, ShieldCheck, Smartphone, Wifi } from "lucide-react";
+import type { NetworkDiagnostics } from "../../services/lifeosApi";
+import { useI18n } from "../../i18n/I18nProvider";
+import type { TranslationKey } from "../../i18n/translations";
+
+type ConnectionCandidate = NetworkDiagnostics["connectionCandidates"][number];
+
+type Props = {
+  diagnostics: NetworkDiagnostics | null;
+  busy: string | null;
+  onStartTailscale: () => void;
+  onStartCloudflare: () => void;
+  onSaveCandidate: (candidate: ConnectionCandidate) => void;
+  onTestCandidate: (candidate: ConnectionCandidate) => void;
+};
+
+const readinessStatusKeys: Record<NetworkDiagnostics["remoteReadiness"]["status"], TranslationKey> = {
+  ready: "connection.readiness.status.ready",
+  "needs-restart": "connection.readiness.status.needsRestart",
+  temporary: "connection.readiness.status.temporary",
+  "local-only": "connection.readiness.status.localOnly",
+  "lan-only": "connection.readiness.status.lanOnly",
+  blocked: "connection.readiness.status.blocked",
+};
+
+function isAppleRuntime() {
+  if (typeof navigator === "undefined") return false;
+  const platform = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform || navigator.platform || "";
+  const agent = navigator.userAgent || "";
+  return /Mac|iPhone|iPad|iPod/i.test(`${platform} ${agent}`);
+}
+
+function getPreferredCandidate(diagnostics: NetworkDiagnostics | null) {
+  const candidates = diagnostics?.connectionCandidates || [];
+  const readinessId = diagnostics?.remoteReadiness?.candidateId;
+  return (
+    candidates.find((candidate) => candidate.id === readinessId && candidate.mode !== "local") ||
+    candidates.find((candidate) => candidate.mode === "tailscale" && candidate.stability === "stable") ||
+    candidates.find((candidate) => candidate.mode !== "local" && candidate.stability === "stable" && candidate.secure) ||
+    candidates.find((candidate) => candidate.mode !== "local" && candidate.secure) ||
+    candidates.find((candidate) => candidate.mode !== "local") ||
+    null
+  );
+}
+
+export default function OnboardingAppleRemoteCard({ diagnostics, busy, onStartTailscale, onStartCloudflare, onSaveCandidate, onTestCandidate }: Props) {
+  const { t } = useI18n();
+  const appleRuntime = isAppleRuntime();
+  const candidate = getPreferredCandidate(diagnostics);
+  const readiness = diagnostics?.remoteReadiness;
+  const tailscaleInstalled = Boolean(diagnostics?.tailscale.installed);
+  const tailscaleInstallUrl = diagnostics?.tailscale.installUrl || "https://tailscale.com/download";
+  const isBusy = Boolean(busy?.startsWith("remote-"));
+  const readinessTone = readiness?.severity === "ok" ? "text-emerald-200" : readiness?.severity === "danger" ? "text-red-200" : "text-amber-200";
+  const candidateReady = Boolean(candidate);
+
+  return (
+    <section className="rounded-[28px] border border-sky-400/15 bg-[#101722] p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-sky-400/20 bg-sky-500/10 text-sky-200">
+            <Wifi className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="font-bold">{t("onboarding.appleRemoteTitle")}</h2>
+              <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[10px] font-bold text-sky-100">
+                {appleRuntime ? t("onboarding.appleRemoteDetected") : t("onboarding.appleRemoteWorksElsewhere")}
+              </span>
+            </div>
+            <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+              {t("onboarding.appleRemoteDescription")}
+            </p>
+          </div>
+        </div>
+        {readiness?.severity === "ok" ? <CheckCircle2 className="mt-1 h-5 w-5 shrink-0 text-emerald-300" /> : null}
+      </div>
+
+      <div className="mt-5 rounded-2xl border border-sky-400/15 bg-sky-500/10 p-4 text-xs leading-relaxed text-sky-50/85">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="font-bold text-sky-50">{t("onboarding.appleRemoteDefaultPath")}</div>
+          <span className={`rounded-full bg-[#060a10]/55 px-2 py-0.5 text-[10px] font-bold ${readinessTone}`}>
+            {readiness ? t(readinessStatusKeys[readiness.status]) : t("connection.readiness.status.localOnly")}
+          </span>
+        </div>
+        <div className="mt-2 break-all font-mono text-[11px] text-sky-100/80">
+          {candidate?.baseUrl || t("onboarding.appleRemoteNoCandidate")}
+        </div>
+        {candidate ? (
+          <div className="mt-3 border-t border-sky-200/10 pt-3 text-sky-50/75">
+            <div className="font-bold text-sky-50">{candidate.label}</div>
+            <div className="mt-1">{candidate.notes[0] || t("onboarding.appleRemoteCandidateReady")}</div>
+            {candidate.requiresRestart ? <div className="mt-1 text-amber-100">{t("onboarding.appleRemoteRestartNeeded")}</div> : null}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="mt-3 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-xs leading-relaxed text-zinc-400">
+        <div className="flex gap-2">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+          <span>{t("onboarding.appleRemoteIcloudHint")}</span>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3">
+        {tailscaleInstalled ? (
+          <button
+            type="button"
+            onClick={onStartTailscale}
+            disabled={isBusy}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sky-400 px-4 py-3 text-sm font-bold text-[#061016] disabled:opacity-50"
+          >
+            {busy === "remote-tailscale" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wifi className="h-4 w-4" />}
+            {t("onboarding.appleRemoteStartTailscale")}
+          </button>
+        ) : (
+          <a
+            href={tailscaleInstallUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sky-400 px-4 py-3 text-sm font-bold text-[#061016]"
+          >
+            <ExternalLink className="h-4 w-4" />
+            {t("onboarding.appleRemoteInstallTailscale")}
+          </a>
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => candidate && onSaveCandidate(candidate)}
+            disabled={isBusy || !candidateReady}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-200 disabled:opacity-50"
+          >
+            {busy === "remote-save" ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+            {t("onboarding.appleRemoteSaveDefault")}
+          </button>
+          <button
+            type="button"
+            onClick={() => candidate && onTestCandidate(candidate)}
+            disabled={isBusy || !candidateReady}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm font-bold text-zinc-200 disabled:opacity-50"
+          >
+            {busy === "remote-test" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+            {t("onboarding.appleRemoteTestDefault")}
+          </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={onStartCloudflare}
+          disabled={isBusy}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm font-bold text-zinc-200 disabled:opacity-50"
+        >
+          {busy === "remote-cloudflare" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Cloud className="h-4 w-4" />}
+          {t("onboarding.appleRemoteStartCloudflare")}
+        </button>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <a
+            href="/admin/devices/pair"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-sky-400/20 bg-sky-500/10 px-4 py-3 text-sm font-bold text-sky-200"
+          >
+            <QrCode className="h-4 w-4" />
+            {t("onboarding.appleRemoteOpenQr")}
+          </a>
+          <a
+            href="/admin/settings#mobile-connect"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm font-bold text-zinc-200"
+          >
+            <ArrowRight className="h-4 w-4" />
+            {t("onboarding.appleRemoteAdvanced")}
+          </a>
+        </div>
+        <div className="flex items-center gap-2 text-[11px] leading-relaxed text-zinc-500">
+          <Smartphone className="h-3.5 w-3.5 shrink-0" />
+          <span>{t("onboarding.appleRemotePairAfterSave")}</span>
+        </div>
+      </div>
+    </section>
+  );
+}

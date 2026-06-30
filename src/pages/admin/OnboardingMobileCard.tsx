@@ -25,7 +25,7 @@ const readinessActionKeys: Record<NetworkDiagnostics["remoteReadiness"]["actions
 
 type Props = {
   devices: BoundDevice[];
-  diagnostics: (ConfigDiagnostics["network"] & Partial<Pick<NetworkDiagnostics, "connectionCandidates" | "recommendedBaseUrl" | "remoteReadiness">>) | null | undefined;
+  diagnostics: (Partial<ConfigDiagnostics["network"]> & Partial<Pick<NetworkDiagnostics, "connectionCandidates" | "recommendedBaseUrl" | "remoteReadiness">>) | null | undefined;
   done: boolean;
 };
 

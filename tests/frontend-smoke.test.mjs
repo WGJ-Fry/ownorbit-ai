@@ -513,6 +513,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.localEndpointLabel/);
   assert.match(onboardingSource, /type=\{isLocalProvider \? "url" : "password"\}/);
   assert.match(onboardingSource, /onboarding\.apiKeyHint/);
+  assert.match(onboardingSource, /getNetworkDiagnostics/);
+  assert.match(onboardingSource, /startTailscaleHttpsServe/);
+  assert.match(onboardingSource, /saveDesktopConnectionConfig/);
+  assert.match(onboardingSource, /testConnectionUrl/);
+  assert.match(onboardingSource, /OnboardingAppleRemoteCard/);
   assert.match(onboardingSource, /OnboardingMobileCard/);
   assert.match(onboardingSource, /OnboardingRecoveryCard/);
   assert.match(onboardingSource, /OnboardingHandoffCard/);
@@ -540,6 +545,16 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingMobileSource, /onboarding\.openConnectionGuide/);
   assert.match(onboardingMobileSource, /\/admin\/settings#mobile-connect/);
   assert.match(translationsSource, /onboarding\.remoteReadinessTitle/);
+  const onboardingAppleRemoteSource = await readFile(path.join(rootDir, "src", "pages", "admin", "OnboardingAppleRemoteCard.tsx"), "utf8");
+  assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteTitle/);
+  assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteStartTailscale/);
+  assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudHint/);
+  assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteOpenQr/);
+  assert.match(onboardingAppleRemoteSource, /\/admin\/devices\/pair/);
+  assert.match(translationsSource, /Apple 异地连接/);
+  assert.match(translationsSource, /Apple Remote Access/);
+  assert.match(translationsSource, /iCloud 只适合/);
+  assert.match(translationsSource, /iCloud is suitable/);
   const onboardingHandoffSource = await readFile(path.join(rootDir, "src", "pages", "admin", "OnboardingHandoffCard.tsx"), "utf8");
   assert.match(onboardingHandoffSource, /onboarding\.handoffChatTitle/);
   assert.match(onboardingHandoffSource, /onboarding\.copyHandoffSummary/);

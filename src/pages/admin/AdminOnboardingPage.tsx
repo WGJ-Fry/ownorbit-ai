@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import type React from "react";
 import { AlertTriangle, ArrowRight, CheckCircle2, DatabaseBackup, KeyRound, Loader2, ShieldAlert, Sparkles } from "lucide-react";
-import { completeOnboarding, createBackup, getBackupSchedule, getConfigDiagnostics, getOnboardingStatus, listAiProviders, listBackups, listDevices, saveAiProviderKey, testAiProvider, updateActiveAiProvider, updateAiProviderModel, updateBackupSchedule } from "../../services/lifeosApi";
-import type { AiProviderId, AiProviderStatus, BackupRecord, BackupSchedule, BoundDevice, ConfigDiagnostics, OnboardingStatus } from "../../services/lifeosApi";
+import { completeOnboarding, createBackup, getBackupSchedule, getConfigDiagnostics, getNetworkDiagnostics, getOnboardingStatus, listAiProviders, listBackups, listDevices, saveAiProviderKey, saveDesktopConnectionConfig, startCloudflareTunnel, startTailscaleHttpsServe, testAiProvider, testConnectionUrl, updateActiveAiProvider, updateAiProviderModel, updateBackupSchedule } from "../../services/lifeosApi";
+import type { AiProviderId, AiProviderStatus, BackupRecord, BackupSchedule, BoundDevice, ConfigDiagnostics, NetworkDiagnostics, OnboardingStatus } from "../../services/lifeosApi";
 import LanguageSwitcher from "../../i18n/LanguageSwitcher";
 import { useI18n } from "../../i18n/I18nProvider";
+import OnboardingAppleRemoteCard from "./OnboardingAppleRemoteCard";
 import OnboardingHandoffCard from "./OnboardingHandoffCard";
 import OnboardingMobileCard from "./OnboardingMobileCard";
 import OnboardingRecoveryCard from "./OnboardingRecoveryCard";
@@ -20,6 +21,7 @@ const providerLabels: Record<AiProviderId, string> = {
 export default function AdminOnboardingPage() {
   const { t } = useI18n();
   const [diagnostics, setDiagnostics] = useState<ConfigDiagnostics | null>(null);
+  const [networkDiagnostics, setNetworkDiagnostics] = useState<NetworkDiagnostics | null>(null);
   const [providers, setProviders] = useState<AiProviderStatus[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<AiProviderId>("gemini");
   const [selectedModel, setSelectedModel] = useState("");
@@ -75,9 +77,18 @@ export default function AdminOnboardingPage() {
     : t("onboarding.finishBlocked", { steps: incompleteStepLabels.join(t("onboarding.stepSeparator")) || t("onboarding.unknownStep") });
 
   const refresh = async () => {
-    const [providerData, diagnosticsData, backupData, scheduleData, deviceData, onboardingData] = await Promise.all([listAiProviders(), getConfigDiagnostics(), listBackups(), getBackupSchedule(), listDevices(), getOnboardingStatus()]);
+    const [providerData, diagnosticsData, backupData, scheduleData, deviceData, onboardingData, networkData] = await Promise.all([
+      listAiProviders(),
+      getConfigDiagnostics(),
+      listBackups(),
+      getBackupSchedule(),
+      listDevices(),
+      getOnboardingStatus(),
+      getNetworkDiagnostics().catch(() => null),
+    ]);
     setProviders(providerData.providers);
     setDiagnostics(diagnosticsData);
+    setNetworkDiagnostics(networkData);
     setBackups(backupData.backups);
     setBackupSchedule(scheduleData.schedule);
     setDevices(deviceData.devices);
@@ -159,6 +170,69 @@ export default function AdminOnboardingPage() {
       await refresh();
     } catch (error: any) {
       setStatus(error.message || t("onboarding.dailyBackupFailed"));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleStartTailscaleRemote = async () => {
+    setBusy("remote-tailscale");
+    setStatus(null);
+    try {
+      const result = await startTailscaleHttpsServe();
+      setNetworkDiagnostics(result.diagnostics);
+      setStatus(result.message || t("onboarding.appleRemoteTailscaleStarted"));
+    } catch (error: any) {
+      setStatus(error.message || t("onboarding.appleRemoteActionFailed"));
+      await getNetworkDiagnostics().then(setNetworkDiagnostics).catch(() => null);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleStartCloudflareRemote = async () => {
+    setBusy("remote-cloudflare");
+    setStatus(null);
+    try {
+      const result = await startCloudflareTunnel();
+      setNetworkDiagnostics(result.diagnostics);
+      setStatus(result.message || t("onboarding.appleRemoteCloudflareStarted"));
+    } catch (error: any) {
+      setStatus(error.message || t("onboarding.appleRemoteActionFailed"));
+      await getNetworkDiagnostics().then(setNetworkDiagnostics).catch(() => null);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleSaveRemoteCandidate = async (candidate: NetworkDiagnostics["connectionCandidates"][number]) => {
+    setBusy("remote-save");
+    setStatus(null);
+    try {
+      const result = await saveDesktopConnectionConfig({
+        mode: candidate.mode,
+        label: candidate.label,
+        baseUrl: candidate.baseUrl,
+      });
+      setStatus(result.restartRequired ? t("onboarding.appleRemoteSavedRestart", { url: candidate.baseUrl }) : t("onboarding.appleRemoteSaved", { url: candidate.baseUrl }));
+      const nextDiagnostics = await getNetworkDiagnostics();
+      setNetworkDiagnostics(nextDiagnostics);
+    } catch (error: any) {
+      setStatus(error.message || t("onboarding.appleRemoteActionFailed"));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleTestRemoteCandidate = async (candidate: NetworkDiagnostics["connectionCandidates"][number]) => {
+    setBusy("remote-test");
+    setStatus(null);
+    try {
+      const result = await testConnectionUrl(candidate.baseUrl, { label: candidate.label });
+      setStatus(result.result.ok ? t("onboarding.appleRemoteTestOk", { url: candidate.baseUrl }) : t("onboarding.appleRemoteTestFailed", { url: candidate.baseUrl }));
+      await getNetworkDiagnostics().then(setNetworkDiagnostics).catch(() => null);
+    } catch (error: any) {
+      setStatus(error.message || t("onboarding.appleRemoteActionFailed"));
     } finally {
       setBusy(null);
     }
@@ -380,7 +454,7 @@ export default function AdminOnboardingPage() {
           </section>
         ) : null}
 
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
           <section className="rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
             <StepHeader done={aiConfigured} icon={<KeyRound className="h-5 w-5" />} title={t("onboarding.aiTitle")} />
             <p className="mt-3 text-sm leading-relaxed text-zinc-400">
@@ -478,6 +552,15 @@ export default function AdminOnboardingPage() {
             </button>
           </section>
 
+          <OnboardingAppleRemoteCard
+            diagnostics={networkDiagnostics}
+            busy={busy}
+            onStartTailscale={handleStartTailscaleRemote}
+            onStartCloudflare={handleStartCloudflareRemote}
+            onSaveCandidate={handleSaveRemoteCandidate}
+            onTestCandidate={handleTestRemoteCandidate}
+          />
+
           <section className="rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
             <StepHeader done={hasBackup} icon={<DatabaseBackup className="h-5 w-5" />} title={t("onboarding.backupTitle")} />
             <p className="mt-3 text-sm leading-relaxed text-zinc-400">
@@ -521,7 +604,7 @@ export default function AdminOnboardingPage() {
             </div>
           </section>
 
-          <OnboardingMobileCard devices={devices} diagnostics={diagnostics?.network} done={hasDevice} />
+          <OnboardingMobileCard devices={devices} diagnostics={networkDiagnostics || diagnostics?.network} done={hasDevice} />
         </div>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
