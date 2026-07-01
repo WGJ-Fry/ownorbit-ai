@@ -1,7 +1,7 @@
 import type express from "express";
 import { db } from "../db";
 import { insertAuditLog, listAuditLogs } from "../audit";
-import { aiProviders, deleteAiApiKey, getActiveAiProviderId, getAiApiKey, getAiConfigStatus, getAiProviderStatus, listAiProviderStatuses, saveActiveAiProvider, saveAiApiKey, saveDiscoveredAiModelCatalog, saveSelectedAiModel, type AiProviderId } from "../appSecrets";
+import { aiProviders, deleteAiApiKey, getActiveAiProviderId, getAiApiKey, getAiConfigStatus, getAiProviderBaseUrl, getAiProviderDefinition, getAiProviderStatus, listAiProviderStatuses, saveActiveAiProvider, saveAiApiKey, saveDiscoveredAiModelCatalog, saveSelectedAiModel, supportsAiProviderModelDiscovery, type AiProviderId } from "../appSecrets";
 import { buildCalendarSyncPreview, buildCalendarSyncPreviewAsync, executeCalendarSyncOperationAsync } from "../calendarSyncPreview";
 import { listCalendarSyncOperations, rollbackCalendarSyncOperation, saveCalendarSyncOperation } from "../calendarSyncHistory";
 import { createCalendarSyncRun, listCalendarSyncRuns } from "../calendarSyncRuns";
@@ -155,6 +155,51 @@ async function testLocalModelEndpoint(status: ReturnType<typeof getAiProviderSta
   }
 }
 
+async function testRemoteModelCatalog(status: ReturnType<typeof getAiProviderStatus>): Promise<AiProviderTestSummary> {
+  const credentialKind = "api_key" as const;
+  const credential = getAiApiKey(status.id);
+  const provider = getAiProviderDefinition(status.id);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4500);
+  try {
+    if (provider.apiStyle === "gemini") {
+      return {
+        ok: true,
+        result: "ready",
+        reason: "sdk_provider_model_catalog_static",
+        credentialKind,
+        modelCount: status.models?.length || 0,
+        selectedModelAvailable: status.models?.includes(status.selectedModel),
+      };
+    }
+    const headers: Record<string, string> = provider.apiStyle === "anthropic"
+      ? { "x-api-key": credential, "anthropic-version": "2023-06-01" }
+      : { Authorization: `Bearer ${credential}` };
+    const response = await fetch(`${getAiProviderBaseUrl(status.id, credential)}/models`, { signal: controller.signal, headers });
+    const data = await response.json().catch(() => ({}));
+    const models = Array.isArray(data?.data) ? data.data : Array.isArray(data?.models) ? data.models : [];
+    const modelIds = models.map((model: any) => String(model?.id || model?.name || model || "")).filter(Boolean);
+    return {
+      ok: response.ok,
+      result: response.ok ? "live_ready" : "live_failed",
+      reason: response.ok ? "models_endpoint_ok" : "models_endpoint_http_error",
+      credentialKind,
+      models: modelIds,
+      modelCount: modelIds.length,
+      selectedModelAvailable: modelIds.length ? modelIds.includes(status.selectedModel) : undefined,
+    };
+  } catch (error: any) {
+    return {
+      ok: false,
+      result: "live_failed",
+      reason: error?.name === "AbortError" ? "models_endpoint_timeout" : "models_endpoint_unreachable",
+      credentialKind,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function getAiProviderTestSummary(status: ReturnType<typeof getAiProviderStatus>, mode: "configuration" | "live" = "configuration"): Promise<AiProviderTestSummary> {
   const credentialKind = status.id === "local" ? "endpoint" : "api_key";
   if (!status.enabled) {
@@ -173,8 +218,9 @@ async function getAiProviderTestSummary(status: ReturnType<typeof getAiProviderS
       credentialKind,
     };
   }
-  if (mode === "live" && status.id === "local") {
-    return testLocalModelEndpoint(status);
+  if (mode === "live") {
+    if (status.id === "local") return testLocalModelEndpoint(status);
+    if (supportsAiProviderModelDiscovery(status.id)) return testRemoteModelCatalog(status);
   }
   return {
     ok: true,
@@ -742,11 +788,11 @@ export function registerAdminRoutes(app: express.Express) {
     let status = getAiProviderStatus(providerId);
     const checkedAt = Date.now();
     const mode = req.body?.mode === "live" ? "live" : "configuration";
-    const liveSupported = status.id === "local";
+    const liveSupported = supportsAiProviderModelDiscovery(status.id);
     const summary = await getAiProviderTestSummary(status, mode);
     const discoveredModelCount = summary.models?.length || 0;
     let modelCatalogUpdated = false;
-    if (summary.ok && mode === "live" && providerId === "local" && discoveredModelCount > 0) {
+    if (summary.ok && mode === "live" && discoveredModelCount > 0) {
       status = saveDiscoveredAiModelCatalog(providerId, summary.models || [], { type: "admin", id: "owner" });
       modelCatalogUpdated = true;
     }
@@ -780,10 +826,10 @@ export function registerAdminRoutes(app: express.Express) {
       selectedModelAvailable: summary.selectedModelAvailable,
       message: status.enabled
         ? status.configured
-          ? mode === "live" && status.id === "local"
+          ? mode === "live" && liveSupported
             ? summary.ok
-              ? `${status.provider} live connection succeeded for ${status.selectedModel}. ${summary.modelCount ?? 0} model(s) reported by the endpoint. Model list refreshed.`
-              : `${status.provider} live connection failed. Check that the local endpoint is running and supports /models.`
+              ? `${status.provider} model catalog check succeeded for ${status.selectedModel}. ${summary.modelCount ?? 0} model(s) reported by the endpoint. Model list refreshed.`
+              : `${status.provider} model catalog check failed. Check the key, endpoint, and whether /models is supported.`
             : `${status.provider} configuration is ready for ${status.selectedModel}. Live API call was not run.`
           : status.id === "local"
             ? `${status.provider} has no endpoint configured.`

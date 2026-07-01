@@ -1593,7 +1593,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(aiKeyPanelSource, /updateActiveAiProvider/);
   assert.match(aiKeyPanelSource, /updateAiProviderModel/);
   assert.match(aiKeyPanelSource, /testAiProvider/);
-  assert.match(aiKeyPanelSource, /selectedProvider === "local" \? "live" : "configuration"/);
+  assert.match(aiKeyPanelSource, /testAiProvider\(selectedProvider, "live"\)/);
   assert.match(aiKeyPanelSource, /aiKey\.testConfigOk/);
   assert.match(aiKeyPanelSource, /aiKey\.testConfigOnly/);
   assert.match(aiKeyPanelSource, /aiKey\.testLiveOk/);
@@ -1604,6 +1604,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Google Gemini API 密钥/);
   assert.match(translationsSource, /OpenAI Responses \/ Chat Completions/);
   assert.match(translationsSource, /aiKey\.details\.openrouter/);
+  assert.match(translationsSource, /aiKey\.details\.deepseek/);
+  assert.match(translationsSource, /aiKey\.details\.qwen/);
+  assert.match(translationsSource, /aiKey\.details\.anthropic/);
+  assert.match(translationsSource, /aiKey\.details\.xai/);
   assert.match(translationsSource, /Ollama \/ LM Studio 本地端点/);
   assert.match(aiKeyPanelSource, /aiKey\.systemUnavailable/);
   assert.match(aiKeyPanelSource, /AiProviderSecuritySummary/);

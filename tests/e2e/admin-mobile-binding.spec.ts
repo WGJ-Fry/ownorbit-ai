@@ -77,7 +77,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
     });
   });
   await page.getByRole("button", { name: /OpenAI/ }).click();
-  await page.getByLabel("OpenAI 模型").selectOption("gpt-4o");
+  await page.getByLabel("OpenAI 模型").fill("gpt-4o");
   await page.getByPlaceholder("输入 API Key").fill("sk-playwright-onboarding-secret-value");
   await page.getByRole("button", { name: "保存并测试" }).click();
   await expect(page.getByText("OpenAI 配置检查通过，当前模型：gpt-4o。")).toBeVisible();
@@ -540,12 +540,40 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(page.getByText("备份与恢复", { exact: true })).toBeVisible();
   await expect(page.getByText("AI Key 安全配置")).toBeVisible();
   const aiKeyPanel = page.locator("section", { hasText: "AI Key 安全配置" });
+  await page.route("**/api/v1/admin/ai-providers/openai/test", async (route) => {
+    expect(route.request().method()).toBe("POST");
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        result: "live_ready",
+        mode: "live",
+        modelCount: 2,
+        discoveredModelCount: 2,
+        modelCatalogUpdated: true,
+        selectedModel: "gpt-4o",
+        provider: {
+          id: "openai",
+          provider: "OpenAI",
+          envVar: "OPENAI_API_KEY",
+          configured: true,
+          source: "encrypted_store",
+          storage: "local_aes_gcm",
+          active: true,
+          selectedModel: "gpt-4o",
+          defaultModel: "gpt-4o-mini",
+          models: ["gpt-4o-mini", "gpt-4o"],
+        },
+        message: "OpenAI model catalog check succeeded.",
+      }),
+    });
+  });
   await expect(aiKeyPanel.getByRole("button", { name: /Gemini/ })).toBeVisible();
-  await expect(aiKeyPanel.getByRole("button", { name: /OpenAI/ })).toBeVisible();
+  await expect(aiKeyPanel.getByRole("button", { name: /^OpenAI\b/ })).toBeVisible();
   await expect(aiKeyPanel.getByRole("button", { name: /OpenRouter/ })).toBeVisible();
   await expect(aiKeyPanel.getByRole("button", { name: /本地模型|Local Model/ })).toBeVisible();
-  await aiKeyPanel.getByRole("button", { name: /OpenAI/ }).click();
-  await aiKeyPanel.getByLabel("OpenAI 模型").selectOption("gpt-4o");
+  await aiKeyPanel.getByRole("button", { name: /^OpenAI\b/ }).click();
+  await aiKeyPanel.getByLabel("OpenAI 模型").fill("gpt-4o");
   await aiKeyPanel.getByRole("button", { name: "保存模型" }).click();
   await expect(aiKeyPanel.getByText("OpenAI 模型已保存：gpt-4o")).toBeVisible();
   await aiKeyPanel.getByPlaceholder("输入 API Key").fill("sk-playwright-openai-secret-value");
@@ -559,6 +587,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   });
   await aiKeyPanel.getByRole("button", { name: "删除" }).click();
   await expect(aiKeyPanel.getByText("OpenAI 配置已删除。")).toBeVisible();
+  await page.unroute("**/api/v1/admin/ai-providers/openai/test");
   await aiKeyPanel.getByRole("button", { name: /Gemini/ }).click();
   await aiKeyPanel.getByPlaceholder("输入 API Key").fill("AIzaSy-playwright-secret-value-should-not-leak");
   await aiKeyPanel.getByRole("button", { name: "保存", exact: true }).click();

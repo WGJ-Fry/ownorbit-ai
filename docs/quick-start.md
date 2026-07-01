@@ -45,7 +45,7 @@ flowchart LR
 
 进入管理端的 AI Key 配置区域：
 
-1. 选择 provider：Gemini、OpenAI、OpenRouter 或本地模型。
+1. 选择 provider：DeepSeek、通义千问/DashScope、Kimi、智谱 GLM、千帆/文心、腾讯混元、豆包、MiniMax、StepFun、硅基流动、百川、OpenAI、Gemini、Claude、Mistral、Groq、Perplexity、Together、xAI、OpenRouter 或本地模型都可以。
 2. 粘贴 API Key 或本地模型地址。
 3. 点击保存。
 4. 点击测试，确认连接可用。
@@ -159,7 +159,7 @@ The admin password is stored only on the desktop. Use a longer passphrase before
 
 In the admin AI Key settings:
 
-1. Pick a provider: Gemini, OpenAI, OpenRouter, or local model.
+1. Pick a provider: DeepSeek, Qwen/DashScope, Kimi, GLM, Qianfan/ERNIE, Hunyuan, Doubao, MiniMax, StepFun, SiliconFlow, Baichuan, OpenAI, Gemini, Claude, Mistral, Groq, Perplexity, Together, xAI, OpenRouter, or a local model.
 2. Paste the API key or local model endpoint.
 3. Save it.
 4. Test the connection.

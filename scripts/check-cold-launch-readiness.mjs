@@ -134,7 +134,7 @@ check(readmeZh.includes(image), "Chinese README exposes the same GHCR image tag"
 check(readmeZh.includes(`release tag 是 \`${releaseTag}\``), "Chinese README explains release tag versus package version", `README.zh-CN.md must explain release tag ${releaseTag}`);
 check(readmeZh.includes(`package version 是 \`${version}\``), "Chinese README explains the package version", `README.zh-CN.md must explain package version ${version}`);
 check(appSecrets.includes('defaultModel: "llama3.2"'), "local provider defaults to llama3.2");
-check(appSecrets.includes('models: ["llama3.2", "llama3.2:1b", "llama3.1", "qwen2.5", "mistral"]'), "local provider catalog includes llama3.2 and compatible alternatives");
+check(["llama3.2", "qwen2.5", "deepseek-r1", "mistral"].every((model) => appSecrets.includes(`"${model}"`)), "local provider catalog includes llama3.2 and compatible alternatives");
 check(appSecrets.includes("process.env.LIFEOS_LOCAL_MODEL_NAME || process.env.LOCAL_MODEL_NAME"), "selected local model honors LOCAL_MODEL_NAME");
 check(aiRuntime.includes('process.env.LIFEOS_QUICKSTART === "1"') && aiRuntime.includes('return "local"'), "quickstart forces local provider over frontend hints");
 check(aiRuntime.includes('if (providerId === "local") return selectedModel'), "local provider rejects frontend non-local model names");

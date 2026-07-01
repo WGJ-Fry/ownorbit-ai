@@ -653,9 +653,12 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(deletedAiKey.ai.secureStorage.fallbackActive, true);
 
   const aiProviders = await request(port, "/api/v1/admin/ai-providers", { headers: adminHeaders }).then((res) => res.json());
-  assert.deepEqual(aiProviders.providers.map((provider) => provider.id), ["gemini", "openai", "openrouter", "local"]);
+  for (const providerId of ["gemini", "openai", "deepseek", "qwen", "moonshot", "zhipu", "baidu_qianfan", "tencent_hunyuan", "volcengine", "minimax", "stepfun", "siliconflow", "baichuan", "anthropic", "mistral", "groq", "perplexity", "together", "xai", "openrouter", "local"]) {
+    assert.ok(aiProviders.providers.some((provider) => provider.id === providerId), `missing provider ${providerId}`);
+  }
   const openAiProvider = aiProviders.providers.find((provider) => provider.id === "openai");
-  assert.deepEqual(openAiProvider.models, ["gpt-4o-mini", "gpt-4o"]);
+  assert.ok(openAiProvider.models.includes("gpt-4o-mini"));
+  assert.ok(openAiProvider.models.includes("gpt-5"));
   assert.equal(openAiProvider.selectedModel, "gpt-4o-mini");
   const updatedOpenAiModel = await request(port, "/api/v1/admin/ai-providers/openai/model", {
     method: "PUT",
@@ -663,10 +666,16 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     body: JSON.stringify({ model: "gpt-4o" }),
   }).then((res) => res.json());
   assert.equal(updatedOpenAiModel.provider.selectedModel, "gpt-4o");
-  const rejectedOpenAiModel = await request(port, "/api/v1/admin/ai-providers/openai/model", {
+  const customOpenAiModel = await request(port, "/api/v1/admin/ai-providers/openai/model", {
     method: "PUT",
     headers: adminHeaders,
     body: JSON.stringify({ model: "not-a-real-openai-model" }),
+  }).then((res) => res.json());
+  assert.equal(customOpenAiModel.provider.selectedModel, "not-a-real-openai-model");
+  const rejectedOpenAiModel = await request(port, "/api/v1/admin/ai-providers/openai/model", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({ model: "bad\nmodel" }),
   });
   assert.equal(rejectedOpenAiModel.status, 400);
   const updatedLocalModel = await request(port, "/api/v1/admin/ai-providers/local/model", {
@@ -719,8 +728,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   }).then((res) => res.json());
   assert.equal(testedOpenAi.ok, true);
   assert.equal(testedOpenAi.mode, "configuration");
-  assert.equal(testedOpenAi.liveSupported, false);
-  assert.equal(testedOpenAi.selectedModel, "gpt-4o");
+  assert.equal(testedOpenAi.liveSupported, true);
+  assert.equal(testedOpenAi.selectedModel, "not-a-real-openai-model");
   assert.equal(testedOpenAi.result, "ready");
   assert.equal(testedOpenAi.reason, "ready");
   assert.equal(testedOpenAi.credentialKind, "api_key");
@@ -743,7 +752,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const legacyModelEngineState = await request(port, "/api/v1/state/lifeos_model_engine", {
     headers: adminHeaders,
   }).then((res) => res.json());
-  assert.equal(legacyModelEngineState.value, "gpt-4o");
+  assert.equal(legacyModelEngineState.value, "not-a-real-openai-model");
   await request(port, "/api/v1/state/lifeos_byok_key", {
     method: "PUT",
     headers: adminHeaders,
@@ -1048,7 +1057,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     "messages",
   ]);
   assert.equal(diagnosticBundle.ai.configured, false);
-  assert.deepEqual(diagnosticBundle.ai.providers.map((provider) => provider.id), ["gemini", "openai", "openrouter", "local"]);
+  for (const providerId of ["gemini", "openai", "deepseek", "qwen", "moonshot", "zhipu", "baidu_qianfan", "tencent_hunyuan", "volcengine", "minimax", "stepfun", "siliconflow", "baichuan", "anthropic", "mistral", "groq", "perplexity", "together", "xai", "openrouter", "local"]) {
+    assert.ok(diagnosticBundle.ai.providers.some((provider) => provider.id === providerId), `diagnostic bundle missing provider ${providerId}`);
+  }
   assert.equal(diagnosticBundle.environment.GEMINI_API_KEY_CONFIGURED, false);
   assert.equal(diagnosticBundle.environment.OPENAI_API_KEY_CONFIGURED, false);
   assert.equal(diagnosticBundle.environment.OPENROUTER_API_KEY_CONFIGURED, false);
@@ -1178,7 +1189,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   });
   const diagnosticExportAudit = auditAfterExports.logs.find((log) => log.action === "diagnostic_bundle_exported");
   assert.equal(diagnosticExportAudit.actorType, "admin");
-  assert.equal(diagnosticExportAudit.metadata.aiProviders, 4);
+  assert.equal(diagnosticExportAudit.metadata.aiProviders, diagnosticBundle.ai.providers.length);
   assert.equal(diagnosticExportAudit.metadata.configuredAiProviders, 0);
   assert.equal(diagnosticExportAudit.metadata.backupCount >= 1, true);
   assert.equal(diagnosticExportAudit.metadata.databaseTableCount >= 1, true);
@@ -1273,8 +1284,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(openAiTestAudit.metadata.reason, "ready");
   assert.equal(openAiTestAudit.metadata.credentialKind, "api_key");
   assert.equal(openAiTestAudit.metadata.mode, "configuration");
-  assert.equal(openAiTestAudit.metadata.liveSupported, false);
-  assert.equal(openAiTestAudit.metadata.selectedModel, "gpt-4o");
+  assert.equal(openAiTestAudit.metadata.liveSupported, true);
+  assert.equal(openAiTestAudit.metadata.selectedModel, "not-a-real-openai-model");
   assert.equal(typeof openAiTestAudit.metadata.checkedAt, "number");
   const localTestAudit = findConfigAudit("ai_provider_tested", "local");
   assert.equal(localTestAudit.metadata.providerId, "local");
@@ -1290,18 +1301,19 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(openAiDefaultAudit.metadata.active, true);
   assert.equal(openAiDefaultAudit.metadata.configured, true);
   assert.equal(openAiDefaultAudit.metadata.source, "encrypted_store");
-  assert.equal(openAiDefaultAudit.metadata.selectedModel, "gpt-4o");
+  assert.equal(openAiDefaultAudit.metadata.selectedModel, "not-a-real-openai-model");
   assert.equal(openAiDefaultAudit.metadata.previousActiveProvider, "gemini");
   assert.equal(openAiDefaultAudit.metadata.changed, true);
   assert.equal(typeof openAiDefaultAudit.metadata.secureStorage.fallbackActive, "boolean");
-  const openAiModelAudit = findConfigAudit("ai_provider_model_updated", "openai");
+  const openAiModelAudit = auditAfterExports.logs.find((log) => log.action === "ai_provider_model_updated" && log.targetType === "config" && log.targetId === "openai" && log.metadata.model === "gpt-4o");
   assert.equal(openAiModelAudit.metadata.provider, "OpenAI");
-  assert.equal(openAiModelAudit.metadata.model, "gpt-4o");
   assert.equal(openAiModelAudit.metadata.previousModel, "gpt-4o-mini");
   assert.equal(openAiModelAudit.metadata.changed, true);
   assert.equal(openAiModelAudit.metadata.selectedModel, "gpt-4o");
   assert.equal(openAiModelAudit.metadata.source, "missing");
   assert.equal(typeof openAiModelAudit.metadata.secureStorage.migrationRecommended, "boolean");
+  const openAiCustomModelAudit = auditAfterExports.logs.find((log) => log.action === "ai_provider_model_updated" && log.targetType === "config" && log.targetId === "openai" && log.metadata.model === "not-a-real-openai-model");
+  assert.equal(openAiCustomModelAudit.metadata.previousModel, "gpt-4o");
   const localModelAudit = findConfigAudit("ai_provider_model_updated", "local");
   assert.equal(localModelAudit.metadata.provider, "Local Model");
   assert.equal(localModelAudit.metadata.model, "custom-local-model:latest");
@@ -1579,7 +1591,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(testedLocalLive.modelCatalogUpdated, true);
   assert.equal(testedLocalLive.selectedModelAvailable, true);
   assert.ok(testedLocalLive.provider.models.includes("phi4:latest"));
-  assert.match(testedLocalLive.message, /live connection succeeded/);
+  assert.match(testedLocalLive.message, /model catalog check succeeded/);
   assert.match(testedLocalLive.message, /Model list refreshed/);
   assert.equal(JSON.stringify(testedLocalLive).includes(localModelEndpoint), false);
   const localProvidersAfterLive = await request(port, "/api/v1/admin/ai-providers", { headers: adminHeaders }).then((res) => res.json());

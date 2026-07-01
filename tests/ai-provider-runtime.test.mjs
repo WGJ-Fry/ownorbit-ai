@@ -83,6 +83,90 @@ test("AI runtime routes OpenAI-compatible providers with safe headers and select
   });
 });
 
+test("AI runtime routes mainland China and international OpenAI-compatible providers", async () => {
+  await withRuntime("openai-compatible-expanded", {
+    DEEPSEEK_API_KEY: "sk-deepseek-test",
+    DASHSCOPE_API_KEY: "sk-qwen-test",
+    MOONSHOT_API_KEY: "sk-kimi-test",
+    ZHIPU_API_KEY: "sk-zhipu-test",
+    ARK_API_KEY: "sk-volc-test",
+    SILICONFLOW_API_KEY: "sk-siliconflow-test",
+    MISTRAL_API_KEY: "sk-mistral-test",
+    GROQ_API_KEY: "sk-groq-test",
+    XAI_API_KEY: "sk-xai-test",
+  }, async ({ generateAiContent, resolveAiProviderId }) => {
+    const calls = [];
+    globalThis.fetch = async (url, init) => {
+      const body = JSON.parse(init.body);
+      calls.push({ url: String(url), headers: init.headers, body });
+      return jsonResponse({ choices: [{ message: { content: `${body.model} ok` } }] });
+    };
+
+    assert.equal(resolveAiProviderId({ modelEngine: "DeepSeek R1" }), "deepseek");
+    assert.equal(resolveAiProviderId({ modelEngine: "通义千问 Qwen Max" }), "qwen");
+    assert.equal(resolveAiProviderId({ modelEngine: "Kimi" }), "moonshot");
+    assert.equal(resolveAiProviderId({ modelEngine: "智谱 GLM" }), "zhipu");
+    assert.equal(resolveAiProviderId({ modelEngine: "豆包" }), "volcengine");
+
+    await generateAiContent({ providerId: "deepseek", modelEngine: "deepseek-reasoner", contents: "hello" });
+    await generateAiContent({ providerId: "qwen", modelEngine: "qwen-max", contents: "hello" });
+    await generateAiContent({ providerId: "moonshot", modelEngine: "moonshot-v1-128k", contents: "hello" });
+    await generateAiContent({ providerId: "zhipu", modelEngine: "glm-4.5-flash", contents: "hello" });
+    await generateAiContent({ providerId: "volcengine", modelEngine: "doubao-seed-1-6-250615", contents: "hello" });
+    await generateAiContent({ providerId: "siliconflow", modelEngine: "deepseek-ai/DeepSeek-V3", contents: "hello" });
+    await generateAiContent({ providerId: "mistral", modelEngine: "mistral-large-latest", contents: "hello" });
+    await generateAiContent({ providerId: "groq", modelEngine: "llama-3.3-70b-versatile", contents: "hello" });
+    await generateAiContent({ providerId: "xai", modelEngine: "grok-4", contents: "hello" });
+
+    assert.equal(calls[0].url, "https://api.deepseek.com/chat/completions");
+    assert.equal(calls[1].url, "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions");
+    assert.equal(calls[2].url, "https://api.moonshot.ai/v1/chat/completions");
+    assert.equal(calls[3].url, "https://open.bigmodel.cn/api/paas/v4/chat/completions");
+    assert.equal(calls[4].url, "https://ark.cn-beijing.volces.com/api/v3/chat/completions");
+    assert.equal(calls[5].url, "https://api.siliconflow.cn/v1/chat/completions");
+    assert.equal(calls[6].url, "https://api.mistral.ai/v1/chat/completions");
+    assert.equal(calls[7].url, "https://api.groq.com/openai/v1/chat/completions");
+    assert.equal(calls[8].url, "https://api.x.ai/v1/chat/completions");
+    assert.equal(calls[0].headers.Authorization, "Bearer sk-deepseek-test");
+    assert.equal(calls[1].headers.Authorization, "Bearer sk-qwen-test");
+  });
+});
+
+test("AI runtime routes Anthropic through the Messages API", async () => {
+  await withRuntime("anthropic", {
+    ANTHROPIC_API_KEY: "sk-ant-test",
+  }, async ({ generateAiContent, resolveAiProviderId }) => {
+    const calls = [];
+    globalThis.fetch = async (url, init) => {
+      const body = JSON.parse(init.body);
+      calls.push({ url: String(url), headers: init.headers, body });
+      return jsonResponse({
+        content: [
+          { type: "text", text: "Claude ok" },
+          { type: "tool_use", name: "openApp", input: { appName: "tasks" } },
+        ],
+      });
+    };
+
+    assert.equal(resolveAiProviderId({ modelEngine: "Claude Sonnet" }), "anthropic");
+    const response = await generateAiContent({
+      providerId: "anthropic",
+      modelEngine: "claude-sonnet-4-5",
+      contents: "hello",
+      systemInstruction: "Be useful",
+      tools: [{ functionDeclarations: [{ name: "openApp", description: "Open app", parameters: { type: "object", properties: { appName: { type: "string" } } } }] }],
+    });
+
+    assert.equal(calls[0].url, "https://api.anthropic.com/v1/messages");
+    assert.equal(calls[0].headers["x-api-key"], "sk-ant-test");
+    assert.equal(calls[0].headers["anthropic-version"], "2023-06-01");
+    assert.equal(calls[0].body.system, "Be useful");
+    assert.equal(calls[0].body.tools[0].input_schema.type, "object");
+    assert.equal(response.text, "Claude ok");
+    assert.equal(response.functionCalls?.[0]?.args.appName, "tasks");
+  });
+});
+
 test("AI runtime resolves provider hints before falling back to Gemini", async () => {
   await withRuntime("provider-hints", {}, async ({ resolveAiProviderId }) => {
     assert.equal(resolveAiProviderId({ providerId: "openai" }), "openai");

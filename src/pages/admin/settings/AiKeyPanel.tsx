@@ -98,7 +98,7 @@ export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: Co
     setBusy(true);
     setStatus(null);
     try {
-      const result = await testAiProvider(selectedProvider, selectedProvider === "local" ? "live" : "configuration");
+      const result = await testAiProvider(selectedProvider, "live");
       const testDetails = result.mode === "live" ? t("aiKey.testLiveOk", { count: result.modelCount ?? 0 }) : t("aiKey.testConfigOnly");
       const catalogDetails = result.modelCatalogUpdated ? ` ${t("aiKey.modelCatalogUpdated", { count: result.discoveredModelCount || result.modelCount || 0 })}` : "";
       setStatus(result.ok
@@ -242,32 +242,18 @@ export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: Co
       <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto]">
         <div>
           <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-zinc-500">{t("aiKey.modelLabel", { provider: activeProvider.provider })}</label>
-          {activeProvider.id === "local" ? (
-            <>
-              <input
-                value={modelValue}
-                onChange={(event) => setSelectedModel(event.target.value)}
-                list="lifeos-local-ai-models"
-                aria-label={t("aiKey.modelLabel", { provider: activeProvider.provider })}
-                disabled={busy}
-                placeholder="llama3.2"
-                className="w-full rounded-xl border border-white/[0.08] bg-[#060a10] px-4 py-3 text-sm text-zinc-100 outline-none focus:border-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-55"
-              />
-              <datalist id="lifeos-local-ai-models">
-                {modelOptions.map((model) => <option key={model} value={model} />)}
-              </datalist>
-            </>
-          ) : (
-            <select
-              value={modelValue}
-              onChange={(event) => setSelectedModel(event.target.value)}
-              aria-label={t("aiKey.modelLabel", { provider: activeProvider.provider })}
-              disabled={busy}
-              className="w-full rounded-xl border border-white/[0.08] bg-[#060a10] px-4 py-3 text-sm text-zinc-100 outline-none focus:border-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-55"
-            >
-              {modelOptions.map((model) => <option key={model} value={model}>{model}</option>)}
-            </select>
-          )}
+          <input
+            value={modelValue}
+            onChange={(event) => setSelectedModel(event.target.value)}
+            list="lifeos-ai-provider-models"
+            aria-label={t("aiKey.modelLabel", { provider: activeProvider.provider })}
+            disabled={busy}
+            placeholder={activeProvider.defaultModel || "model-id"}
+            className="w-full rounded-xl border border-white/[0.08] bg-[#060a10] px-4 py-3 text-sm text-zinc-100 outline-none focus:border-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-55"
+          />
+          <datalist id="lifeos-ai-provider-models">
+            {modelOptions.map((model) => <option key={model} value={model} />)}
+          </datalist>
           <p className="mt-2 text-xs leading-relaxed text-zinc-500">
             {t("aiKey.modelHint")}
           </p>

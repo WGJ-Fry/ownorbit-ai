@@ -574,7 +574,7 @@ export type ConfigDiagnostics = {
   };
 };
 
-export type AiProviderId = "gemini" | "openai" | "openrouter" | "local";
+export type AiProviderId = string;
 export type AiProviderStatus = ConfigDiagnostics["ai"] & {
   id: AiProviderId;
   enabled: boolean;

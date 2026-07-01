@@ -2533,7 +2533,7 @@ function checkAssets() {
     aiKeyPanelSource.includes("updateActiveAiProvider") &&
     aiKeyPanelSource.includes("updateAiProviderModel") &&
     aiKeyPanelSource.includes("testAiProvider") &&
-    aiKeyPanelSource.includes('selectedProvider === "local" ? "live" : "configuration"') &&
+    aiKeyPanelSource.includes('testAiProvider(selectedProvider, "live")') &&
     aiKeyPanelSource.includes("aiKey.testConfigOk") &&
     aiKeyPanelSource.includes("aiKey.testConfigOnly") &&
     aiKeyPanelSource.includes("aiKey.testLiveOk") &&
@@ -2552,6 +2552,10 @@ function checkAssets() {
     translationsSource.includes("aiKey.setDefault") &&
     translationsSource.includes("aiKey.details.gemini") &&
     translationsSource.includes("aiKey.details.openai") &&
+    translationsSource.includes("aiKey.details.deepseek") &&
+    translationsSource.includes("aiKey.details.qwen") &&
+    translationsSource.includes("aiKey.details.anthropic") &&
+    translationsSource.includes("aiKey.details.xai") &&
     translationsSource.includes("aiKey.details.openrouter") &&
     translationsSource.includes("aiKey.details.local") &&
     translationsSource.includes("aiKey.summaryConfiguredTitle") &&
@@ -2568,6 +2572,7 @@ function checkAssets() {
     adminRoutesSource.includes("envManaged") &&
     adminRoutesSource.includes("aiStatusAuditMetadata(status)") &&
     adminRoutesSource.includes("Live API call was not run") &&
+    adminRoutesSource.includes("supportsAiProviderModelDiscovery") &&
     adminRoutesSource.includes("/models") &&
     adminRoutesSource.includes("models_endpoint_ok") &&
     adminRoutesSource.includes("live_ready") &&
@@ -2596,6 +2601,8 @@ function checkAssets() {
     exists("tests/ai-provider-runtime.test.mjs") &&
     fs.readFileSync(path.join(rootDir, "tests/ai-provider-runtime.test.mjs"), "utf8").includes("AI provider changes sync legacy Studio runtime state") &&
     fs.readFileSync(path.join(rootDir, "tests/ai-provider-runtime.test.mjs"), "utf8").includes("AI runtime routes OpenAI-compatible providers with safe headers and selected models") &&
+    fs.readFileSync(path.join(rootDir, "tests/ai-provider-runtime.test.mjs"), "utf8").includes("AI runtime routes mainland China and international OpenAI-compatible providers") &&
+    fs.readFileSync(path.join(rootDir, "tests/ai-provider-runtime.test.mjs"), "utf8").includes("AI runtime routes Anthropic through the Messages API") &&
     fs.readFileSync(path.join(rootDir, "tests/ai-provider-runtime.test.mjs"), "utf8").includes("openrouter.providerId") &&
     fs.readFileSync(path.join(rootDir, "tests/ai-provider-runtime.test.mjs"), "utf8").includes("local.providerId") &&
     packageJson.scripts.test.includes("tests/chat-runtime-settings.test.mjs")

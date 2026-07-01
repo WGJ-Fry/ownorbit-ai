@@ -11,7 +11,7 @@ import OnboardingMobileCard from "./OnboardingMobileCard";
 import OnboardingRecoveryCard from "./OnboardingRecoveryCard";
 import { buildOnboardingHandoffSummary } from "../../services/onboardingHandoffSummary";
 
-const providerLabels: Record<AiProviderId, string> = {
+const providerLabels: Record<string, string> = {
   gemini: "Google Gemini",
   openai: "OpenAI",
   openrouter: "OpenRouter",
@@ -36,6 +36,7 @@ export default function AdminOnboardingPage() {
 
   const activeProvider = useMemo(() => providers.find((provider) => provider.id === selectedProvider), [providers, selectedProvider]);
   const isLocalProvider = selectedProvider === "local";
+  const selectedProviderLabel = activeProvider?.provider || providerLabels[selectedProvider] || selectedProvider;
   const aiConfigured = providers.some((provider) => provider.configured);
   const latestBackup = backups[0];
   const hasBackup = backups.length > 0;
@@ -468,7 +469,7 @@ export default function AdminOnboardingPage() {
                   onClick={() => setSelectedProvider(provider.id)}
                   className={`rounded-2xl border px-3 py-2 text-left text-xs font-bold ${selectedProvider === provider.id ? "border-cyan-400/40 bg-cyan-500/10 text-cyan-100" : "border-white/[0.06] bg-white/[0.03] text-zinc-300"}`}
                 >
-                  <span className="block truncate">{providerLabels[provider.id]}</span>
+                    <span className="block truncate">{provider.provider || providerLabels[provider.id] || provider.id}</span>
                   <span className={`mt-1 block text-[10px] ${provider.configured ? "text-emerald-300" : "text-zinc-500"}`}>
                     {provider.active ? t("onboarding.activeDefault") : provider.configured ? t("onboarding.securityPassed") : t("common.warning")}
                   </span>
@@ -487,14 +488,14 @@ export default function AdminOnboardingPage() {
                   <p className="mt-2">{t("onboarding.providerHint")}</p>
                 </div>
                 <div className="mt-4">
-                  <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-zinc-500">{t("onboarding.modelLabel", { provider: providerLabels[selectedProvider] })}</label>
+                  <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-zinc-500">{t("onboarding.modelLabel", { provider: selectedProviderLabel })}</label>
                   {selectedProvider === "local" ? (
                     <>
                       <input
                         value={selectedModel}
                         onChange={(event) => setSelectedModel(event.target.value)}
                         list="lifeos-onboarding-local-models"
-                        aria-label={t("onboarding.modelLabel", { provider: providerLabels[selectedProvider] })}
+                        aria-label={t("onboarding.modelLabel", { provider: selectedProviderLabel })}
                         disabled={busy === "ai"}
                         placeholder="llama3.2"
                         className="w-full rounded-xl border border-white/[0.08] bg-[#060a10] px-4 py-3 text-sm outline-none focus:border-cyan-400/60 disabled:opacity-55"
@@ -504,16 +505,19 @@ export default function AdminOnboardingPage() {
                       </datalist>
                     </>
                   ) : (
-                    <select
+                    <input
                       value={selectedModel}
                       onChange={(event) => setSelectedModel(event.target.value)}
-                      aria-label={t("onboarding.modelLabel", { provider: providerLabels[selectedProvider] })}
+                      list="lifeos-onboarding-cloud-models"
+                      aria-label={t("onboarding.modelLabel", { provider: selectedProviderLabel })}
                       disabled={busy === "ai"}
+                      placeholder={activeProvider.defaultModel || "model-id"}
                       className="w-full rounded-xl border border-white/[0.08] bg-[#060a10] px-4 py-3 text-sm outline-none focus:border-cyan-400/60 disabled:opacity-55"
-                    >
-                      {(activeProvider.models || []).map((model) => <option key={model} value={model}>{model}</option>)}
-                    </select>
+                    />
                   )}
+                  <datalist id="lifeos-onboarding-cloud-models">
+                    {(activeProvider.models || []).map((model) => <option key={model} value={model} />)}
+                  </datalist>
                 </div>
               </>
             ) : null}

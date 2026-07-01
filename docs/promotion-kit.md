@@ -114,7 +114,7 @@ https://github.com/WGJ-Fry/lifeos-ai
 它不是单纯的聊天网页，而是一个“电脑端私有核心 + 手机端随身入口”的个人 AI 系统。
 
 电脑端负责：
-- 连接 Gemini / OpenAI / OpenRouter / 本地模型
+- 连接 DeepSeek / 通义千问 / Kimi / 智谱 GLM / 千帆文心 / 腾讯混元 / 豆包 / MiniMax / StepFun / 硅基流动 / 百川 / OpenAI / Gemini / Claude / Mistral / Groq / Perplexity / Together / xAI / OpenRouter / 本地模型
 - 保存 SQLite 本地数据
 - 管理手机设备绑定
 - 做管理员认证、安全自检、备份恢复和诊断导出
@@ -172,7 +172,7 @@ I built LifeOS AI, a local-first personal AI assistant.
 It is not just another chat page. It is a desktop private core plus a mobile PWA companion.
 
 The desktop app handles:
-- Gemini / OpenAI / OpenRouter / local model configuration
+- multi-provider model configuration: DeepSeek, Qwen/DashScope, Kimi, GLM, Qianfan/ERNIE, Hunyuan, Doubao, MiniMax, StepFun, SiliconFlow, Baichuan, OpenAI, Gemini, Claude, Mistral, Groq, Perplexity, Together, xAI, OpenRouter, local models, and more OpenAI-compatible endpoints
 - SQLite local data
 - phone pairing
 - admin auth, safety checks, backups, restore, and diagnostics
