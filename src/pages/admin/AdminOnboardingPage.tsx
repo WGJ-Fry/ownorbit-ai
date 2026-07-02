@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import type React from "react";
-import { AlertTriangle, ArrowRight, CheckCircle2, DatabaseBackup, KeyRound, Loader2, ShieldAlert, Sparkles } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2, DatabaseBackup, KeyRound, Loader2, QrCode, ShieldAlert, SlidersHorizontal, Sparkles } from "lucide-react";
 import { completeOnboarding, createBackup, getBackupSchedule, getConfigDiagnostics, getNetworkDiagnostics, getOnboardingStatus, listAiProviders, listBackups, listDevices, saveAiProviderKey, saveDesktopConnectionConfig, startCloudflareTunnel, startTailscaleHttpsServe, testAiProvider, testConnectionUrl, updateActiveAiProvider, updateAiProviderModel, updateBackupSchedule } from "../../services/lifeosApi";
 import type { AiProviderId, AiProviderStatus, BackupRecord, BackupSchedule, BoundDevice, ConfigDiagnostics, NetworkDiagnostics, OnboardingStatus } from "../../services/lifeosApi";
 import LanguageSwitcher from "../../i18n/LanguageSwitcher";
 import { useI18n } from "../../i18n/I18nProvider";
 import OnboardingAppleRemoteCard from "./OnboardingAppleRemoteCard";
 import OnboardingHandoffCard from "./OnboardingHandoffCard";
-import OnboardingMobileCard from "./OnboardingMobileCard";
-import OnboardingQuickStartCard from "./OnboardingQuickStartCard";
 import OnboardingRecoveryCard from "./OnboardingRecoveryCard";
 import { buildOnboardingHandoffSummary } from "../../services/onboardingHandoffSummary";
 
@@ -43,8 +41,11 @@ export default function AdminOnboardingPage() {
   const hasBackup = backups.length > 0;
   const hasDevice = devices.some((device) => device.status !== "revoked");
   const onboardingSteps = Array.isArray(onboarding?.steps) ? onboarding.steps : [];
-  const completedSteps = [aiConfigured, hasBackup, hasDevice, onboardingSteps.find((step) => step.id === "security")?.done].filter(Boolean).length;
-  const nextStep = onboardingSteps.find((step) => !step.done) || null;
+  const securityReady = onboardingSteps.find((step) => step.id === "security")?.done ?? diagnostics?.securityCheck.overall !== "critical";
+  const primaryStep = !aiConfigured ? "ai" : !securityReady ? "security" : !hasDevice ? "device" : "chat";
+  const primaryStepNumber = primaryStep === "ai" ? 1 : primaryStep === "device" ? 2 : 3;
+  const primaryStepsTotal = 3;
+  const primaryProgress = primaryStep === "chat" ? 3 : primaryStepNumber - 1;
   const securityItems = diagnostics?.securityCheck.items || [];
   const securityRiskCount = securityItems.filter((item) => item.status !== "ok").length;
   const remoteReady = networkDiagnostics?.remoteReadiness?.severity === "ok";
@@ -73,7 +74,7 @@ export default function AdminOnboardingPage() {
     }
   };
   const incompleteStepLabels = onboardingSteps
-    .filter((step) => !step.done)
+    .filter((step) => step.required !== false && !step.done)
     .map((step) => localizedStepMeta(step.id, step.done).label) || [];
   const finishHint = onboarding?.completed
     ? t("onboarding.finishReady")
@@ -130,20 +131,6 @@ export default function AdminOnboardingPage() {
       await refresh();
     } catch (error: any) {
       setStatus(error.message || t("onboarding.aiFailed"));
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const handleSetDefaultProvider = async () => {
-    setBusy("ai-default");
-    setStatus(null);
-    try {
-      const result = await updateActiveAiProvider(selectedProvider);
-      setStatus(`${result.provider.provider} ${t("onboarding.alreadyDefault")}`);
-      await refresh();
-    } catch (error: any) {
-      setStatus(error.message || t("onboarding.defaultProviderFailed"));
     } finally {
       setBusy(null);
     }
@@ -305,233 +292,54 @@ export default function AdminOnboardingPage() {
 
   return (
     <div className="min-h-screen bg-[#060a10] p-5 text-zinc-100">
-      <main className="mx-auto flex min-h-[calc(100vh-40px)] max-w-5xl flex-col justify-center">
-        <div className="mb-8">
+      <main className="mx-auto flex min-h-[calc(100vh-40px)] max-w-3xl flex-col justify-center">
+        <div className="mb-6">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-1 text-xs font-bold text-cyan-200">
               <Sparkles className="h-3.5 w-3.5" />
-              {t("onboarding.badge")}
+              {t("onboarding.simpleEyebrow")}
             </div>
             <LanguageSwitcher compact />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">{t("onboarding.title")}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t("onboarding.simpleTitle")}</h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
-            {t("onboarding.description")}
+            {t("onboarding.simpleBody")}
           </p>
-          <div className="mt-5 max-w-xl rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
+          <div className="mt-5 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
             <div className="flex items-center justify-between text-xs font-bold text-zinc-400">
-              <span>{t("onboarding.progress")}</span>
-              <span data-testid="onboarding-progress-count">{completedSteps} / 4</span>
+              <span>{t("onboarding.simpleProgress")}</span>
+              <span data-testid="onboarding-progress-count">{primaryProgress} / {primaryStepsTotal}</span>
             </div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.06]">
-              <div className="h-full rounded-full bg-cyan-400 transition-all" style={{ width: `${(completedSteps / 4) * 100}%` }} />
+              <div className="h-full rounded-full bg-cyan-400 transition-all" style={{ width: `${(primaryProgress / primaryStepsTotal) * 100}%` }} />
             </div>
-            {onboarding?.completed ? (
-              <div className="mt-3 text-xs font-bold text-emerald-300">
-                {onboarding.completedAt ? t("onboarding.completedAt", { time: new Date(onboarding.completedAt).toLocaleString() }) : t("onboarding.completed")}
-              </div>
-            ) : (
-              <div className="mt-3 text-xs text-zinc-500">{t("onboarding.progressHint")}</div>
-            )}
           </div>
         </div>
 
         {status ? <div className="mb-5 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 text-sm text-zinc-300">{status}</div> : null}
 
-        {onboarding?.completed ? <OnboardingHandoffCard onCopySummary={handleCopyHandoffSummary} /> : null}
+        {primaryStep === "ai" ? (
+          <section id="onboarding-ai-key" className="scroll-mt-5 rounded-[28px] border border-cyan-400/20 bg-[#101722] p-5 shadow-2xl shadow-cyan-950/20">
+            <StepHeader done={aiConfigured} icon={<KeyRound className="h-5 w-5" />} title={t("onboarding.simpleAiTitle")} />
+            <p className="mt-3 text-sm leading-relaxed text-zinc-400">{t("onboarding.simpleAiBody")}</p>
 
-        {!onboarding?.completed ? (
-          <OnboardingQuickStartCard
-            aiConfigured={aiConfigured}
-            hasBackup={hasBackup}
-            hasDevice={hasDevice}
-            remoteReady={remoteReady}
-          />
-        ) : null}
-
-        {onboarding ? (
-          <section className="mb-5 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-            <div className="rounded-[28px] border border-cyan-400/15 bg-cyan-500/10 p-5">
-              <div className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200/75">{t("onboarding.nextStepTitle")}</div>
-              <h2 className="mt-2 text-xl font-bold text-zinc-50">
-                {nextStep ? localizedStepMeta(nextStep.id, nextStep.done).label : t("onboarding.completed")}
-              </h2>
-              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-cyan-50/85">
-                {nextStep ? localizedStepMeta(nextStep.id, nextStep.done).message : t("onboarding.doneStatus")}
-              </p>
-              {!nextStep ? (
-                <div className="mt-3 rounded-2xl border border-white/[0.12] bg-[#060a10]/35 p-3 text-xs leading-relaxed text-cyan-50/80">
-                  {t("onboarding.firstChatVerificationBody")}
-                </div>
-              ) : null}
-              <div className="mt-4 flex flex-wrap gap-3">
-                <a
-                  href={nextStep?.actionPath || "/chat"}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-[#061016]"
-                >
-                  {nextStep ? t("onboarding.goNextStep") : t("onboarding.startFirstChat")}
-                  <ArrowRight className="h-4 w-4" />
-                </a>
-                <a
-                  href={nextStep ? "/admin/settings" : "/admin/dashboard"}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.12] bg-[#060a10]/40 px-4 py-3 text-sm font-bold text-zinc-100"
-                >
-                  {nextStep ? t("onboarding.continueSettings") : t("onboarding.enterDashboard")}
-                </a>
-              </div>
-            </div>
-
-            <div className="rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
-              <div className="text-sm font-bold text-zinc-100">{t("onboarding.checklistTitle")}</div>
-              <div className="mt-3 grid gap-2">
-                {onboardingSteps.map((step) => {
-                  const localized = localizedStepMeta(step.id, step.done);
-                  return (
-                  <a
-                    key={step.id}
-                    href={step.actionPath}
-                    className={`rounded-2xl border p-3 text-left text-sm transition-colors ${
-                      step.done
-                        ? "border-emerald-400/15 bg-emerald-500/10 text-emerald-100"
-                        : "border-white/[0.06] bg-white/[0.03] text-zinc-200 hover:bg-white/[0.05]"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="font-bold">{localized.label}</span>
-                      {step.done ? <CheckCircle2 className="h-4 w-4 text-emerald-300" /> : <ArrowRight className="h-4 w-4 text-zinc-500" />}
-                    </div>
-                    <div className={`mt-1 text-xs leading-relaxed ${step.done ? "text-emerald-100/80" : "text-zinc-400"}`}>{localized.message}</div>
-                  </a>
-                  );
-                })}
-              </div>
-              <OnboardingRecoveryCard busy={busy} desktopBridgeAvailable={desktopBridgeAvailable} onDesktopRecoveryAction={handleDesktopRecoveryAction} />
-            </div>
-          </section>
-        ) : null}
-
-        {diagnostics ? (
-          <section className={`mb-5 rounded-[28px] border p-5 ${
-            diagnostics.securityCheck.overall === "critical"
-              ? "border-red-400/25 bg-red-500/10"
-              : diagnostics.securityCheck.overall === "warning"
-                ? "border-amber-400/25 bg-amber-500/10"
-                : "border-emerald-400/20 bg-emerald-500/10"
-          }`}>
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="flex gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/[0.08] bg-[#060a10]/60">
-                  {securityRiskCount ? <ShieldAlert className="h-5 w-5 text-amber-200" /> : <CheckCircle2 className="h-5 w-5 text-emerald-200" />}
-                </div>
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="font-bold">{t("onboarding.securityCheck")}</h2>
-                    <span className="rounded-full border border-white/[0.08] bg-[#060a10]/50 px-2.5 py-1 text-[11px] font-bold text-zinc-200">
-                      {securityRiskCount ? t("onboarding.securityTodo", { count: securityRiskCount }) : t("onboarding.securityPassed")}
-                    </span>
-                  </div>
-                  <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-300/80">
-                    {t("onboarding.securityDescription")}
-                  </p>
-                </div>
-              </div>
-              <a href="/admin/settings" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-white/[0.12] bg-[#060a10]/55 px-4 py-3 text-sm font-bold text-zinc-100 hover:bg-white/[0.08]">
-                <ShieldAlert className="h-4 w-4" />
-                {t("onboarding.handleSecurity")}
-              </a>
-            </div>
-            <div className="mt-4 grid gap-2 md:grid-cols-2">
-              {securityItems.map((item) => (
-                <div key={item.id} className="rounded-2xl border border-white/[0.08] bg-[#060a10]/45 p-3 text-xs">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-bold text-zinc-100">{item.label}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                      item.status === "critical"
-                        ? "bg-red-500/15 text-red-100"
-                        : item.status === "warning"
-                          ? "bg-amber-500/15 text-amber-100"
-                          : "bg-emerald-500/15 text-emerald-100"
-                    }`}>
-                      {item.status === "critical" ? t("common.risk") : item.status === "warning" ? t("common.warning") : t("common.ok")}
-                    </span>
-                  </div>
-                  <div className="mt-2 leading-relaxed text-zinc-300">{item.message}</div>
-                  <div className="mt-1 flex gap-2 leading-relaxed text-zinc-500">
-                    {item.status !== "ok" ? <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300" /> : null}
-                    <span>{item.action}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
-          <section id="onboarding-ai-key" className="scroll-mt-5 rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
-            <StepHeader done={aiConfigured} icon={<KeyRound className="h-5 w-5" />} title={t("onboarding.aiTitle")} />
-            <p className="mt-3 text-sm leading-relaxed text-zinc-400">
-              {t("onboarding.aiDescription")}
-            </p>
-            <div className="mt-5 grid grid-cols-2 gap-2">
+            <label className="mt-5 block text-xs font-bold uppercase tracking-wider text-zinc-500">
+              {t("onboarding.simpleProviderLabel")}
+            </label>
+            <select
+              value={selectedProvider}
+              onChange={(event) => setSelectedProvider(event.target.value as AiProviderId)}
+              aria-label={t("onboarding.simpleProviderLabel")}
+              disabled={busy === "ai"}
+              className="mt-2 w-full rounded-xl border border-white/[0.08] bg-[#060a10] px-4 py-3 text-sm font-bold text-zinc-100 outline-none focus:border-cyan-400/60 disabled:opacity-55"
+            >
               {providers.map((provider) => (
-                <button
-                  key={provider.id}
-                  type="button"
-                  onClick={() => setSelectedProvider(provider.id)}
-                  className={`rounded-2xl border px-3 py-2 text-left text-xs font-bold ${selectedProvider === provider.id ? "border-cyan-400/40 bg-cyan-500/10 text-cyan-100" : "border-white/[0.06] bg-white/[0.03] text-zinc-300"}`}
-                >
-                    <span className="block truncate">{provider.provider || providerLabels[provider.id] || provider.id}</span>
-                  <span className={`mt-1 block text-[10px] ${provider.configured ? "text-emerald-300" : "text-zinc-500"}`}>
-                    {provider.active ? t("onboarding.activeDefault") : provider.configured ? t("onboarding.securityPassed") : t("common.warning")}
-                  </span>
-                </button>
+                <option key={provider.id} value={provider.id}>
+                  {provider.provider || providerLabels[provider.id] || provider.id}
+                </option>
               ))}
-            </div>
-            {activeProvider ? (
-              <>
-                <div className="mt-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3 text-xs leading-relaxed text-zinc-400">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-bold text-zinc-200">{t("onboarding.defaultProvider")}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${activeProvider.active ? "bg-emerald-500/15 text-emerald-200" : "bg-white/[0.06] text-zinc-400"}`}>
-                      {activeProvider.active ? t("onboarding.activeDefault") : t("onboarding.notDefault")}
-                    </span>
-                  </div>
-                  <p className="mt-2">{t("onboarding.providerHint")}</p>
-                </div>
-                <div className="mt-4">
-                  <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-zinc-500">{t("onboarding.modelLabel", { provider: selectedProviderLabel })}</label>
-                  {selectedProvider === "local" ? (
-                    <>
-                      <input
-                        value={selectedModel}
-                        onChange={(event) => setSelectedModel(event.target.value)}
-                        list="lifeos-onboarding-local-models"
-                        aria-label={t("onboarding.modelLabel", { provider: selectedProviderLabel })}
-                        disabled={busy === "ai"}
-                        placeholder="llama3.2"
-                        className="w-full rounded-xl border border-white/[0.08] bg-[#060a10] px-4 py-3 text-sm outline-none focus:border-cyan-400/60 disabled:opacity-55"
-                      />
-                      <datalist id="lifeos-onboarding-local-models">
-                        {(activeProvider.models || []).map((model) => <option key={model} value={model} />)}
-                      </datalist>
-                    </>
-                  ) : (
-                    <input
-                      value={selectedModel}
-                      onChange={(event) => setSelectedModel(event.target.value)}
-                      list="lifeos-onboarding-cloud-models"
-                      aria-label={t("onboarding.modelLabel", { provider: selectedProviderLabel })}
-                      disabled={busy === "ai"}
-                      placeholder={activeProvider.defaultModel || "model-id"}
-                      className="w-full rounded-xl border border-white/[0.08] bg-[#060a10] px-4 py-3 text-sm outline-none focus:border-cyan-400/60 disabled:opacity-55"
-                    />
-                  )}
-                  <datalist id="lifeos-onboarding-cloud-models">
-                    {(activeProvider.models || []).map((model) => <option key={model} value={model} />)}
-                  </datalist>
-                </div>
-              </>
-            ) : null}
+            </select>
+
             <label className="mt-5 block text-xs font-bold uppercase tracking-wider text-zinc-500">
               {isLocalProvider ? t("onboarding.localEndpointLabel") : t("onboarding.apiKeyLabel")}
             </label>
@@ -549,102 +357,200 @@ export default function AdminOnboardingPage() {
             <p className="mt-2 text-xs leading-relaxed text-zinc-500">
               {isLocalProvider ? t("onboarding.localEndpointHint") : t("onboarding.apiKeyHint")}
             </p>
+
+            {activeProvider ? (
+              <details className="mt-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3 text-sm">
+                <summary className="cursor-pointer text-xs font-bold text-zinc-300">{t("onboarding.simpleModelOptional")}</summary>
+                <label className="mt-4 block text-xs font-bold uppercase tracking-wider text-zinc-500">{t("onboarding.modelLabel", { provider: selectedProviderLabel })}</label>
+                <input
+                  value={selectedModel}
+                  onChange={(event) => setSelectedModel(event.target.value)}
+                  list={selectedProvider === "local" ? "lifeos-onboarding-local-models" : "lifeos-onboarding-cloud-models"}
+                  aria-label={t("onboarding.modelLabel", { provider: selectedProviderLabel })}
+                  disabled={busy === "ai"}
+                  placeholder={activeProvider.defaultModel || (selectedProvider === "local" ? "llama3.2" : "model-id")}
+                  className="mt-2 w-full rounded-xl border border-white/[0.08] bg-[#060a10] px-4 py-3 text-sm outline-none focus:border-cyan-400/60 disabled:opacity-55"
+                />
+                <datalist id="lifeos-onboarding-local-models">
+                  {(activeProvider.models || []).map((model) => <option key={model} value={model} />)}
+                </datalist>
+                <datalist id="lifeos-onboarding-cloud-models">
+                  {(activeProvider.models || []).map((model) => <option key={model} value={model} />)}
+                </datalist>
+              </details>
+            ) : null}
+
             <button
               onClick={handleSaveAiKey}
               disabled={busy === "ai" || activeProvider?.source === "environment"}
-              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-3 text-sm font-bold text-[#061016] disabled:opacity-50"
+              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-3 text-sm font-bold text-[#061016] disabled:opacity-50"
             >
               {busy === "ai" ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
-              {t("onboarding.saveAndTest")}
-            </button>
-            <button
-              onClick={handleSetDefaultProvider}
-              disabled={busy === "ai-default" || activeProvider?.active}
-              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm font-bold text-zinc-200 disabled:opacity-50"
-            >
-              {busy === "ai-default" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              {activeProvider?.active ? t("onboarding.alreadyDefault") : t("onboarding.setDefault")}
+              {t("onboarding.simpleSaveAndContinue")}
             </button>
           </section>
+        ) : null}
 
-          <OnboardingAppleRemoteCard
-            diagnostics={networkDiagnostics}
-            busy={busy}
-            onStartTailscale={handleStartTailscaleRemote}
-            onStartCloudflare={handleStartCloudflareRemote}
-            onSaveCandidate={handleSaveRemoteCandidate}
-            onTestCandidate={handleTestRemoteCandidate}
-          />
+        {primaryStep === "security" ? (
+          <section className="rounded-[28px] border border-red-400/25 bg-red-500/10 p-5">
+            <StepHeader done={false} icon={<ShieldAlert className="h-5 w-5" />} title={t("onboarding.simpleSecurityTitle")} />
+            <p className="mt-3 text-sm leading-relaxed text-red-50/80">{t("onboarding.simpleSecurityBody")}</p>
+            <div className="mt-4 grid gap-2">
+              {securityItems.filter((item) => item.status !== "ok").slice(0, 3).map((item) => (
+                <div key={item.id} className="rounded-2xl border border-red-300/15 bg-[#060a10]/45 p-3 text-xs">
+                  <div className="font-bold text-zinc-100">{item.label}</div>
+                  <div className="mt-1 leading-relaxed text-zinc-300">{item.message}</div>
+                  <div className="mt-1 flex gap-2 leading-relaxed text-red-100/80">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span>{item.action}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <a href="/admin/settings" className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-[#061016]">
+              <ShieldAlert className="h-4 w-4" />
+              {t("onboarding.handleSecurity")}
+            </a>
+          </section>
+        ) : null}
 
-          <section className="rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
-            <StepHeader done={hasBackup} icon={<DatabaseBackup className="h-5 w-5" />} title={t("onboarding.backupTitle")} />
-            <p className="mt-3 text-sm leading-relaxed text-zinc-400">
-              {t("onboarding.backupDescription")}
-            </p>
+        {primaryStep === "device" ? (
+          <section className="rounded-[28px] border border-cyan-400/20 bg-[#101722] p-5 shadow-2xl shadow-cyan-950/20">
+            <StepHeader done={hasDevice} icon={<QrCode className="h-5 w-5" />} title={t("onboarding.simpleDeviceTitle")} />
+            <p className="mt-3 text-sm leading-relaxed text-zinc-400">{t("onboarding.simpleDeviceBody")}</p>
             <div className="mt-5 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-xs leading-relaxed text-zinc-400">
-              <div>{t("onboarding.dataDir", { value: diagnostics?.storage.dataDir || "-" })}</div>
-              <div>{t("onboarding.retention", { count: diagnostics?.storage.backupRetentionCount || "20" })}</div>
-              <div>{t("onboarding.backupCount", { count: backups.length })}</div>
-              <div>
-                {backupSchedule?.enabled
-                  ? t("onboarding.backupScheduleOn", { hours: backupSchedule.intervalHours })
-                  : t("onboarding.backupScheduleOff")}
-              </div>
-              {backupSchedule?.nextRunAt ? <div>{t("onboarding.nextBackup", { time: new Date(backupSchedule.nextRunAt).toLocaleString() })}</div> : null}
-              <div className="mt-2 truncate text-emerald-300">{latestBackup?.file || t("onboarding.noInitialBackup")}</div>
+              {remoteReady ? t("onboarding.simpleRemoteReady") : t("onboarding.simpleSameWifiHint")}
             </div>
-            {hasBackup && !backupSchedule?.enabled ? (
-              <div className="mt-3 rounded-2xl border border-amber-400/20 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-100">
-                <div className="font-bold">{t("onboarding.longTermBackupReminderTitle")}</div>
-                <div className="mt-1 text-amber-100/80">{t("onboarding.longTermBackupReminderBody")}</div>
-              </div>
-            ) : null}
-            <div className="mt-5 grid gap-3">
-              <button
-                onClick={handleCreateBackup}
-                disabled={busy === "backup"}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-200 disabled:opacity-50"
-              >
-                {busy === "backup" ? <Loader2 className="h-4 w-4 animate-spin" /> : <DatabaseBackup className="h-4 w-4" />}
-                {t("onboarding.createBackup")}
-              </button>
-              <button
-                onClick={handleEnableDailyBackup}
-                disabled={busy === "backup-schedule" || backupSchedule?.enabled}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm font-bold text-cyan-200 disabled:opacity-50"
-              >
-                {busy === "backup-schedule" ? <Loader2 className="h-4 w-4 animate-spin" /> : <DatabaseBackup className="h-4 w-4" />}
-                {backupSchedule?.enabled ? t("onboarding.dailyBackupEnabled") : t("onboarding.enableDailyBackup")}
-              </button>
-            </div>
+            <a href="/admin/devices/pair" className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-3 text-sm font-bold text-[#061016]">
+              <QrCode className="h-4 w-4" />
+              {t("onboarding.simpleOpenQr")}
+            </a>
           </section>
+        ) : null}
 
-          <OnboardingMobileCard devices={devices} diagnostics={networkDiagnostics || diagnostics?.network} done={hasDevice} />
-        </div>
+        {primaryStep === "chat" ? (
+          <section className="rounded-[28px] border border-emerald-400/20 bg-emerald-500/10 p-5 shadow-2xl shadow-emerald-950/20">
+            <StepHeader done icon={<CheckCircle2 className="h-5 w-5" />} title={t("onboarding.simpleChatTitle")} />
+            <p className="mt-3 text-sm leading-relaxed text-emerald-50/80">{t("onboarding.simpleChatBody")}</p>
+            <div className="mt-4 rounded-2xl border border-white/[0.08] bg-[#060a10]/45 p-3 text-xs leading-relaxed text-emerald-50/75">
+              {finishHint}
+            </div>
+            <button
+              onClick={handleCompleteOnboarding}
+              disabled={!onboarding?.completed || busy === "complete"}
+              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-[#061016] disabled:opacity-50"
+            >
+              {busy === "complete" ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+              {t("onboarding.simpleStartChat")}
+            </button>
+          </section>
+        ) : null}
+
+        <details className="mt-5 rounded-[24px] border border-white/[0.08] bg-white/[0.025] p-4">
+          <summary className="flex cursor-pointer items-center gap-2 text-sm font-bold text-zinc-300">
+            <SlidersHorizontal className="h-4 w-4 text-cyan-200" />
+            {t("onboarding.simpleAdvancedSummary")}
+          </summary>
+          <div className="mt-4 grid gap-4">
+            <section className="rounded-[22px] border border-white/[0.08] bg-[#101722] p-4">
+              <StepHeader done={hasBackup} icon={<DatabaseBackup className="h-5 w-5" />} title={t("onboarding.backupTitle")} />
+              <p className="mt-3 text-sm leading-relaxed text-zinc-400">{t("onboarding.backupDescription")}</p>
+              <div className="mt-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3 text-xs leading-relaxed text-zinc-400">
+                <div>{t("onboarding.dataDir", { value: diagnostics?.storage.dataDir || "-" })}</div>
+                <div>{t("onboarding.backupCount", { count: backups.length })}</div>
+                <div>{backupSchedule?.enabled ? t("onboarding.backupScheduleOn", { hours: backupSchedule.intervalHours }) : t("onboarding.backupScheduleOff")}</div>
+                {backupSchedule?.nextRunAt ? <div>{t("onboarding.nextBackup", { time: new Date(backupSchedule.nextRunAt).toLocaleString() })}</div> : null}
+                <div className="mt-2 truncate text-emerald-300">{latestBackup?.file || t("onboarding.noInitialBackup")}</div>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <button onClick={handleCreateBackup} disabled={busy === "backup"} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-200 disabled:opacity-50">
+                  {busy === "backup" ? <Loader2 className="h-4 w-4 animate-spin" /> : <DatabaseBackup className="h-4 w-4" />}
+                  {t("onboarding.createBackup")}
+                </button>
+                <button onClick={handleEnableDailyBackup} disabled={busy === "backup-schedule" || backupSchedule?.enabled} className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm font-bold text-cyan-200 disabled:opacity-50">
+                  {busy === "backup-schedule" ? <Loader2 className="h-4 w-4 animate-spin" /> : <DatabaseBackup className="h-4 w-4" />}
+                  {backupSchedule?.enabled ? t("onboarding.dailyBackupEnabled") : t("onboarding.enableDailyBackup")}
+                </button>
+              </div>
+            </section>
+
+            <OnboardingAppleRemoteCard
+              diagnostics={networkDiagnostics}
+              busy={busy}
+              onStartTailscale={handleStartTailscaleRemote}
+              onStartCloudflare={handleStartCloudflareRemote}
+              onSaveCandidate={handleSaveRemoteCandidate}
+              onTestCandidate={handleTestRemoteCandidate}
+            />
+
+            {diagnostics ? (
+              <section className={`rounded-[22px] border p-4 ${
+                diagnostics.securityCheck.overall === "critical"
+                  ? "border-red-400/25 bg-red-500/10"
+                  : diagnostics.securityCheck.overall === "warning"
+                    ? "border-amber-400/25 bg-amber-500/10"
+                    : "border-emerald-400/20 bg-emerald-500/10"
+              }`}>
+                <StepHeader done={securityRiskCount === 0} icon={<ShieldAlert className="h-5 w-5" />} title={t("onboarding.securityCheck")} />
+                <p className="mt-3 text-sm leading-relaxed text-zinc-300/80">{t("onboarding.securityDescription")}</p>
+                <div className="mt-4 grid gap-2 md:grid-cols-2">
+                  {securityItems.map((item) => (
+                    <div key={item.id} className="rounded-2xl border border-white/[0.08] bg-[#060a10]/45 p-3 text-xs">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-bold text-zinc-100">{item.label}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                          item.status === "critical"
+                            ? "bg-red-500/15 text-red-100"
+                            : item.status === "warning"
+                              ? "bg-amber-500/15 text-amber-100"
+                              : "bg-emerald-500/15 text-emerald-100"
+                        }`}>
+                          {item.status === "critical" ? t("common.risk") : item.status === "warning" ? t("common.warning") : t("common.ok")}
+                        </span>
+                      </div>
+                      <div className="mt-2 leading-relaxed text-zinc-300">{item.message}</div>
+                      <div className="mt-1 flex gap-2 leading-relaxed text-zinc-500">
+                        {item.status !== "ok" ? <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300" /> : null}
+                        <span>{item.action}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            {onboarding ? (
+              <section className="rounded-[22px] border border-white/[0.08] bg-[#101722] p-4">
+                <div className="text-sm font-bold text-zinc-100">{t("onboarding.checklistTitle")}</div>
+                <div className="mt-3 grid gap-2">
+                  {onboardingSteps.map((step) => {
+                    const localized = localizedStepMeta(step.id, step.done);
+                    return (
+                      <a key={step.id} href={step.actionPath} className={`rounded-2xl border p-3 text-left text-sm transition-colors ${step.done ? "border-emerald-400/15 bg-emerald-500/10 text-emerald-100" : "border-white/[0.06] bg-white/[0.03] text-zinc-200 hover:bg-white/[0.05]"}`}>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="font-bold">{localized.label}{step.required === false ? <span className="ml-2 text-[10px] text-zinc-500">{t("onboarding.optionalStep")}</span> : null}</span>
+                          {step.done ? <CheckCircle2 className="h-4 w-4 text-emerald-300" /> : <ArrowRight className="h-4 w-4 text-zinc-500" />}
+                        </div>
+                        <div className={`mt-1 text-xs leading-relaxed ${step.done ? "text-emerald-100/80" : "text-zinc-400"}`}>{localized.message}</div>
+                      </a>
+                    );
+                  })}
+                </div>
+                <OnboardingRecoveryCard busy={busy} desktopBridgeAvailable={desktopBridgeAvailable} onDesktopRecoveryAction={handleDesktopRecoveryAction} />
+              </section>
+            ) : null}
+          </div>
+        </details>
+
+        {onboarding?.completed ? <OnboardingHandoffCard onCopySummary={handleCopyHandoffSummary} /> : null}
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <a href="/admin/dashboard" className="text-sm font-bold text-zinc-400 hover:text-cyan-200">
+            {t("onboarding.enterDashboard")}
+          </a>
           <a href="/admin/settings" className="text-sm font-bold text-zinc-400 hover:text-cyan-200">
             {t("onboarding.continueSettings")}
           </a>
-          <div className="flex flex-col gap-2 sm:items-end">
-            <div className={`max-w-xl text-xs leading-relaxed ${onboarding?.completed ? "text-emerald-300" : "text-amber-200"}`}>
-              {finishHint}
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <button
-                onClick={handleCompleteOnboarding}
-                disabled={!onboarding?.completed || busy === "complete"}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#061016] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {busy === "complete" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                {t("onboarding.finish")}
-              </button>
-              <a href="/admin/dashboard" className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-5 py-3 text-sm font-bold text-zinc-200">
-                {t("onboarding.enterDashboard")}
-                <ArrowRight className="h-4 w-4" />
-              </a>
-            </div>
-          </div>
         </div>
       </main>
     </div>

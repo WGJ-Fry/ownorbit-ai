@@ -253,9 +253,13 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(initialOnboarding.onboarding.required, true);
   assert.deepEqual(initialOnboarding.onboarding.steps.map((step) => step.id), ["ai", "backup", "device", "security"]);
   assert.equal(initialOnboarding.onboarding.steps.find((step) => step.id === "ai").done, false);
+  assert.equal(initialOnboarding.onboarding.steps.find((step) => step.id === "ai").required, true);
   assert.equal(initialOnboarding.onboarding.steps.find((step) => step.id === "backup").done, false);
+  assert.equal(initialOnboarding.onboarding.steps.find((step) => step.id === "backup").required, false);
   assert.equal(initialOnboarding.onboarding.steps.find((step) => step.id === "device").done, false);
+  assert.equal(initialOnboarding.onboarding.steps.find((step) => step.id === "device").required, true);
   assert.equal(initialOnboarding.onboarding.steps.find((step) => step.id === "security").done, true);
+  assert.equal(initialOnboarding.onboarding.steps.find((step) => step.id === "security").required, true);
 
   const incompleteOnboarding = await request(port, "/api/v1/admin/onboarding/complete", {
     method: "PUT",

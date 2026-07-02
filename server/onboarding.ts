@@ -12,6 +12,7 @@ export type OnboardingStep = {
   id: OnboardingStepId;
   label: string;
   done: boolean;
+  required: boolean;
   actionPath: string;
   message: string;
 };
@@ -24,6 +25,7 @@ export function getOnboardingStatus() {
           id: "ai" as const,
           label: "Configure AI Provider",
           done: true,
+          required: true,
           actionPath: "/chat",
           message: "Quickstart mode uses the local model configured by environment variables.",
         },
@@ -31,6 +33,7 @@ export function getOnboardingStatus() {
           id: "backup" as const,
           label: "Create Initial Backup",
           done: true,
+          required: false,
           actionPath: "/chat",
           message: "Skipped in quickstart mode.",
         },
@@ -38,6 +41,7 @@ export function getOnboardingStatus() {
           id: "device" as const,
           label: "Pair Mobile",
           done: true,
+          required: true,
           actionPath: "/chat",
           message: "Skipped in quickstart mode.",
         },
@@ -45,6 +49,7 @@ export function getOnboardingStatus() {
           id: "security" as const,
           label: "Security Check",
           done: true,
+          required: true,
           actionPath: "/chat",
           message: "Local-only quickstart mode.",
         },
@@ -72,6 +77,7 @@ export function getOnboardingStatus() {
       id: "ai",
       label: "Configure AI Provider",
       done: aiConfigured,
+      required: true,
       actionPath: "/admin/onboarding",
       message: aiConfigured ? "At least one AI provider is configured." : "Configure Gemini, OpenAI, OpenRouter, or a local model first.",
     },
@@ -79,6 +85,7 @@ export function getOnboardingStatus() {
       id: "backup",
       label: "Create Initial Backup",
       done: hasBackup,
+      required: false,
       actionPath: "/admin/onboarding",
       message: hasBackup ? `${backups.length} backup(s) available.` : "Create a SQLite snapshot before first use so you can roll back safely.",
     },
@@ -86,6 +93,7 @@ export function getOnboardingStatus() {
       id: "device",
       label: "Pair Mobile",
       done: hasDevice,
+      required: true,
       actionPath: "/admin/devices/pair",
       message: hasDevice ? `${devices.filter((device) => device.status !== "revoked").length} device(s) paired.` : "Pair a phone before using mobile as the daily entry point.",
     },
@@ -93,12 +101,13 @@ export function getOnboardingStatus() {
       id: "security",
       label: "Security Check",
       done: securityReady,
+      required: true,
       actionPath: "/admin/settings",
       message: securityReady ? "No blocking security risks found." : "Blocking security risks still need attention.",
     },
   ];
 
-  const completed = steps.every((step) => step.done);
+  const completed = steps.every((step) => !step.required || step.done);
   return {
     steps,
     completed,

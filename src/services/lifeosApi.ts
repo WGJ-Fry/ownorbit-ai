@@ -62,6 +62,7 @@ export type OnboardingStatus = {
     id: "ai" | "backup" | "device" | "security";
     label: string;
     done: boolean;
+    required?: boolean;
     actionPath: string;
     message: string;
   }>;

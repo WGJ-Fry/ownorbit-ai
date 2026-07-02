@@ -503,13 +503,17 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /updateBackupSchedule/);
   assert.match(onboardingSource, /updateActiveAiProvider/);
   assert.match(onboardingSource, /onboarding\.enableDailyBackup/);
-  assert.match(onboardingSource, /onboarding\.longTermBackupReminderTitle/);
-  assert.match(onboardingSource, /backupSchedule\.nextRunAt/);
-  assert.match(onboardingSource, /onboarding\.defaultProvider/);
-  assert.match(onboardingSource, /onboarding\.setDefault/);
   assert.match(onboardingSource, /onboarding\.alreadyDefault/);
   assert.match(onboardingSource, /aiKey\.modelCatalogUpdated/);
   assert.match(onboardingSource, /modelCatalogUpdated/);
+  assert.match(onboardingSource, /primaryStep/);
+  assert.match(onboardingSource, /primaryProgress/);
+  assert.match(onboardingSource, /onboarding\.simpleAiTitle/);
+  assert.match(onboardingSource, /onboarding\.simpleProviderLabel/);
+  assert.match(onboardingSource, /onboarding\.simpleOpenQr/);
+  assert.match(onboardingSource, /onboarding\.simpleStartChat/);
+  assert.match(onboardingSource, /onboarding\.simpleAdvancedSummary/);
+  assert.match(onboardingSource, /<details/);
   assert.match(onboardingSource, /onboarding\.localEndpointLabel/);
   assert.match(onboardingSource, /type=\{isLocalProvider \? "url" : "password"\}/);
   assert.match(onboardingSource, /onboarding\.apiKeyHint/);
@@ -518,20 +522,17 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /saveDesktopConnectionConfig/);
   assert.match(onboardingSource, /testConnectionUrl/);
   assert.match(onboardingSource, /OnboardingAppleRemoteCard/);
-  assert.match(onboardingSource, /OnboardingMobileCard/);
   assert.match(onboardingSource, /OnboardingRecoveryCard/);
   assert.match(onboardingSource, /OnboardingHandoffCard/);
   assert.match(onboardingSource, /lifeosDesktop/);
   assert.match(onboardingSource, /handleDesktopRecoveryAction/);
   assert.match(onboardingSource, /desktop\.copyLocalAddress/);
-  assert.match(onboardingSource, /onboarding\.finish/);
   assert.match(onboardingSource, /incompleteStepLabels/);
   assert.match(onboardingSource, /onboarding\.finishBlocked/);
   assert.match(onboardingSource, /onboarding\.finishReady/);
-  assert.match(onboardingSource, /onboarding\.firstChatVerificationBody/);
   assert.match(onboardingSource, /buildOnboardingHandoffSummary/);
   assert.match(onboardingSource, /onboarding\.handoffSummaryCopied/);
-  assert.match(onboardingSource, /completedSteps} \/ 4/);
+  assert.match(onboardingSource, /primaryProgress} \/ \{primaryStepsTotal/);
   const onboardingRecoverySource = await readFile(path.join(rootDir, "src", "pages", "admin", "OnboardingRecoveryCard.tsx"), "utf8");
   assert.match(onboardingRecoverySource, /onboarding\.copyLocalAddress/);
   assert.match(onboardingRecoverySource, /onboarding\.openLogsFolder/);
@@ -1585,7 +1586,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(backupRestoreUiSource, /formatCleanupSummary/);
 
   const aiKeyPanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "AiKeyPanel.tsx"), "utf8");
-  const onboardingQuickStartSource = await readFile(path.join(rootDir, "src", "pages", "admin", "OnboardingQuickStartCard.tsx"), "utf8");
+  const adminOnboardingSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminOnboardingPage.tsx"), "utf8");
   const aiProviderSecuritySummarySource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "AiProviderSecuritySummary.tsx"), "utf8");
   const chatRuntimeSettingsSource = await readFile(path.join(rootDir, "src", "services", "chatRuntimeSettings.ts"), "utf8");
   const aiRuntimeSource = await readFile(path.join(rootDir, "src", "services", "aiRuntime.ts"), "utf8");
@@ -1638,11 +1639,15 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(chatRuntimeSettingsSource, /lifeos_proxy_nodes/);
   assert.doesNotMatch(chatRuntimeSettingsSource, /getClientState\("[^"]+", localStorage\.getItem/);
   assert.match(aiRuntimeSource, /providerId\?: string/);
-  assert.match(onboardingQuickStartSource, /onboarding\.quickPrimaryAi/);
-  assert.match(onboardingQuickStartSource, /onboarding\.quickPrimaryQr/);
-  assert.match(onboardingQuickStartSource, /onboarding\.quickAdvancedAction/);
-  assert.match(translationsSource, /3 分钟快速开始/);
-  assert.match(translationsSource, /Generate Phone QR/);
+  assert.match(adminOnboardingSource, /primaryStep/);
+  assert.match(adminOnboardingSource, /onboarding\.simpleAiTitle/);
+  assert.match(adminOnboardingSource, /onboarding\.simpleOpenQr/);
+  assert.match(adminOnboardingSource, /onboarding\.simpleStartChat/);
+  assert.match(adminOnboardingSource, /onboarding\.simpleAdvancedSummary/);
+  assert.match(adminOnboardingSource, /<details/);
+  assert.doesNotMatch(adminOnboardingSource, /OnboardingQuickStartCard/);
+  assert.match(translationsSource, /先把 LifeOS AI 用起来/);
+  assert.match(translationsSource, /Get LifeOS AI usable first/);
 });
 
 test("development server injects pairing manifest before Vite serves mobile install pages", async (t) => {
