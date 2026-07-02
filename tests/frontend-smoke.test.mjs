@@ -1585,6 +1585,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(backupRestoreUiSource, /formatCleanupSummary/);
 
   const aiKeyPanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "AiKeyPanel.tsx"), "utf8");
+  const onboardingQuickStartSource = await readFile(path.join(rootDir, "src", "pages", "admin", "OnboardingQuickStartCard.tsx"), "utf8");
   const aiProviderSecuritySummarySource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "AiProviderSecuritySummary.tsx"), "utf8");
   const chatRuntimeSettingsSource = await readFile(path.join(rootDir, "src", "services", "chatRuntimeSettings.ts"), "utf8");
   const aiRuntimeSource = await readFile(path.join(rootDir, "src", "services", "aiRuntime.ts"), "utf8");
@@ -1637,6 +1638,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(chatRuntimeSettingsSource, /lifeos_proxy_nodes/);
   assert.doesNotMatch(chatRuntimeSettingsSource, /getClientState\("[^"]+", localStorage\.getItem/);
   assert.match(aiRuntimeSource, /providerId\?: string/);
+  assert.match(onboardingQuickStartSource, /onboarding\.quickPrimaryAi/);
+  assert.match(onboardingQuickStartSource, /onboarding\.quickPrimaryQr/);
+  assert.match(onboardingQuickStartSource, /onboarding\.quickAdvancedAction/);
+  assert.match(translationsSource, /3 分钟快速开始/);
+  assert.match(translationsSource, /Generate Phone QR/);
 });
 
 test("development server injects pairing manifest before Vite serves mobile install pages", async (t) => {

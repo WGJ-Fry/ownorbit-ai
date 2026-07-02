@@ -5,6 +5,7 @@
 Release candidate for the next public alpha. Do not advertise as publicly available until the tag, packages, Docker image, and release notes are published.
 
 - Added bilingual README product videos with matching English and Chinese MP4/GIF/cover assets.
+- Added a simplified first-launch quick-start panel that prioritizes model-key setup, phone QR pairing, and first chat before advanced backup, remote-access, Studio, and diagnostic exploration.
 - Expanded AI provider coverage across Mainland China and international model services, including DeepSeek, Qwen/DashScope, Kimi, GLM, Qianfan/ERNIE, Hunyuan, Doubao, MiniMax, StepFun, SiliconFlow, Baichuan, OpenAI, Gemini, Claude, Mistral, Groq, Perplexity, Together, xAI, OpenRouter, and local OpenAI-compatible endpoints.
 - Added broader built-in model catalogs plus provider `/models` live refresh and manual model-ID entry so newly released model versions can be used before a LifeOS update ships.
 - Added mobile offline recovery evidence for foreground, background, network, and timer recovery attempts.

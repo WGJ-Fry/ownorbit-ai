@@ -42,6 +42,10 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(page).toHaveURL(/\/admin\/onboarding/);
   await expect(page.getByText("把 LifeOS AI 配到可用状态")).toBeVisible();
   await expect(page.getByText("初始化进度")).toBeVisible();
+  await expect(page.getByText("3 分钟快速开始")).toBeVisible();
+  await expect(page.getByText("先让它能聊，再慢慢探索高级功能")).toBeVisible();
+  await expect(page.getByRole("link", { name: "先配置模型 Key" })).toBeVisible();
+  await expect(page.getByText("高级功能可以稍后开启")).toBeVisible();
   await expect(page.getByTestId("onboarding-progress-count")).toHaveText("1 / 4");
   await expect(page.getByText("下一步")).toBeVisible();
   await expect(page.getByText("首次启动检查表")).toBeVisible();
@@ -83,6 +87,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(page.getByText("OpenAI 配置检查通过，当前模型：gpt-4o。")).toBeVisible();
   await expect(page.getByText("这一步不会向外部模型发起真实请求；第一次聊天会使用该配置。")).toBeVisible();
   await expect(page.getByText("已是默认聊天 Provider").first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "生成手机二维码" })).toBeVisible();
   await expect(page.getByRole("button", { name: /OpenAI/ }).getByText("当前默认")).toBeVisible();
   await expect(page.getByRole("button", { name: "已是默认聊天 Provider" })).toBeDisabled();
   await expect(page.getByTestId("onboarding-progress-count")).toHaveText("2 / 4");

@@ -8,6 +8,7 @@ import { useI18n } from "../../i18n/I18nProvider";
 import OnboardingAppleRemoteCard from "./OnboardingAppleRemoteCard";
 import OnboardingHandoffCard from "./OnboardingHandoffCard";
 import OnboardingMobileCard from "./OnboardingMobileCard";
+import OnboardingQuickStartCard from "./OnboardingQuickStartCard";
 import OnboardingRecoveryCard from "./OnboardingRecoveryCard";
 import { buildOnboardingHandoffSummary } from "../../services/onboardingHandoffSummary";
 
@@ -46,6 +47,7 @@ export default function AdminOnboardingPage() {
   const nextStep = onboardingSteps.find((step) => !step.done) || null;
   const securityItems = diagnostics?.securityCheck.items || [];
   const securityRiskCount = securityItems.filter((item) => item.status !== "ok").length;
+  const remoteReady = networkDiagnostics?.remoteReadiness?.severity === "ok";
   const localizedStepMeta = (stepId: OnboardingStatus["steps"][number]["id"], done: boolean) => {
     switch (stepId) {
       case "ai":
@@ -338,6 +340,15 @@ export default function AdminOnboardingPage() {
 
         {onboarding?.completed ? <OnboardingHandoffCard onCopySummary={handleCopyHandoffSummary} /> : null}
 
+        {!onboarding?.completed ? (
+          <OnboardingQuickStartCard
+            aiConfigured={aiConfigured}
+            hasBackup={hasBackup}
+            hasDevice={hasDevice}
+            remoteReady={remoteReady}
+          />
+        ) : null}
+
         {onboarding ? (
           <section className="mb-5 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
             <div className="rounded-[28px] border border-cyan-400/15 bg-cyan-500/10 p-5">
@@ -456,7 +467,7 @@ export default function AdminOnboardingPage() {
         ) : null}
 
         <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
-          <section className="rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
+          <section id="onboarding-ai-key" className="scroll-mt-5 rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
             <StepHeader done={aiConfigured} icon={<KeyRound className="h-5 w-5" />} title={t("onboarding.aiTitle")} />
             <p className="mt-3 text-sm leading-relaxed text-zinc-400">
               {t("onboarding.aiDescription")}

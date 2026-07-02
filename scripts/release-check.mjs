@@ -634,6 +634,7 @@ function checkAssets() {
   const onboardingSource = exists("server/onboarding.ts") ? fs.readFileSync(path.join(rootDir, "server/onboarding.ts"), "utf8") : "";
   const adminLoginSource = exists("src/pages/admin/AdminLoginPage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/AdminLoginPage.tsx"), "utf8") : "";
   const adminOnboardingSource = exists("src/pages/admin/AdminOnboardingPage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/AdminOnboardingPage.tsx"), "utf8") : "";
+  const onboardingQuickStartSource = exists("src/pages/admin/OnboardingQuickStartCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/OnboardingQuickStartCard.tsx"), "utf8") : "";
   const onboardingMobileSource = exists("src/pages/admin/OnboardingMobileCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/OnboardingMobileCard.tsx"), "utf8") : "";
   const onboardingRecoverySource = exists("src/pages/admin/OnboardingRecoveryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/OnboardingRecoveryCard.tsx"), "utf8") : "";
   const onboardingHandoffSource = exists("src/pages/admin/OnboardingHandoffCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/OnboardingHandoffCard.tsx"), "utf8") : "";
@@ -661,10 +662,14 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding.firstChatVerificationBody") &&
     adminOnboardingSource.includes("buildOnboardingHandoffSummary") &&
     adminOnboardingSource.includes("onboarding.handoffSummaryCopied") &&
+    adminOnboardingSource.includes("OnboardingQuickStartCard") &&
     adminOnboardingSource.includes("OnboardingMobileCard") &&
     adminOnboardingSource.includes("OnboardingRecoveryCard") &&
     adminOnboardingSource.includes("OnboardingHandoffCard") &&
     adminOnboardingSource.includes("desktop.copyLocalAddress") &&
+    onboardingQuickStartSource.includes("onboarding.quickPrimaryAi") &&
+    onboardingQuickStartSource.includes("onboarding.quickPrimaryQr") &&
+    onboardingQuickStartSource.includes("onboarding.quickAdvancedAction") &&
     onboardingMobileSource.includes("/admin/settings#mobile-connect") &&
     onboardingMobileSource.includes("remoteReadiness") &&
     onboardingMobileSource.includes("onboarding.remoteReadinessTitle") &&
@@ -683,6 +688,8 @@ function checkAssets() {
     translationsSource.includes("onboarding.localAddressCopied") &&
     translationsSource.includes("onboarding.finishBlocked") &&
     translationsSource.includes("onboarding.finishReady") &&
+    translationsSource.includes("onboarding.quickTitle") &&
+    translationsSource.includes("onboarding.quickPrimaryQr") &&
     translationsSource.includes("onboarding.firstChatVerificationBody") &&
     translationsSource.includes("onboarding.handoffSummaryCopied") &&
     translationsSource.includes("onboarding.handoffTitle") &&
