@@ -131,9 +131,17 @@ test("public mode diagnostics flag weak password, non-HTTPS, and missing backup"
   assert.equal(initialHealth.publicRisk.items.some((item) => item.id === "backupFreshness" && item.status === "critical"), true);
   assert.equal(initialHealth.publicRisk.items.some((item) => item.id === "backupSchedule" && item.status === "critical"), true);
 
-  const setupResponse = await request(port, "/api/v1/admin/setup", {
+  const weakSetupResponse = await request(port, "/api/v1/admin/setup", {
     method: "POST",
     body: JSON.stringify({ password: "password123" }),
+  });
+  assert.equal(weakSetupResponse.status, 400);
+  const weakSetup = await weakSetupResponse.json();
+  assert.equal(weakSetup.passwordPolicy.meetsPolicy, false);
+
+  const setupResponse = await request(port, "/api/v1/admin/setup", {
+    method: "POST",
+    body: JSON.stringify({ password: "correct horse battery staple" }),
   });
   assert.equal(setupResponse.status, 200);
   const adminHeaders = cookieHeader(setupResponse);
@@ -141,7 +149,7 @@ test("public mode diagnostics flag weak password, non-HTTPS, and missing backup"
   const configuredHealth = await request(port, "/api/v1/health").then((res) => res.json());
   assert.equal(configuredHealth.adminConfigured, true);
   assert.equal(configuredHealth.publicSetupRisk, true);
-  assert.equal(configuredHealth.publicRisk.items.some((item) => item.id === "password" && item.status === "critical"), true);
+  assert.equal(configuredHealth.publicRisk.items.some((item) => item.id === "password"), false);
   assert.equal(configuredHealth.publicRisk.items.some((item) => item.id === "https" && item.status === "critical"), true);
   assert.equal(configuredHealth.publicRisk.items.some((item) => item.id === "sessionCookies" && item.status === "critical"), true);
   assert.equal(configuredHealth.publicRisk.items.some((item) => item.id === "backup" && item.status === "critical"), true);
@@ -151,7 +159,7 @@ test("public mode diagnostics flag weak password, non-HTTPS, and missing backup"
   const diagnostics = await request(port, "/api/v1/admin/config-diagnostics", { headers: adminHeaders }).then((res) => res.json());
   assert.equal(diagnostics.securityCheck.publicMode, true);
   assert.equal(diagnostics.securityCheck.overall, "critical");
-  assert.equal(diagnostics.securityCheck.items.some((item) => item.id === "password" && item.status === "critical"), true);
+  assert.equal(diagnostics.securityCheck.items.some((item) => item.id === "password" && item.status === "ok"), true);
   assert.equal(diagnostics.securityCheck.items.some((item) => item.id === "https" && item.status === "critical"), true);
   assert.equal(diagnostics.securityCheck.items.some((item) => item.id === "sessionCookies" && item.status === "critical"), true);
   assert.equal(diagnostics.securityCheck.items.some((item) => item.id === "backup" && item.status === "critical"), true);
@@ -163,20 +171,22 @@ test("public mode diagnostics flag weak password, non-HTTPS, and missing backup"
   const repetitivePasswordResponse = await request(port, "/api/v1/admin/password", {
     method: "PUT",
     headers: adminHeaders,
-    body: JSON.stringify({ currentPassword: "password123", newPassword: "aaaaaaaaaaaa1!" }),
-  }).then((res) => res.json());
-  assert.equal(repetitivePasswordResponse.passwordPolicy.meetsPolicy, false);
-  assert.equal(repetitivePasswordResponse.passwordPolicy.noLongRepeats, false);
-  assert.equal(repetitivePasswordResponse.securityCheck.items.some((item) => item.id === "password" && item.status === "critical"), true);
+    body: JSON.stringify({ currentPassword: "correct horse battery staple", newPassword: "aaaaaaaaaaaa1!" }),
+  });
+  assert.equal(repetitivePasswordResponse.status, 400);
+  const repetitivePassword = await repetitivePasswordResponse.json();
+  assert.equal(repetitivePassword.passwordPolicy.meetsPolicy, false);
+  assert.equal(repetitivePassword.passwordPolicy.noLongRepeats, false);
 
   const sequentialPasswordResponse = await request(port, "/api/v1/admin/password", {
     method: "PUT",
     headers: adminHeaders,
-    body: JSON.stringify({ currentPassword: "aaaaaaaaaaaa1!", newPassword: "abcdef123456!" }),
-  }).then((res) => res.json());
-  assert.equal(sequentialPasswordResponse.passwordPolicy.meetsPolicy, false);
-  assert.equal(sequentialPasswordResponse.passwordPolicy.noSequentialPattern, false);
-  assert.equal(sequentialPasswordResponse.securityCheck.items.some((item) => item.id === "password" && item.status === "critical"), true);
+    body: JSON.stringify({ currentPassword: "correct horse battery staple", newPassword: "abcdef123456!" }),
+  });
+  assert.equal(sequentialPasswordResponse.status, 400);
+  const sequentialPassword = await sequentialPasswordResponse.json();
+  assert.equal(sequentialPassword.passwordPolicy.meetsPolicy, false);
+  assert.equal(sequentialPassword.passwordPolicy.noSequentialPattern, false);
 
   const backupResponse = await request(port, "/api/v1/backups", {
     method: "POST",
@@ -200,7 +210,7 @@ test("public mode diagnostics flag weak password, non-HTTPS, and missing backup"
   const passwordResponse = await request(port, "/api/v1/admin/password", {
     method: "PUT",
     headers: adminHeaders,
-    body: JSON.stringify({ currentPassword: "abcdef123456!", newPassword: "correct horse battery staple" }),
+    body: JSON.stringify({ currentPassword: "correct horse battery staple", newPassword: "new strong password 123!" }),
   });
   assert.equal(passwordResponse.status, 200);
 

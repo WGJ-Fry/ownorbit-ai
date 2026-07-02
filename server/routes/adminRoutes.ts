@@ -8,7 +8,7 @@ import { createCalendarSyncRun, listCalendarSyncRuns } from "../calendarSyncRuns
 import { createAdminCredential, createAdminSession, getAdminSessionByToken, getBearerToken, isAdminConfigured, requireAdmin, verifyAdminPassword } from "../auth";
 import { createDiagnosticBundle, getReleaseDiagnostics } from "../diagnosticBundle";
 import { clearHttpOnlyCookie, getClientIp, rateLimit, setClientCookie, setHttpOnlyCookie } from "../httpSecurity";
-import { getNetworkDiagnostics, startTailscaleHttpsServe, stopTailscaleHttpsServe, testConnectionUrl } from "../networkDiagnostics";
+import { exportIcloudHandoff, getNetworkDiagnostics, installTailscaleClient, startTailscaleHttpsServe, stopTailscaleHttpsServe, testConnectionUrl } from "../networkDiagnostics";
 import { generateCloudflareNamedTunnelConfig, getCloudflareNamedTunnelStatus, getManagedCloudflareTunnelStatus, refreshCloudflareNamedTunnelConfigForPort, startConfiguredCloudflareNamedTunnel, startManagedCloudflareTunnel, stopManagedCloudflareTunnel } from "../cloudflareTunnel";
 import { saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
@@ -28,6 +28,11 @@ const loginFailures = new Map<string, { count: number; lockedUntil: number }>();
 
 function loginKey(req: express.Request) {
   return getClientIp(req);
+}
+
+function isLoopbackSocket(req: express.Request) {
+  const remoteAddress = req.socket.remoteAddress || "";
+  return remoteAddress === "127.0.0.1" || remoteAddress === "::1" || remoteAddress === "::ffff:127.0.0.1";
 }
 
 function getProviderId(value: string): AiProviderId | null {
@@ -112,6 +117,16 @@ function aiCredentialAuditMetadata(providerId: AiProviderId, credential: string)
       endpointHostKind: "unknown",
     };
   }
+}
+
+function adminPasswordPolicyError(policy: ReturnType<typeof evaluatePasswordPolicy>) {
+  if (policy.meetsPolicy) return "";
+  if (policy.lengthBucket === "8-11") return "Admin password must be at least 12 characters.";
+  if (!policy.hasVariety) return "Admin password must include at least two kinds of characters, such as letters plus numbers, symbols, or spaces.";
+  if (!policy.notCommon) return "Admin password is too common.";
+  if (!policy.noLongRepeats) return "Admin password cannot contain long repeated characters.";
+  if (!policy.noSequentialPattern) return "Admin password cannot contain keyboard or number sequences.";
+  return "Admin password is too weak.";
 }
 
 type AiProviderTestSummary = {
@@ -554,6 +569,29 @@ export function registerAdminRoutes(app: express.Express) {
     }
   });
 
+  app.post("/api/v1/admin/icloud-handoff/export", requireAdmin, (req, res) => {
+    try {
+      const handoff = exportIcloudHandoff();
+      insertAuditLog("icloud_handoff_exported", "network", handoff.recommendedBaseUrl || "icloud-handoff", {
+        handoffFilePath: handoff.handoffFilePath,
+        packetFilePath: handoff.packetFilePath,
+        recommendedBaseUrl: handoff.recommendedBaseUrl,
+        recommendedMode: handoff.recommendedMode,
+        realtimeTransport: handoff.realtimeTransport,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.json({
+        handoff,
+        diagnostics: getAdminNetworkDiagnostics(),
+        message: "LifeOS mobile entry was exported to iCloud Drive.",
+      });
+    } catch (error: any) {
+      insertAuditLog("icloud_handoff_export_failed", "network", "icloud-handoff", {
+        error: error?.message || "iCloud Handoff export failed",
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(400).json({ error: error.message || "iCloud Handoff export failed", diagnostics: getAdminNetworkDiagnostics() });
+    }
+  });
+
   app.post("/api/v1/admin/network-diagnostics/acceptance", requireAdmin, (req, res) => {
     try {
       const diagnostics = getAdminNetworkDiagnostics();
@@ -650,7 +688,11 @@ export function registerAdminRoutes(app: express.Express) {
       const refresh = refreshCloudflareNamedTunnelConfigForPort(port);
       const tunnel = await startConfiguredCloudflareNamedTunnel(15000);
       const namedTunnel = getCloudflareNamedTunnelStatus();
-      if (namedTunnel.baseUrl) process.env.PUBLIC_BASE_URL = namedTunnel.baseUrl;
+      if (namedTunnel.baseUrl) {
+        process.env.PUBLIC_BASE_URL = namedTunnel.baseUrl;
+        process.env.LIFEOS_ALLOW_PUBLIC = "1";
+        process.env.LIFEOS_TRUST_PROXY = "1";
+      }
       insertAuditLog("cloudflare_named_tunnel_started", "network", namedTunnel.baseUrl || "cloudflare-named", {
         pid: tunnel.pid,
         hostname: namedTunnel.hostname,
@@ -678,6 +720,8 @@ export function registerAdminRoutes(app: express.Express) {
         baseUrl: tunnel.url,
       });
       process.env.PUBLIC_BASE_URL = tunnel.url;
+      process.env.LIFEOS_ALLOW_PUBLIC = "1";
+      process.env.LIFEOS_TRUST_PROXY = "1";
       insertAuditLog("cloudflare_tunnel_started", "network", tunnel.url, {
         pid: tunnel.pid,
         url: tunnel.url,
@@ -716,6 +760,8 @@ export function registerAdminRoutes(app: express.Express) {
         baseUrl: serve.url,
       });
       process.env.PUBLIC_BASE_URL = serve.url;
+      process.env.LIFEOS_ALLOW_PUBLIC = "1";
+      process.env.LIFEOS_TRUST_PROXY = "1";
       insertAuditLog("tailscale_https_serve_started", "network", serve.url, {
         command: serve.command,
         url: serve.url,
@@ -733,6 +779,29 @@ export function registerAdminRoutes(app: express.Express) {
         error: error?.message || "Tailscale HTTPS Serve start failed",
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.status(400).json({ error: error.message || "Tailscale HTTPS Serve start failed", diagnostics: getAdminNetworkDiagnostics() });
+    }
+  });
+
+  app.post("/api/v1/admin/tailscale/install", requireAdmin, (req, res) => {
+    try {
+      const install = installTailscaleClient(req.body?.confirm);
+      insertAuditLog("tailscale_install_requested", "network", "tailscale", {
+        ok: install.ok,
+        alreadyInstalled: install.alreadyInstalled,
+        command: install.command,
+        installed: install.status.installed,
+        online: install.status.online,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.json({
+        install,
+        diagnostics: getAdminNetworkDiagnostics(),
+        message: install.message,
+      });
+    } catch (error: any) {
+      insertAuditLog("tailscale_install_failed", "network", "tailscale", {
+        error: error?.message || "Tailscale install failed",
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(400).json({ error: error.message || "Tailscale install failed", diagnostics: getAdminNetworkDiagnostics() });
     }
   });
 
@@ -1007,12 +1076,14 @@ export function registerAdminRoutes(app: express.Express) {
     }
 
     const password = String(req.body?.password || "");
-    if (password.length < 8) {
-      return res.status(400).json({ error: "Password must be at least 8 characters" });
+    const policy = evaluatePasswordPolicy(password);
+    const policyError = adminPasswordPolicyError(policy);
+    if (policyError) {
+      return res.status(400).json({ error: policyError, code: "weak_password", passwordPolicy: policy });
     }
 
     createAdminCredential(password);
-    setClientState("lifeos_admin_password_policy", evaluatePasswordPolicy(password), { type: "admin", id: "owner" });
+    setClientState("lifeos_admin_password_policy", policy, { type: "admin", id: "owner" });
     const session = createAdminSession();
     setHttpOnlyCookie(res, "lifeos_admin_session", session.token, session.expiresAt);
     setClientCookie(res, "lifeos_csrf", createSecret("csrf"), session.expiresAt);
@@ -1028,13 +1099,14 @@ export function registerAdminRoutes(app: express.Express) {
     const newPassword = String(req.body?.newPassword || "");
     if (!verifyAdminPassword(currentPassword)) {
       insertAuditLog("admin_password_change_failed", "admin", "owner", { reason: "invalid_current_password" }, "admin", "owner");
-      return res.status(401).json({ error: "Current password is invalid" });
+      return res.status(401).json({ error: "Current password is invalid", code: "invalid_current_password" });
     }
-    if (newPassword.length < 8) {
-      return res.status(400).json({ error: "Password must be at least 8 characters" });
+    const policy = evaluatePasswordPolicy(newPassword);
+    const policyError = adminPasswordPolicyError(policy);
+    if (policyError) {
+      return res.status(400).json({ error: policyError, code: "weak_password", passwordPolicy: policy });
     }
 
-    const policy = evaluatePasswordPolicy(newPassword);
     createAdminCredential(newPassword, { auditAction: false });
     setClientState("lifeos_admin_password_policy", policy, { type: "admin", id: "owner" });
     insertAuditLog("admin_password_changed", "admin", "owner", {
@@ -1046,16 +1118,52 @@ export function registerAdminRoutes(app: express.Express) {
     res.json({ ok: true, passwordPolicy: policy, securityCheck: getSecurityDiagnostics() });
   });
 
+  app.post("/api/v1/admin/local-password-reset", rateLimit({ keyPrefix: "admin-local-password-reset", windowMs: 15 * 60 * 1000, max: 5 }), (req, res) => {
+    if (!isLoopbackSocket(req)) {
+      insertAuditLog("admin_password_local_reset_blocked", "admin", "owner", { reason: "non_loopback_socket" }, "admin", "owner");
+      return res.status(403).json({ error: "Local password reset is only available on this computer.", code: "local_reset_only" });
+    }
+    if (!isAdminConfigured()) {
+      return res.status(409).json({ error: "Admin setup is required", code: "admin_setup_required" });
+    }
+    if (process.env.LIFEOS_ADMIN_PASSWORD) {
+      return res.status(409).json({ error: "Admin password is managed by LIFEOS_ADMIN_PASSWORD environment variable", code: "env_managed_password" });
+    }
+
+    const newPassword = String(req.body?.newPassword || "");
+    const policy = evaluatePasswordPolicy(newPassword);
+    const policyError = adminPasswordPolicyError(policy);
+    if (policyError) {
+      return res.status(400).json({ error: policyError, code: "weak_password", passwordPolicy: policy });
+    }
+
+    const now = Date.now();
+    db.prepare("UPDATE admin_sessions SET revoked_at = ? WHERE revoked_at IS NULL").run(now);
+    createAdminCredential(newPassword, { auditAction: false });
+    setClientState("lifeos_admin_password_policy", policy, { type: "admin", id: "owner" });
+    insertAuditLog("admin_password_local_reset", "admin", "owner", {
+      meetsPolicy: policy.meetsPolicy,
+      lengthBucket: policy.lengthBucket,
+      hasVariety: policy.hasVariety,
+      notCommon: policy.notCommon,
+    }, "admin", "owner");
+    const session = createAdminSession();
+    setHttpOnlyCookie(res, "lifeos_admin_session", session.token, session.expiresAt);
+    setClientCookie(res, "lifeos_csrf", createSecret("csrf"), session.expiresAt);
+    const onboarding = getOnboardingStatus();
+    res.json({ expiresAt: session.expiresAt, onboardingRequired: onboarding.required, nextPath: onboarding.nextPath });
+  });
+
   app.post("/api/v1/admin/login", rateLimit({ keyPrefix: "admin-login", windowMs: 15 * 60 * 1000, max: 12 }), (req, res) => {
     if (!isAdminConfigured()) {
-      return res.status(409).json({ error: "Admin setup is required" });
+      return res.status(409).json({ error: "Admin setup is required", code: "admin_setup_required" });
     }
 
     const key = loginKey(req);
     const failure = loginFailures.get(key);
     if (failure && failure.lockedUntil > Date.now()) {
       res.setHeader("Retry-After", String(Math.ceil((failure.lockedUntil - Date.now()) / 1000)));
-      return res.status(423).json({ error: "Admin login is temporarily locked" });
+      return res.status(423).json({ error: "Admin login is temporarily locked", code: "admin_login_locked" });
     }
 
     const password = String(req.body?.password || "");
@@ -1064,7 +1172,7 @@ export function registerAdminRoutes(app: express.Express) {
       if (next.count >= 5) next.lockedUntil = Date.now() + 10 * 60 * 1000;
       loginFailures.set(key, next);
       insertAuditLog("admin_login_failed", "admin", "owner");
-      return res.status(401).json({ error: "Invalid password" });
+      return res.status(401).json({ error: "Invalid password", code: "invalid_password" });
     }
 
     loginFailures.delete(key);

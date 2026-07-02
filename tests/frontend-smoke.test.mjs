@@ -491,9 +491,20 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(loginSource, /onboardingRequired/);
   assert.match(loginSource, /session\.nextPath/);
   assert.match(loginSource, /publicRiskItems/);
+  assert.match(loginSource, /onlyPasswordRisk/);
+  assert.match(loginSource, /\/admin\/settings#admin-password-strength/);
+  assert.match(loginSource, /auth\.updatePasswordTitle/);
+  assert.match(loginSource, /resetLocalAdminPassword/);
+  assert.match(loginSource, /auth\.forgotPassword/);
+  assert.match(loginSource, /auth\.resetPasswordSubmit/);
+  assert.match(loginSource, /auth\.invalidPassword/);
   assert.match(loginSource, /publicRiskItems\.slice\(0, 4\)\.map/);
   assert.match(loginSource, /auth\.mustFix/);
   assert.match(loginSource, /item\.action/);
+  assert.match(loginSource, /getAdminStatus\(\{ timeoutMs: 5000 \}\)/);
+  assert.match(loginSource, /statusLoadFailed/);
+  assert.match(loginSource, /auth\.statusCheckTitle/);
+  assert.match(loginSource, /auth\.retryStatusCheck/);
   assert.match(lifeosApiSource, /admin\|mobile\|chat/);
 
   const onboardingSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminOnboardingPage.tsx"), "utf8");
@@ -510,7 +521,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /primaryProgress/);
   assert.match(onboardingSource, /onboarding\.simpleAiTitle/);
   assert.match(onboardingSource, /onboarding\.simpleProviderLabel/);
-  assert.match(onboardingSource, /onboarding\.simpleOpenQr/);
+  assert.match(onboardingSource, /exportIcloudHandoff/);
+  assert.match(onboardingSource, /onboarding\.appleRemoteIcloudExported/);
   assert.match(onboardingSource, /onboarding\.simpleStartChat/);
   assert.match(onboardingSource, /onboarding\.simpleAdvancedSummary/);
   assert.match(onboardingSource, /<details/);
@@ -552,10 +564,17 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudHint/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteOpenQr/);
   assert.match(onboardingAppleRemoteSource, /\/admin\/devices\/pair/);
-  assert.match(translationsSource, /Apple 异地连接/);
-  assert.match(translationsSource, /Apple Remote Access/);
-  assert.match(translationsSource, /iCloud 只适合/);
-  assert.match(translationsSource, /iCloud is suitable/);
+  const onboardingTailscaleSetupSource = await readFile(path.join(rootDir, "src", "pages", "admin", "OnboardingTailscaleSetupCard.tsx"), "utf8");
+  assert.match(onboardingTailscaleSetupSource, /tailscale\?\.autoInstall/);
+  assert.match(onboardingTailscaleSetupSource, /onboarding\.tailscaleAutoInstall/);
+  assert.match(onboardingTailscaleSetupSource, /tailscale:\/\//);
+  assert.match(lifeosApiSource, /\/api\/v1\/admin\/tailscale\/install/);
+  assert.match(translationsSource, /Apple\/iCloud 手机入口/);
+  assert.match(translationsSource, /备用：Tailscale 私有网络/);
+  assert.match(translationsSource, /Fallback: Tailscale Private Network/);
+  assert.match(translationsSource, /Apple\/iCloud Mobile Entry/);
+  assert.match(translationsSource, /iCloud 会同步一个手机入口文件/);
+  assert.match(translationsSource, /iCloud syncs a mobile entry file/);
   const onboardingHandoffSource = await readFile(path.join(rootDir, "src", "pages", "admin", "OnboardingHandoffCard.tsx"), "utf8");
   assert.match(onboardingHandoffSource, /onboarding\.handoffChatTitle/);
   assert.match(onboardingHandoffSource, /onboarding\.copyHandoffSummary/);
@@ -1240,7 +1259,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(connectionGuideSource, /connection\.remoteValidationOk/);
   assert.match(connectionGuideSource, /connection\.remoteValidationFail/);
   assert.match(connectionGuideSource, /persist,\s*label/);
-  assert.match(connectionRecommendedEntrySource, /desktopRuntimeConfig!\.publicBaseUrl/);
+  assert.match(connectionRecommendedEntrySource, /savedDesktopCandidate\.baseUrl/);
   assert.match(connectionGuideSource, /CustomRemoteEntryCard/);
   assert.match(connectionGuideSource, /RemoteReadinessCard/);
   assert.match(connectionGuideSource, /ConnectionToolStatus/);
@@ -1532,6 +1551,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(adminPasswordPanelSource, /id="admin-password-strength"/);
   assert.match(adminPasswordPanelSource, /newPassword\.length >= 12/);
   assert.match(adminPasswordPanelSource, /newPassword\.length < 12/);
+  assert.match(adminPasswordPanelSource, /adminPassword\.requirement/);
   assert.match(translationsSource, /发布包/);
   assert.match(translationsSource, /发布资产可下载且可校验/);
   assert.match(translationsSource, /Do Not Claim Public Downloads Yet/);
@@ -1541,6 +1561,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Cloudflare Tunnel、Tailscale HTTPS Serve/);
   assert.match(translationsSource, /LIFEOS_TRUST_PROXY=1/);
   assert.match(translationsSource, /至少需要 12 位/);
+  assert.match(translationsSource, /登录后会直接进入密码设置页/);
+  assert.match(translationsSource, /去设置密码/);
   assert.doesNotMatch(translationsSource, /新密码至少需要 8 位/);
 
   const backupRestorePanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "BackupRestorePanel.tsx"), "utf8");
@@ -1641,7 +1663,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(aiRuntimeSource, /providerId\?: string/);
   assert.match(adminOnboardingSource, /primaryStep/);
   assert.match(adminOnboardingSource, /onboarding\.simpleAiTitle/);
-  assert.match(adminOnboardingSource, /onboarding\.simpleOpenQr/);
+  assert.match(adminOnboardingSource, /exportIcloudHandoff/);
+  assert.match(adminOnboardingSource, /onboarding\.appleRemoteIcloudExported/);
   assert.match(adminOnboardingSource, /onboarding\.simpleStartChat/);
   assert.match(adminOnboardingSource, /onboarding\.simpleAdvancedSummary/);
   assert.match(adminOnboardingSource, /<details/);

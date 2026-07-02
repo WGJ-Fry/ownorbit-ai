@@ -74,8 +74,8 @@ export default function AdminPasswordPanel({
 
       {passwordCheck ? (
         <div className="mb-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-xs leading-relaxed text-zinc-400">
-          <div className="font-bold text-zinc-200">{passwordCheck.message}</div>
-          <div className="mt-1">{passwordCheck.action}</div>
+          <div className="font-bold text-zinc-200">{passwordCheck.status === "ok" ? t("adminPassword.strong") : t("adminPassword.requirement")}</div>
+          <div className="mt-1">{passwordCheck.status === "ok" ? t("adminPassword.updatedOk") : t("adminPassword.requirementHint")}</div>
         </div>
       ) : null}
 

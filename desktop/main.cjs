@@ -27,6 +27,7 @@ let desktopUpdateStatus = {
   reason: "not_configured",
 };
 let shutdownRequested = false;
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
 const chromiumUnsafePorts = new Set([
   1, 7, 9, 11, 13, 15, 17, 19, 20, 21, 22, 23, 25, 37, 42, 43, 53, 69, 77, 79, 87, 95, 101, 102, 103, 104, 109, 110,
   111, 113, 115, 117, 119, 123, 135, 137, 139, 143, 161, 179, 389, 427, 465, 512, 513, 514, 515, 526, 530, 531, 532,
@@ -116,6 +117,25 @@ function normalizeDesktopRuntimeConfig(config) {
   };
 }
 
+function isTemporaryTryCloudflareUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return false;
+  try {
+    const parsed = new URL(raw);
+    return parsed.protocol === "https:" && parsed.hostname.toLowerCase().endsWith(".trycloudflare.com");
+  } catch {
+    return false;
+  }
+}
+
+function shouldRestoreDesktopPublicBaseUrl(config) {
+  if (!config?.publicBaseUrl) return false;
+  if (isTemporaryTryCloudflareUrl(config.publicBaseUrl) && process.env.LIFEOS_RESTORE_TEMP_CLOUDFLARE !== "1") {
+    return false;
+  }
+  return true;
+}
+
 function validateDesktopUpdateUrl(value) {
   const raw = String(value || "").trim();
   if (!raw) return { configured: false, enabled: false, mode: "manual", updateUrlHost: "", reason: "not_configured" };
@@ -141,21 +161,44 @@ function validateDesktopUpdateUrl(value) {
   }
 }
 
+function getDesktopPackageVersion() {
+  if (app.isPackaged) return app.getVersion();
+  try {
+    const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"));
+    if (typeof packageJson.version === "string" && packageJson.version.trim()) return packageJson.version.trim();
+  } catch {}
+  return app.getVersion();
+}
+
 function applyDesktopRuntimeConfig() {
   const configPath = path.join(app.getPath("userData"), "data", "desktop-runtime-config.json");
   if (!fs.existsSync(configPath)) return null;
   try {
     const config = normalizeDesktopRuntimeConfig(JSON.parse(fs.readFileSync(configPath, "utf8")));
     if (!config) return null;
+    const restorePublicBaseUrl = shouldRestoreDesktopPublicBaseUrl(config);
+    const ignoredTemporaryPublicBaseUrl = Boolean(config.publicBaseUrl && !restorePublicBaseUrl && isTemporaryTryCloudflareUrl(config.publicBaseUrl));
+    const trustedHttpsProxy = Boolean(
+      restorePublicBaseUrl
+      && /^https:\/\//i.test(config.publicBaseUrl)
+      && config.mode !== "lan"
+      && config.mode !== "local",
+    );
     process.env.LIFEOS_HOST = process.env.LIFEOS_HOST || config.host;
     process.env.LIFEOS_PORT = process.env.LIFEOS_PORT || String(config.port);
-    if (config.publicBaseUrl && !process.env.PUBLIC_BASE_URL && !process.env.APP_URL) {
+    if (restorePublicBaseUrl && !process.env.PUBLIC_BASE_URL && !process.env.APP_URL) {
       process.env.PUBLIC_BASE_URL = config.publicBaseUrl;
     }
     if (config.allowPublic && !process.env.LIFEOS_ALLOW_PUBLIC) {
       process.env.LIFEOS_ALLOW_PUBLIC = "1";
     }
-    writeDesktopLog("Loaded desktop runtime config", `mode=${config.mode} host=${process.env.LIFEOS_HOST} port=${process.env.LIFEOS_PORT || ""} publicBaseUrlConfigured=${Boolean(process.env.PUBLIC_BASE_URL || process.env.APP_URL)}`);
+    if (trustedHttpsProxy && !process.env.LIFEOS_TRUST_PROXY) {
+      process.env.LIFEOS_TRUST_PROXY = "1";
+    }
+    if (ignoredTemporaryPublicBaseUrl) {
+      writeDesktopLog("Ignored expired temporary Cloudflare desktop URL", `url=${config.publicBaseUrl}`);
+    }
+    writeDesktopLog("Loaded desktop runtime config", `mode=${config.mode} host=${process.env.LIFEOS_HOST} port=${process.env.LIFEOS_PORT || ""} publicBaseUrlConfigured=${Boolean(process.env.PUBLIC_BASE_URL || process.env.APP_URL)} trustedProxy=${process.env.LIFEOS_TRUST_PROXY === "1"} ignoredTemporaryPublicBaseUrl=${ignoredTemporaryPublicBaseUrl}`);
     return config;
   } catch (error) {
     writeDesktopLog("Failed to load desktop runtime config", error?.message || String(error));
@@ -231,6 +274,7 @@ async function startLocalCore() {
   serverPort = await findOpenPort(Number(process.env.LIFEOS_PORT || 3000));
   process.env.NODE_ENV = "production";
   process.env.LIFEOS_PORT = String(serverPort);
+  process.env.LIFEOS_PACKAGE_VERSION = process.env.LIFEOS_PACKAGE_VERSION || getDesktopPackageVersion();
   process.env.LIFEOS_DEVICE_NAME = process.env.LIFEOS_DEVICE_NAME || `${app.getName()} Desktop`;
 
   const appPath = app.isPackaged ? app.getAppPath() : process.cwd();
@@ -801,64 +845,73 @@ function requestDesktopShutdown(reason = "signal") {
   app.exit(0);
 }
 
-app.whenReady().then(async () => {
-  ipcMain.handle("lifeos:open-logs-folder", async () => {
-    openLogsFolder();
-    return true;
+if (!hasSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (shutdownRequested) return;
+    showPreferredAdminWindow("/admin/dashboard").catch(() => showMainWindow("/admin/login"));
   });
-  ipcMain.handle("lifeos:copy-logs-path", async () => copyLogsPath());
-  ipcMain.handle("lifeos:open-local-console", async () => openLocalConsoleInBrowser());
-  ipcMain.handle("lifeos:copy-local-address", async () => {
-    copyLocalAddress();
-    return localUrl("/admin/login");
-  });
-  ipcMain.handle("lifeos:export-desktop-diagnostics", async () => exportDesktopDiagnosticBundle());
-  ipcMain.handle("lifeos:retry-startup", async () => {
-    app.relaunch();
-    app.exit(0);
-    return true;
-  });
-  try {
-    await startLocalCore();
-    configureUpdates();
-    await configureDesktopShell();
-    await createWindow(await resolvePreferredAdminPath("/admin/login"));
-    if (process.env.LIFEOS_DESKTOP_EXPORT_DIAGNOSTIC_ON_START) {
-      await exportDesktopDiagnosticBundle(process.env.LIFEOS_DESKTOP_EXPORT_DIAGNOSTIC_ON_START);
+
+  app.whenReady().then(async () => {
+    ipcMain.handle("lifeos:open-logs-folder", async () => {
+      openLogsFolder();
+      return true;
+    });
+    ipcMain.handle("lifeos:copy-logs-path", async () => copyLogsPath());
+    ipcMain.handle("lifeos:open-local-console", async () => openLocalConsoleInBrowser());
+    ipcMain.handle("lifeos:copy-local-address", async () => {
+      copyLocalAddress();
+      return localUrl("/admin/login");
+    });
+    ipcMain.handle("lifeos:export-desktop-diagnostics", async () => exportDesktopDiagnosticBundle());
+    ipcMain.handle("lifeos:retry-startup", async () => {
+      app.relaunch();
+      app.exit(0);
+      return true;
+    });
+    try {
+      await startLocalCore();
+      configureUpdates();
+      await configureDesktopShell();
+      await createWindow(await resolvePreferredAdminPath("/admin/login"));
+      if (process.env.LIFEOS_DESKTOP_EXPORT_DIAGNOSTIC_ON_START) {
+        await exportDesktopDiagnosticBundle(process.env.LIFEOS_DESKTOP_EXPORT_DIAGNOSTIC_ON_START);
+      }
+    } catch (error) {
+      writeDesktopLog("LifeOS startup failed", error?.stack || error?.message || String(error));
+      console.error("LifeOS startup failed:", error?.message || error);
+      Menu.setApplicationMenu(Menu.buildFromTemplate([
+        {
+          label: "LifeOS AI",
+          submenu: [
+            { label: "Export Desktop Diagnostics", click: () => exportDesktopDiagnosticBundle().catch((exportError) => writeDesktopLog("Failed to export desktop diagnostics", exportError?.message || String(exportError))) },
+            { label: "Open Logs Folder", click: openLogsFolder },
+            { role: "quit", label: "Quit LifeOS AI" },
+          ],
+        },
+      ]));
+      showStartupFailureWindow(error);
+      return;
     }
-  } catch (error) {
-    writeDesktopLog("LifeOS startup failed", error?.stack || error?.message || String(error));
-    console.error("LifeOS startup failed:", error?.message || error);
-    Menu.setApplicationMenu(Menu.buildFromTemplate([
-      {
-        label: "LifeOS AI",
-        submenu: [
-          { label: "Export Desktop Diagnostics", click: () => exportDesktopDiagnosticBundle().catch((exportError) => writeDesktopLog("Failed to export desktop diagnostics", exportError?.message || String(exportError))) },
-          { label: "Open Logs Folder", click: openLogsFolder },
-          { role: "quit", label: "Quit LifeOS AI" },
-        ],
-      },
-    ]));
-    showStartupFailureWindow(error);
-    return;
-  }
 
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      resolvePreferredAdminPath("/admin/login")
-        .then((pathname) => createWindow(pathname))
-        .catch(() => createWindow("/admin/login"));
-    }
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        resolvePreferredAdminPath("/admin/login")
+          .then((pathname) => createWindow(pathname))
+          .catch(() => createWindow("/admin/login"));
+      }
+    });
   });
-});
 
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
-});
+  app.on("window-all-closed", () => {
+    if (process.platform !== "darwin") app.quit();
+  });
 
-app.on("before-quit", () => {
-  if (trayRefreshTimer) clearInterval(trayRefreshTimer);
-});
+  app.on("before-quit", () => {
+    if (trayRefreshTimer) clearInterval(trayRefreshTimer);
+  });
+}
 
 process.on("SIGTERM", () => requestDesktopShutdown("SIGTERM"));
 process.on("SIGINT", () => requestDesktopShutdown("SIGINT"));

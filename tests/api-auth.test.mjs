@@ -461,38 +461,47 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     method: "PUT",
     headers: adminHeaders,
     body: JSON.stringify({ currentPassword: "correct horse battery staple", newPassword: "password123" }),
-  }).then((res) => res.json());
-  assert.equal(weakPasswordChange.ok, true);
-  assert.equal(weakPasswordChange.passwordPolicy.meetsPolicy, false);
-  assert.equal(weakPasswordChange.securityCheck.items.some((item) => item.id === "password" && item.status === "warning"), true);
+  });
+  assert.equal(weakPasswordChange.status, 400);
+  const weakPasswordChangeBody = await weakPasswordChange.json();
+  assert.equal(weakPasswordChangeBody.passwordPolicy.meetsPolicy, false);
+  assert.match(weakPasswordChangeBody.error, /12 characters|too common/i);
   const repetitivePasswordChange = await request(port, "/api/v1/admin/password", {
     method: "PUT",
     headers: adminHeaders,
-    body: JSON.stringify({ currentPassword: "password123", newPassword: "aaaaaaaaaaaa1!" }),
-  }).then((res) => res.json());
-  assert.equal(repetitivePasswordChange.ok, true);
-  assert.equal(repetitivePasswordChange.passwordPolicy.meetsPolicy, false);
-  assert.equal(repetitivePasswordChange.passwordPolicy.noLongRepeats, false);
-  assert.equal(repetitivePasswordChange.passwordPolicy.noSequentialPattern, true);
-  assert.equal(repetitivePasswordChange.securityCheck.items.some((item) => item.id === "password" && item.status === "warning"), true);
+    body: JSON.stringify({ currentPassword: "correct horse battery staple", newPassword: "aaaaaaaaaaaa1!" }),
+  });
+  assert.equal(repetitivePasswordChange.status, 400);
+  const repetitivePasswordChangeBody = await repetitivePasswordChange.json();
+  assert.equal(repetitivePasswordChangeBody.passwordPolicy.meetsPolicy, false);
+  assert.equal(repetitivePasswordChangeBody.passwordPolicy.noLongRepeats, false);
+  assert.equal(repetitivePasswordChangeBody.passwordPolicy.noSequentialPattern, true);
   const sequentialPasswordChange = await request(port, "/api/v1/admin/password", {
     method: "PUT",
     headers: adminHeaders,
-    body: JSON.stringify({ currentPassword: "aaaaaaaaaaaa1!", newPassword: "abcdef123456!" }),
-  }).then((res) => res.json());
-  assert.equal(sequentialPasswordChange.ok, true);
-  assert.equal(sequentialPasswordChange.passwordPolicy.meetsPolicy, false);
-  assert.equal(sequentialPasswordChange.passwordPolicy.noLongRepeats, true);
-  assert.equal(sequentialPasswordChange.passwordPolicy.noSequentialPattern, false);
-  assert.equal(sequentialPasswordChange.securityCheck.items.some((item) => item.id === "password" && item.status === "warning"), true);
+    body: JSON.stringify({ currentPassword: "correct horse battery staple", newPassword: "abcdef123456!" }),
+  });
+  assert.equal(sequentialPasswordChange.status, 400);
+  const sequentialPasswordChangeBody = await sequentialPasswordChange.json();
+  assert.equal(sequentialPasswordChangeBody.passwordPolicy.meetsPolicy, false);
+  assert.equal(sequentialPasswordChangeBody.passwordPolicy.noLongRepeats, true);
+  assert.equal(sequentialPasswordChangeBody.passwordPolicy.noSequentialPattern, false);
   const strongPasswordChange = await request(port, "/api/v1/admin/password", {
     method: "PUT",
     headers: adminHeaders,
-    body: JSON.stringify({ currentPassword: "abcdef123456!", newPassword: "correct horse battery staple" }),
+    body: JSON.stringify({ currentPassword: "correct horse battery staple", newPassword: "new strong password 123!" }),
   }).then((res) => res.json());
   assert.equal(strongPasswordChange.ok, true);
   assert.equal(strongPasswordChange.passwordPolicy.meetsPolicy, true);
-  assert.equal(JSON.stringify(strongPasswordChange).includes("correct horse battery staple"), false);
+  assert.equal(JSON.stringify(strongPasswordChange).includes("new strong password 123!"), false);
+  const changeBackPassword = await request(port, "/api/v1/admin/password", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({ currentPassword: "new strong password 123!", newPassword: "correct horse battery staple" }),
+  }).then((res) => res.json());
+  assert.equal(changeBackPassword.ok, true);
+  assert.equal(changeBackPassword.passwordPolicy.meetsPolicy, true);
+  assert.equal(JSON.stringify(changeBackPassword).includes("correct horse battery staple"), false);
 
   const blockedNetworkDiagnostics = await request(port, "/api/v1/admin/network-diagnostics");
   assert.equal(blockedNetworkDiagnostics.status, 401);
@@ -502,8 +511,12 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.ok(Array.isArray(networkDiagnostics.lanUrls));
   assert.equal(typeof networkDiagnostics.cloudflare.installed, "boolean");
   assert.equal(typeof networkDiagnostics.tailscale.installed, "boolean");
+  assert.equal(typeof networkDiagnostics.icloud.available, "boolean");
+  assert.equal(networkDiagnostics.icloud.realtimeTransport, false);
   assert.match(networkDiagnostics.cloudflare.suggestedCommand, /cloudflared tunnel --url/);
   assert.equal(typeof networkDiagnostics.cloudflare.managed.running, "boolean");
+  const blockedIcloudHandoffExport = await request(port, "/api/v1/admin/icloud-handoff/export", { method: "POST" });
+  assert.equal(blockedIcloudHandoffExport.status, 401);
 
   const blockedCloudflareTunnelStatus = await request(port, "/api/v1/admin/cloudflare-tunnel");
   assert.equal(blockedCloudflareTunnelStatus.status, 401);
@@ -591,6 +604,25 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const networkDiagnosticsAfterDesktopConfig = await request(port, "/api/v1/admin/network-diagnostics", { headers: adminHeaders }).then((res) => res.json());
   assert.equal(networkDiagnosticsAfterDesktopConfig.desktopRuntimeConfig.label, "Cloudflare Smoke");
   assert.equal(networkDiagnosticsAfterDesktopConfig.desktopRuntimeConfig.publicBaseUrl, "https://desktop-config.example.com/mobile");
+  const staleTemporaryCloudflareConfig = await request(port, "/api/v1/admin/desktop-connection-config", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      mode: "cloudflare",
+      label: "Expired Temporary Cloudflare",
+      baseUrl: "https://old-lifeos.trycloudflare.com",
+    }),
+  }).then((res) => res.json());
+  assert.equal(staleTemporaryCloudflareConfig.config.publicBaseUrl, "https://old-lifeos.trycloudflare.com");
+  const diagnosticsAfterStaleTemporaryCloudflare = await request(port, "/api/v1/admin/network-diagnostics", { headers: adminHeaders }).then((res) => res.json());
+  assert.equal(diagnosticsAfterStaleTemporaryCloudflare.connectionCandidates.some((candidate) => candidate.baseUrl === "https://old-lifeos.trycloudflare.com"), false);
+  const defaultBindingAfterStaleTemporaryCloudflare = await request(port, "/api/v1/devices/bind/start", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({}),
+  }).then((res) => res.json());
+  assert.notEqual(defaultBindingAfterStaleTemporaryCloudflare.baseUrl, "https://old-lifeos.trycloudflare.com");
+  assert.equal(defaultBindingAfterStaleTemporaryCloudflare.pairingUrl.includes("old-lifeos.trycloudflare.com"), false);
   const tailscaleHttpsConnectionConfig = await request(port, "/api/v1/admin/desktop-connection-config", {
     method: "PUT",
     headers: adminHeaders,
@@ -2887,6 +2919,78 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assertSecretNotLeaked(publicResponses, credential.accessToken, new Set(["credential"]));
   assertSecretNotLeaked(publicResponses, rotated.accessToken, new Set(["rotated token"]));
   assertSecretNotLeaked(publicResponses, adminRequestedRotation.accessToken, new Set(["admin requested rotation"]));
+});
+
+test("local admin password reset works only as a guarded local recovery path", async (t) => {
+  const port = await getOpenPort();
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-local-reset-test-"));
+  const child = spawn(process.execPath, ["dist/server.cjs"], {
+    cwd: rootDir,
+    env: {
+      ...process.env,
+      NODE_ENV: "production",
+      LIFEOS_PORT: String(port),
+      LIFEOS_DATA_DIR: dataDir,
+      LIFEOS_HOST: "127.0.0.1",
+      PUBLIC_BASE_URL: "",
+      APP_URL: "",
+      GEMINI_API_KEY: "",
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const childOutput = [];
+  child.stdout.on("data", (chunk) => childOutput.push(chunk.toString()));
+  child.stderr.on("data", (chunk) => childOutput.push(chunk.toString()));
+
+  t.after(async () => {
+    child.kill();
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  await waitForServer(port, child, childOutput);
+
+  const setupResponse = await request(port, "/api/v1/admin/setup", {
+    method: "POST",
+    body: JSON.stringify({ password: "old local password 123!" }),
+  });
+  assert.equal(setupResponse.status, 200);
+  const oldAdminHeaders = cookieHeader(setupResponse);
+
+  const weakReset = await request(port, "/api/v1/admin/local-password-reset", {
+    method: "POST",
+    body: JSON.stringify({ newPassword: "password123" }),
+  });
+  assert.equal(weakReset.status, 400);
+  const weakResetBody = await weakReset.json();
+  assert.equal(weakResetBody.passwordPolicy.meetsPolicy, false);
+
+  const resetResponse = await request(port, "/api/v1/admin/local-password-reset", {
+    method: "POST",
+    body: JSON.stringify({ newPassword: "new local password 123!" }),
+  });
+  assert.equal(resetResponse.status, 200);
+  const resetSessionHeaders = cookieHeader(resetResponse);
+
+  const oldPasswordLogin = await request(port, "/api/v1/admin/login", {
+    method: "POST",
+    body: JSON.stringify({ password: "old local password 123!" }),
+  });
+  assert.equal(oldPasswordLogin.status, 401);
+
+  const newPasswordLogin = await request(port, "/api/v1/admin/login", {
+    method: "POST",
+    body: JSON.stringify({ password: "new local password 123!" }),
+  });
+  assert.equal(newPasswordLogin.status, 200);
+
+  const oldSessionBlocked = await request(port, "/api/v1/admin/config-diagnostics", { headers: oldAdminHeaders });
+  assert.equal(oldSessionBlocked.status, 401);
+  const resetSessionWorks = await request(port, "/api/v1/admin/config-diagnostics", { headers: resetSessionHeaders });
+  assert.equal(resetSessionWorks.status, 200);
+
+  const auditLogs = await request(port, "/api/v1/audit-logs", { headers: resetSessionHeaders }).then((res) => res.json());
+  assert.ok(auditLogs.logs.some((log) => log.action === "admin_password_local_reset"));
+  assert.equal(JSON.stringify(auditLogs).includes("new local password 123!"), false);
 });
 
 test("public base path serves API, mobile shell, and realtime websocket", async (t) => {

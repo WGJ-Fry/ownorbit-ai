@@ -55,6 +55,26 @@ function createLegacyDatabase(dataDir) {
     INSERT INTO devices (id, name, type, status, public_key, access_token_hash, created_at, last_seen_at, revoked_at)
     VALUES ('legacy-device', 'Legacy Phone', 'mobile', 'offline', NULL, 'hash', 1, 1, NULL);
 
+    CREATE TABLE binding_sessions (
+      id TEXT PRIMARY KEY,
+      token_hash TEXT NOT NULL UNIQUE,
+      created_at INTEGER NOT NULL,
+      expires_at INTEGER NOT NULL,
+      confirmed_at INTEGER,
+      confirmed_device_id TEXT
+    );
+    INSERT INTO binding_sessions (id, token_hash, created_at, expires_at, confirmed_at, confirmed_device_id)
+    VALUES ('legacy-binding', 'legacy-token-hash', 1, 9999999999999, NULL, NULL);
+
+    CREATE TABLE messages (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      role TEXT NOT NULL,
+      content_json TEXT NOT NULL,
+      source_device_id TEXT,
+      created_at INTEGER NOT NULL
+    );
+
     CREATE TABLE client_state (
       key TEXT PRIMARY KEY,
       value_json TEXT NOT NULL,
@@ -200,4 +220,55 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   assert.equal(legacyCustomAppVersion.note, "Imported from legacy client state");
   assert.equal(legacyCustomAppVersion.code.includes("github_pat_legacyCustomAppSecret"), false);
   assert.equal(legacyDevice.accessTokenExpiresAt, null);
+});
+
+test("bundled fallback migrations upgrade legacy schema without SQL files on cwd", async (t) => {
+  const port = 8210 + Math.floor(Math.random() * 1000);
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-fallback-migration-test-"));
+  createLegacyDatabase(dataDir);
+
+  const child = spawn(process.execPath, [path.join(rootDir, "dist/server.cjs")], {
+    cwd: dataDir,
+    env: {
+      ...process.env,
+      NODE_ENV: "production",
+      LIFEOS_PORT: String(port),
+      LIFEOS_DATA_DIR: dataDir,
+      LIFEOS_HOST: "127.0.0.1",
+      PUBLIC_BASE_URL: "",
+      APP_URL: "",
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const output = [];
+  child.stdout.on("data", (chunk) => output.push(chunk.toString()));
+  child.stderr.on("data", (chunk) => output.push(chunk.toString()));
+
+  t.after(async () => {
+    await stopServer(child);
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  await waitForServer(port, child, output);
+  await stopServer(child);
+
+  const db = new DatabaseSync(path.join(dataDir, "lifeos.db"));
+  const bindingSessionColumns = db.prepare("PRAGMA table_info(binding_sessions)").all().map((column) => column.name);
+  const messageColumns = db.prepare("PRAGMA table_info(messages)").all().map((column) => column.name);
+  const customAppColumns = db.prepare("PRAGMA table_info(custom_apps)").all().map((column) => column.name);
+  const calendarSyncRunColumns = db.prepare("PRAGMA table_info(calendar_sync_runs)").all().map((column) => column.name);
+  const bindingBaseUrlMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 5").get();
+  const customAppsMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 8").get();
+  const calendarSyncRunsMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 17").get();
+  const legacyBinding = db.prepare("SELECT id, base_url as baseUrl FROM binding_sessions WHERE id = 'legacy-binding'").get();
+  db.close();
+
+  assert.ok(bindingSessionColumns.includes("base_url"));
+  assert.ok(messageColumns.includes("idempotency_key"));
+  assert.ok(customAppColumns.includes("code"));
+  assert.ok(calendarSyncRunColumns.includes("summary_json"));
+  assert.equal(bindingBaseUrlMigration.name, "binding_session_base_url");
+  assert.equal(customAppsMigration.name, "custom_apps");
+  assert.equal(calendarSyncRunsMigration.name, "calendar_sync_runs");
+  assert.equal(legacyBinding.baseUrl, null);
 });

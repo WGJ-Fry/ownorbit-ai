@@ -67,8 +67,8 @@ function migrateLegacyJsonStore() {
   }
 }
 
-migrateLegacyJsonStore();
 runMigrations();
+migrateLegacyJsonStore();
 migrateLegacyCustomAppsFromClientState();
 startBackupScheduler();
 startRemoteHealthMonitor();

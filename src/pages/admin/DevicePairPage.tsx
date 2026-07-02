@@ -11,6 +11,7 @@ export default function DevicePairPage() {
   const [session, setSession] = useState<BindingSession | null>(null);
   const [confirmedDevice, setConfirmedDevice] = useState<BoundDevice | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [createErrorDetail, setCreateErrorDetail] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [pairingBaseUrl, setPairingBaseUrl] = useState("");
   const [diagnostics, setDiagnostics] = useState<NetworkDiagnostics | null>(null);
@@ -20,6 +21,7 @@ export default function DevicePairPage() {
 
   const createSession = async () => {
     setError(null);
+    setCreateErrorDetail(null);
     setSession(null);
     setConfirmedDevice(null);
     setConnectionTestResult(null);
@@ -37,13 +39,16 @@ export default function DevicePairPage() {
       if (!recommendedBaseUrl) {
         setPairingBaseUrl("");
         setError(t("devicePair.noReachableAddress"));
+        setCreateErrorDetail(t("devicePair.noReachableAddress"));
         return;
       }
       const data = await startBindingSession(recommendedBaseUrl);
       setPairingBaseUrl(data.baseUrl || recommendedBaseUrl);
       setSession(data);
     } catch (err: any) {
-      setError(err.message || t("devicePair.createFailed"));
+      const detail = err.message || t("devicePair.createFailed");
+      setError(detail);
+      setCreateErrorDetail(detail);
     }
   };
 
@@ -69,6 +74,7 @@ export default function DevicePairPage() {
 
   const expiresIn = session ? Math.max(0, Math.ceil((session.expiresAt - Date.now()) / 1000)) : 0;
   const activeCandidate = diagnostics?.connectionCandidates?.find((candidate) => candidate.baseUrl === pairingBaseUrl) || diagnostics?.connectionCandidates?.[0] || null;
+  const hasDetectedPhoneCandidate = Boolean(diagnostics?.connectionCandidates?.some((candidate) => candidate.mode !== "local"));
 
   const handleTestPairingAddress = async () => {
     if (!pairingBaseUrl) return;
@@ -133,8 +139,15 @@ export default function DevicePairPage() {
               <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl border border-amber-400/20 bg-amber-500/10">
                 <AlertTriangle className="h-7 w-7 text-amber-300" />
               </div>
-              <h2 className="text-xl font-bold">{t("devicePair.noReachableTitle")}</h2>
-              <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-zinc-400">{t("devicePair.noReachableBody")}</p>
+              <h2 className="text-xl font-bold">{hasDetectedPhoneCandidate ? t("devicePair.detectedButQrFailedTitle") : t("devicePair.noReachableTitle")}</h2>
+              <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-zinc-400">
+                {hasDetectedPhoneCandidate ? t("devicePair.detectedButQrFailedBody") : t("devicePair.noReachableBody")}
+              </p>
+              {createErrorDetail ? (
+                <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-500/10 p-3 text-left text-xs leading-relaxed text-red-100">
+                  {createErrorDetail}
+                </div>
+              ) : null}
               {diagnostics?.connectionCandidates?.length ? (
                 <div className="mt-5 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-left text-xs text-zinc-400">
                   <div className="font-bold text-zinc-200">{t("devicePair.detectedOnlyTitle")}</div>

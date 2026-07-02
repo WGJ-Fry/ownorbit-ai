@@ -22,6 +22,7 @@ export default function AdminDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [busyDeviceId, setBusyDeviceId] = useState<string | null>(null);
   const [busyBackupFile, setBusyBackupFile] = useState<string | null>(null);
+  const onlyPasswordRisk = Boolean(health?.publicRisk?.items?.length) && health!.publicRisk.items.every((item) => item.id === "password");
 
   const refresh = async () => {
     setError(null);
@@ -128,7 +129,21 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {health?.publicAccessWarning && (
+        {health?.publicAccessWarning && onlyPasswordRisk && health.publicSetupRisk ? (
+          <div className="mb-6 rounded-2xl border border-amber-400/25 bg-amber-500/10 p-4 text-sm text-amber-100">
+            <div className="flex gap-3">
+              <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-300" />
+              <div className="min-w-0 flex-1">
+                <div className="font-bold">{t("dashboard.updatePasswordTitle")}</div>
+                <div className="mt-1 text-amber-100/80">{t("dashboard.updatePasswordBody")}</div>
+                <a href="/admin/settings#admin-password-strength" className="mt-3 inline-flex items-center gap-2 rounded-xl border border-amber-100/20 bg-black/15 px-3 py-2 text-xs font-bold text-amber-50">
+                  <KeyRound className="h-3.5 w-3.5" />
+                  {t("dashboard.updatePasswordAction")}
+                </a>
+              </div>
+            </div>
+          </div>
+        ) : health?.publicAccessWarning ? (
           <div className={`mb-6 rounded-2xl border p-4 text-sm ${health.publicSetupRisk ? "border-red-400/25 bg-red-500/10 text-red-100" : "border-amber-400/20 bg-amber-500/10 text-amber-100"}`}>
             <div className="flex gap-3">
               <AlertTriangle className={`mt-0.5 h-4 w-4 flex-shrink-0 ${health.publicSetupRisk ? "text-red-300" : "text-amber-300"}`} />
@@ -176,7 +191,7 @@ export default function AdminDashboardPage() {
               </div>
             </div>
           </div>
-        )}
+        ) : null}
 
         {sessions.length === 0 && (
           <section className="mb-6 rounded-[28px] border border-cyan-400/20 bg-cyan-500/10 p-5">

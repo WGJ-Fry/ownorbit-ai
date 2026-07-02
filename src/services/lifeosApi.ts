@@ -623,6 +623,24 @@ export type NetworkDiagnostics = {
     baseUrl: string;
     updatedAt: number;
   } | null;
+  icloud: {
+    platform: string;
+    platformSupported: boolean;
+    available: boolean;
+    canExport: boolean;
+    drivePath: string;
+    appFolderPath: string;
+    handoffFilePath: string;
+    packetFilePath: string;
+    recommendedBaseUrl: string;
+    recommendedLabel: string;
+    recommendedMode: string;
+    recommendedStability: string;
+    realtimeTransport: false;
+    transport: "handoff-only";
+    openInstruction: string;
+    notes: string[];
+  };
   remoteValidationReport: {
     id: string;
     label: string;
@@ -890,6 +908,12 @@ export type NetworkDiagnostics = {
     mobileUrls: string[];
     installCommand: string;
     installUrl: string;
+    autoInstall: {
+      available: boolean;
+      method: "homebrew-cask" | "manual";
+      command: string;
+      reason: "already-installed" | "terminal-password-required" | "homebrew-missing" | "unsupported-platform";
+    };
     envTemplate: string;
     notes: string[];
   };
@@ -1257,23 +1281,53 @@ export function realtimeWebSocketUrl(path = "/api/v1/ws") {
   return `${protocol}://${window.location.host}${apiUrl(path)}`;
 }
 
-async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
+type JsonRequestInit = RequestInit & { timeoutMs?: number };
+
+export class LifeosApiError extends Error {
+  status: number;
+  code: string;
+  payload: unknown;
+
+  constructor(message: string, status: number, code = "", payload: unknown = null) {
+    super(message);
+    this.name = "LifeosApiError";
+    this.status = status;
+    this.code = code;
+    this.payload = payload;
+  }
+}
+
+async function requestJson<T>(url: string, init?: JsonRequestInit): Promise<T> {
   const method = init?.method || "GET";
   const body = typeof init?.body === "string" ? init.body : "";
-  const response = await fetch(apiUrl(url), {
-    ...init,
-    credentials: "same-origin",
-    headers: {
-      "Content-Type": "application/json",
-      ...getCsrfHeader(),
-      ...(await getAuthHeaders(method, url, body)),
-      ...(init?.headers || {}),
-    },
-  });
+  const { timeoutMs = 15_000, signal, ...fetchInit } = init || {};
+  const controller = !signal && timeoutMs > 0 ? new AbortController() : null;
+  const timeout = controller ? window.setTimeout(() => controller.abort(), timeoutMs) : null;
+  let response: Response;
+  try {
+    response = await fetch(apiUrl(url), {
+      ...fetchInit,
+      credentials: "same-origin",
+      signal: signal || controller?.signal,
+      headers: {
+        "Content-Type": "application/json",
+        ...getCsrfHeader(),
+        ...(await getAuthHeaders(method, url, body)),
+        ...(fetchInit.headers || {}),
+      },
+    });
+  } catch (error: any) {
+    if (error?.name === "AbortError") {
+      throw new Error("Request timed out. Please retry after the local core is ready.");
+    }
+    throw error;
+  } finally {
+    if (timeout) window.clearTimeout(timeout);
+  }
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data?.error || `Request failed: ${response.status}`);
+    throw new LifeosApiError(data?.error || `Request failed: ${response.status}`, response.status, String(data?.code || ""), data);
   }
   return data;
 }
@@ -1382,8 +1436,8 @@ export async function clearStoredDeviceCredential() {
   await clearDevicePrivateKey().catch(() => null);
 }
 
-export function getAdminStatus() {
-  return requestJson<{ configured: boolean; authenticated: boolean; envManaged: boolean; onboardingRequired: boolean | null; nextPath: string | null }>("/api/v1/admin/status");
+export function getAdminStatus(options?: { timeoutMs?: number }) {
+  return requestJson<{ configured: boolean; authenticated: boolean; envManaged: boolean; onboardingRequired: boolean | null; nextPath: string | null }>("/api/v1/admin/status", options);
 }
 
 export function getOnboardingStatus() {
@@ -1512,6 +1566,14 @@ export function startCloudflareTunnel() {
   }>("/api/v1/admin/cloudflare-tunnel/start", { method: "POST" });
 }
 
+export function exportIcloudHandoff() {
+  return requestJson<{
+    handoff: NetworkDiagnostics["icloud"] & { ok: true; generatedAt: number };
+    diagnostics: NetworkDiagnostics;
+    message: string;
+  }>("/api/v1/admin/icloud-handoff/export", { method: "POST" });
+}
+
 export function stopCloudflareTunnel() {
   return requestJson<{
     tunnel: NetworkDiagnostics["cloudflare"]["managed"];
@@ -1638,6 +1700,29 @@ export function startTailscaleHttpsServe() {
   }>("/api/v1/admin/tailscale-serve/start", { method: "POST" });
 }
 
+export function installTailscaleClient() {
+  return requestJson<{
+    install: {
+      ok: boolean;
+      alreadyInstalled: boolean;
+      needsUserAction?: boolean;
+      terminalOpened?: boolean;
+      action?: "terminal-opened" | "copy-command";
+      command: string;
+      terminalCommand?: string;
+      output: string;
+      status: NetworkDiagnostics["tailscale"];
+      message: string;
+    };
+    diagnostics: NetworkDiagnostics;
+    message: string;
+  }>("/api/v1/admin/tailscale/install", {
+    method: "POST",
+    body: JSON.stringify({ confirm: "install-tailscale" }),
+    timeoutMs: 10 * 60 * 1000,
+  });
+}
+
 export function stopTailscaleHttpsServe() {
   return requestJson<{
     serve: {
@@ -1730,6 +1815,15 @@ export async function loginAdmin(password: string) {
   const session = await requestJson<AdminSession>("/api/v1/admin/login", {
     method: "POST",
     body: JSON.stringify({ password }),
+  });
+  saveStoredAdminSession(session);
+  return session;
+}
+
+export async function resetLocalAdminPassword(newPassword: string) {
+  const session = await requestJson<AdminSession>("/api/v1/admin/local-password-reset", {
+    method: "POST",
+    body: JSON.stringify({ newPassword }),
   });
   saveStoredAdminSession(session);
   return session;
@@ -1871,7 +1965,7 @@ export function requestDeviceTokenRotation(deviceId: string) {
   return requestJson<{ ok: true; delivered: boolean }>(`/api/v1/devices/${deviceId}/token/rotation-request`, { method: "POST" });
 }
 
-export function getHealth() {
+export function getHealth(options?: { timeoutMs?: number }) {
   return requestJson<{
     ok: boolean;
     service: string;
@@ -1899,7 +1993,7 @@ export function getHealth() {
       }>;
     };
     timestamp: number;
-  }>("/api/v1/health");
+  }>("/api/v1/health", options);
 }
 
 export function listBackups() {

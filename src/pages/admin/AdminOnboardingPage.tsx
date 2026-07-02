@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type React from "react";
 import { AlertTriangle, ArrowRight, CheckCircle2, DatabaseBackup, KeyRound, Loader2, QrCode, ShieldAlert, SlidersHorizontal, Sparkles } from "lucide-react";
-import { completeOnboarding, createBackup, getBackupSchedule, getConfigDiagnostics, getNetworkDiagnostics, getOnboardingStatus, listAiProviders, listBackups, listDevices, saveAiProviderKey, saveDesktopConnectionConfig, startCloudflareTunnel, startTailscaleHttpsServe, testAiProvider, testConnectionUrl, updateActiveAiProvider, updateAiProviderModel, updateBackupSchedule } from "../../services/lifeosApi";
+import { completeOnboarding, createBackup, exportIcloudHandoff, getBackupSchedule, getConfigDiagnostics, getNetworkDiagnostics, getOnboardingStatus, listAiProviders, listBackups, listDevices, saveAiProviderKey, saveDesktopConnectionConfig, startCloudflareTunnel, startTailscaleHttpsServe, testAiProvider, testConnectionUrl, updateActiveAiProvider, updateAiProviderModel, updateBackupSchedule } from "../../services/lifeosApi";
 import type { AiProviderId, AiProviderStatus, BackupRecord, BackupSchedule, BoundDevice, ConfigDiagnostics, NetworkDiagnostics, OnboardingStatus } from "../../services/lifeosApi";
 import LanguageSwitcher from "../../i18n/LanguageSwitcher";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -189,6 +189,21 @@ export default function AdminOnboardingPage() {
       setStatus(result.message || t("onboarding.appleRemoteCloudflareStarted"));
     } catch (error: any) {
       setStatus(error.message || t("onboarding.appleRemoteActionFailed"));
+      await getNetworkDiagnostics().then(setNetworkDiagnostics).catch(() => null);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleExportIcloudHandoff = async () => {
+    setBusy("icloud-handoff");
+    setStatus(null);
+    try {
+      const result = await exportIcloudHandoff();
+      setNetworkDiagnostics(result.diagnostics);
+      setStatus(t("onboarding.appleRemoteIcloudExported", { path: result.handoff.handoffFilePath || "-" }));
+    } catch (error: any) {
+      setStatus(error.message || t("onboarding.appleRemoteIcloudExportFailed"));
       await getNetworkDiagnostics().then(setNetworkDiagnostics).catch(() => null);
     } finally {
       setBusy(null);
@@ -421,10 +436,17 @@ export default function AdminOnboardingPage() {
             <div className="mt-5 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-xs leading-relaxed text-zinc-400">
               {remoteReady ? t("onboarding.simpleRemoteReady") : t("onboarding.simpleSameWifiHint")}
             </div>
-            <a href="/admin/devices/pair" className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-3 text-sm font-bold text-[#061016]">
-              <QrCode className="h-4 w-4" />
-              {t("onboarding.simpleOpenQr")}
-            </a>
+            <div className="mt-5">
+              <OnboardingAppleRemoteCard
+                diagnostics={networkDiagnostics}
+                busy={busy}
+                onExportIcloud={handleExportIcloudHandoff}
+                onStartTailscale={handleStartTailscaleRemote}
+                onStartCloudflare={handleStartCloudflareRemote}
+                onSaveCandidate={handleSaveRemoteCandidate}
+                onTestCandidate={handleTestRemoteCandidate}
+              />
+            </div>
           </section>
         ) : null}
 
@@ -474,14 +496,17 @@ export default function AdminOnboardingPage() {
               </div>
             </section>
 
-            <OnboardingAppleRemoteCard
-              diagnostics={networkDiagnostics}
-              busy={busy}
-              onStartTailscale={handleStartTailscaleRemote}
-              onStartCloudflare={handleStartCloudflareRemote}
-              onSaveCandidate={handleSaveRemoteCandidate}
-              onTestCandidate={handleTestRemoteCandidate}
-            />
+            {primaryStep !== "device" ? (
+              <OnboardingAppleRemoteCard
+                diagnostics={networkDiagnostics}
+                busy={busy}
+                onExportIcloud={handleExportIcloudHandoff}
+                onStartTailscale={handleStartTailscaleRemote}
+                onStartCloudflare={handleStartCloudflareRemote}
+                onSaveCandidate={handleSaveRemoteCandidate}
+                onTestCandidate={handleTestRemoteCandidate}
+              />
+            ) : null}
 
             {diagnostics ? (
               <section className={`rounded-[22px] border p-4 ${

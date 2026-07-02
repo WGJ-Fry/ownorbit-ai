@@ -76,6 +76,13 @@ function cookieHeader(response) {
 }
 
 test("Electron desktop starts the local core and exposes admin health", async (t) => {
+  const packageJson = JSON.parse(await readFile(path.join(rootDir, "package.json"), "utf8"));
+  const desktopMainSource = await readFile(path.join(rootDir, "desktop", "main.cjs"), "utf8");
+  assert.match(desktopMainSource, /requestSingleInstanceLock/);
+  assert.match(desktopMainSource, /second-instance/);
+  assert.match(desktopMainSource, /LIFEOS_PACKAGE_VERSION/);
+  assert.match(desktopMainSource, /trustedHttpsProxy/);
+  assert.match(desktopMainSource, /LIFEOS_TRUST_PROXY/);
   const port = 6310 + Math.floor(Math.random() * 1000);
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-desktop-smoke-"));
   const userDataDir = await mkdtemp(path.join(tmpdir(), "lifeos-desktop-user-data-"));
@@ -108,6 +115,7 @@ test("Electron desktop starts the local core and exposes admin health", async (t
   assert.equal(health.ok, true);
   assert.equal(health.host, "127.0.0.1");
   assert.equal(health.networkMode, "local");
+  assert.equal(health.version, packageJson.version);
 
   const status = await fetch(`http://127.0.0.1:${actualPort}/api/v1/admin/status`).then((response) => response.json());
   assert.equal(status.configured, false);
@@ -142,6 +150,8 @@ test("Electron desktop starts the local core and exposes admin health", async (t
   assert.match(loginBundle, /auth\.firstRunStep1/);
   assert.match(loginBundle, /auth\.firstRunStep2/);
   assert.match(loginBundle, /auth\.firstRunStep3/);
+  assert.match(loginBundle, /auth\.statusCheckTitle/);
+  assert.match(loginBundle, /auth\.retryStatusCheck/);
   assert.match(loginBundle, /onboardingRequired/);
   const onboardingBundle = await fetch(new URL(onboardingChunk, appBundleUrl)).then((response) => response.text());
   assert.match(onboardingBundle, /onboarding\.simpleTitle/);

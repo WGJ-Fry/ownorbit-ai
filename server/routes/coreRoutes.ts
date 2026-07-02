@@ -4,7 +4,7 @@ import { isAdminConfigured } from "../auth";
 import { getDevices } from "../devices";
 import { getCookie } from "../httpSecurity";
 import { INSTALL_PAIRING_COOKIE, mobileManifest, normalizeInstallPairingToken } from "../mobileInstall";
-import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
+import { getConfiguredPublicBaseUrl, isTemporaryTryCloudflareUrl } from "../publicBaseUrl";
 import { getDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { getOnlineDeviceCount } from "../realtime";
 import { getSecurityDiagnostics } from "../securityDiagnostics";
@@ -36,7 +36,10 @@ export function registerCoreRoutes(app: express.Express, host: string) {
     trace("start");
     const desktopRuntimeConfig = getDesktopRuntimeConfig();
     trace("desktopRuntimeConfig");
-    const publicBaseUrl = getConfiguredPublicBaseUrl() || desktopRuntimeConfig?.publicBaseUrl || "";
+    const configuredPublicBaseUrl = getConfiguredPublicBaseUrl();
+    const savedPublicBaseUrl = desktopRuntimeConfig?.publicBaseUrl || "";
+    const publicBaseUrl = configuredPublicBaseUrl
+      || (savedPublicBaseUrl && !isTemporaryTryCloudflareUrl(savedPublicBaseUrl) ? savedPublicBaseUrl : "");
     trace("publicBaseUrl");
     const aiConfigured = listAiProviderStatuses().some((provider) => provider.configured);
     trace("aiConfigured");

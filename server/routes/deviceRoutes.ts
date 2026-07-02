@@ -6,12 +6,16 @@ import { getRequestActor } from "../auth";
 import { BindingSession, DeviceRecord, confirmBindingSession, getBindingSessionById, getDevice, getDevices, getLatestDeviceConnectivityReport, getOpenBindingSessionByToken, insertBindingSession, insertDevice, insertDeviceConnectivityReport, pruneExpiredBindingSessions, revokeDeviceRecord, rotateDeviceToken } from "../devices";
 import { getDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { rateLimit } from "../httpSecurity";
-import { getConfiguredPublicBaseUrl, normalizePublicBaseUrl } from "../publicBaseUrl";
+import { getConfiguredPublicBaseUrl, isTemporaryTryCloudflareUrl, normalizePublicBaseUrl } from "../publicBaseUrl";
 import { broadcastRealtime, closeDeviceConnection, isDeviceOnline, sendRealtimeToDevice } from "../realtime";
 import { createSecret, tokenHash } from "../security";
 
 function publicBaseUrl(req: express.Request) {
-  return getConfiguredPublicBaseUrl() || getDesktopRuntimeConfig()?.publicBaseUrl || `${req.protocol}://${req.get("host")}`;
+  const configured = getConfiguredPublicBaseUrl();
+  if (configured && !isTemporaryTryCloudflareUrl(configured)) return configured;
+  const saved = getDesktopRuntimeConfig()?.publicBaseUrl || "";
+  if (saved && !isTemporaryTryCloudflareUrl(saved)) return saved;
+  return `${req.protocol}://${req.get("host")}`;
 }
 
 function normalizePairingBaseUrl(value: unknown) {
@@ -144,12 +148,20 @@ export function registerDeviceRoutes(app: express.Express) {
       expiresAt: now + 5 * 60 * 1000,
     };
 
-    pruneExpiredBindingSessions(now);
-    insertBindingSession(session);
-    insertAuditLog("binding_session_created", "binding_session", session.id, {
-      baseUrl,
-      expiresAt: session.expiresAt,
-    }, (req as any).actor?.type, (req as any).actor?.id);
+    try {
+      pruneExpiredBindingSessions(now);
+      insertBindingSession(session);
+      insertAuditLog("binding_session_created", "binding_session", session.id, {
+        baseUrl,
+        expiresAt: session.expiresAt,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+    } catch (error: any) {
+      console.error("Failed to create binding session:", error?.message || error);
+      return res.status(500).json({
+        code: "binding_session_create_failed",
+        error: "Failed to generate the mobile pairing QR code. Restart LifeOS AI to finish the local data upgrade, then try again.",
+      });
+    }
 
     res.json({
       id: session.id,

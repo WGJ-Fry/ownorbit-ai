@@ -36,6 +36,7 @@ export default function ConnectionRecommendedEntryCard({
   onTestCandidate,
 }: ConnectionRecommendedEntryCardProps) {
   const { t } = useI18n();
+  const savedDesktopCandidate = diagnostics.connectionCandidates.find((candidate) => candidate.id === "saved-desktop-config") || null;
   return (
     <div className="mt-4 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 p-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -65,9 +66,9 @@ export default function ConnectionRecommendedEntryCard({
               ) : null}
             </div>
           ) : null}
-          {diagnostics.desktopRuntimeConfig ? (
+          {savedDesktopCandidate && diagnostics.desktopRuntimeConfig ? (
             <div className="mt-3 rounded-xl border border-emerald-400/15 bg-emerald-500/10 p-3 text-[11px] leading-relaxed text-emerald-100">
-              {t("connection.savedDesktopConfig", { label: diagnostics.desktopRuntimeConfig.label, url: diagnostics.desktopRuntimeConfig.baseUrl })} <a href="/admin/devices/pair" className="font-bold text-emerald-50 underline decoration-emerald-200/50 underline-offset-4">{t("connection.openPairingQr")}</a>
+              {t("connection.savedDesktopConfig", { label: savedDesktopCandidate.label, url: savedDesktopCandidate.baseUrl })} <a href="/admin/devices/pair" className="font-bold text-emerald-50 underline decoration-emerald-200/50 underline-offset-4">{t("connection.openPairingQr")}</a>
             </div>
           ) : null}
           {!recommendedCandidate ? <NoPhoneReachableNotice /> : null}
@@ -125,9 +126,9 @@ export default function ConnectionRecommendedEntryCard({
             <QrCode className="h-3.5 w-3.5" />
             {t("connection.openPairingQr")}
           </a>
-          {diagnostics.desktopRuntimeConfig?.publicBaseUrl ? (
+          {savedDesktopCandidate ? (
             <button
-              onClick={() => onTestCandidate("saved-desktop-config", diagnostics.desktopRuntimeConfig!.publicBaseUrl, true, diagnostics.desktopRuntimeConfig!.label)}
+              onClick={() => onTestCandidate(savedDesktopCandidate.id, savedDesktopCandidate.baseUrl, true, savedDesktopCandidate.label)}
               disabled={testingCandidate === "saved-desktop-config"}
               className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-100 disabled:opacity-50"
             >

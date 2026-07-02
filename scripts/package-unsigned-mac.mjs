@@ -6,8 +6,10 @@ const rootDir = process.cwd();
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
 const releaseDir = path.join(rootDir, "release");
 const arch = process.env.npm_config_arch || process.arch;
-const appPath = path.join(releaseDir, `mac-${arch}`, `${packageJson.build?.productName || "LifeOS AI"}.app`);
-const outputPath = path.join(releaseDir, `${packageJson.build?.productName || "LifeOS AI"}-${packageJson.version}-${arch}-unsigned.zip`);
+const productName = packageJson.build?.productName || "LifeOS AI";
+const appPath = path.join(releaseDir, `mac-${arch}`, `${productName}.app`);
+const rootAppPath = path.join(releaseDir, `${productName}.app`);
+const outputPath = path.join(releaseDir, `${productName}-${packageJson.version}-${arch}-unsigned.zip`);
 const installGuidePath = path.join(releaseDir, "INSTALL-unsigned-mac.md");
 const userInstallGuideSource = path.join(rootDir, "docs", "user-install-guide.md");
 const userInstallGuidePath = path.join(releaseDir, "USER-INSTALL.md");
@@ -47,6 +49,19 @@ if (result.status !== 0) {
   process.exit(result.status || 1);
 }
 
+if (path.resolve(rootAppPath) !== path.resolve(appPath)) {
+  fs.rmSync(rootAppPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  const syncResult = spawnSync("ditto", [appPath, rootAppPath], {
+    cwd: releaseDir,
+    encoding: "utf8",
+  });
+  if (syncResult.status !== 0) {
+    console.error(syncResult.stdout);
+    console.error(syncResult.stderr);
+    process.exit(syncResult.status || 1);
+  }
+}
+
 fs.writeFileSync(installGuidePath, `# LifeOS AI unsigned macOS install
 
 Version: ${packageJson.version}
@@ -79,6 +94,9 @@ if (fs.existsSync(userInstallGuideSource)) {
 
 console.log(`Unsigned macOS zip written to ${path.relative(rootDir, outputPath)}`);
 console.log(`Unsigned macOS app ad-hoc signature verified: ${path.relative(rootDir, appPath)}`);
+if (path.resolve(rootAppPath) !== path.resolve(appPath)) {
+  console.log(`Local launch app refreshed: ${path.relative(rootDir, rootAppPath)}`);
+}
 console.log(`Unsigned macOS install guide written to ${path.relative(rootDir, installGuidePath)}`);
 if (fs.existsSync(userInstallGuidePath)) {
   console.log(`User install guide written to ${path.relative(rootDir, userInstallGuidePath)}`);

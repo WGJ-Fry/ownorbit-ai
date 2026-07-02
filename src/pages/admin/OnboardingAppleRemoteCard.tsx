@@ -8,6 +8,7 @@ type ConnectionCandidate = NetworkDiagnostics["connectionCandidates"][number];
 type Props = {
   diagnostics: NetworkDiagnostics | null;
   busy: string | null;
+  onExportIcloud: () => void;
   onStartTailscale: () => void;
   onStartCloudflare: () => void;
   onSaveCandidate: (candidate: ConnectionCandidate) => void;
@@ -43,16 +44,18 @@ function getPreferredCandidate(diagnostics: NetworkDiagnostics | null) {
   );
 }
 
-export default function OnboardingAppleRemoteCard({ diagnostics, busy, onStartTailscale, onStartCloudflare, onSaveCandidate, onTestCandidate }: Props) {
+export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportIcloud, onStartTailscale, onStartCloudflare, onSaveCandidate, onTestCandidate }: Props) {
   const { t } = useI18n();
   const appleRuntime = isAppleRuntime();
   const candidate = getPreferredCandidate(diagnostics);
+  const icloud = diagnostics?.icloud;
   const readiness = diagnostics?.remoteReadiness;
   const tailscaleInstalled = Boolean(diagnostics?.tailscale.installed);
   const tailscaleInstallUrl = diagnostics?.tailscale.installUrl || "https://tailscale.com/download";
-  const isBusy = Boolean(busy?.startsWith("remote-"));
+  const isBusy = Boolean(busy?.startsWith("remote-") || busy === "icloud-handoff");
   const readinessTone = readiness?.severity === "ok" ? "text-emerald-200" : readiness?.severity === "danger" ? "text-red-200" : "text-amber-200";
   const candidateReady = Boolean(candidate);
+  const canExportIcloud = Boolean(icloud?.canExport);
 
   return (
     <section className="rounded-[28px] border border-sky-400/15 bg-[#101722] p-5">
@@ -100,30 +103,29 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onStartTa
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
           <span>{t("onboarding.appleRemoteIcloudHint")}</span>
         </div>
+        <div className="mt-3 rounded-xl border border-white/[0.06] bg-[#060a10]/45 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="font-bold text-zinc-100">{t("onboarding.appleRemoteIcloudStatus")}</span>
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${canExportIcloud ? "bg-emerald-500/15 text-emerald-100" : "bg-amber-500/15 text-amber-100"}`}>
+              {canExportIcloud ? t("onboarding.appleRemoteIcloudReady") : t("onboarding.appleRemoteIcloudUnavailable")}
+            </span>
+          </div>
+          <div className="mt-2 break-all font-mono text-[11px] text-zinc-500">
+            {icloud?.handoffFilePath || icloud?.openInstruction || t("onboarding.appleRemoteIcloudNoPath")}
+          </div>
+        </div>
       </div>
 
       <div className="mt-5 grid gap-3">
-        {tailscaleInstalled ? (
-          <button
-            type="button"
-            onClick={onStartTailscale}
-            disabled={isBusy}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sky-400 px-4 py-3 text-sm font-bold text-[#061016] disabled:opacity-50"
-          >
-            {busy === "remote-tailscale" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wifi className="h-4 w-4" />}
-            {t("onboarding.appleRemoteStartTailscale")}
-          </button>
-        ) : (
-          <a
-            href={tailscaleInstallUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sky-400 px-4 py-3 text-sm font-bold text-[#061016]"
-          >
-            <ExternalLink className="h-4 w-4" />
-            {t("onboarding.appleRemoteInstallTailscale")}
-          </a>
-        )}
+        <button
+          type="button"
+          onClick={onExportIcloud}
+          disabled={!canExportIcloud || isBusy}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sky-400 px-4 py-3 text-sm font-bold text-[#061016] disabled:opacity-50"
+        >
+          {busy === "icloud-handoff" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Cloud className="h-4 w-4" />}
+          {canExportIcloud ? t("onboarding.appleRemoteExportIcloud") : t("onboarding.appleRemoteIcloudDisabled")}
+        </button>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <button
@@ -146,15 +148,42 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onStartTa
           </button>
         </div>
 
-        <button
-          type="button"
-          onClick={onStartCloudflare}
-          disabled={isBusy}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm font-bold text-zinc-200 disabled:opacity-50"
-        >
-          {busy === "remote-cloudflare" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Cloud className="h-4 w-4" />}
-          {t("onboarding.appleRemoteStartCloudflare")}
-        </button>
+        <details className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3">
+          <summary className="cursor-pointer text-xs font-bold text-zinc-300">{t("onboarding.appleRemoteFallbackSummary")}</summary>
+          <div className="mt-3 grid gap-3">
+            <p className="text-xs leading-relaxed text-zinc-500">{t("onboarding.appleRemoteFallbackBody")}</p>
+            {tailscaleInstalled ? (
+              <button
+                type="button"
+                onClick={onStartTailscale}
+                disabled={isBusy}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-blue-300/20 bg-blue-500/10 px-4 py-3 text-sm font-bold text-blue-100 disabled:opacity-50"
+              >
+                {busy === "remote-tailscale" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wifi className="h-4 w-4" />}
+                {t("onboarding.appleRemoteStartTailscale")}
+              </button>
+            ) : (
+              <a
+                href={tailscaleInstallUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-blue-300/20 bg-blue-500/10 px-4 py-3 text-sm font-bold text-blue-100"
+              >
+                <ExternalLink className="h-4 w-4" />
+                {t("onboarding.appleRemoteInstallTailscale")}
+              </a>
+            )}
+            <button
+              type="button"
+              onClick={onStartCloudflare}
+              disabled={isBusy}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm font-bold text-zinc-200 disabled:opacity-50"
+            >
+              {busy === "remote-cloudflare" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Cloud className="h-4 w-4" />}
+              {t("onboarding.appleRemoteStartCloudflare")}
+            </button>
+          </div>
+        </details>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <a

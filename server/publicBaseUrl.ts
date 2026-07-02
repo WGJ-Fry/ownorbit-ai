@@ -16,6 +16,17 @@ export function normalizePublicBaseUrl(value: unknown) {
   return `${parsed.origin}${pathname}`;
 }
 
+export function isTemporaryTryCloudflareUrl(value: unknown) {
+  const raw = String(value || "").trim();
+  if (!raw) return false;
+  try {
+    const parsed = new URL(raw);
+    return parsed.protocol === "https:" && parsed.hostname.toLowerCase().endsWith(".trycloudflare.com");
+  } catch {
+    return false;
+  }
+}
+
 export function getConfiguredPublicBaseUrl() {
   return normalizePublicBaseUrl(process.env.PUBLIC_BASE_URL || process.env.APP_URL || "");
 }
