@@ -1302,7 +1302,7 @@ async function requestJson<T>(url: string, init?: JsonRequestInit): Promise<T> {
   const body = typeof init?.body === "string" ? init.body : "";
   const { timeoutMs = 15_000, signal, ...fetchInit } = init || {};
   const controller = !signal && timeoutMs > 0 ? new AbortController() : null;
-  const timeout = controller ? window.setTimeout(() => controller.abort(), timeoutMs) : null;
+  const timeout = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
   let response: Response;
   try {
     response = await fetch(apiUrl(url), {
@@ -1322,7 +1322,7 @@ async function requestJson<T>(url: string, init?: JsonRequestInit): Promise<T> {
     }
     throw error;
   } finally {
-    if (timeout) window.clearTimeout(timeout);
+    if (timeout) clearTimeout(timeout);
   }
 
   const data = await response.json().catch(() => ({}));

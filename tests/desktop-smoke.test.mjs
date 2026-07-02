@@ -156,7 +156,8 @@ test("Electron desktop starts the local core and exposes admin health", async (t
   const onboardingBundle = await fetch(new URL(onboardingChunk, appBundleUrl)).then((response) => response.text());
   assert.match(onboardingBundle, /onboarding\.simpleTitle/);
   assert.match(onboardingBundle, /onboarding\.simpleAiTitle/);
-  assert.match(onboardingBundle, /onboarding\.simpleOpenQr/);
+  assert.match(onboardingBundle, /onboarding\.simpleDeviceTitle/);
+  assert.match(onboardingBundle, /onboarding\.simpleDeviceBody/);
   assert.match(onboardingBundle, /onboarding\.simpleAdvancedSummary/);
   assert.match(onboardingBundle, /onboarding\.securityCheck/);
   assert.match(onboardingBundle, /onboarding\.backupTitle/);

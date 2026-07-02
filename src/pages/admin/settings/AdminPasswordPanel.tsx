@@ -3,6 +3,7 @@ import { KeyRound, Loader2, ShieldCheck } from "lucide-react";
 import { changeAdminPassword } from "../../../services/lifeosApi";
 import type { ConfigDiagnostics } from "../../../services/lifeosApi";
 import { useI18n } from "../../../i18n/I18nProvider";
+import type { TranslationKey } from "../../../i18n/translations";
 
 export default function AdminPasswordPanel({
   diagnostics,
@@ -41,7 +42,7 @@ export default function AdminPasswordPanel({
       setStatus(result.securityCheck.overall === "ok" ? t("adminPassword.updatedOk") : t("adminPassword.updatedNeedsCheck"));
       await onChanged();
     } catch (error: any) {
-      setStatus(error.message || t("adminPassword.failed"));
+      setStatus(adminPasswordErrorMessage(error, t));
     } finally {
       setBusy(false);
     }
@@ -75,7 +76,7 @@ export default function AdminPasswordPanel({
       {passwordCheck ? (
         <div className="mb-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-xs leading-relaxed text-zinc-400">
           <div className="font-bold text-zinc-200">{passwordCheck.status === "ok" ? t("adminPassword.strong") : t("adminPassword.requirement")}</div>
-          <div className="mt-1">{passwordCheck.status === "ok" ? t("adminPassword.updatedOk") : t("adminPassword.requirementHint")}</div>
+          <div className="mt-1">{passwordCheck.status === "ok" ? t("adminPassword.strongHint") : t("adminPassword.requirementHint")}</div>
         </div>
       ) : null}
 
@@ -96,6 +97,20 @@ export default function AdminPasswordPanel({
       </button>
     </section>
   );
+}
+
+function adminPasswordErrorMessage(error: any, t: (key: TranslationKey) => string) {
+  const policy = error?.payload?.passwordPolicy;
+  if (error?.code === "invalid_current_password") return t("adminPassword.invalidCurrent");
+  if (error?.code === "weak_password" && policy) {
+    if (policy.lengthBucket === "8-11") return t("adminPassword.tooShort");
+    if (!policy.hasVariety) return t("adminPassword.needVariety");
+    if (!policy.notCommon) return t("adminPassword.tooCommon");
+    if (!policy.noLongRepeats) return t("adminPassword.noLongRepeats");
+    if (!policy.noSequentialPattern) return t("adminPassword.noSequential");
+    return t("adminPassword.weak");
+  }
+  return error?.message || t("adminPassword.failed");
 }
 
 function PasswordField({

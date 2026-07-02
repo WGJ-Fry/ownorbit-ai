@@ -659,7 +659,8 @@ function checkAssets() {
     adminOnboardingSource.includes("primaryStep") &&
     adminOnboardingSource.includes("primaryProgress") &&
     adminOnboardingSource.includes("onboarding.simpleAiTitle") &&
-    adminOnboardingSource.includes("onboarding.simpleOpenQr") &&
+    adminOnboardingSource.includes("onboarding.simpleDeviceTitle") &&
+    adminOnboardingSource.includes("onboarding.simpleDeviceBody") &&
     adminOnboardingSource.includes("onboarding.simpleStartChat") &&
     adminOnboardingSource.includes("onboarding.simpleAdvancedSummary") &&
     adminOnboardingSource.includes("<details") &&
@@ -686,7 +687,8 @@ function checkAssets() {
     translationsSource.includes("onboarding.finishBlocked") &&
     translationsSource.includes("onboarding.finishReady") &&
     translationsSource.includes("onboarding.simpleTitle") &&
-    translationsSource.includes("onboarding.simpleOpenQr") &&
+    translationsSource.includes("onboarding.simpleDeviceTitle") &&
+    translationsSource.includes("onboarding.simpleDeviceBody") &&
     translationsSource.includes("onboarding.simpleAdvancedSummary") &&
     translationsSource.includes("onboarding.handoffSummaryCopied") &&
     translationsSource.includes("onboarding.handoffTitle") &&

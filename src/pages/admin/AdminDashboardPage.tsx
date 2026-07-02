@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
 import { Activity, AlertTriangle, Brain, DatabaseBackup, Download, Eye, KeyRound, LogOut, MessageSquareText, Plus, RefreshCw, Server, Settings, Smartphone, Wifi } from "lucide-react";
 import { BoundDevice, ChatSession, MemoryRecord, backupDownloadUrl, createBackup, getHealth, listBackups, listChatSessions, listDevices, listMemories, logoutAdmin, previewBackup, requestDeviceTokenRotation, restoreBackup, revokeDevice } from "../../services/lifeosApi";
 import type { BackupPreview } from "../../services/lifeosApi";
 import { buildRestoreConfirmMessage } from "../../services/backupRestoreUi";
 import LanguageSwitcher from "../../i18n/LanguageSwitcher";
 import { useI18n } from "../../i18n/I18nProvider";
+import DashboardMetric from "./DashboardMetric";
 import DeviceConnectivityStatus from "./DeviceConnectivityStatus";
 
 type Health = Awaited<ReturnType<typeof getHealth>>;
@@ -218,10 +218,10 @@ export default function AdminDashboardPage() {
         )}
 
         <section className="grid md:grid-cols-4 gap-4 mb-6">
-          <Metric icon={<Server className="w-5 h-5" />} label={t("dashboard.serviceStatus")} value={health?.ok ? "Online" : "Unknown"} tone="cyan" />
-          <Metric icon={<Smartphone className="w-5 h-5" />} label={t("dashboard.boundDevices")} value={String(health?.deviceCount ?? "-")} tone="blue" />
-          <Metric icon={<Wifi className="w-5 h-5" />} label={t("dashboard.onlineDevices")} value={String(health?.onlineDeviceCount ?? "-")} tone="green" />
-          <Metric icon={<MessageSquareText className="w-5 h-5" />} label={t("dashboard.networkMode")} value={health?.networkMode === "lan" ? "LAN" : "Local"} tone={health?.networkMode === "lan" ? "amber" : "cyan"} />
+          <DashboardMetric icon={<Server className="w-5 h-5" />} label={t("dashboard.serviceStatus")} value={health?.ok ? "Online" : "Unknown"} tone="cyan" />
+          <DashboardMetric icon={<Smartphone className="w-5 h-5" />} label={t("dashboard.boundDevices")} value={String(health?.deviceCount ?? "-")} tone="blue" />
+          <DashboardMetric icon={<Wifi className="w-5 h-5" />} label={t("dashboard.onlineDevices")} value={String(health?.onlineDeviceCount ?? "-")} tone="green" />
+          <DashboardMetric icon={<MessageSquareText className="w-5 h-5" />} label={t("dashboard.networkMode")} value={health?.networkMode === "lan" ? "LAN" : "Local"} tone={health?.networkMode === "lan" ? "amber" : "cyan"} />
         </section>
 
         <section className="grid md:grid-cols-3 gap-4 mb-6">
@@ -414,23 +414,6 @@ export default function AdminDashboardPage() {
           )}
         </section>
       </div>
-    </div>
-  );
-}
-
-function Metric({ icon, label, value, tone }: { icon: ReactNode; label: string; value: string; tone: "cyan" | "blue" | "green" | "amber" }) {
-  const toneClass = {
-    cyan: "text-cyan-300 bg-cyan-500/10 border-cyan-400/20",
-    blue: "text-blue-300 bg-blue-500/10 border-blue-400/20",
-    green: "text-emerald-300 bg-emerald-500/10 border-emerald-400/20",
-    amber: "text-amber-300 bg-amber-500/10 border-amber-400/20",
-  }[tone];
-
-  return (
-    <div className="rounded-3xl border border-white/[0.08] bg-[#101722] p-5">
-      <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center mb-4 ${toneClass}`}>{icon}</div>
-      <div className="text-xs font-bold text-zinc-500 uppercase tracking-wider">{label}</div>
-      <div className="text-2xl font-bold mt-2">{value}</div>
     </div>
   );
 }

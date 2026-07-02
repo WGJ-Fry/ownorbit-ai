@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const password = "correct horse battery staple";
+const rotatedPassword = "LifeOS remote passphrase 2026!";
 
 async function csrfHeaders(page: import("@playwright/test").Page) {
   const csrf = (await page.context().cookies()).find((cookie) => cookie.name === "lifeos_csrf")?.value;
@@ -212,9 +213,14 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await page.getByLabel("新密码", { exact: true }).fill("aaaaaaaaaaaa1!");
   await page.getByLabel("确认新密码").fill("aaaaaaaaaaaa1!");
   await page.getByRole("button", { name: "更新管理员密码" }).click();
-  await expect(page.getByText("管理员密码已更新，请继续处理安全自检提示。")).toBeVisible();
+  await expect(page.getByText("新密码不能包含长串重复字符。")).toBeVisible();
+  await page.getByLabel("当前密码").fill(password);
+  await page.getByLabel("新密码", { exact: true }).fill(rotatedPassword);
+  await page.getByLabel("确认新密码").fill(rotatedPassword);
+  await page.getByRole("button", { name: "更新管理员密码" }).click();
+  await expect(page.getByText(/管理员密码已更新/)).toBeVisible();
   await expect(page.getByText(/建议加强|需要处理|强度通过/).first()).toBeVisible();
-  await page.getByLabel("当前密码").fill("aaaaaaaaaaaa1!");
+  await page.getByLabel("当前密码").fill(rotatedPassword);
   await page.getByLabel("新密码", { exact: true }).fill(password);
   await page.getByLabel("确认新密码").fill(password);
   await page.getByRole("button", { name: "更新管理员密码" }).click();
