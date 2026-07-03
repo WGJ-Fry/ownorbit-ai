@@ -166,9 +166,22 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
       }),
     });
   });
+  let recommendedBindStartAttempts = 0;
   await page.route("**/api/v1/devices/bind/start", async (route) => {
     const posted = route.request().postDataJSON() as { baseUrl?: string };
     expect(posted.baseUrl).toBe("https://pair.example.test");
+    if (recommendedBindStartAttempts === 0) {
+      recommendedBindStartAttempts += 1;
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: "sqlite busy while preparing pairing QR",
+        }),
+      });
+      return;
+    }
+    recommendedBindStartAttempts += 1;
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -178,6 +191,27 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
         baseUrl: "https://pair.example.test",
         pairingUrl: "https://pair.example.test/mobile/install/bind_recommended_e2e",
         localName: "LifeOS Test",
+      }),
+    });
+  });
+  await page.route("**/api/v1/admin/network-diagnostics/test-url", async (route) => {
+    const posted = route.request().postDataJSON() as { baseUrl?: string };
+    expect(posted.baseUrl).toBe("https://pair.example.test");
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        result: {
+          ok: true,
+          url: posted.baseUrl,
+          status: 200,
+          latencyMs: 18,
+          httpsStatus: { ok: true },
+          steps: [
+            { id: "health", ok: true, status: 200, url: `${posted.baseUrl}/api/v1/health`, latencyMs: 6 },
+            { id: "mobile-shell", ok: true, status: 200, url: `${posted.baseUrl}/mobile/chat`, latencyMs: 6 },
+            { id: "websocket", ok: true, status: 101, url: `${posted.baseUrl}/api/v1/ws`, latencyMs: 6 },
+          ],
+        },
       }),
     });
   });
@@ -192,7 +226,14 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
     });
   });
   await page.goto("/admin/devices/pair");
+  await expect(page.getByText("检测到地址，但二维码还没生成")).toBeVisible();
+  await expect(page.getByText("sqlite busy while preparing pairing QR")).toBeVisible();
+  await expect(page.getByText("当前检测到的地址")).toBeVisible();
+  await page.getByRole("button", { name: "测试这个地址" }).click();
+  await expect(page.getByText("连接测试通过：3/3 项通过，18ms，手机可访问 https://pair.example.test")).toBeVisible();
+  await page.getByRole("button", { name: "用这个地址生成二维码" }).click();
   await expect(page.getByText("已根据连接诊断自动选择绑定地址")).toBeVisible();
+  expect(recommendedBindStartAttempts).toBe(2);
   await expect(page.getByText("https://pair.example.test", { exact: true })).toBeVisible();
   await expect(page.getByText("推荐安全")).toBeVisible();
   await expect(page.getByText("需重启生效")).toBeVisible();
@@ -204,6 +245,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(currentPairingEnvButton).toContainText("已复制启动环境");
   await expect(page.getByRole("button", { name: "测试当前绑定地址" })).toBeVisible();
   await page.unroute("**/api/v1/admin/network-diagnostics");
+  await page.unroute("**/api/v1/admin/network-diagnostics/test-url");
   await page.unroute("**/api/v1/devices/bind/start");
   await page.unroute("**/api/v1/devices/bind/bind-e2e-recommended");
 

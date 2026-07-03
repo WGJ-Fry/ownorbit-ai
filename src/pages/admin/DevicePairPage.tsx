@@ -19,7 +19,7 @@ export default function DevicePairPage() {
   const [testingConnection, setTestingConnection] = useState(false);
   const [copiedEnv, setCopiedEnv] = useState(false);
 
-  const createSession = async () => {
+  const createSession = async (baseUrlOverride = "") => {
     setError(null);
     setCreateErrorDetail(null);
     setSession(null);
@@ -30,11 +30,13 @@ export default function DevicePairPage() {
       try {
         const networkDiagnostics = await getNetworkDiagnostics();
         setDiagnostics(networkDiagnostics);
-        recommendedBaseUrl = networkDiagnostics.recommendedBaseUrl;
-        recommendedBaseUrl = networkDiagnostics.connectionCandidates.find((candidate) => candidate.mode !== "local")?.baseUrl || "";
+        recommendedBaseUrl = baseUrlOverride
+          || networkDiagnostics.connectionCandidates.find((candidate) => candidate.mode !== "local")?.baseUrl
+          || networkDiagnostics.recommendedBaseUrl
+          || "";
       } catch {
         setDiagnostics(null);
-        recommendedBaseUrl = "";
+        recommendedBaseUrl = baseUrlOverride;
       }
       if (!recommendedBaseUrl) {
         setPairingBaseUrl("");
@@ -42,6 +44,7 @@ export default function DevicePairPage() {
         setCreateErrorDetail(t("devicePair.noReachableAddress"));
         return;
       }
+      setPairingBaseUrl(recommendedBaseUrl);
       const data = await startBindingSession(recommendedBaseUrl);
       setPairingBaseUrl(data.baseUrl || recommendedBaseUrl);
       setSession(data);
@@ -76,18 +79,19 @@ export default function DevicePairPage() {
   const activeCandidate = diagnostics?.connectionCandidates?.find((candidate) => candidate.baseUrl === pairingBaseUrl) || diagnostics?.connectionCandidates?.[0] || null;
   const hasDetectedPhoneCandidate = Boolean(diagnostics?.connectionCandidates?.some((candidate) => candidate.mode !== "local"));
 
-  const handleTestPairingAddress = async () => {
-    if (!pairingBaseUrl) return;
+  const handleTestPairingAddress = async (baseUrl = pairingBaseUrl) => {
+    if (!baseUrl) return;
     setTestingConnection(true);
     setConnectionTestResult(null);
+    setPairingBaseUrl(baseUrl);
     try {
-      const { result } = await testConnectionUrl(pairingBaseUrl);
+      const { result } = await testConnectionUrl(baseUrl);
       setConnectionTestResult(result);
     } catch (err: any) {
       setConnectionTestResult({
         ok: false,
         status: 0,
-        url: pairingBaseUrl,
+        url: baseUrl,
         latencyMs: 0,
         steps: [],
         error: err.message || t("devicePair.testFailed"),
@@ -154,11 +158,32 @@ export default function DevicePairPage() {
                   <div className="mt-2 space-y-2">
                     {diagnostics.connectionCandidates.slice(0, 3).map((candidate) => (
                       <div key={candidate.id} className="rounded-xl bg-black/20 p-2">
-                        <div className="font-semibold text-zinc-200">{candidate.label}</div>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="font-semibold text-zinc-200">{candidate.label}</div>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleTestPairingAddress(candidate.baseUrl)}
+                              disabled={testingConnection}
+                              className="rounded-lg border border-cyan-400/20 bg-cyan-500/10 px-2.5 py-1 text-[11px] font-bold text-cyan-200 disabled:opacity-50"
+                            >
+                              {t("devicePair.testDetectedCandidate")}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => createSession(candidate.baseUrl)}
+                              className="rounded-lg bg-cyan-500 px-2.5 py-1 text-[11px] font-bold text-[#061016]"
+                            >
+                              {t("devicePair.generateWithCandidate")}
+                            </button>
+                          </div>
+                        </div>
                         <div className="mt-1 break-all font-mono text-zinc-500">{candidate.baseUrl}</div>
+                        {candidate.requiresRestart ? <div className="mt-1 text-amber-100/80">{t("devicePair.candidateNeedsRestartHint")}</div> : null}
                       </div>
                     ))}
                   </div>
+                  {connectionTestResult ? <DevicePairConnectionTestResult result={connectionTestResult} /> : null}
                 </div>
               ) : null}
               <div className="mt-6 grid gap-3">
