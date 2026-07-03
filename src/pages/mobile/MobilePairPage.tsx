@@ -12,6 +12,8 @@ import {
   savePendingPairingToken,
   setPairingManifestToken,
 } from "../../services/mobilePairingIntent";
+import { getMobilePairingErrorCopy } from "../../services/mobilePairingErrors";
+import type { MobilePairingErrorCopy } from "../../services/mobilePairingErrors";
 import { useI18n } from "../../i18n/I18nProvider";
 import MobileConnectivityCard from "./MobileConnectivityCard";
 
@@ -23,7 +25,8 @@ export default function MobilePairPage() {
     return t("mobilePair.defaultDeviceName", { platform });
   });
   const [status, setStatus] = useState<"idle" | "binding" | "bound" | "error">("idle");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<MobilePairingErrorCopy | null>(null);
+  const [pairingLinkInput, setPairingLinkInput] = useState("");
   const [connectivityTest, setConnectivityTest] = useState<MobileConnectivityResult | null>(null);
   const [connectivityBusy, setConnectivityBusy] = useState(false);
   const signatureAvailable = isDeviceSignatureAvailable();
@@ -66,9 +69,22 @@ export default function MobilePairPage() {
         .catch(() => null)
         .finally(() => setConnectivityBusy(false));
     } catch (err: any) {
-      setError(err.message || t("mobilePair.failed"));
+      setError(getMobilePairingErrorCopy(err));
       setStatus("error");
     }
+  };
+
+  const handlePairingLinkSubmit = () => {
+    const nextToken = extractPairingToken(pairingLinkInput);
+    if (!nextToken) {
+      setError({
+        titleKey: "mobilePair.recoveryInvalidTitle",
+        bodyKey: "mobilePair.recoveryInvalidBody",
+      });
+      return;
+    }
+    savePendingPairingToken(nextToken);
+    window.location.assign(pairingInstallPath(nextToken));
   };
 
   const handleConnectivityTest = async () => {
@@ -127,8 +143,34 @@ export default function MobilePairPage() {
             )}
 
             {error && (
-              <div className="mt-5 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200">
-                {error}
+              <div className="mt-5 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-100">
+                <div className="flex gap-2">
+                  <XCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                  <div>
+                    <div className="font-bold">{t(error.titleKey)}</div>
+                    <div className="mt-1 text-red-100/75">{t(error.bodyKey)}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {(!token || error) && (
+              <div className="mt-5 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
+                <div className="text-sm font-bold text-zinc-100">{t("mobilePair.recoveryTitle")}</div>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-400">{t("mobilePair.recoveryBody")}</p>
+                <input
+                  value={pairingLinkInput}
+                  onChange={(event) => setPairingLinkInput(event.target.value)}
+                  className="mt-3 w-full rounded-xl border border-white/[0.08] bg-[#060a10] px-4 py-3 text-sm outline-none focus:border-cyan-400/60"
+                  placeholder={t("mobilePair.recoveryPlaceholder")}
+                />
+                <button
+                  type="button"
+                  onClick={handlePairingLinkSubmit}
+                  className="mt-3 w-full rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm font-bold text-cyan-200"
+                >
+                  {t("mobilePair.recoverySubmit")}
+                </button>
               </div>
             )}
 

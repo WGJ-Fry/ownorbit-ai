@@ -281,6 +281,36 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   const binding = await bindingResponse.json();
   expect(binding.token).toMatch(/^bind_/);
 
+  const expiredPhoneContext = await browser.newContext({
+    ...devices["iPhone 14"],
+    locale: "zh-CN",
+  });
+  await expiredPhoneContext.addInitScript(() => {
+    localStorage.setItem("lifeos_locale", "zh-CN");
+  });
+  const expiredPhone = await expiredPhoneContext.newPage();
+  await expiredPhone.route("**/api/v1/devices/bind/confirm", async (route) => {
+    await route.fulfill({
+      status: 400,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Binding token is invalid or expired" }),
+    });
+  });
+  await expiredPhone.goto(`${new URL(binding.pairingUrl).origin}/mobile/install/bind_expired_e2e`);
+  await expiredPhone.getByPlaceholder("例如：iPhone 15 Pro").fill("Expired Phone");
+  await expiredPhone.getByRole("button", { name: "确认绑定" }).click();
+  await expect(expiredPhone.getByText("这个二维码已经失效")).toBeVisible();
+  await expect(expiredPhone.getByText("换一个新的绑定链接")).toBeVisible();
+  await expiredPhone.getByPlaceholder("粘贴 /mobile/install/bind_... 或 bind_...").fill("not-a-pairing-link");
+  await expiredPhone.getByRole("button", { name: "使用这个链接继续绑定" }).click();
+  await expect(expiredPhone.getByText("绑定链接格式不对")).toBeVisible();
+  await expiredPhone.getByPlaceholder("粘贴 /mobile/install/bind_... 或 bind_...").fill(binding.pairingUrl);
+  await Promise.all([
+    expiredPhone.waitForURL(new RegExp(`/mobile/install/${binding.token}`)),
+    expiredPhone.getByRole("button", { name: "使用这个链接继续绑定" }).click(),
+  ]);
+  await expiredPhoneContext.close();
+
   const phoneContext = await browser.newContext({
     ...devices["iPhone 14"],
     locale: "zh-CN",
