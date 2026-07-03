@@ -635,6 +635,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
 
   const mobileDeviceSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileDevicePage.tsx"), "utf8");
   const mobileDeviceHealthSummarySource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileDeviceHealthSummary.tsx"), "utf8");
+  const mobileConnectionRecoveryCardSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileConnectionRecoveryCard.tsx"), "utf8");
   const mobileGeneratedToolsCardSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileGeneratedToolsCard.tsx"), "utf8");
   const mobileRemoteEntryCardSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileRemoteEntryCard.tsx"), "utf8");
   const mobileToolsSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileToolsPage.tsx"), "utf8");
@@ -656,6 +657,18 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceSource, /mobileDevice\.pwaRecommendation\.addToHome/);
   assert.match(mobileDeviceSource, /mobileDevice\.pwaRecommendation\.indexedDbUnavailable/);
   assert.match(mobileDeviceSource, /MobileDeviceHealthSummary/);
+  assert.match(mobileDeviceSource, /MobileConnectionRecoveryCard/);
+  assert.match(mobileConnectionRecoveryCardSource, /mobileDevice\.recoveryPanelTitle/);
+  assert.match(mobileConnectionRecoveryCardSource, /mobileDevice\.recoveryPanel\.stepTest/);
+  assert.match(mobileConnectionRecoveryCardSource, /mobileDevice\.recoveryPanel\.stepRefresh/);
+  assert.match(mobileConnectionRecoveryCardSource, /mobileDevice\.recoveryPanel\.stepRebind/);
+  assert.match(mobileConnectionRecoveryCardSource, /mobileDevice\.recoveryPanel\.testAction/);
+  assert.match(mobileConnectionRecoveryCardSource, /mobileDevice\.recoveryPanel\.refreshAction/);
+  assert.match(mobileConnectionRecoveryCardSource, /mobileDevice\.recoveryPanel\.rebindAction/);
+  assert.match(mobileConnectionRecoveryCardSource, /mobileDevice\.recoveryPanel\.chatAction/);
+  assert.match(mobileConnectionRecoveryCardSource, /onConnectivityTest/);
+  assert.match(mobileConnectionRecoveryCardSource, /onRefreshServer/);
+  assert.match(mobileConnectionRecoveryCardSource, /onFocusPairing/);
   assert.match(mobileDeviceHealthSummarySource, /mobileDevice\.healthTitle/);
   assert.match(mobileDeviceHealthSummarySource, /buildOfflineQueueHealth/);
   assert.match(mobileDeviceHealthSummarySource, /queueHealth\.titleKey/);
@@ -682,6 +695,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /我的解决程序/);
   assert.match(translationsSource, /My Problem-Solving Tools/);
   assert.match(translationsSource, /手机端健康摘要/);
+  assert.match(translationsSource, /连接恢复中心/);
+  assert.match(translationsSource, /Connection Recovery/);
+  assert.match(translationsSource, /粘贴新的绑定链接/);
+  assert.match(translationsSource, /Paste Fresh Pairing Link/);
   assert.match(translationsSource, /新版离线壳待启用/);
   assert.match(translationsSource, /New Offline Shell Ready/);
   assert.match(mobileDeviceSource, /getHealth/);

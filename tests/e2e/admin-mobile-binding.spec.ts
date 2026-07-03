@@ -371,6 +371,9 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(phone.getByText("添加到主屏幕", { exact: true })).toHaveCount(0);
   await phone.goto(`${phoneBaseUrl}/mobile/device`);
   await expect(phone.getByText("设备与连接")).toBeVisible();
+  await expect(phone.getByText("连接恢复中心")).toBeVisible();
+  await expect(phone.getByText("1. 测试当前手机")).toBeVisible();
+  await expect(phone.getByRole("button", { name: "粘贴新的绑定链接" })).toBeVisible();
   await expect(phone.getByText("已绑定电脑端")).toBeVisible();
   await expect(phone.getByText("Playwright Phone")).toBeVisible();
   await expect(phone.getByText("WebCrypto 签名", { exact: true })).toBeVisible();

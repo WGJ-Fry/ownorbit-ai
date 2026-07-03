@@ -10,6 +10,7 @@ import { getMobileConnectivityIssue, getMobileRecoveryHints, getPwaCapabilitySta
 import type { MobileConnectivityResult } from "../../services/pwaCapabilities";
 import { getPwaServiceWorkerLifecycleStatus, subscribePwaServiceWorkerLifecycle } from "../../services/pwaServiceWorkerLifecycle";
 import type { PwaServiceWorkerLifecycleStatus } from "../../services/pwaServiceWorkerLifecycle";
+import MobileConnectionRecoveryCard from "./MobileConnectionRecoveryCard";
 import MobileDeviceHealthSummary from "./MobileDeviceHealthSummary";
 import MobileGeneratedToolsCard from "./MobileGeneratedToolsCard";
 import MobileOfflineQueueRecoveryCard from "./MobileOfflineQueueRecoveryCard";
@@ -313,6 +314,20 @@ export default function MobileDevicePage() {
           currentEntry={currentEntry}
           lastConnectivityResult={lastConnectivityResult}
         />
+        {credential ? (
+          <MobileConnectionRecoveryCard
+            connectivityBusy={connectivityBusy}
+            currentEntry={currentEntry}
+            lastConnectivityIssue={lastConnectivityIssue}
+            lastConnectivityReport={lastConnectivityReport}
+            queueSummary={queueSummary}
+            serverRefreshBusy={serverRefreshBusy}
+            stale={connectivityReportStale}
+            onConnectivityTest={handleConnectivityTest}
+            onFocusPairing={focusPairingPanel}
+            onRefreshServer={() => refreshServerState({ announce: true })}
+          />
+        ) : null}
         {credential ? <MobileGeneratedToolsCard /> : null}
         <section className="rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
           {credential ? (
