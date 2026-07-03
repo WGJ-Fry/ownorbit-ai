@@ -1,4 +1,5 @@
 import { AlertTriangle, CheckCircle2, KeyRound, Link2 } from "lucide-react";
+import type { Ref } from "react";
 import type { DeviceCredentialExpiryStatus, DeviceCredentialStorageStatus } from "../../services/lifeosApi";
 import { useI18n } from "../../i18n/I18nProvider";
 
@@ -19,6 +20,7 @@ export function PairingLinkPanel({
   buttonLabel,
   title,
   body,
+  inputRef,
 }: {
   value: string;
   error: string | null;
@@ -27,6 +29,7 @@ export function PairingLinkPanel({
   buttonLabel: string;
   title?: string;
   body?: string;
+  inputRef?: Ref<HTMLInputElement>;
 }) {
   const { t } = useI18n();
   return (
@@ -39,6 +42,7 @@ export function PairingLinkPanel({
       ) : null}
       <label className="text-xs font-bold text-zinc-500">{t("mobileDevice.pastePairingLink")}</label>
       <input
+        ref={inputRef}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className="mt-2 w-full rounded-xl border border-white/[0.08] bg-[#060a10] px-3 py-3 text-sm outline-none focus:border-cyan-400/60"

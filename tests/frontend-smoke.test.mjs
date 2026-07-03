@@ -658,6 +658,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceSource, /mobileDevice\.pwaRecommendation\.indexedDbUnavailable/);
   assert.match(mobileDeviceSource, /MobileDeviceHealthSummary/);
   assert.match(mobileDeviceSource, /MobileConnectionRecoveryCard/);
+  assert.match(mobileDeviceSource, /pairingInputRef/);
+  assert.match(mobileDeviceSource, /pairingInputRef\.current\?\.focus/);
+  assert.match(mobileDeviceSource, /pairingInputRef\.current\?\.select/);
   assert.match(mobileConnectionRecoveryCardSource, /mobileDevice\.recoveryPanelTitle/);
   assert.match(mobileConnectionRecoveryCardSource, /mobileDevice\.recoveryPanel\.stepTest/);
   assert.match(mobileConnectionRecoveryCardSource, /mobileDevice\.recoveryPanel\.stepRefresh/);
@@ -979,6 +982,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceSource, /mobileDevice\.confirmRemoveItem/);
   assert.match(mobileDeviceSource, /mobileDevice\.confirmClearQueueDetailed/);
   assert.match(mobileDeviceStatusCardsSource, /mobileDevice\.pastePairingLink/);
+  assert.match(mobileDeviceStatusCardsSource, /inputRef/);
+  assert.match(mobileDeviceStatusCardsSource, /ref=\{inputRef\}/);
   assert.match(mobileDeviceSource, /mobileDevice\.rebindTitle/);
   assert.match(mobileDeviceSource, /mobileDevice\.rebindBody/);
   assert.match(mobileDeviceSource, /mobileDevice\.rebindButton/);

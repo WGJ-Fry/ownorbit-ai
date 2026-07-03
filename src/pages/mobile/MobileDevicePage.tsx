@@ -49,6 +49,7 @@ export default function MobileDevicePage() {
   const [connectivityBusy, setConnectivityBusy] = useState(false);
   const [serverRefreshBusy, setServerRefreshBusy] = useState(false);
   const pairingPanelRef = useRef<HTMLDivElement | null>(null);
+  const pairingInputRef = useRef<HTMLInputElement | null>(null);
   const expiresAt = useMemo(() => credential?.accessTokenExpiresAt ? new Date(credential.accessTokenExpiresAt).toLocaleString() : t("mobileDevice.longLivedSignature"), [credential, t]);
   const credentialExpiry = useMemo(() => getStoredDeviceCredentialExpiryStatus(credential), [credential]);
   const currentEntry = useMemo(() => getRemoteEntryStatus({ configuredBaseUrl: health?.publicBaseUrl, configuredMode: health?.remoteEntryMode }), [health]);
@@ -189,6 +190,10 @@ export default function MobileDevicePage() {
 
   const focusPairingPanel = () => {
     pairingPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => {
+      pairingInputRef.current?.focus();
+      pairingInputRef.current?.select();
+    }, 180);
   };
 
   const handleRetryQueue = () => {
@@ -381,6 +386,7 @@ export default function MobileDevicePage() {
               {status ? <div className="mt-4 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3 text-sm text-zinc-300">{status}</div> : null}
               <div ref={pairingPanelRef}>
                 <PairingLinkPanel
+                  inputRef={pairingInputRef}
                   value={pairingInput}
                   error={pairingInputError}
                   onChange={(value) => {

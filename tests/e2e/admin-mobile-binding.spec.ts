@@ -374,6 +374,8 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(phone.getByText("连接恢复中心")).toBeVisible();
   await expect(phone.getByText("1. 测试当前手机")).toBeVisible();
   await expect(phone.getByRole("button", { name: "粘贴新的绑定链接" })).toBeVisible();
+  await phone.getByRole("button", { name: "粘贴新的绑定链接" }).click();
+  await expect(phone.getByPlaceholder("https://.../mobile/install/bind_...")).toBeFocused();
   await expect(phone.getByText("已绑定电脑端")).toBeVisible();
   await expect(phone.getByText("Playwright Phone")).toBeVisible();
   await expect(phone.getByText("WebCrypto 签名", { exact: true })).toBeVisible();
