@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { devices, expect, test } from "@playwright/test";
 
 const password = "correct horse battery staple";
 const rotatedPassword = "LifeOS remote passphrase 2026!";
@@ -30,7 +30,7 @@ async function writeOfflineQueue(page: import("@playwright/test").Page, queue: A
   }, queue);
 }
 
-test("admin setup, mobile binding, chat shell, and device revoke flow", async ({ page }) => {
+test("admin setup, mobile binding, chat shell, and device revoke flow", async ({ browser, page }) => {
   await page.context().addInitScript(() => {
     localStorage.setItem("lifeos_locale", "zh-CN");
   });
@@ -239,9 +239,25 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   const binding = await bindingResponse.json();
   expect(binding.token).toMatch(/^bind_/);
 
-  const phone = await page.context().newPage();
+  const phoneContext = await browser.newContext({
+    ...devices["iPhone 14"],
+    locale: "zh-CN",
+  });
+  await phoneContext.addInitScript(() => {
+    localStorage.setItem("lifeos_locale", "zh-CN");
+  });
+  const phone = await phoneContext.newPage();
+  const phoneBaseUrl = new URL(binding.pairingUrl).origin;
   expect(new URL(binding.pairingUrl).pathname).toBe(`/mobile/install/${encodeURIComponent(binding.token)}`);
   await phone.goto(binding.pairingUrl);
+  await expect(phone.getByText("确认绑定电脑")).toBeVisible();
+  await expect.poll(() => phone.evaluate(() => navigator.userAgent)).toContain("iPhone");
+  await expect.poll(() => phone.evaluate(() => window.innerWidth)).toBeLessThanOrEqual(430);
+  await expect.poll(() => phone.evaluate(async () => {
+    const status = await fetch("/api/v1/admin/status", { credentials: "same-origin" }).then((response) => response.json());
+    return Boolean(status.authenticated);
+  })).toBe(false);
+  await expect.poll(() => phone.evaluate(() => localStorage.getItem("lifeos_admin_session"))).toBeNull();
   await phone.getByPlaceholder("例如：iPhone 15 Pro").fill("Playwright Phone");
   await phone.getByRole("button", { name: "确认绑定" }).click();
   await expect(phone.getByText("绑定完成")).toBeVisible();
@@ -251,7 +267,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(page.getByTestId("onboarding-progress-count")).toHaveText("3 / 3");
   await expect(page.getByText("已准备好")).toBeVisible();
 
-  await phone.goto("/mobile/chat");
+  await phone.goto(`${phoneBaseUrl}/mobile/chat`);
   await expect(phone.getByText(/已连接电脑|正在连接电脑|连接中断，正在重试/)).toBeVisible();
   await phone.route("**/api/chat", async (route) => {
     expect(route.request().method()).toBe("POST");
@@ -281,7 +297,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await phone.getByRole("button", { name: "关闭安装提示" }).click();
   await phone.reload();
   await expect(phone.getByText("添加到主屏幕", { exact: true })).toHaveCount(0);
-  await phone.goto("/mobile/device");
+  await phone.goto(`${phoneBaseUrl}/mobile/device`);
   await expect(phone.getByText("设备与连接")).toBeVisible();
   await expect(phone.getByText("已绑定电脑端")).toBeVisible();
   await expect(phone.getByText("Playwright Phone")).toBeVisible();
@@ -356,7 +372,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await phone.getByRole("button", { name: "清空队列" }).click();
   await expect(phone.getByText("已清空离线消息队列。")).toBeVisible();
 
-  await phone.goto("/mobile/actions");
+  await phone.goto(`${phoneBaseUrl}/mobile/actions`);
   await expect(phone.getByText("生成程序动作审计")).toBeVisible();
   await expect(phone.getByText("程序权限策略")).toBeVisible();
   await expect(phone.getByText("还没有生成程序动作请求")).toBeVisible();
@@ -385,7 +401,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
     await dialog.dismiss();
   });
   await phone.getByRole("button", { name: "保存" }).click();
-  await phone.goto("/mobile/chat");
+  await phone.goto(`${phoneBaseUrl}/mobile/chat`);
   await expect(phone.locator("iframe[sandbox*='allow-same-origin']")).toHaveCount(0);
 
   await page.goto("/admin/dashboard");
@@ -671,4 +687,5 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
 
   await page.getByRole("button", { name: /撤销/ }).click();
   await expect(page.getByText("Playwright Phone")).toHaveCount(0);
+  await phoneContext.close();
 });
