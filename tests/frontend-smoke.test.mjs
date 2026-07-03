@@ -603,7 +603,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileChatSource, /peekPendingPairingToken/);
   assert.match(mobileChatSource, /recoveringPairingIntent/);
   assert.match(mobileChatSource, /mobile\.recoveringPairing/);
+  assert.match(mobileChatSource, /mobile\.realtimeOfflineBody/);
+  assert.match(mobileChatSource, /mobile\.openDeviceConnection/);
+  assert.match(mobileChatSource, /\/mobile\/device/);
   assert.match(translationsSource, /正在恢复添加到桌面时保存的绑定信息/);
+  assert.match(translationsSource, /打开设备与连接，可以测试当前入口/);
+  assert.match(translationsSource, /Open Device & Connection to test the current entry/);
   assert.match(mobileChatSource, /launchPairingToken/);
   assert.match(mobileChatSource, /setPairingManifestToken/);
   assert.match(mobileChatSource, /pairingInstallPath/);

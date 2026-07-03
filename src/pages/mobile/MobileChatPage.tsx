@@ -215,7 +215,16 @@ export default function MobileChatPage() {
             {t("mobile.realtimeLastEvent", { time: new Date(lastEventAt).toLocaleTimeString() })}
           </div>
         ) : null}
-        {status === "offline" && lastError ? <div className="mt-0.5 max-w-56 truncate text-[10px] font-medium opacity-75">{lastError}</div> : null}
+        {status === "offline" ? (
+          <div className="mt-2 rounded-xl border border-red-200/10 bg-black/15 p-2 text-left text-[10px] font-medium leading-relaxed text-red-50/85">
+            <div>{t("mobile.realtimeOfflineBody")}</div>
+            {lastError ? <div className="mt-1 truncate text-red-50/55">{t("mobile.realtimeErrorDetail", { message: lastError })}</div> : null}
+            <a href="/mobile/device" className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded-lg border border-red-100/20 bg-red-100/10 px-2 py-1.5 text-[10px] font-bold text-red-50">
+              <Smartphone className="h-3 w-3" />
+              {t("mobile.openDeviceConnection")}
+            </a>
+          </div>
+        ) : null}
       </div>
       <a
         href="/mobile/actions"
