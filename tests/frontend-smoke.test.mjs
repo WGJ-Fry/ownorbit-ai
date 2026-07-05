@@ -669,6 +669,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileConnectionRecoveryCardSource, /mobileDevice\.recoveryPanel\.refreshAction/);
   assert.match(mobileConnectionRecoveryCardSource, /mobileDevice\.recoveryPanel\.rebindAction/);
   assert.match(mobileConnectionRecoveryCardSource, /mobileDevice\.recoveryPanel\.chatAction/);
+  assert.match(mobileConnectionRecoveryCardSource, /primaryGoesToChat/);
+  assert.match(mobileConnectionRecoveryCardSource, /state === "queue"/);
+  assert.match(mobileConnectionRecoveryCardSource, /mobileDevice\.openChatSync/);
   assert.match(mobileConnectionRecoveryCardSource, /onConnectivityTest/);
   assert.match(mobileConnectionRecoveryCardSource, /onRefreshServer/);
   assert.match(mobileConnectionRecoveryCardSource, /onFocusPairing/);

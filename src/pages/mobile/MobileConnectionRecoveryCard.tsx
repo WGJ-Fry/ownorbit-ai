@@ -54,12 +54,41 @@ export default function MobileConnectionRecoveryCard({
   const state = getRecoveryState({ currentEntry, lastConnectivityIssue, lastConnectivityReport, queueSummary, stale });
   const healthy = state === "ready";
   const Icon = healthy ? CheckCircle2 : state === "needs-repair" ? AlertTriangle : Wifi;
+  const primaryGoesToChat = healthy || state === "queue";
   const tone = healthy
     ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100"
     : state === "needs-repair"
       ? "border-red-400/20 bg-red-500/10 text-red-100"
       : "border-amber-400/20 bg-amber-500/10 text-amber-100";
   const bodyKey = `mobileDevice.recoveryPanel.${state}.body`;
+  const chatLabel = state === "queue" ? t("mobileDevice.openChatSync") : t("mobileDevice.recoveryPanel.chatAction");
+  const testButton = (variant: "primary" | "secondary") => (
+    <button
+      onClick={onConnectivityTest}
+      disabled={connectivityBusy}
+      className={[
+        "inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold disabled:opacity-50",
+        variant === "primary"
+          ? "border-cyan-300/20 bg-cyan-400/15 text-cyan-50"
+          : "border-white/[0.12] bg-black/10 text-zinc-50",
+      ].join(" ")}
+    >
+      <RefreshCw className={`h-4 w-4 ${connectivityBusy ? "animate-spin" : ""}`} />
+      {connectivityBusy ? t("mobileDevice.connectivityTesting") : t(variant === "primary" ? "mobileDevice.recoveryPanel.testAction" : "mobileDevice.connectivityTest")}
+    </button>
+  );
+  const chatButton = (variant: "primary" | "secondary") => (
+    <a
+      href="/mobile/chat"
+      className={[
+        "inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold text-emerald-50",
+        variant === "primary" ? "border-emerald-300/20 bg-emerald-400/15" : "border-emerald-300/20 bg-black/10",
+      ].join(" ")}
+    >
+      <MessageCircle className="h-4 w-4" />
+      {chatLabel}
+    </a>
+  );
 
   return (
     <section className={`mb-4 rounded-[28px] border p-5 ${tone}`}>
@@ -94,14 +123,7 @@ export default function MobileConnectionRecoveryCard({
       </div>
 
       <div className="mt-4 grid gap-2">
-        <button
-          onClick={onConnectivityTest}
-          disabled={connectivityBusy}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-400/15 px-4 py-3 text-sm font-bold text-cyan-50 disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${connectivityBusy ? "animate-spin" : ""}`} />
-          {connectivityBusy ? t("mobileDevice.connectivityTesting") : t("mobileDevice.recoveryPanel.testAction")}
-        </button>
+        {primaryGoesToChat ? chatButton("primary") : testButton("primary")}
         <button
           onClick={onRefreshServer}
           disabled={serverRefreshBusy}
@@ -118,13 +140,7 @@ export default function MobileConnectionRecoveryCard({
             <Link2 className="h-4 w-4" />
             {t("mobileDevice.recoveryPanel.rebindAction")}
           </button>
-          <a
-            href="/mobile/chat"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-300/20 bg-emerald-400/15 px-4 py-3 text-sm font-bold text-emerald-50"
-          >
-            <MessageCircle className="h-4 w-4" />
-            {t("mobileDevice.recoveryPanel.chatAction")}
-          </a>
+          {primaryGoesToChat ? testButton("secondary") : chatButton("secondary")}
         </div>
       </div>
     </section>
