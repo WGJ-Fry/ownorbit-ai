@@ -586,6 +586,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingHandoffSource, /onboarding\.handoffChatTitle/);
   assert.match(onboardingHandoffSource, /onboarding\.copyHandoffSummary/);
   assert.match(onboardingHandoffSource, /\/admin\/settings#mobile-connect/);
+  const mobileIcloudHandoffSource = await readFile(path.join(rootDir, "src", "services", "mobileIcloudHandoff.ts"), "utf8");
+  assert.match(mobileIcloudHandoffSource, /lifeosEntry/);
+  assert.match(mobileIcloudHandoffSource, /entryExpiresAt/);
+  assert.match(mobileIcloudHandoffSource, /getMobileIcloudHandoffStatus/);
   assert.match(translationsSource, /onboarding\.handoffTitle/);
   assert.match(translationsSource, /onboarding\.handoffSummaryCopied/);
   assert.match(translationsSource, /开启每日自动备份/);
@@ -620,6 +624,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileChatSource, /setPairingManifestToken/);
   assert.match(mobileChatSource, /pairingInstallPath/);
   assert.match(mobileChatSource, /pairingToken/);
+  assert.match(mobileChatSource, /consumeMobileIcloudHandoffFromUrl/);
+  assert.match(mobileChatSource, /stripMobileIcloudHandoffParamsFromUrl/);
   assert.doesNotMatch(mobileChatSource, /window\.location\.replace\(`\/mobile\/pair\?token=/);
   assert.doesNotMatch(mobileChatSource, /href="\/mobile\/pair"/);
 
@@ -635,6 +641,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobilePairSource, /reportMobileConnectivity/);
   assert.match(mobilePairSource, /MobileConnectivityCard/);
   assert.match(mobilePairSource, /mobilePair\.connectivityTest/);
+  assert.match(mobilePairSource, /consumeMobileIcloudHandoffFromUrl/);
+  assert.match(mobilePairSource, /stripMobileIcloudHandoffParamsFromUrl/);
   assert.match(translationsSource, /保存 24 小时/);
   assert.match(translationsSource, /自动恢复到确认绑定页/);
   assert.match(translationsSource, /设备凭证已经保存/);
@@ -650,6 +658,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceSource, /getPwaCapabilityStatus/);
   assert.match(mobileDeviceSource, /getRemoteEntryStatus/);
   assert.match(mobileDeviceSource, /getRemoteEntryGuidance/);
+  assert.match(mobileDeviceSource, /getMobileIcloudHandoffStatus/);
+  assert.match(mobileDeviceSource, /icloudHandoffStatus/);
   assert.match(mobileDeviceSource, /currentEntryGuidance/);
   assert.match(mobileDeviceSource, /mobileDevice\.pwaTitle/);
   assert.match(translationsSource, /PWA 安装与后台同步/);
@@ -724,11 +734,15 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.remoteReadinessEntry/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.remoteReadinessConnectivity/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.remoteReadinessQueue/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffEntry/);
+  assert.match(mobileRemoteEntryCardSource, /icloudHandoffStatus/);
   assert.match(mobileRemoteEntryCardSource, /queueSummary\.failed/);
   assert.match(mobileRemoteEntryCardSource, /queueSummary\.pending/);
   assert.match(mobileRemoteEntryCardSource, /queueSummary\.syncing/);
   assert.match(translationsSource, /这台手机的异地入口当前可用/);
   assert.match(translationsSource, /This phone's remote entry is ready/);
+  assert.match(translationsSource, /iCloud 入口仍然新鲜/);
+  assert.match(translationsSource, /iCloud entry is fresh/);
   assert.match(mobileDeviceSource, /testMobileRemoteConnectivity/);
   assert.match(mobileDeviceSource, /reportMobileConnectivity/);
   assert.match(mobileDeviceSource, /getLatestMobileConnectivityReport/);

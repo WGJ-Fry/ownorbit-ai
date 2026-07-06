@@ -206,6 +206,23 @@ function scriptJson(value: unknown) {
     .replace(/&/g, "\\u0026");
 }
 
+function appendIcloudHandoffParams(entryUrl: string, packet: Record<string, unknown>) {
+  try {
+    const url = new URL(entryUrl);
+    url.searchParams.set("lifeosEntry", "icloud");
+    url.searchParams.set("entryGeneratedAt", String(packet.generatedAt || ""));
+    url.searchParams.set("entryRefreshAfter", String(packet.refreshAfter || ""));
+    url.searchParams.set("entryExpiresAt", String(packet.expiresAt || ""));
+    url.searchParams.set("entryBaseUrl", String(packet.baseUrl || ""));
+    url.searchParams.set("entryMode", String(packet.mode || ""));
+    url.searchParams.set("entryStability", String(packet.stability || ""));
+    url.searchParams.set("entryLabel", String(packet.label || ""));
+    return url.toString();
+  } catch {
+    return entryUrl;
+  }
+}
+
 function isApplePlatform() {
   return process.platform === "darwin" || process.env.LIFEOS_FORCE_ICLOUD_HANDOFF === "1";
 }
@@ -343,6 +360,8 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
   const expiresAt = typeof input.packet.expiresAt === "number" ? new Date(input.packet.expiresAt).toLocaleString() : "-";
   const remoteReady = input.candidate.secure && input.candidate.stability === "stable" && !input.candidate.requiresRestart;
   const fallbackCount = Array.isArray(input.packet.fallbackCandidates) ? input.packet.fallbackCandidates.length : 0;
+  const mobilePairUrl = appendIcloudHandoffParams(input.candidate.mobilePairUrl, input.packet);
+  const mobileChatUrl = appendIcloudHandoffParams(input.candidate.mobileChatUrl, input.packet);
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -367,8 +386,8 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
       <h1>LifeOS AI</h1>
       <p>Open the mobile companion from this Apple device. This file was synced through iCloud Drive.</p>
       <div class="pill">${remoteReady ? "Ready for long-term remote use" : "Open now, then refresh after network changes"}</div>
-      <a href="${htmlEscape(input.candidate.mobilePairUrl)}">Pair This Device</a>
-      <a class="secondary" href="${htmlEscape(input.candidate.mobileChatUrl)}">Open Mobile Chat</a>
+      <a href="${htmlEscape(mobilePairUrl)}">Pair This Device</a>
+      <a class="secondary" href="${htmlEscape(mobileChatUrl)}">Open Mobile Chat</a>
       <div class="meta">
         <strong>${htmlEscape(input.candidate.label)}</strong><br />
         ${htmlEscape(input.candidate.baseUrl)}<br />

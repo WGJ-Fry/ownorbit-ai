@@ -38,6 +38,31 @@ function cleanupBrowserGlobals() {
   delete globalThis.navigator;
 }
 
+function installLocalStorage() {
+  const values = new Map();
+  Object.defineProperty(globalThis, "localStorage", {
+    value: {
+      getItem(key) {
+        return values.has(key) ? values.get(key) : null;
+      },
+      setItem(key, value) {
+        values.set(key, String(value));
+      },
+      removeItem(key) {
+        values.delete(key);
+      },
+      clear() {
+        values.clear();
+      },
+    },
+    configurable: true,
+  });
+}
+
+function cleanupLocalStorage() {
+  delete globalThis.localStorage;
+}
+
 test("PWA capability status reports a complete installed mobile entry", async (t) => {
   installBrowserGlobals();
   t.after(cleanupBrowserGlobals);
@@ -363,6 +388,42 @@ test("mobile recovery hints combine entry type, failed probes, and offline queue
     "mobileDevice.connectivityGuidanceHttps",
     "mobileDevice.connectivityGuidanceFailedQueue",
   ]);
+});
+
+test("mobile iCloud handoff stores non-sensitive entry metadata and detects stale or mismatched entries", async (t) => {
+  installLocalStorage();
+  t.after(cleanupLocalStorage);
+  const now = 1_800_000_000_000;
+  const { consumeMobileIcloudHandoffFromUrl, getMobileIcloudHandoffStatus, getStoredMobileIcloudHandoff } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-handoff-${Date.now()}`);
+  const href = [
+    "https://lifeos.example.com/mobile/chat?lifeosEntry=icloud",
+    `entryGeneratedAt=${now}`,
+    `entryRefreshAfter=${now + 60_000}`,
+    `entryExpiresAt=${now + 120_000}`,
+    "entryBaseUrl=https%3A%2F%2Flifeos.example.com",
+    "entryMode=cloudflare",
+    "entryStability=stable",
+    "entryLabel=Cloudflare%20Named%20Tunnel",
+  ].join("&");
+
+  const consumed = consumeMobileIcloudHandoffFromUrl(href, now);
+  assert.equal(consumed.baseUrl, "https://lifeos.example.com");
+  assert.equal(consumed.mode, "cloudflare");
+  assert.equal(getStoredMobileIcloudHandoff().baseUrl, "https://lifeos.example.com");
+
+  const fresh = getMobileIcloudHandoffStatus(consumed, "https://lifeos.example.com/mobile/device", now + 1_000);
+  assert.equal(fresh.status, "fresh");
+  assert.equal(fresh.needsRefresh, false);
+
+  const stale = getMobileIcloudHandoffStatus(consumed, "https://lifeos.example.com/mobile/device", now + 70_000);
+  assert.equal(stale.status, "stale");
+  assert.equal(stale.needsRefresh, true);
+
+  const expired = getMobileIcloudHandoffStatus(consumed, "https://lifeos.example.com/mobile/device", now + 130_000);
+  assert.equal(expired.status, "expired");
+
+  const mismatch = getMobileIcloudHandoffStatus(consumed, "https://new-lifeos.example.com/mobile/device", now + 1_000);
+  assert.equal(mismatch.status, "address-mismatch");
 });
 
 test("remote entry guidance is visible before manual connectivity tests", async () => {

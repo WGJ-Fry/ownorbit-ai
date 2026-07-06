@@ -244,6 +244,8 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   const packet = JSON.parse(await readFile(result.packetFilePath, "utf8"));
   assert.match(html, /LifeOS AI Mobile Entry/);
   assert.match(html, /https:\/\/lifeos\.example\.com\/mobile\/pair/);
+  assert.match(html, /lifeosEntry=icloud/);
+  assert.match(html, /entryExpiresAt=/);
   assert.match(html, /Refresh after:/);
   assert.match(html, /If pairing fails/);
   assert.equal(packet.baseUrl, "https://lifeos.example.com");

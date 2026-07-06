@@ -10,6 +10,7 @@ import { getMobileConnectivityIssue, getMobileRecoveryHints, getPwaCapabilitySta
 import type { MobileConnectivityResult } from "../../services/pwaCapabilities";
 import { getPwaServiceWorkerLifecycleStatus, subscribePwaServiceWorkerLifecycle } from "../../services/pwaServiceWorkerLifecycle";
 import type { PwaServiceWorkerLifecycleStatus } from "../../services/pwaServiceWorkerLifecycle";
+import { consumeMobileIcloudHandoffFromUrl, getMobileIcloudHandoffStatus, stripMobileIcloudHandoffParamsFromUrl } from "../../services/mobileIcloudHandoff";
 import MobileConnectionRecoveryCard from "./MobileConnectionRecoveryCard";
 import MobileDeviceHealthSummary from "./MobileDeviceHealthSummary";
 import MobileGeneratedToolsCard from "./MobileGeneratedToolsCard";
@@ -46,6 +47,7 @@ export default function MobileDevicePage() {
   const [health, setHealth] = useState<Awaited<ReturnType<typeof getHealth>> | null>(null);
   const [connectivityTest, setConnectivityTest] = useState<MobileConnectivityResult | null>(null);
   const [lastConnectivityReport, setLastConnectivityReport] = useState<DeviceConnectivityReport | null>(null);
+  const [icloudHandoffStatus, setIcloudHandoffStatus] = useState(() => getMobileIcloudHandoffStatus());
   const [connectivityBusy, setConnectivityBusy] = useState(false);
   const [serverRefreshBusy, setServerRefreshBusy] = useState(false);
   const pairingPanelRef = useRef<HTMLDivElement | null>(null);
@@ -60,7 +62,6 @@ export default function MobileDevicePage() {
   const conflictGroups = useMemo(() => getOfflineMessageConflictGroups(queueItems), [queueItems]);
   const queueRecovery = useMemo(() => getOfflineMessageQueueRecoverySummary(queueItems, { online: network.online, networkQuality: network.quality, remoteOk: currentEntry.okForRemote }), [currentEntry.okForRemote, network.online, network.quality, queueItems]);
   const connectivityReportStale = Boolean(lastConnectivityReport && Date.now() - lastConnectivityReport.createdAt > 6 * 60 * 60 * 1000);
-
   const refreshCredentialStorage = async () => {
     const storage = await getStoredDeviceCredentialStorageStatus().catch(() => null);
     setCredentialStorage(storage);
@@ -91,6 +92,8 @@ export default function MobileDevicePage() {
   };
 
   useEffect(() => {
+    if (consumeMobileIcloudHandoffFromUrl()) stripMobileIcloudHandoffParamsFromUrl();
+    setIcloudHandoffStatus(getMobileIcloudHandoffStatus());
     let cancelled = false;
     getStoredDeviceCredentialAsync().then((next) => {
       if (!cancelled) setCredential(next);
@@ -137,6 +140,7 @@ export default function MobileDevicePage() {
   const refreshRecoverableState = () => {
     setNetwork(getNetworkStatus());
     setPwaCapabilities(getPwaCapabilityStatus());
+    setIcloudHandoffStatus(getMobileIcloudHandoffStatus());
     refreshServiceWorkerLifecycle();
     refreshQueue();
     void refreshServerState();
@@ -477,6 +481,7 @@ export default function MobileDevicePage() {
           currentEntry={currentEntry}
           currentEntryGuidance={currentEntryGuidance}
           healthNetworkMode={health?.networkMode}
+          icloudHandoffStatus={icloudHandoffStatus}
           lastConnectivityHints={lastConnectivityHints}
           lastConnectivityIssue={lastConnectivityIssue}
           lastConnectivityReport={lastConnectivityReport}
