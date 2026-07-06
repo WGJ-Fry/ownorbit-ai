@@ -615,12 +615,14 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /onSaveCandidate/);
   assert.match(onboardingAppleRemoteSource, /onTestCandidate/);
   assert.match(onboardingAppleRemoteSource, /latestIgnoredEntryEvent/);
+  assert.match(onboardingAppleRemoteSource, /latestEntryOpenEvent/);
   assert.match(onboardingAppleRemoteSource, /availableEntryCount/);
   assert.match(onboardingAppleRemoteSource, /latestHistory/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudDesktop/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudMultiDesktopTitle/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudHistoryTitle/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudOldEntryTitle/);
+  assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudOpenConfirmTitle/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudOldEntryAction/);
   assert.match(onboardingAppleRemoteSource, /renderIcloudFixActions/);
   assert.match(onboardingAppleRemoteSource, /latestEntryIssueEvent/);
@@ -659,7 +661,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /当前推荐入口和上次导出的地址不同/);
   assert.match(translationsSource, /The recommended entry changed since the last export/);
   assert.match(translationsSource, /有手机打开了旧入口/);
+  assert.match(translationsSource, /手机已确认打开入口/);
   assert.match(translationsSource, /A phone opened an old entry/);
+  assert.match(translationsSource, /Phone confirmed this entry/);
   assert.match(translationsSource, /有手机打开了需要刷新的入口/);
   assert.match(translationsSource, /A phone opened an entry that needs refresh/);
   assert.match(translationsSource, /检测到 \{\{count\}\} 个电脑入口/);
@@ -713,6 +717,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileIcloudHandoffSource, /getMobileIcloudHandoffStatus/);
   assert.match(mobileIcloudHandoffSource, /eventTypeForIcloudHandoffStatus/);
   assert.match(mobileIcloudHandoffSource, /opened-stale-entry/);
+  assert.match(mobileIcloudHandoffSource, /opened-current-entry/);
   assert.match(mobileIcloudHandoffSource, /handleMobileIcloudHandoffLaunch/);
   assert.match(mobileIcloudHandoffSource, /testMobileRemoteConnectivity/);
   assert.match(mobileIcloudHandoffSource, /reportMobileConnectivity/);

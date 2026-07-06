@@ -463,6 +463,7 @@ test("mobile iCloud handoff launch runs connectivity check and stores the result
   const now = 1_800_000_000_000;
   const { getStoredMobileIcloudHandoff, handleMobileIcloudHandoffLaunch } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-auto-check-${Date.now()}`);
   let reported = null;
+  let icloudEvent = null;
   const href = [
     "https://lifeos.example.com/mobile/chat?lifeosEntry=icloud",
     `entryGeneratedAt=${now}`,
@@ -494,11 +495,23 @@ test("mobile iCloud handoff launch runs connectivity check and stores the result
       reported = result;
       return { ok: true };
     },
+    reportIcloudHandoffEvent: async (event) => {
+      icloudEvent = event;
+      return { ok: true };
+    },
   });
 
   assert.equal(launch.reportSaved, true);
-  assert.equal(launch.icloudEventReported, false);
-  assert.equal(launch.icloudEventType, null);
+  assert.equal(launch.icloudEventReported, true);
+  assert.equal(launch.icloudEventType, "opened-current-entry");
+  assert.equal(icloudEvent.eventType, "opened-current-entry");
+  assert.equal(icloudEvent.entryBaseUrl, "https://lifeos.example.com");
+  assert.equal(icloudEvent.currentBaseUrl, "https://lifeos.example.com");
+  assert.equal(icloudEvent.storedBaseUrl, "https://lifeos.example.com");
+  assert.equal(icloudEvent.entryGeneratedAt, now);
+  assert.equal(icloudEvent.storedGeneratedAt, now);
+  assert.equal(icloudEvent.checksumSha256, "b".repeat(64));
+  assert.equal(icloudEvent.ignoredAt, now);
   assert.equal(launch.result.ok, true);
   assert.equal(reported.currentBase, "https://lifeos.example.com");
   const stored = getStoredMobileIcloudHandoff();
@@ -695,7 +708,7 @@ test("mobile iCloud handoff can switch to an older entry from a different deskto
   assert.deepEqual(getStoredMobileIcloudHandoffEntries().map((entry) => entry.desktopId), ["mac-b"]);
 
   let testCalled = false;
-  let icloudEventCalled = false;
+  let icloudEvent = null;
   const launch = await handleMobileIcloudHandoffLaunch({
     href: macB,
     cleanupUrl: false,
@@ -715,8 +728,8 @@ test("mobile iCloud handoff can switch to an older entry from a different deskto
       };
     },
     reportConnectivity: async () => ({ ok: true }),
-    reportIcloudHandoffEvent: async () => {
-      icloudEventCalled = true;
+    reportIcloudHandoffEvent: async (event) => {
+      icloudEvent = event;
       return { ok: true };
     },
   });
@@ -724,7 +737,10 @@ test("mobile iCloud handoff can switch to an older entry from a different deskto
   assert.equal(launch.ignoredOlderEntry, undefined);
   assert.equal(launch.reportSaved, true);
   assert.equal(testCalled, true);
-  assert.equal(icloudEventCalled, false);
+  assert.equal(launch.icloudEventReported, true);
+  assert.equal(launch.icloudEventType, "opened-current-entry");
+  assert.equal(icloudEvent.eventType, "opened-current-entry");
+  assert.equal(icloudEvent.entryBaseUrl, "https://mac-b.example.com");
   assert.equal(launch.entry.desktopId, "mac-b");
   assert.equal(getStoredMobileIcloudHandoff().desktopId, "mac-b");
   assert.equal(getStoredMobileIcloudHandoff().lastConnectivityOk, true);

@@ -21,7 +21,7 @@ import { setClientState } from "../clientState";
 import { evaluatePasswordPolicy, getSecurityDiagnostics } from "../securityDiagnostics";
 import { getOnboardingStatus, markOnboardingComplete } from "../onboarding";
 import { getBackupSchedule } from "../backupSchedule";
-import { getLatestBindingSession, getLatestIcloudHandoffEvent } from "../devices";
+import { getLatestBindingSession, getLatestIcloudHandoffEventByTypes } from "../devices";
 import { checkReleaseUpdate } from "../releaseUpdateCheck";
 import { buildNativeAutomationPlan, executeNativeAutomation } from "../nativeAutomationBridge";
 
@@ -254,7 +254,14 @@ function getAdminNetworkDiagnostics() {
   const diagnostics = getNetworkDiagnostics();
   const remoteValidationReport = getRemoteValidationReport();
   const latestBindingSession = getLatestBindingSession();
-  const latestIcloudHandoffEvent = getLatestIcloudHandoffEvent();
+  const latestIcloudHandoffOpenEvent = getLatestIcloudHandoffEventByTypes(["opened-current-entry"]);
+  const latestIgnoredIcloudHandoffEvent = getLatestIcloudHandoffEventByTypes(["ignored-superseded-entry"]);
+  const latestIcloudHandoffIssueEvent = getLatestIcloudHandoffEventByTypes([
+    "opened-stale-entry",
+    "opened-expired-entry",
+    "opened-legacy-entry",
+    "opened-address-mismatch-entry",
+  ]);
   const remoteHealthSummary = summarizeRemoteHealth({
     baseUrl: diagnostics.desktopRuntimeConfig?.publicBaseUrl || diagnostics.remoteReadiness.baseUrl,
     readiness: diagnostics.remoteReadiness,
@@ -265,8 +272,9 @@ function getAdminNetworkDiagnostics() {
     ...diagnostics,
     icloud: {
       ...diagnostics.icloud,
-      latestIgnoredEntryEvent: latestIcloudHandoffEvent?.eventType === "ignored-superseded-entry" ? latestIcloudHandoffEvent : null,
-      latestEntryIssueEvent: latestIcloudHandoffEvent && latestIcloudHandoffEvent.eventType !== "ignored-superseded-entry" ? latestIcloudHandoffEvent : null,
+      latestEntryOpenEvent: latestIcloudHandoffOpenEvent || null,
+      latestIgnoredEntryEvent: latestIgnoredIcloudHandoffEvent || null,
+      latestEntryIssueEvent: latestIcloudHandoffIssueEvent || null,
     },
     cloudflareNamedTunnel: getCloudflareNamedTunnelStatus(),
   };

@@ -112,6 +112,7 @@ const repairRecommendationKeys: Record<IcloudHandoffRepairAnalysis["recommendati
 };
 
 const issueEventKindKeys: Record<NonNullable<NetworkDiagnostics["icloud"]["latestEntryIssueEvent"]>["eventType"], TranslationKey> = {
+  "opened-current-entry": "onboarding.appleRemoteIcloudIssueKindCurrent",
   "ignored-superseded-entry": "onboarding.appleRemoteIcloudIssueKindSuperseded",
   "opened-stale-entry": "onboarding.appleRemoteIcloudIssueKindStale",
   "opened-expired-entry": "onboarding.appleRemoteIcloudIssueKindExpired",
@@ -230,6 +231,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const syncReadiness = icloud?.syncReadiness;
   const icloudMonitor = diagnostics?.icloudMonitor;
   const icloudLifecycle = icloud?.lifecycle;
+  const latestEntryOpenEvent = icloud?.latestEntryOpenEvent || null;
   const latestIgnoredEntryEvent = icloud?.latestIgnoredEntryEvent || null;
   const latestEntryIssueEvent = icloud?.latestEntryIssueEvent || null;
   const latestHistory = icloud?.entryHistory?.slice(0, 3) || [];
@@ -253,6 +255,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const icloudMonitorLastRunAt = formatHandoffTime(icloudMonitor?.lastRunAt || undefined);
   const icloudMonitorNextRunAt = formatHandoffTime(icloudMonitor?.nextRunAt || undefined);
   const icloudMonitorIntervalSeconds = Math.round((icloudMonitor?.intervalMs || 0) / 1000);
+  const latestOpenAt = formatHandoffTime(latestEntryOpenEvent?.ignoredAt || latestEntryOpenEvent?.createdAt);
   const latestIgnoredAt = formatHandoffTime(latestIgnoredEntryEvent?.ignoredAt);
   const latestIssueAt = formatHandoffTime(latestEntryIssueEvent?.ignoredAt || latestEntryIssueEvent?.createdAt);
   const simpleIcloudStatus = getSimpleIcloudStatus(icloud);
@@ -510,6 +513,22 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
             <div className="mt-3 rounded-xl border border-sky-400/15 bg-sky-500/10 p-3 text-[11px] leading-relaxed text-sky-50/80">
               <div className="font-bold text-sky-50">{t("onboarding.appleRemoteIcloudMultiDesktopTitle", { count: availableEntryCount })}</div>
               <div className="mt-1">{t("onboarding.appleRemoteIcloudMultiDesktopBody")}</div>
+            </div>
+          ) : null}
+          {latestEntryOpenEvent ? (
+            <div className="mt-3 rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-emerald-50">
+              <div className="flex gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                  <div className="font-bold">{t("onboarding.appleRemoteIcloudOpenConfirmTitle")}</div>
+                  <div className="mt-1 text-[11px] leading-relaxed text-emerald-50/80">
+                    {t("onboarding.appleRemoteIcloudOpenConfirmBody", {
+                      device: latestEntryOpenEvent.deviceName || latestEntryOpenEvent.deviceId,
+                      time: latestOpenAt || "-",
+                    })}
+                  </div>
+                </div>
+              </div>
             </div>
           ) : null}
           {latestIgnoredEntryEvent ? (

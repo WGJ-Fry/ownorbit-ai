@@ -332,6 +332,7 @@ function createFailedConnectivityResult(entry: MobileIcloudHandoffEntry, href: s
 }
 
 function eventTypeForIcloudHandoffStatus(status: MobileIcloudHandoffStatus): MobileIcloudHandoffEventReportInput["eventType"] | null {
+  if (status.status === "fresh") return "opened-current-entry";
   if (status.status === "stale") return "opened-stale-entry";
   if (status.status === "expired") return "opened-expired-entry";
   if (status.status === "legacy") return "opened-legacy-entry";
@@ -424,11 +425,11 @@ export async function handleMobileIcloudHandoffLaunch(options: HandoffLaunchOpti
   }
 
   const statusAfterLaunch = getMobileIcloudHandoffStatus(entry, href, now);
-  const issueEventType = statusAfterLaunch ? eventTypeForIcloudHandoffStatus(statusAfterLaunch) : null;
+  const icloudOpenEventType = statusAfterLaunch ? eventTypeForIcloudHandoffStatus(statusAfterLaunch) : null;
   let icloudEventReported = false;
-  if (issueEventType) {
+  if (icloudOpenEventType) {
     try {
-      await reportIcloudHandoffIssueEvent(issueEventType, entry, href, now, options.reportIcloudHandoffEvent);
+      await reportIcloudHandoffIssueEvent(icloudOpenEventType, entry, href, now, options.reportIcloudHandoffEvent);
       icloudEventReported = true;
     } catch {
       icloudEventReported = false;
@@ -463,7 +464,7 @@ export async function handleMobileIcloudHandoffLaunch(options: HandoffLaunchOpti
     result,
     reportSaved,
     icloudEventReported,
-    icloudEventType: issueEventType,
+    icloudEventType: icloudOpenEventType,
   };
 }
 

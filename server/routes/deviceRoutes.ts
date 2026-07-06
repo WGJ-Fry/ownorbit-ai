@@ -122,6 +122,7 @@ function normalizeOptionalTimestamp(value: unknown) {
 function normalizeIcloudHandoffEventPayload(body: any) {
   const eventType = String(body?.eventType || "").trim();
   const supportedEventTypes = [
+    "opened-current-entry",
     "ignored-superseded-entry",
     "opened-stale-entry",
     "opened-expired-entry",

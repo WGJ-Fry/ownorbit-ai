@@ -32,7 +32,7 @@ export type DeviceIcloudHandoffEvent = {
   deviceId: string;
   deviceName?: string;
   deviceType?: DeviceRecord["type"];
-  eventType: "ignored-superseded-entry" | "opened-stale-entry" | "opened-expired-entry" | "opened-legacy-entry" | "opened-address-mismatch-entry";
+  eventType: "opened-current-entry" | "ignored-superseded-entry" | "opened-stale-entry" | "opened-expired-entry" | "opened-legacy-entry" | "opened-address-mismatch-entry";
   entryBaseUrl: string;
   currentBaseUrl: string;
   storedBaseUrl: string;
@@ -152,6 +152,26 @@ export function getLatestIcloudHandoffEvent() {
       LIMIT 1
     `)
     .get();
+  return row ? mapIcloudHandoffEvent(row) : undefined;
+}
+
+export function getLatestIcloudHandoffEventByTypes(eventTypes: DeviceIcloudHandoffEvent["eventType"][]) {
+  const normalized = Array.from(new Set(eventTypes.filter(Boolean)));
+  if (!normalized.length) return undefined;
+  const placeholders = normalized.map(() => "?").join(", ");
+  const row = db
+    .prepare(`
+      SELECT
+        e.*,
+        d.name AS device_name,
+        d.type AS device_type
+      FROM device_icloud_handoff_events e
+      LEFT JOIN devices d ON d.id = e.device_id
+      WHERE e.event_type IN (${placeholders})
+      ORDER BY e.created_at DESC
+      LIMIT 1
+    `)
+    .get(...normalized);
   return row ? mapIcloudHandoffEvent(row) : undefined;
 }
 

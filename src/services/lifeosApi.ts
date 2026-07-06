@@ -36,7 +36,7 @@ export type DeviceIcloudHandoffEvent = {
   deviceId: string;
   deviceName?: string;
   deviceType?: BoundDevice["type"];
-  eventType: "ignored-superseded-entry" | "opened-stale-entry" | "opened-expired-entry" | "opened-legacy-entry" | "opened-address-mismatch-entry";
+  eventType: "opened-current-entry" | "ignored-superseded-entry" | "opened-stale-entry" | "opened-expired-entry" | "opened-legacy-entry" | "opened-address-mismatch-entry";
   entryBaseUrl: string;
   currentBaseUrl: string;
   storedBaseUrl: string;
@@ -865,6 +865,7 @@ export type NetworkDiagnostics = {
     transport: "handoff-only";
     openInstruction: string;
     notes: string[];
+    latestEntryOpenEvent?: DeviceIcloudHandoffEvent | null;
     latestIgnoredEntryEvent?: DeviceIcloudHandoffEvent | null;
     latestEntryIssueEvent?: DeviceIcloudHandoffEvent | null;
   };

@@ -4,7 +4,7 @@ import { getAiConfigStatus, listAiProviderStatuses } from "./appSecrets";
 import { listAuditLogs, redactAuditMetadata, redactAuditString } from "./audit";
 import { buildCalendarSyncPreview } from "./calendarSyncPreview";
 import { db, getPendingRestore, listBackups } from "./db";
-import { getDevices, getLatestIcloudHandoffEvent, type DeviceIcloudHandoffEvent } from "./devices";
+import { getDevices, getLatestIcloudHandoffEventByTypes, type DeviceIcloudHandoffEvent } from "./devices";
 import { getIcloudHandoffMonitorStatus } from "./icloudHandoffMonitor";
 import { getClientState } from "./clientState";
 import { getNetworkDiagnostics } from "./networkDiagnostics";
@@ -235,8 +235,14 @@ function publicIcloudFileState(file: any) {
 }
 
 function buildIcloudDiagnosticSnapshot(network: ReturnType<typeof getNetworkDiagnostics>) {
-  const latestEvent = getLatestIcloudHandoffEvent();
-  const latestPublicEvent = publicIcloudHandoffEvent(latestEvent);
+  const latestOpenEvent = publicIcloudHandoffEvent(getLatestIcloudHandoffEventByTypes(["opened-current-entry"]));
+  const latestIgnoredEvent = publicIcloudHandoffEvent(getLatestIcloudHandoffEventByTypes(["ignored-superseded-entry"]));
+  const latestIssueEvent = publicIcloudHandoffEvent(getLatestIcloudHandoffEventByTypes([
+    "opened-stale-entry",
+    "opened-expired-entry",
+    "opened-legacy-entry",
+    "opened-address-mismatch-entry",
+  ]));
   return {
     platformSupported: Boolean(network.icloud?.platformSupported),
     available: Boolean(network.icloud?.available),
@@ -294,8 +300,9 @@ function buildIcloudDiagnosticSnapshot(network: ReturnType<typeof getNetworkDiag
       orphanedFileCount: 0,
     },
     monitor: getIcloudHandoffMonitorStatus(),
-    latestIgnoredEntryEvent: latestEvent?.eventType === "ignored-superseded-entry" ? latestPublicEvent : null,
-    latestEntryIssueEvent: latestEvent && latestEvent.eventType !== "ignored-superseded-entry" ? latestPublicEvent : null,
+    latestEntryOpenEvent: latestOpenEvent,
+    latestIgnoredEntryEvent: latestIgnoredEvent,
+    latestEntryIssueEvent: latestIssueEvent,
     boundary: {
       handoffOnly: true,
       realtimeRequiresTrustedNetwork: true,

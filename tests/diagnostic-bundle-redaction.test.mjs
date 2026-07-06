@@ -196,6 +196,19 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
     ignoredAt: now,
     createdAt: now,
   });
+  devicesModule.insertDeviceIcloudHandoffEvent({
+    id: "diagnostic-icloud-open-event",
+    deviceId: "diagnostic-phone",
+    eventType: "opened-current-entry",
+    entryBaseUrl: "https://user:password@current.example.com/lifeos?token=icloud-open-secret#debug",
+    currentBaseUrl: "https://user:password@current.example.com/lifeos/mobile/chat?token=icloud-open-secret",
+    storedBaseUrl: "https://current.example.com/lifeos?secret=icloud-open-secret",
+    entryGeneratedAt: now,
+    storedGeneratedAt: now,
+    checksumSha256: "d".repeat(64),
+    ignoredAt: now + 1,
+    createdAt: now + 1,
+  });
 
   const { createDiagnosticBundle } = await import(`../server/diagnosticBundle.ts?diagnostic=${Date.now()}`);
   const bundle = createDiagnosticBundle();
@@ -212,6 +225,7 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(serialized.includes("diagnostic-action-secret"), false);
   assert.equal(serialized.includes("icloud-device-secret"), false);
   assert.equal(serialized.includes("icloud-event-secret"), false);
+  assert.equal(serialized.includes("icloud-open-secret"), false);
   assert.equal(serialized.includes("+15551234567"), false);
   assert.equal(serialized.includes("Z2l0aHViOmRpYWdub3N0aWM"), false);
   assert.equal(serialized.includes("github_pat_diagnosticSecret"), false);
@@ -220,6 +234,12 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(bundle.icloudHandoff.boundary.realtimeRequiresTrustedNetwork, true);
   assert.equal(bundle.icloudHandoff.monitor.enabled, true);
   assert.equal(bundle.icloudHandoff.transport, "handoff-only");
+  assert.equal(bundle.icloudHandoff.latestEntryOpenEvent.id, "diagnostic-icloud-open-event");
+  assert.equal(bundle.icloudHandoff.latestEntryOpenEvent.eventType, "opened-current-entry");
+  assert.equal(bundle.icloudHandoff.latestEntryOpenEvent.deviceName, "Phone token=[redacted]");
+  assert.equal(bundle.icloudHandoff.latestEntryOpenEvent.entryBaseUrl, "https://current.example.com/lifeos?[redacted]");
+  assert.equal(bundle.icloudHandoff.latestEntryOpenEvent.checksumPresent, true);
+  assert.equal(bundle.icloudHandoff.latestEntryOpenEvent.checksumPrefix, "d".repeat(12));
   assert.equal(bundle.icloudHandoff.latestEntryIssueEvent.id, "diagnostic-icloud-event");
   assert.equal(bundle.icloudHandoff.latestEntryIssueEvent.eventType, "opened-expired-entry");
   assert.equal(bundle.icloudHandoff.latestEntryIssueEvent.deviceName, "Phone token=[redacted]");
