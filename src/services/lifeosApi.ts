@@ -117,6 +117,22 @@ export type IcloudRepairImportRecord = Omit<IcloudHandoffRepairAnalysis, "ok"> &
   importedAt: number;
 };
 
+export type IcloudAutoRefreshResult = {
+  refreshed: boolean;
+  reason: string;
+  requestedReason?: string;
+  status?: string;
+  previousStatus?: string;
+  indexConsistencyStatus?: string;
+  syncReadinessStatus?: string;
+  syncReadinessAction?: string;
+  generatedAt?: number;
+  recommendedBaseUrl?: string;
+  changeType?: string;
+  previousBaseUrl?: string;
+  error?: string;
+};
+
 export type BindingSession = {
   id: string;
   token: string;
@@ -124,18 +140,10 @@ export type BindingSession = {
   baseUrl?: string;
   pairingUrl: string;
   localName: string;
-  icloudRefresh?: {
-    refreshed: boolean;
-    reason: string;
+  icloudRefresh?: IcloudAutoRefreshResult & {
     requestedReason: string;
     trigger?: "local-core-startup" | "desktop-wake" | "scheduled-check" | "remote-health" | "phone-entry" | "pairing-session" | "manual" | "unknown";
     status: string;
-    previousStatus?: string;
-    generatedAt?: number;
-    recommendedBaseUrl?: string;
-    changeType?: string;
-    previousBaseUrl?: string;
-    error?: string;
   };
 };
 
@@ -1963,7 +1971,12 @@ export function exportIcloudHandoff() {
 }
 
 export function analyzeIcloudHandoffRepairPacket(packet: string) {
-  return requestJson<{ analysis: IcloudHandoffRepairAnalysis; repairImport: IcloudRepairImportRecord; diagnostics: NetworkDiagnostics }>("/api/v1/admin/icloud-handoff/repair-packet", {
+  return requestJson<{
+    analysis: IcloudHandoffRepairAnalysis;
+    repairImport: IcloudRepairImportRecord;
+    icloudRefresh: IcloudAutoRefreshResult;
+    diagnostics: NetworkDiagnostics;
+  }>("/api/v1/admin/icloud-handoff/repair-packet", {
     method: "POST",
     body: JSON.stringify({ packet }),
   });

@@ -1435,13 +1435,16 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("appleRemoteIcloudRepairImportTitle") &&
     adminRoutesSource.includes("buildLatestIcloudEntryRepairSummary") &&
     adminRoutesSource.includes("saveIcloudRepairImportAnalysis") &&
+    adminRoutesSource.includes("admin-repair-packet-import") &&
     adminRoutesSource.includes("latestEntryRepair") &&
     icloudRepairImportsSource.includes("lifeos_icloud_repair_imports") &&
     icloudRepairImportsSource.includes("getLatestIcloudRepairImportRecord") &&
     lifeosApiSource.includes("latestEntryRepair") &&
     lifeosApiSource.includes("latestRepairImport") &&
+    lifeosApiSource.includes("IcloudAutoRefreshResult") &&
     apiAuthTestSource.includes("latestEntryRepair.status") &&
     apiAuthTestSource.includes("diagnostics.icloud.latestRepairImport.id") &&
+    apiAuthTestSource.includes("icloudRepairPacket.icloudRefresh.requestedReason") &&
     translationsSource.includes("PUBLIC_BASE_URL changed") &&
     translationsSource.includes("Cloudflare address changed") &&
     translationsSource.includes("Tailscale address changed") &&

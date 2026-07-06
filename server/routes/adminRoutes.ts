@@ -679,6 +679,15 @@ export function registerAdminRoutes(app: express.Express) {
     try {
       const analysis = analyzeIcloudHandoffRepairPacket(req.body?.packet || req.body?.text || "");
       const repairImport = saveIcloudRepairImportAnalysis(analysis, (req as any).actor || { type: "admin", id: "owner" });
+      const shouldAutoRefresh = analysis.recommendations.some((item) => item.id === "refresh-icloud");
+      const icloudRefresh = shouldAutoRefresh
+        ? safeAutoRefreshIcloudHandoff("admin-repair-packet-import")
+        : {
+          refreshed: false,
+          reason: "not-needed",
+          requestedReason: "admin-repair-packet-import",
+          status: analysis.desktop.handoffStatus,
+        };
       insertAuditLog("icloud_handoff_repair_analyzed", "network", analysis.parsed.entryBaseUrl || "icloud-repair", {
         reason: analysis.reason,
         severity: analysis.severity,
@@ -686,8 +695,16 @@ export function registerAdminRoutes(app: express.Express) {
         phoneEntryBaseUrl: analysis.parsed.entryBaseUrl || null,
         desktopRecommendedBaseUrl: analysis.desktop.recommendedBaseUrl || null,
         recommendations: analysis.recommendations.map((item) => item.id),
+        autoRefreshAttempted: shouldAutoRefresh,
+        icloudRefresh: {
+          refreshed: icloudRefresh.refreshed,
+          reason: icloudRefresh.reason,
+          requestedReason: icloudRefresh.requestedReason,
+          status: icloudRefresh.status,
+          error: "error" in icloudRefresh ? icloudRefresh.error : undefined,
+        },
       }, (req as any).actor?.type, (req as any).actor?.id);
-      res.json({ analysis, repairImport, diagnostics: getAdminNetworkDiagnostics() });
+      res.json({ analysis, repairImport, icloudRefresh, diagnostics: getAdminNetworkDiagnostics() });
     } catch (error: any) {
       insertAuditLog("icloud_handoff_repair_analyze_failed", "network", "icloud-repair", {
         error: error?.message || "iCloud repair info could not be analyzed",

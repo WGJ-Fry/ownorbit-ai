@@ -689,6 +689,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /\/api\/v1\/admin\/tailscale\/install/);
   assert.match(lifeosApiSource, /\/api\/v1\/admin\/icloud-handoff\/repair-packet/);
   assert.match(lifeosApiSource, /IcloudHandoffRepairAnalysis/);
+  assert.match(lifeosApiSource, /IcloudAutoRefreshResult/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudRepairAutoRefreshDone/);
   assert.match(lifeosApiSource, /icloudMonitor/);
   assert.match(lifeosApiSource, /startupRunAt/);
   assert.match(lifeosApiSource, /startupResult/);

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AlertTriangle, ArrowRight, CheckCircle2, ClipboardCheck, ClipboardPaste, Cloud, ExternalLink, Loader2, QrCode, RefreshCw, ShieldCheck, Smartphone, Wifi } from "lucide-react";
 import { analyzeIcloudHandoffRepairPacket } from "../../services/lifeosApi";
-import type { IcloudHandoffRepairAnalysis, NetworkDiagnostics } from "../../services/lifeosApi";
+import type { IcloudAutoRefreshResult, IcloudHandoffRepairAnalysis, NetworkDiagnostics } from "../../services/lifeosApi";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { TranslationKey } from "../../i18n/translations";
 
@@ -389,6 +389,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const [repairBusy, setRepairBusy] = useState(false);
   const [repairError, setRepairError] = useState("");
   const [repairAnalysis, setRepairAnalysis] = useState<IcloudHandoffRepairAnalysis | null>(null);
+  const [repairRefresh, setRepairRefresh] = useState<IcloudAutoRefreshResult | null>(null);
   const appleRuntime = isAppleRuntime();
   const candidate = getPreferredCandidate(diagnostics);
   const icloud = diagnostics?.icloud;
@@ -451,6 +452,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
     if (!packet) {
       setRepairError(t("onboarding.appleRemoteIcloudRepairEmpty"));
       setRepairAnalysis(null);
+      setRepairRefresh(null);
       return;
     }
     setRepairBusy(true);
@@ -458,8 +460,10 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
     try {
       const result = await analyzeIcloudHandoffRepairPacket(packet);
       setRepairAnalysis(result.analysis);
+      setRepairRefresh(result.icloudRefresh || null);
     } catch (error) {
       setRepairAnalysis(null);
+      setRepairRefresh(null);
       setRepairError(t("onboarding.appleRemoteIcloudRepairFailed"));
     } finally {
       setRepairBusy(false);
@@ -1163,6 +1167,31 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
               </button>
             </div>
             {repairError ? <div className="mt-2 rounded-lg border border-red-400/20 bg-red-500/10 p-2 text-red-100">{repairError}</div> : null}
+            {repairRefresh ? (
+              <div className={`mt-3 rounded-xl border p-3 text-[11px] leading-relaxed ${
+                repairRefresh.refreshed
+                  ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-50"
+                  : repairRefresh.reason === "not-needed" || repairRefresh.reason === "fresh"
+                  ? "border-sky-400/20 bg-sky-500/10 text-sky-50"
+                  : "border-amber-400/20 bg-amber-500/10 text-amber-50"
+              }`}>
+                <div className="flex gap-2">
+                  {repairRefresh.refreshed ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <RefreshCw className="mt-0.5 h-4 w-4 shrink-0" />}
+                  <div>
+                    <div className="font-bold">
+                      {repairRefresh.refreshed
+                        ? t("onboarding.appleRemoteIcloudRepairAutoRefreshDone")
+                        : repairRefresh.reason === "not-needed" || repairRefresh.reason === "fresh"
+                        ? t("onboarding.appleRemoteIcloudRepairAutoRefreshSkipped")
+                        : t("onboarding.appleRemoteIcloudRepairAutoRefreshBlocked")}
+                    </div>
+                    <div className="mt-1 opacity-80">
+                      {t("onboarding.appleRemoteIcloudRepairAutoRefreshReason", { reason: repairRefresh.reason })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
             {repairAnalysis ? (
               <div className={`mt-3 rounded-xl border p-3 ${repairAnalysis.severity === "danger" ? "border-red-400/20 bg-red-500/10 text-red-50" : repairAnalysis.severity === "warning" ? "border-amber-400/20 bg-amber-500/10 text-amber-50" : "border-emerald-400/20 bg-emerald-500/10 text-emerald-50"}`}>
                 <div className="font-bold">{t("onboarding.appleRemoteIcloudRepairResult")}: {t(repairReasonKeys[repairAnalysis.reason])}</div>
