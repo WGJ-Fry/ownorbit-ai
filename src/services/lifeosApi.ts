@@ -154,6 +154,9 @@ type IcloudFileAvailability = {
     syncState: IcloudMetadataSyncState;
     error: string;
   };
+  updatedAt: number;
+  placeholderUpdatedAt: number;
+  syncStuck: boolean;
   state: "missing" | "ready" | "unreadable" | "placeholder";
 };
 
@@ -808,7 +811,7 @@ export type NetworkDiagnostics = {
       reason: string;
     };
     availability: {
-      status: "unsupported" | "missing" | "read-only" | "sync-service-unavailable" | "sync-pending" | "ready";
+      status: "unsupported" | "missing" | "read-only" | "sync-service-unavailable" | "sync-stuck" | "sync-pending" | "ready";
       severity: "ok" | "warning" | "danger";
       drivePathDetected: boolean;
       appFolderExists: boolean;
@@ -817,6 +820,10 @@ export type NetworkDiagnostics = {
       placeholderCount: number;
       metadataPendingCount: number;
       pendingCount: number;
+      placeholderStuckCount: number;
+      metadataStuckCount: number;
+      syncStuckCount: number;
+      syncStuckAfterMs: number;
       placeholderSamples: string[];
       syncService: {
         checked: boolean;
@@ -829,10 +836,10 @@ export type NetworkDiagnostics = {
       indexFile: IcloudFileAvailability;
     };
     syncReadiness: {
-      status: "unsupported" | "missing-drive" | "read-only" | "no-entry" | "needs-refresh" | "syncing" | "ready";
+      status: "unsupported" | "missing-drive" | "read-only" | "no-entry" | "needs-refresh" | "sync-stuck" | "syncing" | "ready";
       severity: "ok" | "warning" | "danger";
       canOpenOnPhone: boolean;
-      action: "use-apple-device" | "enable-icloud-drive" | "fix-permissions" | "export-entry" | "refresh-entry" | "wait-for-sync" | "open-files-app";
+      action: "use-apple-device" | "enable-icloud-drive" | "fix-permissions" | "export-entry" | "refresh-entry" | "fix-icloud-sync" | "wait-for-sync" | "open-files-app";
       pendingCount: number;
       pendingFiles: Array<"html" | "packet" | "index">;
       missingFiles: Array<"html" | "packet" | "index">;

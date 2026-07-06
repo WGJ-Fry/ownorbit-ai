@@ -53,6 +53,7 @@ const icloudAvailabilityKeys: Record<NetworkDiagnostics["icloud"]["availability"
   missing: "onboarding.appleRemoteIcloudAvailabilityMissing",
   "read-only": "onboarding.appleRemoteIcloudAvailabilityReadOnly",
   "sync-service-unavailable": "onboarding.appleRemoteIcloudAvailabilityServiceUnavailable",
+  "sync-stuck": "onboarding.appleRemoteIcloudAvailabilitySyncStuck",
   "sync-pending": "onboarding.appleRemoteIcloudAvailabilitySyncPending",
   ready: "onboarding.appleRemoteIcloudAvailabilityReady",
 };
@@ -63,6 +64,7 @@ const icloudSyncReadinessKeys: Record<NetworkDiagnostics["icloud"]["syncReadines
   "read-only": "onboarding.appleRemoteIcloudSyncReadOnly",
   "no-entry": "onboarding.appleRemoteIcloudSyncNoEntry",
   "needs-refresh": "onboarding.appleRemoteIcloudSyncNeedsRefresh",
+  "sync-stuck": "onboarding.appleRemoteIcloudSyncStuck",
   syncing: "onboarding.appleRemoteIcloudSyncSyncing",
   ready: "onboarding.appleRemoteIcloudSyncReady",
 };
@@ -73,6 +75,7 @@ const icloudSyncActionKeys: Record<NetworkDiagnostics["icloud"]["syncReadiness"]
   "fix-permissions": "onboarding.appleRemoteIcloudSyncActionPermissions",
   "export-entry": "onboarding.appleRemoteIcloudSyncActionExport",
   "refresh-entry": "onboarding.appleRemoteIcloudSyncActionRefresh",
+  "fix-icloud-sync": "onboarding.appleRemoteIcloudSyncActionFixSync",
   "wait-for-sync": "onboarding.appleRemoteIcloudSyncActionWait",
   "open-files-app": "onboarding.appleRemoteIcloudSyncActionOpen",
 };
@@ -164,6 +167,14 @@ function getSimpleIcloudStatus(icloud: NetworkDiagnostics["icloud"] | undefined)
       bodyKey: "onboarding.appleRemoteIcloudSimpleSyncingBody" as TranslationKey,
     };
   }
+  if (availability?.status === "sync-stuck") {
+    return {
+      tone: "border-amber-400/20 bg-amber-500/10 text-amber-50",
+      icon: "warning" as const,
+      titleKey: "onboarding.appleRemoteIcloudSimpleStuckTitle" as TranslationKey,
+      bodyKey: "onboarding.appleRemoteIcloudSimpleStuckBody" as TranslationKey,
+    };
+  }
   if (!health || health.status === "missing") {
     return {
       tone: "border-sky-400/20 bg-sky-500/10 text-sky-50",
@@ -217,6 +228,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const handoffHealthTone = handoffHealth?.status === "fresh" ? "bg-emerald-500/15 text-emerald-100" : handoffHealth?.status === "address-changed" || handoffHealth?.status === "expired" || handoffHealth?.status === "invalid" || handoffHealth?.status === "html-mismatch" ? "bg-red-500/15 text-red-100" : "bg-amber-500/15 text-amber-100";
   const icloudAvailabilityTone = icloudAvailability?.severity === "ok" ? "bg-emerald-500/15 text-emerald-100" : icloudAvailability?.severity === "danger" ? "bg-red-500/15 text-red-100" : "bg-amber-500/15 text-amber-100";
   const syncReadinessTone = syncReadiness?.severity === "ok" ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-50" : syncReadiness?.severity === "danger" ? "border-red-400/20 bg-red-500/10 text-red-50" : "border-amber-400/20 bg-amber-500/10 text-amber-50";
+  const icloudSyncStuckMinutes = Math.max(1, Math.round((icloudAvailability?.syncStuckAfterMs || 0) / 60000));
   const lastExportedAt = formatHandoffTime(handoffHealth?.lastExportedAt);
   const refreshAfter = formatHandoffTime(handoffHealth?.refreshAfter);
   const icloudMonitorStartedAt = formatHandoffTime(icloudMonitor?.startedAt || undefined);
@@ -447,7 +459,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                 <div>
                   <div className="font-bold">{t(icloudSyncReadinessKeys[syncReadiness.status])}</div>
                   <div className="mt-1 text-[11px] leading-relaxed opacity-80">
-                    {t(icloudSyncActionKeys[syncReadiness.action], { count: syncReadiness.pendingCount })}
+                    {t(icloudSyncActionKeys[syncReadiness.action], { count: syncReadiness.pendingCount, minutes: icloudSyncStuckMinutes })}
                   </div>
                 </div>
               </div>
@@ -522,6 +534,11 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                 {icloudAvailability.status === "sync-pending" ? (
                   <div className="mt-2 text-[11px] leading-relaxed text-amber-100">
                     {t("onboarding.appleRemoteIcloudAvailabilityPendingBody", { count: icloudAvailability.pendingCount })}
+                  </div>
+                ) : null}
+                {icloudAvailability.status === "sync-stuck" ? (
+                  <div className="mt-2 text-[11px] leading-relaxed text-amber-100">
+                    {t("onboarding.appleRemoteIcloudAvailabilityStuckBody", { count: icloudAvailability.syncStuckCount, minutes: icloudSyncStuckMinutes })}
                   </div>
                 ) : null}
                 {icloudAvailability.status === "sync-service-unavailable" ? (

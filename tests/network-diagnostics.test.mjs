@@ -72,6 +72,7 @@ test("network diagnostics detects mocked Cloudflare and Tailscale CLIs", async (
   const oldTailscaleBin = process.env.LIFEOS_TAILSCALE_BIN;
   const oldIcloudDriveDir = process.env.LIFEOS_ICLOUD_DRIVE_DIR;
   const oldForceIcloud = process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+  const oldIcloudSyncServiceStatus = process.env.LIFEOS_ICLOUD_SYNC_SERVICE_STATUS;
 
   t.after(async () => {
     process.env.PATH = oldPath;
@@ -89,6 +90,8 @@ test("network diagnostics detects mocked Cloudflare and Tailscale CLIs", async (
     else process.env.LIFEOS_ICLOUD_DRIVE_DIR = oldIcloudDriveDir;
     if (oldForceIcloud === undefined) delete process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
     else process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = oldForceIcloud;
+    if (oldIcloudSyncServiceStatus === undefined) delete process.env.LIFEOS_ICLOUD_SYNC_SERVICE_STATUS;
+    else process.env.LIFEOS_ICLOUD_SYNC_SERVICE_STATUS = oldIcloudSyncServiceStatus;
     await rm(binDir, { recursive: true, force: true });
   });
 
@@ -135,6 +138,7 @@ exit 1
   process.env.LIFEOS_TAILSCALE_BIN = tailscalePath;
   process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = "1";
   process.env.LIFEOS_ICLOUD_DRIVE_DIR = path.join(binDir, "iCloud Drive");
+  process.env.LIFEOS_ICLOUD_SYNC_SERVICE_STATUS = "running";
   fs.mkdirSync(process.env.LIFEOS_ICLOUD_DRIVE_DIR, { recursive: true });
   delete process.env.LIFEOS_ALLOW_PUBLIC;
 
@@ -863,6 +867,72 @@ test("iCloud availability warns when the sync service is not running", async (t)
   assert.equal(diagnostics.icloud.syncReadiness.status, "syncing");
   assert.equal(diagnostics.icloud.syncReadiness.canOpenOnPhone, false);
   assert.equal(diagnostics.icloud.syncReadiness.action, "wait-for-sync");
+});
+
+test("iCloud availability flags entry files that appear stuck syncing", async (t) => {
+  const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-stuck-"));
+  const appFolder = path.join(icloudDir, "LifeOS AI");
+  fs.mkdirSync(appFolder, { recursive: true });
+  const placeholderPath = path.join(appFolder, ".lifeos-mobile-entry-stuck.html.icloud");
+  await writeFile(placeholderPath, "placeholder");
+  const oldTimestamp = new Date(Date.now() - 15 * 60 * 1000);
+  fs.utimesSync(placeholderPath, oldTimestamp, oldTimestamp);
+
+  const oldPort = process.env.LIFEOS_PORT;
+  const oldPublicBaseUrl = process.env.PUBLIC_BASE_URL;
+  const oldAppUrl = process.env.APP_URL;
+  const oldCloudflaredBin = process.env.LIFEOS_CLOUDFLARED_BIN;
+  const oldTailscaleBin = process.env.LIFEOS_TAILSCALE_BIN;
+  const oldIcloudDriveDir = process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+  const oldForceIcloud = process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+  const oldIcloudSyncServiceStatus = process.env.LIFEOS_ICLOUD_SYNC_SERVICE_STATUS;
+  const oldIcloudSyncStuckAfterMs = process.env.LIFEOS_ICLOUD_SYNC_STUCK_AFTER_MS;
+
+  t.after(async () => {
+    if (oldPort === undefined) delete process.env.LIFEOS_PORT;
+    else process.env.LIFEOS_PORT = oldPort;
+    if (oldPublicBaseUrl === undefined) delete process.env.PUBLIC_BASE_URL;
+    else process.env.PUBLIC_BASE_URL = oldPublicBaseUrl;
+    if (oldAppUrl === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = oldAppUrl;
+    if (oldCloudflaredBin === undefined) delete process.env.LIFEOS_CLOUDFLARED_BIN;
+    else process.env.LIFEOS_CLOUDFLARED_BIN = oldCloudflaredBin;
+    if (oldTailscaleBin === undefined) delete process.env.LIFEOS_TAILSCALE_BIN;
+    else process.env.LIFEOS_TAILSCALE_BIN = oldTailscaleBin;
+    if (oldIcloudDriveDir === undefined) delete process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+    else process.env.LIFEOS_ICLOUD_DRIVE_DIR = oldIcloudDriveDir;
+    if (oldForceIcloud === undefined) delete process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+    else process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = oldForceIcloud;
+    if (oldIcloudSyncServiceStatus === undefined) delete process.env.LIFEOS_ICLOUD_SYNC_SERVICE_STATUS;
+    else process.env.LIFEOS_ICLOUD_SYNC_SERVICE_STATUS = oldIcloudSyncServiceStatus;
+    if (oldIcloudSyncStuckAfterMs === undefined) delete process.env.LIFEOS_ICLOUD_SYNC_STUCK_AFTER_MS;
+    else process.env.LIFEOS_ICLOUD_SYNC_STUCK_AFTER_MS = oldIcloudSyncStuckAfterMs;
+    await rm(icloudDir, { recursive: true, force: true });
+  });
+
+  process.env.LIFEOS_PORT = "4567";
+  process.env.PUBLIC_BASE_URL = "https://lifeos.example.com";
+  delete process.env.APP_URL;
+  process.env.LIFEOS_CLOUDFLARED_BIN = "/definitely/missing/cloudflared";
+  process.env.LIFEOS_TAILSCALE_BIN = "/definitely/missing/tailscale";
+  process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = "1";
+  process.env.LIFEOS_ICLOUD_DRIVE_DIR = icloudDir;
+  process.env.LIFEOS_ICLOUD_SYNC_SERVICE_STATUS = "running";
+  process.env.LIFEOS_ICLOUD_SYNC_STUCK_AFTER_MS = "1000";
+
+  const { getNetworkDiagnostics } = await import(`../server/networkDiagnostics.ts?icloud-sync-stuck=${Date.now()}`);
+  const diagnostics = getNetworkDiagnostics();
+
+  assert.equal(diagnostics.icloud.availability.status, "sync-stuck");
+  assert.equal(diagnostics.icloud.availability.severity, "warning");
+  assert.equal(diagnostics.icloud.availability.pendingCount, 1);
+  assert.equal(diagnostics.icloud.availability.syncStuckCount, 1);
+  assert.equal(diagnostics.icloud.availability.placeholderStuckCount, 1);
+  assert.equal(diagnostics.icloud.availability.syncStuckAfterMs, 1000);
+  assert.deepEqual(diagnostics.icloud.availability.placeholderSamples, [".lifeos-mobile-entry-stuck.html.icloud"]);
+  assert.equal(diagnostics.icloud.syncReadiness.status, "sync-stuck");
+  assert.equal(diagnostics.icloud.syncReadiness.canOpenOnPhone, false);
+  assert.equal(diagnostics.icloud.syncReadiness.action, "fix-icloud-sync");
 });
 
 test("iCloud handoff diagnostics mark modified entry invalid when checksum mismatches", async (t) => {

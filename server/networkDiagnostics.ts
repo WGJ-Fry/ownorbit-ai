@@ -60,6 +60,7 @@ const ICLOUD_HANDOFF_REFRESH_AFTER_MS = 24 * 60 * 60 * 1000;
 const ICLOUD_HANDOFF_EXPIRES_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
 const ICLOUD_HANDOFF_EXPIRED_CLEANUP_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
 const ICLOUD_HANDOFF_ENTRY_RETENTION_LIMIT = 12;
+const ICLOUD_SYNC_STUCK_AFTER_MS = 10 * 60 * 1000;
 const ICLOUD_MDLS_ATTRIBUTES = [
   "kMDItemUbiquitousItemIsDownloaded",
   "kMDItemUbiquitousItemIsDownloading",
@@ -519,6 +520,12 @@ function getIcloudExpiredCleanupGraceMs() {
   return ICLOUD_HANDOFF_EXPIRED_CLEANUP_GRACE_MS;
 }
 
+function getIcloudSyncStuckAfterMs() {
+  const configured = Number.parseInt(String(process.env.LIFEOS_ICLOUD_SYNC_STUCK_AFTER_MS || ""), 10);
+  if (Number.isFinite(configured) && configured >= 0) return configured;
+  return ICLOUD_SYNC_STUCK_AFTER_MS;
+}
+
 function listIcloudOrphanedEntryFiles(appFolderPath: string, entries = readAllIcloudEntrySummaries(appFolderPath)) {
   if (!appFolderPath || !existsSync(appFolderPath)) return [];
   const referencedFiles = new Set(entries.flatMap((entry) => [entry.htmlFileName, entry.packetFileName]).filter(Boolean));
@@ -763,12 +770,33 @@ function canAccess(filePath: string, mode: number) {
   }
 }
 
-function getIcloudPlaceholderSamples(appFolderPath: string) {
+function fileUpdatedAt(filePath: string) {
+  try {
+    return statSync(filePath).mtimeMs;
+  } catch {
+    return 0;
+  }
+}
+
+function isSyncStuck(updatedAt: number, now: number, stuckAfterMs: number) {
+  return Boolean(stuckAfterMs > 0 && updatedAt > 0 && now - updatedAt >= stuckAfterMs);
+}
+
+function getIcloudPlaceholderSamples(appFolderPath: string, now = Date.now(), stuckAfterMs = getIcloudSyncStuckAfterMs()) {
   if (!existsSync(appFolderPath)) return [];
   try {
     return readdirSync(appFolderPath)
       .filter((name) => name.endsWith(".icloud"))
-      .slice(0, 5);
+      .slice(0, 5)
+      .map((name) => {
+        const updatedAt = fileUpdatedAt(path.join(appFolderPath, name));
+        return {
+          name,
+          updatedAt,
+          ageMs: updatedAt ? Math.max(0, now - updatedAt) : 0,
+          syncStuck: isSyncStuck(updatedAt, now, stuckAfterMs),
+        };
+      });
   } catch {
     return [];
   }
@@ -868,29 +896,38 @@ function getIcloudMetadata(filePath: string) {
   };
 }
 
-function getIcloudFileState(filePath: string) {
+function getIcloudFileState(filePath: string, now = Date.now(), stuckAfterMs = getIcloudSyncStuckAfterMs()) {
   const placeholderCandidates = [
     `${filePath}.icloud`,
     path.join(path.dirname(filePath), `.${path.basename(filePath)}.icloud`),
   ];
   const placeholderPath = placeholderCandidates.find((candidate) => existsSync(candidate)) || "";
+  const placeholderUpdatedAt = placeholderPath ? fileUpdatedAt(placeholderPath) : 0;
   const exists = existsSync(filePath);
   const readable = exists ? canAccess(filePath, constants.R_OK) : false;
   let size = 0;
+  let updatedAt = 0;
   if (exists) {
     try {
-      size = statSync(filePath).size;
+      const stat = statSync(filePath);
+      size = stat.size;
+      updatedAt = stat.mtimeMs;
     } catch {
       size = 0;
     }
   }
   const metadata = getIcloudMetadata(filePath);
+  const metadataPending = ["syncing", "not-downloaded", "not-uploaded"].includes(metadata.syncState);
+  const syncStuck = (Boolean(placeholderPath) || metadataPending) && isSyncStuck(placeholderUpdatedAt || updatedAt, now, stuckAfterMs);
   return {
     exists,
     readable,
     placeholder: Boolean(placeholderPath),
     placeholderPath: placeholderPath ? path.basename(placeholderPath) : "",
     size,
+    updatedAt,
+    placeholderUpdatedAt,
+    syncStuck,
     metadata,
     state: placeholderPath ? "placeholder" as const : exists && readable ? "ready" as const : exists ? "unreadable" as const : "missing" as const,
   };
@@ -904,19 +941,25 @@ function getIcloudAvailabilityStatus(input: {
   packetFilePath: string;
   indexFilePath: string;
 }) {
+  const now = Date.now();
+  const syncStuckAfterMs = getIcloudSyncStuckAfterMs();
   const drivePathDetected = input.platformSupported && existsSync(input.drivePath);
   const appFolderExists = drivePathDetected && existsSync(input.appFolderPath);
   const driveWritable = drivePathDetected ? canAccess(input.drivePath, constants.W_OK) : false;
   const appFolderWritable = appFolderExists ? canAccess(input.appFolderPath, constants.W_OK) : driveWritable;
-  const handoffFile = getIcloudFileState(input.handoffFilePath);
-  const packetFile = getIcloudFileState(input.packetFilePath);
-  const indexFile = getIcloudFileState(input.indexFilePath);
+  const handoffFile = getIcloudFileState(input.handoffFilePath, now, syncStuckAfterMs);
+  const packetFile = getIcloudFileState(input.packetFilePath, now, syncStuckAfterMs);
+  const indexFile = getIcloudFileState(input.indexFilePath, now, syncStuckAfterMs);
   const syncService = getIcloudSyncServiceStatus(input.platformSupported && drivePathDetected);
-  const placeholderSamples = appFolderExists ? getIcloudPlaceholderSamples(input.appFolderPath) : [];
+  const placeholderSampleStates = appFolderExists ? getIcloudPlaceholderSamples(input.appFolderPath, now, syncStuckAfterMs) : [];
+  const placeholderSamples = placeholderSampleStates.map((sample) => sample.name);
   const placeholderCount = placeholderSamples.length + [handoffFile, packetFile, indexFile].filter((file) => file.placeholder).length;
   const metadataPendingCount = [handoffFile, packetFile, indexFile].filter((file) => ["syncing", "not-downloaded", "not-uploaded"].includes(file.metadata.syncState)).length;
   const pendingCount = placeholderCount + metadataPendingCount;
-  let status: "unsupported" | "missing" | "read-only" | "sync-service-unavailable" | "sync-pending" | "ready" = "ready";
+  const placeholderStuckCount = placeholderSampleStates.filter((file) => file.syncStuck).length + [handoffFile, packetFile, indexFile].filter((file) => file.placeholder && file.syncStuck).length;
+  const metadataStuckCount = [handoffFile, packetFile, indexFile].filter((file) => ["syncing", "not-downloaded", "not-uploaded"].includes(file.metadata.syncState) && file.syncStuck).length;
+  const syncStuckCount = placeholderStuckCount + metadataStuckCount;
+  let status: "unsupported" | "missing" | "read-only" | "sync-service-unavailable" | "sync-stuck" | "sync-pending" | "ready" = "ready";
   let severity: "ok" | "warning" | "danger" = "ok";
   if (!input.platformSupported) {
     status = "unsupported";
@@ -929,6 +972,9 @@ function getIcloudAvailabilityStatus(input: {
     severity = "danger";
   } else if (syncService.checked && !syncService.running) {
     status = "sync-service-unavailable";
+    severity = "warning";
+  } else if (syncStuckCount > 0) {
+    status = "sync-stuck";
     severity = "warning";
   } else if (pendingCount > 0) {
     status = "sync-pending";
@@ -944,6 +990,10 @@ function getIcloudAvailabilityStatus(input: {
     placeholderCount,
     metadataPendingCount,
     pendingCount,
+    placeholderStuckCount,
+    metadataStuckCount,
+    syncStuckCount,
+    syncStuckAfterMs,
     placeholderSamples,
     syncService,
     handoffFile,
@@ -974,6 +1024,7 @@ function buildIcloudSyncReadiness(input: {
     | "read-only"
     | "no-entry"
     | "needs-refresh"
+    | "sync-stuck"
     | "syncing"
     | "ready" = "ready";
   let severity: "ok" | "warning" | "danger" = "ok";
@@ -983,6 +1034,7 @@ function buildIcloudSyncReadiness(input: {
     | "fix-permissions"
     | "export-entry"
     | "refresh-entry"
+    | "fix-icloud-sync"
     | "wait-for-sync"
     | "open-files-app" = "open-files-app";
 
@@ -1002,6 +1054,10 @@ function buildIcloudSyncReadiness(input: {
     status = "syncing";
     severity = "warning";
     action = "wait-for-sync";
+  } else if (availability.status === "sync-stuck") {
+    status = "sync-stuck";
+    severity = "warning";
+    action = "fix-icloud-sync";
   } else if (availability.status === "sync-pending" || pendingFiles.length > 0) {
     status = "syncing";
     severity = "warning";
