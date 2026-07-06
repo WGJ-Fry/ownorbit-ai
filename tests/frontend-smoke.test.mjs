@@ -522,6 +522,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.simpleAiTitle/);
   assert.match(onboardingSource, /onboarding\.simpleProviderLabel/);
   assert.match(onboardingSource, /exportIcloudHandoff/);
+  assert.match(onboardingSource, /icloud-handoff-auto/);
+  assert.match(onboardingSource, /appleRemoteIcloudAutoSyncing/);
   assert.match(onboardingSource, /onboarding\.appleRemoteIcloudExported/);
   assert.match(onboardingSource, /onboarding\.simpleStartChat/);
   assert.match(onboardingSource, /onboarding\.simpleAdvancedSummary/);
@@ -563,6 +565,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteStartTailscale/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudHint/);
   assert.match(onboardingAppleRemoteSource, /handoffHealthStatusKeys/);
+  assert.match(onboardingAppleRemoteSource, /isIcloudBusy/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSyncing/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudHealthTitle/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteRefreshIcloud/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteOpenQr/);
@@ -738,6 +742,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffEntry/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffLastCheck/);
   assert.match(mobileRemoteEntryCardSource, /lastConnectivityTestedAt/);
+  assert.match(mobileRemoteEntryCardSource, /getMobileIcloudHandoffActionKey/);
+  assert.match(mobileRemoteEntryCardSource, /icloudActionKey/);
   assert.match(mobileRemoteEntryCardSource, /icloudHandoffStatus/);
   assert.match(mobileRemoteEntryCardSource, /queueSummary\.failed/);
   assert.match(mobileRemoteEntryCardSource, /queueSummary\.pending/);

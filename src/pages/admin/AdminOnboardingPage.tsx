@@ -32,6 +32,7 @@ export default function AdminOnboardingPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [desktopBridgeAvailable, setDesktopBridgeAvailable] = useState(false);
+  const [autoIcloudExportAttempted, setAutoIcloudExportAttempted] = useState(false);
 
   const activeProvider = useMemo(() => providers.find((provider) => provider.id === selectedProvider), [providers, selectedProvider]);
   const isLocalProvider = selectedProvider === "local";
@@ -107,6 +108,32 @@ export default function AdminOnboardingPage() {
   useEffect(() => {
     setSelectedModel(activeProvider?.selectedModel || activeProvider?.defaultModel || activeProvider?.models?.[0] || "");
   }, [activeProvider?.id, activeProvider?.selectedModel, activeProvider?.defaultModel, activeProvider?.models]);
+
+  useEffect(() => {
+    const icloud = networkDiagnostics?.icloud;
+    if (primaryStep !== "device" || busy || autoIcloudExportAttempted || !icloud?.canExport || !icloud.handoffHealth?.needsRefresh) return;
+    let cancelled = false;
+    setAutoIcloudExportAttempted(true);
+    setBusy("icloud-handoff-auto");
+    setStatus(t("onboarding.appleRemoteIcloudAutoSyncing"));
+    exportIcloudHandoff()
+      .then((result) => {
+        if (cancelled) return;
+        setNetworkDiagnostics(result.diagnostics);
+        setStatus(t("onboarding.appleRemoteIcloudAutoExported", { path: result.handoff.handoffFilePath || "-" }));
+      })
+      .catch(async (error: any) => {
+        if (cancelled) return;
+        setStatus(error.message || t("onboarding.appleRemoteIcloudExportFailed"));
+        await getNetworkDiagnostics().then(setNetworkDiagnostics).catch(() => null);
+      })
+      .finally(() => {
+        if (!cancelled) setBusy(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [primaryStep, busy, autoIcloudExportAttempted, networkDiagnostics?.icloud?.canExport, networkDiagnostics?.icloud?.handoffHealth?.status, t]);
 
   const handleSaveAiKey = async () => {
     if (!apiKey.trim()) {

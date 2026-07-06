@@ -394,7 +394,7 @@ test("mobile iCloud handoff stores non-sensitive entry metadata and detects stal
   installLocalStorage();
   t.after(cleanupLocalStorage);
   const now = 1_800_000_000_000;
-  const { consumeMobileIcloudHandoffFromUrl, getMobileIcloudHandoffStatus, getStoredMobileIcloudHandoff } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-handoff-${Date.now()}`);
+  const { consumeMobileIcloudHandoffFromUrl, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffStatus, getStoredMobileIcloudHandoff } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-handoff-${Date.now()}`);
   const href = [
     "https://lifeos.example.com/mobile/chat?lifeosEntry=icloud",
     `entryGeneratedAt=${now}`,
@@ -414,16 +414,20 @@ test("mobile iCloud handoff stores non-sensitive entry metadata and detects stal
   const fresh = getMobileIcloudHandoffStatus(consumed, "https://lifeos.example.com/mobile/device", now + 1_000);
   assert.equal(fresh.status, "fresh");
   assert.equal(fresh.needsRefresh, false);
+  assert.equal(getMobileIcloudHandoffActionKey(fresh), "mobileDevice.icloudHandoffActionReady");
 
   const stale = getMobileIcloudHandoffStatus(consumed, "https://lifeos.example.com/mobile/device", now + 70_000);
   assert.equal(stale.status, "stale");
   assert.equal(stale.needsRefresh, true);
+  assert.equal(getMobileIcloudHandoffActionKey(stale), "mobileDevice.icloudHandoffActionRefresh");
 
   const expired = getMobileIcloudHandoffStatus(consumed, "https://lifeos.example.com/mobile/device", now + 130_000);
   assert.equal(expired.status, "expired");
+  assert.equal(getMobileIcloudHandoffActionKey(expired), "mobileDevice.icloudHandoffActionReopen");
 
   const mismatch = getMobileIcloudHandoffStatus(consumed, "https://new-lifeos.example.com/mobile/device", now + 1_000);
   assert.equal(mismatch.status, "address-mismatch");
+  assert.equal(getMobileIcloudHandoffActionKey(mismatch), "mobileDevice.icloudHandoffActionMismatch");
 });
 
 test("mobile iCloud handoff launch runs connectivity check and stores the result", async (t) => {
@@ -477,7 +481,7 @@ test("mobile iCloud handoff launch stores a failed result when connectivity prob
   installLocalStorage();
   t.after(cleanupLocalStorage);
   const now = 1_800_000_100_000;
-  const { getStoredMobileIcloudHandoff, handleMobileIcloudHandoffLaunch } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-auto-check-fail-${Date.now()}`);
+  const { getMobileIcloudHandoffActionKey, getMobileIcloudHandoffStatus, getStoredMobileIcloudHandoff, handleMobileIcloudHandoffLaunch } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-auto-check-fail-${Date.now()}`);
   let reported = null;
   const href = [
     "https://lifeos.example.com/mobile/chat?lifeosEntry=icloud",
@@ -512,6 +516,7 @@ test("mobile iCloud handoff launch stores a failed result when connectivity prob
   assert.equal(stored.lastConnectivityTestedAt, now);
   assert.equal(stored.lastConnectivityOk, false);
   assert.equal(stored.lastConnectivityError, "probe unavailable");
+  assert.equal(getMobileIcloudHandoffActionKey(getMobileIcloudHandoffStatus(launch.entry, href, now)), "mobileDevice.icloudHandoffActionRetest");
 });
 
 test("remote entry guidance is visible before manual connectivity tests", async () => {

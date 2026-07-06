@@ -78,7 +78,8 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const readiness = diagnostics?.remoteReadiness;
   const tailscaleInstalled = Boolean(diagnostics?.tailscale.installed);
   const tailscaleInstallUrl = diagnostics?.tailscale.installUrl || "https://tailscale.com/download";
-  const isBusy = Boolean(busy?.startsWith("remote-") || busy === "icloud-handoff");
+  const isIcloudBusy = Boolean(busy?.startsWith("icloud-handoff"));
+  const isBusy = Boolean(busy?.startsWith("remote-") || isIcloudBusy);
   const readinessTone = readiness?.severity === "ok" ? "text-emerald-200" : readiness?.severity === "danger" ? "text-red-200" : "text-amber-200";
   const candidateReady = Boolean(candidate);
   const canExportIcloud = Boolean(icloud?.canExport);
@@ -167,8 +168,8 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
           disabled={!canExportIcloud || isBusy}
           className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sky-400 px-4 py-3 text-sm font-bold text-[#061016] disabled:opacity-50"
         >
-          {busy === "icloud-handoff" ? <Loader2 className="h-4 w-4 animate-spin" /> : handoffHealth?.needsRefresh ? <RefreshCw className="h-4 w-4" /> : <Cloud className="h-4 w-4" />}
-          {canExportIcloud ? (handoffHealth?.needsRefresh ? t("onboarding.appleRemoteRefreshIcloud") : t("onboarding.appleRemoteExportIcloud")) : t("onboarding.appleRemoteIcloudDisabled")}
+          {isIcloudBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : handoffHealth?.needsRefresh ? <RefreshCw className="h-4 w-4" /> : <Cloud className="h-4 w-4" />}
+          {isIcloudBusy ? t("onboarding.appleRemoteIcloudSyncing") : canExportIcloud ? (handoffHealth?.needsRefresh ? t("onboarding.appleRemoteRefreshIcloud") : t("onboarding.appleRemoteExportIcloud")) : t("onboarding.appleRemoteIcloudDisabled")}
         </button>
 
         <div className="grid gap-3 sm:grid-cols-2">

@@ -35,6 +35,13 @@ export type MobileIcloudHandoffStatus = {
   bodyKey: string;
 };
 
+export type MobileIcloudHandoffActionKey =
+  | "mobileDevice.icloudHandoffActionReady"
+  | "mobileDevice.icloudHandoffActionRetest"
+  | "mobileDevice.icloudHandoffActionRefresh"
+  | "mobileDevice.icloudHandoffActionReopen"
+  | "mobileDevice.icloudHandoffActionMismatch";
+
 type MobileConnectivityLike = {
   ok: boolean;
   currentBase: string;
@@ -309,4 +316,12 @@ export function getMobileIcloudHandoffStatus(entry = getStoredMobileIcloudHandof
     currentBase,
     ...keyByStatus[status],
   };
+}
+
+export function getMobileIcloudHandoffActionKey(status: MobileIcloudHandoffStatus): MobileIcloudHandoffActionKey {
+  if (status.status === "address-mismatch") return "mobileDevice.icloudHandoffActionMismatch";
+  if (status.status === "expired") return "mobileDevice.icloudHandoffActionReopen";
+  if (status.status === "stale") return "mobileDevice.icloudHandoffActionRefresh";
+  if (status.entry.lastConnectivityTestedAt && status.entry.lastConnectivityOk === false) return "mobileDevice.icloudHandoffActionRetest";
+  return "mobileDevice.icloudHandoffActionReady";
 }
