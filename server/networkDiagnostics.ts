@@ -393,6 +393,10 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
       .warn { margin-top: 14px; color: #fef3c7; font-size: 12px; line-height: 1.65; }
       .steps { margin: 14px 0 0; padding-left: 18px; color: #cbd5e1; font-size: 12px; line-height: 1.7; }
       .en { margin-top: 10px; color: #94a3b8; font-size: 12px; line-height: 1.6; }
+      .age { margin-top: 14px; border-radius: 16px; padding: 12px; font-size: 12px; line-height: 1.65; border: 1px solid rgba(255,255,255,.1); }
+      .age-ok { background: rgba(16,185,129,.14); color: #bbf7d0; }
+      .age-warn { background: rgba(245,158,11,.15); color: #fde68a; }
+      .age-danger { background: rgba(239,68,68,.15); color: #fecaca; }
       textarea { box-sizing: border-box; width: 100%; min-height: 150px; margin-top: 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 14px; background: rgba(0,0,0,.18); color: #cbd5e1; padding: 12px; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1.55; }
       .copied { display: none; margin-top: 8px; color: #bbf7d0; font-size: 12px; font-weight: 800; }
     </style>
@@ -403,6 +407,7 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
       <p>这是通过 iCloud Drive 同步到这台 Apple 设备的 LifeOS 手机入口。先点“绑定这台设备”；已经绑定过时，可以直接打开手机聊天。</p>
       <p class="en">This LifeOS mobile entry was synced through iCloud Drive. Pair this device first, or open mobile chat if it is already paired.</p>
       <div class="pill">${remoteReady ? "适合长期异地使用 / Ready for long-term remote use" : "可先打开，换网后请刷新 / Refresh after network changes"}</div>
+      <div class="age age-ok" id="entry-age-status">正在检查入口是否过期 / Checking entry freshness...</div>
       <a href="${htmlEscape(mobilePairUrl)}">绑定这台设备 / Pair This Device</a>
       <a class="secondary" href="${htmlEscape(mobileChatUrl)}">打开手机聊天 / Open Mobile Chat</a>
       <div class="meta">
@@ -428,6 +433,31 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
       </div>
       <script type="application/json" id="lifeos-entry">${scriptJson(input.packet)}</script>
       <script>
+        (() => {
+          const status = document.getElementById("entry-age-status");
+          const packetNode = document.getElementById("lifeos-entry");
+          if (!status || !packetNode) return;
+          try {
+            const packet = JSON.parse(packetNode.textContent || "{}");
+            const now = Date.now();
+            const refreshAfter = Number(packet.refreshAfter || 0);
+            const expiresAt = Number(packet.expiresAt || 0);
+            status.classList.remove("age-ok", "age-warn", "age-danger");
+            if (expiresAt && now >= expiresAt) {
+              status.classList.add("age-danger");
+              status.textContent = "入口已过期：请回电脑端重新导出 iCloud 手机入口，再重新打开。 / Entry expired: export a fresh iCloud mobile entry from the desktop, then reopen it.";
+            } else if (refreshAfter && now >= refreshAfter) {
+              status.classList.add("age-warn");
+              status.textContent = "建议刷新：换 Wi-Fi、重启电脑或重启隧道后，请回电脑端重新导出。 / Refresh suggested after Wi-Fi, desktop, or tunnel changes.";
+            } else {
+              status.classList.add("age-ok");
+              status.textContent = "入口仍然新鲜：可以继续绑定或打开聊天。 / Entry is fresh. You can pair or open chat.";
+            }
+          } catch {
+            status.classList.add("age-warn");
+            status.textContent = "无法读取入口状态：如果打不开，请回电脑端重新导出。 / Could not read entry status; export again if it does not open.";
+          }
+        })();
         document.getElementById("copy-recovery")?.addEventListener("click", async () => {
           const textarea = document.getElementById("lifeos-recovery");
           const status = document.getElementById("copy-status");

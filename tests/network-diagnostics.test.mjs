@@ -249,6 +249,11 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.match(html, /lifeosEntry=icloud/);
   assert.match(html, /entryExpiresAt=/);
   assert.match(html, /Refresh after:/);
+  assert.match(html, /entry-age-status/);
+  assert.match(html, /入口已过期/);
+  assert.match(html, /建议刷新/);
+  assert.match(html, /入口仍然新鲜/);
+  assert.match(html, /Checking entry freshness/);
   assert.match(html, /如果绑定失败/);
   assert.match(html, /Copy Recovery Info/);
   assert.match(html, /LifeOS iCloud Mobile Entry Recovery/);
