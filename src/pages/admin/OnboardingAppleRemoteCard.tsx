@@ -4,6 +4,7 @@ import { analyzeIcloudHandoffRepairPacket } from "../../services/lifeosApi";
 import type { IcloudAutoRefreshResult, IcloudHandoffRepairAnalysis, NetworkDiagnostics } from "../../services/lifeosApi";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { TranslationKey } from "../../i18n/translations";
+import { getPrimaryIcloudAction } from "./appleRemoteIcloudPrimaryAction";
 
 type ConnectionCandidate = NetworkDiagnostics["connectionCandidates"][number];
 type IcloudAvailability = NetworkDiagnostics["icloud"]["availability"];
@@ -439,6 +440,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
     .map((item) => t((repairRecommendationKeys[item.id as keyof typeof repairRecommendationKeys] || "onboarding.appleRemoteIcloudRepairRecReady") as TranslationKey))
     .join(" / ") || "";
   const simpleIcloudStatus = getSimpleIcloudStatus(icloud);
+  const primaryIcloudAction = getPrimaryIcloudAction({ icloud, latestEntryRepair, pairingSession, syncReadiness, handoffHealth, canExportIcloud });
   const icloudTrackedFiles = icloudAvailability
     ? [
         { id: "html" as const, file: icloudAvailability.handoffFile },
@@ -707,6 +709,35 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
               <div>
                 <div className="font-bold">{t(simpleIcloudStatus.titleKey)}</div>
                 <div className="mt-1 text-[11px] leading-relaxed opacity-80">{t(simpleIcloudStatus.bodyKey)}</div>
+              </div>
+            </div>
+          </div>
+          <div className={`mt-3 rounded-xl border p-3 ${primaryIcloudAction.tone}`}>
+            <div className="flex gap-2">
+              {primaryIcloudAction.icon === "ready" ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : primaryIcloudAction.icon === "qr" ? <QrCode className="mt-0.5 h-4 w-4 shrink-0" /> : primaryIcloudAction.icon === "sync" ? <Cloud className="mt-0.5 h-4 w-4 shrink-0" /> : primaryIcloudAction.icon === "phone" ? <Smartphone className="mt-0.5 h-4 w-4 shrink-0" /> : primaryIcloudAction.icon === "warning" ? <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> : <RefreshCw className="mt-0.5 h-4 w-4 shrink-0" />}
+              <div className="min-w-0 flex-1">
+                <div className="font-bold">{t(primaryIcloudAction.titleKey)}</div>
+                <div className="mt-1 text-[11px] leading-relaxed opacity-80">{t(primaryIcloudAction.bodyKey)}</div>
+                {primaryIcloudAction.cta === "export" ? (
+                  <button
+                    type="button"
+                    onClick={onExportIcloud}
+                    disabled={!canExportIcloud || isBusy}
+                    className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-xs font-bold disabled:opacity-50"
+                  >
+                    {isIcloudBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                    {t("onboarding.appleRemoteRefreshIcloud")}
+                  </button>
+                ) : null}
+                {primaryIcloudAction.cta === "qr" ? (
+                  <a
+                    href="/admin/devices/pair"
+                    className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-xs font-bold"
+                  >
+                    <QrCode className="h-3.5 w-3.5" />
+                    {t("onboarding.appleRemoteOpenQr")}
+                  </a>
+                ) : null}
               </div>
             </div>
           </div>

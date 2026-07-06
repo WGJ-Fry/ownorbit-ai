@@ -1340,6 +1340,7 @@ function checkAssets() {
   const icloudPairingSessionSource = exists("server/icloudPairingSession.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudPairingSession.ts"), "utf8") : "";
   const icloudHandoffMonitorSource = exists("server/icloudHandoffMonitor.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudHandoffMonitor.ts"), "utf8") : "";
   const icloudRepairImportsSource = exists("server/icloudRepairImports.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudRepairImports.ts"), "utf8") : "";
+  const appleRemoteIcloudPrimaryActionSource = exists("src/pages/admin/appleRemoteIcloudPrimaryAction.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/appleRemoteIcloudPrimaryAction.ts"), "utf8") : "";
   const mobileIcloudHandoffSource = exists("src/services/mobileIcloudHandoff.ts") ? fs.readFileSync(path.join(rootDir, "src/services/mobileIcloudHandoff.ts"), "utf8") : "";
   if (
     deviceRoutesSource.includes("pairingInstallUrl") &&
@@ -1378,7 +1379,16 @@ function checkAssets() {
     lifeosApiSource.includes("startupRunAt") &&
     onboardingAppleRemoteSource.includes("icloudPairingSessionKeys") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudBoundaryTitle") &&
+    onboardingAppleRemoteSource.includes("getPrimaryIcloudAction") &&
+    onboardingAppleRemoteSource.includes("primaryIcloudAction") &&
+    appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudNextStepOldEntryTitle") &&
+    appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudNextStepExportTitle") &&
+    appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudNextStepPhoneTitle") &&
+    appleRemoteIcloudPrimaryActionSource.includes("latestEntryRepair.needsQr") &&
+    packageJson.scripts.test.includes("tests/apple-remote-icloud-primary-action.test.mjs") &&
     translationsSource.includes("appleRemoteIcloudBoundaryBody") &&
+    translationsSource.includes("Next step: create the phone entry") &&
+    translationsSource.includes("open the phone Files app") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorPairingSession") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorIndexConsistency") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorStartupRun") &&

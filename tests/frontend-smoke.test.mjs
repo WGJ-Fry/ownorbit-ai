@@ -572,6 +572,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingMobileSource, /\/admin\/settings#mobile-connect/);
   assert.match(translationsSource, /onboarding\.remoteReadinessTitle/);
   const onboardingAppleRemoteSource = await readFile(path.join(rootDir, "src", "pages", "admin", "OnboardingAppleRemoteCard.tsx"), "utf8");
+  const appleRemoteIcloudPrimaryActionSource = await readFile(path.join(rootDir, "src", "pages", "admin", "appleRemoteIcloudPrimaryAction.ts"), "utf8");
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteTitle/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteStartTailscale/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudHint/);
@@ -599,6 +600,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /icloudIndexConsistencyKeys/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudIndexTitle/);
   assert.match(onboardingAppleRemoteSource, /getSimpleIcloudStatus/);
+  assert.match(onboardingAppleRemoteSource, /getPrimaryIcloudAction/);
+  assert.match(onboardingAppleRemoteSource, /primaryIcloudAction/);
+  assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudNextStepOldEntryTitle/);
+  assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudNextStepExportTitle/);
+  assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudNextStepPhoneTitle/);
+  assert.match(appleRemoteIcloudPrimaryActionSource, /latestEntryRepair\.needsQr/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleReadyTitle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleAccountTitle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleAccountBody/);
@@ -638,6 +645,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /ClipboardPaste/);
   assert.match(onboardingAppleRemoteSource, /repairReasonKeys/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudRepairTitle/);
+  assert.match(translationsSource, /下一步：生成手机入口/);
+  assert.match(translationsSource, /Next step: create the phone entry/);
+  assert.match(translationsSource, /打开手机文件 App/);
+  assert.match(translationsSource, /open the phone Files app/);
   assert.match(onboardingAppleRemoteSource, /renderRepairRecommendationAction/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudRepairActions/);
   assert.match(onboardingAppleRemoteSource, /onStartTailscale/);
