@@ -1,6 +1,6 @@
 import { getDesktopRuntimeConfig } from "./desktopRuntimeConfig.ts";
 import { maybeStartConfiguredCloudflareTunnel, setCloudflareTunnelReconnectHandler } from "./cloudflareTunnel.ts";
-import { maybeStartConfiguredTailscaleServe, testConnectionUrl } from "./networkDiagnostics.ts";
+import { maybeRefreshIcloudHandoff, maybeStartConfiguredTailscaleServe, testConnectionUrl } from "./networkDiagnostics.ts";
 import { getRemoteValidationReport, saveRemoteValidationReport, type RemoteValidationReport } from "./remoteValidationReport.ts";
 import { getClientState, setClientState } from "./clientState.ts";
 import { getConfiguredPublicBaseUrl } from "./publicBaseUrl.ts";
@@ -96,8 +96,9 @@ function configuredRemoteBaseUrl() {
 }
 
 export async function runRemoteHealthCheck(reason = "manual") {
+  const icloudRefresh = safeRefreshIcloudHandoff(`remote-health-${reason}`);
   const baseUrl = configuredRemoteBaseUrl();
-  if (!baseUrl) return { skipped: true, reason: "no_remote_entry", report: getRemoteValidationReport() };
+  if (!baseUrl) return { skipped: true, reason: "no_remote_entry", report: getRemoteValidationReport(), icloudRefresh };
   if (running) return { skipped: true, reason: "already_running", report: getRemoteValidationReport() };
   running = true;
   try {
@@ -126,11 +127,26 @@ export async function runRemoteHealthCheck(reason = "manual") {
       healthOkAfter: result.ok,
     });
     saveRemoteHealthSample({ reason, report, recovery: recoveryReport });
-    return { skipped: false, reason, restored: recovery.restored, recovery: recoveryReport, report };
+    const postCheckIcloudRefresh = safeRefreshIcloudHandoff(`remote-health-${reason}-after-check`);
+    return { skipped: false, reason, restored: recovery.restored, recovery: recoveryReport, report, icloudRefresh: postCheckIcloudRefresh.refreshed ? postCheckIcloudRefresh : icloudRefresh };
   } finally {
     lastRunAt = Date.now();
     nextRunAt = monitorTimer ? lastRunAt + intervalMs() : null;
     running = false;
+  }
+}
+
+function safeRefreshIcloudHandoff(reason: string) {
+  try {
+    return maybeRefreshIcloudHandoff(reason);
+  } catch (error: any) {
+    return {
+      refreshed: false,
+      reason: "error",
+      requestedReason: reason,
+      status: "unknown",
+      error: String(error?.message || error || "iCloud handoff refresh failed").slice(0, 240),
+    };
   }
 }
 

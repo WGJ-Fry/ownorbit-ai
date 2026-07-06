@@ -637,7 +637,7 @@ export type NetworkDiagnostics = {
     recommendedMode: string;
     recommendedStability: string;
     handoffHealth: {
-      status: "missing" | "fresh" | "stale" | "address-changed" | "expired" | "invalid" | "legacy";
+      status: "missing" | "fresh" | "stale" | "address-changed" | "expired" | "invalid" | "legacy" | "html-mismatch";
       needsRefresh: boolean;
       lastExportedAt: number;
       lastExportedBaseUrl: string;
@@ -648,6 +648,14 @@ export type NetworkDiagnostics = {
       checksumOk: boolean | null;
       entryChecksumSha256: string;
       expectedChecksumSha256: string;
+      htmlConsistency: {
+        status: "missing" | "legacy" | "mismatch" | "matching";
+        ok: boolean;
+        exists: boolean;
+        checksumSha256: string;
+        generatedAt: number;
+        reason: string;
+      };
       reason: string;
     };
     realtimeTransport: false;

@@ -287,8 +287,39 @@ function readIcloudHandoffPacket(packetFilePath: string) {
   }
 }
 
+function readIcloudHandoffHtmlMeta(handoffFilePath: string) {
+  if (!handoffFilePath || !existsSync(handoffFilePath)) {
+    return { exists: false, checksumSha256: "", generatedAt: 0 };
+  }
+  try {
+    const html = readFileSync(handoffFilePath, "utf8");
+    const checksumSha256 = html.match(/<meta\s+name="lifeos-entry-checksum"\s+content="([a-f0-9]{64})"\s*\/?>/i)?.[1] || "";
+    const generatedAt = Number(html.match(/<meta\s+name="lifeos-entry-generated-at"\s+content="(\d+)"\s*\/?>/i)?.[1] || 0);
+    return { exists: true, checksumSha256, generatedAt: Number.isFinite(generatedAt) ? generatedAt : 0 };
+  } catch {
+    return { exists: true, checksumSha256: "", generatedAt: 0 };
+  }
+}
+
+function buildIcloudHtmlConsistency(input: {
+  handoffFilePath: string;
+  packet: Record<string, unknown> | null;
+}) {
+  const html = readIcloudHandoffHtmlMeta(input.handoffFilePath);
+  const packetChecksum = String(input.packet?.entryChecksumSha256 || "").trim();
+  const packetGeneratedAt = Number(input.packet?.generatedAt || 0);
+  if (!input.packet) return { status: "missing" as const, ok: false, ...html, reason: "No JSON packet is available." };
+  if (!html.exists) return { status: "missing" as const, ok: false, ...html, reason: "The iCloud HTML entry file is missing." };
+  if (!html.checksumSha256 || !html.generatedAt) return { status: "legacy" as const, ok: false, ...html, reason: "The iCloud HTML entry was created by an older LifeOS version." };
+  if (html.checksumSha256 !== packetChecksum || html.generatedAt !== packetGeneratedAt) {
+    return { status: "mismatch" as const, ok: false, ...html, reason: "The iCloud HTML entry does not match the JSON packet." };
+  }
+  return { status: "matching" as const, ok: true, ...html, reason: "The iCloud HTML entry matches the JSON packet." };
+}
+
 function buildIcloudHandoffHealth(input: {
   packetFilePath: string;
+  handoffFilePath: string;
   candidate: ConnectionCandidate | null;
   now?: number;
 }) {
@@ -301,7 +332,8 @@ function buildIcloudHandoffHealth(input: {
   const exportedChecksum = String(packet?.entryChecksumSha256 || "").trim();
   const expectedChecksum = packet ? buildIcloudEntryChecksum(packet) : "";
   const checksumOk = packet ? (exportedChecksum ? exportedChecksum === expectedChecksum : null) : null;
-  let status: "missing" | "fresh" | "stale" | "address-changed" | "expired" | "invalid" | "legacy" = "missing";
+  const htmlConsistency = buildIcloudHtmlConsistency({ handoffFilePath: input.handoffFilePath, packet });
+  let status: "missing" | "fresh" | "stale" | "address-changed" | "expired" | "invalid" | "legacy" | "html-mismatch" = "missing";
   let reason = "No iCloud mobile entry has been exported yet.";
 
   if (packet && generatedAt > 0) {
@@ -317,6 +349,9 @@ function buildIcloudHandoffHealth(input: {
     } else if (!exportedChecksum) {
       status = "legacy";
       reason = "The iCloud mobile entry was created by an older LifeOS version and should be refreshed.";
+    } else if (!htmlConsistency.ok) {
+      status = "html-mismatch";
+      reason = htmlConsistency.reason;
     } else if (refreshAfter > 0 && now >= refreshAfter) {
       status = "stale";
       reason = "The iCloud mobile entry should be refreshed after a day or after any network change.";
@@ -338,6 +373,7 @@ function buildIcloudHandoffHealth(input: {
     checksumOk,
     entryChecksumSha256: exportedChecksum,
     expectedChecksumSha256: expectedChecksum,
+    htmlConsistency,
     reason,
   };
 }
@@ -369,7 +405,7 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
   const packetFilePath = path.join(appFolderPath, "lifeos-mobile-entry.json");
   const candidate = preferredHandoffCandidate(candidates);
   const hasPhoneEntry = Boolean(candidate);
-  const handoffHealth = buildIcloudHandoffHealth({ packetFilePath, candidate });
+  const handoffHealth = buildIcloudHandoffHealth({ packetFilePath, handoffFilePath, candidate });
   return {
     platform: process.platform,
     platformSupported,
@@ -427,6 +463,8 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="lifeos-entry-generated-at" content="${htmlEscape(input.generatedAt)}" />
+    <meta name="lifeos-entry-checksum" content="${htmlEscape(input.packet.entryChecksumSha256 || "")}" />
     <title>${title}</title>
     <style>
       body { margin: 0; min-height: 100vh; background: #060a10; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: grid; place-items: center; padding: 20px; }
@@ -1124,6 +1162,25 @@ export function exportIcloudHandoff() {
     ok: true,
     generatedAt,
     ...getIcloudHandoffStatus(diagnostics.connectionCandidates),
+  };
+}
+
+export function maybeRefreshIcloudHandoff(reason = "auto") {
+  const diagnostics = getNetworkDiagnostics();
+  const status = diagnostics.icloud;
+  if (!status.platformSupported) return { refreshed: false, reason: "unsupported-platform", requestedReason: reason, status: status.handoffHealth.status };
+  if (!status.available) return { refreshed: false, reason: "icloud-unavailable", requestedReason: reason, status: status.handoffHealth.status };
+  if (!status.canExport) return { refreshed: false, reason: "no-phone-entry", requestedReason: reason, status: status.handoffHealth.status };
+  if (!status.handoffHealth.needsRefresh) return { refreshed: false, reason: "fresh", requestedReason: reason, status: status.handoffHealth.status };
+  const handoff = exportIcloudHandoff();
+  return {
+    refreshed: true,
+    reason: "refreshed",
+    requestedReason: reason,
+    previousStatus: status.handoffHealth.status,
+    generatedAt: handoff.generatedAt,
+    recommendedBaseUrl: handoff.recommendedBaseUrl,
+    handoff,
   };
 }
 
