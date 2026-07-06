@@ -362,47 +362,88 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
   const fallbackCount = Array.isArray(input.packet.fallbackCandidates) ? input.packet.fallbackCandidates.length : 0;
   const mobilePairUrl = appendIcloudHandoffParams(input.candidate.mobilePairUrl, input.packet);
   const mobileChatUrl = appendIcloudHandoffParams(input.candidate.mobileChatUrl, input.packet);
+  const recoverySummary = [
+    "LifeOS iCloud Mobile Entry Recovery",
+    `status=${remoteReady ? "ready" : "needs-refresh-after-network-change"}`,
+    `entryBaseUrl=${input.candidate.baseUrl}`,
+    `mode=${input.candidate.mode}`,
+    `stability=${input.candidate.stability}`,
+    `requiresRestart=${input.candidate.requiresRestart}`,
+    `generatedAt=${new Date(input.generatedAt).toISOString()}`,
+    `refreshAfter=${typeof input.packet.refreshAfter === "number" ? new Date(input.packet.refreshAfter).toISOString() : "-"}`,
+    `expiresAt=${typeof input.packet.expiresAt === "number" ? new Date(input.packet.expiresAt).toISOString() : "-"}`,
+    `warning=${input.packet.warning || "iCloud syncs the entry file; it is not a live tunnel."}`,
+  ].join("\n");
   return `<!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${title}</title>
     <style>
-      body { margin: 0; min-height: 100vh; background: #060a10; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: grid; place-items: center; padding: 24px; }
-      main { width: min(520px, 100%); border: 1px solid rgba(255,255,255,.1); background: #101722; border-radius: 28px; padding: 24px; box-shadow: 0 24px 80px rgba(0,0,0,.35); }
-      h1 { margin: 0; font-size: 26px; letter-spacing: -0.02em; }
-      p { color: #a1a1aa; line-height: 1.6; }
-      a { display: flex; align-items: center; justify-content: center; min-height: 48px; margin-top: 14px; border-radius: 16px; background: #22d3ee; color: #061016; text-decoration: none; font-weight: 800; }
+      body { margin: 0; min-height: 100vh; background: #060a10; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: grid; place-items: center; padding: 20px; }
+      main { width: min(560px, 100%); border: 1px solid rgba(255,255,255,.1); background: #101722; border-radius: 28px; padding: 24px; box-shadow: 0 24px 80px rgba(0,0,0,.35); }
+      h1 { margin: 0; font-size: 28px; letter-spacing: 0; }
+      h2 { margin: 0 0 8px; font-size: 15px; letter-spacing: 0; }
+      p { color: #a1a1aa; line-height: 1.65; }
+      a, button { display: flex; align-items: center; justify-content: center; box-sizing: border-box; min-height: 48px; width: 100%; margin-top: 14px; border-radius: 16px; border: 0; background: #22d3ee; color: #061016; text-decoration: none; font: inherit; font-weight: 800; }
       .secondary { background: rgba(255,255,255,.06); color: #e4e4e7; border: 1px solid rgba(255,255,255,.1); }
       .pill { display: inline-flex; align-items: center; margin-top: 14px; border-radius: 999px; padding: 6px 10px; font-size: 12px; font-weight: 800; background: ${remoteReady ? "rgba(16,185,129,.16)" : "rgba(245,158,11,.16)"}; color: ${remoteReady ? "#bbf7d0" : "#fde68a"}; }
-      .meta { margin-top: 18px; padding: 12px; border-radius: 16px; background: rgba(255,255,255,.04); color: #cbd5e1; font-size: 12px; line-height: 1.6; word-break: break-all; }
-      .warn { margin-top: 14px; color: #fef3c7; font-size: 12px; line-height: 1.6; }
+      .meta, .panel { margin-top: 18px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,.04); color: #cbd5e1; font-size: 12px; line-height: 1.6; word-break: break-all; }
+      .warn { margin-top: 14px; color: #fef3c7; font-size: 12px; line-height: 1.65; }
       .steps { margin: 14px 0 0; padding-left: 18px; color: #cbd5e1; font-size: 12px; line-height: 1.7; }
+      .en { margin-top: 10px; color: #94a3b8; font-size: 12px; line-height: 1.6; }
+      textarea { box-sizing: border-box; width: 100%; min-height: 150px; margin-top: 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 14px; background: rgba(0,0,0,.18); color: #cbd5e1; padding: 12px; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1.55; }
+      .copied { display: none; margin-top: 8px; color: #bbf7d0; font-size: 12px; font-weight: 800; }
     </style>
   </head>
   <body>
     <main>
       <h1>LifeOS AI</h1>
-      <p>Open the mobile companion from this Apple device. This file was synced through iCloud Drive.</p>
-      <div class="pill">${remoteReady ? "Ready for long-term remote use" : "Open now, then refresh after network changes"}</div>
-      <a href="${htmlEscape(mobilePairUrl)}">Pair This Device</a>
-      <a class="secondary" href="${htmlEscape(mobileChatUrl)}">Open Mobile Chat</a>
+      <p>这是通过 iCloud Drive 同步到这台 Apple 设备的 LifeOS 手机入口。先点“绑定这台设备”；已经绑定过时，可以直接打开手机聊天。</p>
+      <p class="en">This LifeOS mobile entry was synced through iCloud Drive. Pair this device first, or open mobile chat if it is already paired.</p>
+      <div class="pill">${remoteReady ? "适合长期异地使用 / Ready for long-term remote use" : "可先打开，换网后请刷新 / Refresh after network changes"}</div>
+      <a href="${htmlEscape(mobilePairUrl)}">绑定这台设备 / Pair This Device</a>
+      <a class="secondary" href="${htmlEscape(mobileChatUrl)}">打开手机聊天 / Open Mobile Chat</a>
       <div class="meta">
         <strong>${htmlEscape(input.candidate.label)}</strong><br />
         ${htmlEscape(input.candidate.baseUrl)}<br />
-        Generated: ${htmlEscape(generatedAt)}<br />
-        Refresh after: ${htmlEscape(refreshAfter)}<br />
-        Expires: ${htmlEscape(expiresAt)}<br />
-        Fallback entries: ${htmlEscape(fallbackCount)}
+        生成时间 / Generated: ${htmlEscape(generatedAt)}<br />
+        建议刷新 / Refresh after: ${htmlEscape(refreshAfter)}<br />
+        过期时间 / Expires: ${htmlEscape(expiresAt)}<br />
+        备用入口 / Fallback entries: ${htmlEscape(fallbackCount)}
       </div>
       <ol class="steps">
-        <li>If pairing fails, go back to the desktop app and export this iCloud entry again.</li>
-        <li>If chat works on Wi-Fi but fails outside, enable Tailscale HTTPS Serve or Cloudflare Tunnel.</li>
-        <li>If an old QR code expires, generate a new QR code from the desktop app.</li>
+        <li>如果绑定失败，回到电脑端 LifeOS，重新导出 iCloud 手机入口。</li>
+        <li>如果同一 Wi-Fi 能打开、离家后打不开，请在电脑端启用 Tailscale HTTPS Serve 或 Cloudflare Tunnel。</li>
+        <li>如果旧二维码过期或打开了错误地址，请从电脑端重新生成二维码。</li>
       </ol>
-      <div class="warn">iCloud syncs this entry file; it is not a live tunnel. If this address only works on the same Wi-Fi, remote chat will still need a reachable HTTPS entry.</div>
+      <div class="warn">iCloud 只同步这个入口文件，不会创建实时网络隧道。如果这里的地址只能在同一 Wi-Fi 使用，异地聊天仍需要一个可访问的 HTTPS 入口。</div>
+      <div class="panel">
+        <h2>排障摘要 / Recovery Summary</h2>
+        <div>如果手机打不开，把下面这段信息复制给电脑端或开发者排查。它不包含绑定 token 或密码。</div>
+        <textarea id="lifeos-recovery" readonly>${htmlEscape(recoverySummary)}</textarea>
+        <button class="secondary" type="button" id="copy-recovery">复制修复信息 / Copy Recovery Info</button>
+        <div class="copied" id="copy-status">已复制 / Copied</div>
+      </div>
       <script type="application/json" id="lifeos-entry">${scriptJson(input.packet)}</script>
+      <script>
+        document.getElementById("copy-recovery")?.addEventListener("click", async () => {
+          const textarea = document.getElementById("lifeos-recovery");
+          const status = document.getElementById("copy-status");
+          try {
+            await navigator.clipboard.writeText(textarea.value);
+          } catch {
+            textarea.focus();
+            textarea.select();
+            document.execCommand("copy");
+          }
+          if (status) {
+            status.style.display = "block";
+            window.setTimeout(() => { status.style.display = "none"; }, 1400);
+          }
+        });
+      </script>
     </main>
   </body>
 </html>`;
