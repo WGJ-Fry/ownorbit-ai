@@ -58,6 +58,14 @@ type RemoteReadinessItemId =
 
 const ICLOUD_HANDOFF_REFRESH_AFTER_MS = 24 * 60 * 60 * 1000;
 const ICLOUD_HANDOFF_EXPIRES_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
+const ICLOUD_MDLS_ATTRIBUTES = [
+  "kMDItemUbiquitousItemIsDownloaded",
+  "kMDItemUbiquitousItemIsDownloading",
+  "kMDItemUbiquitousItemIsUploaded",
+  "kMDItemUbiquitousItemIsUploading",
+  "kMDItemUbiquitousItemDownloadingStatus",
+  "kMDItemUbiquitousItemUploadingStatus",
+];
 
 function runCommand(command: string, args: string[] = []): CommandResult {
   try {
@@ -655,6 +663,72 @@ function getIcloudPlaceholderSamples(appFolderPath: string) {
   }
 }
 
+function parseMdlsBool(value: string | undefined) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (["1", "true", "yes"].includes(normalized)) return true;
+  if (["0", "false", "no"].includes(normalized)) return false;
+  return null;
+}
+
+function cleanMdlsValue(value: string | undefined) {
+  const normalized = String(value || "").trim();
+  if (!normalized || normalized === "(null)") return "";
+  return normalized.replace(/^"|"$/g, "");
+}
+
+function getIcloudMetadata(filePath: string) {
+  const unavailable = {
+    available: false,
+    downloaded: null as boolean | null,
+    downloading: null as boolean | null,
+    uploaded: null as boolean | null,
+    uploading: null as boolean | null,
+    downloadingStatus: "",
+    uploadingStatus: "",
+    syncState: "unknown" as const,
+    error: "",
+  };
+  const mdlsBin = process.env.LIFEOS_MDLS_BIN || "/usr/bin/mdls";
+  if (!existsSync(filePath) || (process.platform !== "darwin" && !process.env.LIFEOS_MDLS_BIN)) return unavailable;
+  const result = runCommand(mdlsBin, [
+    "-raw",
+    ...ICLOUD_MDLS_ATTRIBUTES.flatMap((attribute) => ["-name", attribute]),
+    filePath,
+  ]);
+  if (!result.ok) return { ...unavailable, error: result.output.slice(0, 240) };
+  const lines = result.output.split(/\r?\n/);
+  const downloaded = parseMdlsBool(lines[0]);
+  const downloading = parseMdlsBool(lines[1]);
+  const uploaded = parseMdlsBool(lines[2]);
+  const uploading = parseMdlsBool(lines[3]);
+  const downloadingStatus = cleanMdlsValue(lines[4]);
+  const uploadingStatus = cleanMdlsValue(lines[5]);
+  let syncState: "unknown" | "synced" | "syncing" | "not-downloaded" | "not-uploaded" = "unknown";
+  const statusText = `${downloadingStatus} ${uploadingStatus}`;
+  const hasRelevantStatus = /download|upload|waiting|pending|current/i.test(statusText);
+  const hasPendingStatus = /not|waiting|pending|downloading|uploading/i.test(statusText);
+  if (downloading || uploading || (hasRelevantStatus && hasPendingStatus)) {
+    syncState = "syncing";
+  } else if (downloaded === false || /not downloaded/i.test(downloadingStatus)) {
+    syncState = "not-downloaded";
+  } else if (uploaded === false || /not uploaded/i.test(uploadingStatus)) {
+    syncState = "not-uploaded";
+  } else if ((downloaded === true || downloaded === null) && (uploaded === true || uploaded === null)) {
+    syncState = "synced";
+  }
+  return {
+    available: true,
+    downloaded,
+    downloading,
+    uploaded,
+    uploading,
+    downloadingStatus,
+    uploadingStatus,
+    syncState,
+    error: "",
+  };
+}
+
 function getIcloudFileState(filePath: string) {
   const placeholderCandidates = [
     `${filePath}.icloud`,
@@ -671,12 +745,14 @@ function getIcloudFileState(filePath: string) {
       size = 0;
     }
   }
+  const metadata = getIcloudMetadata(filePath);
   return {
     exists,
     readable,
     placeholder: Boolean(placeholderPath),
     placeholderPath: placeholderPath ? path.basename(placeholderPath) : "",
     size,
+    metadata,
     state: placeholderPath ? "placeholder" as const : exists && readable ? "ready" as const : exists ? "unreadable" as const : "missing" as const,
   };
 }
@@ -698,6 +774,8 @@ function getIcloudAvailabilityStatus(input: {
   const indexFile = getIcloudFileState(input.indexFilePath);
   const placeholderSamples = appFolderExists ? getIcloudPlaceholderSamples(input.appFolderPath) : [];
   const placeholderCount = placeholderSamples.length + [handoffFile, packetFile, indexFile].filter((file) => file.placeholder).length;
+  const metadataPendingCount = [handoffFile, packetFile, indexFile].filter((file) => ["syncing", "not-downloaded", "not-uploaded"].includes(file.metadata.syncState)).length;
+  const pendingCount = placeholderCount + metadataPendingCount;
   let status: "unsupported" | "missing" | "read-only" | "sync-pending" | "ready" = "ready";
   let severity: "ok" | "warning" | "danger" = "ok";
   if (!input.platformSupported) {
@@ -709,7 +787,7 @@ function getIcloudAvailabilityStatus(input: {
   } else if (!driveWritable || !appFolderWritable) {
     status = "read-only";
     severity = "danger";
-  } else if (placeholderCount > 0) {
+  } else if (pendingCount > 0) {
     status = "sync-pending";
     severity = "warning";
   }
@@ -721,6 +799,8 @@ function getIcloudAvailabilityStatus(input: {
     driveWritable,
     appFolderWritable,
     placeholderCount,
+    metadataPendingCount,
+    pendingCount,
     placeholderSamples,
     handoffFile,
     packetFile,

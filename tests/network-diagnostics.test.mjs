@@ -510,7 +510,75 @@ test("iCloud availability detects placeholder files that are still syncing", asy
   assert.equal(diagnostics.icloud.availability.status, "sync-pending");
   assert.equal(diagnostics.icloud.availability.severity, "warning");
   assert.equal(diagnostics.icloud.availability.placeholderCount, 1);
+  assert.equal(diagnostics.icloud.availability.metadataPendingCount, 0);
+  assert.equal(diagnostics.icloud.availability.pendingCount, 1);
   assert.equal(diagnostics.icloud.availability.appFolderExists, true);
+});
+
+test("iCloud availability uses macOS metadata to detect files that are still syncing", async (t) => {
+  const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-mdls-"));
+  const mdlsBin = path.join(icloudDir, "mock-mdls");
+  const oldPort = process.env.LIFEOS_PORT;
+  const oldPublicBaseUrl = process.env.PUBLIC_BASE_URL;
+  const oldAppUrl = process.env.APP_URL;
+  const oldCloudflaredBin = process.env.LIFEOS_CLOUDFLARED_BIN;
+  const oldTailscaleBin = process.env.LIFEOS_TAILSCALE_BIN;
+  const oldIcloudDriveDir = process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+  const oldForceIcloud = process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+  const oldMdlsBin = process.env.LIFEOS_MDLS_BIN;
+
+  t.after(async () => {
+    if (oldPort === undefined) delete process.env.LIFEOS_PORT;
+    else process.env.LIFEOS_PORT = oldPort;
+    if (oldPublicBaseUrl === undefined) delete process.env.PUBLIC_BASE_URL;
+    else process.env.PUBLIC_BASE_URL = oldPublicBaseUrl;
+    if (oldAppUrl === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = oldAppUrl;
+    if (oldCloudflaredBin === undefined) delete process.env.LIFEOS_CLOUDFLARED_BIN;
+    else process.env.LIFEOS_CLOUDFLARED_BIN = oldCloudflaredBin;
+    if (oldTailscaleBin === undefined) delete process.env.LIFEOS_TAILSCALE_BIN;
+    else process.env.LIFEOS_TAILSCALE_BIN = oldTailscaleBin;
+    if (oldIcloudDriveDir === undefined) delete process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+    else process.env.LIFEOS_ICLOUD_DRIVE_DIR = oldIcloudDriveDir;
+    if (oldForceIcloud === undefined) delete process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+    else process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = oldForceIcloud;
+    if (oldMdlsBin === undefined) delete process.env.LIFEOS_MDLS_BIN;
+    else process.env.LIFEOS_MDLS_BIN = oldMdlsBin;
+    await rm(icloudDir, { recursive: true, force: true });
+  });
+
+  process.env.LIFEOS_PORT = "4567";
+  process.env.PUBLIC_BASE_URL = "https://lifeos.example.com";
+  delete process.env.APP_URL;
+  process.env.LIFEOS_CLOUDFLARED_BIN = "/definitely/missing/cloudflared";
+  process.env.LIFEOS_TAILSCALE_BIN = "/definitely/missing/tailscale";
+  process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = "1";
+  process.env.LIFEOS_ICLOUD_DRIVE_DIR = icloudDir;
+
+  const { exportIcloudHandoff, getNetworkDiagnostics } = await import(`../server/networkDiagnostics.ts?icloud-mdls=${Date.now()}`);
+  const exported = exportIcloudHandoff();
+  assert.equal(exported.ok, true);
+
+  await writeFile(mdlsBin, `#!/usr/bin/env node
+const file = process.argv[process.argv.length - 1] || "";
+if (file.endsWith(".html")) {
+  console.log(["0", "1", "1", "0", "not downloaded", "current"].join("\\n"));
+} else {
+  console.log(["1", "0", "1", "0", "current", "current"].join("\\n"));
+}
+`);
+  await chmod(mdlsBin, 0o755);
+  process.env.LIFEOS_MDLS_BIN = mdlsBin;
+
+  const diagnostics = getNetworkDiagnostics();
+  assert.equal(diagnostics.icloud.availability.status, "sync-pending");
+  assert.equal(diagnostics.icloud.availability.severity, "warning");
+  assert.equal(diagnostics.icloud.availability.placeholderCount, 0);
+  assert.equal(diagnostics.icloud.availability.metadataPendingCount >= 1, true);
+  assert.equal(diagnostics.icloud.availability.pendingCount >= 1, true);
+  assert.equal(diagnostics.icloud.availability.handoffFile.metadata.available, true);
+  assert.equal(diagnostics.icloud.availability.handoffFile.metadata.downloading, true);
+  assert.equal(diagnostics.icloud.availability.handoffFile.metadata.syncState, "syncing");
 });
 
 test("iCloud handoff diagnostics mark modified entry invalid when checksum mismatches", async (t) => {

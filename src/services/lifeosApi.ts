@@ -135,6 +135,28 @@ export type { DeviceCredentialExpiryStatus, StoredDeviceCredential };
 
 export type DeviceCredentialStorageStatus = Awaited<ReturnType<typeof getDeviceCredentialStorageStatus>>;
 
+type IcloudMetadataSyncState = "unknown" | "synced" | "syncing" | "not-downloaded" | "not-uploaded";
+
+type IcloudFileAvailability = {
+  exists: boolean;
+  readable: boolean;
+  placeholder: boolean;
+  placeholderPath: string;
+  size: number;
+  metadata: {
+    available: boolean;
+    downloaded: boolean | null;
+    downloading: boolean | null;
+    uploaded: boolean | null;
+    uploading: boolean | null;
+    downloadingStatus: string;
+    uploadingStatus: string;
+    syncState: IcloudMetadataSyncState;
+    error: string;
+  };
+  state: "missing" | "ready" | "unreadable" | "placeholder";
+};
+
 export type AdminSession = {
   expiresAt: number;
   onboardingRequired?: boolean;
@@ -784,31 +806,12 @@ export type NetworkDiagnostics = {
       driveWritable: boolean;
       appFolderWritable: boolean;
       placeholderCount: number;
+      metadataPendingCount: number;
+      pendingCount: number;
       placeholderSamples: string[];
-      handoffFile: {
-        exists: boolean;
-        readable: boolean;
-        placeholder: boolean;
-        placeholderPath: string;
-        size: number;
-        state: "missing" | "ready" | "unreadable" | "placeholder";
-      };
-      packetFile: {
-        exists: boolean;
-        readable: boolean;
-        placeholder: boolean;
-        placeholderPath: string;
-        size: number;
-        state: "missing" | "ready" | "unreadable" | "placeholder";
-      };
-      indexFile: {
-        exists: boolean;
-        readable: boolean;
-        placeholder: boolean;
-        placeholderPath: string;
-        size: number;
-        state: "missing" | "ready" | "unreadable" | "placeholder";
-      };
+      handoffFile: IcloudFileAvailability;
+      packetFile: IcloudFileAvailability;
+      indexFile: IcloudFileAvailability;
     };
     realtimeTransport: false;
     transport: "handoff-only";

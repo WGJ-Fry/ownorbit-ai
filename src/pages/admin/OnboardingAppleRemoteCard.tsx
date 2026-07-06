@@ -222,7 +222,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
               </div>
               {icloudAvailability.status === "sync-pending" ? (
                 <div className="mt-2 text-[11px] leading-relaxed text-amber-100">
-                  {t("onboarding.appleRemoteIcloudAvailabilityPendingBody", { count: icloudAvailability.placeholderCount })}
+                  {t("onboarding.appleRemoteIcloudAvailabilityPendingBody", { count: icloudAvailability.pendingCount })}
                 </div>
               ) : null}
               {icloudAvailability.status === "read-only" ? (
