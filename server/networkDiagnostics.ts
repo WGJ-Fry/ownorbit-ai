@@ -301,7 +301,7 @@ function buildIcloudHandoffHealth(input: {
   const exportedChecksum = String(packet?.entryChecksumSha256 || "").trim();
   const expectedChecksum = packet ? buildIcloudEntryChecksum(packet) : "";
   const checksumOk = packet ? (exportedChecksum ? exportedChecksum === expectedChecksum : null) : null;
-  let status: "missing" | "fresh" | "stale" | "address-changed" | "expired" | "invalid" = "missing";
+  let status: "missing" | "fresh" | "stale" | "address-changed" | "expired" | "invalid" | "legacy" = "missing";
   let reason = "No iCloud mobile entry has been exported yet.";
 
   if (packet && generatedAt > 0) {
@@ -314,6 +314,9 @@ function buildIcloudHandoffHealth(input: {
     } else if (input.candidate?.baseUrl && exportedBaseUrl && input.candidate.baseUrl !== exportedBaseUrl) {
       status = "address-changed";
       reason = "The best phone entry changed after the last iCloud export.";
+    } else if (!exportedChecksum) {
+      status = "legacy";
+      reason = "The iCloud mobile entry was created by an older LifeOS version and should be refreshed.";
     } else if (refreshAfter > 0 && now >= refreshAfter) {
       status = "stale";
       reason = "The iCloud mobile entry should be refreshed after a day or after any network change.";

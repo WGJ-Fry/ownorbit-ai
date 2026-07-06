@@ -432,6 +432,11 @@ test("mobile iCloud handoff stores non-sensitive entry metadata and detects stal
   const mismatch = getMobileIcloudHandoffStatus(consumed, "https://new-lifeos.example.com/mobile/device", now + 1_000);
   assert.equal(mismatch.status, "address-mismatch");
   assert.equal(getMobileIcloudHandoffActionKey(mismatch), "mobileDevice.icloudHandoffActionMismatch");
+  const legacy = getMobileIcloudHandoffStatus({ ...consumed, checksumSha256: "" }, "https://lifeos.example.com/mobile/device", now + 1_000);
+  assert.equal(legacy.status, "legacy");
+  assert.equal(legacy.needsRefresh, true);
+  assert.equal(getMobileIcloudHandoffActionKey(legacy), "mobileDevice.icloudHandoffActionRefresh");
+  assert.match(buildMobileIcloudHandoffRecoveryPacket(legacy), /status=legacy/);
   const packet = buildMobileIcloudHandoffRecoveryPacket(mismatch);
   assert.match(packet, /LifeOS iCloud Mobile Entry Recovery/);
   assert.match(packet, /entryBaseUrl=https:\/\/lifeos\.example\.com/);
@@ -529,7 +534,7 @@ test("mobile iCloud handoff launch stores a failed result when connectivity prob
   assert.equal(stored.lastConnectivityTestedAt, now);
   assert.equal(stored.lastConnectivityOk, false);
   assert.equal(stored.lastConnectivityError, "probe unavailable");
-  assert.equal(getMobileIcloudHandoffActionKey(getMobileIcloudHandoffStatus(launch.entry, href, now)), "mobileDevice.icloudHandoffActionRetest");
+  assert.equal(getMobileIcloudHandoffActionKey(getMobileIcloudHandoffStatus(launch.entry, href, now)), "mobileDevice.icloudHandoffActionRefresh");
 });
 
 test("remote entry guidance is visible before manual connectivity tests", async () => {

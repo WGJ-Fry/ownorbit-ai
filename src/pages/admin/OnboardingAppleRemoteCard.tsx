@@ -31,6 +31,7 @@ const handoffHealthStatusKeys: Record<NetworkDiagnostics["icloud"]["handoffHealt
   "address-changed": "onboarding.appleRemoteIcloudHealthAddressChanged",
   expired: "onboarding.appleRemoteIcloudHealthExpired",
   invalid: "onboarding.appleRemoteIcloudHealthInvalid",
+  legacy: "onboarding.appleRemoteIcloudHealthLegacy",
 };
 
 const handoffHealthReasonKeys: Record<NetworkDiagnostics["icloud"]["handoffHealth"]["status"], TranslationKey> = {
@@ -40,6 +41,7 @@ const handoffHealthReasonKeys: Record<NetworkDiagnostics["icloud"]["handoffHealt
   "address-changed": "onboarding.appleRemoteIcloudReasonAddressChanged",
   expired: "onboarding.appleRemoteIcloudReasonExpired",
   invalid: "onboarding.appleRemoteIcloudReasonInvalid",
+  legacy: "onboarding.appleRemoteIcloudReasonLegacy",
 };
 
 function isAppleRuntime() {

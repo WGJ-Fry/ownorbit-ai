@@ -30,7 +30,7 @@ export type MobileIcloudHandoffEntry = {
 
 export type MobileIcloudHandoffStatus = {
   entry: MobileIcloudHandoffEntry;
-  status: "fresh" | "stale" | "expired" | "address-mismatch";
+  status: "fresh" | "stale" | "expired" | "address-mismatch" | "legacy";
   needsRefresh: boolean;
   currentBase: string;
   titleKey: string;
@@ -295,6 +295,8 @@ export function getMobileIcloudHandoffStatus(entry = getStoredMobileIcloudHandof
     status = "address-mismatch";
   } else if (entry.expiresAt && now >= entry.expiresAt) {
     status = "expired";
+  } else if (!entry.checksumSha256) {
+    status = "legacy";
   } else if (entry.refreshAfter && now >= entry.refreshAfter) {
     status = "stale";
   }
@@ -316,6 +318,10 @@ export function getMobileIcloudHandoffStatus(entry = getStoredMobileIcloudHandof
       titleKey: "mobileDevice.icloudHandoffMismatchTitle",
       bodyKey: "mobileDevice.icloudHandoffMismatchBody",
     },
+    legacy: {
+      titleKey: "mobileDevice.icloudHandoffLegacyTitle",
+      bodyKey: "mobileDevice.icloudHandoffLegacyBody",
+    },
   };
 
   return {
@@ -330,6 +336,7 @@ export function getMobileIcloudHandoffStatus(entry = getStoredMobileIcloudHandof
 export function getMobileIcloudHandoffActionKey(status: MobileIcloudHandoffStatus): MobileIcloudHandoffActionKey {
   if (status.status === "address-mismatch") return "mobileDevice.icloudHandoffActionMismatch";
   if (status.status === "expired") return "mobileDevice.icloudHandoffActionReopen";
+  if (status.status === "legacy") return "mobileDevice.icloudHandoffActionRefresh";
   if (status.status === "stale") return "mobileDevice.icloudHandoffActionRefresh";
   if (status.entry.lastConnectivityTestedAt && status.entry.lastConnectivityOk === false) return "mobileDevice.icloudHandoffActionRetest";
   return "mobileDevice.icloudHandoffActionReady";

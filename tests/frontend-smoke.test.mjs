@@ -589,6 +589,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /The recommended entry changed since the last export/);
   assert.match(translationsSource, /iCloud 入口校验不一致/);
   assert.match(translationsSource, /The iCloud entry checksum does not match/);
+  assert.match(translationsSource, /旧格式入口/);
+  assert.match(translationsSource, /Legacy entry/);
   const onboardingHandoffSource = await readFile(path.join(rootDir, "src", "pages", "admin", "OnboardingHandoffCard.tsx"), "utf8");
   assert.match(onboardingHandoffSource, /onboarding\.handoffChatTitle/);
   assert.match(onboardingHandoffSource, /onboarding\.copyHandoffSummary/);
@@ -597,6 +599,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileIcloudHandoffSource, /lifeosEntry/);
   assert.match(mobileIcloudHandoffSource, /entryExpiresAt/);
   assert.match(mobileIcloudHandoffSource, /entryChecksumSha256/);
+  assert.match(mobileIcloudHandoffSource, /legacy/);
   assert.match(mobileIcloudHandoffSource, /getMobileIcloudHandoffStatus/);
   assert.match(mobileIcloudHandoffSource, /handleMobileIcloudHandoffLaunch/);
   assert.match(mobileIcloudHandoffSource, /testMobileRemoteConnectivity/);
@@ -761,6 +764,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /This phone's remote entry is ready/);
   assert.match(translationsSource, /iCloud 入口仍然新鲜/);
   assert.match(translationsSource, /iCloud entry is fresh/);
+  assert.match(translationsSource, /iCloud 入口需要升级/);
+  assert.match(translationsSource, /Upgrade this iCloud entry/);
   assert.match(mobileDeviceSource, /testMobileRemoteConnectivity/);
   assert.match(mobileDeviceSource, /reportMobileConnectivity/);
   assert.match(mobileDeviceSource, /getLatestMobileConnectivityReport/);

@@ -349,6 +349,64 @@ test("iCloud handoff diagnostics mark modified entry invalid when checksum misma
   assert.match(diagnostics.icloud.handoffHealth.reason, /checksum does not match/);
 });
 
+test("iCloud handoff diagnostics request refresh for legacy entries without checksum", async (t) => {
+  const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-legacy-"));
+  const appDir = path.join(icloudDir, "LifeOS AI");
+  fs.mkdirSync(appDir, { recursive: true });
+  const generatedAt = Date.now() - 60_000;
+  await writeFile(path.join(appDir, "lifeos-mobile-entry.json"), JSON.stringify({
+    kind: "lifeos-mobile-entry",
+    version: 1,
+    generatedAt,
+    refreshAfter: generatedAt + 60_000,
+    expiresAt: generatedAt + 600_000,
+    baseUrl: "https://lifeos.example.com",
+  }));
+  const oldPort = process.env.LIFEOS_PORT;
+  const oldPublicBaseUrl = process.env.PUBLIC_BASE_URL;
+  const oldAppUrl = process.env.APP_URL;
+  const oldCloudflaredBin = process.env.LIFEOS_CLOUDFLARED_BIN;
+  const oldTailscaleBin = process.env.LIFEOS_TAILSCALE_BIN;
+  const oldIcloudDriveDir = process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+  const oldForceIcloud = process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+
+  t.after(async () => {
+    if (oldPort === undefined) delete process.env.LIFEOS_PORT;
+    else process.env.LIFEOS_PORT = oldPort;
+    if (oldPublicBaseUrl === undefined) delete process.env.PUBLIC_BASE_URL;
+    else process.env.PUBLIC_BASE_URL = oldPublicBaseUrl;
+    if (oldAppUrl === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = oldAppUrl;
+    if (oldCloudflaredBin === undefined) delete process.env.LIFEOS_CLOUDFLARED_BIN;
+    else process.env.LIFEOS_CLOUDFLARED_BIN = oldCloudflaredBin;
+    if (oldTailscaleBin === undefined) delete process.env.LIFEOS_TAILSCALE_BIN;
+    else process.env.LIFEOS_TAILSCALE_BIN = oldTailscaleBin;
+    if (oldIcloudDriveDir === undefined) delete process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+    else process.env.LIFEOS_ICLOUD_DRIVE_DIR = oldIcloudDriveDir;
+    if (oldForceIcloud === undefined) delete process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+    else process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = oldForceIcloud;
+    await rm(icloudDir, { recursive: true, force: true });
+  });
+
+  process.env.LIFEOS_PORT = "4567";
+  process.env.PUBLIC_BASE_URL = "https://lifeos.example.com";
+  delete process.env.APP_URL;
+  process.env.LIFEOS_CLOUDFLARED_BIN = "/definitely/missing/cloudflared";
+  process.env.LIFEOS_TAILSCALE_BIN = "/definitely/missing/tailscale";
+  process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = "1";
+  process.env.LIFEOS_ICLOUD_DRIVE_DIR = icloudDir;
+
+  const { getNetworkDiagnostics } = await import(`../server/networkDiagnostics.ts?icloud-legacy=${Date.now()}`);
+  const diagnostics = getNetworkDiagnostics();
+
+  assert.equal(diagnostics.icloud.handoffHealth.status, "legacy");
+  assert.equal(diagnostics.icloud.handoffHealth.needsRefresh, true);
+  assert.equal(diagnostics.icloud.handoffHealth.checksumOk, null);
+  assert.equal(diagnostics.icloud.handoffHealth.entryChecksumSha256, "");
+  assert.match(diagnostics.icloud.handoffHealth.expectedChecksumSha256, /^[a-f0-9]{64}$/);
+  assert.match(diagnostics.icloud.handoffHealth.reason, /older LifeOS version/);
+});
+
 test("iCloud handoff diagnostics mark exported entry stale when the recommended address changes", async (t) => {
   const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-stale-"));
   const appDir = path.join(icloudDir, "LifeOS AI");
