@@ -9,6 +9,7 @@ import { DesktopRuntimeConfig, getDesktopRuntimeConfig, saveDesktopRuntimeConfig
 import { getLatestBindingSession, getLatestIcloudHandoffEventByTypes } from "./devices.ts";
 import { buildIcloudPhoneConfirmationStatus } from "./icloudPhoneConfirmation.ts";
 import { buildIcloudPairingSessionStatus } from "./icloudPairingSession.ts";
+import { getLatestIcloudRepairImportRecord } from "./icloudRepairImports.ts";
 import { getConfiguredPublicBaseUrl, isTemporaryTryCloudflareUrl } from "./publicBaseUrl";
 
 type CommandResult = {
@@ -1456,6 +1457,7 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
   });
   const indexConsistency = buildIcloudIndexConsistency({ indexFilePath, entries: availableEntries });
   const syncReadiness = buildIcloudSyncReadiness({ availability, handoffHealth, indexConsistency });
+  const latestRepairImport = getLatestIcloudRepairImportRecord();
   const canExport = available && hasPhoneEntry && availability.status !== "account-unavailable" && availability.status !== "read-only";
   return {
     platform: process.platform,
@@ -1482,6 +1484,7 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
     indexConsistency,
     availability,
     syncReadiness,
+    latestRepairImport,
     realtimeTransport: false,
     transport: "handoff-only" as const,
     openInstruction: available

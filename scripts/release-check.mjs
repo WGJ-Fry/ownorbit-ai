@@ -1338,6 +1338,7 @@ function checkAssets() {
   const icloudAcceptanceSource = exists("server/icloudAcceptance.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudAcceptance.ts"), "utf8") : "";
   const icloudPairingSessionSource = exists("server/icloudPairingSession.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudPairingSession.ts"), "utf8") : "";
   const icloudHandoffMonitorSource = exists("server/icloudHandoffMonitor.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudHandoffMonitor.ts"), "utf8") : "";
+  const icloudRepairImportsSource = exists("server/icloudRepairImports.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudRepairImports.ts"), "utf8") : "";
   const mobileIcloudHandoffSource = exists("src/services/mobileIcloudHandoff.ts") ? fs.readFileSync(path.join(rootDir, "src/services/mobileIcloudHandoff.ts"), "utf8") : "";
   if (
     deviceRoutesSource.includes("pairingInstallUrl") &&
@@ -1351,7 +1352,8 @@ function checkAssets() {
     icloudPairingSessionSource.includes('"expired" as const') &&
     icloudPairingSessionSource.includes('"address-changed" as const') &&
     adminRoutesSource.includes("buildIcloudPairingSessionStatus") &&
-    adminRoutesSource.includes("pairingSession: buildIcloudPairingSessionStatus") &&
+    adminRoutesSource.includes("const pairingSession = buildIcloudPairingSessionStatus") &&
+    adminRoutesSource.includes("pairingSession,") &&
     networkDiagnosticsSource.includes("pairing-session-refresh") &&
     networkDiagnosticsSource.includes("index-consistency-refresh") &&
     networkDiagnosticsSource.includes("previousPairingSessionStatus") &&
@@ -1380,7 +1382,8 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorTrigger") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorChange") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudPairingExpired") &&
-    onboardingAppleRemoteSource.includes("renderIcloudEventUrls") &&
+    onboardingAppleRemoteSource.includes("compactLatestEntryRepairUrls") &&
+    onboardingAppleRemoteSource.includes("renderLatestEntryRepairUrls") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEventEntryUrl") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEventCurrentUrl") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEventStoredUrl") &&
@@ -1429,10 +1432,16 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("lan-address-changed") &&
     onboardingAppleRemoteSource.includes("latestEntryRepairStatusKeys") &&
     onboardingAppleRemoteSource.includes("latestEntryRepairActionKeys") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudRepairImportTitle") &&
     adminRoutesSource.includes("buildLatestIcloudEntryRepairSummary") &&
+    adminRoutesSource.includes("saveIcloudRepairImportAnalysis") &&
     adminRoutesSource.includes("latestEntryRepair") &&
+    icloudRepairImportsSource.includes("lifeos_icloud_repair_imports") &&
+    icloudRepairImportsSource.includes("getLatestIcloudRepairImportRecord") &&
     lifeosApiSource.includes("latestEntryRepair") &&
+    lifeosApiSource.includes("latestRepairImport") &&
     apiAuthTestSource.includes("latestEntryRepair.status") &&
+    apiAuthTestSource.includes("diagnostics.icloud.latestRepairImport.id") &&
     translationsSource.includes("PUBLIC_BASE_URL changed") &&
     translationsSource.includes("Cloudflare address changed") &&
     translationsSource.includes("Tailscale address changed") &&
@@ -2351,6 +2360,7 @@ function checkAssets() {
     diagnosticBundleSource.includes("acceptanceRunbooks") &&
     diagnosticBundleSource.includes("buildLatestIcloudEntryRepairSummary") &&
     diagnosticBundleSource.includes("publicIcloudEntryRepair") &&
+    diagnosticBundleSource.includes("publicIcloudRepairImport") &&
     diagnosticBundleTestSource.includes("bundle.release.manifestAvailable") &&
     diagnosticBundleTestSource.includes("Basic Z2l0aHViOmRpYWdub3N0aWM=") &&
     diagnosticBundleTestSource.includes("github_pat_diagnosticSecret") &&
@@ -2362,6 +2372,7 @@ function checkAssets() {
     diagnosticBundleTestSource.includes("bundle.icloudHandoff.availability.account.status") &&
     diagnosticBundleTestSource.includes("bundle.icloudHandoff.latestEntryRepair.status") &&
     diagnosticBundleTestSource.includes("\"deviceId\" in bundle.icloudHandoff.latestEntryRepair") &&
+    diagnosticBundleTestSource.includes("bundle.icloudHandoff.latestRepairImport.reason") &&
     diagnosticBundleTestSource.includes("private-icloud-token-should-not-leak") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceSummary.ready") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceEvidencePack.ready") &&

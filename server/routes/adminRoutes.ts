@@ -27,6 +27,7 @@ import { getLatestBindingSession, getLatestIcloudHandoffEventByTypes } from "../
 import { buildIcloudPhoneConfirmationStatus } from "../icloudPhoneConfirmation";
 import { buildIcloudPairingSessionStatus } from "../icloudPairingSession";
 import { buildLatestIcloudEntryRepairSummary } from "../icloudEntryRepair";
+import { saveIcloudRepairImportAnalysis } from "../icloudRepairImports";
 import { checkReleaseUpdate } from "../releaseUpdateCheck";
 import { buildNativeAutomationPlan, executeNativeAutomation } from "../nativeAutomationBridge";
 
@@ -677,14 +678,16 @@ export function registerAdminRoutes(app: express.Express) {
   app.post("/api/v1/admin/icloud-handoff/repair-packet", requireAdmin, (req, res) => {
     try {
       const analysis = analyzeIcloudHandoffRepairPacket(req.body?.packet || req.body?.text || "");
+      const repairImport = saveIcloudRepairImportAnalysis(analysis, (req as any).actor || { type: "admin", id: "owner" });
       insertAuditLog("icloud_handoff_repair_analyzed", "network", analysis.parsed.entryBaseUrl || "icloud-repair", {
         reason: analysis.reason,
         severity: analysis.severity,
+        repairImportId: repairImport.id,
         phoneEntryBaseUrl: analysis.parsed.entryBaseUrl || null,
         desktopRecommendedBaseUrl: analysis.desktop.recommendedBaseUrl || null,
         recommendations: analysis.recommendations.map((item) => item.id),
       }, (req as any).actor?.type, (req as any).actor?.id);
-      res.json({ analysis, diagnostics: getAdminNetworkDiagnostics() });
+      res.json({ analysis, repairImport, diagnostics: getAdminNetworkDiagnostics() });
     } catch (error: any) {
       insertAuditLog("icloud_handoff_repair_analyze_failed", "network", "icloud-repair", {
         error: error?.message || "iCloud repair info could not be analyzed",

@@ -544,6 +544,11 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(icloudRepairPacket.analysis.parsed.entryBaseUrl, "https://old.example.test");
   assert.equal(icloudRepairPacket.analysis.parsed.currentBaseUrl, "https://old.example.test/mobile/chat");
   assert.ok(icloudRepairPacket.analysis.recommendations.some((item) => item.id === "refresh-icloud" || item.id === "test-phone-entry"));
+  assert.equal(icloudRepairPacket.repairImport.parsed.entryBaseUrl, "https://old.example.test");
+  assert.equal(icloudRepairPacket.repairImport.parsed.currentBaseUrl, "https://old.example.test/mobile/chat");
+  assert.equal(icloudRepairPacket.diagnostics.icloud.latestRepairImport.id, icloudRepairPacket.repairImport.id);
+  assert.equal(icloudRepairPacket.diagnostics.icloud.latestRepairImport.reason, icloudRepairPacket.analysis.reason);
+  assert.equal(JSON.stringify(icloudRepairPacket.repairImport).includes("secret-token"), false);
   assert.equal(JSON.stringify(icloudRepairPacket).includes("secret-token"), false);
 
   const blockedCloudflareTunnelStatus = await request(port, "/api/v1/admin/cloudflare-tunnel");

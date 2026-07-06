@@ -243,6 +243,44 @@ function publicIcloudEntryRepair(repair: ReturnType<typeof buildLatestIcloudEntr
   };
 }
 
+function publicIcloudRepairImport(repairImport: ReturnType<typeof getNetworkDiagnostics>["icloud"]["latestRepairImport"] | undefined | null) {
+  if (!repairImport) return null;
+  return {
+    id: repairImport.id,
+    importedAt: repairImport.importedAt,
+    reason: repairImport.reason,
+    severity: repairImport.severity,
+    parsed: {
+      status: repairImport.parsed.status,
+      action: repairImport.parsed.action,
+      entryBaseUrl: redactDiagnosticActionUrl(repairImport.parsed.entryBaseUrl),
+      currentBaseUrl: redactDiagnosticActionUrl(repairImport.parsed.currentBaseUrl),
+      mode: repairImport.parsed.mode,
+      stability: repairImport.parsed.stability,
+      label: redactDiagnosticActionText(repairImport.parsed.label, "Phone entry").slice(0, 120),
+      generatedAt: repairImport.parsed.generatedAt,
+      expiresAt: repairImport.parsed.expiresAt,
+      lastConnectivityOk: repairImport.parsed.lastConnectivityOk,
+      lastConnectivityError: repairImport.parsed.lastConnectivityError ? redactDiagnosticActionText(repairImport.parsed.lastConnectivityError, "Connectivity error").slice(0, 180) : "",
+    },
+    desktop: {
+      desktopName: redactDiagnosticActionText(repairImport.desktop.desktopName, "Desktop").slice(0, 120),
+      recommendedBaseUrl: redactDiagnosticActionUrl(repairImport.desktop.recommendedBaseUrl),
+      lastExportedBaseUrl: redactDiagnosticActionUrl(repairImport.desktop.lastExportedBaseUrl),
+      handoffStatus: repairImport.desktop.handoffStatus,
+      handoffNeedsRefresh: repairImport.desktop.handoffNeedsRefresh,
+      remoteReadiness: repairImport.desktop.remoteReadiness,
+      recommendedMode: repairImport.desktop.recommendedMode,
+      recommendedStability: repairImport.desktop.recommendedStability,
+    },
+    recommendations: repairImport.recommendations.slice(0, 8).map((item) => ({
+      id: item.id,
+      severity: item.severity,
+      detail: redactDiagnosticActionText(item.detail, "Recommendation").slice(0, 220),
+    })),
+  };
+}
+
 function publicIcloudFileState(file: any) {
   return {
     exists: Boolean(file?.exists),
@@ -426,6 +464,7 @@ function buildIcloudDiagnosticSnapshot(network: ReturnType<typeof getNetworkDiag
     },
     acceptance: publicIcloudAcceptance(acceptance),
     latestEntryRepair: publicIcloudEntryRepair(latestEntryRepair),
+    latestRepairImport: publicIcloudRepairImport(network.icloud?.latestRepairImport),
     latestEntryOpenEvent: latestOpenEvent,
     latestIgnoredEntryEvent: latestIgnoredEvent,
     latestEntryIssueEvent: latestIssueEvent,

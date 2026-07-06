@@ -402,6 +402,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const icloudMonitor = diagnostics?.icloudMonitor;
   const icloudLifecycle = icloud?.lifecycle;
   const latestEntryRepair = icloud?.latestEntryRepair || null;
+  const latestRepairImport = icloud?.latestRepairImport || null;
   const latestHistory = icloud?.entryHistory?.slice(0, 3) || [];
   const availableEntryCount = icloud?.availableEntries?.length || 0;
   const availableEntries = icloud?.availableEntries?.slice(0, 6) || [];
@@ -429,7 +430,13 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const icloudMonitorIntervalSeconds = Math.round((icloudMonitor?.intervalMs || 0) / 1000);
   const phoneConfirmationAt = formatHandoffTime(phoneConfirmation?.confirmedAt);
   const latestRepairAt = formatHandoffTime(latestEntryRepair?.eventAt);
+  const latestRepairImportAt = formatHandoffTime(latestRepairImport?.importedAt);
   const latestEntryRepairTone = latestEntryRepair?.severity === "ok" ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-50" : latestEntryRepair?.severity === "danger" ? "border-red-400/20 bg-red-500/10 text-red-50" : "border-amber-400/20 bg-amber-500/10 text-amber-50";
+  const latestRepairImportTone = latestRepairImport?.severity === "ok" ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-50" : latestRepairImport?.severity === "danger" ? "border-red-400/20 bg-red-500/10 text-red-50" : "border-amber-400/20 bg-amber-500/10 text-amber-50";
+  const latestRepairImportActions = latestRepairImport?.recommendations
+    ?.slice(0, 3)
+    .map((item) => t((repairRecommendationKeys[item.id as keyof typeof repairRecommendationKeys] || "onboarding.appleRemoteIcloudRepairRecReady") as TranslationKey))
+    .join(" / ") || "";
   const simpleIcloudStatus = getSimpleIcloudStatus(icloud);
   const icloudTrackedFiles = icloudAvailability
     ? [
@@ -824,6 +831,28 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                   </div>
                   {renderLatestEntryRepairUrls(latestEntryRepair)}
                   {latestEntryRepair.needsRefresh || latestEntryRepair.needsQr ? renderIcloudFixActions() : null}
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {latestRepairImport ? (
+            <div className={`mt-3 rounded-xl border p-3 ${latestRepairImportTone}`}>
+              <div className="flex gap-2">
+                {latestRepairImport.severity === "ok" ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <ClipboardPaste className="mt-0.5 h-4 w-4 shrink-0" />}
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold">{t("onboarding.appleRemoteIcloudRepairImportTitle")}</div>
+                  <div className="mt-1 text-[11px] leading-relaxed opacity-80">
+                    {t("onboarding.appleRemoteIcloudRepairImportBody", {
+                      time: latestRepairImportAt || "-",
+                      entry: latestRepairImport.parsed.entryBaseUrl || "-",
+                      reason: t(repairReasonKeys[latestRepairImport.reason as keyof typeof repairReasonKeys] || "onboarding.appleRemoteIcloudRepairReasonInvalid"),
+                    })}
+                  </div>
+                  {latestRepairImportActions ? (
+                    <div className="mt-2 rounded-lg border border-current/10 bg-black/10 p-2 text-[11px] font-bold">
+                      {t("onboarding.appleRemoteIcloudRepairImportAction", { actions: latestRepairImportActions })}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>

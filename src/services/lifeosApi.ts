@@ -112,6 +112,11 @@ export type IcloudHandoffRepairAnalysis = {
   }>;
 };
 
+export type IcloudRepairImportRecord = Omit<IcloudHandoffRepairAnalysis, "ok"> & {
+  id: string;
+  importedAt: number;
+};
+
 export type BindingSession = {
   id: string;
   token: string;
@@ -933,6 +938,7 @@ export type NetworkDiagnostics = {
       needsQr: boolean;
       reason: string;
     };
+    latestRepairImport?: IcloudRepairImportRecord | null;
     acceptance?: {
       ready: boolean;
       generatedAt: number;
@@ -1957,7 +1963,7 @@ export function exportIcloudHandoff() {
 }
 
 export function analyzeIcloudHandoffRepairPacket(packet: string) {
-  return requestJson<{ analysis: IcloudHandoffRepairAnalysis; diagnostics: NetworkDiagnostics }>("/api/v1/admin/icloud-handoff/repair-packet", {
+  return requestJson<{ analysis: IcloudHandoffRepairAnalysis; repairImport: IcloudRepairImportRecord; diagnostics: NetworkDiagnostics }>("/api/v1/admin/icloud-handoff/repair-packet", {
     method: "POST",
     body: JSON.stringify({ packet }),
   });

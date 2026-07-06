@@ -213,6 +213,38 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
     ignoredAt: now + 1,
     createdAt: now + 1,
   });
+  const icloudRepairImportsModule = await import(`../server/icloudRepairImports.ts?diagnostic=${Date.now()}`);
+  const repairImport = icloudRepairImportsModule.saveIcloudRepairImportAnalysis({
+    reason: "desktop-entry-changed",
+    severity: "danger",
+    parsed: {
+      status: "stale",
+      action: "mobileDevice.icloudHandoffActionRefresh",
+      entryBaseUrl: "https://user:password@old.example.com/lifeos?token=repair-import-secret#debug",
+      currentBaseUrl: "https://user:password@old.example.com/lifeos/mobile/chat?token=repair-import-secret",
+      mode: "cloudflare",
+      stability: "temporary",
+      label: "Old tunnel token=repair-import-secret",
+      generatedAt: now - 20_000,
+      expiresAt: now + 20_000,
+      lastConnectivityOk: false,
+      lastConnectivityError: "failed token=repair-import-secret",
+    },
+    desktop: {
+      desktopId: "desktop-secret-should-not-leak",
+      desktopName: "Mac token=repair-import-secret",
+      recommendedBaseUrl: "https://user:password@current.example.com/lifeos?token=repair-import-secret",
+      lastExportedBaseUrl: "https://user:password@current.example.com/lifeos?token=repair-import-secret",
+      handoffStatus: "fresh",
+      handoffNeedsRefresh: false,
+      remoteReadiness: "ready",
+      recommendedMode: "configured",
+      recommendedStability: "stable",
+    },
+    recommendations: [
+      { id: "refresh-icloud", severity: "danger", detail: "refresh token=repair-import-secret" },
+    ],
+  }, { type: "admin", id: "owner" });
 
   const { createDiagnosticBundle } = await import(`../server/diagnosticBundle.ts?diagnostic=${Date.now()}`);
   const bundle = createDiagnosticBundle();
@@ -230,6 +262,7 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(serialized.includes("icloud-device-secret"), false);
   assert.equal(serialized.includes("icloud-event-secret"), false);
   assert.equal(serialized.includes("icloud-open-secret"), false);
+  assert.equal(serialized.includes("repair-import-secret"), false);
   assert.equal(serialized.includes("+15551234567"), false);
   assert.equal(serialized.includes("Z2l0aHViOmRpYWdub3N0aWM"), false);
   assert.equal(serialized.includes("github_pat_diagnosticSecret"), false);
@@ -251,6 +284,14 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(bundle.icloudHandoff.latestEntryRepair.storedBaseUrl, "https://current.example.com/lifeos");
   assert.equal(bundle.icloudHandoff.latestEntryRepair.checksumPresent, true);
   assert.equal("deviceId" in bundle.icloudHandoff.latestEntryRepair, false);
+  assert.equal(bundle.icloudHandoff.latestRepairImport.id, repairImport.id);
+  assert.equal(bundle.icloudHandoff.latestRepairImport.reason, "desktop-entry-changed");
+  assert.equal(bundle.icloudHandoff.latestRepairImport.parsed.entryBaseUrl, "https://old.example.com/lifeos");
+  assert.equal(bundle.icloudHandoff.latestRepairImport.parsed.currentBaseUrl, "https://old.example.com/lifeos/mobile/chat");
+  assert.equal(bundle.icloudHandoff.latestRepairImport.parsed.label, "Old tunnel token=[redacted]");
+  assert.equal(bundle.icloudHandoff.latestRepairImport.desktop.recommendedBaseUrl, "https://current.example.com/lifeos");
+  assert.equal(bundle.icloudHandoff.latestRepairImport.desktop.desktopName, "Mac token=[redacted]");
+  assert.equal(bundle.icloudHandoff.latestRepairImport.recommendations[0].detail, "refresh token=[redacted]");
   assert.equal(bundle.icloudHandoff.latestEntryOpenEvent.id, "diagnostic-icloud-open-event");
   assert.equal(bundle.icloudHandoff.latestEntryOpenEvent.eventType, "opened-current-entry");
   assert.equal(bundle.icloudHandoff.latestEntryOpenEvent.deviceName, "Phone token=[redacted]");
