@@ -15,6 +15,7 @@ export type BoundDevice = {
   lastSeenAt: number;
   revokedAt?: number;
   connectivityReport?: DeviceConnectivityReport | null;
+  icloudHandoffEvent?: DeviceIcloudHandoffEvent | null;
 };
 
 export type DeviceConnectivityReport = {
@@ -30,12 +31,39 @@ export type DeviceConnectivityReport = {
   createdAt: number;
 };
 
+export type DeviceIcloudHandoffEvent = {
+  id: string;
+  deviceId: string;
+  deviceName?: string;
+  deviceType?: BoundDevice["type"];
+  eventType: "ignored-superseded-entry";
+  entryBaseUrl: string;
+  currentBaseUrl: string;
+  storedBaseUrl: string;
+  entryGeneratedAt?: number;
+  storedGeneratedAt?: number;
+  checksumSha256?: string;
+  ignoredAt: number;
+  createdAt: number;
+};
+
 export type MobileConnectivityReportInput = {
   ok: boolean;
   currentBase: string;
   latencyMs: number;
   error?: string;
   steps: Array<{ id: "health" | "mobile-shell" | "websocket"; ok: boolean; url: string; latencyMs: number; status?: number; error?: string }>;
+};
+
+export type MobileIcloudHandoffEventReportInput = {
+  eventType: "ignored-superseded-entry";
+  entryBaseUrl: string;
+  currentBaseUrl: string;
+  storedBaseUrl: string;
+  entryGeneratedAt?: number;
+  storedGeneratedAt?: number;
+  checksumSha256?: string;
+  ignoredAt?: number;
 };
 
 export type BindingSession = {
@@ -662,6 +690,7 @@ export type NetworkDiagnostics = {
     transport: "handoff-only";
     openInstruction: string;
     notes: string[];
+    latestIgnoredEntryEvent?: DeviceIcloudHandoffEvent | null;
   };
   remoteValidationReport: {
     id: string;
@@ -1931,6 +1960,13 @@ export function reportMobileConnectivity(result: MobileConnectivityReportInput) 
         error: step.error,
       })),
     }),
+  });
+}
+
+export function reportMobileIcloudHandoffEvent(event: MobileIcloudHandoffEventReportInput) {
+  return requestJson<{ ok: true; event: DeviceIcloudHandoffEvent }>("/api/v1/devices/me/icloud-handoff-event", {
+    method: "POST",
+    body: JSON.stringify(event),
   });
 }
 

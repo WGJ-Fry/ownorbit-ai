@@ -27,6 +27,22 @@ export type DeviceConnectivityReport = {
   createdAt: number;
 };
 
+export type DeviceIcloudHandoffEvent = {
+  id: string;
+  deviceId: string;
+  deviceName?: string;
+  deviceType?: DeviceRecord["type"];
+  eventType: "ignored-superseded-entry";
+  entryBaseUrl: string;
+  currentBaseUrl: string;
+  storedBaseUrl: string;
+  entryGeneratedAt?: number;
+  storedGeneratedAt?: number;
+  checksumSha256?: string;
+  ignoredAt: number;
+  createdAt: number;
+};
+
 export type BindingSession = {
   id: string;
   tokenHash: string;
@@ -79,6 +95,24 @@ function mapConnectivityReport(row: any): DeviceConnectivityReport {
   };
 }
 
+function mapIcloudHandoffEvent(row: any): DeviceIcloudHandoffEvent {
+  return {
+    id: row.id,
+    deviceId: row.device_id,
+    deviceName: row.device_name || undefined,
+    deviceType: row.device_type || undefined,
+    eventType: row.event_type,
+    entryBaseUrl: row.entry_base_url,
+    currentBaseUrl: row.current_base_url,
+    storedBaseUrl: row.stored_base_url,
+    entryGeneratedAt: row.entry_generated_at || undefined,
+    storedGeneratedAt: row.stored_generated_at || undefined,
+    checksumSha256: row.checksum_sha256 || undefined,
+    ignoredAt: row.ignored_at,
+    createdAt: row.created_at,
+  };
+}
+
 export function getDevices(includeRevoked = false) {
   const rows = includeRevoked
     ? db.prepare("SELECT * FROM devices ORDER BY created_at DESC").all()
@@ -98,6 +132,29 @@ export function getLatestDeviceConnectivityReport(deviceId: string) {
   return row ? mapConnectivityReport(row) : undefined;
 }
 
+export function getLatestDeviceIcloudHandoffEvent(deviceId: string) {
+  const row = db
+    .prepare("SELECT * FROM device_icloud_handoff_events WHERE device_id = ? ORDER BY created_at DESC LIMIT 1")
+    .get(deviceId);
+  return row ? mapIcloudHandoffEvent(row) : undefined;
+}
+
+export function getLatestIcloudHandoffEvent() {
+  const row = db
+    .prepare(`
+      SELECT
+        e.*,
+        d.name AS device_name,
+        d.type AS device_type
+      FROM device_icloud_handoff_events e
+      LEFT JOIN devices d ON d.id = e.device_id
+      ORDER BY e.created_at DESC
+      LIMIT 1
+    `)
+    .get();
+  return row ? mapIcloudHandoffEvent(row) : undefined;
+}
+
 export function insertDeviceConnectivityReport(report: DeviceConnectivityReport) {
   db.prepare(`
     INSERT INTO device_connectivity_reports (id, device_id, ok, current_base_url, health_ok, mobile_shell_ok, websocket_ok, latency_ms, error, created_at)
@@ -115,6 +172,38 @@ export function insertDeviceConnectivityReport(report: DeviceConnectivityReport)
     report.createdAt,
   );
   return getLatestDeviceConnectivityReport(report.deviceId);
+}
+
+export function insertDeviceIcloudHandoffEvent(event: DeviceIcloudHandoffEvent) {
+  db.prepare(`
+    INSERT INTO device_icloud_handoff_events (
+      id,
+      device_id,
+      event_type,
+      entry_base_url,
+      current_base_url,
+      stored_base_url,
+      entry_generated_at,
+      stored_generated_at,
+      checksum_sha256,
+      ignored_at,
+      created_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    event.id,
+    event.deviceId,
+    event.eventType,
+    event.entryBaseUrl,
+    event.currentBaseUrl,
+    event.storedBaseUrl,
+    event.entryGeneratedAt || null,
+    event.storedGeneratedAt || null,
+    event.checksumSha256 || null,
+    event.ignoredAt,
+    event.createdAt,
+  );
+  return getLatestDeviceIcloudHandoffEvent(event.deviceId);
 }
 
 export function getActiveDeviceByToken(deviceId: string | null, accessToken: string | null) {

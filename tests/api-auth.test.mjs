@@ -1491,6 +1491,54 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(reportedDevice.connectivityReport.mobileShellOk, true);
   assert.equal(reportedDevice.connectivityReport.error.includes("connectivity-secret"), false);
 
+  const unauthIcloudHandoffEvent = await request(port, "/api/v1/devices/me/icloud-handoff-event", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ eventType: "ignored-superseded-entry" }),
+  });
+  assert.equal(unauthIcloudHandoffEvent.status, 401);
+  const invalidIcloudHandoffEvent = await request(port, "/api/v1/devices/me/icloud-handoff-event", {
+    method: "POST",
+    headers: deviceHeaders,
+    body: JSON.stringify({
+      eventType: "ignored-superseded-entry",
+      entryBaseUrl: "https://old.example.test/mobile?token=icloud-secret",
+      currentBaseUrl: "https://old.example.test",
+      storedBaseUrl: "https://new.example.test",
+    }),
+  });
+  assert.equal(invalidIcloudHandoffEvent.status, 400);
+  const icloudHandoffEvent = await request(port, "/api/v1/devices/me/icloud-handoff-event", {
+    method: "POST",
+    headers: deviceHeaders,
+    body: JSON.stringify({
+      eventType: "ignored-superseded-entry",
+      entryBaseUrl: "https://old.example.test/lifeos",
+      currentBaseUrl: "https://old.example.test/lifeos",
+      storedBaseUrl: "https://new.example.test/lifeos",
+      entryGeneratedAt: 1_800_000_000_000,
+      storedGeneratedAt: 1_800_000_100_000,
+      checksumSha256: "e".repeat(64),
+      ignoredAt: 1_800_000_200_000,
+    }),
+  }).then((res) => res.json().then((body) => ({ status: res.status, body })));
+  assert.equal(icloudHandoffEvent.status, 200);
+  assert.equal(icloudHandoffEvent.body.event.eventType, "ignored-superseded-entry");
+  assert.equal(icloudHandoffEvent.body.event.entryBaseUrl, "https://old.example.test/lifeos");
+  assert.equal(icloudHandoffEvent.body.event.currentBaseUrl, "https://old.example.test/lifeos");
+  assert.equal(icloudHandoffEvent.body.event.storedBaseUrl, "https://new.example.test/lifeos");
+  assert.equal(icloudHandoffEvent.body.event.entryGeneratedAt, 1_800_000_000_000);
+  assert.equal(icloudHandoffEvent.body.event.storedGeneratedAt, 1_800_000_100_000);
+  assert.equal(icloudHandoffEvent.body.event.checksumSha256, "e".repeat(64));
+  const devicesAfterIcloudEvent = await request(port, "/api/v1/devices", { headers: adminHeaders }).then((res) => res.json());
+  const icloudReportedDevice = devicesAfterIcloudEvent.devices.find((device) => device.id === credential.device.id);
+  assert.equal(icloudReportedDevice.icloudHandoffEvent.id, icloudHandoffEvent.body.event.id);
+  assert.equal(icloudReportedDevice.icloudHandoffEvent.entryBaseUrl, "https://old.example.test/lifeos");
+  const networkDiagnosticsWithIcloudEvent = await request(port, "/api/v1/admin/network-diagnostics", { headers: adminHeaders }).then((res) => res.json());
+  assert.equal(networkDiagnosticsWithIcloudEvent.icloud.latestIgnoredEntryEvent.id, icloudHandoffEvent.body.event.id);
+  assert.equal(networkDiagnosticsWithIcloudEvent.icloud.latestIgnoredEntryEvent.deviceName, "Test Phone");
+  assert.equal(JSON.stringify(networkDiagnosticsWithIcloudEvent.icloud.latestIgnoredEntryEvent).includes("icloud-secret"), false);
+
   const selfRevokeBinding = await request(port, "/api/v1/devices/bind/start", {
     method: "POST",
     headers: adminHeaders,

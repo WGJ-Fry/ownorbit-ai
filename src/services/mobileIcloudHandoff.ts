@@ -1,3 +1,5 @@
+import type { MobileIcloudHandoffEventReportInput } from "./lifeosApi";
+
 const STORAGE_KEY = "lifeos_mobile_icloud_handoff";
 
 const handoffParamKeys = [
@@ -63,6 +65,7 @@ type HandoffLaunchOptions = {
   now?: number;
   testConnectivity?: (options: { currentHref?: string; timeoutMs?: number }) => Promise<MobileConnectivityLike>;
   reportConnectivity?: (result: MobileConnectivityLike) => Promise<unknown>;
+  reportIcloudHandoffEvent?: (event: MobileIcloudHandoffEventReportInput) => Promise<unknown>;
 };
 
 function safeStorage() {
@@ -242,10 +245,28 @@ export async function handleMobileIcloudHandoffLaunch(options: HandoffLaunchOpti
   }
   if (options.cleanupUrl !== false) stripMobileIcloudHandoffParamsFromUrl();
   if (ignoredOlderEntry) {
+    let icloudEventReported = false;
+    try {
+      const reportIcloudHandoffEvent = options.reportIcloudHandoffEvent || (await import("./lifeosApi")).reportMobileIcloudHandoffEvent;
+      await reportIcloudHandoffEvent({
+        eventType: "ignored-superseded-entry",
+        entryBaseUrl: parsedEntry.baseUrl,
+        currentBaseUrl: currentBaseFromHref(href) || parsedEntry.baseUrl,
+        storedBaseUrl: entry.baseUrl,
+        entryGeneratedAt: parsedEntry.generatedAt,
+        storedGeneratedAt: entry.generatedAt,
+        checksumSha256: parsedEntry.checksumSha256,
+        ignoredAt: now,
+      });
+      icloudEventReported = true;
+    } catch {
+      icloudEventReported = false;
+    }
     return {
       entry,
       result: null,
       reportSaved: false,
+      icloudEventReported,
       ignoredOlderEntry: true,
     };
   }

@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, Cloud, ExternalLink, Loader2, QrCode, RefreshCw, ShieldCheck, Smartphone, Wifi } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2, Cloud, ExternalLink, Loader2, QrCode, RefreshCw, ShieldCheck, Smartphone, Wifi } from "lucide-react";
 import type { NetworkDiagnostics } from "../../services/lifeosApi";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { TranslationKey } from "../../i18n/translations";
@@ -81,6 +81,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const candidate = getPreferredCandidate(diagnostics);
   const icloud = diagnostics?.icloud;
   const handoffHealth = icloud?.handoffHealth;
+  const latestIgnoredEntryEvent = icloud?.latestIgnoredEntryEvent || null;
   const readiness = diagnostics?.remoteReadiness;
   const tailscaleInstalled = Boolean(diagnostics?.tailscale.installed);
   const tailscaleInstallUrl = diagnostics?.tailscale.installUrl || "https://tailscale.com/download";
@@ -92,6 +93,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const handoffHealthTone = handoffHealth?.status === "fresh" ? "bg-emerald-500/15 text-emerald-100" : handoffHealth?.status === "address-changed" || handoffHealth?.status === "expired" || handoffHealth?.status === "invalid" || handoffHealth?.status === "html-mismatch" ? "bg-red-500/15 text-red-100" : "bg-amber-500/15 text-amber-100";
   const lastExportedAt = formatHandoffTime(handoffHealth?.lastExportedAt);
   const refreshAfter = formatHandoffTime(handoffHealth?.refreshAfter);
+  const latestIgnoredAt = formatHandoffTime(latestIgnoredEntryEvent?.ignoredAt);
 
   return (
     <section className="rounded-[28px] border border-sky-400/15 bg-[#101722] p-5">
@@ -161,6 +163,28 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                 <div>{t("onboarding.appleRemoteIcloudLastExported")}: {lastExportedAt || t("onboarding.appleRemoteIcloudNeverExported")}</div>
                 <div>{t("onboarding.appleRemoteIcloudRefreshAfter")}: {refreshAfter || "-"}</div>
                 <div>{t("onboarding.appleRemoteIcloudReason")}: {t(handoffHealthReasonKeys[handoffHealth.status])}</div>
+              </div>
+            </div>
+          ) : null}
+          {latestIgnoredEntryEvent ? (
+            <div className="mt-3 rounded-xl border border-amber-400/20 bg-amber-500/10 p-3 text-amber-50">
+              <div className="flex gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                  <div className="font-bold">{t("onboarding.appleRemoteIcloudOldEntryTitle")}</div>
+                  <div className="mt-1 text-[11px] leading-relaxed text-amber-50/80">
+                    {t("onboarding.appleRemoteIcloudOldEntryBody", {
+                      device: latestIgnoredEntryEvent.deviceName || latestIgnoredEntryEvent.deviceId,
+                      time: latestIgnoredAt || "-",
+                    })}
+                  </div>
+                  <div className="mt-2 break-all rounded-lg bg-[#060a10]/40 p-2 font-mono text-[10px] text-amber-50/70">
+                    {latestIgnoredEntryEvent.entryBaseUrl}
+                  </div>
+                  <div className="mt-2 text-[11px] font-bold text-amber-50">
+                    {t("onboarding.appleRemoteIcloudOldEntryAction")}
+                  </div>
+                </div>
               </div>
             </div>
           ) : null}

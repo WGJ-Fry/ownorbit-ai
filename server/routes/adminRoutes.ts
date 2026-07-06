@@ -20,7 +20,7 @@ import { setClientState } from "../clientState";
 import { evaluatePasswordPolicy, getSecurityDiagnostics } from "../securityDiagnostics";
 import { getOnboardingStatus, markOnboardingComplete } from "../onboarding";
 import { getBackupSchedule } from "../backupSchedule";
-import { getLatestBindingSession } from "../devices";
+import { getLatestBindingSession, getLatestIcloudHandoffEvent } from "../devices";
 import { checkReleaseUpdate } from "../releaseUpdateCheck";
 import { buildNativeAutomationPlan, executeNativeAutomation } from "../nativeAutomationBridge";
 
@@ -253,6 +253,7 @@ function getAdminNetworkDiagnostics() {
   const diagnostics = getNetworkDiagnostics();
   const remoteValidationReport = getRemoteValidationReport();
   const latestBindingSession = getLatestBindingSession();
+  const latestIcloudHandoffEvent = getLatestIcloudHandoffEvent();
   const remoteHealthSummary = summarizeRemoteHealth({
     baseUrl: diagnostics.desktopRuntimeConfig?.publicBaseUrl || diagnostics.remoteReadiness.baseUrl,
     readiness: diagnostics.remoteReadiness,
@@ -261,6 +262,10 @@ function getAdminNetworkDiagnostics() {
   });
   const enrichedDiagnostics = {
     ...diagnostics,
+    icloud: {
+      ...diagnostics.icloud,
+      latestIgnoredEntryEvent: latestIcloudHandoffEvent?.eventType === "ignored-superseded-entry" ? latestIcloudHandoffEvent : null,
+    },
     cloudflareNamedTunnel: getCloudflareNamedTunnelStatus(),
   };
   const remoteAcceptanceRunbookRecords = getRemoteAcceptanceRunbookRecords();

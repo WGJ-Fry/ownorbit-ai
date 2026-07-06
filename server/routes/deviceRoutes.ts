@@ -3,7 +3,7 @@ import type express from "express";
 import { insertAuditLog, redactAuditString } from "../audit";
 import { requireAdmin } from "../auth";
 import { getRequestActor } from "../auth";
-import { BindingSession, DeviceRecord, confirmBindingSession, getBindingSessionById, getDevice, getDevices, getLatestDeviceConnectivityReport, getOpenBindingSessionByToken, insertBindingSession, insertDevice, insertDeviceConnectivityReport, pruneExpiredBindingSessions, revokeDeviceRecord, rotateDeviceToken } from "../devices";
+import { BindingSession, DeviceRecord, confirmBindingSession, getBindingSessionById, getDevice, getDevices, getLatestDeviceConnectivityReport, getLatestDeviceIcloudHandoffEvent, getOpenBindingSessionByToken, insertBindingSession, insertDevice, insertDeviceConnectivityReport, insertDeviceIcloudHandoffEvent, pruneExpiredBindingSessions, revokeDeviceRecord, rotateDeviceToken } from "../devices";
 import { getDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { rateLimit } from "../httpSecurity";
 import { getConfiguredPublicBaseUrl, isTemporaryTryCloudflareUrl, normalizePublicBaseUrl } from "../publicBaseUrl";
@@ -55,6 +55,7 @@ function sanitizeDeviceWithConnectivity(device: DeviceRecord) {
   return {
     ...sanitizeDevice(device),
     connectivityReport: getLatestDeviceConnectivityReport(device.id) || null,
+    icloudHandoffEvent: getLatestDeviceIcloudHandoffEvent(device.id) || null,
   };
 }
 
@@ -93,6 +94,47 @@ function normalizeConnectivityReportPayload(body: any) {
     latencyMs: Math.max(0, Math.min(Number(body?.latencyMs) || 0, 120000)),
     error: body?.error ? redactAuditString(String(body.error)).slice(0, 300) : undefined,
   };
+}
+
+function normalizeCleanHttpBaseUrl(value: unknown, fieldName: string) {
+  const raw = String(value || "").trim();
+  if (!raw) throw new Error(`${fieldName} is required`);
+  if (raw.length > 240) throw new Error(`${fieldName} is too long`);
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new Error(`${fieldName} is invalid`);
+  }
+  if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password || parsed.search || parsed.hash) {
+    throw new Error(`${fieldName} must be a clean HTTP/HTTPS base URL`);
+  }
+  const pathname = parsed.pathname.replace(/\/+$/, "");
+  return `${parsed.origin}${pathname === "/" ? "" : pathname}`.replace(/\/$/, "");
+}
+
+function normalizeOptionalTimestamp(value: unknown) {
+  const next = Number(value || 0);
+  return Number.isFinite(next) && next > 0 ? Math.floor(next) : undefined;
+}
+
+function normalizeIcloudHandoffEventPayload(body: any) {
+  const eventType = String(body?.eventType || "").trim();
+  if (eventType !== "ignored-superseded-entry") throw new Error("Unsupported iCloud handoff event");
+  const checksum = String(body?.checksumSha256 || "").trim().toLowerCase();
+  if (checksum && !/^[a-f0-9]{64}$/.test(checksum)) throw new Error("checksumSha256 is invalid");
+  const now = Date.now();
+  const ignoredAt = normalizeOptionalTimestamp(body?.ignoredAt) || now;
+  return {
+    eventType,
+    entryBaseUrl: normalizeCleanHttpBaseUrl(body?.entryBaseUrl, "entryBaseUrl"),
+    currentBaseUrl: normalizeCleanHttpBaseUrl(body?.currentBaseUrl, "currentBaseUrl"),
+    storedBaseUrl: normalizeCleanHttpBaseUrl(body?.storedBaseUrl, "storedBaseUrl"),
+    entryGeneratedAt: normalizeOptionalTimestamp(body?.entryGeneratedAt),
+    storedGeneratedAt: normalizeOptionalTimestamp(body?.storedGeneratedAt),
+    checksumSha256: checksum || undefined,
+    ignoredAt: Math.min(ignoredAt, now + 5 * 60 * 1000),
+  } as const;
 }
 
 function deviceTokenExpiresAt(now = Date.now()) {
@@ -314,6 +356,44 @@ export function registerDeviceRoutes(app: express.Express) {
     if (!device || device.revokedAt) return res.status(404).json({ error: "Device not found" });
 
     res.json({ report: getLatestDeviceConnectivityReport(device.id) || null });
+  });
+
+  app.post("/api/v1/devices/me/icloud-handoff-event", (req, res) => {
+    const actor = getRequestActor(req);
+    if (!actor || actor.type !== "device") return res.status(401).json({ error: "Device authentication required" });
+    const device = getDevice(actor.id);
+    if (!device || device.revokedAt) return res.status(404).json({ error: "Device not found" });
+
+    let normalized: ReturnType<typeof normalizeIcloudHandoffEventPayload>;
+    try {
+      normalized = normalizeIcloudHandoffEventPayload(req.body);
+    } catch (error: any) {
+      return res.status(400).json({ error: error.message || "Invalid iCloud handoff event" });
+    }
+
+    const event = insertDeviceIcloudHandoffEvent({
+      id: crypto.randomUUID(),
+      deviceId: device.id,
+      createdAt: Date.now(),
+      ...normalized,
+    });
+    insertAuditLog("device_icloud_handoff_event_reported", "device", device.id, {
+      eventType: event?.eventType || normalized.eventType,
+      entryBaseUrl: event?.entryBaseUrl || normalized.entryBaseUrl,
+      currentBaseUrl: event?.currentBaseUrl || normalized.currentBaseUrl,
+      storedBaseUrl: event?.storedBaseUrl || normalized.storedBaseUrl,
+      entryGeneratedAt: event?.entryGeneratedAt || normalized.entryGeneratedAt || null,
+      storedGeneratedAt: event?.storedGeneratedAt || normalized.storedGeneratedAt || null,
+      checksumPresent: Boolean(event?.checksumSha256 || normalized.checksumSha256),
+      ignoredAt: event?.ignoredAt || normalized.ignoredAt,
+    }, "device", device.id);
+    broadcastRealtime({
+      type: "device.icloud_handoff_event_reported",
+      deviceId: device.id,
+      event,
+      timestamp: Date.now(),
+    });
+    res.json({ ok: true, event });
   });
 
   app.get("/api/v1/devices", requireAdmin, (_req, res) => {

@@ -536,6 +536,7 @@ test("mobile iCloud handoff ignores older entries instead of overwriting the lat
 
   let testCalled = false;
   let reportCalled = false;
+  let icloudEvent = null;
   const launch = await handleMobileIcloudHandoffLaunch({
     href: oldHref,
     cleanupUrl: false,
@@ -548,13 +549,26 @@ test("mobile iCloud handoff ignores older entries instead of overwriting the lat
       reportCalled = true;
       return { ok: true };
     },
+    reportIcloudHandoffEvent: async (event) => {
+      icloudEvent = event;
+      return { ok: true };
+    },
   });
 
   assert.equal(launch.ignoredOlderEntry, true);
   assert.equal(launch.reportSaved, false);
+  assert.equal(launch.icloudEventReported, true);
   assert.equal(launch.result, null);
   assert.equal(testCalled, false);
   assert.equal(reportCalled, false);
+  assert.equal(icloudEvent.eventType, "ignored-superseded-entry");
+  assert.equal(icloudEvent.entryBaseUrl, "https://old-lifeos.example.com");
+  assert.equal(icloudEvent.currentBaseUrl, "https://old-lifeos.example.com");
+  assert.equal(icloudEvent.storedBaseUrl, "https://new-lifeos.example.com");
+  assert.equal(icloudEvent.entryGeneratedAt, now - 10_000);
+  assert.equal(icloudEvent.storedGeneratedAt, now);
+  assert.equal(icloudEvent.checksumSha256, "d".repeat(64));
+  assert.equal(icloudEvent.ignoredAt, now + 2_000);
   const storedAfterLaunch = getStoredMobileIcloudHandoff();
   assert.equal(storedAfterLaunch.baseUrl, "https://new-lifeos.example.com");
   assert.equal(storedAfterLaunch.lastIgnoredAt, now + 2_000);
