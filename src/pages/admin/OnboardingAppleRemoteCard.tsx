@@ -182,6 +182,21 @@ const historyChangeTypeKeys: Record<string, TranslationKey> = {
   "refreshed-same-address": "onboarding.appleRemoteIcloudHistoryRefreshed",
 };
 
+const icloudMonitorTriggerKeys: Record<string, TranslationKey> = {
+  "local-core-startup": "onboarding.appleRemoteIcloudMonitorTriggerStartup",
+  "desktop-wake": "onboarding.appleRemoteIcloudMonitorTriggerWake",
+  "scheduled-check": "onboarding.appleRemoteIcloudMonitorTriggerSchedule",
+  "remote-health": "onboarding.appleRemoteIcloudMonitorTriggerRemoteHealth",
+  "phone-entry": "onboarding.appleRemoteIcloudMonitorTriggerPhone",
+  "pairing-session": "onboarding.appleRemoteIcloudMonitorTriggerPairing",
+  manual: "onboarding.appleRemoteIcloudMonitorTriggerManual",
+  unknown: "onboarding.appleRemoteIcloudMonitorTriggerUnknown",
+};
+
+function monitorTriggerKey(trigger?: string): TranslationKey {
+  return icloudMonitorTriggerKeys[trigger || ""] || "onboarding.appleRemoteIcloudMonitorTriggerUnknown";
+}
+
 type IcloudHandoffEvent = NonNullable<NetworkDiagnostics["icloud"]["latestEntryIssueEvent"]>;
 
 function isAppleRuntime() {
@@ -859,28 +874,48 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                   <div>{t("onboarding.appleRemoteIcloudMonitorStartedAt")}: {icloudMonitorStartedAt || t("onboarding.appleRemoteIcloudNeverExported")}</div>
                   <div>{t("onboarding.appleRemoteIcloudMonitorStartupRun")}: {icloudMonitorStartupRunAt || t("onboarding.appleRemoteIcloudNeverExported")}</div>
                   {icloudMonitor.startupResult ? (
-                    <div>
-                      {t("onboarding.appleRemoteIcloudMonitorStartupResult")}:{" "}
-                      {icloudMonitor.startupResult.error
-                        ? t("onboarding.appleRemoteIcloudMonitorResultFailed")
-                        : icloudMonitor.startupResult.refreshed
-                          ? t("onboarding.appleRemoteIcloudMonitorResultRefreshed")
-                          : t("onboarding.appleRemoteIcloudMonitorResultFresh")}{" "}
-                      ({icloudMonitor.startupResult.refreshReason} / {icloudMonitor.startupResult.status})
-                    </div>
+                    <>
+                      <div>
+                        {t("onboarding.appleRemoteIcloudMonitorStartupResult")}:{" "}
+                        {icloudMonitor.startupResult.error
+                          ? t("onboarding.appleRemoteIcloudMonitorResultFailed")
+                          : icloudMonitor.startupResult.refreshed
+                            ? t("onboarding.appleRemoteIcloudMonitorResultRefreshed")
+                            : t("onboarding.appleRemoteIcloudMonitorResultFresh")}{" "}
+                        ({icloudMonitor.startupResult.refreshReason} / {icloudMonitor.startupResult.status})
+                      </div>
+                      <div>
+                        {t("onboarding.appleRemoteIcloudMonitorTrigger")}: {t(monitorTriggerKey(icloudMonitor.startupResult.trigger))}
+                      </div>
+                      {icloudMonitor.startupResult.changeType ? (
+                        <div>
+                          {t("onboarding.appleRemoteIcloudMonitorChange")}: {t(historyChangeTypeKeys[icloudMonitor.startupResult.changeType] || "onboarding.appleRemoteIcloudHistoryUnknown")}
+                        </div>
+                      ) : null}
+                    </>
                   ) : null}
                   <div>{t("onboarding.appleRemoteIcloudMonitorLastRun")}: {icloudMonitorLastRunAt || t("onboarding.appleRemoteIcloudNeverExported")}</div>
                   <div>{t("onboarding.appleRemoteIcloudMonitorNextRun")}: {icloudMonitorNextRunAt || "-"}</div>
                   {icloudMonitor.lastResult ? (
-                    <div>
-                      {t("onboarding.appleRemoteIcloudMonitorLastResult")}:{" "}
-                      {icloudMonitor.lastResult.error
-                        ? t("onboarding.appleRemoteIcloudMonitorResultFailed")
-                        : icloudMonitor.lastResult.refreshed
-                          ? t("onboarding.appleRemoteIcloudMonitorResultRefreshed")
-                          : t("onboarding.appleRemoteIcloudMonitorResultFresh")}{" "}
-                      ({icloudMonitor.lastResult.refreshReason} / {icloudMonitor.lastResult.status})
-                    </div>
+                    <>
+                      <div>
+                        {t("onboarding.appleRemoteIcloudMonitorLastResult")}:{" "}
+                        {icloudMonitor.lastResult.error
+                          ? t("onboarding.appleRemoteIcloudMonitorResultFailed")
+                          : icloudMonitor.lastResult.refreshed
+                            ? t("onboarding.appleRemoteIcloudMonitorResultRefreshed")
+                            : t("onboarding.appleRemoteIcloudMonitorResultFresh")}{" "}
+                        ({icloudMonitor.lastResult.refreshReason} / {icloudMonitor.lastResult.status})
+                      </div>
+                      <div>
+                        {t("onboarding.appleRemoteIcloudMonitorTrigger")}: {t(monitorTriggerKey(icloudMonitor.lastResult.trigger))}
+                      </div>
+                      {icloudMonitor.lastResult.changeType ? (
+                        <div>
+                          {t("onboarding.appleRemoteIcloudMonitorChange")}: {t(historyChangeTypeKeys[icloudMonitor.lastResult.changeType] || "onboarding.appleRemoteIcloudHistoryUnknown")}
+                        </div>
+                      ) : null}
+                    </>
                   ) : null}
                   {icloudMonitor.lastResult?.phoneConfirmationStatus || icloudMonitor.lastResult?.previousPhoneConfirmationStatus ? (
                     <div>

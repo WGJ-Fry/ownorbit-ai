@@ -11,6 +11,8 @@ let startupResult: IcloudHandoffMonitorRun | null = null;
 
 export type IcloudHandoffMonitorRun = {
   reason: string;
+  requestedReason: string;
+  trigger: "local-core-startup" | "desktop-wake" | "scheduled-check" | "remote-health" | "phone-entry" | "pairing-session" | "manual" | "unknown";
   checkedAt: number;
   refreshed: boolean;
   refreshReason: string;
@@ -24,8 +26,23 @@ export type IcloudHandoffMonitorRun = {
   previousPairingSessionStatus?: string;
   generatedAt?: number;
   recommendedBaseUrl?: string;
+  changeType?: string;
+  previousBaseUrl?: string;
   error?: string;
 };
+
+export function classifyIcloudHandoffTrigger(reason = ""): IcloudHandoffMonitorRun["trigger"] {
+  const value = String(reason || "").toLowerCase();
+  if (!value) return "unknown";
+  if (value.includes("startup") || value.includes("local-core")) return "local-core-startup";
+  if (value.includes("desktop-resume") || value.includes("desktop-unlock") || value.includes("wake")) return "desktop-wake";
+  if (value.includes("remote-health")) return "remote-health";
+  if (value.includes("device-icloud") || value.includes("phone-confirmation") || value.includes("phone-entry")) return "phone-entry";
+  if (value.includes("pairing-session") || value.includes("expired-pairing") || value.includes("qr")) return "pairing-session";
+  if (value.includes("monitor") || value.includes("schedule")) return "scheduled-check";
+  if (value.includes("manual")) return "manual";
+  return "unknown";
+}
 
 function monitorEnabled() {
   return process.env.LIFEOS_ICLOUD_HANDOFF_MONITOR !== "0";
@@ -40,10 +57,13 @@ function intervalMs() {
 export function runIcloudHandoffRefreshCheck(reason = "manual"): IcloudHandoffMonitorRun {
   try {
     const refresh = maybeRefreshIcloudHandoff(reason);
+    const requestedReason = String(refresh.requestedReason || reason);
     const checkedAt = Date.now();
     lastRunAt = checkedAt;
     lastResult = {
       reason,
+      requestedReason,
+      trigger: classifyIcloudHandoffTrigger(requestedReason),
       checkedAt,
       refreshed: refresh.refreshed,
       refreshReason: refresh.reason,
@@ -57,6 +77,8 @@ export function runIcloudHandoffRefreshCheck(reason = "manual"): IcloudHandoffMo
       previousPairingSessionStatus: refresh.previousPairingSessionStatus,
       generatedAt: refresh.generatedAt,
       recommendedBaseUrl: refresh.recommendedBaseUrl,
+      changeType: refresh.changeType,
+      previousBaseUrl: refresh.previousBaseUrl,
     };
     nextRunAt = monitorTimer ? checkedAt + intervalMs() : null;
     return lastResult;
@@ -65,6 +87,8 @@ export function runIcloudHandoffRefreshCheck(reason = "manual"): IcloudHandoffMo
     lastRunAt = checkedAt;
     lastResult = {
       reason,
+      requestedReason: reason,
+      trigger: classifyIcloudHandoffTrigger(reason),
       checkedAt,
       refreshed: false,
       refreshReason: "error",

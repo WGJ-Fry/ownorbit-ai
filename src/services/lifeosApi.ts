@@ -123,10 +123,13 @@ export type BindingSession = {
     refreshed: boolean;
     reason: string;
     requestedReason: string;
+    trigger?: "local-core-startup" | "desktop-wake" | "scheduled-check" | "remote-health" | "phone-entry" | "pairing-session" | "manual" | "unknown";
     status: string;
     previousStatus?: string;
     generatedAt?: number;
     recommendedBaseUrl?: string;
+    changeType?: string;
+    previousBaseUrl?: string;
     error?: string;
   };
 };
@@ -1001,6 +1004,8 @@ export type NetworkDiagnostics = {
     startupRunReason: string | null;
     startupResult: {
       reason: string;
+      requestedReason?: string;
+      trigger?: "local-core-startup" | "desktop-wake" | "scheduled-check" | "remote-health" | "phone-entry" | "pairing-session" | "manual" | "unknown";
       checkedAt: number;
       refreshed: boolean;
       refreshReason: string;
@@ -1014,10 +1019,14 @@ export type NetworkDiagnostics = {
       previousPairingSessionStatus?: string;
       generatedAt?: number;
       recommendedBaseUrl?: string;
+      changeType?: string;
+      previousBaseUrl?: string;
       error?: string;
     } | null;
     lastResult: {
       reason: string;
+      requestedReason?: string;
+      trigger?: "local-core-startup" | "desktop-wake" | "scheduled-check" | "remote-health" | "phone-entry" | "pairing-session" | "manual" | "unknown";
       checkedAt: number;
       refreshed: boolean;
       refreshReason: string;
@@ -1031,6 +1040,8 @@ export type NetworkDiagnostics = {
       previousPairingSessionStatus?: string;
       generatedAt?: number;
       recommendedBaseUrl?: string;
+      changeType?: string;
+      previousBaseUrl?: string;
       error?: string;
     } | null;
   };

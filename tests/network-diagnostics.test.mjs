@@ -782,12 +782,16 @@ test("iCloud handoff monitor refreshes stale entries without remote health check
   const nextPacket = JSON.parse(await readFile(first.packetFilePath, "utf8"));
   assert.equal(monitorRun.refreshed, true);
   assert.equal(monitorRun.refreshReason, "refreshed");
+  assert.equal(monitorRun.trigger, "scheduled-check");
+  assert.equal(monitorRun.changeType, "address-changed");
   assert.equal(monitorRun.status, "address-changed");
   assert.equal(monitorRun.previousStatus, "address-changed");
   assert.equal(monitorRun.recommendedBaseUrl, "https://monitor-new-lifeos.example.com");
   assert.equal(typeof monitorRun.generatedAt, "number");
   assert.equal(nextPacket.baseUrl, "https://monitor-new-lifeos.example.com");
   assert.equal(getIcloudHandoffMonitorStatus().lastResult?.refreshed, true);
+  assert.equal(getIcloudHandoffMonitorStatus().lastResult?.trigger, "scheduled-check");
+  assert.equal(getIcloudHandoffMonitorStatus().lastResult?.changeType, "address-changed");
   assert.equal(getIcloudHandoffMonitorStatus().lastResult?.recommendedBaseUrl, "https://monitor-new-lifeos.example.com");
 });
 
@@ -832,6 +836,8 @@ test("iCloud startup refresh records local core restart state", async (t) => {
   assert.equal(firstPacket.baseUrl, "https://startup-old-lifeos.example.com");
   assert.equal(startupRun.refreshed, true);
   assert.equal(startupRun.refreshReason, "refreshed");
+  assert.equal(startupRun.trigger, "local-core-startup");
+  assert.equal(startupRun.changeType, "address-changed");
   assert.equal(startupRun.status, "address-changed");
   assert.equal(startupRun.previousStatus, "address-changed");
   assert.equal(startupRun.recommendedBaseUrl, "https://startup-new-lifeos.example.com");
@@ -839,6 +845,8 @@ test("iCloud startup refresh records local core restart state", async (t) => {
   assert.equal(nextPacket.exportReason, "test-local-core-startup");
   assert.equal(status.startupRunAt, startupRun.checkedAt);
   assert.equal(status.startupRunReason, "test-local-core-startup");
+  assert.equal(status.startupResult.trigger, "local-core-startup");
+  assert.equal(status.startupResult.changeType, "address-changed");
   assert.equal(status.startupResult.recommendedBaseUrl, "https://startup-new-lifeos.example.com");
   assert.equal(status.lastResult.recommendedBaseUrl, "https://startup-new-lifeos.example.com");
 });
@@ -919,6 +927,8 @@ test("iCloud handoff monitor refreshes after a phone reports an old entry", asyn
   assert.equal(firstPacket.baseUrl, "https://phone-confirmation-lifeos.example.com");
   assert.equal(monitorRun.refreshed, true);
   assert.equal(monitorRun.refreshReason, "phone-confirmation-refresh");
+  assert.equal(monitorRun.trigger, "phone-entry");
+  assert.equal(monitorRun.changeType, "refreshed-same-address");
   assert.equal(monitorRun.status, "fresh");
   assert.equal(monitorRun.previousStatus, "fresh");
   assert.equal(monitorRun.previousPhoneConfirmationStatus, "issue-after-confirm");
@@ -977,6 +987,8 @@ test("iCloud handoff monitor refreshes after the latest pairing QR expires", asy
   assert.equal(firstPacket.baseUrl, "https://pairing-session-lifeos.example.com");
   assert.equal(monitorRun.refreshed, true);
   assert.equal(monitorRun.refreshReason, "pairing-session-refresh");
+  assert.equal(monitorRun.trigger, "pairing-session");
+  assert.equal(monitorRun.changeType, "refreshed-same-address");
   assert.equal(monitorRun.status, "fresh");
   assert.equal(monitorRun.previousStatus, "fresh");
   assert.equal(monitorRun.previousPairingSessionStatus, "expired");

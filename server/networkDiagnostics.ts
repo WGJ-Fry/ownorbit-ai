@@ -2232,6 +2232,8 @@ export function exportIcloudHandoff(reason = "manual") {
   return {
     ok: true,
     generatedAt,
+    changeType,
+    previousBaseUrl,
     cleanup,
     ...getIcloudHandoffStatus(diagnostics.connectionCandidates),
   };
@@ -2291,6 +2293,8 @@ export function maybeRefreshIcloudHandoff(reason = "auto") {
     pairingSessionAction: pairingSession.action,
     generatedAt: handoff.generatedAt,
     recommendedBaseUrl: handoff.recommendedBaseUrl,
+    changeType: handoff.changeType,
+    previousBaseUrl: handoff.previousBaseUrl,
     handoff,
   };
 }

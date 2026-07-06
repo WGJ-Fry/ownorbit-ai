@@ -1353,6 +1353,7 @@ function checkAssets() {
     networkDiagnosticsSource.includes("pairing-session-refresh") &&
     networkDiagnosticsSource.includes("previousPairingSessionStatus") &&
     icloudHandoffMonitorSource.includes("previousPairingSessionStatus") &&
+    icloudHandoffMonitorSource.includes("classifyIcloudHandoffTrigger") &&
     icloudHandoffMonitorSource.includes("runIcloudHandoffStartupRefresh") &&
     serverSource.includes("runIcloudHandoffStartupRefresh") &&
     adminRoutesSource.includes("/api/v1/internal/icloud-handoff/refresh") &&
@@ -1369,6 +1370,8 @@ function checkAssets() {
     translationsSource.includes("appleRemoteIcloudBoundaryBody") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorPairingSession") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorStartupRun") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorTrigger") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorChange") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudPairingExpired") &&
     onboardingAppleRemoteSource.includes("renderIcloudEventUrls") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEventEntryUrl") &&
@@ -1393,10 +1396,12 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceTitle") &&
     networkDiagnosticsTestSource.includes("iCloud acceptance summary separates synced entry from real-device evidence") &&
     networkDiagnosticsTestSource.includes("iCloud startup refresh records local core restart state") &&
+    networkDiagnosticsTestSource.includes("monitorRun.trigger") &&
+    networkDiagnosticsTestSource.includes("monitorRun.changeType") &&
     apiAuthTestSource.includes("/api/v1/internal/icloud-handoff/refresh") &&
     apiAuthTestSource.includes("desktopInternalToken")
-  ) pass("iCloud diagnostics surface stale QR, account state, Apple-device acceptance, desktop wake refresh, and handoff boundary with UI and tests");
-  else warn("iCloud diagnostics do not surface stale QR/account/acceptance/desktop wake refresh/handoff boundary state across API, UI, and tests");
+  ) pass("iCloud diagnostics surface stale QR, account state, Apple-device acceptance, desktop wake refresh, trigger/change reason, and handoff boundary with UI and tests");
+  else warn("iCloud diagnostics do not surface stale QR/account/acceptance/desktop wake refresh/trigger/change/handoff boundary state across API, UI, and tests");
   if (
     deviceRoutesSource.includes('app.delete("/api/v1/devices/me"') &&
     deviceRoutesSource.includes("device_self_revoked") &&
