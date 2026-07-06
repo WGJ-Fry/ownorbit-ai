@@ -1,4 +1,5 @@
 import type express from "express";
+import crypto from "crypto";
 import { db } from "../db";
 import { insertAuditLog, listAuditLogs } from "../audit";
 import { aiProviders, deleteAiApiKey, getActiveAiProviderId, getAiApiKey, getAiConfigStatus, getAiProviderBaseUrl, getAiProviderDefinition, getAiProviderStatus, listAiProviderStatuses, saveActiveAiProvider, saveAiApiKey, saveDiscoveredAiModelCatalog, saveSelectedAiModel, supportsAiProviderModelDiscovery, type AiProviderId } from "../appSecrets";
@@ -14,7 +15,7 @@ import { saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
 import { getRemoteValidationReport, saveRemoteValidationReport, summarizeRemoteHealth } from "../remoteValidationReport";
 import { getRemoteHealthEvidence, getRemoteHealthMonitorStatus, getRemoteRecoveryReport, runRemoteHealthCheck } from "../remoteHealthMonitor";
-import { getIcloudHandoffMonitorStatus } from "../icloudHandoffMonitor";
+import { getIcloudHandoffMonitorStatus, runIcloudHandoffStartupRefresh } from "../icloudHandoffMonitor";
 import { buildIcloudAcceptanceSummary } from "../icloudAcceptance";
 import { buildRemoteAcceptanceChecklist, buildRemoteAcceptanceEvidencePack, getRemoteAcceptanceRecords, getRemoteAcceptanceRunbookRecords, saveRemoteAcceptanceRecord, saveRemoteAcceptanceRunbookFromConnectionTest, saveRemoteAcceptanceRunbookReport, summarizeRemoteAcceptanceChecklist } from "../remoteAcceptance";
 import { createSecret, tokenHash } from "../security";
@@ -37,6 +38,21 @@ function loginKey(req: express.Request) {
 function isLoopbackSocket(req: express.Request) {
   const remoteAddress = req.socket.remoteAddress || "";
   return remoteAddress === "127.0.0.1" || remoteAddress === "::1" || remoteAddress === "::ffff:127.0.0.1";
+}
+
+function verifyDesktopInternalToken(req: express.Request) {
+  const expected = String(process.env.LIFEOS_DESKTOP_INTERNAL_TOKEN || "");
+  const provided = String(req.headers["x-lifeos-desktop-token"] || "");
+  if (expected.length < 32 || provided.length < 32) return false;
+  const expectedBuffer = Buffer.from(expected);
+  const providedBuffer = Buffer.from(provided);
+  return expectedBuffer.length === providedBuffer.length && crypto.timingSafeEqual(expectedBuffer, providedBuffer);
+}
+
+function normalizeInternalRefreshReason(value: unknown) {
+  const raw = String(value || "desktop-internal").trim();
+  if (!raw) return "desktop-internal";
+  return raw.replace(/[^a-z0-9_.:-]/gi, "-").slice(0, 80);
 }
 
 function getProviderId(value: string): AiProviderId | null {
@@ -662,6 +678,33 @@ export function registerAdminRoutes(app: express.Express) {
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.status(400).json({ error: error.message || "iCloud repair info could not be analyzed", diagnostics: getAdminNetworkDiagnostics() });
     }
+  });
+
+  app.post("/api/v1/internal/icloud-handoff/refresh", rateLimit({ keyPrefix: "internal-icloud-refresh", windowMs: 60_000, max: 30 }), (req, res) => {
+    if (!isLoopbackSocket(req)) {
+      insertAuditLog("icloud_handoff_internal_refresh_blocked", "network", "icloud-handoff", { reason: "non_loopback_socket" }, "system", "desktop");
+      return res.status(403).json({ error: "Desktop iCloud refresh is only available on this computer.", code: "local_only" });
+    }
+    if (!verifyDesktopInternalToken(req)) {
+      insertAuditLog("icloud_handoff_internal_refresh_blocked", "network", "icloud-handoff", { reason: "invalid_desktop_token" }, "system", "desktop");
+      return res.status(401).json({ error: "Desktop internal authentication required", code: "desktop_internal_auth_required" });
+    }
+
+    const reason = normalizeInternalRefreshReason(req.body?.reason || "desktop-wake");
+    const result = runIcloudHandoffStartupRefresh(reason);
+    insertAuditLog("icloud_handoff_internal_refreshed", "network", result.recommendedBaseUrl || "icloud-handoff", {
+      reason,
+      refreshed: result.refreshed,
+      refreshReason: result.refreshReason,
+      status: result.status,
+      previousStatus: result.previousStatus || null,
+      recommendedBaseUrl: result.recommendedBaseUrl || null,
+    }, "system", "desktop");
+    res.json({
+      ok: true,
+      result,
+      monitor: getIcloudHandoffMonitorStatus(),
+    });
   });
 
   app.post("/api/v1/admin/network-diagnostics/acceptance", requireAdmin, (req, res) => {

@@ -3083,6 +3083,67 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assertSecretNotLeaked(publicResponses, adminRequestedRotation.accessToken, new Set(["admin requested rotation"]));
 });
 
+test("desktop internal iCloud refresh requires the local desktop token", async (t) => {
+  const port = await getOpenPort();
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-internal-icloud-refresh-test-"));
+  const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-internal-icloud-refresh-drive-"));
+  const desktopInternalToken = "test-desktop-internal-token-1234567890";
+  const child = spawn(process.execPath, ["dist/server.cjs"], {
+    cwd: rootDir,
+    env: {
+      ...process.env,
+      NODE_ENV: "production",
+      LIFEOS_PORT: String(port),
+      LIFEOS_DATA_DIR: dataDir,
+      LIFEOS_HOST: "127.0.0.1",
+      PUBLIC_BASE_URL: "",
+      APP_URL: "",
+      GEMINI_API_KEY: "",
+      LIFEOS_ICLOUD_DRIVE_DIR: icloudDir,
+      LIFEOS_FORCE_ICLOUD_HANDOFF: "1",
+      LIFEOS_DESKTOP_INTERNAL_TOKEN: desktopInternalToken,
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const childOutput = [];
+  child.stdout.on("data", (chunk) => childOutput.push(chunk.toString()));
+  child.stderr.on("data", (chunk) => childOutput.push(chunk.toString()));
+
+  t.after(async () => {
+    child.kill();
+    await rm(dataDir, { recursive: true, force: true });
+    await rm(icloudDir, { recursive: true, force: true });
+  });
+
+  await waitForServer(port, child, childOutput);
+
+  const blockedInternalIcloudRefresh = await request(port, "/api/v1/internal/icloud-handoff/refresh", {
+    method: "POST",
+    body: JSON.stringify({ reason: "test-desktop-resume" }),
+  });
+  assert.equal(blockedInternalIcloudRefresh.status, 401);
+
+  const wrongTokenInternalIcloudRefresh = await request(port, "/api/v1/internal/icloud-handoff/refresh", {
+    method: "POST",
+    headers: { "X-LifeOS-Desktop-Token": "wrong-desktop-internal-token-1234567890" },
+    body: JSON.stringify({ reason: "test-desktop-resume" }),
+  });
+  assert.equal(wrongTokenInternalIcloudRefresh.status, 401);
+
+  const internalIcloudRefreshResponse = await request(port, "/api/v1/internal/icloud-handoff/refresh", {
+    method: "POST",
+    headers: { "X-LifeOS-Desktop-Token": desktopInternalToken },
+    body: JSON.stringify({ reason: "test-desktop-resume" }),
+  });
+  const internalIcloudRefresh = await internalIcloudRefreshResponse.json();
+  assert.equal(internalIcloudRefreshResponse.status, 200, JSON.stringify(internalIcloudRefresh));
+  assert.equal(internalIcloudRefresh.ok, true);
+  assert.equal(internalIcloudRefresh.result.reason, "test-desktop-resume");
+  assert.equal(typeof internalIcloudRefresh.result.refreshed, "boolean");
+  assert.equal(internalIcloudRefresh.monitor.startupRunReason, "test-desktop-resume");
+  assert.equal(internalIcloudRefresh.monitor.startupResult.reason, "test-desktop-resume");
+});
+
 test("local admin password reset works only as a guarded local recovery path", async (t) => {
   const port = await getOpenPort();
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-local-reset-test-"));

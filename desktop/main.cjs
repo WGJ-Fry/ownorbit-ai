@@ -1,5 +1,6 @@
-const { app, BrowserWindow, Menu, Tray, clipboard, dialog, ipcMain, nativeImage, shell } = require("electron");
+const { app, BrowserWindow, Menu, Tray, clipboard, dialog, ipcMain, nativeImage, powerMonitor, shell } = require("electron");
 const { autoUpdater } = require("electron-updater");
+const crypto = require("crypto");
 const fs = require("fs");
 const http = require("http");
 const net = require("net");
@@ -10,6 +11,9 @@ let tray;
 let trayRefreshTimer;
 let serverPort = 3000;
 let desktopLogPath = "";
+let desktopInternalToken = "";
+let desktopPowerMonitorRegistered = false;
+let lastDesktopWakeIcloudRefreshAt = 0;
 let desktopShellStatus = {
   core: "starting",
   coreLabel: "Local core starting",
@@ -51,6 +55,14 @@ function writeDesktopLog(message, details) {
 
 function localUrl(pathname = "/admin/login") {
   return `http://127.0.0.1:${serverPort}${pathname}`;
+}
+
+function ensureDesktopInternalToken() {
+  if (!desktopInternalToken) {
+    desktopInternalToken = process.env.LIFEOS_DESKTOP_INTERNAL_TOKEN || crypto.randomBytes(32).toString("hex");
+    process.env.LIFEOS_DESKTOP_INTERNAL_TOKEN = desktopInternalToken;
+  }
+  return desktopInternalToken;
 }
 
 async function loadDesktopWindow(targetWindow, pathname, attempts = 3) {
@@ -270,6 +282,7 @@ function waitForEndpoint(url, options = {}) {
 async function startLocalCore() {
   desktopLogPath = path.join(app.getPath("logs"), "lifeos-desktop.log");
   process.env.LIFEOS_DATA_DIR = path.join(app.getPath("userData"), "data");
+  ensureDesktopInternalToken();
   applyDesktopRuntimeConfig();
   serverPort = await findOpenPort(Number(process.env.LIFEOS_PORT || 3000));
   process.env.NODE_ENV = "production";
@@ -402,6 +415,45 @@ function fetchLocalJson(pathname) {
     });
     req.setTimeout(1500, () => req.destroy(new Error("timeout")));
     req.on("error", (error) => resolve({ ok: false, status: 0, error: error?.message || "request failed" }));
+  });
+}
+
+function postLocalJson(pathname, body = {}, headers = {}) {
+  return new Promise((resolve) => {
+    const payload = JSON.stringify(body || {});
+    const req = http.request({
+      hostname: "127.0.0.1",
+      port: serverPort,
+      path: pathname,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(payload),
+        ...headers,
+      },
+    }, (res) => {
+      let responseBody = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk) => {
+        responseBody += chunk;
+        if (responseBody.length > 200_000) req.destroy(new Error("response too large"));
+      });
+      res.on("end", () => {
+        try {
+          resolve({
+            ok: res.statusCode >= 200 && res.statusCode < 300,
+            status: res.statusCode || 0,
+            body: responseBody ? JSON.parse(responseBody) : null,
+          });
+        } catch {
+          resolve({ ok: false, status: res.statusCode || 0, error: "invalid json" });
+        }
+      });
+    });
+    req.setTimeout(2500, () => req.destroy(new Error("timeout")));
+    req.on("error", (error) => resolve({ ok: false, status: 0, error: error?.message || "request failed" }));
+    req.write(payload);
+    req.end();
   });
 }
 
@@ -748,6 +800,41 @@ async function refreshDesktopShellStatus() {
   return desktopShellStatus;
 }
 
+async function refreshIcloudHandoffFromDesktopWake(reason = "desktop-resume") {
+  const now = Date.now();
+  if (now - lastDesktopWakeIcloudRefreshAt < 15_000) {
+    writeDesktopLog("Skipped iCloud handoff desktop wake refresh", `reason=${reason} debounce=true`);
+    return null;
+  }
+  lastDesktopWakeIcloudRefreshAt = now;
+  const response = await postLocalJson("/api/v1/internal/icloud-handoff/refresh", { reason }, {
+    "X-LifeOS-Desktop-Token": ensureDesktopInternalToken(),
+  });
+  if (response.ok) {
+    const result = response.body?.result || {};
+    writeDesktopLog("iCloud handoff refreshed after desktop wake", `reason=${reason} refreshed=${Boolean(result.refreshed)} status=${result.status || "unknown"} refreshReason=${result.refreshReason || "unknown"}`);
+  } else {
+    writeDesktopLog("iCloud handoff desktop wake refresh failed", `reason=${reason} status=${response.status} error=${response.error || response.body?.error || "unknown"}`);
+  }
+  await refreshDesktopShellStatus().catch((error) => writeDesktopLog("Failed to refresh tray status after iCloud wake refresh", error?.message || String(error)));
+  return response;
+}
+
+function registerDesktopPowerMonitorRefresh() {
+  if (desktopPowerMonitorRegistered) return;
+  desktopPowerMonitorRegistered = true;
+  powerMonitor.on("resume", () => {
+    setTimeout(() => {
+      refreshIcloudHandoffFromDesktopWake("desktop-resume").catch((error) => writeDesktopLog("Desktop resume iCloud refresh failed", error?.message || String(error)));
+    }, 1200).unref?.();
+  });
+  powerMonitor.on("unlock-screen", () => {
+    setTimeout(() => {
+      refreshIcloudHandoffFromDesktopWake("desktop-unlock").catch((error) => writeDesktopLog("Desktop unlock iCloud refresh failed", error?.message || String(error)));
+    }, 1200).unref?.();
+  });
+}
+
 function buildMenuTemplate() {
   return [
     {
@@ -874,6 +961,7 @@ if (!hasSingleInstanceLock) {
       await startLocalCore();
       configureUpdates();
       await configureDesktopShell();
+      registerDesktopPowerMonitorRefresh();
       await createWindow(await resolvePreferredAdminPath("/admin/login"));
       if (process.env.LIFEOS_DESKTOP_EXPORT_DIAGNOSTIC_ON_START) {
         await exportDesktopDiagnosticBundle(process.env.LIFEOS_DESKTOP_EXPORT_DIAGNOSTIC_ON_START);

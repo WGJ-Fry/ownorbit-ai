@@ -1355,6 +1355,11 @@ function checkAssets() {
     icloudHandoffMonitorSource.includes("previousPairingSessionStatus") &&
     icloudHandoffMonitorSource.includes("runIcloudHandoffStartupRefresh") &&
     serverSource.includes("runIcloudHandoffStartupRefresh") &&
+    adminRoutesSource.includes("/api/v1/internal/icloud-handoff/refresh") &&
+    adminRoutesSource.includes("verifyDesktopInternalToken") &&
+    desktopMainSourceForRuntimeConfig.includes("powerMonitor.on(\"resume\"") &&
+    desktopMainSourceForRuntimeConfig.includes("refreshIcloudHandoffFromDesktopWake") &&
+    desktopMainSourceForRuntimeConfig.includes("X-LifeOS-Desktop-Token") &&
     lifeosApiSource.includes("pairingSession") &&
     lifeosApiSource.includes("expiring-soon") &&
     lifeosApiSource.includes("previousPairingSessionStatus") &&
@@ -1385,9 +1390,11 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("icloudAcceptanceItemKeys") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceTitle") &&
     networkDiagnosticsTestSource.includes("iCloud acceptance summary separates synced entry from real-device evidence") &&
-    networkDiagnosticsTestSource.includes("iCloud startup refresh records local core restart state")
-  ) pass("iCloud diagnostics surface stale QR, account state, and Apple-device acceptance with UI and tests");
-  else warn("iCloud diagnostics do not surface stale QR/account/acceptance state across API, UI, and tests");
+    networkDiagnosticsTestSource.includes("iCloud startup refresh records local core restart state") &&
+    apiAuthTestSource.includes("/api/v1/internal/icloud-handoff/refresh") &&
+    apiAuthTestSource.includes("desktopInternalToken")
+  ) pass("iCloud diagnostics surface stale QR, account state, Apple-device acceptance, and desktop wake refresh with UI and tests");
+  else warn("iCloud diagnostics do not surface stale QR/account/acceptance/desktop wake refresh state across API, UI, and tests");
   if (
     deviceRoutesSource.includes('app.delete("/api/v1/devices/me"') &&
     deviceRoutesSource.includes("device_self_revoked") &&
