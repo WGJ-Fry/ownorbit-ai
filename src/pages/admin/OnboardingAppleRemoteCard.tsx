@@ -100,6 +100,22 @@ const icloudPhoneConfirmationActionKeys: Record<NetworkDiagnostics["icloud"]["ph
   "refresh-entry": "onboarding.appleRemoteIcloudPhoneConfirmActionRefresh",
 };
 
+const icloudPairingSessionKeys: Record<NetworkDiagnostics["icloud"]["pairingSession"]["status"], TranslationKey> = {
+  missing: "onboarding.appleRemoteIcloudPairingMissing",
+  ready: "onboarding.appleRemoteIcloudPairingReady",
+  "expiring-soon": "onboarding.appleRemoteIcloudPairingExpiringSoon",
+  expired: "onboarding.appleRemoteIcloudPairingExpired",
+  "address-changed": "onboarding.appleRemoteIcloudPairingAddressChanged",
+  confirmed: "onboarding.appleRemoteIcloudPairingConfirmed",
+};
+
+const icloudPairingSessionActionKeys: Record<NetworkDiagnostics["icloud"]["pairingSession"]["action"], TranslationKey> = {
+  none: "onboarding.appleRemoteIcloudPairingActionNone",
+  "create-qr": "onboarding.appleRemoteIcloudPairingActionCreate",
+  "use-current-qr": "onboarding.appleRemoteIcloudPairingActionUse",
+  "regenerate-qr": "onboarding.appleRemoteIcloudPairingActionRegenerate",
+};
+
 const repairReasonKeys: Record<IcloudHandoffRepairAnalysis["reason"], TranslationKey> = {
   ready: "onboarding.appleRemoteIcloudRepairReasonReady",
   "invalid-packet": "onboarding.appleRemoteIcloudRepairReasonInvalid",
@@ -243,6 +259,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const indexConsistency = icloud?.indexConsistency;
   const syncReadiness = icloud?.syncReadiness;
   const phoneConfirmation = icloud?.phoneConfirmation;
+  const pairingSession = icloud?.pairingSession;
   const icloudMonitor = diagnostics?.icloudMonitor;
   const icloudLifecycle = icloud?.lifecycle;
   const latestIgnoredEntryEvent = icloud?.latestIgnoredEntryEvent || null;
@@ -262,6 +279,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const icloudIndexTone = indexConsistency?.ok ? "bg-emerald-500/15 text-emerald-100" : indexConsistency?.status === "mismatch" ? "bg-red-500/15 text-red-100" : "bg-amber-500/15 text-amber-100";
   const syncReadinessTone = syncReadiness?.severity === "ok" ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-50" : syncReadiness?.severity === "danger" ? "border-red-400/20 bg-red-500/10 text-red-50" : "border-amber-400/20 bg-amber-500/10 text-amber-50";
   const phoneConfirmationTone = phoneConfirmation?.severity === "ok" ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-50" : phoneConfirmation?.severity === "danger" ? "border-red-400/20 bg-red-500/10 text-red-50" : "border-amber-400/20 bg-amber-500/10 text-amber-50";
+  const pairingSessionTone = pairingSession?.severity === "ok" ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-50" : pairingSession?.severity === "danger" ? "border-red-400/20 bg-red-500/10 text-red-50" : "border-amber-400/20 bg-amber-500/10 text-amber-50";
   const icloudSyncStuckMinutes = Math.max(1, Math.round((icloudAvailability?.syncStuckAfterMs || 0) / 60000));
   const lastExportedAt = formatHandoffTime(handoffHealth?.lastExportedAt);
   const refreshAfter = formatHandoffTime(handoffHealth?.refreshAfter);
@@ -541,6 +559,36 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                       time: phoneConfirmationAt || "-",
                     })}
                   </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {pairingSession ? (
+            <div className={`mt-3 rounded-xl border p-3 ${pairingSessionTone}`}>
+              <div className="flex gap-2">
+                {pairingSession.severity === "ok" ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <QrCode className="mt-0.5 h-4 w-4 shrink-0" />}
+                <div>
+                  <div className="font-bold">{t(icloudPairingSessionKeys[pairingSession.status])}</div>
+                  <div className="mt-1 text-[11px] leading-relaxed opacity-80">
+                    {t(icloudPairingSessionActionKeys[pairingSession.action], { seconds: pairingSession.secondsRemaining })}
+                  </div>
+                  {pairingSession.action === "regenerate-qr" || pairingSession.action === "create-qr" ? (
+                    <div className="mt-3">
+                      <a
+                        href="/admin/devices/pair"
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200/20 bg-black/15 px-3 py-2 text-xs font-bold text-amber-50"
+                      >
+                        <QrCode className="h-3.5 w-3.5" />
+                        {t("onboarding.appleRemoteOpenQr")}
+                      </a>
+                    </div>
+                  ) : null}
+                  {pairingSession.status === "address-changed" ? (
+                    <div className="mt-2 grid gap-1 rounded-lg bg-[#060a10]/40 p-2 font-mono text-[10px] opacity-80">
+                      <div>{pairingSession.baseUrl || "-"}</div>
+                      <div>{pairingSession.expectedBaseUrl || "-"}</div>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>

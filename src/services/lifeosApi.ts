@@ -878,6 +878,21 @@ export type NetworkDiagnostics = {
       latestProblemDeviceName: string;
       reason: string;
     };
+    pairingSession: {
+      status: "missing" | "ready" | "expiring-soon" | "expired" | "address-changed" | "confirmed";
+      severity: "ok" | "warning" | "danger";
+      action: "none" | "create-qr" | "use-current-qr" | "regenerate-qr";
+      bindingId: string;
+      baseUrl: string;
+      expectedBaseUrl: string;
+      createdAt: number;
+      expiresAt: number;
+      confirmedAt: number;
+      confirmedDeviceId: string;
+      expired: boolean;
+      secondsRemaining: number;
+      reason: string;
+    };
     realtimeTransport: false;
     transport: "handoff-only";
     openInstruction: string;

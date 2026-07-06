@@ -1333,6 +1333,8 @@ function checkAssets() {
   else warn("mobile device page rebinding flow can still open a tokenless pair page");
   const lifeosApiSource = exists("src/services/lifeosApi.ts") ? fs.readFileSync(path.join(rootDir, "src/services/lifeosApi.ts"), "utf8") : "";
   const apiAuthTestSource = exists("tests/api-auth.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/api-auth.test.mjs"), "utf8") : "";
+  const onboardingAppleRemoteSource = exists("src/pages/admin/OnboardingAppleRemoteCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/OnboardingAppleRemoteCard.tsx"), "utf8") : "";
+  const icloudPairingSessionSource = exists("server/icloudPairingSession.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudPairingSession.ts"), "utf8") : "";
   if (
     deviceRoutesSource.includes("pairingInstallUrl") &&
     deviceRoutesSource.includes("/mobile/install/") &&
@@ -1340,6 +1342,20 @@ function checkAssets() {
     apiAuthTestSource.includes("/mobile/install/")
   ) pass("device binding QR uses install path so iOS home-screen keeps the pairing token");
   else warn("device binding QR may still use a query token that iOS can drop during home-screen install");
+  if (
+    icloudPairingSessionSource.includes("buildIcloudPairingSessionStatus") &&
+    icloudPairingSessionSource.includes('"expired" as const') &&
+    icloudPairingSessionSource.includes('"address-changed" as const') &&
+    adminRoutesSource.includes("buildIcloudPairingSessionStatus") &&
+    adminRoutesSource.includes("pairingSession: buildIcloudPairingSessionStatus") &&
+    lifeosApiSource.includes("pairingSession") &&
+    lifeosApiSource.includes("expiring-soon") &&
+    onboardingAppleRemoteSource.includes("icloudPairingSessionKeys") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudPairingExpired") &&
+    apiAuthTestSource.includes("networkDiagnosticsWithBinding.icloud.pairingSession.status") &&
+    networkDiagnosticsTestSource.includes("iCloud pairing session status guides stale QR repair")
+  ) pass("iCloud diagnostics surface stale pairing QR status with UI and tests");
+  else warn("iCloud diagnostics do not surface stale pairing QR status across API, UI, and tests");
   if (
     deviceRoutesSource.includes('app.delete("/api/v1/devices/me"') &&
     deviceRoutesSource.includes("device_self_revoked") &&

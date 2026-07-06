@@ -11,6 +11,25 @@ import { WebSocketServer } from "ws";
 
 const rootDir = process.cwd();
 
+test("iCloud pairing session status guides stale QR repair", async () => {
+  const { buildIcloudPairingSessionStatus } = await import(`../server/icloudPairingSession.ts?pairing-status=${Date.now()}`);
+  const now = 1_000_000;
+  const baseSession = {
+    id: "pairing-session-1",
+    tokenHash: "redacted",
+    baseUrl: "https://lifeos.example.test",
+    createdAt: now - 30_000,
+    expiresAt: now + 120_000,
+  };
+
+  assert.equal(buildIcloudPairingSessionStatus({ session: null, recommendedBaseUrl: "https://lifeos.example.test", now }).status, "missing");
+  assert.equal(buildIcloudPairingSessionStatus({ session: baseSession, recommendedBaseUrl: "https://lifeos.example.test/", now }).status, "ready");
+  assert.equal(buildIcloudPairingSessionStatus({ session: { ...baseSession, expiresAt: now + 30_000 }, recommendedBaseUrl: "https://lifeos.example.test", now }).status, "expiring-soon");
+  assert.equal(buildIcloudPairingSessionStatus({ session: { ...baseSession, expiresAt: now - 1 }, recommendedBaseUrl: "https://lifeos.example.test", now }).action, "regenerate-qr");
+  assert.equal(buildIcloudPairingSessionStatus({ session: baseSession, recommendedBaseUrl: "https://new-lifeos.example.test", now }).status, "address-changed");
+  assert.equal(buildIcloudPairingSessionStatus({ session: { ...baseSession, confirmedAt: now - 5_000, confirmedDeviceId: "phone-1" }, recommendedBaseUrl: "https://new-lifeos.example.test", now }).status, "confirmed");
+});
+
 test("network diagnostics filters non-LAN interface addresses from LAN candidates", async (t) => {
   const oldNetworkInterfaces = os.networkInterfaces;
   const oldPort = process.env.LIFEOS_PORT;

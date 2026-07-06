@@ -23,6 +23,7 @@ import { getOnboardingStatus, markOnboardingComplete } from "../onboarding";
 import { getBackupSchedule } from "../backupSchedule";
 import { getLatestBindingSession, getLatestIcloudHandoffEventByTypes } from "../devices";
 import { buildIcloudPhoneConfirmationStatus } from "../icloudPhoneConfirmation";
+import { buildIcloudPairingSessionStatus } from "../icloudPairingSession";
 import { checkReleaseUpdate } from "../releaseUpdateCheck";
 import { buildNativeAutomationPlan, executeNativeAutomation } from "../nativeAutomationBridge";
 
@@ -279,6 +280,10 @@ function getAdminNetworkDiagnostics() {
         latestEntryOpenEvent: latestIcloudHandoffOpenEvent || null,
         latestIgnoredEntryEvent: latestIgnoredIcloudHandoffEvent || null,
         latestEntryIssueEvent: latestIcloudHandoffIssueEvent || null,
+      }),
+      pairingSession: buildIcloudPairingSessionStatus({
+        session: latestBindingSession || null,
+        recommendedBaseUrl: diagnostics.icloud.recommendedBaseUrl,
       }),
       latestEntryOpenEvent: latestIcloudHandoffOpenEvent || null,
       latestIgnoredEntryEvent: latestIgnoredIcloudHandoffEvent || null,

@@ -1423,6 +1423,10 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(networkDiagnosticsWithBinding.latestBindingSession.baseUrl, binding.baseUrl);
   assert.equal(networkDiagnosticsWithBinding.latestBindingSession.expiresAt, binding.expiresAt);
   assert.equal(networkDiagnosticsWithBinding.latestBindingSession.expired, false);
+  assert.equal(networkDiagnosticsWithBinding.icloud.pairingSession.status, "address-changed");
+  assert.equal(networkDiagnosticsWithBinding.icloud.pairingSession.action, "regenerate-qr");
+  assert.equal(networkDiagnosticsWithBinding.icloud.pairingSession.baseUrl, binding.baseUrl);
+  assert.equal(networkDiagnosticsWithBinding.icloud.pairingSession.bindingId, binding.id);
   assert.equal(typeof networkDiagnosticsWithBinding.remoteHealthMonitor.enabled, "boolean");
   assert.equal(typeof networkDiagnosticsWithBinding.remoteHealthMonitor.running, "boolean");
   assert.equal(typeof networkDiagnosticsWithBinding.remoteHealthMonitor.intervalMs, "number");

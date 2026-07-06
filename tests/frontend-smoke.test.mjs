@@ -618,6 +618,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /latestIgnoredEntryEvent/);
   assert.match(onboardingAppleRemoteSource, /phoneConfirmation/);
   assert.match(onboardingAppleRemoteSource, /icloudPhoneConfirmationKeys/);
+  assert.match(onboardingAppleRemoteSource, /pairingSession/);
+  assert.match(onboardingAppleRemoteSource, /icloudPairingSessionKeys/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudPairingExpired/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudPhoneConfirmMissing/);
   assert.match(onboardingAppleRemoteSource, /availableEntryCount/);
   assert.match(onboardingAppleRemoteSource, /latestHistory/);
@@ -648,6 +651,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /recommendedBaseUrl\?: string/);
   assert.match(lifeosApiSource, /lifecycle/);
   assert.match(lifeosApiSource, /phoneConfirmation/);
+  assert.match(lifeosApiSource, /pairingSession/);
+  assert.match(lifeosApiSource, /expiring-soon/);
   assert.match(lifeosApiSource, /issue-after-confirm/);
   assert.match(lifeosApiSource, /opened-expired-entry/);
   assert.match(translationsSource, /Apple\/iCloud 手机入口/);
@@ -658,6 +663,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /iCloud syncs a mobile entry file/);
   assert.match(translationsSource, /同步包状态/);
   assert.match(translationsSource, /Sync packet status/);
+  assert.match(translationsSource, /二维码已过期/);
+  assert.match(translationsSource, /QR has expired/);
   assert.match(translationsSource, /手机入口已同步/);
   assert.match(translationsSource, /Mobile entry is synced/);
   assert.match(translationsSource, /入口文件正在同步/);
