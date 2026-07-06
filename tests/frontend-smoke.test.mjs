@@ -610,6 +610,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleReadyTitle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleAccountTitle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleAccountBody/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleOldEntryTitle/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleQrTitle/);
+  assert.match(onboardingAppleRemoteSource, /simpleIcloudStatus\.icon === "qr"/);
+  assert.match(translationsSource, /手机打开了旧入口/);
+  assert.match(translationsSource, /Phone opened an old entry/);
   assert.match(onboardingAppleRemoteSource, /syncReadiness/);
   assert.match(onboardingAppleRemoteSource, /icloudSyncReadinessKeys/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSyncReady/);

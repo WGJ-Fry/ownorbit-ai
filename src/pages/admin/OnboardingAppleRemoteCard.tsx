@@ -313,10 +313,12 @@ function compactLatestEntryRepairUrls(repair: IcloudLatestEntryRepair) {
   ));
 }
 
-function getSimpleIcloudStatus(icloud: NetworkDiagnostics["icloud"] | undefined) {
+export function getSimpleIcloudStatus(icloud: NetworkDiagnostics["icloud"] | undefined) {
   const availability = icloud?.availability;
   const health = icloud?.handoffHealth;
   const syncReadiness = icloud?.syncReadiness;
+  const latestEntryRepair = icloud?.latestEntryRepair;
+  const pairingSession = icloud?.pairingSession;
   if (availability?.status === "account-unavailable") {
     return {
       tone: "border-amber-400/20 bg-amber-500/10 text-amber-50",
@@ -355,6 +357,22 @@ function getSimpleIcloudStatus(icloud: NetworkDiagnostics["icloud"] | undefined)
       icon: "sync" as const,
       titleKey: "onboarding.appleRemoteIcloudSimpleMissingTitle" as TranslationKey,
       bodyKey: "onboarding.appleRemoteIcloudSimpleMissingBody" as TranslationKey,
+    };
+  }
+  if (latestEntryRepair?.status === "old-entry-opened" || latestEntryRepair?.status === "problem-entry-opened" || latestEntryRepair?.needsRefresh) {
+    return {
+      tone: latestEntryRepair.severity === "danger" ? "border-red-400/20 bg-red-500/10 text-red-50" : "border-amber-400/20 bg-amber-500/10 text-amber-50",
+      icon: "refresh" as const,
+      titleKey: "onboarding.appleRemoteIcloudSimpleOldEntryTitle" as TranslationKey,
+      bodyKey: latestEntryRepair.needsQr ? "onboarding.appleRemoteIcloudSimpleOldEntryQrBody" as TranslationKey : "onboarding.appleRemoteIcloudSimpleOldEntryBody" as TranslationKey,
+    };
+  }
+  if (pairingSession?.action === "create-qr" || pairingSession?.action === "regenerate-qr") {
+    return {
+      tone: pairingSession.severity === "danger" ? "border-red-400/20 bg-red-500/10 text-red-50" : "border-amber-400/20 bg-amber-500/10 text-amber-50",
+      icon: "qr" as const,
+      titleKey: "onboarding.appleRemoteIcloudSimpleQrTitle" as TranslationKey,
+      bodyKey: "onboarding.appleRemoteIcloudSimpleQrBody" as TranslationKey,
     };
   }
   if (syncReadiness?.status === "needs-refresh") {
@@ -710,7 +728,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
           </div>
           <div className={`mt-3 rounded-xl border p-3 ${simpleIcloudStatus.tone}`}>
             <div className="flex gap-2">
-              {simpleIcloudStatus.icon === "ready" ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : simpleIcloudStatus.icon === "refresh" ? <RefreshCw className="mt-0.5 h-4 w-4 shrink-0" /> : simpleIcloudStatus.icon === "warning" ? <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> : <Cloud className="mt-0.5 h-4 w-4 shrink-0" />}
+              {simpleIcloudStatus.icon === "ready" ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : simpleIcloudStatus.icon === "qr" ? <QrCode className="mt-0.5 h-4 w-4 shrink-0" /> : simpleIcloudStatus.icon === "refresh" ? <RefreshCw className="mt-0.5 h-4 w-4 shrink-0" /> : simpleIcloudStatus.icon === "warning" ? <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> : <Cloud className="mt-0.5 h-4 w-4 shrink-0" />}
               <div>
                 <div className="font-bold">{t(simpleIcloudStatus.titleKey)}</div>
                 <div className="mt-1 text-[11px] leading-relaxed opacity-80">{t(simpleIcloudStatus.bodyKey)}</div>

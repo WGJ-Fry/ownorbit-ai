@@ -1383,11 +1383,15 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("appleRemoteIcloudBoundaryTitle") &&
     onboardingAppleRemoteSource.includes("getPrimaryIcloudAction") &&
     onboardingAppleRemoteSource.includes("primaryIcloudAction") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudSimpleOldEntryTitle") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudSimpleQrTitle") &&
+    onboardingAppleRemoteSource.includes('simpleIcloudStatus.icon === "qr"') &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudNextStepOldEntryTitle") &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudNextStepExportTitle") &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudNextStepPhoneTitle") &&
     appleRemoteIcloudPrimaryActionSource.includes("latestEntryRepair.needsQr") &&
     packageJson.scripts.test.includes("tests/apple-remote-icloud-primary-action.test.mjs") &&
+    packageJson.scripts.test.includes("tests/apple-remote-icloud-simple-status.test.mjs") &&
     translationsSource.includes("appleRemoteIcloudBoundaryBody") &&
     translationsSource.includes("Next step: create the phone entry") &&
     translationsSource.includes("open the phone Files app") &&
@@ -1484,6 +1488,8 @@ function checkAssets() {
     translationsSource.includes("Current version:") &&
     translationsSource.includes("Previous version:") &&
     translationsSource.includes("Phone just opened an old entry") &&
+    translationsSource.includes("Phone opened an old entry") &&
+    translationsSource.includes("New mobile QR needed") &&
     translationsSource.includes("refresh the iCloud mobile entry and generate a fresh pairing QR") &&
     translationsSource.includes("Clean Old iCloud Entries") &&
     translationsSource.includes("The iCloud mobile entry was refreshed automatically") &&
