@@ -825,7 +825,7 @@ export type NetworkDiagnostics = {
       reason: string;
     };
     availability: {
-      status: "unsupported" | "missing" | "read-only" | "sync-service-unavailable" | "sync-stuck" | "sync-pending" | "ready";
+      status: "unsupported" | "account-unavailable" | "missing" | "read-only" | "sync-service-unavailable" | "sync-stuck" | "sync-pending" | "ready";
       severity: "ok" | "warning" | "danger";
       drivePathDetected: boolean;
       appFolderExists: boolean;
@@ -839,6 +839,14 @@ export type NetworkDiagnostics = {
       syncStuckCount: number;
       syncStuckAfterMs: number;
       placeholderSamples: string[];
+      account: {
+        checked: boolean;
+        status: "unchecked" | "ready" | "signed-out" | "drive-disabled" | "unknown";
+        signedIn: boolean | null;
+        driveEnabled: boolean | null;
+        source: "unsupported" | "override" | "defaults" | "unavailable";
+        error: string;
+      };
       syncService: {
         checked: boolean;
         running: boolean;

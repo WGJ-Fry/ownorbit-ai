@@ -942,6 +942,61 @@ function getIcloudSyncServiceStatus(platformSupported: boolean) {
   };
 }
 
+function getIcloudAccountStatus(platformSupported: boolean, drivePathDetected: boolean) {
+  type AccountStatus = "unchecked" | "ready" | "signed-out" | "drive-disabled" | "unknown";
+  const build = (input: {
+    checked: boolean;
+    status: AccountStatus;
+    signedIn: boolean | null;
+    driveEnabled: boolean | null;
+    source: "unsupported" | "override" | "defaults" | "unavailable";
+    error?: string;
+  }) => ({
+    checked: input.checked,
+    status: input.status,
+    signedIn: input.signedIn,
+    driveEnabled: input.driveEnabled,
+    source: input.source,
+    error: String(input.error || "").slice(0, 180),
+  });
+  const override = String(process.env.LIFEOS_ICLOUD_ACCOUNT_STATUS || "").trim().toLowerCase();
+  if (override) {
+    if (["ready", "enabled", "signed-in", "active", "ok"].includes(override)) {
+      return build({ checked: true, status: "ready", signedIn: true, driveEnabled: true, source: "override" });
+    }
+    if (["signed-out", "not-signed-in", "no-account", "missing"].includes(override)) {
+      return build({ checked: true, status: "signed-out", signedIn: false, driveEnabled: false, source: "override" });
+    }
+    if (["drive-disabled", "icloud-drive-disabled", "disabled"].includes(override)) {
+      return build({ checked: true, status: "drive-disabled", signedIn: true, driveEnabled: false, source: "override" });
+    }
+    return build({ checked: true, status: "unknown", signedIn: null, driveEnabled: null, source: "override", error: "iCloud account status override is unknown." });
+  }
+  if (!platformSupported) return build({ checked: false, status: "unchecked", signedIn: null, driveEnabled: null, source: "unsupported" });
+  if (process.platform !== "darwin") return build({ checked: false, status: "unchecked", signedIn: null, driveEnabled: null, source: "unavailable" });
+
+  const defaultsBin = process.env.LIFEOS_DEFAULTS_BIN || "/usr/bin/defaults";
+  const result = runCommand(defaultsBin, ["read", "MobileMeAccounts", "Accounts"]);
+  if (!result.ok) {
+    const looksSignedOut = /does not exist|not exist|not found|domain .* not found/i.test(result.output);
+    if (looksSignedOut && !drivePathDetected) {
+      return build({ checked: true, status: "signed-out", signedIn: false, driveEnabled: false, source: "defaults" });
+    }
+    return build({ checked: true, status: "unknown", signedIn: null, driveEnabled: drivePathDetected ? true : null, source: "defaults", error: "Unable to verify iCloud account state." });
+  }
+  const output = result.output;
+  const signedIn = /AccountID|AccountDSID|DisplayName|FullName|LoggedIn|Services/i.test(output);
+  const driveEnabled = drivePathDetected || /MOBILE_DOCUMENTS|CloudDocs|com~apple~CloudDocs|Ubiquit/i.test(output);
+  if (!signedIn) return build({ checked: true, status: "signed-out", signedIn: false, driveEnabled: false, source: "defaults" });
+  return build({
+    checked: true,
+    status: driveEnabled ? "ready" : "drive-disabled",
+    signedIn: true,
+    driveEnabled,
+    source: "defaults",
+  });
+}
+
 function parseMdlsBool(value: string | undefined) {
   const normalized = String(value || "").trim().toLowerCase();
   if (["1", "true", "yes"].includes(normalized)) return true;
@@ -1059,6 +1114,7 @@ function getIcloudAvailabilityStatus(input: {
   const appFolderExists = drivePathDetected && existsSync(input.appFolderPath);
   const driveWritable = drivePathDetected ? canAccess(input.drivePath, constants.W_OK) : false;
   const appFolderWritable = appFolderExists ? canAccess(input.appFolderPath, constants.W_OK) : driveWritable;
+  const account = getIcloudAccountStatus(input.platformSupported, drivePathDetected);
   const handoffFile = getIcloudFileState(input.handoffFilePath, now, syncStuckAfterMs);
   const packetFile = getIcloudFileState(input.packetFilePath, now, syncStuckAfterMs);
   const indexFile = getIcloudFileState(input.indexFilePath, now, syncStuckAfterMs);
@@ -1071,11 +1127,14 @@ function getIcloudAvailabilityStatus(input: {
   const placeholderStuckCount = placeholderSampleStates.filter((file) => file.syncStuck).length + [handoffFile, packetFile, indexFile].filter((file) => file.placeholder && file.syncStuck).length;
   const metadataStuckCount = [handoffFile, packetFile, indexFile].filter((file) => ["syncing", "not-downloaded", "not-uploaded"].includes(file.metadata.syncState) && file.syncStuck).length;
   const syncStuckCount = placeholderStuckCount + metadataStuckCount;
-  let status: "unsupported" | "missing" | "read-only" | "sync-service-unavailable" | "sync-stuck" | "sync-pending" | "ready" = "ready";
+  let status: "unsupported" | "account-unavailable" | "missing" | "read-only" | "sync-service-unavailable" | "sync-stuck" | "sync-pending" | "ready" = "ready";
   let severity: "ok" | "warning" | "danger" = "ok";
   if (!input.platformSupported) {
     status = "unsupported";
     severity = "warning";
+  } else if (account.status === "signed-out" || account.status === "drive-disabled") {
+    status = "account-unavailable";
+    severity = "danger";
   } else if (!drivePathDetected) {
     status = "missing";
     severity = "danger";
@@ -1107,6 +1166,7 @@ function getIcloudAvailabilityStatus(input: {
     syncStuckCount,
     syncStuckAfterMs,
     placeholderSamples,
+    account,
     syncService,
     handoffFile,
     packetFile,
@@ -1155,7 +1215,7 @@ function buildIcloudSyncReadiness(input: {
     status = "unsupported";
     severity = "warning";
     action = "use-apple-device";
-  } else if (availability.status === "missing") {
+  } else if (availability.status === "account-unavailable" || availability.status === "missing") {
     status = "missing-drive";
     severity = "danger";
     action = "enable-icloud-drive";
@@ -1359,11 +1419,12 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
   });
   const indexConsistency = buildIcloudIndexConsistency({ indexFilePath, entries: availableEntries });
   const syncReadiness = buildIcloudSyncReadiness({ availability, handoffHealth, indexConsistency });
+  const canExport = available && hasPhoneEntry && availability.status !== "account-unavailable" && availability.status !== "read-only";
   return {
     platform: process.platform,
     platformSupported,
     available,
-    canExport: available && hasPhoneEntry,
+    canExport,
     desktopId: desktop.id,
     desktopName: desktop.name,
     desktopSlug: desktop.slug,
@@ -2089,6 +2150,12 @@ export function exportIcloudHandoff(reason = "manual") {
   if (!status.available) {
     throw new Error("iCloud Drive was not detected on this Mac. Enable iCloud Drive, then try again.");
   }
+  if (status.availability.status === "account-unavailable") {
+    throw new Error("iCloud account or iCloud Drive is not enabled on this Mac. Sign in to Apple ID, enable iCloud Drive, then try again.");
+  }
+  if (status.availability.status === "read-only") {
+    throw new Error("LifeOS cannot write to iCloud Drive. Check iCloud Drive permissions, then try again.");
+  }
   const candidate = preferredHandoffCandidate(diagnostics.connectionCandidates);
   if (!candidate) {
     throw new Error("No phone-reachable LifeOS entry is available yet. Use same Wi-Fi, Cloudflare, Tailscale, or another trusted HTTPS entry first.");
@@ -2192,6 +2259,8 @@ export function maybeRefreshIcloudHandoff(reason = "auto") {
   const pairingSessionNeedsRefresh = pairingSession.status === "expired" || pairingSession.status === "address-changed";
   if (!status.platformSupported) return { refreshed: false, reason: "unsupported-platform", requestedReason: reason, status: status.handoffHealth.status };
   if (!status.available) return { refreshed: false, reason: "icloud-unavailable", requestedReason: reason, status: status.handoffHealth.status };
+  if (status.availability.status === "account-unavailable") return { refreshed: false, reason: "icloud-account-unavailable", requestedReason: reason, status: status.handoffHealth.status };
+  if (status.availability.status === "read-only") return { refreshed: false, reason: "icloud-read-only", requestedReason: reason, status: status.handoffHealth.status };
   if (!status.canExport) return { refreshed: false, reason: "no-phone-entry", requestedReason: reason, status: status.handoffHealth.status };
   if (!status.handoffHealth.needsRefresh && phoneConfirmation.action !== "refresh-entry" && !pairingSessionNeedsRefresh) {
     return {

@@ -579,7 +579,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudHealthInvalid/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudHealthHtmlMismatch/);
   assert.match(onboardingAppleRemoteSource, /icloudAvailabilityKeys/);
+  assert.match(onboardingAppleRemoteSource, /icloudAccountStatusKeys/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAvailabilityTitle/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAvailabilityAccountUnavailable/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAvailabilityAccountLine/);
   assert.match(onboardingAppleRemoteSource, /sync-service-unavailable/);
   assert.match(onboardingAppleRemoteSource, /sync-stuck/);
   assert.match(onboardingAppleRemoteSource, /icloudAvailability\.syncService/);
@@ -661,6 +664,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /previousPairingSessionStatus/);
   assert.match(lifeosApiSource, /recommendedBaseUrl\?: string/);
   assert.match(lifeosApiSource, /lifecycle/);
+  assert.match(lifeosApiSource, /account-unavailable/);
+  assert.match(lifeosApiSource, /drive-disabled/);
   assert.match(lifeosApiSource, /phoneConfirmation/);
   assert.match(lifeosApiSource, /pairingSession/);
   assert.match(lifeosApiSource, /expiring-soon/);
@@ -713,6 +718,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Legacy entry/);
   assert.match(translationsSource, /iCloud Drive 自检/);
   assert.match(translationsSource, /iCloud Drive Check/);
+  assert.match(translationsSource, /Apple ID 或 iCloud Drive 未启用/);
+  assert.match(translationsSource, /Apple ID or iCloud Drive is not enabled/);
   assert.match(translationsSource, /iCloud 同步服务未运行/);
   assert.match(translationsSource, /iCloud sync service is not running/);
   assert.match(translationsSource, /iCloud 同步可能卡住/);

@@ -92,6 +92,7 @@ test("network diagnostics detects mocked Cloudflare and Tailscale CLIs", async (
   const oldIcloudDriveDir = process.env.LIFEOS_ICLOUD_DRIVE_DIR;
   const oldForceIcloud = process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
   const oldIcloudSyncServiceStatus = process.env.LIFEOS_ICLOUD_SYNC_SERVICE_STATUS;
+  const oldIcloudAccountStatus = process.env.LIFEOS_ICLOUD_ACCOUNT_STATUS;
 
   t.after(async () => {
     process.env.PATH = oldPath;
@@ -111,6 +112,8 @@ test("network diagnostics detects mocked Cloudflare and Tailscale CLIs", async (
     else process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = oldForceIcloud;
     if (oldIcloudSyncServiceStatus === undefined) delete process.env.LIFEOS_ICLOUD_SYNC_SERVICE_STATUS;
     else process.env.LIFEOS_ICLOUD_SYNC_SERVICE_STATUS = oldIcloudSyncServiceStatus;
+    if (oldIcloudAccountStatus === undefined) delete process.env.LIFEOS_ICLOUD_ACCOUNT_STATUS;
+    else process.env.LIFEOS_ICLOUD_ACCOUNT_STATUS = oldIcloudAccountStatus;
     await rm(binDir, { recursive: true, force: true });
   });
 
@@ -158,6 +161,7 @@ exit 1
   process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = "1";
   process.env.LIFEOS_ICLOUD_DRIVE_DIR = path.join(binDir, "iCloud Drive");
   process.env.LIFEOS_ICLOUD_SYNC_SERVICE_STATUS = "running";
+  process.env.LIFEOS_ICLOUD_ACCOUNT_STATUS = "ready";
   fs.mkdirSync(process.env.LIFEOS_ICLOUD_DRIVE_DIR, { recursive: true });
   delete process.env.LIFEOS_ALLOW_PUBLIC;
 
@@ -1100,6 +1104,61 @@ test("iCloud availability warns when the sync service is not running", async (t)
   assert.equal(diagnostics.icloud.syncReadiness.status, "syncing");
   assert.equal(diagnostics.icloud.syncReadiness.canOpenOnPhone, false);
   assert.equal(diagnostics.icloud.syncReadiness.action, "wait-for-sync");
+});
+
+test("iCloud availability blocks export when Apple ID or iCloud Drive is disabled", async (t) => {
+  const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-account-disabled-"));
+  const oldPort = process.env.LIFEOS_PORT;
+  const oldPublicBaseUrl = process.env.PUBLIC_BASE_URL;
+  const oldAppUrl = process.env.APP_URL;
+  const oldCloudflaredBin = process.env.LIFEOS_CLOUDFLARED_BIN;
+  const oldTailscaleBin = process.env.LIFEOS_TAILSCALE_BIN;
+  const oldIcloudDriveDir = process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+  const oldForceIcloud = process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+  const oldAccountStatus = process.env.LIFEOS_ICLOUD_ACCOUNT_STATUS;
+
+  t.after(async () => {
+    if (oldPort === undefined) delete process.env.LIFEOS_PORT;
+    else process.env.LIFEOS_PORT = oldPort;
+    if (oldPublicBaseUrl === undefined) delete process.env.PUBLIC_BASE_URL;
+    else process.env.PUBLIC_BASE_URL = oldPublicBaseUrl;
+    if (oldAppUrl === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = oldAppUrl;
+    if (oldCloudflaredBin === undefined) delete process.env.LIFEOS_CLOUDFLARED_BIN;
+    else process.env.LIFEOS_CLOUDFLARED_BIN = oldCloudflaredBin;
+    if (oldTailscaleBin === undefined) delete process.env.LIFEOS_TAILSCALE_BIN;
+    else process.env.LIFEOS_TAILSCALE_BIN = oldTailscaleBin;
+    if (oldIcloudDriveDir === undefined) delete process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+    else process.env.LIFEOS_ICLOUD_DRIVE_DIR = oldIcloudDriveDir;
+    if (oldForceIcloud === undefined) delete process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+    else process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = oldForceIcloud;
+    if (oldAccountStatus === undefined) delete process.env.LIFEOS_ICLOUD_ACCOUNT_STATUS;
+    else process.env.LIFEOS_ICLOUD_ACCOUNT_STATUS = oldAccountStatus;
+    await rm(icloudDir, { recursive: true, force: true });
+  });
+
+  process.env.LIFEOS_PORT = "4567";
+  process.env.PUBLIC_BASE_URL = "https://lifeos.example.com";
+  delete process.env.APP_URL;
+  process.env.LIFEOS_CLOUDFLARED_BIN = "/definitely/missing/cloudflared";
+  process.env.LIFEOS_TAILSCALE_BIN = "/definitely/missing/tailscale";
+  process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = "1";
+  process.env.LIFEOS_ICLOUD_DRIVE_DIR = icloudDir;
+  process.env.LIFEOS_ICLOUD_ACCOUNT_STATUS = "signed-out";
+
+  const { exportIcloudHandoff, getNetworkDiagnostics } = await import(`../server/networkDiagnostics.ts?icloud-account-disabled=${Date.now()}`);
+  const diagnostics = getNetworkDiagnostics();
+  assert.equal(diagnostics.icloud.available, true);
+  assert.equal(diagnostics.icloud.canExport, false);
+  assert.equal(diagnostics.icloud.availability.status, "account-unavailable");
+  assert.equal(diagnostics.icloud.availability.severity, "danger");
+  assert.equal(diagnostics.icloud.availability.account.checked, true);
+  assert.equal(diagnostics.icloud.availability.account.status, "signed-out");
+  assert.equal(diagnostics.icloud.availability.account.signedIn, false);
+  assert.equal(diagnostics.icloud.availability.account.driveEnabled, false);
+  assert.equal(diagnostics.icloud.syncReadiness.status, "missing-drive");
+  assert.equal(diagnostics.icloud.syncReadiness.action, "enable-icloud-drive");
+  assert.throws(() => exportIcloudHandoff("test-account-disabled"), /iCloud account or iCloud Drive is not enabled/);
 });
 
 test("iCloud availability flags entry files that appear stuck syncing", async (t) => {

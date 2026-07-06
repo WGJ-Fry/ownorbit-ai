@@ -1363,6 +1363,11 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEventCurrentUrl") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEventStoredUrl") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEventDesktopUrl") &&
+    networkDiagnosticsSource.includes("getIcloudAccountStatus") &&
+    networkDiagnosticsSource.includes('"account-unavailable"') &&
+    onboardingAppleRemoteSource.includes("icloudAccountStatusKeys") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudAvailabilityAccountUnavailable") &&
+    networkDiagnosticsTestSource.includes("iCloud availability blocks export when Apple ID or iCloud Drive is disabled") &&
     apiAuthTestSource.includes("networkDiagnosticsWithBinding.icloud.pairingSession.status") &&
     networkDiagnosticsTestSource.includes("iCloud pairing session status guides stale QR repair") &&
     networkDiagnosticsTestSource.includes("iCloud handoff monitor refreshes after the latest pairing QR expires")

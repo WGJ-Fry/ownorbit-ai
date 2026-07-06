@@ -50,12 +50,21 @@ const handoffHealthReasonKeys: Record<NetworkDiagnostics["icloud"]["handoffHealt
 
 const icloudAvailabilityKeys: Record<NetworkDiagnostics["icloud"]["availability"]["status"], TranslationKey> = {
   unsupported: "onboarding.appleRemoteIcloudAvailabilityUnsupported",
+  "account-unavailable": "onboarding.appleRemoteIcloudAvailabilityAccountUnavailable",
   missing: "onboarding.appleRemoteIcloudAvailabilityMissing",
   "read-only": "onboarding.appleRemoteIcloudAvailabilityReadOnly",
   "sync-service-unavailable": "onboarding.appleRemoteIcloudAvailabilityServiceUnavailable",
   "sync-stuck": "onboarding.appleRemoteIcloudAvailabilitySyncStuck",
   "sync-pending": "onboarding.appleRemoteIcloudAvailabilitySyncPending",
   ready: "onboarding.appleRemoteIcloudAvailabilityReady",
+};
+
+const icloudAccountStatusKeys: Record<NetworkDiagnostics["icloud"]["availability"]["account"]["status"], TranslationKey> = {
+  unchecked: "onboarding.appleRemoteIcloudAvailabilityAccountUnknown",
+  ready: "onboarding.appleRemoteIcloudAvailabilityAccountReady",
+  "signed-out": "onboarding.appleRemoteIcloudAvailabilityAccountSignedOut",
+  "drive-disabled": "onboarding.appleRemoteIcloudAvailabilityAccountDriveDisabled",
+  unknown: "onboarding.appleRemoteIcloudAvailabilityAccountUnknown",
 };
 
 const icloudIndexConsistencyKeys: Record<NetworkDiagnostics["icloud"]["indexConsistency"]["status"], TranslationKey> = {
@@ -202,7 +211,7 @@ function getSimpleIcloudStatus(icloud: NetworkDiagnostics["icloud"] | undefined)
   const availability = icloud?.availability;
   const health = icloud?.handoffHealth;
   const syncReadiness = icloud?.syncReadiness;
-  if (!icloud?.canExport || availability?.status === "missing" || availability?.status === "unsupported" || availability?.status === "read-only") {
+  if (!icloud?.canExport || availability?.status === "account-unavailable" || availability?.status === "missing" || availability?.status === "unsupported" || availability?.status === "read-only") {
     return {
       tone: "border-amber-400/20 bg-amber-500/10 text-amber-50",
       icon: "warning" as const,
@@ -692,9 +701,20 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                     {t("onboarding.appleRemoteIcloudAvailabilityServiceBody")}
                   </div>
                 ) : null}
+                {icloudAvailability.status === "account-unavailable" ? (
+                  <div className="mt-2 text-[11px] leading-relaxed text-red-100">
+                    {t("onboarding.appleRemoteIcloudAvailabilityAccountBody")}
+                  </div>
+                ) : null}
                 {icloudAvailability.status === "read-only" ? (
                   <div className="mt-2 text-[11px] leading-relaxed text-red-100">
                     {t("onboarding.appleRemoteIcloudAvailabilityReadOnlyBody")}
+                  </div>
+                ) : null}
+                {icloudAvailability.account?.checked ? (
+                  <div className="mt-2 text-[10px] leading-relaxed text-zinc-500">
+                    {t("onboarding.appleRemoteIcloudAvailabilityAccountLine")}: {t(icloudAccountStatusKeys[icloudAvailability.account.status])}
+                    {icloudAvailability.account.error ? ` (${icloudAvailability.account.error})` : ""}
                   </div>
                 ) : null}
                 {icloudAvailability.syncService?.checked ? (
