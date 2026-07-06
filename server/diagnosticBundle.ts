@@ -261,6 +261,16 @@ function buildIcloudDiagnosticSnapshot(network: ReturnType<typeof getNetworkDiag
         generatedAt: network.icloud?.handoffHealth?.htmlConsistency?.generatedAt || 0,
       },
     },
+    indexConsistency: {
+      status: network.icloud?.indexConsistency?.status || "missing",
+      ok: Boolean(network.icloud?.indexConsistency?.ok),
+      exists: Boolean(network.icloud?.indexConsistency?.exists),
+      generatedAt: network.icloud?.indexConsistency?.generatedAt || 0,
+      latestEntryGeneratedAt: network.icloud?.indexConsistency?.latestEntryGeneratedAt || 0,
+      expectedLatestEntryGeneratedAt: network.icloud?.indexConsistency?.expectedLatestEntryGeneratedAt || 0,
+      entryCount: network.icloud?.indexConsistency?.entryCount || 0,
+      expectedEntryCount: network.icloud?.indexConsistency?.expectedEntryCount || 0,
+    },
     availability: {
       status: network.icloud?.availability?.status || "unsupported",
       severity: network.icloud?.availability?.severity || "warning",

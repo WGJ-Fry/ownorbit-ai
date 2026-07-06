@@ -58,6 +58,13 @@ const icloudAvailabilityKeys: Record<NetworkDiagnostics["icloud"]["availability"
   ready: "onboarding.appleRemoteIcloudAvailabilityReady",
 };
 
+const icloudIndexConsistencyKeys: Record<NetworkDiagnostics["icloud"]["indexConsistency"]["status"], TranslationKey> = {
+  missing: "onboarding.appleRemoteIcloudIndexMissing",
+  legacy: "onboarding.appleRemoteIcloudIndexLegacy",
+  mismatch: "onboarding.appleRemoteIcloudIndexMismatch",
+  matching: "onboarding.appleRemoteIcloudIndexMatching",
+};
+
 const icloudSyncReadinessKeys: Record<NetworkDiagnostics["icloud"]["syncReadiness"]["status"], TranslationKey> = {
   unsupported: "onboarding.appleRemoteIcloudSyncUnsupported",
   "missing-drive": "onboarding.appleRemoteIcloudSyncMissingDrive",
@@ -151,6 +158,7 @@ function formatHandoffTime(value?: number) {
 function getSimpleIcloudStatus(icloud: NetworkDiagnostics["icloud"] | undefined) {
   const availability = icloud?.availability;
   const health = icloud?.handoffHealth;
+  const syncReadiness = icloud?.syncReadiness;
   if (!icloud?.canExport || availability?.status === "missing" || availability?.status === "unsupported" || availability?.status === "read-only") {
     return {
       tone: "border-amber-400/20 bg-amber-500/10 text-amber-50",
@@ -183,6 +191,14 @@ function getSimpleIcloudStatus(icloud: NetworkDiagnostics["icloud"] | undefined)
       bodyKey: "onboarding.appleRemoteIcloudSimpleMissingBody" as TranslationKey,
     };
   }
+  if (syncReadiness?.status === "needs-refresh") {
+    return {
+      tone: "border-amber-400/20 bg-amber-500/10 text-amber-50",
+      icon: "refresh" as const,
+      titleKey: "onboarding.appleRemoteIcloudSimpleRefreshTitle" as TranslationKey,
+      bodyKey: "onboarding.appleRemoteIcloudSimpleRefreshBody" as TranslationKey,
+    };
+  }
   if (health.needsRefresh || health.status !== "fresh") {
     return {
       tone: "border-amber-400/20 bg-amber-500/10 text-amber-50",
@@ -210,6 +226,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const icloud = diagnostics?.icloud;
   const handoffHealth = icloud?.handoffHealth;
   const icloudAvailability = icloud?.availability;
+  const indexConsistency = icloud?.indexConsistency;
   const syncReadiness = icloud?.syncReadiness;
   const icloudMonitor = diagnostics?.icloudMonitor;
   const icloudLifecycle = icloud?.lifecycle;
@@ -227,6 +244,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const canExportIcloud = Boolean(icloud?.canExport);
   const handoffHealthTone = handoffHealth?.status === "fresh" ? "bg-emerald-500/15 text-emerald-100" : handoffHealth?.status === "address-changed" || handoffHealth?.status === "expired" || handoffHealth?.status === "invalid" || handoffHealth?.status === "html-mismatch" ? "bg-red-500/15 text-red-100" : "bg-amber-500/15 text-amber-100";
   const icloudAvailabilityTone = icloudAvailability?.severity === "ok" ? "bg-emerald-500/15 text-emerald-100" : icloudAvailability?.severity === "danger" ? "bg-red-500/15 text-red-100" : "bg-amber-500/15 text-amber-100";
+  const icloudIndexTone = indexConsistency?.ok ? "bg-emerald-500/15 text-emerald-100" : indexConsistency?.status === "mismatch" ? "bg-red-500/15 text-red-100" : "bg-amber-500/15 text-amber-100";
   const syncReadinessTone = syncReadiness?.severity === "ok" ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-50" : syncReadiness?.severity === "danger" ? "border-red-400/20 bg-red-500/10 text-red-50" : "border-amber-400/20 bg-amber-500/10 text-amber-50";
   const icloudSyncStuckMinutes = Math.max(1, Math.round((icloudAvailability?.syncStuckAfterMs || 0) / 60000));
   const lastExportedAt = formatHandoffTime(handoffHealth?.lastExportedAt);
@@ -597,6 +615,26 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                   <div>{t("onboarding.appleRemoteIcloudRefreshAfter")}: {refreshAfter || "-"}</div>
                   <div>{t("onboarding.appleRemoteIcloudReason")}: {t(handoffHealthReasonKeys[handoffHealth.status])}</div>
                 </div>
+              </div>
+            ) : null}
+            {indexConsistency ? (
+              <div className="mt-3 border-t border-white/[0.06] pt-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-bold text-zinc-100">{t("onboarding.appleRemoteIcloudIndexTitle")}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${icloudIndexTone}`}>
+                    {t(icloudIndexConsistencyKeys[indexConsistency.status])}
+                  </span>
+                </div>
+                <div className="mt-2 grid gap-1 text-[11px] text-zinc-500">
+                  <div>{t("onboarding.appleRemoteIcloudIndexEntries")}: {indexConsistency.entryCount} / {indexConsistency.expectedEntryCount}</div>
+                  <div>{t("onboarding.appleRemoteIcloudIndexGenerated")}: {formatHandoffTime(indexConsistency.generatedAt) || "-"}</div>
+                  <div>{t("onboarding.appleRemoteIcloudIndexLatestEntry")}: {formatHandoffTime(indexConsistency.expectedLatestEntryGeneratedAt) || "-"}</div>
+                </div>
+                {!indexConsistency.ok ? (
+                  <div className="mt-2 rounded-lg border border-amber-400/20 bg-amber-500/10 p-2 text-[11px] leading-relaxed text-amber-50">
+                    {t("onboarding.appleRemoteIcloudIndexRefreshBody")}
+                  </div>
+                ) : null}
               </div>
             ) : null}
             {icloudMonitor ? (

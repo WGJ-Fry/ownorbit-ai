@@ -810,6 +810,20 @@ export type NetworkDiagnostics = {
       };
       reason: string;
     };
+    indexConsistency: {
+      status: "missing" | "legacy" | "mismatch" | "matching";
+      ok: boolean;
+      exists: boolean;
+      checksumSha256: string;
+      expectedChecksumSha256: string;
+      generatedAt: number;
+      latestEntryGeneratedAt: number;
+      expectedLatestEntryGeneratedAt: number;
+      entryCount: number;
+      expectedEntryCount: number;
+      writerDesktopId: string;
+      reason: string;
+    };
     availability: {
       status: "unsupported" | "missing" | "read-only" | "sync-service-unavailable" | "sync-stuck" | "sync-pending" | "ready";
       severity: "ok" | "warning" | "danger";

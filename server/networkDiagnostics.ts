@@ -494,6 +494,109 @@ function readIcloudEntrySummaries(appFolderPath: string) {
   }
 }
 
+function buildIcloudIndexChecksum(input: {
+  generatedAt: number;
+  entries: ReturnType<typeof readIcloudEntrySummaries>;
+}) {
+  const latestEntryGeneratedAt = Math.max(0, ...input.entries.map((entry) => entry.generatedAt || 0));
+  const checksumPayload = {
+    version: 1,
+    generatedAt: input.generatedAt,
+    latestEntryGeneratedAt,
+    entries: input.entries.map((entry) => ({
+      desktopId: entry.desktopId,
+      desktopName: entry.desktopName,
+      htmlFileName: entry.htmlFileName,
+      packetFileName: entry.packetFileName,
+      baseUrl: entry.baseUrl,
+      generatedAt: entry.generatedAt,
+      refreshAfter: entry.refreshAfter,
+      expiresAt: entry.expiresAt,
+      entryChecksumSha256: entry.entryChecksumSha256,
+    })),
+  };
+  return crypto.createHash("sha256").update(JSON.stringify(checksumPayload)).digest("hex");
+}
+
+function readIcloudHandoffIndexHtmlMeta(indexFilePath: string) {
+  if (!indexFilePath || !existsSync(indexFilePath)) {
+    return { exists: false, checksumSha256: "", generatedAt: 0, latestEntryGeneratedAt: 0, entryCount: 0, writerDesktopId: "" };
+  }
+  try {
+    const html = readFileSync(indexFilePath, "utf8");
+    const checksumSha256 = html.match(/<meta\s+name="lifeos-entry-index-checksum"\s+content="([a-f0-9]{64})"\s*\/?>/i)?.[1] || "";
+    const generatedAt = Number(html.match(/<meta\s+name="lifeos-entry-index-generated-at"\s+content="(\d+)"\s*\/?>/i)?.[1] || 0);
+    const latestEntryGeneratedAt = Number(html.match(/<meta\s+name="lifeos-entry-index-latest-entry-generated-at"\s+content="(\d+)"\s*\/?>/i)?.[1] || 0);
+    const entryCount = Number(html.match(/<meta\s+name="lifeos-entry-index-entry-count"\s+content="(\d+)"\s*\/?>/i)?.[1] || 0);
+    const writerDesktopId = html.match(/<meta\s+name="lifeos-entry-index-writer-desktop-id"\s+content="([^"]*)"\s*\/?>/i)?.[1] || "";
+    return {
+      exists: true,
+      checksumSha256,
+      generatedAt: Number.isFinite(generatedAt) ? generatedAt : 0,
+      latestEntryGeneratedAt: Number.isFinite(latestEntryGeneratedAt) ? latestEntryGeneratedAt : 0,
+      entryCount: Number.isFinite(entryCount) ? entryCount : 0,
+      writerDesktopId,
+    };
+  } catch {
+    return { exists: true, checksumSha256: "", generatedAt: 0, latestEntryGeneratedAt: 0, entryCount: 0, writerDesktopId: "" };
+  }
+}
+
+function buildIcloudIndexConsistency(input: {
+  indexFilePath: string;
+  entries: ReturnType<typeof readIcloudEntrySummaries>;
+}) {
+  const index = readIcloudHandoffIndexHtmlMeta(input.indexFilePath);
+  const latestEntryGeneratedAt = Math.max(0, ...input.entries.map((entry) => entry.generatedAt || 0));
+  const expectedChecksum = index.generatedAt ? buildIcloudIndexChecksum({ generatedAt: index.generatedAt, entries: input.entries }) : "";
+  if (!index.exists) {
+    return {
+      status: "missing" as const,
+      ok: false,
+      ...index,
+      expectedChecksumSha256: expectedChecksum,
+      expectedEntryCount: input.entries.length,
+      expectedLatestEntryGeneratedAt: latestEntryGeneratedAt,
+      reason: "The iCloud desktop chooser file is missing.",
+    };
+  }
+  if (!index.checksumSha256 || !index.generatedAt) {
+    return {
+      status: "legacy" as const,
+      ok: false,
+      ...index,
+      expectedChecksumSha256: expectedChecksum,
+      expectedEntryCount: input.entries.length,
+      expectedLatestEntryGeneratedAt: latestEntryGeneratedAt,
+      reason: "The iCloud desktop chooser was created by an older LifeOS version.",
+    };
+  }
+  if (
+    index.checksumSha256 !== expectedChecksum ||
+    index.entryCount !== input.entries.length ||
+    index.latestEntryGeneratedAt !== latestEntryGeneratedAt
+  ) {
+    return {
+      status: "mismatch" as const,
+      ok: false,
+      ...index,
+      expectedChecksumSha256: expectedChecksum,
+      expectedEntryCount: input.entries.length,
+      expectedLatestEntryGeneratedAt: latestEntryGeneratedAt,
+      reason: "The iCloud desktop chooser does not match the current entry list.",
+    };
+  }
+  return {
+    status: "matching" as const,
+    ok: true,
+    ...index,
+    expectedChecksumSha256: expectedChecksum,
+    expectedEntryCount: input.entries.length,
+    expectedLatestEntryGeneratedAt: latestEntryGeneratedAt,
+    reason: "The iCloud desktop chooser matches the current entry list.",
+  };
+}
+
 function readAllIcloudEntrySummaries(appFolderPath: string) {
   if (!appFolderPath || !existsSync(appFolderPath)) return [];
   try {
@@ -655,6 +758,8 @@ function buildIcloudHandoffIndexHtml(input: {
   currentDesktopId: string;
   entries: ReturnType<typeof readIcloudEntrySummaries>;
 }) {
+  const latestEntryGeneratedAt = Math.max(0, ...input.entries.map((entry) => entry.generatedAt || 0));
+  const indexChecksumSha256 = buildIcloudIndexChecksum({ generatedAt: input.generatedAt, entries: input.entries });
   const rows = input.entries.length
     ? input.entries.map((entry) => {
       const isCurrent = entry.desktopId === input.currentDesktopId;
@@ -676,6 +781,10 @@ function buildIcloudHandoffIndexHtml(input: {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="lifeos-entry-index-generated-at" content="${htmlEscape(input.generatedAt)}" />
+    <meta name="lifeos-entry-index-checksum" content="${htmlEscape(indexChecksumSha256)}" />
+    <meta name="lifeos-entry-index-entry-count" content="${htmlEscape(input.entries.length)}" />
+    <meta name="lifeos-entry-index-latest-entry-generated-at" content="${htmlEscape(latestEntryGeneratedAt)}" />
+    <meta name="lifeos-entry-index-writer-desktop-id" content="${htmlEscape(input.currentDesktopId)}" />
     <title>LifeOS AI Mobile Entries</title>
     <style>
       body { margin: 0; min-height: 100vh; background: #060a10; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: grid; place-items: center; padding: 20px; }
@@ -1005,8 +1114,9 @@ function getIcloudAvailabilityStatus(input: {
 function buildIcloudSyncReadiness(input: {
   availability: ReturnType<typeof getIcloudAvailabilityStatus>;
   handoffHealth: ReturnType<typeof buildIcloudHandoffHealth>;
+  indexConsistency: ReturnType<typeof buildIcloudIndexConsistency>;
 }) {
-  const { availability, handoffHealth } = input;
+  const { availability, handoffHealth, indexConsistency } = input;
   const trackedFiles = [
     { id: "html" as const, state: availability.handoffFile },
     { id: "packet" as const, state: availability.packetFile },
@@ -1066,6 +1176,10 @@ function buildIcloudSyncReadiness(input: {
     status = "no-entry";
     severity = "warning";
     action = "export-entry";
+  } else if (!indexConsistency.ok) {
+    status = "needs-refresh";
+    severity = indexConsistency.status === "mismatch" ? "danger" : "warning";
+    action = "refresh-entry";
   } else if (handoffHealth.needsRefresh) {
     status = "needs-refresh";
     severity = handoffHealth.status === "expired" || handoffHealth.status === "invalid" || handoffHealth.status === "html-mismatch" ? "danger" : "warning";
@@ -1240,7 +1354,8 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
     packetFilePath,
     indexFilePath,
   });
-  const syncReadiness = buildIcloudSyncReadiness({ availability, handoffHealth });
+  const indexConsistency = buildIcloudIndexConsistency({ indexFilePath, entries: availableEntries });
+  const syncReadiness = buildIcloudSyncReadiness({ availability, handoffHealth, indexConsistency });
   return {
     platform: process.platform,
     platformSupported,
@@ -1263,6 +1378,7 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
     recommendedMode: candidate?.mode || "",
     recommendedStability: candidate?.stability || "",
     handoffHealth,
+    indexConsistency,
     availability,
     syncReadiness,
     realtimeTransport: false,
