@@ -109,6 +109,49 @@ function formatHandoffTime(value?: number) {
   }
 }
 
+function getSimpleIcloudStatus(icloud: NetworkDiagnostics["icloud"] | undefined) {
+  const availability = icloud?.availability;
+  const health = icloud?.handoffHealth;
+  if (!icloud?.canExport || availability?.status === "missing" || availability?.status === "unsupported" || availability?.status === "read-only") {
+    return {
+      tone: "border-amber-400/20 bg-amber-500/10 text-amber-50",
+      icon: "warning" as const,
+      titleKey: "onboarding.appleRemoteIcloudSimpleUnavailableTitle" as TranslationKey,
+      bodyKey: "onboarding.appleRemoteIcloudSimpleUnavailableBody" as TranslationKey,
+    };
+  }
+  if (availability?.status === "sync-pending") {
+    return {
+      tone: "border-amber-400/20 bg-amber-500/10 text-amber-50",
+      icon: "sync" as const,
+      titleKey: "onboarding.appleRemoteIcloudSimpleSyncingTitle" as TranslationKey,
+      bodyKey: "onboarding.appleRemoteIcloudSimpleSyncingBody" as TranslationKey,
+    };
+  }
+  if (!health || health.status === "missing") {
+    return {
+      tone: "border-sky-400/20 bg-sky-500/10 text-sky-50",
+      icon: "sync" as const,
+      titleKey: "onboarding.appleRemoteIcloudSimpleMissingTitle" as TranslationKey,
+      bodyKey: "onboarding.appleRemoteIcloudSimpleMissingBody" as TranslationKey,
+    };
+  }
+  if (health.needsRefresh || health.status !== "fresh") {
+    return {
+      tone: "border-amber-400/20 bg-amber-500/10 text-amber-50",
+      icon: "refresh" as const,
+      titleKey: "onboarding.appleRemoteIcloudSimpleRefreshTitle" as TranslationKey,
+      bodyKey: "onboarding.appleRemoteIcloudSimpleRefreshBody" as TranslationKey,
+    };
+  }
+  return {
+    tone: "border-emerald-400/20 bg-emerald-500/10 text-emerald-50",
+    icon: "ready" as const,
+    titleKey: "onboarding.appleRemoteIcloudSimpleReadyTitle" as TranslationKey,
+    bodyKey: "onboarding.appleRemoteIcloudSimpleReadyBody" as TranslationKey,
+  };
+}
+
 export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportIcloud, onStartTailscale, onStartCloudflare, onSaveCandidate, onTestCandidate }: Props) {
   const { t } = useI18n();
   const [repairText, setRepairText] = useState("");
@@ -136,6 +179,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const lastExportedAt = formatHandoffTime(handoffHealth?.lastExportedAt);
   const refreshAfter = formatHandoffTime(handoffHealth?.refreshAfter);
   const latestIgnoredAt = formatHandoffTime(latestIgnoredEntryEvent?.ignoredAt);
+  const simpleIcloudStatus = getSimpleIcloudStatus(icloud);
 
   const handleAnalyzeRepair = async () => {
     const packet = repairText.trim();
@@ -209,65 +253,20 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
               {canExportIcloud ? t("onboarding.appleRemoteIcloudReady") : t("onboarding.appleRemoteIcloudUnavailable")}
             </span>
           </div>
-          <div className="mt-2 break-all font-mono text-[11px] text-zinc-500">
-            {icloud?.handoffFilePath || icloud?.openInstruction || t("onboarding.appleRemoteIcloudNoPath")}
+          <div className={`mt-3 rounded-xl border p-3 ${simpleIcloudStatus.tone}`}>
+            <div className="flex gap-2">
+              {simpleIcloudStatus.icon === "ready" ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : simpleIcloudStatus.icon === "refresh" ? <RefreshCw className="mt-0.5 h-4 w-4 shrink-0" /> : simpleIcloudStatus.icon === "warning" ? <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> : <Cloud className="mt-0.5 h-4 w-4 shrink-0" />}
+              <div>
+                <div className="font-bold">{t(simpleIcloudStatus.titleKey)}</div>
+                <div className="mt-1 text-[11px] leading-relaxed opacity-80">{t(simpleIcloudStatus.bodyKey)}</div>
+              </div>
+            </div>
           </div>
-          {icloudAvailability ? (
-            <div className="mt-3 rounded-xl border border-white/[0.06] bg-[#060a10]/30 p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-bold text-zinc-100">{t("onboarding.appleRemoteIcloudAvailabilityTitle")}</span>
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${icloudAvailabilityTone}`}>
-                  {t(icloudAvailabilityKeys[icloudAvailability.status])}
-                </span>
-              </div>
-              {icloudAvailability.status === "sync-pending" ? (
-                <div className="mt-2 text-[11px] leading-relaxed text-amber-100">
-                  {t("onboarding.appleRemoteIcloudAvailabilityPendingBody", { count: icloudAvailability.pendingCount })}
-                </div>
-              ) : null}
-              {icloudAvailability.status === "read-only" ? (
-                <div className="mt-2 text-[11px] leading-relaxed text-red-100">
-                  {t("onboarding.appleRemoteIcloudAvailabilityReadOnlyBody")}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-          {handoffHealth ? (
-            <div className="mt-3 border-t border-white/[0.06] pt-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-bold text-zinc-100">{t("onboarding.appleRemoteIcloudHealthTitle")}</span>
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${handoffHealthTone}`}>
-                  {t(handoffHealthStatusKeys[handoffHealth.status])}
-                </span>
-              </div>
-              <div className="mt-2 grid gap-1 text-[11px] text-zinc-500">
-                <div>{t("onboarding.appleRemoteIcloudDesktop")}: {icloud?.desktopName || "-"}</div>
-                <div>{t("onboarding.appleRemoteIcloudChooseFile")}: {icloud?.indexFilePath || "-"}</div>
-                <div>{t("onboarding.appleRemoteIcloudLastExported")}: {lastExportedAt || t("onboarding.appleRemoteIcloudNeverExported")}</div>
-                <div>{t("onboarding.appleRemoteIcloudRefreshAfter")}: {refreshAfter || "-"}</div>
-                <div>{t("onboarding.appleRemoteIcloudReason")}: {t(handoffHealthReasonKeys[handoffHealth.status])}</div>
-              </div>
-            </div>
-          ) : null}
           {availableEntryCount > 1 ? (
             <div className="mt-3 rounded-xl border border-sky-400/15 bg-sky-500/10 p-3 text-[11px] leading-relaxed text-sky-50/80">
               <div className="font-bold text-sky-50">{t("onboarding.appleRemoteIcloudMultiDesktopTitle", { count: availableEntryCount })}</div>
               <div className="mt-1">{t("onboarding.appleRemoteIcloudMultiDesktopBody")}</div>
             </div>
-          ) : null}
-          {latestHistory.length ? (
-            <details className="mt-3 rounded-xl border border-white/[0.06] bg-[#060a10]/30 p-3 text-[11px] text-zinc-500">
-              <summary className="cursor-pointer font-bold text-zinc-200">{t("onboarding.appleRemoteIcloudHistoryTitle")}</summary>
-              <div className="mt-2 grid gap-2">
-                {latestHistory.map((item) => (
-                  <div key={`${item.desktopId}-${item.generatedAt}`} className="rounded-lg bg-white/[0.03] p-2">
-                    <div className="font-bold text-zinc-200">{item.desktopName}</div>
-                    <div className="break-all font-mono text-[10px]">{item.baseUrl}</div>
-                    <div>{formatHandoffTime(item.generatedAt)} · {item.reason}</div>
-                  </div>
-                ))}
-              </div>
-            </details>
           ) : null}
           {latestIgnoredEntryEvent ? (
             <div className="mt-3 rounded-xl border border-amber-400/20 bg-amber-500/10 p-3 text-amber-50">
@@ -291,6 +290,63 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
               </div>
             </div>
           ) : null}
+          <details className="mt-3 rounded-xl border border-white/[0.06] bg-[#060a10]/30 p-3 text-[11px] text-zinc-500">
+            <summary className="cursor-pointer font-bold text-zinc-200">{t("onboarding.appleRemoteIcloudAdvancedDiagnostics")}</summary>
+            <div className="mt-3 break-all font-mono text-[11px] text-zinc-500">
+              {icloud?.handoffFilePath || icloud?.openInstruction || t("onboarding.appleRemoteIcloudNoPath")}
+            </div>
+            {icloudAvailability ? (
+              <div className="mt-3 rounded-xl border border-white/[0.06] bg-[#060a10]/30 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-bold text-zinc-100">{t("onboarding.appleRemoteIcloudAvailabilityTitle")}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${icloudAvailabilityTone}`}>
+                    {t(icloudAvailabilityKeys[icloudAvailability.status])}
+                  </span>
+                </div>
+                {icloudAvailability.status === "sync-pending" ? (
+                  <div className="mt-2 text-[11px] leading-relaxed text-amber-100">
+                    {t("onboarding.appleRemoteIcloudAvailabilityPendingBody", { count: icloudAvailability.pendingCount })}
+                  </div>
+                ) : null}
+                {icloudAvailability.status === "read-only" ? (
+                  <div className="mt-2 text-[11px] leading-relaxed text-red-100">
+                    {t("onboarding.appleRemoteIcloudAvailabilityReadOnlyBody")}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+            {handoffHealth ? (
+              <div className="mt-3 border-t border-white/[0.06] pt-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-bold text-zinc-100">{t("onboarding.appleRemoteIcloudHealthTitle")}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${handoffHealthTone}`}>
+                    {t(handoffHealthStatusKeys[handoffHealth.status])}
+                  </span>
+                </div>
+                <div className="mt-2 grid gap-1 text-[11px] text-zinc-500">
+                  <div>{t("onboarding.appleRemoteIcloudDesktop")}: {icloud?.desktopName || "-"}</div>
+                  <div>{t("onboarding.appleRemoteIcloudChooseFile")}: {icloud?.indexFilePath || "-"}</div>
+                  <div>{t("onboarding.appleRemoteIcloudLastExported")}: {lastExportedAt || t("onboarding.appleRemoteIcloudNeverExported")}</div>
+                  <div>{t("onboarding.appleRemoteIcloudRefreshAfter")}: {refreshAfter || "-"}</div>
+                  <div>{t("onboarding.appleRemoteIcloudReason")}: {t(handoffHealthReasonKeys[handoffHealth.status])}</div>
+                </div>
+              </div>
+            ) : null}
+            {latestHistory.length ? (
+              <div className="mt-3 border-t border-white/[0.06] pt-3">
+                <div className="font-bold text-zinc-200">{t("onboarding.appleRemoteIcloudHistoryTitle")}</div>
+                <div className="mt-2 grid gap-2">
+                  {latestHistory.map((item) => (
+                    <div key={`${item.desktopId}-${item.generatedAt}`} className="rounded-lg bg-white/[0.03] p-2">
+                      <div className="font-bold text-zinc-200">{item.desktopName}</div>
+                      <div className="break-all font-mono text-[10px]">{item.baseUrl}</div>
+                      <div>{formatHandoffTime(item.generatedAt)} · {item.reason}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </details>
           <details className="mt-3 rounded-xl border border-white/[0.06] bg-[#060a10]/30 p-3 text-[11px] text-zinc-500">
             <summary className="cursor-pointer font-bold text-zinc-200">{t("onboarding.appleRemoteIcloudRepairTitle")}</summary>
             <p className="mt-2 leading-relaxed">{t("onboarding.appleRemoteIcloudRepairBody")}</p>
