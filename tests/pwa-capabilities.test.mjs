@@ -644,7 +644,7 @@ test("mobile iCloud handoff can switch to an older entry from a different deskto
   installLocalStorage();
   t.after(cleanupLocalStorage);
   const now = 1_800_000_250_000;
-  const { buildMobileIcloudHandoffUrl, consumeMobileIcloudHandoffFromUrl, getStoredMobileIcloudHandoff, getStoredMobileIcloudHandoffEntries, handleMobileIcloudHandoffLaunch, isMobileIcloudHandoffSuperseded } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-switch-desktop-${Date.now()}`);
+  const { buildMobileIcloudHandoffUrl, consumeMobileIcloudHandoffFromUrl, forgetStoredMobileIcloudHandoffEntry, getStoredMobileIcloudHandoff, getStoredMobileIcloudHandoffEntries, handleMobileIcloudHandoffLaunch, isMobileIcloudHandoffSuperseded } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-switch-desktop-${Date.now()}`);
   const macA = [
     "https://mac-a.example.com/mobile/chat?lifeosEntry=icloud",
     `entryGeneratedAt=${now}`,
@@ -689,6 +689,10 @@ test("mobile iCloud handoff can switch to an older entry from a different deskto
   assert.match(switchUrl, /^https:\/\/mac-a\.example\.com\/mobile\/device\?/);
   assert.match(switchUrl, /lifeosEntry=icloud/);
   assert.match(switchUrl, /entryDesktopId=mac-a/);
+  assert.equal(forgetStoredMobileIcloudHandoffEntry(storedEntries[1]), true);
+  assert.deepEqual(getStoredMobileIcloudHandoffEntries().map((entry) => entry.desktopId), ["mac-b"]);
+  assert.equal(forgetStoredMobileIcloudHandoffEntry(getStoredMobileIcloudHandoff()), false);
+  assert.deepEqual(getStoredMobileIcloudHandoffEntries().map((entry) => entry.desktopId), ["mac-b"]);
 
   let testCalled = false;
   let icloudEventCalled = false;

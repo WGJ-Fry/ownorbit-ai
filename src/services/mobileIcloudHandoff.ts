@@ -243,6 +243,23 @@ export function getStoredMobileIcloudHandoffEntries() {
   return current ? mergeMobileIcloudHandoffEntries(current, entries) : entries;
 }
 
+export function forgetStoredMobileIcloudHandoffEntry(entryToForget: MobileIcloudHandoffEntry) {
+  const storage = safeStorage();
+  if (!storage) return false;
+  const current = getStoredMobileIcloudHandoff();
+  const keyToForget = mobileIcloudHandoffEntryKey(entryToForget);
+  if (current && mobileIcloudHandoffEntryKey(current) === keyToForget) return false;
+  const entries = readMobileIcloudHandoffEntries(storage);
+  const nextEntries = entries.filter((entry) => mobileIcloudHandoffEntryKey(entry) !== keyToForget);
+  if (nextEntries.length === entries.length) return false;
+  try {
+    storage.setItem(ENTRIES_STORAGE_KEY, JSON.stringify(nextEntries));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function buildMobileIcloudHandoffUrl(entry: MobileIcloudHandoffEntry, route = "/mobile/device") {
   const base = normalizeBaseUrl(entry.baseUrl);
   const path = route.startsWith("/") ? route : `/${route}`;

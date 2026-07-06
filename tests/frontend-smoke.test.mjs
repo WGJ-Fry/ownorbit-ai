@@ -808,8 +808,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.remoteReadinessConnectivity/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.remoteReadinessQueue/);
   assert.match(mobileRemoteEntryCardSource, /getStoredMobileIcloudHandoffEntries/);
+  assert.match(mobileRemoteEntryCardSource, /forgetStoredMobileIcloudHandoffEntry/);
+  assert.match(mobileRemoteEntryCardSource, /Trash2/);
   assert.match(mobileRemoteEntryCardSource, /buildMobileIcloudHandoffUrl/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffKnownDesktops/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffForgetDesktop/);
   assert.match(mobileRemoteEntryCardSource, /showIcloudAdvanced/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffSummaryTitle/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffShowAdvanced/);
@@ -837,6 +840,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /iCloud entry is fresh/);
   assert.match(translationsSource, /已同步的电脑/);
   assert.match(translationsSource, /Synced desktops/);
+  assert.match(translationsSource, /移除此电脑入口/);
+  assert.match(translationsSource, /Remove this desktop entry/);
   assert.match(translationsSource, /查看高级诊断/);
   assert.match(translationsSource, /Show advanced diagnostics/);
   assert.match(translationsSource, /来源电脑/);

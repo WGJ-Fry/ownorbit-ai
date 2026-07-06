@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Copy, RefreshCw, Wifi } from "lucide-react";
+import { Copy, RefreshCw, Trash2, Wifi } from "lucide-react";
 import type { DeviceConnectivityReport } from "../../services/lifeosApi";
 import type { MobileIcloudHandoffEntry, MobileIcloudHandoffStatus } from "../../services/mobileIcloudHandoff";
-import { buildMobileIcloudHandoffRecoveryPacket, buildMobileIcloudHandoffUrl, getMobileIcloudHandoffActionKey, getStoredMobileIcloudHandoffEntries } from "../../services/mobileIcloudHandoff";
+import { buildMobileIcloudHandoffRecoveryPacket, buildMobileIcloudHandoffUrl, forgetStoredMobileIcloudHandoffEntry, getMobileIcloudHandoffActionKey, getStoredMobileIcloudHandoffEntries } from "../../services/mobileIcloudHandoff";
 import type { OfflineMessageQueueSummary } from "../../services/offlineMessageQueue";
 import type { MobileConnectivityIssueKey, MobileConnectivityResult, MobileRecoveryHintKey, RemoteEntryStatus } from "../../services/pwaCapabilities";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -67,6 +67,10 @@ export default function MobileRemoteEntryCard({
   const openIcloudEntry = (entry: MobileIcloudHandoffEntry) => {
     window.location.href = buildMobileIcloudHandoffUrl(entry);
   };
+  const forgetIcloudEntry = (entry: MobileIcloudHandoffEntry) => {
+    if (!forgetStoredMobileIcloudHandoffEntry(entry)) return;
+    setIcloudEntries(getStoredMobileIcloudHandoffEntries());
+  };
 
   useEffect(() => {
     setIcloudEntries(getStoredMobileIcloudHandoffEntries());
@@ -121,19 +125,34 @@ export default function MobileRemoteEntryCard({
                 {icloudEntries.map((entry) => {
                   const active = icloudEntryKey(entry) === icloudEntryKey(icloudHandoffStatus.entry);
                   return (
-                    <button
+                    <div
                       key={icloudEntryKey(entry)}
-                      type="button"
-                      onClick={() => openIcloudEntry(entry)}
-                      disabled={active}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-left disabled:opacity-70"
+                      className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.04]"
                     >
-                      <span>
-                        <span className="block font-bold">{entry.desktopName || entry.label || t("mobileDevice.icloudHandoffUnknownDesktop")}</span>
-                        <span className="mt-0.5 block opacity-70">{entry.baseUrl}</span>
-                      </span>
-                      <span className="shrink-0 font-bold">{active ? t("mobileDevice.icloudHandoffCurrentDesktop") : t("mobileDevice.icloudHandoffOpenDesktop")}</span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => openIcloudEntry(entry)}
+                        disabled={active}
+                        className="flex min-w-0 flex-1 items-center justify-between gap-3 px-3 py-2 text-left disabled:cursor-default disabled:opacity-70"
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate font-bold">{entry.desktopName || entry.label || t("mobileDevice.icloudHandoffUnknownDesktop")}</span>
+                          <span className="mt-0.5 block truncate opacity-70">{entry.baseUrl}</span>
+                        </span>
+                        <span className="shrink-0 font-bold">{active ? t("mobileDevice.icloudHandoffCurrentDesktop") : t("mobileDevice.icloudHandoffOpenDesktop")}</span>
+                      </button>
+                      {!active ? (
+                        <button
+                          type="button"
+                          aria-label={t("mobileDevice.icloudHandoffForgetDesktop")}
+                          title={t("mobileDevice.icloudHandoffForgetDesktop")}
+                          onClick={() => forgetIcloudEntry(entry)}
+                          className="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-black/10 text-zinc-200"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      ) : null}
+                    </div>
                   );
                 })}
               </div>
