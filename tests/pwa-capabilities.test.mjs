@@ -394,7 +394,7 @@ test("mobile iCloud handoff stores non-sensitive entry metadata and detects stal
   installLocalStorage();
   t.after(cleanupLocalStorage);
   const now = 1_800_000_000_000;
-  const { buildMobileIcloudHandoffRecoveryPacket, consumeMobileIcloudHandoffFromUrl, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffStatus, getStoredMobileIcloudHandoff } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-handoff-${Date.now()}`);
+  const { buildMobileIcloudHandoffRecoveryPacket, consumeMobileIcloudHandoffFromUrl, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffStatus, getStoredMobileIcloudHandoff, getStoredMobileIcloudHandoffEntries } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-handoff-${Date.now()}`);
   const checksum = "a".repeat(64);
   const href = [
     "https://lifeos.example.com/mobile/chat?lifeosEntry=icloud",
@@ -421,6 +421,7 @@ test("mobile iCloud handoff stores non-sensitive entry metadata and detects stal
   assert.equal(getStoredMobileIcloudHandoff().baseUrl, "https://lifeos.example.com");
   assert.equal(getStoredMobileIcloudHandoff().desktopName, "Studio Mac");
   assert.equal(getStoredMobileIcloudHandoff().checksumSha256, checksum);
+  assert.equal(getStoredMobileIcloudHandoffEntries()[0].desktopName, "Studio Mac");
 
   const fresh = getMobileIcloudHandoffStatus(consumed, "https://lifeos.example.com/mobile/device", now + 1_000);
   assert.equal(fresh.status, "fresh");
@@ -643,7 +644,7 @@ test("mobile iCloud handoff can switch to an older entry from a different deskto
   installLocalStorage();
   t.after(cleanupLocalStorage);
   const now = 1_800_000_250_000;
-  const { consumeMobileIcloudHandoffFromUrl, getStoredMobileIcloudHandoff, handleMobileIcloudHandoffLaunch, isMobileIcloudHandoffSuperseded } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-switch-desktop-${Date.now()}`);
+  const { buildMobileIcloudHandoffUrl, consumeMobileIcloudHandoffFromUrl, getStoredMobileIcloudHandoff, getStoredMobileIcloudHandoffEntries, handleMobileIcloudHandoffLaunch, isMobileIcloudHandoffSuperseded } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-switch-desktop-${Date.now()}`);
   const macA = [
     "https://mac-a.example.com/mobile/chat?lifeosEntry=icloud",
     `entryGeneratedAt=${now}`,
@@ -681,6 +682,13 @@ test("mobile iCloud handoff can switch to an older entry from a different deskto
   assert.equal(isMobileIcloudHandoffSuperseded({ ...parsedDifferentDesktop, generatedAt: now - 20_000 }, first), false);
   assert.equal(getStoredMobileIcloudHandoff().desktopName, "Studio Mac");
   assert.equal(getStoredMobileIcloudHandoff().lastIgnoredAt, undefined);
+  const storedEntries = getStoredMobileIcloudHandoffEntries();
+  assert.equal(storedEntries.length, 2);
+  assert.deepEqual(storedEntries.map((entry) => entry.desktopId), ["mac-b", "mac-a"]);
+  const switchUrl = buildMobileIcloudHandoffUrl(storedEntries[1]);
+  assert.match(switchUrl, /^https:\/\/mac-a\.example\.com\/mobile\/device\?/);
+  assert.match(switchUrl, /lifeosEntry=icloud/);
+  assert.match(switchUrl, /entryDesktopId=mac-a/);
 
   let testCalled = false;
   let icloudEventCalled = false;

@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Copy, RefreshCw, Wifi } from "lucide-react";
 import type { DeviceConnectivityReport } from "../../services/lifeosApi";
-import type { MobileIcloudHandoffStatus } from "../../services/mobileIcloudHandoff";
-import { buildMobileIcloudHandoffRecoveryPacket, getMobileIcloudHandoffActionKey } from "../../services/mobileIcloudHandoff";
+import type { MobileIcloudHandoffEntry, MobileIcloudHandoffStatus } from "../../services/mobileIcloudHandoff";
+import { buildMobileIcloudHandoffRecoveryPacket, buildMobileIcloudHandoffUrl, getMobileIcloudHandoffActionKey, getStoredMobileIcloudHandoffEntries } from "../../services/mobileIcloudHandoff";
 import type { OfflineMessageQueueSummary } from "../../services/offlineMessageQueue";
 import type { MobileConnectivityIssueKey, MobileConnectivityResult, MobileRecoveryHintKey, RemoteEntryStatus } from "../../services/pwaCapabilities";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -12,6 +12,10 @@ import { Row } from "./MobileDeviceStatusCards";
 
 function readinessTone(ok: boolean) {
   return ok ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100" : "border-amber-400/20 bg-amber-500/10 text-amber-100";
+}
+
+function icloudEntryKey(entry: MobileIcloudHandoffEntry) {
+  return entry.desktopId || entry.checksumSha256 || entry.baseUrl;
 }
 
 export default function MobileRemoteEntryCard({
@@ -47,6 +51,7 @@ export default function MobileRemoteEntryCard({
 }) {
   const { t } = useI18n();
   const [copiedIcloudPacket, setCopiedIcloudPacket] = useState(false);
+  const [icloudEntries, setIcloudEntries] = useState(() => getStoredMobileIcloudHandoffEntries());
   const queueWaiting = queueSummary.failed > 0 || queueSummary.pending > 0 || queueSummary.syncing > 0;
   const latestConnectivityOk = Boolean(lastConnectivityReport?.ok && !connectivityReportStale);
   const remoteReady = currentEntry.okForRemote && latestConnectivityOk && !queueWaiting;
@@ -58,6 +63,13 @@ export default function MobileRemoteEntryCard({
     setCopiedIcloudPacket(true);
     window.setTimeout(() => setCopiedIcloudPacket(false), 1400);
   };
+  const openIcloudEntry = (entry: MobileIcloudHandoffEntry) => {
+    window.location.href = buildMobileIcloudHandoffUrl(entry);
+  };
+
+  useEffect(() => {
+    setIcloudEntries(getStoredMobileIcloudHandoffEntries());
+  }, [icloudHandoffStatus?.entry.baseUrl, icloudHandoffStatus?.entry.desktopId, icloudHandoffStatus?.entry.generatedAt]);
 
   return (
     <section className="mt-4 rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
@@ -101,6 +113,31 @@ export default function MobileRemoteEntryCard({
           <div className="font-bold">{t(icloudHandoffStatus.titleKey as any)}</div>
           <div className="mt-1 opacity-80">{t(icloudHandoffStatus.bodyKey as any)}</div>
           {icloudActionKey ? <div className="mt-2 rounded-xl border border-white/[0.08] bg-black/10 p-2 text-xs font-bold">{t(icloudActionKey as any)}</div> : null}
+          {icloudEntries.length > 1 ? (
+            <div className="mt-3 rounded-xl border border-white/[0.08] bg-black/10 p-2 text-xs">
+              <div className="font-bold">{t("mobileDevice.icloudHandoffKnownDesktops")}</div>
+              <div className="mt-2 grid gap-2">
+                {icloudEntries.map((entry) => {
+                  const active = icloudEntryKey(entry) === icloudEntryKey(icloudHandoffStatus.entry);
+                  return (
+                    <button
+                      key={icloudEntryKey(entry)}
+                      type="button"
+                      onClick={() => openIcloudEntry(entry)}
+                      disabled={active}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-left disabled:opacity-70"
+                    >
+                      <span>
+                        <span className="block font-bold">{entry.desktopName || entry.label || t("mobileDevice.icloudHandoffUnknownDesktop")}</span>
+                        <span className="mt-0.5 block opacity-70">{entry.baseUrl}</span>
+                      </span>
+                      <span className="shrink-0 font-bold">{active ? t("mobileDevice.icloudHandoffCurrentDesktop") : t("mobileDevice.icloudHandoffOpenDesktop")}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
           <div className="mt-3 grid gap-2 rounded-xl border border-white/[0.08] bg-black/10 p-2 text-xs">
             {icloudHandoffStatus.entry.desktopName || icloudHandoffStatus.entry.desktopId ? (
               <Row label={t("mobileDevice.icloudHandoffDesktop")} value={icloudHandoffStatus.entry.desktopName || icloudHandoffStatus.entry.desktopId || "-"} />

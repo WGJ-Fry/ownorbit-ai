@@ -1,6 +1,8 @@
 import type { MobileIcloudHandoffEventReportInput } from "./lifeosApi";
 
 const STORAGE_KEY = "lifeos_mobile_icloud_handoff";
+const ENTRIES_STORAGE_KEY = "lifeos_mobile_icloud_handoff_entries";
+const MAX_STORED_HANDOFF_ENTRIES = 8;
 
 const handoffParamKeys = [
   "lifeosEntry",
@@ -175,10 +177,89 @@ export function saveMobileIcloudHandoff(entry: MobileIcloudHandoffEntry) {
   if (!storage) return false;
   try {
     storage.setItem(STORAGE_KEY, JSON.stringify(entry));
+    storage.setItem(ENTRIES_STORAGE_KEY, JSON.stringify(mergeMobileIcloudHandoffEntries(entry, readMobileIcloudHandoffEntries(storage))));
     return true;
   } catch {
     return false;
   }
+}
+
+function mobileIcloudHandoffEntryKey(entry: MobileIcloudHandoffEntry) {
+  const desktopId = normalizeEntryId(entry.desktopId);
+  if (desktopId) return `desktop:${desktopId}`;
+  if (entry.checksumSha256) return `checksum:${entry.checksumSha256}`;
+  return `base:${normalizeBaseUrl(entry.baseUrl)}`;
+}
+
+function normalizeStoredMobileIcloudHandoffEntry(parsed: any): MobileIcloudHandoffEntry | null {
+  if (!parsed || parsed.source !== "icloud" || !isHttpBaseUrl(parsed.baseUrl)) return null;
+  const entry = {
+    source: "icloud" as const,
+    generatedAt: Number(parsed.generatedAt || 0),
+    refreshAfter: Number(parsed.refreshAfter || 0),
+    expiresAt: Number(parsed.expiresAt || 0),
+    baseUrl: normalizeBaseUrl(parsed.baseUrl),
+    mode: String(parsed.mode || ""),
+    stability: String(parsed.stability || ""),
+    label: normalizeEntryText(parsed.label || "LifeOS iCloud Mobile Entry", 120),
+    desktopId: normalizeEntryId(parsed.desktopId) || undefined,
+    desktopName: normalizeEntryText(parsed.desktopName, 80) || undefined,
+    desktopSlug: normalizeEntryId(parsed.desktopSlug) || undefined,
+    checksumSha256: normalizeChecksum(parsed.checksumSha256) || undefined,
+    savedAt: Number(parsed.savedAt || 0),
+    lastConnectivityTestedAt: Number(parsed.lastConnectivityTestedAt || 0) || undefined,
+    lastConnectivityOk: typeof parsed.lastConnectivityOk === "boolean" ? parsed.lastConnectivityOk : undefined,
+    lastConnectivityError: String(parsed.lastConnectivityError || ""),
+    lastIgnoredAt: Number(parsed.lastIgnoredAt || 0) || undefined,
+    lastIgnoredGeneratedAt: Number(parsed.lastIgnoredGeneratedAt || 0) || undefined,
+    lastIgnoredBaseUrl: normalizeBaseUrl(parsed.lastIgnoredBaseUrl || "") || undefined,
+  };
+  return entry.generatedAt && entry.refreshAfter && entry.expiresAt ? entry : null;
+}
+
+function readMobileIcloudHandoffEntries(storage = safeStorage()) {
+  if (!storage) return [] as MobileIcloudHandoffEntry[];
+  try {
+    const parsed = JSON.parse(storage.getItem(ENTRIES_STORAGE_KEY) || "[]");
+    return (Array.isArray(parsed) ? parsed : [])
+      .map(normalizeStoredMobileIcloudHandoffEntry)
+      .filter(Boolean) as MobileIcloudHandoffEntry[];
+  } catch {
+    return [];
+  }
+}
+
+function mergeMobileIcloudHandoffEntries(entry: MobileIcloudHandoffEntry, entries: MobileIcloudHandoffEntry[]) {
+  const key = mobileIcloudHandoffEntryKey(entry);
+  return [entry, ...entries.filter((item) => mobileIcloudHandoffEntryKey(item) !== key)]
+    .slice(0, MAX_STORED_HANDOFF_ENTRIES);
+}
+
+export function getStoredMobileIcloudHandoffEntries() {
+  const storage = safeStorage();
+  if (!storage) return [];
+  const current = getStoredMobileIcloudHandoff();
+  const entries = readMobileIcloudHandoffEntries(storage);
+  return current ? mergeMobileIcloudHandoffEntries(current, entries) : entries;
+}
+
+export function buildMobileIcloudHandoffUrl(entry: MobileIcloudHandoffEntry, route = "/mobile/device") {
+  const base = normalizeBaseUrl(entry.baseUrl);
+  const path = route.startsWith("/") ? route : `/${route}`;
+  const url = new URL(`${base}${path}`);
+  url.searchParams.set("lifeosEntry", "icloud");
+  url.searchParams.set("entryGeneratedAt", String(entry.generatedAt || ""));
+  url.searchParams.set("entryRefreshAfter", String(entry.refreshAfter || ""));
+  url.searchParams.set("entryExpiresAt", String(entry.expiresAt || ""));
+  url.searchParams.set("entryBaseUrl", entry.baseUrl);
+  url.searchParams.set("entryMode", entry.mode || "");
+  url.searchParams.set("entryStability", entry.stability || "");
+  url.searchParams.set("entryLabel", entry.label || "");
+  url.searchParams.set("entryDesktopId", entry.desktopId || "");
+  url.searchParams.set("entryDesktopName", entry.desktopName || "");
+  url.searchParams.set("entryDesktopSlug", entry.desktopSlug || "");
+  url.searchParams.set("entryChecksumSha256", entry.checksumSha256 || "");
+  return url.toString();
 }
 
 export function isMobileIcloudHandoffSuperseded(entry: MobileIcloudHandoffEntry, current = getStoredMobileIcloudHandoff()) {
