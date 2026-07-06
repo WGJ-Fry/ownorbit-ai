@@ -1,5 +1,6 @@
 import { execFileSync, spawnSync } from "child_process";
-import { accessSync, constants, existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import crypto from "crypto";
+import { accessSync, constants, existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { WebSocket } from "ws";
@@ -206,6 +207,39 @@ function scriptJson(value: unknown) {
     .replace(/&/g, "\\u0026");
 }
 
+function writePrivateFileAtomic(targetPath: string, body: string) {
+  const tmpPath = `${targetPath}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    writeFileSync(tmpPath, body, { mode: 0o600 });
+    renameSync(tmpPath, targetPath);
+  } catch (error) {
+    try {
+      if (existsSync(tmpPath)) unlinkSync(tmpPath);
+    } catch {}
+    throw error;
+  }
+}
+
+function buildIcloudEntryChecksum(packet: Record<string, unknown>) {
+  const checksumPayload = {
+    version: packet.version,
+    generatedAt: packet.generatedAt,
+    refreshAfter: packet.refreshAfter,
+    expiresAt: packet.expiresAt,
+    candidateId: packet.candidateId,
+    baseUrl: packet.baseUrl,
+    mobilePairUrl: packet.mobilePairUrl,
+    mobileChatUrl: packet.mobileChatUrl,
+    mode: packet.mode,
+    secure: packet.secure,
+    stability: packet.stability,
+    requiresRestart: packet.requiresRestart,
+    transport: packet.transport,
+    realtimeTransport: packet.realtimeTransport,
+  };
+  return crypto.createHash("sha256").update(JSON.stringify(checksumPayload)).digest("hex");
+}
+
 function appendIcloudHandoffParams(entryUrl: string, packet: Record<string, unknown>) {
   try {
     const url = new URL(entryUrl);
@@ -372,6 +406,7 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
     `generatedAt=${new Date(input.generatedAt).toISOString()}`,
     `refreshAfter=${typeof input.packet.refreshAfter === "number" ? new Date(input.packet.refreshAfter).toISOString() : "-"}`,
     `expiresAt=${typeof input.packet.expiresAt === "number" ? new Date(input.packet.expiresAt).toISOString() : "-"}`,
+    `entryChecksumSha256=${input.packet.entryChecksumSha256 || "-"}`,
     `warning=${input.packet.warning || "iCloud syncs the entry file; it is not a live tunnel."}`,
   ].join("\n");
   return `<!doctype html>
@@ -1066,10 +1101,12 @@ export function exportIcloudHandoff() {
     ],
     transport: "icloud-handoff",
     realtimeTransport: false,
+    entryChecksumSha256: "",
     warning: "iCloud syncs this entry file; it does not create a realtime tunnel.",
   };
-  writeFileSync(status.packetFilePath, JSON.stringify(packet, null, 2), { mode: 0o600 });
-  writeFileSync(status.handoffFilePath, buildIcloudHandoffHtml({ generatedAt, candidate, packet }), { mode: 0o600 });
+  packet.entryChecksumSha256 = buildIcloudEntryChecksum(packet);
+  writePrivateFileAtomic(status.packetFilePath, `${JSON.stringify(packet, null, 2)}\n`);
+  writePrivateFileAtomic(status.handoffFilePath, buildIcloudHandoffHtml({ generatedAt, candidate, packet }));
   return {
     ok: true,
     generatedAt,

@@ -258,9 +258,11 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.match(html, /Copy Recovery Info/);
   assert.match(html, /LifeOS iCloud Mobile Entry Recovery/);
   assert.match(html, /entryBaseUrl=https:\/\/lifeos\.example\.com/);
+  assert.match(html, /entryChecksumSha256=[a-f0-9]{64}/);
   assert.doesNotMatch(html.match(/<textarea id="lifeos-recovery" readonly>([\s\S]*?)<\/textarea>/)?.[1] || "", /lifeosEntry=icloud/);
   assert.equal(packet.baseUrl, "https://lifeos.example.com");
   assert.equal(packet.version, 2);
+  assert.match(packet.entryChecksumSha256, /^[a-f0-9]{64}$/);
   assert.equal(packet.candidateId, "configured-public");
   assert.equal(packet.mobileChatUrl, "https://lifeos.example.com/mobile/chat");
   assert.equal(packet.refreshAfter > packet.generatedAt, true);
@@ -271,6 +273,7 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.match(packet.recoveryActions.join("\n"), /Refresh this iCloud entry after changing Wi-Fi/);
   assert.equal(packet.realtimeTransport, false);
   assert.equal(packet.transport, "icloud-handoff");
+  assert.equal(fs.readdirSync(path.dirname(result.handoffFilePath)).some((name) => name.endsWith(".tmp")), false);
 });
 
 test("iCloud handoff diagnostics mark exported entry stale when the recommended address changes", async (t) => {
