@@ -263,6 +263,9 @@ function appendIcloudHandoffParams(entryUrl: string, packet: Record<string, unkn
     url.searchParams.set("entryMode", String(packet.mode || ""));
     url.searchParams.set("entryStability", String(packet.stability || ""));
     url.searchParams.set("entryLabel", String(packet.label || ""));
+    url.searchParams.set("entryDesktopId", String(packet.desktopId || ""));
+    url.searchParams.set("entryDesktopName", String(packet.desktopName || ""));
+    url.searchParams.set("entryDesktopSlug", String(packet.desktopSlug || ""));
     url.searchParams.set("entryChecksumSha256", String(packet.entryChecksumSha256 || ""));
     return url.toString();
   } catch {
@@ -1113,6 +1116,9 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
     `mode=${input.candidate.mode}`,
     `stability=${input.candidate.stability}`,
     `requiresRestart=${input.candidate.requiresRestart}`,
+    `desktopId=${input.packet.desktopId || "-"}`,
+    `desktopName=${input.packet.desktopName || "-"}`,
+    `desktopSlug=${input.packet.desktopSlug || "-"}`,
     `generatedAt=${new Date(input.generatedAt).toISOString()}`,
     `refreshAfter=${typeof input.packet.refreshAfter === "number" ? new Date(input.packet.refreshAfter).toISOString() : "-"}`,
     `expiresAt=${typeof input.packet.expiresAt === "number" ? new Date(input.packet.expiresAt).toISOString() : "-"}`,

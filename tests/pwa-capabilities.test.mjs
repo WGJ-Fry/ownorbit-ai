@@ -405,14 +405,21 @@ test("mobile iCloud handoff stores non-sensitive entry metadata and detects stal
     "entryMode=cloudflare",
     "entryStability=stable",
     "entryLabel=Cloudflare%20Named%20Tunnel",
+    "entryDesktopId=mac-001",
+    "entryDesktopName=Studio%20Mac",
+    "entryDesktopSlug=studio-mac-001",
     `entryChecksumSha256=${checksum}`,
   ].join("&");
 
   const consumed = consumeMobileIcloudHandoffFromUrl(href, now);
   assert.equal(consumed.baseUrl, "https://lifeos.example.com");
   assert.equal(consumed.mode, "cloudflare");
+  assert.equal(consumed.desktopId, "mac-001");
+  assert.equal(consumed.desktopName, "Studio Mac");
+  assert.equal(consumed.desktopSlug, "studio-mac-001");
   assert.equal(consumed.checksumSha256, checksum);
   assert.equal(getStoredMobileIcloudHandoff().baseUrl, "https://lifeos.example.com");
+  assert.equal(getStoredMobileIcloudHandoff().desktopName, "Studio Mac");
   assert.equal(getStoredMobileIcloudHandoff().checksumSha256, checksum);
 
   const fresh = getMobileIcloudHandoffStatus(consumed, "https://lifeos.example.com/mobile/device", now + 1_000);
@@ -441,6 +448,9 @@ test("mobile iCloud handoff stores non-sensitive entry metadata and detects stal
   assert.match(packet, /LifeOS iCloud Mobile Entry Recovery/);
   assert.match(packet, /entryBaseUrl=https:\/\/lifeos\.example\.com/);
   assert.match(packet, /currentBaseUrl=https:\/\/new-lifeos\.example\.com/);
+  assert.match(packet, /desktopId=mac-001/);
+  assert.match(packet, /desktopName=Studio Mac/);
+  assert.match(packet, /desktopSlug=studio-mac-001/);
   assert.match(packet, new RegExp(`entryChecksumSha256=${checksum}`));
   assert.doesNotMatch(packet, /lifeosEntry=icloud/);
   assert.doesNotMatch(packet, /entryGeneratedAt=/);

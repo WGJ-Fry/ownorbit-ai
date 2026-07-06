@@ -807,6 +807,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.remoteReadinessEntry/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.remoteReadinessConnectivity/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.remoteReadinessQueue/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffDesktop/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffEntry/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffChecksum/);
   assert.match(mobileRemoteEntryCardSource, /checksumSha256/);
@@ -826,6 +827,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /This phone's remote entry is ready/);
   assert.match(translationsSource, /iCloud 入口仍然新鲜/);
   assert.match(translationsSource, /iCloud entry is fresh/);
+  assert.match(translationsSource, /来源电脑/);
+  assert.match(translationsSource, /Source desktop/);
   assert.match(translationsSource, /iCloud 入口需要升级/);
   assert.match(translationsSource, /Upgrade this iCloud entry/);
   assert.match(translationsSource, /最近忽略的旧入口/);

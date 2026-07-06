@@ -11,6 +11,9 @@ const handoffParamKeys = [
   "entryMode",
   "entryStability",
   "entryLabel",
+  "entryDesktopId",
+  "entryDesktopName",
+  "entryDesktopSlug",
   "entryChecksumSha256",
 ];
 
@@ -23,6 +26,9 @@ export type MobileIcloudHandoffEntry = {
   mode: string;
   stability: string;
   label: string;
+  desktopId?: string;
+  desktopName?: string;
+  desktopSlug?: string;
   checksumSha256?: string;
   savedAt: number;
   lastConnectivityTestedAt?: number;
@@ -118,6 +124,20 @@ function normalizeChecksum(value?: string | null) {
   return /^[a-f0-9]{64}$/.test(checksum) ? checksum : "";
 }
 
+function normalizeEntryText(value?: string | null, limit = 80) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, limit);
+}
+
+function normalizeEntryId(value?: string | null) {
+  return String(value || "")
+    .trim()
+    .replace(/[^a-zA-Z0-9._:-]+/g, "")
+    .slice(0, 80);
+}
+
 export function parseMobileIcloudHandoffFromUrl(href?: string, now = Date.now()): MobileIcloudHandoffEntry | null {
   const rawHref = href || (typeof window === "undefined" ? "" : window.location.href);
   if (!rawHref) return null;
@@ -138,7 +158,10 @@ export function parseMobileIcloudHandoffFromUrl(href?: string, now = Date.now())
       baseUrl,
       mode: String(params.get("entryMode") || ""),
       stability: String(params.get("entryStability") || ""),
-      label: String(params.get("entryLabel") || "LifeOS iCloud Mobile Entry"),
+      label: normalizeEntryText(params.get("entryLabel") || "LifeOS iCloud Mobile Entry", 120),
+      desktopId: normalizeEntryId(params.get("entryDesktopId")) || undefined,
+      desktopName: normalizeEntryText(params.get("entryDesktopName"), 80) || undefined,
+      desktopSlug: normalizeEntryId(params.get("entryDesktopSlug")) || undefined,
       checksumSha256: normalizeChecksum(params.get("entryChecksumSha256")) || undefined,
       savedAt: now,
     };
@@ -379,7 +402,10 @@ export function getStoredMobileIcloudHandoff(): MobileIcloudHandoffEntry | null 
       baseUrl: normalizeBaseUrl(parsed.baseUrl),
       mode: String(parsed.mode || ""),
       stability: String(parsed.stability || ""),
-      label: String(parsed.label || "LifeOS iCloud Mobile Entry"),
+      label: normalizeEntryText(parsed.label || "LifeOS iCloud Mobile Entry", 120),
+      desktopId: normalizeEntryId(parsed.desktopId) || undefined,
+      desktopName: normalizeEntryText(parsed.desktopName, 80) || undefined,
+      desktopSlug: normalizeEntryId(parsed.desktopSlug) || undefined,
       checksumSha256: normalizeChecksum(parsed.checksumSha256),
       savedAt: Number(parsed.savedAt || 0),
       lastConnectivityTestedAt: Number(parsed.lastConnectivityTestedAt || 0) || undefined,
@@ -466,6 +492,9 @@ export function buildMobileIcloudHandoffRecoveryPacket(status: MobileIcloudHando
     `mode=${status.entry.mode || "-"}`,
     `stability=${status.entry.stability || "-"}`,
     `label=${status.entry.label || "-"}`,
+    `desktopId=${status.entry.desktopId || "-"}`,
+    `desktopName=${status.entry.desktopName || "-"}`,
+    `desktopSlug=${status.entry.desktopSlug || "-"}`,
     `entryChecksumSha256=${status.entry.checksumSha256 || "-"}`,
     `generatedAt=${isoTime(status.entry.generatedAt)}`,
     `refreshAfter=${isoTime(status.entry.refreshAfter)}`,

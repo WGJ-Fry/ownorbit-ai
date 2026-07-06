@@ -250,6 +250,8 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.match(html, /https:\/\/lifeos\.example\.com\/mobile\/pair/);
   assert.match(html, /lifeosEntry=icloud/);
   assert.match(html, /entryExpiresAt=/);
+  assert.match(html, /entryDesktopId=/);
+  assert.match(html, /entryDesktopName=/);
   assert.match(html, /entryChecksumSha256=/);
   assert.match(html, /Refresh after:/);
   assert.match(html, /entry-age-status/);
@@ -261,6 +263,7 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.match(html, /Copy Recovery Info/);
   assert.match(html, /LifeOS iCloud Mobile Entry Recovery/);
   assert.match(html, /entryBaseUrl=https:\/\/lifeos\.example\.com/);
+  assert.match(html, /desktopName=/);
   assert.match(html, /entryChecksumSha256=[a-f0-9]{64}/);
   assert.doesNotMatch(html.match(/<textarea id="lifeos-recovery" readonly>([\s\S]*?)<\/textarea>/)?.[1] || "", /lifeosEntry=icloud/);
   assert.equal(packet.baseUrl, "https://lifeos.example.com");
