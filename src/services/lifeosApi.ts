@@ -785,8 +785,17 @@ export type NetworkDiagnostics = {
       reason: string;
       changeType: "first-export" | "public-base-url-changed" | "cloudflare-address-changed" | "tailscale-address-changed" | "lan-address-changed" | "address-changed" | "fallback-candidates-changed" | "refreshed-same-address" | string;
       previousBaseUrl: string;
+      previousCandidateId: string;
+      previousMode: string;
+      previousStability: string;
+      previousGeneratedAt: number;
+      previousEntryChecksumSha256: string;
+      previousFallbackCandidateCount: number;
       baseUrl: string;
       candidateId: string;
+      mode: string;
+      stability: string;
+      fallbackCandidateCount: number;
       generatedAt: number;
       entryChecksumSha256: string;
       htmlFileName: string;

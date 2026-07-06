@@ -1127,8 +1127,25 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                     <div key={`${item.desktopId}-${item.generatedAt}`} className="rounded-lg bg-white/[0.03] p-2">
                       <div className="font-bold text-zinc-200">{item.desktopName}</div>
                       <div className="break-all font-mono text-[10px]">{item.baseUrl}</div>
+                      <div className="text-[10px] text-zinc-500">
+                        {t("onboarding.appleRemoteIcloudHistoryCurrentVersion", {
+                          mode: item.mode || "-",
+                          stability: item.stability || "-",
+                          count: item.fallbackCandidateCount || 0,
+                        })}
+                      </div>
                       {item.previousBaseUrl && item.previousBaseUrl !== item.baseUrl ? (
                         <div className="break-all font-mono text-[10px] text-zinc-500">{t("onboarding.appleRemoteIcloudHistoryPrevious")}: {item.previousBaseUrl}</div>
+                      ) : null}
+                      {item.previousGeneratedAt ? (
+                        <div className="text-[10px] text-zinc-500">
+                          {t("onboarding.appleRemoteIcloudHistoryPreviousVersion", {
+                            mode: item.previousMode || "-",
+                            stability: item.previousStability || "-",
+                            count: item.previousFallbackCandidateCount || 0,
+                            time: formatHandoffTime(item.previousGeneratedAt),
+                          })}
+                        </div>
                       ) : null}
                       <div>{formatHandoffTime(item.generatedAt)} · {t(historyChangeTypeKeys[item.changeType] || "onboarding.appleRemoteIcloudHistoryUnknown")} · {item.reason}</div>
                     </div>

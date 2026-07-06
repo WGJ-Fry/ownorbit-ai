@@ -381,6 +381,9 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.equal(packet.exportReason, "manual");
   assert.equal(packet.changeType, "first-export");
   assert.equal(packet.previousBaseUrl, "");
+  assert.equal(packet.previousGeneratedAt, 0);
+  assert.equal(packet.previousFallbackCandidateCount, 0);
+  assert.equal(packet.fallbackCandidateCount, packet.fallbackCandidates.length);
   assert.equal(packet.mobileChatUrl, "https://lifeos.example.com/mobile/chat");
   assert.equal(packet.refreshAfter > packet.generatedAt, true);
   assert.equal(packet.expiresAt > packet.refreshAfter, true);
@@ -424,6 +427,10 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.equal(history[0].reason, "manual");
   assert.equal(history[0].changeType, "first-export");
   assert.equal(history[0].previousBaseUrl, "");
+  assert.equal(history[0].mode, "configured");
+  assert.equal(history[0].stability, "stable");
+  assert.equal(history[0].fallbackCandidateCount, packet.fallbackCandidates.length);
+  assert.equal(history[0].previousGeneratedAt, 0);
   assert.equal(fs.readdirSync(path.dirname(result.handoffFilePath)).some((name) => name.endsWith(".tmp")), false);
 });
 
@@ -669,10 +676,20 @@ test("iCloud handoff auto refresh updates exported entry after address changes",
   assert.equal(nextPacket.baseUrl, "https://new-lifeos.example.com");
   assert.equal(nextPacket.changeType, "public-base-url-changed");
   assert.equal(nextPacket.previousBaseUrl, "https://old-lifeos.example.com");
+  assert.equal(nextPacket.previousCandidateId, "configured-public");
+  assert.equal(nextPacket.previousMode, "configured");
+  assert.equal(nextPacket.previousStability, "stable");
+  assert.equal(nextPacket.previousGeneratedAt, firstPacket.generatedAt);
+  assert.equal(nextPacket.previousEntryChecksumSha256, firstPacket.entryChecksumSha256);
+  assert.equal(nextPacket.previousFallbackCandidateCount, firstPacket.fallbackCandidates.length);
+  assert.equal(nextPacket.fallbackCandidateCount, nextPacket.fallbackCandidates.length);
   assert.equal(nextPacket.exportReason, "test-address-change");
   assert.equal(history[0].baseUrl, "https://new-lifeos.example.com");
   assert.equal(history[0].changeType, "public-base-url-changed");
   assert.equal(history[0].previousBaseUrl, "https://old-lifeos.example.com");
+  assert.equal(history[0].previousGeneratedAt, firstPacket.generatedAt);
+  assert.equal(history[0].previousMode, "configured");
+  assert.equal(history[0].mode, "configured");
   assert.match(nextHtml, /https:\/\/new-lifeos\.example\.com\/mobile\/pair/);
   assert.match(nextHtml, new RegExp(`name="lifeos-entry-checksum" content="${nextPacket.entryChecksumSha256}"`));
 });
@@ -735,6 +752,9 @@ test("iCloud handoff auto refresh updates exported entry after LAN fallback chan
   assert.equal(nextPacket.baseUrl, "https://stable-lifeos.example.com");
   assert.equal(nextPacket.changeType, "fallback-candidates-changed");
   assert.equal(nextPacket.exportReason, "test-lan-fallback-change");
+  assert.equal(nextPacket.previousFallbackCandidateCount, firstPacket.fallbackCandidates.length);
+  assert.equal(nextPacket.fallbackCandidateCount, nextPacket.fallbackCandidates.length);
+  assert.equal(nextPacket.previousGeneratedAt, firstPacket.generatedAt);
   assert.equal(nextPacket.fallbackCandidates.some((candidate) => candidate.baseUrl === "http://192.168.0.11:4567"), true);
   assert.equal(nextPacket.fallbackCandidates.some((candidate) => candidate.baseUrl === "http://192.168.0.10:4567"), false);
 });

@@ -630,6 +630,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /tailscale-address-changed/);
   assert.match(onboardingAppleRemoteSource, /lan-address-changed/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudHistoryPrevious/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudHistoryCurrentVersion/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudHistoryPreviousVersion/);
   assert.match(onboardingAppleRemoteSource, /analyzeIcloudHandoffRepairPacket/);
   assert.match(onboardingAppleRemoteSource, /handlePasteAndAnalyzeRepair/);
   assert.match(onboardingAppleRemoteSource, /navigator\.clipboard\?\.readText/);
@@ -697,6 +699,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /previousPhoneConfirmationStatus/);
   assert.match(lifeosApiSource, /previousPairingSessionStatus/);
   assert.match(lifeosApiSource, /recommendedBaseUrl\?: string/);
+  assert.match(lifeosApiSource, /previousFallbackCandidateCount/);
+  assert.match(lifeosApiSource, /fallbackCandidateCount/);
   assert.match(lifeosApiSource, /lifecycle/);
   assert.match(lifeosApiSource, /account-unavailable/);
   assert.match(lifeosApiSource, /drive-disabled/);
@@ -752,6 +756,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /最近导出历史/);
   assert.match(translationsSource, /上一个入口/);
   assert.match(translationsSource, /Previous entry/);
+  assert.match(translationsSource, /Current version:/);
+  assert.match(translationsSource, /Previous version:/);
   assert.match(translationsSource, /地址变化/);
   assert.match(translationsSource, /Address changed/);
   assert.match(translationsSource, /备用入口变化/);

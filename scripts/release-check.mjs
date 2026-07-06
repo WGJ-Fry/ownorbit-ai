@@ -1357,6 +1357,8 @@ function checkAssets() {
     adminRoutesSource.includes("pairingSession,") &&
     networkDiagnosticsSource.includes("pairing-session-refresh") &&
     networkDiagnosticsSource.includes("index-consistency-refresh") &&
+    networkDiagnosticsSource.includes("previousFallbackCandidateCount") &&
+    networkDiagnosticsSource.includes("fallbackCandidateCount") &&
     networkDiagnosticsSource.includes("previousPairingSessionStatus") &&
     networkDiagnosticsSource.includes("previousIndexConsistencyStatus") &&
     icloudHandoffMonitorSource.includes("previousPairingSessionStatus") &&
@@ -1417,6 +1419,7 @@ function checkAssets() {
     networkDiagnosticsTestSource.includes("iCloud acceptance summary separates synced entry from real-device evidence") &&
     networkDiagnosticsTestSource.includes("iCloud startup refresh records local core restart state") &&
     networkDiagnosticsTestSource.includes("iCloud handoff monitor refreshes stale desktop chooser index files") &&
+    networkDiagnosticsTestSource.includes("previousFallbackCandidateCount") &&
     networkDiagnosticsTestSource.includes("monitorRun.trigger") &&
     networkDiagnosticsTestSource.includes("monitorRun.changeType") &&
     networkDiagnosticsSource.includes("public-base-url-changed") &&
@@ -1431,6 +1434,8 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("cloudflare-address-changed") &&
     onboardingAppleRemoteSource.includes("tailscale-address-changed") &&
     onboardingAppleRemoteSource.includes("lan-address-changed") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudHistoryCurrentVersion") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudHistoryPreviousVersion") &&
     onboardingAppleRemoteSource.includes("latestEntryRepairStatusKeys") &&
     onboardingAppleRemoteSource.includes("latestEntryRepairActionKeys") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudRepairImportTitle") &&
@@ -1450,6 +1455,8 @@ function checkAssets() {
     translationsSource.includes("Cloudflare address changed") &&
     translationsSource.includes("Tailscale address changed") &&
     translationsSource.includes("LAN IP changed") &&
+    translationsSource.includes("Current version:") &&
+    translationsSource.includes("Previous version:") &&
     translationsSource.includes("Phone just opened an old entry") &&
     translationsSource.includes("refresh the iCloud mobile entry and generate a fresh pairing QR") &&
     mobileIcloudHandoffSource.includes("PENDING_EVENTS_STORAGE_KEY") &&
