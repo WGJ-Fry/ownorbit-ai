@@ -8,7 +8,7 @@ import { createCalendarSyncRun, listCalendarSyncRuns } from "../calendarSyncRuns
 import { createAdminCredential, createAdminSession, getAdminSessionByToken, getBearerToken, isAdminConfigured, requireAdmin, verifyAdminPassword } from "../auth";
 import { createDiagnosticBundle, getReleaseDiagnostics } from "../diagnosticBundle";
 import { clearHttpOnlyCookie, getClientIp, rateLimit, setClientCookie, setHttpOnlyCookie } from "../httpSecurity";
-import { exportIcloudHandoff, getNetworkDiagnostics, installTailscaleClient, startTailscaleHttpsServe, stopTailscaleHttpsServe, testConnectionUrl } from "../networkDiagnostics";
+import { analyzeIcloudHandoffRepairPacket, exportIcloudHandoff, getNetworkDiagnostics, installTailscaleClient, startTailscaleHttpsServe, stopTailscaleHttpsServe, testConnectionUrl } from "../networkDiagnostics";
 import { generateCloudflareNamedTunnelConfig, getCloudflareNamedTunnelStatus, getManagedCloudflareTunnelStatus, refreshCloudflareNamedTunnelConfigForPort, startConfiguredCloudflareNamedTunnel, startManagedCloudflareTunnel, stopManagedCloudflareTunnel } from "../cloudflareTunnel";
 import { saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
@@ -594,6 +594,25 @@ export function registerAdminRoutes(app: express.Express) {
         error: error?.message || "iCloud Handoff export failed",
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.status(400).json({ error: error.message || "iCloud Handoff export failed", diagnostics: getAdminNetworkDiagnostics() });
+    }
+  });
+
+  app.post("/api/v1/admin/icloud-handoff/repair-packet", requireAdmin, (req, res) => {
+    try {
+      const analysis = analyzeIcloudHandoffRepairPacket(req.body?.packet || req.body?.text || "");
+      insertAuditLog("icloud_handoff_repair_analyzed", "network", analysis.parsed.entryBaseUrl || "icloud-repair", {
+        reason: analysis.reason,
+        severity: analysis.severity,
+        phoneEntryBaseUrl: analysis.parsed.entryBaseUrl || null,
+        desktopRecommendedBaseUrl: analysis.desktop.recommendedBaseUrl || null,
+        recommendations: analysis.recommendations.map((item) => item.id),
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.json({ analysis, diagnostics: getAdminNetworkDiagnostics() });
+    } catch (error: any) {
+      insertAuditLog("icloud_handoff_repair_analyze_failed", "network", "icloud-repair", {
+        error: error?.message || "iCloud repair info could not be analyzed",
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(400).json({ error: error.message || "iCloud repair info could not be analyzed", diagnostics: getAdminNetworkDiagnostics() });
     }
   });
 

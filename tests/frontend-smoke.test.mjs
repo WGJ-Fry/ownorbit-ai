@@ -567,6 +567,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /handoffHealthStatusKeys/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudHealthInvalid/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudHealthHtmlMismatch/);
+  assert.match(onboardingAppleRemoteSource, /icloudAvailabilityKeys/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAvailabilityTitle/);
+  assert.match(onboardingAppleRemoteSource, /analyzeIcloudHandoffRepairPacket/);
+  assert.match(onboardingAppleRemoteSource, /repairReasonKeys/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudRepairTitle/);
   assert.match(onboardingAppleRemoteSource, /latestIgnoredEntryEvent/);
   assert.match(onboardingAppleRemoteSource, /availableEntryCount/);
   assert.match(onboardingAppleRemoteSource, /latestHistory/);
@@ -586,6 +591,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingTailscaleSetupSource, /onboarding\.tailscaleAutoInstall/);
   assert.match(onboardingTailscaleSetupSource, /tailscale:\/\//);
   assert.match(lifeosApiSource, /\/api\/v1\/admin\/tailscale\/install/);
+  assert.match(lifeosApiSource, /\/api\/v1\/admin\/icloud-handoff\/repair-packet/);
+  assert.match(lifeosApiSource, /IcloudHandoffRepairAnalysis/);
   assert.match(translationsSource, /Apple\/iCloud 手机入口/);
   assert.match(translationsSource, /备用：Tailscale 私有网络/);
   assert.match(translationsSource, /Fallback: Tailscale Private Network/);
@@ -607,6 +614,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Entry files out of sync/);
   assert.match(translationsSource, /旧格式入口/);
   assert.match(translationsSource, /Legacy entry/);
+  assert.match(translationsSource, /iCloud Drive 自检/);
+  assert.match(translationsSource, /iCloud Drive Check/);
+  assert.match(translationsSource, /粘贴手机修复信息/);
+  assert.match(translationsSource, /Paste Phone Repair Info/);
+  assert.match(translationsSource, /分析修复信息/);
+  assert.match(translationsSource, /Analyze Repair Info/);
   const onboardingHandoffSource = await readFile(path.join(rootDir, "src", "pages", "admin", "OnboardingHandoffCard.tsx"), "utf8");
   assert.match(onboardingHandoffSource, /onboarding\.handoffChatTitle/);
   assert.match(onboardingHandoffSource, /onboarding\.copyHandoffSummary/);

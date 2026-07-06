@@ -66,6 +66,52 @@ export type MobileIcloudHandoffEventReportInput = {
   ignoredAt?: number;
 };
 
+export type IcloudHandoffRepairAnalysis = {
+  ok: true;
+  reason:
+    | "ready"
+    | "invalid-packet"
+    | "phone-entry-expired"
+    | "phone-entry-stale"
+    | "phone-entry-legacy"
+    | "phone-entry-mismatch"
+    | "desktop-entry-changed"
+    | "phone-connectivity-failed"
+    | "desktop-local-or-lan"
+    | "temporary-entry";
+  severity: "ok" | "warning" | "danger";
+  parsed: {
+    status: string;
+    action: string;
+    entryBaseUrl: string;
+    currentBaseUrl: string;
+    mode: string;
+    stability: string;
+    label: string;
+    generatedAt: number;
+    expiresAt: number;
+    lastConnectivityOk: boolean | null;
+    lastConnectivityError: string;
+    rawLength: number;
+  };
+  desktop: {
+    desktopId: string;
+    desktopName: string;
+    recommendedBaseUrl: string;
+    lastExportedBaseUrl: string;
+    handoffStatus: NetworkDiagnostics["icloud"]["handoffHealth"]["status"];
+    handoffNeedsRefresh: boolean;
+    remoteReadiness: NetworkDiagnostics["remoteReadiness"]["status"];
+    recommendedMode: string;
+    recommendedStability: string;
+  };
+  recommendations: Array<{
+    id: "refresh-icloud" | "open-latest-entry" | "regenerate-qr" | "start-tailscale" | "start-cloudflare" | "save-stable-entry" | "test-phone-entry" | "ready";
+    severity: "ok" | "warning" | "danger";
+    detail: string;
+  }>;
+};
+
 export type BindingSession = {
   id: string;
   token: string;
@@ -719,6 +765,40 @@ export type NetworkDiagnostics = {
         reason: string;
       };
       reason: string;
+    };
+    availability: {
+      status: "unsupported" | "missing" | "read-only" | "sync-pending" | "ready";
+      severity: "ok" | "warning" | "danger";
+      drivePathDetected: boolean;
+      appFolderExists: boolean;
+      driveWritable: boolean;
+      appFolderWritable: boolean;
+      placeholderCount: number;
+      placeholderSamples: string[];
+      handoffFile: {
+        exists: boolean;
+        readable: boolean;
+        placeholder: boolean;
+        placeholderPath: string;
+        size: number;
+        state: "missing" | "ready" | "unreadable" | "placeholder";
+      };
+      packetFile: {
+        exists: boolean;
+        readable: boolean;
+        placeholder: boolean;
+        placeholderPath: string;
+        size: number;
+        state: "missing" | "ready" | "unreadable" | "placeholder";
+      };
+      indexFile: {
+        exists: boolean;
+        readable: boolean;
+        placeholder: boolean;
+        placeholderPath: string;
+        size: number;
+        state: "missing" | "ready" | "unreadable" | "placeholder";
+      };
     };
     realtimeTransport: false;
     transport: "handoff-only";
@@ -1657,6 +1737,13 @@ export function exportIcloudHandoff() {
     diagnostics: NetworkDiagnostics;
     message: string;
   }>("/api/v1/admin/icloud-handoff/export", { method: "POST" });
+}
+
+export function analyzeIcloudHandoffRepairPacket(packet: string) {
+  return requestJson<{ analysis: IcloudHandoffRepairAnalysis; diagnostics: NetworkDiagnostics }>("/api/v1/admin/icloud-handoff/repair-packet", {
+    method: "POST",
+    body: JSON.stringify({ packet }),
+  });
 }
 
 export function stopCloudflareTunnel() {

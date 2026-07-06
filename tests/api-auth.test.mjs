@@ -517,6 +517,34 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(typeof networkDiagnostics.cloudflare.managed.running, "boolean");
   const blockedIcloudHandoffExport = await request(port, "/api/v1/admin/icloud-handoff/export", { method: "POST" });
   assert.equal(blockedIcloudHandoffExport.status, 401);
+  const blockedIcloudRepairPacket = await request(port, "/api/v1/admin/icloud-handoff/repair-packet", {
+    method: "POST",
+    body: JSON.stringify({ packet: "LifeOS iCloud Mobile Entry Recovery\nentryBaseUrl=https://old.example.test" }),
+  });
+  assert.equal(blockedIcloudRepairPacket.status, 401);
+  const invalidIcloudRepairPacket = await request(port, "/api/v1/admin/icloud-handoff/repair-packet", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ packet: "not a LifeOS repair packet" }),
+  });
+  assert.equal(invalidIcloudRepairPacket.status, 400);
+  const icloudRepairPacket = await request(port, "/api/v1/admin/icloud-handoff/repair-packet", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      packet: [
+        "LifeOS iCloud Mobile Entry Recovery",
+        "status=stale",
+        "entryBaseUrl=https://old.example.test",
+        "currentBaseUrl=https://old.example.test/mobile/chat?token=secret-token",
+        "lastConnectivityOk=false",
+      ].join("\n"),
+    }),
+  }).then((res) => res.json());
+  assert.equal(icloudRepairPacket.analysis.parsed.entryBaseUrl, "https://old.example.test");
+  assert.equal(icloudRepairPacket.analysis.parsed.currentBaseUrl, "https://old.example.test/mobile/chat");
+  assert.ok(icloudRepairPacket.analysis.recommendations.some((item) => item.id === "refresh-icloud" || item.id === "test-phone-entry"));
+  assert.equal(JSON.stringify(icloudRepairPacket).includes("secret-token"), false);
 
   const blockedCloudflareTunnelStatus = await request(port, "/api/v1/admin/cloudflare-tunnel");
   assert.equal(blockedCloudflareTunnelStatus.status, 401);

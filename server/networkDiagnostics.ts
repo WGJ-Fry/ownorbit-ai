@@ -1,6 +1,6 @@
 import { execFileSync, spawnSync } from "child_process";
 import crypto from "crypto";
-import { accessSync, constants, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from "fs";
+import { accessSync, constants, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, unlinkSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { WebSocket } from "ws";
@@ -576,6 +576,277 @@ function buildIcloudHandoffIndexHtml(input: {
 </html>`;
 }
 
+function parseIcloudRepairPacket(text: unknown) {
+  const raw = String(text || "").slice(0, 6000);
+  const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const fields: Record<string, string> = {};
+  for (const line of lines) {
+    const index = line.indexOf("=");
+    if (index <= 0) continue;
+    const key = line.slice(0, index).trim();
+    const value = line.slice(index + 1).trim();
+    if (/^[a-zA-Z][a-zA-Z0-9]+$/.test(key)) fields[key] = value.slice(0, 500);
+  }
+  const valid = lines[0] === "LifeOS iCloud Mobile Entry Recovery" || Boolean(fields.entryBaseUrl || fields.currentBaseUrl);
+  return { rawLength: raw.length, valid, fields };
+}
+
+function normalizeRepairBaseUrl(value?: string) {
+  const raw = String(value || "").trim();
+  if (!raw || raw === "-") return "";
+  try {
+    const url = new URL(raw);
+    if (!["http:", "https:"].includes(url.protocol)) return "";
+    url.username = "";
+    url.password = "";
+    url.search = "";
+    url.hash = "";
+    const pathname = url.pathname.replace(/\/+$/, "");
+    return `${url.origin}${pathname === "/" ? "" : pathname}`.replace(/\/$/, "");
+  } catch {
+    return "";
+  }
+}
+
+function parseRepairTime(value?: string) {
+  const raw = String(value || "").trim();
+  if (!raw || raw === "-") return 0;
+  const time = Date.parse(raw);
+  return Number.isFinite(time) ? time : 0;
+}
+
+function parseRepairBool(value?: string) {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return null;
+}
+
+function modeFromBaseUrl(baseUrl: string) {
+  if (!baseUrl) return "unknown";
+  try {
+    const host = new URL(baseUrl).hostname.toLowerCase();
+    if (host.endsWith(".trycloudflare.com")) return "cloudflare";
+    if (host.endsWith(".ts.net")) return "tailscale";
+    if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(host)) return "lan";
+    if (host === "localhost" || host.startsWith("127.")) return "local";
+    return "public";
+  } catch {
+    return "unknown";
+  }
+}
+
+function canAccess(filePath: string, mode: number) {
+  try {
+    accessSync(filePath, mode);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getIcloudPlaceholderSamples(appFolderPath: string) {
+  if (!existsSync(appFolderPath)) return [];
+  try {
+    return readdirSync(appFolderPath)
+      .filter((name) => name.endsWith(".icloud"))
+      .slice(0, 5);
+  } catch {
+    return [];
+  }
+}
+
+function getIcloudFileState(filePath: string) {
+  const placeholderCandidates = [
+    `${filePath}.icloud`,
+    path.join(path.dirname(filePath), `.${path.basename(filePath)}.icloud`),
+  ];
+  const placeholderPath = placeholderCandidates.find((candidate) => existsSync(candidate)) || "";
+  const exists = existsSync(filePath);
+  const readable = exists ? canAccess(filePath, constants.R_OK) : false;
+  let size = 0;
+  if (exists) {
+    try {
+      size = statSync(filePath).size;
+    } catch {
+      size = 0;
+    }
+  }
+  return {
+    exists,
+    readable,
+    placeholder: Boolean(placeholderPath),
+    placeholderPath: placeholderPath ? path.basename(placeholderPath) : "",
+    size,
+    state: placeholderPath ? "placeholder" as const : exists && readable ? "ready" as const : exists ? "unreadable" as const : "missing" as const,
+  };
+}
+
+function getIcloudAvailabilityStatus(input: {
+  platformSupported: boolean;
+  drivePath: string;
+  appFolderPath: string;
+  handoffFilePath: string;
+  packetFilePath: string;
+  indexFilePath: string;
+}) {
+  const drivePathDetected = input.platformSupported && existsSync(input.drivePath);
+  const appFolderExists = drivePathDetected && existsSync(input.appFolderPath);
+  const driveWritable = drivePathDetected ? canAccess(input.drivePath, constants.W_OK) : false;
+  const appFolderWritable = appFolderExists ? canAccess(input.appFolderPath, constants.W_OK) : driveWritable;
+  const handoffFile = getIcloudFileState(input.handoffFilePath);
+  const packetFile = getIcloudFileState(input.packetFilePath);
+  const indexFile = getIcloudFileState(input.indexFilePath);
+  const placeholderSamples = appFolderExists ? getIcloudPlaceholderSamples(input.appFolderPath) : [];
+  const placeholderCount = placeholderSamples.length + [handoffFile, packetFile, indexFile].filter((file) => file.placeholder).length;
+  let status: "unsupported" | "missing" | "read-only" | "sync-pending" | "ready" = "ready";
+  let severity: "ok" | "warning" | "danger" = "ok";
+  if (!input.platformSupported) {
+    status = "unsupported";
+    severity = "warning";
+  } else if (!drivePathDetected) {
+    status = "missing";
+    severity = "danger";
+  } else if (!driveWritable || !appFolderWritable) {
+    status = "read-only";
+    severity = "danger";
+  } else if (placeholderCount > 0) {
+    status = "sync-pending";
+    severity = "warning";
+  }
+  return {
+    status,
+    severity,
+    drivePathDetected,
+    appFolderExists,
+    driveWritable,
+    appFolderWritable,
+    placeholderCount,
+    placeholderSamples,
+    handoffFile,
+    packetFile,
+    indexFile,
+  };
+}
+
+export function analyzeIcloudHandoffRepairPacket(text: unknown) {
+  const parsed = parseIcloudRepairPacket(text);
+  if (!parsed.valid) {
+    throw new Error("Paste the iCloud repair info copied from the phone.");
+  }
+  const diagnostics = getNetworkDiagnostics();
+  const phoneEntryBaseUrl = normalizeRepairBaseUrl(parsed.fields.entryBaseUrl);
+  const phoneCurrentBaseUrl = normalizeRepairBaseUrl(parsed.fields.currentBaseUrl);
+  const desktopRecommendedBaseUrl = diagnostics.icloud.recommendedBaseUrl || diagnostics.recommendedBaseUrl || "";
+  const desktopExportedBaseUrl = diagnostics.icloud.handoffHealth.lastExportedBaseUrl || "";
+  const phoneStatus = String(parsed.fields.status || "unknown").slice(0, 80);
+  const phoneAction = String(parsed.fields.action || "").slice(0, 120);
+  const lastConnectivityOk = parseRepairBool(parsed.fields.lastConnectivityOk);
+  const generatedAt = parseRepairTime(parsed.fields.generatedAt);
+  const expiresAt = parseRepairTime(parsed.fields.expiresAt);
+  const now = Date.now();
+  const recommendations: Array<{
+    id: "refresh-icloud" | "open-latest-entry" | "regenerate-qr" | "start-tailscale" | "start-cloudflare" | "save-stable-entry" | "test-phone-entry" | "ready";
+    severity: "ok" | "warning" | "danger";
+    detail: string;
+  }> = [];
+  const seenRecommendations = new Set<string>();
+  const addRecommendation = (id: typeof recommendations[number]["id"], severity: typeof recommendations[number]["severity"], detail: string) => {
+    if (seenRecommendations.has(id)) return;
+    seenRecommendations.add(id);
+    recommendations.push({ id, severity, detail });
+  };
+
+  let reason:
+    | "ready"
+    | "invalid-packet"
+    | "phone-entry-expired"
+    | "phone-entry-stale"
+    | "phone-entry-legacy"
+    | "phone-entry-mismatch"
+    | "desktop-entry-changed"
+    | "phone-connectivity-failed"
+    | "desktop-local-or-lan"
+    | "temporary-entry" = "ready";
+
+  if (!phoneEntryBaseUrl) {
+    reason = "invalid-packet";
+    addRecommendation("open-latest-entry", "danger", "The repair packet does not include a clean phone entry URL.");
+  }
+  if (expiresAt && now >= expiresAt) {
+    reason = "phone-entry-expired";
+    addRecommendation("refresh-icloud", "danger", "The phone opened an expired iCloud entry.");
+    addRecommendation("open-latest-entry", "warning", "Open the latest iCloud file on the phone after refreshing.");
+  } else if (phoneStatus === "stale") {
+    reason = "phone-entry-stale";
+    addRecommendation("refresh-icloud", "warning", "The phone entry is older than the refresh window.");
+  } else if (phoneStatus === "legacy") {
+    reason = "phone-entry-legacy";
+    addRecommendation("refresh-icloud", "warning", "The phone entry was generated by an older LifeOS version.");
+  } else if (phoneStatus === "address-mismatch" || phoneAction.includes("Mismatch")) {
+    reason = "phone-entry-mismatch";
+    addRecommendation("open-latest-entry", "warning", "The phone is not using the same base URL as the iCloud entry.");
+  }
+
+  if (phoneEntryBaseUrl && desktopRecommendedBaseUrl && phoneEntryBaseUrl !== desktopRecommendedBaseUrl) {
+    reason = "desktop-entry-changed";
+    addRecommendation("refresh-icloud", "danger", "The desktop currently recommends a different phone entry.");
+    addRecommendation("regenerate-qr", "warning", "Regenerate the pairing QR code after refreshing iCloud.");
+  }
+  if (phoneEntryBaseUrl && desktopExportedBaseUrl && phoneEntryBaseUrl !== desktopExportedBaseUrl) {
+    addRecommendation("open-latest-entry", "warning", "The phone opened a URL that differs from the last exported desktop packet.");
+  }
+  if (lastConnectivityOk === false) {
+    reason = reason === "ready" ? "phone-connectivity-failed" : reason;
+    addRecommendation("test-phone-entry", "warning", "The phone reported that the last connectivity check failed.");
+  }
+
+  const entryMode = modeFromBaseUrl(desktopRecommendedBaseUrl);
+  if (diagnostics.remoteReadiness.status === "local-only" || diagnostics.remoteReadiness.status === "lan-only" || entryMode === "local" || entryMode === "lan") {
+    reason = reason === "ready" ? "desktop-local-or-lan" : reason;
+    addRecommendation("start-tailscale", "warning", "The current entry is local/LAN only. Use Tailscale HTTPS Serve for stable off-LAN access.");
+    addRecommendation("start-cloudflare", "warning", "Use Cloudflare Tunnel when a temporary HTTPS public entry is acceptable.");
+  } else if (entryMode === "cloudflare" && diagnostics.icloud.recommendedStability === "temporary") {
+    reason = reason === "ready" ? "temporary-entry" : reason;
+    addRecommendation("save-stable-entry", "warning", "The current Cloudflare quick tunnel is temporary and may change after restart.");
+  }
+
+  if (!recommendations.length) {
+    addRecommendation("ready", "ok", "The phone repair info matches the current desktop entry.");
+  }
+
+  return {
+    ok: true,
+    reason,
+    severity: recommendations.some((item) => item.severity === "danger") ? "danger" as const : recommendations.some((item) => item.severity === "warning") ? "warning" as const : "ok" as const,
+    parsed: {
+      status: phoneStatus,
+      action: phoneAction,
+      entryBaseUrl: phoneEntryBaseUrl,
+      currentBaseUrl: phoneCurrentBaseUrl,
+      mode: String(parsed.fields.mode || ""),
+      stability: String(parsed.fields.stability || ""),
+      label: String(parsed.fields.label || ""),
+      generatedAt,
+      expiresAt,
+      lastConnectivityOk,
+      lastConnectivityError: String(parsed.fields.lastConnectivityError || "").slice(0, 240),
+      rawLength: parsed.rawLength,
+    },
+    desktop: {
+      desktopId: diagnostics.icloud.desktopId,
+      desktopName: diagnostics.icloud.desktopName,
+      recommendedBaseUrl: desktopRecommendedBaseUrl,
+      lastExportedBaseUrl: desktopExportedBaseUrl,
+      handoffStatus: diagnostics.icloud.handoffHealth.status,
+      handoffNeedsRefresh: diagnostics.icloud.handoffHealth.needsRefresh,
+      remoteReadiness: diagnostics.remoteReadiness.status,
+      recommendedMode: diagnostics.icloud.recommendedMode,
+      recommendedStability: diagnostics.icloud.recommendedStability,
+    },
+    recommendations,
+  };
+}
+
 function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
   const platformSupported = isApplePlatform();
   const drivePath = iCloudDrivePath();
@@ -595,6 +866,14 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
   const handoffHealth = buildIcloudHandoffHealth({ packetFilePath: healthPacketFilePath, handoffFilePath: healthHandoffFilePath, candidate });
   const availableEntries = available ? readIcloudEntrySummaries(appFolderPath) : [];
   const entryHistory = available ? readIcloudHandoffHistory(historyFilePath) : [];
+  const availability = getIcloudAvailabilityStatus({
+    platformSupported,
+    drivePath,
+    appFolderPath,
+    handoffFilePath,
+    packetFilePath,
+    indexFilePath,
+  });
   return {
     platform: process.platform,
     platformSupported,
@@ -616,6 +895,7 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
     recommendedMode: candidate?.mode || "",
     recommendedStability: candidate?.stability || "",
     handoffHealth,
+    availability,
     realtimeTransport: false,
     transport: "handoff-only" as const,
     openInstruction: available

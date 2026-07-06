@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { AlertTriangle, ArrowRight, CheckCircle2, Cloud, ExternalLink, Loader2, QrCode, RefreshCw, ShieldCheck, Smartphone, Wifi } from "lucide-react";
-import type { NetworkDiagnostics } from "../../services/lifeosApi";
+import { analyzeIcloudHandoffRepairPacket } from "../../services/lifeosApi";
+import type { IcloudHandoffRepairAnalysis, NetworkDiagnostics } from "../../services/lifeosApi";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { TranslationKey } from "../../i18n/translations";
 
@@ -46,6 +48,38 @@ const handoffHealthReasonKeys: Record<NetworkDiagnostics["icloud"]["handoffHealt
   "html-mismatch": "onboarding.appleRemoteIcloudReasonHtmlMismatch",
 };
 
+const icloudAvailabilityKeys: Record<NetworkDiagnostics["icloud"]["availability"]["status"], TranslationKey> = {
+  unsupported: "onboarding.appleRemoteIcloudAvailabilityUnsupported",
+  missing: "onboarding.appleRemoteIcloudAvailabilityMissing",
+  "read-only": "onboarding.appleRemoteIcloudAvailabilityReadOnly",
+  "sync-pending": "onboarding.appleRemoteIcloudAvailabilitySyncPending",
+  ready: "onboarding.appleRemoteIcloudAvailabilityReady",
+};
+
+const repairReasonKeys: Record<IcloudHandoffRepairAnalysis["reason"], TranslationKey> = {
+  ready: "onboarding.appleRemoteIcloudRepairReasonReady",
+  "invalid-packet": "onboarding.appleRemoteIcloudRepairReasonInvalid",
+  "phone-entry-expired": "onboarding.appleRemoteIcloudRepairReasonExpired",
+  "phone-entry-stale": "onboarding.appleRemoteIcloudRepairReasonStale",
+  "phone-entry-legacy": "onboarding.appleRemoteIcloudRepairReasonLegacy",
+  "phone-entry-mismatch": "onboarding.appleRemoteIcloudRepairReasonMismatch",
+  "desktop-entry-changed": "onboarding.appleRemoteIcloudRepairReasonChanged",
+  "phone-connectivity-failed": "onboarding.appleRemoteIcloudRepairReasonConnectivity",
+  "desktop-local-or-lan": "onboarding.appleRemoteIcloudRepairReasonLocal",
+  "temporary-entry": "onboarding.appleRemoteIcloudRepairReasonTemporary",
+};
+
+const repairRecommendationKeys: Record<IcloudHandoffRepairAnalysis["recommendations"][number]["id"], TranslationKey> = {
+  "refresh-icloud": "onboarding.appleRemoteIcloudRepairRecRefresh",
+  "open-latest-entry": "onboarding.appleRemoteIcloudRepairRecOpenLatest",
+  "regenerate-qr": "onboarding.appleRemoteIcloudRepairRecQr",
+  "start-tailscale": "onboarding.appleRemoteIcloudRepairRecTailscale",
+  "start-cloudflare": "onboarding.appleRemoteIcloudRepairRecCloudflare",
+  "save-stable-entry": "onboarding.appleRemoteIcloudRepairRecStable",
+  "test-phone-entry": "onboarding.appleRemoteIcloudRepairRecTest",
+  ready: "onboarding.appleRemoteIcloudRepairRecReady",
+};
+
 function isAppleRuntime() {
   if (typeof navigator === "undefined") return false;
   const platform = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform || navigator.platform || "";
@@ -77,10 +111,15 @@ function formatHandoffTime(value?: number) {
 
 export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportIcloud, onStartTailscale, onStartCloudflare, onSaveCandidate, onTestCandidate }: Props) {
   const { t } = useI18n();
+  const [repairText, setRepairText] = useState("");
+  const [repairBusy, setRepairBusy] = useState(false);
+  const [repairError, setRepairError] = useState("");
+  const [repairAnalysis, setRepairAnalysis] = useState<IcloudHandoffRepairAnalysis | null>(null);
   const appleRuntime = isAppleRuntime();
   const candidate = getPreferredCandidate(diagnostics);
   const icloud = diagnostics?.icloud;
   const handoffHealth = icloud?.handoffHealth;
+  const icloudAvailability = icloud?.availability;
   const latestIgnoredEntryEvent = icloud?.latestIgnoredEntryEvent || null;
   const latestHistory = icloud?.entryHistory?.slice(0, 3) || [];
   const availableEntryCount = icloud?.availableEntries?.length || 0;
@@ -93,9 +132,29 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const candidateReady = Boolean(candidate);
   const canExportIcloud = Boolean(icloud?.canExport);
   const handoffHealthTone = handoffHealth?.status === "fresh" ? "bg-emerald-500/15 text-emerald-100" : handoffHealth?.status === "address-changed" || handoffHealth?.status === "expired" || handoffHealth?.status === "invalid" || handoffHealth?.status === "html-mismatch" ? "bg-red-500/15 text-red-100" : "bg-amber-500/15 text-amber-100";
+  const icloudAvailabilityTone = icloudAvailability?.severity === "ok" ? "bg-emerald-500/15 text-emerald-100" : icloudAvailability?.severity === "danger" ? "bg-red-500/15 text-red-100" : "bg-amber-500/15 text-amber-100";
   const lastExportedAt = formatHandoffTime(handoffHealth?.lastExportedAt);
   const refreshAfter = formatHandoffTime(handoffHealth?.refreshAfter);
   const latestIgnoredAt = formatHandoffTime(latestIgnoredEntryEvent?.ignoredAt);
+
+  const handleAnalyzeRepair = async () => {
+    const packet = repairText.trim();
+    if (!packet) {
+      setRepairError(t("onboarding.appleRemoteIcloudRepairEmpty"));
+      return;
+    }
+    setRepairBusy(true);
+    setRepairError("");
+    try {
+      const result = await analyzeIcloudHandoffRepairPacket(packet);
+      setRepairAnalysis(result.analysis);
+    } catch (error) {
+      setRepairAnalysis(null);
+      setRepairError(t("onboarding.appleRemoteIcloudRepairFailed"));
+    } finally {
+      setRepairBusy(false);
+    }
+  };
 
   return (
     <section className="rounded-[28px] border border-sky-400/15 bg-[#101722] p-5">
@@ -153,6 +212,26 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
           <div className="mt-2 break-all font-mono text-[11px] text-zinc-500">
             {icloud?.handoffFilePath || icloud?.openInstruction || t("onboarding.appleRemoteIcloudNoPath")}
           </div>
+          {icloudAvailability ? (
+            <div className="mt-3 rounded-xl border border-white/[0.06] bg-[#060a10]/30 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-bold text-zinc-100">{t("onboarding.appleRemoteIcloudAvailabilityTitle")}</span>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${icloudAvailabilityTone}`}>
+                  {t(icloudAvailabilityKeys[icloudAvailability.status])}
+                </span>
+              </div>
+              {icloudAvailability.status === "sync-pending" ? (
+                <div className="mt-2 text-[11px] leading-relaxed text-amber-100">
+                  {t("onboarding.appleRemoteIcloudAvailabilityPendingBody", { count: icloudAvailability.placeholderCount })}
+                </div>
+              ) : null}
+              {icloudAvailability.status === "read-only" ? (
+                <div className="mt-2 text-[11px] leading-relaxed text-red-100">
+                  {t("onboarding.appleRemoteIcloudAvailabilityReadOnlyBody")}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           {handoffHealth ? (
             <div className="mt-3 border-t border-white/[0.06] pt-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -212,6 +291,42 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
               </div>
             </div>
           ) : null}
+          <details className="mt-3 rounded-xl border border-white/[0.06] bg-[#060a10]/30 p-3 text-[11px] text-zinc-500">
+            <summary className="cursor-pointer font-bold text-zinc-200">{t("onboarding.appleRemoteIcloudRepairTitle")}</summary>
+            <p className="mt-2 leading-relaxed">{t("onboarding.appleRemoteIcloudRepairBody")}</p>
+            <textarea
+              value={repairText}
+              onChange={(event) => setRepairText(event.target.value)}
+              placeholder={t("onboarding.appleRemoteIcloudRepairPlaceholder")}
+              className="mt-3 min-h-28 w-full resize-y rounded-xl border border-white/[0.08] bg-black/20 p-3 font-mono text-[11px] text-zinc-200 outline-none focus:border-sky-300/40"
+            />
+            <button
+              type="button"
+              onClick={handleAnalyzeRepair}
+              disabled={repairBusy}
+              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-sky-400/20 bg-sky-500/10 px-4 py-2.5 text-xs font-bold text-sky-100 disabled:opacity-50"
+            >
+              {repairBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+              {repairBusy ? t("onboarding.appleRemoteIcloudRepairAnalyzing") : t("onboarding.appleRemoteIcloudRepairAnalyze")}
+            </button>
+            {repairError ? <div className="mt-2 rounded-lg border border-red-400/20 bg-red-500/10 p-2 text-red-100">{repairError}</div> : null}
+            {repairAnalysis ? (
+              <div className={`mt-3 rounded-xl border p-3 ${repairAnalysis.severity === "danger" ? "border-red-400/20 bg-red-500/10 text-red-50" : repairAnalysis.severity === "warning" ? "border-amber-400/20 bg-amber-500/10 text-amber-50" : "border-emerald-400/20 bg-emerald-500/10 text-emerald-50"}`}>
+                <div className="font-bold">{t("onboarding.appleRemoteIcloudRepairResult")}: {t(repairReasonKeys[repairAnalysis.reason])}</div>
+                <div className="mt-2 grid gap-1 break-all font-mono text-[10px] opacity-80">
+                  <div>{t("onboarding.appleRemoteIcloudRepairPhoneEntry")}: {repairAnalysis.parsed.entryBaseUrl || "-"}</div>
+                  <div>{t("onboarding.appleRemoteIcloudRepairDesktopEntry")}: {repairAnalysis.desktop.recommendedBaseUrl || "-"}</div>
+                </div>
+                <div className="mt-3 grid gap-2">
+                  {repairAnalysis.recommendations.map((item) => (
+                    <div key={item.id} className="rounded-lg bg-black/15 p-2 text-[11px] font-bold">
+                      {t(repairRecommendationKeys[item.id])}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </details>
         </div>
       </div>
 
