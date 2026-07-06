@@ -52,6 +52,7 @@ const icloudAvailabilityKeys: Record<NetworkDiagnostics["icloud"]["availability"
   unsupported: "onboarding.appleRemoteIcloudAvailabilityUnsupported",
   missing: "onboarding.appleRemoteIcloudAvailabilityMissing",
   "read-only": "onboarding.appleRemoteIcloudAvailabilityReadOnly",
+  "sync-service-unavailable": "onboarding.appleRemoteIcloudAvailabilityServiceUnavailable",
   "sync-pending": "onboarding.appleRemoteIcloudAvailabilitySyncPending",
   ready: "onboarding.appleRemoteIcloudAvailabilityReady",
 };
@@ -523,9 +524,20 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                     {t("onboarding.appleRemoteIcloudAvailabilityPendingBody", { count: icloudAvailability.pendingCount })}
                   </div>
                 ) : null}
+                {icloudAvailability.status === "sync-service-unavailable" ? (
+                  <div className="mt-2 text-[11px] leading-relaxed text-amber-100">
+                    {t("onboarding.appleRemoteIcloudAvailabilityServiceBody")}
+                  </div>
+                ) : null}
                 {icloudAvailability.status === "read-only" ? (
                   <div className="mt-2 text-[11px] leading-relaxed text-red-100">
                     {t("onboarding.appleRemoteIcloudAvailabilityReadOnlyBody")}
+                  </div>
+                ) : null}
+                {icloudAvailability.syncService?.checked ? (
+                  <div className="mt-2 text-[10px] leading-relaxed text-zinc-500">
+                    {t("onboarding.appleRemoteIcloudAvailabilityServiceLine")}: {icloudAvailability.syncService.running ? t("onboarding.appleRemoteIcloudAvailabilityServiceRunning") : t("onboarding.appleRemoteIcloudAvailabilityServiceStopped")}
+                    {icloudAvailability.syncService.processNames.length ? ` (${icloudAvailability.syncService.processNames.join(", ")})` : ""}
                   </div>
                 ) : null}
               </div>

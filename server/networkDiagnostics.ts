@@ -774,6 +774,34 @@ function getIcloudPlaceholderSamples(appFolderPath: string) {
   }
 }
 
+function getIcloudSyncServiceStatus(platformSupported: boolean) {
+  const override = String(process.env.LIFEOS_ICLOUD_SYNC_SERVICE_STATUS || "").trim().toLowerCase();
+  if (override) {
+    const running = ["running", "ok", "ready"].includes(override);
+    return {
+      checked: true,
+      running,
+      processNames: override === "running" ? ["override"] : [],
+      error: running ? "" : override === "unknown" ? "iCloud sync service status is unknown." : "iCloud Drive sync service was not detected.",
+    };
+  }
+  if (!platformSupported) {
+    return { checked: false, running: false, processNames: [] as string[], error: "" };
+  }
+  if (process.platform !== "darwin") {
+    return { checked: false, running: true, processNames: [] as string[], error: "" };
+  }
+
+  const pgrepBin = process.env.LIFEOS_PGREP_BIN || "/usr/bin/pgrep";
+  const processNames = ["bird", "cloudd"].filter((name) => runCommand(pgrepBin, ["-x", name]).ok);
+  return {
+    checked: true,
+    running: processNames.length > 0,
+    processNames,
+    error: processNames.length ? "" : "iCloud Drive sync service was not detected.",
+  };
+}
+
 function parseMdlsBool(value: string | undefined) {
   const normalized = String(value || "").trim().toLowerCase();
   if (["1", "true", "yes"].includes(normalized)) return true;
@@ -883,11 +911,12 @@ function getIcloudAvailabilityStatus(input: {
   const handoffFile = getIcloudFileState(input.handoffFilePath);
   const packetFile = getIcloudFileState(input.packetFilePath);
   const indexFile = getIcloudFileState(input.indexFilePath);
+  const syncService = getIcloudSyncServiceStatus(input.platformSupported && drivePathDetected);
   const placeholderSamples = appFolderExists ? getIcloudPlaceholderSamples(input.appFolderPath) : [];
   const placeholderCount = placeholderSamples.length + [handoffFile, packetFile, indexFile].filter((file) => file.placeholder).length;
   const metadataPendingCount = [handoffFile, packetFile, indexFile].filter((file) => ["syncing", "not-downloaded", "not-uploaded"].includes(file.metadata.syncState)).length;
   const pendingCount = placeholderCount + metadataPendingCount;
-  let status: "unsupported" | "missing" | "read-only" | "sync-pending" | "ready" = "ready";
+  let status: "unsupported" | "missing" | "read-only" | "sync-service-unavailable" | "sync-pending" | "ready" = "ready";
   let severity: "ok" | "warning" | "danger" = "ok";
   if (!input.platformSupported) {
     status = "unsupported";
@@ -898,6 +927,9 @@ function getIcloudAvailabilityStatus(input: {
   } else if (!driveWritable || !appFolderWritable) {
     status = "read-only";
     severity = "danger";
+  } else if (syncService.checked && !syncService.running) {
+    status = "sync-service-unavailable";
+    severity = "warning";
   } else if (pendingCount > 0) {
     status = "sync-pending";
     severity = "warning";
@@ -913,6 +945,7 @@ function getIcloudAvailabilityStatus(input: {
     metadataPendingCount,
     pendingCount,
     placeholderSamples,
+    syncService,
     handoffFile,
     packetFile,
     indexFile,
@@ -965,6 +998,10 @@ function buildIcloudSyncReadiness(input: {
     status = "read-only";
     severity = "danger";
     action = "fix-permissions";
+  } else if (availability.status === "sync-service-unavailable") {
+    status = "syncing";
+    severity = "warning";
+    action = "wait-for-sync";
   } else if (availability.status === "sync-pending" || pendingFiles.length > 0) {
     status = "syncing";
     severity = "warning";

@@ -808,7 +808,7 @@ export type NetworkDiagnostics = {
       reason: string;
     };
     availability: {
-      status: "unsupported" | "missing" | "read-only" | "sync-pending" | "ready";
+      status: "unsupported" | "missing" | "read-only" | "sync-service-unavailable" | "sync-pending" | "ready";
       severity: "ok" | "warning" | "danger";
       drivePathDetected: boolean;
       appFolderExists: boolean;
@@ -818,6 +818,12 @@ export type NetworkDiagnostics = {
       metadataPendingCount: number;
       pendingCount: number;
       placeholderSamples: string[];
+      syncService: {
+        checked: boolean;
+        running: boolean;
+        processNames: string[];
+        error: string;
+      };
       handoffFile: IcloudFileAvailability;
       packetFile: IcloudFileAvailability;
       indexFile: IcloudFileAvailability;
