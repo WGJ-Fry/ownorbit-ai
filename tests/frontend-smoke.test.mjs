@@ -593,6 +593,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /analyzeIcloudHandoffRepairPacket/);
   assert.match(onboardingAppleRemoteSource, /repairReasonKeys/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudRepairTitle/);
+  assert.match(onboardingAppleRemoteSource, /renderRepairRecommendationAction/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudRepairActions/);
+  assert.match(onboardingAppleRemoteSource, /onStartTailscale/);
+  assert.match(onboardingAppleRemoteSource, /onStartCloudflare/);
+  assert.match(onboardingAppleRemoteSource, /onSaveCandidate/);
+  assert.match(onboardingAppleRemoteSource, /onTestCandidate/);
   assert.match(onboardingAppleRemoteSource, /latestIgnoredEntryEvent/);
   assert.match(onboardingAppleRemoteSource, /availableEntryCount/);
   assert.match(onboardingAppleRemoteSource, /latestHistory/);
@@ -628,6 +634,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /iCloud syncs a mobile entry file/);
   assert.match(translationsSource, /同步包状态/);
   assert.match(translationsSource, /Sync packet status/);
+  assert.match(translationsSource, /可直接执行的修复动作/);
+  assert.match(translationsSource, /Actionable repair steps/);
   assert.match(translationsSource, /当前推荐入口和上次导出的地址不同/);
   assert.match(translationsSource, /The recommended entry changed since the last export/);
   assert.match(translationsSource, /有手机打开了旧入口/);

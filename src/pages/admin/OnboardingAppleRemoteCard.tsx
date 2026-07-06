@@ -243,6 +243,117 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
     </div>
   );
 
+  const renderRepairRecommendationAction = (item: IcloudHandoffRepairAnalysis["recommendations"][number]) => {
+    const label = t(repairRecommendationKeys[item.id]);
+    const actionClass = "inline-flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-left text-[11px] font-bold disabled:opacity-50";
+
+    if (item.id === "refresh-icloud" || item.id === "open-latest-entry") {
+      return (
+        <button
+          key={item.id}
+          type="button"
+          onClick={onExportIcloud}
+          disabled={!canExportIcloud || isBusy}
+          className={`${actionClass} border-sky-300/20 bg-sky-500/10 text-sky-50`}
+        >
+          {isIcloudBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 shrink-0" />}
+          <span>{label}</span>
+        </button>
+      );
+    }
+
+    if (item.id === "regenerate-qr") {
+      return (
+        <a
+          key={item.id}
+          href="/admin/devices/pair"
+          className={`${actionClass} border-amber-200/20 bg-black/15 text-amber-50`}
+        >
+          <QrCode className="h-3.5 w-3.5 shrink-0" />
+          <span>{label}</span>
+        </a>
+      );
+    }
+
+    if (item.id === "start-tailscale") {
+      return tailscaleInstalled ? (
+        <button
+          key={item.id}
+          type="button"
+          onClick={onStartTailscale}
+          disabled={isBusy}
+          className={`${actionClass} border-blue-300/20 bg-blue-500/10 text-blue-100`}
+        >
+          {busy === "remote-tailscale" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wifi className="h-3.5 w-3.5 shrink-0" />}
+          <span>{label}</span>
+        </button>
+      ) : (
+        <a
+          key={item.id}
+          href={tailscaleInstallUrl}
+          target="_blank"
+          rel="noreferrer"
+          className={`${actionClass} border-blue-300/20 bg-blue-500/10 text-blue-100`}
+        >
+          <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+          <span>{label}</span>
+        </a>
+      );
+    }
+
+    if (item.id === "start-cloudflare") {
+      return (
+        <button
+          key={item.id}
+          type="button"
+          onClick={onStartCloudflare}
+          disabled={isBusy}
+          className={`${actionClass} border-white/[0.08] bg-white/[0.03] text-zinc-200`}
+        >
+          {busy === "remote-cloudflare" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Cloud className="h-3.5 w-3.5 shrink-0" />}
+          <span>{label}</span>
+        </button>
+      );
+    }
+
+    if (item.id === "save-stable-entry") {
+      return (
+        <button
+          key={item.id}
+          type="button"
+          onClick={() => candidate && onSaveCandidate(candidate)}
+          disabled={isBusy || !candidateReady}
+          className={`${actionClass} border-emerald-400/20 bg-emerald-500/10 text-emerald-200`}
+        >
+          {busy === "remote-save" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5 shrink-0" />}
+          <span>{label}</span>
+        </button>
+      );
+    }
+
+    if (item.id === "test-phone-entry") {
+      return (
+        <button
+          key={item.id}
+          type="button"
+          onClick={() => candidate && onTestCandidate(candidate)}
+          disabled={isBusy || !candidateReady}
+          className={`${actionClass} border-white/[0.08] bg-white/[0.03] text-zinc-200`}
+        >
+          {busy === "remote-test" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />}
+          <span>{label}</span>
+        </button>
+      );
+    }
+
+    return (
+      <div key={item.id} className="flex items-center gap-2 rounded-xl bg-black/15 p-2 text-[11px] font-bold">
+        <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+        <span>{label}</span>
+      </div>
+    );
+  };
+
   return (
     <section className="rounded-[28px] border border-sky-400/15 bg-[#101722] p-5">
       <div className="flex items-start justify-between gap-3">
@@ -490,11 +601,10 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                   <div>{t("onboarding.appleRemoteIcloudRepairPhoneEntry")}: {repairAnalysis.parsed.entryBaseUrl || "-"}</div>
                   <div>{t("onboarding.appleRemoteIcloudRepairDesktopEntry")}: {repairAnalysis.desktop.recommendedBaseUrl || "-"}</div>
                 </div>
-                <div className="mt-3 grid gap-2">
+                <div className="mt-3 text-[11px] font-bold opacity-80">{t("onboarding.appleRemoteIcloudRepairActions")}</div>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
                   {repairAnalysis.recommendations.map((item) => (
-                    <div key={item.id} className="rounded-lg bg-black/15 p-2 text-[11px] font-bold">
-                      {t(repairRecommendationKeys[item.id])}
-                    </div>
+                    renderRepairRecommendationAction(item)
                   ))}
                 </div>
               </div>
