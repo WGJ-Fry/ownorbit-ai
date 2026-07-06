@@ -51,6 +51,7 @@ export default function MobileRemoteEntryCard({
 }) {
   const { t } = useI18n();
   const [copiedIcloudPacket, setCopiedIcloudPacket] = useState(false);
+  const [showIcloudAdvanced, setShowIcloudAdvanced] = useState(false);
   const [icloudEntries, setIcloudEntries] = useState(() => getStoredMobileIcloudHandoffEntries());
   const queueWaiting = queueSummary.failed > 0 || queueSummary.pending > 0 || queueSummary.syncing > 0;
   const latestConnectivityOk = Boolean(lastConnectivityReport?.ok && !connectivityReportStale);
@@ -139,22 +140,37 @@ export default function MobileRemoteEntryCard({
             </div>
           ) : null}
           <div className="mt-3 grid gap-2 rounded-xl border border-white/[0.08] bg-black/10 p-2 text-xs">
+            <div className="font-bold">{t("mobileDevice.icloudHandoffSummaryTitle")}</div>
             {icloudHandoffStatus.entry.desktopName || icloudHandoffStatus.entry.desktopId ? (
               <Row label={t("mobileDevice.icloudHandoffDesktop")} value={icloudHandoffStatus.entry.desktopName || icloudHandoffStatus.entry.desktopId || "-"} />
             ) : null}
             <Row label={t("mobileDevice.icloudHandoffEntry")} value={icloudHandoffStatus.entry.baseUrl} />
-            {icloudHandoffStatus.entry.checksumSha256 ? <Row label={t("mobileDevice.icloudHandoffChecksum")} value={`${icloudHandoffStatus.entry.checksumSha256.slice(0, 12)}...`} /> : null}
-            <Row label={t("mobileDevice.icloudHandoffGenerated")} value={new Date(icloudHandoffStatus.entry.generatedAt).toLocaleString()} />
-            <Row label={t("mobileDevice.icloudHandoffExpires")} value={new Date(icloudHandoffStatus.entry.expiresAt).toLocaleString()} />
-            <Row label={t("mobileDevice.icloudHandoffLastCheck")} value={icloudHandoffStatus.entry.lastConnectivityTestedAt ? new Date(icloudHandoffStatus.entry.lastConnectivityTestedAt).toLocaleString() : t("mobileDevice.icloudHandoffNotTested")} />
-            <Row label={t("mobileDevice.icloudHandoffLastResult")} value={icloudHandoffStatus.entry.lastConnectivityTestedAt ? (icloudHandoffStatus.entry.lastConnectivityOk ? t("mobileDevice.pass") : t("mobileDevice.fail")) : "-"} />
-            {icloudHandoffStatus.entry.lastConnectivityError ? <Row label={t("mobileDevice.icloudHandoffLastError")} value={icloudHandoffStatus.entry.lastConnectivityError} /> : null}
-            {icloudHandoffStatus.entry.lastIgnoredAt ? <Row label={t("mobileDevice.icloudHandoffLastIgnored")} value={`${icloudHandoffStatus.entry.lastIgnoredBaseUrl || "-"} · ${new Date(icloudHandoffStatus.entry.lastIgnoredAt).toLocaleString()}`} /> : null}
           </div>
-          <button onClick={copyIcloudRecoveryPacket} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.1] bg-black/10 px-3 py-2 text-xs font-bold">
-            <Copy className="h-3.5 w-3.5" />
-            {copiedIcloudPacket ? t("mobileDevice.icloudHandoffRepairCopied") : t("mobileDevice.copyIcloudHandoffRepair")}
+          <button
+            type="button"
+            onClick={() => setShowIcloudAdvanced((value) => !value)}
+            className="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-white/[0.1] bg-black/10 px-3 py-2 text-xs font-bold"
+          >
+            {showIcloudAdvanced ? t("mobileDevice.icloudHandoffHideAdvanced") : t("mobileDevice.icloudHandoffShowAdvanced")}
           </button>
+          {showIcloudAdvanced ? (
+            <div className="mt-3 rounded-xl border border-white/[0.08] bg-black/10 p-2 text-xs">
+              <div className="font-bold">{t("mobileDevice.icloudHandoffAdvancedTitle")}</div>
+              <div className="mt-2 grid gap-2">
+                {icloudHandoffStatus.entry.checksumSha256 ? <Row label={t("mobileDevice.icloudHandoffChecksum")} value={`${icloudHandoffStatus.entry.checksumSha256.slice(0, 12)}...`} /> : null}
+                <Row label={t("mobileDevice.icloudHandoffGenerated")} value={new Date(icloudHandoffStatus.entry.generatedAt).toLocaleString()} />
+                <Row label={t("mobileDevice.icloudHandoffExpires")} value={new Date(icloudHandoffStatus.entry.expiresAt).toLocaleString()} />
+                <Row label={t("mobileDevice.icloudHandoffLastCheck")} value={icloudHandoffStatus.entry.lastConnectivityTestedAt ? new Date(icloudHandoffStatus.entry.lastConnectivityTestedAt).toLocaleString() : t("mobileDevice.icloudHandoffNotTested")} />
+                <Row label={t("mobileDevice.icloudHandoffLastResult")} value={icloudHandoffStatus.entry.lastConnectivityTestedAt ? (icloudHandoffStatus.entry.lastConnectivityOk ? t("mobileDevice.pass") : t("mobileDevice.fail")) : "-"} />
+                {icloudHandoffStatus.entry.lastConnectivityError ? <Row label={t("mobileDevice.icloudHandoffLastError")} value={icloudHandoffStatus.entry.lastConnectivityError} /> : null}
+                {icloudHandoffStatus.entry.lastIgnoredAt ? <Row label={t("mobileDevice.icloudHandoffLastIgnored")} value={`${icloudHandoffStatus.entry.lastIgnoredBaseUrl || "-"} · ${new Date(icloudHandoffStatus.entry.lastIgnoredAt).toLocaleString()}`} /> : null}
+              </div>
+              <button onClick={copyIcloudRecoveryPacket} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.1] bg-black/10 px-3 py-2 text-xs font-bold">
+                <Copy className="h-3.5 w-3.5" />
+                {copiedIcloudPacket ? t("mobileDevice.icloudHandoffRepairCopied") : t("mobileDevice.copyIcloudHandoffRepair")}
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

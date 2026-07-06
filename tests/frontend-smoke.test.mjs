@@ -810,6 +810,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /getStoredMobileIcloudHandoffEntries/);
   assert.match(mobileRemoteEntryCardSource, /buildMobileIcloudHandoffUrl/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffKnownDesktops/);
+  assert.match(mobileRemoteEntryCardSource, /showIcloudAdvanced/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffSummaryTitle/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffShowAdvanced/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffHideAdvanced/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffAdvancedTitle/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffDesktop/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffEntry/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffChecksum/);
@@ -832,6 +837,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /iCloud entry is fresh/);
   assert.match(translationsSource, /已同步的电脑/);
   assert.match(translationsSource, /Synced desktops/);
+  assert.match(translationsSource, /查看高级诊断/);
+  assert.match(translationsSource, /Show advanced diagnostics/);
   assert.match(translationsSource, /来源电脑/);
   assert.match(translationsSource, /Source desktop/);
   assert.match(translationsSource, /iCloud 入口需要升级/);
