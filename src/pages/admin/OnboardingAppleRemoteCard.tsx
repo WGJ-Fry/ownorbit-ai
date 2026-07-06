@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, ArrowRight, CheckCircle2, Cloud, ExternalLink, Loader2, QrCode, RefreshCw, ShieldCheck, Smartphone, Wifi } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2, ClipboardPaste, Cloud, ExternalLink, Loader2, QrCode, RefreshCw, ShieldCheck, Smartphone, Wifi } from "lucide-react";
 import { analyzeIcloudHandoffRepairPacket } from "../../services/lifeosApi";
 import type { IcloudHandoffRepairAnalysis, NetworkDiagnostics } from "../../services/lifeosApi";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -239,10 +239,11 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const latestIssueAt = formatHandoffTime(latestEntryIssueEvent?.ignoredAt || latestEntryIssueEvent?.createdAt);
   const simpleIcloudStatus = getSimpleIcloudStatus(icloud);
 
-  const handleAnalyzeRepair = async () => {
-    const packet = repairText.trim();
+  const analyzeRepairPacketText = async (text: string) => {
+    const packet = text.trim();
     if (!packet) {
       setRepairError(t("onboarding.appleRemoteIcloudRepairEmpty"));
+      setRepairAnalysis(null);
       return;
     }
     setRepairBusy(true);
@@ -255,6 +256,28 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
       setRepairError(t("onboarding.appleRemoteIcloudRepairFailed"));
     } finally {
       setRepairBusy(false);
+    }
+  };
+
+  const handleAnalyzeRepair = () => {
+    analyzeRepairPacketText(repairText);
+  };
+
+  const handlePasteAndAnalyzeRepair = async () => {
+    if (typeof navigator === "undefined" || !navigator.clipboard?.readText) {
+      setRepairAnalysis(null);
+      setRepairError(t("onboarding.appleRemoteIcloudRepairClipboardUnavailable"));
+      return;
+    }
+    setRepairError("");
+    setRepairAnalysis(null);
+    try {
+      const packet = (await navigator.clipboard.readText()).trim();
+      setRepairText(packet);
+      await analyzeRepairPacketText(packet);
+    } catch {
+      setRepairAnalysis(null);
+      setRepairError(t("onboarding.appleRemoteIcloudRepairClipboardFailed"));
     }
   };
 
@@ -654,15 +677,26 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
               placeholder={t("onboarding.appleRemoteIcloudRepairPlaceholder")}
               className="mt-3 min-h-28 w-full resize-y rounded-xl border border-white/[0.08] bg-black/20 p-3 font-mono text-[11px] text-zinc-200 outline-none focus:border-sky-300/40"
             />
-            <button
-              type="button"
-              onClick={handleAnalyzeRepair}
-              disabled={repairBusy}
-              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-sky-400/20 bg-sky-500/10 px-4 py-2.5 text-xs font-bold text-sky-100 disabled:opacity-50"
-            >
-              {repairBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-              {repairBusy ? t("onboarding.appleRemoteIcloudRepairAnalyzing") : t("onboarding.appleRemoteIcloudRepairAnalyze")}
-            </button>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={handlePasteAndAnalyzeRepair}
+                disabled={repairBusy}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-sky-400/20 bg-sky-500/10 px-4 py-2.5 text-xs font-bold text-sky-100 disabled:opacity-50"
+              >
+                {repairBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardPaste className="h-4 w-4" />}
+                {repairBusy ? t("onboarding.appleRemoteIcloudRepairAnalyzing") : t("onboarding.appleRemoteIcloudRepairPasteAnalyze")}
+              </button>
+              <button
+                type="button"
+                onClick={handleAnalyzeRepair}
+                disabled={repairBusy}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-xs font-bold text-zinc-200 disabled:opacity-50"
+              >
+                {repairBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                {repairBusy ? t("onboarding.appleRemoteIcloudRepairAnalyzing") : t("onboarding.appleRemoteIcloudRepairAnalyze")}
+              </button>
+            </div>
             {repairError ? <div className="mt-2 rounded-lg border border-red-400/20 bg-red-500/10 p-2 text-red-100">{repairError}</div> : null}
             {repairAnalysis ? (
               <div className={`mt-3 rounded-xl border p-3 ${repairAnalysis.severity === "danger" ? "border-red-400/20 bg-red-500/10 text-red-50" : repairAnalysis.severity === "warning" ? "border-amber-400/20 bg-amber-500/10 text-amber-50" : "border-emerald-400/20 bg-emerald-500/10 text-emerald-50"}`}>

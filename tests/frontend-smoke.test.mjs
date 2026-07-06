@@ -600,6 +600,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /historyChangeTypeKeys/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudHistoryPrevious/);
   assert.match(onboardingAppleRemoteSource, /analyzeIcloudHandoffRepairPacket/);
+  assert.match(onboardingAppleRemoteSource, /handlePasteAndAnalyzeRepair/);
+  assert.match(onboardingAppleRemoteSource, /navigator\.clipboard\?\.readText/);
+  assert.match(onboardingAppleRemoteSource, /ClipboardPaste/);
   assert.match(onboardingAppleRemoteSource, /repairReasonKeys/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudRepairTitle/);
   assert.match(onboardingAppleRemoteSource, /renderRepairRecommendationAction/);
@@ -685,6 +688,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Entry File Lifecycle/);
   assert.match(translationsSource, /粘贴手机修复信息/);
   assert.match(translationsSource, /Paste Phone Repair Info/);
+  assert.match(translationsSource, /从剪贴板粘贴并分析/);
+  assert.match(translationsSource, /Paste from Clipboard and Analyze/);
   assert.match(translationsSource, /分析修复信息/);
   assert.match(translationsSource, /Analyze Repair Info/);
   const onboardingHandoffSource = await readFile(path.join(rootDir, "src", "pages", "admin", "OnboardingHandoffCard.tsx"), "utf8");
