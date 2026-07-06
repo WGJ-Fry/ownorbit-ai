@@ -626,6 +626,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudEntryRefreshAfter/);
   assert.match(onboardingAppleRemoteSource, /historyChangeTypeKeys/);
   assert.match(onboardingAppleRemoteSource, /public-base-url-changed/);
+  assert.match(onboardingAppleRemoteSource, /cloudflare-address-changed/);
+  assert.match(onboardingAppleRemoteSource, /tailscale-address-changed/);
+  assert.match(onboardingAppleRemoteSource, /lan-address-changed/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudHistoryPrevious/);
   assert.match(onboardingAppleRemoteSource, /analyzeIcloudHandoffRepairPacket/);
   assert.match(onboardingAppleRemoteSource, /handlePasteAndAnalyzeRepair/);
@@ -772,6 +775,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Entry File Lifecycle/);
   assert.match(translationsSource, /PUBLIC_BASE_URL 变化/);
   assert.match(translationsSource, /PUBLIC_BASE_URL changed/);
+  assert.match(translationsSource, /Cloudflare 地址变化/);
+  assert.match(translationsSource, /Tailscale address changed/);
+  assert.match(translationsSource, /LAN IP 变化/);
   assert.match(translationsSource, /粘贴手机修复信息/);
   assert.match(translationsSource, /Paste Phone Repair Info/);
   assert.match(translationsSource, /从剪贴板粘贴并分析/);

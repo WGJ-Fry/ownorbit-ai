@@ -453,6 +453,43 @@ function summarizeIcloudFallbackCandidates(candidates: ConnectionCandidate[]) {
     }));
 }
 
+function classifyIcloudCandidateFamily(input: { candidateId?: string; mode?: string; baseUrl?: string }) {
+  const candidateId = String(input.candidateId || "").toLowerCase();
+  const mode = String(input.mode || "").toLowerCase();
+  const baseUrl = String(input.baseUrl || "").toLowerCase();
+  if (candidateId === "configured-public") return "configured-public";
+  if (candidateId.startsWith("cloudflare-") || mode === "cloudflare" || baseUrl.includes(".trycloudflare.com")) return "cloudflare";
+  if (candidateId.startsWith("tailscale-") || mode === "tailscale" || baseUrl.includes(".ts.net") || baseUrl.includes(".tailscale")) return "tailscale";
+  if (candidateId.startsWith("lan-") || mode === "lan" || /^http:\/\/(10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(baseUrl)) return "lan";
+  return "other";
+}
+
+function classifyIcloudHandoffChangeType(input: {
+  previousBaseUrl: string;
+  nextBaseUrl: string;
+  previousCandidateId: string;
+  nextCandidateId: string;
+  previousMode: string;
+  nextMode: string;
+  previousFallbackCandidates: unknown[];
+  nextFallbackCandidates: unknown[];
+}) {
+  if (!input.previousBaseUrl) return "first-export";
+  if (input.previousBaseUrl !== input.nextBaseUrl) {
+    const nextFamily = classifyIcloudCandidateFamily({ candidateId: input.nextCandidateId, mode: input.nextMode, baseUrl: input.nextBaseUrl });
+    const previousFamily = classifyIcloudCandidateFamily({ candidateId: input.previousCandidateId, mode: input.previousMode, baseUrl: input.previousBaseUrl });
+    const family = nextFamily !== "other" ? nextFamily : previousFamily;
+    if (family === "configured-public") return "public-base-url-changed";
+    if (family === "cloudflare") return "cloudflare-address-changed";
+    if (family === "tailscale") return "tailscale-address-changed";
+    if (family === "lan") return "lan-address-changed";
+    return "address-changed";
+  }
+  return JSON.stringify(input.previousFallbackCandidates) !== JSON.stringify(input.nextFallbackCandidates)
+    ? "fallback-candidates-changed"
+    : "refreshed-same-address";
+}
+
 function summarizeIcloudEntryPacket(packet: Record<string, unknown>, fileName: string) {
   const generatedAt = Number(packet.generatedAt || 0);
   const baseUrl = String(packet.baseUrl || "").trim();
@@ -2168,15 +2205,17 @@ export function exportIcloudHandoff(reason = "manual") {
   const fallbackCandidates = summarizeIcloudFallbackCandidates(diagnostics.connectionCandidates);
   const previousFallbackCandidates = Array.isArray(previousPacket?.fallbackCandidates) ? previousPacket.fallbackCandidates : [];
   const previousCandidateId = String(previousPacket?.candidateId || "");
-  const changeType = !previousBaseUrl
-    ? "first-export"
-    : previousBaseUrl !== candidate.baseUrl
-    ? candidate.id === "configured-public" || previousCandidateId === "configured-public"
-      ? "public-base-url-changed"
-      : "address-changed"
-    : JSON.stringify(previousFallbackCandidates) !== JSON.stringify(fallbackCandidates)
-    ? "fallback-candidates-changed"
-    : "refreshed-same-address";
+  const previousMode = String(previousPacket?.mode || "");
+  const changeType = classifyIcloudHandoffChangeType({
+    previousBaseUrl,
+    nextBaseUrl: candidate.baseUrl,
+    previousCandidateId,
+    nextCandidateId: candidate.id,
+    previousMode,
+    nextMode: candidate.mode,
+    previousFallbackCandidates,
+    nextFallbackCandidates: fallbackCandidates,
+  });
   const packet = {
     kind: "lifeos-mobile-entry",
     version: 3,

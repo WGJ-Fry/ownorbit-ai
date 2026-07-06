@@ -739,6 +739,232 @@ test("iCloud handoff auto refresh updates exported entry after LAN fallback chan
   assert.equal(nextPacket.fallbackCandidates.some((candidate) => candidate.baseUrl === "http://192.168.0.10:4567"), false);
 });
 
+test("iCloud handoff auto refresh records LAN IP address changes", async (t) => {
+  const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-lan-address-refresh-"));
+  const oldNetworkInterfaces = os.networkInterfaces;
+  const oldPort = process.env.LIFEOS_PORT;
+  const oldPublicBaseUrl = process.env.PUBLIC_BASE_URL;
+  const oldAppUrl = process.env.APP_URL;
+  const oldCloudflaredBin = process.env.LIFEOS_CLOUDFLARED_BIN;
+  const oldTailscaleBin = process.env.LIFEOS_TAILSCALE_BIN;
+  const oldIcloudDriveDir = process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+  const oldForceIcloud = process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+
+  t.after(async () => {
+    os.networkInterfaces = oldNetworkInterfaces;
+    if (oldPort === undefined) delete process.env.LIFEOS_PORT;
+    else process.env.LIFEOS_PORT = oldPort;
+    if (oldPublicBaseUrl === undefined) delete process.env.PUBLIC_BASE_URL;
+    else process.env.PUBLIC_BASE_URL = oldPublicBaseUrl;
+    if (oldAppUrl === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = oldAppUrl;
+    if (oldCloudflaredBin === undefined) delete process.env.LIFEOS_CLOUDFLARED_BIN;
+    else process.env.LIFEOS_CLOUDFLARED_BIN = oldCloudflaredBin;
+    if (oldTailscaleBin === undefined) delete process.env.LIFEOS_TAILSCALE_BIN;
+    else process.env.LIFEOS_TAILSCALE_BIN = oldTailscaleBin;
+    if (oldIcloudDriveDir === undefined) delete process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+    else process.env.LIFEOS_ICLOUD_DRIVE_DIR = oldIcloudDriveDir;
+    if (oldForceIcloud === undefined) delete process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+    else process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = oldForceIcloud;
+    await rm(icloudDir, { recursive: true, force: true });
+  });
+
+  process.env.LIFEOS_PORT = "4567";
+  delete process.env.PUBLIC_BASE_URL;
+  delete process.env.APP_URL;
+  process.env.LIFEOS_CLOUDFLARED_BIN = "/definitely/missing/cloudflared";
+  process.env.LIFEOS_TAILSCALE_BIN = "/definitely/missing/tailscale";
+  process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = "1";
+  process.env.LIFEOS_ICLOUD_DRIVE_DIR = icloudDir;
+  os.networkInterfaces = () => ({
+    en0: [{ family: "IPv4", internal: false, address: "192.168.8.10" }],
+  });
+
+  const { exportIcloudHandoff, maybeRefreshIcloudHandoff } = await import(`../server/networkDiagnostics.ts?icloud-lan-address-refresh=${Date.now()}`);
+  const first = exportIcloudHandoff("test-lan-address-initial");
+  const firstPacket = JSON.parse(await readFile(first.packetFilePath, "utf8"));
+  assert.equal(firstPacket.baseUrl, "http://192.168.8.10:4567");
+  assert.equal(firstPacket.candidateId, "lan-0");
+
+  os.networkInterfaces = () => ({
+    en0: [{ family: "IPv4", internal: false, address: "192.168.8.11" }],
+  });
+
+  const refresh = maybeRefreshIcloudHandoff("test-lan-address-change");
+  const nextPacket = JSON.parse(await readFile(first.packetFilePath, "utf8"));
+  const history = JSON.parse(await readFile(first.historyFilePath, "utf8"));
+  assert.equal(refresh.refreshed, true);
+  assert.equal(refresh.previousStatus, "address-changed");
+  assert.equal(nextPacket.baseUrl, "http://192.168.8.11:4567");
+  assert.equal(nextPacket.changeType, "lan-address-changed");
+  assert.equal(nextPacket.previousBaseUrl, "http://192.168.8.10:4567");
+  assert.equal(history[0].changeType, "lan-address-changed");
+});
+
+test("iCloud handoff auto refresh records Cloudflare tunnel address changes", async (t) => {
+  const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-cloudflare-address-refresh-"));
+  const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-cloudflare-bin-"));
+  const urlFile = path.join(binDir, "cloudflare-url.txt");
+  const cloudflaredPath = path.join(binDir, "cloudflared");
+  const pgrepPath = path.join(binDir, "pgrep");
+  const oldPath = process.env.PATH || "";
+  const oldPort = process.env.LIFEOS_PORT;
+  const oldPublicBaseUrl = process.env.PUBLIC_BASE_URL;
+  const oldAppUrl = process.env.APP_URL;
+  const oldCloudflaredBin = process.env.LIFEOS_CLOUDFLARED_BIN;
+  const oldTailscaleBin = process.env.LIFEOS_TAILSCALE_BIN;
+  const oldIcloudDriveDir = process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+  const oldForceIcloud = process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+  const oldUrlFile = process.env.LIFEOS_TEST_CLOUDFLARE_URL_FILE;
+
+  t.after(async () => {
+    process.env.PATH = oldPath;
+    if (oldPort === undefined) delete process.env.LIFEOS_PORT;
+    else process.env.LIFEOS_PORT = oldPort;
+    if (oldPublicBaseUrl === undefined) delete process.env.PUBLIC_BASE_URL;
+    else process.env.PUBLIC_BASE_URL = oldPublicBaseUrl;
+    if (oldAppUrl === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = oldAppUrl;
+    if (oldCloudflaredBin === undefined) delete process.env.LIFEOS_CLOUDFLARED_BIN;
+    else process.env.LIFEOS_CLOUDFLARED_BIN = oldCloudflaredBin;
+    if (oldTailscaleBin === undefined) delete process.env.LIFEOS_TAILSCALE_BIN;
+    else process.env.LIFEOS_TAILSCALE_BIN = oldTailscaleBin;
+    if (oldIcloudDriveDir === undefined) delete process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+    else process.env.LIFEOS_ICLOUD_DRIVE_DIR = oldIcloudDriveDir;
+    if (oldForceIcloud === undefined) delete process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+    else process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = oldForceIcloud;
+    if (oldUrlFile === undefined) delete process.env.LIFEOS_TEST_CLOUDFLARE_URL_FILE;
+    else process.env.LIFEOS_TEST_CLOUDFLARE_URL_FILE = oldUrlFile;
+    await rm(icloudDir, { recursive: true, force: true });
+    await rm(binDir, { recursive: true, force: true });
+  });
+
+  await writeFile(cloudflaredPath, "#!/bin/sh\necho 'cloudflared version 2026.6.0'\n");
+  await writeFile(pgrepPath, `#!/bin/sh
+if [ "$2" = "cloudflared" ]; then
+  url="$(cat "$LIFEOS_TEST_CLOUDFLARE_URL_FILE")"
+  echo "123 cloudflared tunnel --url http://127.0.0.1:4567 $url"
+  exit 0
+fi
+exit 1
+`);
+  await chmod(cloudflaredPath, 0o755);
+  await chmod(pgrepPath, 0o755);
+  await writeFile(urlFile, "https://old-lifeos.trycloudflare.com");
+
+  process.env.PATH = `${binDir}:${oldPath}`;
+  process.env.LIFEOS_PORT = "4567";
+  delete process.env.PUBLIC_BASE_URL;
+  delete process.env.APP_URL;
+  process.env.LIFEOS_CLOUDFLARED_BIN = cloudflaredPath;
+  process.env.LIFEOS_TAILSCALE_BIN = "/definitely/missing/tailscale";
+  process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = "1";
+  process.env.LIFEOS_ICLOUD_DRIVE_DIR = icloudDir;
+  process.env.LIFEOS_TEST_CLOUDFLARE_URL_FILE = urlFile;
+
+  const { exportIcloudHandoff, maybeRefreshIcloudHandoff } = await import(`../server/networkDiagnostics.ts?icloud-cloudflare-address-refresh=${Date.now()}`);
+  const first = exportIcloudHandoff("test-cloudflare-address-initial");
+  const firstPacket = JSON.parse(await readFile(first.packetFilePath, "utf8"));
+  assert.equal(firstPacket.baseUrl, "https://old-lifeos.trycloudflare.com");
+  assert.equal(firstPacket.candidateId, "cloudflare-0");
+
+  await writeFile(urlFile, "https://new-lifeos.trycloudflare.com");
+  const refresh = maybeRefreshIcloudHandoff("test-cloudflare-address-change");
+  const nextPacket = JSON.parse(await readFile(first.packetFilePath, "utf8"));
+  const history = JSON.parse(await readFile(first.historyFilePath, "utf8"));
+  assert.equal(refresh.refreshed, true);
+  assert.equal(refresh.previousStatus, "address-changed");
+  assert.equal(nextPacket.baseUrl, "https://new-lifeos.trycloudflare.com");
+  assert.equal(nextPacket.changeType, "cloudflare-address-changed");
+  assert.equal(nextPacket.previousBaseUrl, "https://old-lifeos.trycloudflare.com");
+  assert.equal(history[0].changeType, "cloudflare-address-changed");
+});
+
+test("iCloud handoff auto refresh records Tailscale HTTPS address changes", async (t) => {
+  const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-tailscale-address-refresh-"));
+  const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-tailscale-bin-"));
+  const hostFile = path.join(binDir, "tailscale-host.txt");
+  const tailscalePath = path.join(binDir, "tailscale");
+  const oldPort = process.env.LIFEOS_PORT;
+  const oldPublicBaseUrl = process.env.PUBLIC_BASE_URL;
+  const oldAppUrl = process.env.APP_URL;
+  const oldCloudflaredBin = process.env.LIFEOS_CLOUDFLARED_BIN;
+  const oldTailscaleBin = process.env.LIFEOS_TAILSCALE_BIN;
+  const oldTailscaleHostFile = process.env.LIFEOS_TEST_TAILSCALE_HOST_FILE;
+  const oldTailscaleBinArgs = process.env.LIFEOS_TAILSCALE_BIN_ARGS;
+  const oldIcloudDriveDir = process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+  const oldForceIcloud = process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+
+  t.after(async () => {
+    if (oldPort === undefined) delete process.env.LIFEOS_PORT;
+    else process.env.LIFEOS_PORT = oldPort;
+    if (oldPublicBaseUrl === undefined) delete process.env.PUBLIC_BASE_URL;
+    else process.env.PUBLIC_BASE_URL = oldPublicBaseUrl;
+    if (oldAppUrl === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = oldAppUrl;
+    if (oldCloudflaredBin === undefined) delete process.env.LIFEOS_CLOUDFLARED_BIN;
+    else process.env.LIFEOS_CLOUDFLARED_BIN = oldCloudflaredBin;
+    if (oldTailscaleBin === undefined) delete process.env.LIFEOS_TAILSCALE_BIN;
+    else process.env.LIFEOS_TAILSCALE_BIN = oldTailscaleBin;
+    if (oldTailscaleHostFile === undefined) delete process.env.LIFEOS_TEST_TAILSCALE_HOST_FILE;
+    else process.env.LIFEOS_TEST_TAILSCALE_HOST_FILE = oldTailscaleHostFile;
+    if (oldTailscaleBinArgs === undefined) delete process.env.LIFEOS_TAILSCALE_BIN_ARGS;
+    else process.env.LIFEOS_TAILSCALE_BIN_ARGS = oldTailscaleBinArgs;
+    if (oldIcloudDriveDir === undefined) delete process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+    else process.env.LIFEOS_ICLOUD_DRIVE_DIR = oldIcloudDriveDir;
+    if (oldForceIcloud === undefined) delete process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+    else process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = oldForceIcloud;
+    await rm(icloudDir, { recursive: true, force: true });
+    await rm(binDir, { recursive: true, force: true });
+  });
+
+  await writeFile(tailscalePath, `#!/bin/sh
+host="$(cat "$LIFEOS_TEST_TAILSCALE_HOST_FILE")"
+if [ "$1" = "version" ]; then
+  echo "1.98.8"
+  exit 0
+fi
+if [ "$1" = "status" ] && [ "$2" = "--json" ]; then
+  printf '{"Self":{"Online":true,"HostName":"%s","TailscaleIPs":["100.64.0.10"]},"MagicDNSSuffix":"tailnet.example.ts.net"}' "$host"
+  exit 0
+fi
+if [ "$1" = "serve" ] && [ "$2" = "status" ]; then
+  printf '{"Web":{"%s.tailnet.example.ts.net:443":{"Handlers":{"/":{"Proxy":"http://127.0.0.1:4567"}}}}}' "$host"
+  exit 0
+fi
+exit 1
+`);
+  await chmod(tailscalePath, 0o755);
+  await writeFile(hostFile, "lifeos-old");
+
+  process.env.LIFEOS_PORT = "4567";
+  delete process.env.PUBLIC_BASE_URL;
+  delete process.env.APP_URL;
+  process.env.LIFEOS_CLOUDFLARED_BIN = "/definitely/missing/cloudflared";
+  process.env.LIFEOS_TAILSCALE_BIN = tailscalePath;
+  process.env.LIFEOS_TAILSCALE_BIN_ARGS = "[]";
+  process.env.LIFEOS_TEST_TAILSCALE_HOST_FILE = hostFile;
+  process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = "1";
+  process.env.LIFEOS_ICLOUD_DRIVE_DIR = icloudDir;
+
+  const { exportIcloudHandoff, maybeRefreshIcloudHandoff } = await import(`../server/networkDiagnostics.ts?icloud-tailscale-address-refresh=${Date.now()}`);
+  const first = exportIcloudHandoff("test-tailscale-address-initial");
+  const firstPacket = JSON.parse(await readFile(first.packetFilePath, "utf8"));
+  assert.equal(firstPacket.baseUrl, "https://lifeos-old.tailnet.example.ts.net");
+  assert.equal(firstPacket.candidateId, "tailscale-serve-https");
+
+  await writeFile(hostFile, "lifeos-new");
+  const refresh = maybeRefreshIcloudHandoff("test-tailscale-address-change");
+  const nextPacket = JSON.parse(await readFile(first.packetFilePath, "utf8"));
+  const history = JSON.parse(await readFile(first.historyFilePath, "utf8"));
+  assert.equal(refresh.refreshed, true);
+  assert.equal(refresh.previousStatus, "address-changed");
+  assert.equal(nextPacket.baseUrl, "https://lifeos-new.tailnet.example.ts.net");
+  assert.equal(nextPacket.changeType, "tailscale-address-changed");
+  assert.equal(nextPacket.previousBaseUrl, "https://lifeos-old.tailnet.example.ts.net");
+  assert.equal(history[0].changeType, "tailscale-address-changed");
+});
+
 test("iCloud handoff monitor refreshes stale entries without remote health checks", async (t) => {
   const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-monitor-refresh-"));
   const oldPort = process.env.LIFEOS_PORT;

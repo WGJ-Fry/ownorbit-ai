@@ -1416,9 +1416,21 @@ function checkAssets() {
     networkDiagnosticsTestSource.includes("monitorRun.trigger") &&
     networkDiagnosticsTestSource.includes("monitorRun.changeType") &&
     networkDiagnosticsSource.includes("public-base-url-changed") &&
+    networkDiagnosticsSource.includes("cloudflare-address-changed") &&
+    networkDiagnosticsSource.includes("tailscale-address-changed") &&
+    networkDiagnosticsSource.includes("lan-address-changed") &&
     networkDiagnosticsTestSource.includes("public-base-url-changed") &&
+    networkDiagnosticsTestSource.includes("cloudflare-address-changed") &&
+    networkDiagnosticsTestSource.includes("tailscale-address-changed") &&
+    networkDiagnosticsTestSource.includes("lan-address-changed") &&
     onboardingAppleRemoteSource.includes("public-base-url-changed") &&
+    onboardingAppleRemoteSource.includes("cloudflare-address-changed") &&
+    onboardingAppleRemoteSource.includes("tailscale-address-changed") &&
+    onboardingAppleRemoteSource.includes("lan-address-changed") &&
     translationsSource.includes("PUBLIC_BASE_URL changed") &&
+    translationsSource.includes("Cloudflare address changed") &&
+    translationsSource.includes("Tailscale address changed") &&
+    translationsSource.includes("LAN IP changed") &&
     mobileIcloudHandoffSource.includes("PENDING_EVENTS_STORAGE_KEY") &&
     mobileIcloudHandoffSource.includes("flushPendingMobileIcloudHandoffEvents") &&
     mobileIcloudHandoffSource.includes("reportOrQueueIcloudHandoffEvent") &&

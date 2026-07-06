@@ -203,6 +203,9 @@ const issueEventKindKeys: Record<NonNullable<NetworkDiagnostics["icloud"]["lates
 const historyChangeTypeKeys: Record<string, TranslationKey> = {
   "first-export": "onboarding.appleRemoteIcloudHistoryFirstExport",
   "public-base-url-changed": "onboarding.appleRemoteIcloudHistoryPublicBaseChanged",
+  "cloudflare-address-changed": "onboarding.appleRemoteIcloudHistoryCloudflareChanged",
+  "tailscale-address-changed": "onboarding.appleRemoteIcloudHistoryTailscaleChanged",
+  "lan-address-changed": "onboarding.appleRemoteIcloudHistoryLanChanged",
   "address-changed": "onboarding.appleRemoteIcloudHistoryAddressChanged",
   "fallback-candidates-changed": "onboarding.appleRemoteIcloudHistoryFallbackChanged",
   "refreshed-same-address": "onboarding.appleRemoteIcloudHistoryRefreshed",
