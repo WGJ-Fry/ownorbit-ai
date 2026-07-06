@@ -248,6 +248,7 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.match(html, /https:\/\/lifeos\.example\.com\/mobile\/pair/);
   assert.match(html, /lifeosEntry=icloud/);
   assert.match(html, /entryExpiresAt=/);
+  assert.match(html, /entryChecksumSha256=/);
   assert.match(html, /Refresh after:/);
   assert.match(html, /entry-age-status/);
   assert.match(html, /入口已过期/);

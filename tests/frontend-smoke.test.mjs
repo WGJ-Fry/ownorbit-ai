@@ -593,6 +593,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   const mobileIcloudHandoffSource = await readFile(path.join(rootDir, "src", "services", "mobileIcloudHandoff.ts"), "utf8");
   assert.match(mobileIcloudHandoffSource, /lifeosEntry/);
   assert.match(mobileIcloudHandoffSource, /entryExpiresAt/);
+  assert.match(mobileIcloudHandoffSource, /entryChecksumSha256/);
   assert.match(mobileIcloudHandoffSource, /getMobileIcloudHandoffStatus/);
   assert.match(mobileIcloudHandoffSource, /handleMobileIcloudHandoffLaunch/);
   assert.match(mobileIcloudHandoffSource, /testMobileRemoteConnectivity/);
@@ -740,6 +741,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.remoteReadinessConnectivity/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.remoteReadinessQueue/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffEntry/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffChecksum/);
+  assert.match(mobileRemoteEntryCardSource, /checksumSha256/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffLastCheck/);
   assert.match(mobileRemoteEntryCardSource, /lastConnectivityTestedAt/);
   assert.match(mobileRemoteEntryCardSource, /getMobileIcloudHandoffActionKey/);

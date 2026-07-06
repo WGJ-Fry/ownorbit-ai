@@ -395,6 +395,7 @@ test("mobile iCloud handoff stores non-sensitive entry metadata and detects stal
   t.after(cleanupLocalStorage);
   const now = 1_800_000_000_000;
   const { buildMobileIcloudHandoffRecoveryPacket, consumeMobileIcloudHandoffFromUrl, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffStatus, getStoredMobileIcloudHandoff } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-handoff-${Date.now()}`);
+  const checksum = "a".repeat(64);
   const href = [
     "https://lifeos.example.com/mobile/chat?lifeosEntry=icloud",
     `entryGeneratedAt=${now}`,
@@ -404,12 +405,15 @@ test("mobile iCloud handoff stores non-sensitive entry metadata and detects stal
     "entryMode=cloudflare",
     "entryStability=stable",
     "entryLabel=Cloudflare%20Named%20Tunnel",
+    `entryChecksumSha256=${checksum}`,
   ].join("&");
 
   const consumed = consumeMobileIcloudHandoffFromUrl(href, now);
   assert.equal(consumed.baseUrl, "https://lifeos.example.com");
   assert.equal(consumed.mode, "cloudflare");
+  assert.equal(consumed.checksumSha256, checksum);
   assert.equal(getStoredMobileIcloudHandoff().baseUrl, "https://lifeos.example.com");
+  assert.equal(getStoredMobileIcloudHandoff().checksumSha256, checksum);
 
   const fresh = getMobileIcloudHandoffStatus(consumed, "https://lifeos.example.com/mobile/device", now + 1_000);
   assert.equal(fresh.status, "fresh");
@@ -432,6 +436,7 @@ test("mobile iCloud handoff stores non-sensitive entry metadata and detects stal
   assert.match(packet, /LifeOS iCloud Mobile Entry Recovery/);
   assert.match(packet, /entryBaseUrl=https:\/\/lifeos\.example\.com/);
   assert.match(packet, /currentBaseUrl=https:\/\/new-lifeos\.example\.com/);
+  assert.match(packet, new RegExp(`entryChecksumSha256=${checksum}`));
   assert.doesNotMatch(packet, /lifeosEntry=icloud/);
   assert.doesNotMatch(packet, /entryGeneratedAt=/);
 });
@@ -451,6 +456,7 @@ test("mobile iCloud handoff launch runs connectivity check and stores the result
     "entryMode=tailscale",
     "entryStability=stable",
     "entryLabel=Tailscale%20HTTPS%20Serve",
+    `entryChecksumSha256=${"b".repeat(64)}`,
   ].join("&");
 
   const launch = await handleMobileIcloudHandoffLaunch({
@@ -478,6 +484,7 @@ test("mobile iCloud handoff launch runs connectivity check and stores the result
   assert.equal(launch.result.ok, true);
   assert.equal(reported.currentBase, "https://lifeos.example.com");
   const stored = getStoredMobileIcloudHandoff();
+  assert.equal(stored.checksumSha256, "b".repeat(64));
   assert.equal(stored.lastConnectivityTestedAt, now + 10);
   assert.equal(stored.lastConnectivityOk, true);
   assert.equal(stored.lastConnectivityError, "");

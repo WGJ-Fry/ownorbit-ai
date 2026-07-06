@@ -251,6 +251,7 @@ function appendIcloudHandoffParams(entryUrl: string, packet: Record<string, unkn
     url.searchParams.set("entryMode", String(packet.mode || ""));
     url.searchParams.set("entryStability", String(packet.stability || ""));
     url.searchParams.set("entryLabel", String(packet.label || ""));
+    url.searchParams.set("entryChecksumSha256", String(packet.entryChecksumSha256 || ""));
     return url.toString();
   } catch {
     return entryUrl;

@@ -9,6 +9,7 @@ const handoffParamKeys = [
   "entryMode",
   "entryStability",
   "entryLabel",
+  "entryChecksumSha256",
 ];
 
 export type MobileIcloudHandoffEntry = {
@@ -20,6 +21,7 @@ export type MobileIcloudHandoffEntry = {
   mode: string;
   stability: string;
   label: string;
+  checksumSha256?: string;
   savedAt: number;
   lastConnectivityTestedAt?: number;
   lastConnectivityOk?: boolean;
@@ -105,6 +107,11 @@ function isHttpBaseUrl(value: string) {
   }
 }
 
+function normalizeChecksum(value?: string | null) {
+  const checksum = String(value || "").trim().toLowerCase();
+  return /^[a-f0-9]{64}$/.test(checksum) ? checksum : "";
+}
+
 export function parseMobileIcloudHandoffFromUrl(href?: string, now = Date.now()): MobileIcloudHandoffEntry | null {
   const rawHref = href || (typeof window === "undefined" ? "" : window.location.href);
   if (!rawHref) return null;
@@ -126,6 +133,7 @@ export function parseMobileIcloudHandoffFromUrl(href?: string, now = Date.now())
       mode: String(params.get("entryMode") || ""),
       stability: String(params.get("entryStability") || ""),
       label: String(params.get("entryLabel") || "LifeOS iCloud Mobile Entry"),
+      checksumSha256: normalizeChecksum(params.get("entryChecksumSha256")) || undefined,
       savedAt: now,
     };
   } catch {
@@ -266,6 +274,7 @@ export function getStoredMobileIcloudHandoff(): MobileIcloudHandoffEntry | null 
       mode: String(parsed.mode || ""),
       stability: String(parsed.stability || ""),
       label: String(parsed.label || "LifeOS iCloud Mobile Entry"),
+      checksumSha256: normalizeChecksum(parsed.checksumSha256),
       savedAt: Number(parsed.savedAt || 0),
       lastConnectivityTestedAt: Number(parsed.lastConnectivityTestedAt || 0) || undefined,
       lastConnectivityOk: typeof parsed.lastConnectivityOk === "boolean" ? parsed.lastConnectivityOk : undefined,
@@ -341,6 +350,7 @@ export function buildMobileIcloudHandoffRecoveryPacket(status: MobileIcloudHando
     `mode=${status.entry.mode || "-"}`,
     `stability=${status.entry.stability || "-"}`,
     `label=${status.entry.label || "-"}`,
+    `entryChecksumSha256=${status.entry.checksumSha256 || "-"}`,
     `generatedAt=${isoTime(status.entry.generatedAt)}`,
     `refreshAfter=${isoTime(status.entry.refreshAfter)}`,
     `expiresAt=${isoTime(status.entry.expiresAt)}`,

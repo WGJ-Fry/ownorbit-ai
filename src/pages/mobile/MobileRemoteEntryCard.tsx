@@ -103,6 +103,7 @@ export default function MobileRemoteEntryCard({
           {icloudActionKey ? <div className="mt-2 rounded-xl border border-white/[0.08] bg-black/10 p-2 text-xs font-bold">{t(icloudActionKey as any)}</div> : null}
           <div className="mt-3 grid gap-2 rounded-xl border border-white/[0.08] bg-black/10 p-2 text-xs">
             <Row label={t("mobileDevice.icloudHandoffEntry")} value={icloudHandoffStatus.entry.baseUrl} />
+            {icloudHandoffStatus.entry.checksumSha256 ? <Row label={t("mobileDevice.icloudHandoffChecksum")} value={`${icloudHandoffStatus.entry.checksumSha256.slice(0, 12)}...`} /> : null}
             <Row label={t("mobileDevice.icloudHandoffGenerated")} value={new Date(icloudHandoffStatus.entry.generatedAt).toLocaleString()} />
             <Row label={t("mobileDevice.icloudHandoffExpires")} value={new Date(icloudHandoffStatus.entry.expiresAt).toLocaleString()} />
             <Row label={t("mobileDevice.icloudHandoffLastCheck")} value={icloudHandoffStatus.entry.lastConnectivityTestedAt ? new Date(icloudHandoffStatus.entry.lastConnectivityTestedAt).toLocaleString() : t("mobileDevice.icloudHandoffNotTested")} />
