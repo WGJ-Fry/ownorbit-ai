@@ -2134,7 +2134,11 @@ export function reportMobileConnectivity(result: MobileConnectivityReportInput) 
 }
 
 export function reportMobileIcloudHandoffEvent(event: MobileIcloudHandoffEventReportInput) {
-  return requestJson<{ ok: true; event: DeviceIcloudHandoffEvent }>("/api/v1/devices/me/icloud-handoff-event", {
+  return requestJson<{
+    ok: true;
+    event: DeviceIcloudHandoffEvent;
+    icloudRefresh: { refreshed: boolean; reason: string; requestedReason?: string; status?: string; error?: string };
+  }>("/api/v1/devices/me/icloud-handoff-event", {
     method: "POST",
     body: JSON.stringify(event),
   });

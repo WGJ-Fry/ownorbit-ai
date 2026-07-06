@@ -245,8 +245,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(serverSource, /refreshIcloudHandoffAfterStartup\("cloudflare-autostart"\)/);
   assert.match(serverSource, /refreshIcloudHandoffAfterStartup\("tailscale-autostart"\)/);
   const adminRoutesSource = await readFile(path.join(rootDir, "server", "routes", "adminRoutes.ts"), "utf8");
+  const deviceRoutesSource = await readFile(path.join(rootDir, "server", "routes", "deviceRoutes.ts"), "utf8");
   assert.match(adminRoutesSource, /getIcloudHandoffMonitorStatus/);
   assert.match(adminRoutesSource, /icloudMonitor: getIcloudHandoffMonitorStatus\(\)/);
+  assert.match(deviceRoutesSource, /device-icloud-handoff-/);
+  assert.match(deviceRoutesSource, /icloudRefresh/);
 
   const appSource = await readFile(path.join(rootDir, "src", "App.tsx"), "utf8");
   assert.match(appSource, /useOfflineQueueSync\(flushOfflineMessages, \{/);
@@ -598,6 +601,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudHistoryTitle/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudOldEntryTitle/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudOldEntryAction/);
+  assert.match(onboardingAppleRemoteSource, /renderIcloudFixActions/);
   assert.match(onboardingAppleRemoteSource, /latestEntryIssueEvent/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudIssueTitle/);
   assert.match(onboardingAppleRemoteSource, /isIcloudBusy/);

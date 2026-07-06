@@ -1561,6 +1561,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   }).then((res) => res.json().then((body) => ({ status: res.status, body })));
   assert.equal(icloudHandoffEvent.status, 200);
   assert.equal(icloudHandoffEvent.body.event.eventType, "ignored-superseded-entry");
+  assert.equal(typeof icloudHandoffEvent.body.icloudRefresh.refreshed, "boolean");
+  assert.equal(icloudHandoffEvent.body.icloudRefresh.requestedReason, "device-icloud-handoff-ignored-superseded-entry");
   assert.equal(icloudHandoffEvent.body.event.entryBaseUrl, "https://old.example.test/lifeos");
   assert.equal(icloudHandoffEvent.body.event.currentBaseUrl, "https://old.example.test/lifeos");
   assert.equal(icloudHandoffEvent.body.event.storedBaseUrl, "https://new.example.test/lifeos");
@@ -1591,6 +1593,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   }).then((res) => res.json().then((body) => ({ status: res.status, body })));
   assert.equal(expiredIcloudHandoffEvent.status, 200, JSON.stringify(expiredIcloudHandoffEvent.body));
   assert.equal(expiredIcloudHandoffEvent.body.event.eventType, "opened-expired-entry");
+  assert.equal(expiredIcloudHandoffEvent.body.icloudRefresh.requestedReason, "device-icloud-handoff-opened-expired-entry");
   assert.equal(expiredIcloudHandoffEvent.body.event.entryBaseUrl, "https://expired.example.test/lifeos");
   const networkDiagnosticsWithIssueEvent = await request(port, "/api/v1/admin/network-diagnostics", { headers: adminHeaders }).then((res) => res.json());
   assert.equal(networkDiagnosticsWithIssueEvent.icloud.latestEntryIssueEvent.id, expiredIcloudHandoffEvent.body.event.id);

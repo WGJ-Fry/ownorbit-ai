@@ -402,6 +402,7 @@ export function registerDeviceRoutes(app: express.Express) {
       createdAt: Date.now(),
       ...normalized,
     });
+    const icloudRefresh = safeRefreshIcloudForBinding(`device-icloud-handoff-${normalized.eventType}`);
     insertAuditLog("device_icloud_handoff_event_reported", "device", device.id, {
       eventType: event?.eventType || normalized.eventType,
       entryBaseUrl: event?.entryBaseUrl || normalized.entryBaseUrl,
@@ -411,14 +412,16 @@ export function registerDeviceRoutes(app: express.Express) {
       storedGeneratedAt: event?.storedGeneratedAt || normalized.storedGeneratedAt || null,
       checksumPresent: Boolean(event?.checksumSha256 || normalized.checksumSha256),
       ignoredAt: event?.ignoredAt || normalized.ignoredAt,
+      icloudRefresh,
     }, "device", device.id);
     broadcastRealtime({
       type: "device.icloud_handoff_event_reported",
       deviceId: device.id,
       event,
+      icloudRefresh,
       timestamp: Date.now(),
     });
-    res.json({ ok: true, event });
+    res.json({ ok: true, event, icloudRefresh });
   });
 
   app.get("/api/v1/devices", requireAdmin, (_req, res) => {

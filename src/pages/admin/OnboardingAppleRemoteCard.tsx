@@ -222,6 +222,27 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
     }
   };
 
+  const renderIcloudFixActions = () => (
+    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+      <button
+        type="button"
+        onClick={onExportIcloud}
+        disabled={!canExportIcloud || isBusy}
+        className="inline-flex items-center justify-center gap-2 rounded-xl border border-sky-300/20 bg-sky-500/10 px-3 py-2 text-xs font-bold text-sky-50 disabled:opacity-50"
+      >
+        {isIcloudBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+        {t("onboarding.appleRemoteRefreshIcloud")}
+      </button>
+      <a
+        href="/admin/devices/pair"
+        className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200/20 bg-black/15 px-3 py-2 text-xs font-bold text-amber-50"
+      >
+        <QrCode className="h-3.5 w-3.5" />
+        {t("onboarding.appleRemoteOpenQr")}
+      </a>
+    </div>
+  );
+
   return (
     <section className="rounded-[28px] border border-sky-400/15 bg-[#101722] p-5">
       <div className="flex items-start justify-between gap-3">
@@ -308,6 +329,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                   <div className="mt-2 text-[11px] font-bold text-amber-50">
                     {t("onboarding.appleRemoteIcloudOldEntryAction")}
                   </div>
+                  {renderIcloudFixActions()}
                 </div>
               </div>
             </div>
@@ -331,6 +353,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                   <div className="mt-2 text-[11px] font-bold text-amber-50">
                     {t("onboarding.appleRemoteIcloudIssueAction")}
                   </div>
+                  {renderIcloudFixActions()}
                 </div>
               </div>
             </div>
