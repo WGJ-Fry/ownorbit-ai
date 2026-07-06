@@ -1021,6 +1021,7 @@ export function registerAdminRoutes(app: express.Express) {
       res.json({
         config,
         icloudRefresh,
+        diagnostics: getAdminNetworkDiagnostics(),
         restartRequired: true,
         message: "Desktop connection configuration saved. Quit and reopen LifeOS AI for it to take effect.",
       });

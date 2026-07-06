@@ -545,6 +545,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /getNetworkDiagnostics/);
   assert.match(onboardingSource, /startTailscaleHttpsServe/);
   assert.match(onboardingSource, /saveDesktopConnectionConfig/);
+  assert.match(onboardingSource, /appendIcloudAutoRefreshStatus/);
   assert.match(onboardingSource, /testConnectionUrl/);
   assert.match(onboardingSource, /OnboardingAppleRemoteCard/);
   assert.match(onboardingSource, /OnboardingRecoveryCard/);
@@ -708,6 +709,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /\/api\/v1\/admin\/icloud-handoff\/cleanup/);
   assert.match(lifeosApiSource, /IcloudHandoffRepairAnalysis/);
   assert.match(lifeosApiSource, /IcloudAutoRefreshResult/);
+  assert.match(lifeosApiSource, /icloudRefresh: IcloudAutoRefreshResult/);
+  assert.match(lifeosApiSource, /diagnostics: NetworkDiagnostics/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudRepairAutoRefreshDone/);
   assert.match(lifeosApiSource, /icloudMonitor/);
   assert.match(lifeosApiSource, /startupRunAt/);
@@ -788,6 +791,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /iCloud Drive Check/);
   assert.match(translationsSource, /清理旧 iCloud 入口/);
   assert.match(translationsSource, /Clean Old iCloud Entries/);
+  assert.match(translationsSource, /iCloud 手机入口已自动刷新/);
+  assert.match(translationsSource, /The iCloud mobile entry was refreshed automatically/);
   assert.match(translationsSource, /Apple ID 或 iCloud Drive 未启用/);
   assert.match(translationsSource, /Apple ID or iCloud Drive is not enabled/);
   assert.match(translationsSource, /先登录 Apple ID/);
@@ -1567,6 +1572,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(connectionGuideSource, /candidate\.restartInstruction/);
   assert.match(connectionGuideSource, /connection\.copyEnv/);
   assert.match(connectionGuideSource, /saveDesktopConnectionConfig/);
+  assert.match(connectionGuideSource, /appendIcloudAutoRefreshStatus/);
   assert.match(connectionGuideSource, /connection\.saveDesktopConfig/);
   assert.match(connectionRecommendedEntrySource, /connection\.openPairingQr/);
   assert.match(connectionRecommendedEntrySource, /href="\/admin\/devices\/pair"/);
@@ -1757,6 +1763,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(customRemoteEntrySource, /testConnectionUrl/);
   assert.match(customRemoteEntrySource, /result\.steps/);
   assert.match(customRemoteEntrySource, /saveDesktopConnectionConfig/);
+  assert.match(customRemoteEntrySource, /appendIcloudAutoRefreshStatus/);
   assert.match(customRemoteEntrySource, /mode: "configured"/);
   assert.match(customRemoteEntrySource, /customRemoteEntryError/);
   assert.match(customRemoteEntrySource, /parsed\.username \|\| parsed\.password \|\| parsed\.search \|\| parsed\.hash/);

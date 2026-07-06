@@ -2,6 +2,7 @@ import { CheckCircle2, PlugZap } from "lucide-react";
 import { useState } from "react";
 import { useI18n } from "../../i18n/I18nProvider";
 import { getNetworkDiagnostics, saveDesktopConnectionConfig, testConnectionUrl, type NetworkDiagnostics } from "../../services/lifeosApi";
+import { appendIcloudAutoRefreshStatus } from "./icloudAutoRefreshStatus";
 
 function customRemoteEntryError(value: string) {
   if (!value) return "";
@@ -52,10 +53,9 @@ export default function CustomRemoteEntryCard({
     setBusy("save");
     setMessage("");
     try {
-      await saveDesktopConnectionConfig({ mode: "configured", label, baseUrl: normalizedUrl });
-      const diagnostics = await getNetworkDiagnostics();
-      onSaved(diagnostics);
-      setMessage(t("connection.customSaved"));
+      const result = await saveDesktopConnectionConfig({ mode: "configured", label, baseUrl: normalizedUrl });
+      onSaved(result.diagnostics || await getNetworkDiagnostics());
+      setMessage(appendIcloudAutoRefreshStatus(t("connection.customSaved"), result.icloudRefresh, t));
     } catch (error: any) {
       setMessage(error.message || t("connection.saveFailed"));
     } finally {

@@ -1341,6 +1341,7 @@ function checkAssets() {
   const icloudHandoffMonitorSource = exists("server/icloudHandoffMonitor.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudHandoffMonitor.ts"), "utf8") : "";
   const icloudRepairImportsSource = exists("server/icloudRepairImports.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudRepairImports.ts"), "utf8") : "";
   const appleRemoteIcloudPrimaryActionSource = exists("src/pages/admin/appleRemoteIcloudPrimaryAction.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/appleRemoteIcloudPrimaryAction.ts"), "utf8") : "";
+  const icloudAutoRefreshStatusSource = exists("src/pages/admin/icloudAutoRefreshStatus.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/icloudAutoRefreshStatus.ts"), "utf8") : "";
   const mobileIcloudHandoffSource = exists("src/services/mobileIcloudHandoff.ts") ? fs.readFileSync(path.join(rootDir, "src/services/mobileIcloudHandoff.ts"), "utf8") : "";
   if (
     deviceRoutesSource.includes("pairingInstallUrl") &&
@@ -1455,16 +1456,20 @@ function checkAssets() {
     adminRoutesSource.includes("latestEntryRepair") &&
     adminRoutesSource.includes("/api/v1/admin/icloud-handoff/cleanup") &&
     adminRoutesSource.includes("icloud_handoff_cleaned") &&
+    adminRoutesSource.includes("desktop-connection-config") &&
+    adminRoutesSource.includes("diagnostics: getAdminNetworkDiagnostics()") &&
     icloudRepairImportsSource.includes("lifeos_icloud_repair_imports") &&
     icloudRepairImportsSource.includes("getLatestIcloudRepairImportRecord") &&
     lifeosApiSource.includes("latestEntryRepair") &&
     lifeosApiSource.includes("latestRepairImport") &&
     lifeosApiSource.includes("IcloudAutoRefreshResult") &&
+    lifeosApiSource.includes("icloudRefresh: IcloudAutoRefreshResult") &&
     lifeosApiSource.includes("cleanupIcloudHandoffEntries") &&
     lifeosApiSource.includes("/api/v1/admin/icloud-handoff/cleanup") &&
     apiAuthTestSource.includes("latestEntryRepair.status") &&
     apiAuthTestSource.includes("diagnostics.icloud.latestRepairImport.id") &&
     apiAuthTestSource.includes("icloudRepairPacket.icloudRefresh.requestedReason") &&
+    apiAuthTestSource.includes("desktopConnectionConfig.diagnostics.desktopRuntimeConfig.publicBaseUrl") &&
     apiAuthTestSource.includes("/api/v1/admin/icloud-handoff/cleanup") &&
     translationsSource.includes("PUBLIC_BASE_URL changed") &&
     translationsSource.includes("Cloudflare address changed") &&
@@ -1475,11 +1480,17 @@ function checkAssets() {
     translationsSource.includes("Phone just opened an old entry") &&
     translationsSource.includes("refresh the iCloud mobile entry and generate a fresh pairing QR") &&
     translationsSource.includes("Clean Old iCloud Entries") &&
+    translationsSource.includes("The iCloud mobile entry was refreshed automatically") &&
     networkDiagnosticsSource.includes("cleanupIcloudHandoffEntries") &&
     networkDiagnosticsSource.includes("removedOrphanedFileCount") &&
     networkDiagnosticsTestSource.includes("lifeos-mobile-entry-orphan.json") &&
+    adminOnboardingSource.includes("appendIcloudAutoRefreshStatus") &&
+    connectionGuideSource.includes("appendIcloudAutoRefreshStatus") &&
+    customRemoteEntrySource.includes("appendIcloudAutoRefreshStatus") &&
     onboardingAppleRemoteSource.includes("onCleanupIcloud") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudCleanupButton") &&
+    icloudAutoRefreshStatusSource.includes("formatIcloudAutoRefreshStatus") &&
+    icloudAutoRefreshStatusSource.includes("icloud.autoRefresh.updated") &&
     mobileIcloudHandoffSource.includes("PENDING_EVENTS_STORAGE_KEY") &&
     mobileIcloudHandoffSource.includes("SERVER_REPAIR_STORAGE_KEY") &&
     mobileIcloudHandoffSource.includes("flushPendingMobileIcloudHandoffEvents") &&

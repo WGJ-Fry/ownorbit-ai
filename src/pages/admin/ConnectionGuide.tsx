@@ -12,6 +12,8 @@ import RemoteReadinessCard from "./RemoteReadinessCard";
 import TailscaleServeActions from "./TailscaleServeActions";
 import ConnectionMobileEntryPanel from "./ConnectionMobileEntryPanel";
 import ConnectionRecommendedEntryCard from "./ConnectionRecommendedEntryCard";
+import { appendIcloudAutoRefreshStatus } from "./icloudAutoRefreshStatus";
+import type { IcloudAutoRefreshResult } from "../../services/lifeosApi";
 type Health = Awaited<ReturnType<typeof getHealth>>;
 type ConnectionResult = Awaited<ReturnType<typeof testConnectionUrl>>["result"];
 function connectionStatusMessage(result: ConnectionResult, t: ReturnType<typeof useI18n>["t"]) {
@@ -97,9 +99,8 @@ export default function ConnectionGuide({ health }: { health: Health | null }) {
         label: candidate.label,
         baseUrl: candidate.baseUrl,
       });
-      setTestStatus(result.message);
-      const nextDiagnostics = await getNetworkDiagnostics().catch(() => null);
-      if (nextDiagnostics) setDiagnostics(nextDiagnostics);
+      setTestStatus(appendIcloudAutoRefreshStatus(result.message, result.icloudRefresh, t));
+      setDiagnostics(result.diagnostics);
     } catch (error: any) {
       setTestStatus(error.message || t("connection.saveFailed"));
     } finally {
@@ -110,7 +111,7 @@ export default function ConnectionGuide({ health }: { health: Health | null }) {
   const runRemoteAction = async (
     setBusy: (value: "start" | "stop" | null) => void,
     state: "start" | "stop",
-    action: () => Promise<{ diagnostics: NetworkDiagnostics; message: string }>,
+    action: () => Promise<{ diagnostics: NetworkDiagnostics; message: string; icloudRefresh?: IcloudAutoRefreshResult }>,
     fallbackKey: string,
   ) => {
     setBusy(state);
@@ -118,7 +119,7 @@ export default function ConnectionGuide({ health }: { health: Health | null }) {
     try {
       const result = await action();
       setDiagnostics(result.diagnostics);
-      setTestStatus(result.message);
+      setTestStatus(appendIcloudAutoRefreshStatus(result.message, result.icloudRefresh, t));
     } catch (error: any) {
       setTestStatus(error.message || t(fallbackKey as any));
       await refreshDiagnostics();

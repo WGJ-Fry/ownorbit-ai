@@ -9,6 +9,7 @@ import OnboardingAppleRemoteCard from "./OnboardingAppleRemoteCard";
 import OnboardingHandoffCard from "./OnboardingHandoffCard";
 import OnboardingRecoveryCard from "./OnboardingRecoveryCard";
 import { buildOnboardingHandoffSummary } from "../../services/onboardingHandoffSummary";
+import { appendIcloudAutoRefreshStatus } from "./icloudAutoRefreshStatus";
 
 const providerLabels: Record<string, string> = {
   gemini: "Google Gemini",
@@ -198,7 +199,7 @@ export default function AdminOnboardingPage() {
     try {
       const result = await startTailscaleHttpsServe();
       setNetworkDiagnostics(result.diagnostics);
-      setStatus(result.message || t("onboarding.appleRemoteTailscaleStarted"));
+      setStatus(appendIcloudAutoRefreshStatus(result.message || t("onboarding.appleRemoteTailscaleStarted"), result.icloudRefresh, t));
     } catch (error: any) {
       setStatus(error.message || t("onboarding.appleRemoteActionFailed"));
       await getNetworkDiagnostics().then(setNetworkDiagnostics).catch(() => null);
@@ -213,7 +214,7 @@ export default function AdminOnboardingPage() {
     try {
       const result = await startCloudflareTunnel();
       setNetworkDiagnostics(result.diagnostics);
-      setStatus(result.message || t("onboarding.appleRemoteCloudflareStarted"));
+      setStatus(appendIcloudAutoRefreshStatus(result.message || t("onboarding.appleRemoteCloudflareStarted"), result.icloudRefresh, t));
     } catch (error: any) {
       setStatus(error.message || t("onboarding.appleRemoteActionFailed"));
       await getNetworkDiagnostics().then(setNetworkDiagnostics).catch(() => null);
@@ -264,9 +265,12 @@ export default function AdminOnboardingPage() {
         label: candidate.label,
         baseUrl: candidate.baseUrl,
       });
-      setStatus(result.restartRequired ? t("onboarding.appleRemoteSavedRestart", { url: candidate.baseUrl }) : t("onboarding.appleRemoteSaved", { url: candidate.baseUrl }));
-      const nextDiagnostics = await getNetworkDiagnostics();
-      setNetworkDiagnostics(nextDiagnostics);
+      setStatus(appendIcloudAutoRefreshStatus(
+        result.restartRequired ? t("onboarding.appleRemoteSavedRestart", { url: candidate.baseUrl }) : t("onboarding.appleRemoteSaved", { url: candidate.baseUrl }),
+        result.icloudRefresh,
+        t,
+      ));
+      setNetworkDiagnostics(result.diagnostics);
     } catch (error: any) {
       setStatus(error.message || t("onboarding.appleRemoteActionFailed"));
     } finally {

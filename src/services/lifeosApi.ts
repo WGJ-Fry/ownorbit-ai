@@ -1937,6 +1937,8 @@ export function testConnectionUrl(baseUrl: string, options: { persist?: boolean;
 export function saveDesktopConnectionConfig(input: { mode: NetworkDiagnostics["connectionCandidates"][number]["mode"]; label: string; baseUrl: string }) {
   return requestJson<{
     config: NonNullable<NetworkDiagnostics["desktopRuntimeConfig"]>;
+    icloudRefresh: IcloudAutoRefreshResult;
+    diagnostics: NetworkDiagnostics;
     restartRequired: boolean;
     message: string;
   }>("/api/v1/admin/desktop-connection-config", {
@@ -1956,6 +1958,7 @@ export function startCloudflareTunnel() {
   return requestJson<{
     tunnel: NetworkDiagnostics["cloudflare"]["managed"];
     config: NonNullable<NetworkDiagnostics["desktopRuntimeConfig"]>;
+    icloudRefresh: IcloudAutoRefreshResult;
     diagnostics: NetworkDiagnostics;
     message: string;
   }>("/api/v1/admin/cloudflare-tunnel/start", { method: "POST" });
@@ -2035,6 +2038,7 @@ export function startCloudflareNamedTunnel() {
     tunnel: NetworkDiagnostics["cloudflare"]["managed"];
     namedTunnel: NetworkDiagnostics["cloudflareNamedTunnel"];
     refresh: { refreshed: boolean; ready: boolean; reason: string };
+    icloudRefresh: IcloudAutoRefreshResult;
     diagnostics: NetworkDiagnostics;
     message: string;
   }>("/api/v1/admin/cloudflare-named-tunnel/start", { method: "POST" });
@@ -2045,6 +2049,7 @@ export function runRemoteHealthCheck() {
     skipped: boolean;
     reason: string;
     report: NetworkDiagnostics["remoteValidationReport"];
+    icloudRefresh?: IcloudAutoRefreshResult;
     diagnostics: NetworkDiagnostics;
   }>("/api/v1/admin/network-diagnostics/remote-health", { method: "POST" });
 }
@@ -2132,6 +2137,7 @@ export function startTailscaleHttpsServe() {
       status: NetworkDiagnostics["tailscale"];
     };
     config: NonNullable<NetworkDiagnostics["desktopRuntimeConfig"]>;
+    icloudRefresh: IcloudAutoRefreshResult;
     diagnostics: NetworkDiagnostics;
     message: string;
   }>("/api/v1/admin/tailscale-serve/start", { method: "POST" });

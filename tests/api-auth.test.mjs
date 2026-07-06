@@ -638,6 +638,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(desktopConnectionConfig.config.publicBaseUrl, "https://desktop-config.example.com/mobile");
   assert.equal(desktopConnectionConfig.icloudRefresh.requestedReason, "desktop-connection-config-saved");
   assert.equal(typeof desktopConnectionConfig.icloudRefresh.refreshed, "boolean");
+  assert.equal(desktopConnectionConfig.diagnostics.desktopRuntimeConfig.publicBaseUrl, "https://desktop-config.example.com/mobile");
   assert.equal(JSON.stringify(desktopConnectionConfig).includes("desktop-secret"), false);
   assert.equal(JSON.stringify(desktopConnectionConfig).includes("user:password"), false);
   const networkDiagnosticsAfterDesktopConfig = await request(port, "/api/v1/admin/network-diagnostics", { headers: adminHeaders }).then((res) => res.json());
