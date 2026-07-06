@@ -16,6 +16,9 @@ export type IcloudHandoffMonitorRun = {
   phoneConfirmationStatus?: string;
   phoneConfirmationAction?: string;
   previousPhoneConfirmationStatus?: string;
+  pairingSessionStatus?: string;
+  pairingSessionAction?: string;
+  previousPairingSessionStatus?: string;
   generatedAt?: number;
   recommendedBaseUrl?: string;
   error?: string;
@@ -46,6 +49,9 @@ export function runIcloudHandoffRefreshCheck(reason = "manual"): IcloudHandoffMo
       phoneConfirmationStatus: refresh.phoneConfirmationStatus,
       phoneConfirmationAction: refresh.phoneConfirmationAction,
       previousPhoneConfirmationStatus: refresh.previousPhoneConfirmationStatus,
+      pairingSessionStatus: refresh.pairingSessionStatus,
+      pairingSessionAction: refresh.pairingSessionAction,
+      previousPairingSessionStatus: refresh.previousPairingSessionStatus,
       generatedAt: refresh.generatedAt,
       recommendedBaseUrl: refresh.recommendedBaseUrl,
     };

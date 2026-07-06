@@ -980,6 +980,9 @@ export type NetworkDiagnostics = {
       phoneConfirmationStatus?: string;
       phoneConfirmationAction?: string;
       previousPhoneConfirmationStatus?: string;
+      pairingSessionStatus?: string;
+      pairingSessionAction?: string;
+      previousPairingSessionStatus?: string;
       generatedAt?: number;
       recommendedBaseUrl?: string;
       error?: string;

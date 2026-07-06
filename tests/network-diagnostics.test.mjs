@@ -807,6 +807,64 @@ test("iCloud handoff monitor refreshes after a phone reports an old entry", asyn
   assert.notEqual(nextPacket.generatedAt, firstPacket.generatedAt);
 });
 
+test("iCloud handoff monitor refreshes after the latest pairing QR expires", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-pairing-refresh-db-"));
+  const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-pairing-refresh-drive-"));
+  t.after(async () => {
+    await rm(dataDir, { recursive: true, force: true });
+    await rm(icloudDir, { recursive: true, force: true });
+  });
+
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const { readFile } = await import("node:fs/promises");
+    const { exportIcloudHandoff } = await import("./server/networkDiagnostics.ts");
+    const { insertBindingSession } = await import("./server/devices.ts");
+    const { runIcloudHandoffRefreshCheck } = await import("./server/icloudHandoffMonitor.ts");
+
+    const first = exportIcloudHandoff("test-initial-pairing-session-refresh");
+    const firstPacket = JSON.parse(await readFile(first.packetFilePath, "utf8"));
+    const now = Date.now();
+    insertBindingSession({
+      id: "expired-pairing-session",
+      tokenHash: "redacted-token-hash",
+      baseUrl: firstPacket.baseUrl,
+      createdAt: now - 10 * 60 * 1000,
+      expiresAt: now - 60 * 1000,
+    });
+
+    const monitorRun = runIcloudHandoffRefreshCheck("test-expired-pairing-session");
+    const nextPacket = JSON.parse(await readFile(first.packetFilePath, "utf8"));
+    process.stdout.write(JSON.stringify({ monitorRun, firstPacket, nextPacket }));
+  `], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      LIFEOS_DATA_DIR: dataDir,
+      LIFEOS_ICLOUD_DRIVE_DIR: icloudDir,
+      LIFEOS_FORCE_ICLOUD_HANDOFF: "1",
+      LIFEOS_PORT: "4567",
+      PUBLIC_BASE_URL: "https://pairing-session-lifeos.example.com",
+      APP_URL: "",
+      LIFEOS_CLOUDFLARED_BIN: "/definitely/missing/cloudflared",
+      LIFEOS_TAILSCALE_BIN: "/definitely/missing/tailscale",
+      LIFEOS_ICLOUD_HANDOFF_MONITOR: "1",
+    },
+    encoding: "utf8",
+  });
+  const { monitorRun, firstPacket, nextPacket } = JSON.parse(output);
+  assert.equal(firstPacket.baseUrl, "https://pairing-session-lifeos.example.com");
+  assert.equal(monitorRun.refreshed, true);
+  assert.equal(monitorRun.refreshReason, "pairing-session-refresh");
+  assert.equal(monitorRun.status, "fresh");
+  assert.equal(monitorRun.previousStatus, "fresh");
+  assert.equal(monitorRun.previousPairingSessionStatus, "expired");
+  assert.equal(monitorRun.pairingSessionAction, "regenerate-qr");
+  assert.equal(nextPacket.baseUrl, "https://pairing-session-lifeos.example.com");
+  assert.equal(nextPacket.changeType, "refreshed-same-address");
+  assert.equal(nextPacket.exportReason, "test-expired-pairing-session");
+  assert.notEqual(nextPacket.generatedAt, firstPacket.generatedAt);
+});
+
 test("iCloud repair packet analysis compares phone entry with current desktop entry", async (t) => {
   const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-repair-analysis-"));
   const oldPort = process.env.LIFEOS_PORT;

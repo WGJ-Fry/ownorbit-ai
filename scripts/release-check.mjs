@@ -1335,6 +1335,7 @@ function checkAssets() {
   const apiAuthTestSource = exists("tests/api-auth.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/api-auth.test.mjs"), "utf8") : "";
   const onboardingAppleRemoteSource = exists("src/pages/admin/OnboardingAppleRemoteCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/OnboardingAppleRemoteCard.tsx"), "utf8") : "";
   const icloudPairingSessionSource = exists("server/icloudPairingSession.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudPairingSession.ts"), "utf8") : "";
+  const icloudHandoffMonitorSource = exists("server/icloudHandoffMonitor.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudHandoffMonitor.ts"), "utf8") : "";
   if (
     deviceRoutesSource.includes("pairingInstallUrl") &&
     deviceRoutesSource.includes("/mobile/install/") &&
@@ -1348,12 +1349,18 @@ function checkAssets() {
     icloudPairingSessionSource.includes('"address-changed" as const') &&
     adminRoutesSource.includes("buildIcloudPairingSessionStatus") &&
     adminRoutesSource.includes("pairingSession: buildIcloudPairingSessionStatus") &&
+    networkDiagnosticsSource.includes("pairing-session-refresh") &&
+    networkDiagnosticsSource.includes("previousPairingSessionStatus") &&
+    icloudHandoffMonitorSource.includes("previousPairingSessionStatus") &&
     lifeosApiSource.includes("pairingSession") &&
     lifeosApiSource.includes("expiring-soon") &&
+    lifeosApiSource.includes("previousPairingSessionStatus") &&
     onboardingAppleRemoteSource.includes("icloudPairingSessionKeys") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorPairingSession") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudPairingExpired") &&
     apiAuthTestSource.includes("networkDiagnosticsWithBinding.icloud.pairingSession.status") &&
-    networkDiagnosticsTestSource.includes("iCloud pairing session status guides stale QR repair")
+    networkDiagnosticsTestSource.includes("iCloud pairing session status guides stale QR repair") &&
+    networkDiagnosticsTestSource.includes("iCloud handoff monitor refreshes after the latest pairing QR expires")
   ) pass("iCloud diagnostics surface stale pairing QR status with UI and tests");
   else warn("iCloud diagnostics do not surface stale pairing QR status across API, UI, and tests");
   if (

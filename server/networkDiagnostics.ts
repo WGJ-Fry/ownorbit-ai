@@ -6,8 +6,9 @@ import path from "path";
 import { WebSocket } from "ws";
 import { extractCloudflareTunnelUrls, getManagedCloudflareTunnelStatus } from "./cloudflareTunnel.ts";
 import { DesktopRuntimeConfig, getDesktopRuntimeConfig, saveDesktopRuntimeConfig } from "./desktopRuntimeConfig.ts";
-import { getLatestIcloudHandoffEventByTypes } from "./devices.ts";
+import { getLatestBindingSession, getLatestIcloudHandoffEventByTypes } from "./devices.ts";
 import { buildIcloudPhoneConfirmationStatus } from "./icloudPhoneConfirmation.ts";
+import { buildIcloudPairingSessionStatus } from "./icloudPairingSession.ts";
 import { getConfiguredPublicBaseUrl, isTemporaryTryCloudflareUrl } from "./publicBaseUrl";
 
 type CommandResult = {
@@ -2184,10 +2185,15 @@ export function maybeRefreshIcloudHandoff(reason = "auto") {
       "opened-address-mismatch-entry",
     ]) || null,
   });
+  const pairingSession = buildIcloudPairingSessionStatus({
+    session: getLatestBindingSession() || null,
+    recommendedBaseUrl: status.recommendedBaseUrl,
+  });
+  const pairingSessionNeedsRefresh = pairingSession.status === "expired" || pairingSession.status === "address-changed";
   if (!status.platformSupported) return { refreshed: false, reason: "unsupported-platform", requestedReason: reason, status: status.handoffHealth.status };
   if (!status.available) return { refreshed: false, reason: "icloud-unavailable", requestedReason: reason, status: status.handoffHealth.status };
   if (!status.canExport) return { refreshed: false, reason: "no-phone-entry", requestedReason: reason, status: status.handoffHealth.status };
-  if (!status.handoffHealth.needsRefresh && phoneConfirmation.action !== "refresh-entry") {
+  if (!status.handoffHealth.needsRefresh && phoneConfirmation.action !== "refresh-entry" && !pairingSessionNeedsRefresh) {
     return {
       refreshed: false,
       reason: "fresh",
@@ -2195,16 +2201,25 @@ export function maybeRefreshIcloudHandoff(reason = "auto") {
       status: status.handoffHealth.status,
       phoneConfirmationStatus: phoneConfirmation.status,
       phoneConfirmationAction: phoneConfirmation.action,
+      pairingSessionStatus: pairingSession.status,
+      pairingSessionAction: pairingSession.action,
     };
   }
   const handoff = exportIcloudHandoff(reason);
+  const refreshReason = status.handoffHealth.needsRefresh
+    ? "refreshed"
+    : phoneConfirmation.action === "refresh-entry"
+    ? "phone-confirmation-refresh"
+    : "pairing-session-refresh";
   return {
     refreshed: true,
-    reason: status.handoffHealth.needsRefresh ? "refreshed" : "phone-confirmation-refresh",
+    reason: refreshReason,
     requestedReason: reason,
     previousStatus: status.handoffHealth.status,
     previousPhoneConfirmationStatus: phoneConfirmation.status,
     phoneConfirmationAction: phoneConfirmation.action,
+    previousPairingSessionStatus: pairingSession.status,
+    pairingSessionAction: pairingSession.action,
     generatedAt: handoff.generatedAt,
     recommendedBaseUrl: handoff.recommendedBaseUrl,
     handoff,

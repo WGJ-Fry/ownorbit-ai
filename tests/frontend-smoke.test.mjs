@@ -596,6 +596,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /icloudAvailability\.pendingCount/);
   assert.match(onboardingAppleRemoteSource, /icloudMonitor/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudMonitorPhoneConfirmation/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudMonitorPairingSession/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudMonitorTitle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudMonitorLastEntry/);
   assert.match(onboardingAppleRemoteSource, /recommendedBaseUrl/);
@@ -648,6 +649,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /IcloudHandoffRepairAnalysis/);
   assert.match(lifeosApiSource, /icloudMonitor/);
   assert.match(lifeosApiSource, /previousPhoneConfirmationStatus/);
+  assert.match(lifeosApiSource, /previousPairingSessionStatus/);
   assert.match(lifeosApiSource, /recommendedBaseUrl\?: string/);
   assert.match(lifeosApiSource, /lifecycle/);
   assert.match(lifeosApiSource, /phoneConfirmation/);

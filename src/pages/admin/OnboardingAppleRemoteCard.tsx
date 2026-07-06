@@ -747,6 +747,11 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                       {t("onboarding.appleRemoteIcloudMonitorPhoneConfirmation")}: {icloudMonitor.lastResult.previousPhoneConfirmationStatus || icloudMonitor.lastResult.phoneConfirmationStatus} / {icloudMonitor.lastResult.phoneConfirmationAction || "-"}
                     </div>
                   ) : null}
+                  {icloudMonitor.lastResult?.pairingSessionStatus || icloudMonitor.lastResult?.previousPairingSessionStatus ? (
+                    <div>
+                      {t("onboarding.appleRemoteIcloudMonitorPairingSession")}: {icloudMonitor.lastResult.previousPairingSessionStatus || icloudMonitor.lastResult.pairingSessionStatus} / {icloudMonitor.lastResult.pairingSessionAction || "-"}
+                    </div>
+                  ) : null}
                   {icloudMonitor.lastResult?.recommendedBaseUrl ? (
                     <div className="break-all">
                       {t("onboarding.appleRemoteIcloudMonitorLastEntry")}: {icloudMonitor.lastResult.recommendedBaseUrl}
