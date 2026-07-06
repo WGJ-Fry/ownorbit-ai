@@ -1111,6 +1111,7 @@ test("iCloud availability detects placeholder files that are still syncing", asy
   assert.equal(diagnostics.icloud.syncReadiness.canOpenOnPhone, false);
   assert.equal(diagnostics.icloud.syncReadiness.action, "wait-for-sync");
   assert.equal(diagnostics.icloud.syncReadiness.pendingCount, 1);
+  assert.deepEqual(diagnostics.icloud.availability.placeholderSamples, [".lifeos-mobile-entry-placeholder.html.icloud"]);
 });
 
 test("iCloud availability uses macOS metadata to detect files that are still syncing", async (t) => {

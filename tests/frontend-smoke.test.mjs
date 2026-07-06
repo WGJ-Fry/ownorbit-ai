@@ -591,6 +591,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /sync-stuck/);
   assert.match(onboardingAppleRemoteSource, /icloudAvailability\.syncService/);
   assert.match(onboardingAppleRemoteSource, /syncStuckCount/);
+  assert.match(onboardingAppleRemoteSource, /icloudTrackedFiles/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudFileTitle/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudMetadataState/);
+  assert.match(onboardingAppleRemoteSource, /placeholderSamples/);
   assert.match(onboardingAppleRemoteSource, /indexConsistency/);
   assert.match(onboardingAppleRemoteSource, /icloudIndexConsistencyKeys/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudIndexTitle/);

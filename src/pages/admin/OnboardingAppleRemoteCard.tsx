@@ -6,6 +6,9 @@ import { useI18n } from "../../i18n/I18nProvider";
 import type { TranslationKey } from "../../i18n/translations";
 
 type ConnectionCandidate = NetworkDiagnostics["connectionCandidates"][number];
+type IcloudAvailability = NetworkDiagnostics["icloud"]["availability"];
+type IcloudFileState = IcloudAvailability["handoffFile"];
+type IcloudFileId = "html" | "packet" | "index";
 
 type Props = {
   diagnostics: NetworkDiagnostics | null;
@@ -72,6 +75,27 @@ const icloudIndexConsistencyKeys: Record<NetworkDiagnostics["icloud"]["indexCons
   legacy: "onboarding.appleRemoteIcloudIndexLegacy",
   mismatch: "onboarding.appleRemoteIcloudIndexMismatch",
   matching: "onboarding.appleRemoteIcloudIndexMatching",
+};
+
+const icloudFileLabelKeys: Record<IcloudFileId, TranslationKey> = {
+  html: "onboarding.appleRemoteIcloudFileHtml",
+  packet: "onboarding.appleRemoteIcloudFilePacket",
+  index: "onboarding.appleRemoteIcloudFileIndex",
+};
+
+const icloudFileStateKeys: Record<IcloudFileState["state"], TranslationKey> = {
+  missing: "onboarding.appleRemoteIcloudFileStateMissing",
+  ready: "onboarding.appleRemoteIcloudFileStateReady",
+  unreadable: "onboarding.appleRemoteIcloudFileStateUnreadable",
+  placeholder: "onboarding.appleRemoteIcloudFileStatePlaceholder",
+};
+
+const icloudMetadataSyncStateKeys: Record<IcloudFileState["metadata"]["syncState"], TranslationKey> = {
+  unknown: "onboarding.appleRemoteIcloudMetadataUnknown",
+  synced: "onboarding.appleRemoteIcloudMetadataSynced",
+  syncing: "onboarding.appleRemoteIcloudMetadataSyncing",
+  "not-downloaded": "onboarding.appleRemoteIcloudMetadataNotDownloaded",
+  "not-uploaded": "onboarding.appleRemoteIcloudMetadataNotUploaded",
 };
 
 const icloudSyncReadinessKeys: Record<NetworkDiagnostics["icloud"]["syncReadiness"]["status"], TranslationKey> = {
@@ -195,6 +219,13 @@ const icloudMonitorTriggerKeys: Record<string, TranslationKey> = {
 
 function monitorTriggerKey(trigger?: string): TranslationKey {
   return icloudMonitorTriggerKeys[trigger || ""] || "onboarding.appleRemoteIcloudMonitorTriggerUnknown";
+}
+
+function icloudFileTone(file: IcloudFileState) {
+  if (file.syncStuck || file.state === "unreadable") return "border-amber-400/20 bg-amber-500/10 text-amber-50";
+  if (file.state === "placeholder" || ["syncing", "not-downloaded", "not-uploaded"].includes(file.metadata.syncState)) return "border-sky-400/20 bg-sky-500/10 text-sky-50";
+  if (file.state === "missing") return "border-zinc-500/20 bg-white/[0.03] text-zinc-300";
+  return "border-emerald-400/20 bg-emerald-500/10 text-emerald-50";
 }
 
 type IcloudHandoffEvent = NonNullable<NetworkDiagnostics["icloud"]["latestEntryIssueEvent"]>;
@@ -361,6 +392,13 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const latestIgnoredAt = formatHandoffTime(latestIgnoredEntryEvent?.ignoredAt);
   const latestIssueAt = formatHandoffTime(latestEntryIssueEvent?.ignoredAt || latestEntryIssueEvent?.createdAt);
   const simpleIcloudStatus = getSimpleIcloudStatus(icloud);
+  const icloudTrackedFiles = icloudAvailability
+    ? [
+        { id: "html" as const, file: icloudAvailability.handoffFile },
+        { id: "packet" as const, file: icloudAvailability.packetFile },
+        { id: "index" as const, file: icloudAvailability.indexFile },
+      ]
+    : [];
 
   const analyzeRepairPacketText = async (text: string) => {
     const packet = text.trim();
@@ -822,6 +860,39 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                     {icloudAvailability.syncService.processNames.length ? ` (${icloudAvailability.syncService.processNames.join(", ")})` : ""}
                   </div>
                 ) : null}
+                <div className="mt-3 rounded-xl border border-white/[0.06] bg-black/10 p-2">
+                  <div className="mb-2 font-bold text-zinc-200">{t("onboarding.appleRemoteIcloudFileTitle")}</div>
+                  <div className="grid gap-1.5">
+                    {icloudTrackedFiles.map(({ id, file }) => (
+                      <div key={id} className={`rounded-lg border px-2 py-1.5 text-[10px] leading-relaxed ${icloudFileTone(file)}`}>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-bold">{t(icloudFileLabelKeys[id])}</span>
+                          <span className="font-bold">{t(icloudFileStateKeys[file.state])}</span>
+                        </div>
+                        <div className="mt-1 opacity-75">
+                          {t("onboarding.appleRemoteIcloudMetadataState")}: {t(icloudMetadataSyncStateKeys[file.metadata.syncState])}
+                          {file.size ? ` · ${Math.round(file.size / 1024)}KB` : ""}
+                        </div>
+                        {file.placeholderPath ? (
+                          <div className="mt-1 break-all opacity-75">
+                            {t("onboarding.appleRemoteIcloudFilePlaceholder", { name: file.placeholderPath })}
+                          </div>
+                        ) : null}
+                        {file.syncStuck ? (
+                          <div className="mt-1 font-bold text-amber-100">{t("onboarding.appleRemoteIcloudFileSyncStuck")}</div>
+                        ) : null}
+                        {file.metadata.error ? (
+                          <div className="mt-1 break-all text-red-100">{file.metadata.error}</div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                  {icloudAvailability.placeholderSamples.length ? (
+                    <div className="mt-2 break-all text-[10px] leading-relaxed text-amber-100/80">
+                      {t("onboarding.appleRemoteIcloudFilePlaceholderSamples", { names: icloudAvailability.placeholderSamples.join(", ") })}
+                    </div>
+                  ) : null}
+                </div>
               </div>
             ) : null}
             {handoffHealth ? (

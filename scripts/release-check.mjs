@@ -1382,7 +1382,12 @@ function checkAssets() {
     networkDiagnosticsSource.includes('"account-unavailable"') &&
     onboardingAppleRemoteSource.includes("icloudAccountStatusKeys") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudAvailabilityAccountUnavailable") &&
+    onboardingAppleRemoteSource.includes("icloudTrackedFiles") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudFileTitle") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudMetadataState") &&
+    onboardingAppleRemoteSource.includes("placeholderSamples") &&
     networkDiagnosticsTestSource.includes("iCloud availability blocks export when Apple ID or iCloud Drive is disabled") &&
+    networkDiagnosticsTestSource.includes('pendingFiles.includes("html")') &&
     apiAuthTestSource.includes("networkDiagnosticsWithBinding.icloud.pairingSession.status") &&
     networkDiagnosticsTestSource.includes("iCloud pairing session status guides stale QR repair") &&
     networkDiagnosticsTestSource.includes("iCloud handoff monitor refreshes after the latest pairing QR expires") &&
