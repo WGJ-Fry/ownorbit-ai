@@ -338,6 +338,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const lastExportedAt = formatHandoffTime(handoffHealth?.lastExportedAt);
   const refreshAfter = formatHandoffTime(handoffHealth?.refreshAfter);
   const icloudMonitorStartedAt = formatHandoffTime(icloudMonitor?.startedAt || undefined);
+  const icloudMonitorStartupRunAt = formatHandoffTime(icloudMonitor?.startupRunAt || undefined);
   const icloudMonitorLastRunAt = formatHandoffTime(icloudMonitor?.lastRunAt || undefined);
   const icloudMonitorNextRunAt = formatHandoffTime(icloudMonitor?.nextRunAt || undefined);
   const icloudMonitorIntervalSeconds = Math.round((icloudMonitor?.intervalMs || 0) / 1000);
@@ -847,6 +848,18 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                 <div className="mt-2 grid gap-1 text-[11px] text-zinc-500">
                   <div>{t("onboarding.appleRemoteIcloudMonitorInterval")}: {icloudMonitorIntervalSeconds}s</div>
                   <div>{t("onboarding.appleRemoteIcloudMonitorStartedAt")}: {icloudMonitorStartedAt || t("onboarding.appleRemoteIcloudNeverExported")}</div>
+                  <div>{t("onboarding.appleRemoteIcloudMonitorStartupRun")}: {icloudMonitorStartupRunAt || t("onboarding.appleRemoteIcloudNeverExported")}</div>
+                  {icloudMonitor.startupResult ? (
+                    <div>
+                      {t("onboarding.appleRemoteIcloudMonitorStartupResult")}:{" "}
+                      {icloudMonitor.startupResult.error
+                        ? t("onboarding.appleRemoteIcloudMonitorResultFailed")
+                        : icloudMonitor.startupResult.refreshed
+                          ? t("onboarding.appleRemoteIcloudMonitorResultRefreshed")
+                          : t("onboarding.appleRemoteIcloudMonitorResultFresh")}{" "}
+                      ({icloudMonitor.startupResult.refreshReason} / {icloudMonitor.startupResult.status})
+                    </div>
+                  ) : null}
                   <div>{t("onboarding.appleRemoteIcloudMonitorLastRun")}: {icloudMonitorLastRunAt || t("onboarding.appleRemoteIcloudNeverExported")}</div>
                   <div>{t("onboarding.appleRemoteIcloudMonitorNextRun")}: {icloudMonitorNextRunAt || "-"}</div>
                   {icloudMonitor.lastResult ? (

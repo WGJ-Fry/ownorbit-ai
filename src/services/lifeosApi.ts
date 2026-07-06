@@ -997,6 +997,25 @@ export type NetworkDiagnostics = {
     startedAt: number | null;
     lastRunAt: number | null;
     nextRunAt: number | null;
+    startupRunAt: number | null;
+    startupRunReason: string | null;
+    startupResult: {
+      reason: string;
+      checkedAt: number;
+      refreshed: boolean;
+      refreshReason: string;
+      status: string;
+      previousStatus?: string;
+      phoneConfirmationStatus?: string;
+      phoneConfirmationAction?: string;
+      previousPhoneConfirmationStatus?: string;
+      pairingSessionStatus?: string;
+      pairingSessionAction?: string;
+      previousPairingSessionStatus?: string;
+      generatedAt?: number;
+      recommendedBaseUrl?: string;
+      error?: string;
+    } | null;
     lastResult: {
       reason: string;
       checkedAt: number;

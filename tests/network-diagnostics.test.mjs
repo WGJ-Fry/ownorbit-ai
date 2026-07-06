@@ -791,6 +791,58 @@ test("iCloud handoff monitor refreshes stale entries without remote health check
   assert.equal(getIcloudHandoffMonitorStatus().lastResult?.recommendedBaseUrl, "https://monitor-new-lifeos.example.com");
 });
 
+test("iCloud startup refresh records local core restart state", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-startup-refresh-db-"));
+  const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-startup-refresh-drive-"));
+  t.after(async () => {
+    await rm(dataDir, { recursive: true, force: true });
+    await rm(icloudDir, { recursive: true, force: true });
+  });
+
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const { readFile } = await import("node:fs/promises");
+    const { exportIcloudHandoff } = await import("./server/networkDiagnostics.ts");
+    const { getIcloudHandoffMonitorStatus, runIcloudHandoffStartupRefresh } = await import("./server/icloudHandoffMonitor.ts");
+
+    const first = exportIcloudHandoff("test-initial-startup-refresh");
+    const firstPacket = JSON.parse(await readFile(first.packetFilePath, "utf8"));
+    process.env.PUBLIC_BASE_URL = "https://startup-new-lifeos.example.com";
+
+    const startupRun = runIcloudHandoffStartupRefresh("test-local-core-startup");
+    const status = getIcloudHandoffMonitorStatus();
+    const nextPacket = JSON.parse(await readFile(first.packetFilePath, "utf8"));
+    process.stdout.write(JSON.stringify({ firstPacket, startupRun, status, nextPacket }));
+  `], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      LIFEOS_DATA_DIR: dataDir,
+      LIFEOS_ICLOUD_DRIVE_DIR: icloudDir,
+      LIFEOS_FORCE_ICLOUD_HANDOFF: "1",
+      LIFEOS_PORT: "4567",
+      PUBLIC_BASE_URL: "https://startup-old-lifeos.example.com",
+      APP_URL: "",
+      LIFEOS_CLOUDFLARED_BIN: "/definitely/missing/cloudflared",
+      LIFEOS_TAILSCALE_BIN: "/definitely/missing/tailscale",
+      LIFEOS_ICLOUD_HANDOFF_MONITOR: "1",
+    },
+    encoding: "utf8",
+  });
+  const { firstPacket, startupRun, status, nextPacket } = JSON.parse(output);
+  assert.equal(firstPacket.baseUrl, "https://startup-old-lifeos.example.com");
+  assert.equal(startupRun.refreshed, true);
+  assert.equal(startupRun.refreshReason, "refreshed");
+  assert.equal(startupRun.status, "address-changed");
+  assert.equal(startupRun.previousStatus, "address-changed");
+  assert.equal(startupRun.recommendedBaseUrl, "https://startup-new-lifeos.example.com");
+  assert.equal(nextPacket.baseUrl, "https://startup-new-lifeos.example.com");
+  assert.equal(nextPacket.exportReason, "test-local-core-startup");
+  assert.equal(status.startupRunAt, startupRun.checkedAt);
+  assert.equal(status.startupRunReason, "test-local-core-startup");
+  assert.equal(status.startupResult.recommendedBaseUrl, "https://startup-new-lifeos.example.com");
+  assert.equal(status.lastResult.recommendedBaseUrl, "https://startup-new-lifeos.example.com");
+});
+
 test("iCloud handoff monitor refreshes after a phone reports an old entry", async (t) => {
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-phone-confirmation-refresh-db-"));
   const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-phone-confirmation-refresh-drive-"));

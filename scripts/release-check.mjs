@@ -1353,11 +1353,15 @@ function checkAssets() {
     networkDiagnosticsSource.includes("pairing-session-refresh") &&
     networkDiagnosticsSource.includes("previousPairingSessionStatus") &&
     icloudHandoffMonitorSource.includes("previousPairingSessionStatus") &&
+    icloudHandoffMonitorSource.includes("runIcloudHandoffStartupRefresh") &&
+    serverSource.includes("runIcloudHandoffStartupRefresh") &&
     lifeosApiSource.includes("pairingSession") &&
     lifeosApiSource.includes("expiring-soon") &&
     lifeosApiSource.includes("previousPairingSessionStatus") &&
+    lifeosApiSource.includes("startupRunAt") &&
     onboardingAppleRemoteSource.includes("icloudPairingSessionKeys") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorPairingSession") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorStartupRun") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudPairingExpired") &&
     onboardingAppleRemoteSource.includes("renderIcloudEventUrls") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEventEntryUrl") &&
@@ -1380,7 +1384,8 @@ function checkAssets() {
     lifeosApiSource.includes("acceptance?:") &&
     onboardingAppleRemoteSource.includes("icloudAcceptanceItemKeys") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceTitle") &&
-    networkDiagnosticsTestSource.includes("iCloud acceptance summary separates synced entry from real-device evidence")
+    networkDiagnosticsTestSource.includes("iCloud acceptance summary separates synced entry from real-device evidence") &&
+    networkDiagnosticsTestSource.includes("iCloud startup refresh records local core restart state")
   ) pass("iCloud diagnostics surface stale QR, account state, and Apple-device acceptance with UI and tests");
   else warn("iCloud diagnostics do not surface stale QR/account/acceptance state across API, UI, and tests");
   if (

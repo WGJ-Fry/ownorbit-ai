@@ -5,6 +5,9 @@ let monitorStartedAt: number | null = null;
 let nextRunAt: number | null = null;
 let lastRunAt: number | null = null;
 let lastResult: IcloudHandoffMonitorRun | null = null;
+let startupRunAt: number | null = null;
+let startupRunReason: string | null = null;
+let startupResult: IcloudHandoffMonitorRun | null = null;
 
 export type IcloudHandoffMonitorRun = {
   reason: string;
@@ -73,6 +76,14 @@ export function runIcloudHandoffRefreshCheck(reason = "manual"): IcloudHandoffMo
   }
 }
 
+export function runIcloudHandoffStartupRefresh(reason = "local-core-startup"): IcloudHandoffMonitorRun {
+  const result = runIcloudHandoffRefreshCheck(reason);
+  startupRunAt = result.checkedAt;
+  startupRunReason = reason;
+  startupResult = result;
+  return result;
+}
+
 export function startIcloudHandoffMonitor() {
   if (!monitorEnabled()) return;
   if (monitorTimer) return;
@@ -92,6 +103,9 @@ export function getIcloudHandoffMonitorStatus() {
     startedAt: monitorStartedAt,
     lastRunAt,
     nextRunAt: monitorTimer ? nextRunAt : null,
+    startupRunAt,
+    startupRunReason,
+    startupResult,
     lastResult,
   };
 }

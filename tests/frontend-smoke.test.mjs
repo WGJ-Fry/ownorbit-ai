@@ -240,7 +240,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(serverSource, /RUNNING_BUNDLED_SERVER/);
   assert.match(serverSource, /process\.env\.NODE_ENV !== "production" && !RUNNING_BUNDLED_SERVER/);
   assert.match(serverSource, /startIcloudHandoffMonitor/);
-  assert.match(serverSource, /runIcloudHandoffRefreshCheck/);
+  assert.match(serverSource, /runIcloudHandoffStartupRefresh/);
   assert.match(serverSource, /refreshIcloudHandoffAfterStartup\("local-core-startup"\)/);
   assert.match(serverSource, /refreshIcloudHandoffAfterStartup\("cloudflare-autostart"\)/);
   assert.match(serverSource, /refreshIcloudHandoffAfterStartup\("tailscale-autostart"\)/);
@@ -603,6 +603,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudMonitorPhoneConfirmation/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudMonitorPairingSession/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudMonitorTitle/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudMonitorStartupRun/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudMonitorStartupResult/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudMonitorLastEntry/);
   assert.match(onboardingAppleRemoteSource, /recommendedBaseUrl/);
   assert.match(onboardingAppleRemoteSource, /icloudLifecycle/);
@@ -666,6 +668,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /\/api\/v1\/admin\/icloud-handoff\/repair-packet/);
   assert.match(lifeosApiSource, /IcloudHandoffRepairAnalysis/);
   assert.match(lifeosApiSource, /icloudMonitor/);
+  assert.match(lifeosApiSource, /startupRunAt/);
+  assert.match(lifeosApiSource, /startupResult/);
   assert.match(lifeosApiSource, /previousPhoneConfirmationStatus/);
   assert.match(lifeosApiSource, /previousPairingSessionStatus/);
   assert.match(lifeosApiSource, /recommendedBaseUrl\?: string/);
