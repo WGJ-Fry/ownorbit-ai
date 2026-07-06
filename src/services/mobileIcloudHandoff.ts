@@ -1,8 +1,9 @@
-import type { MobileIcloudHandoffEventReportInput } from "./lifeosApi";
+import type { IcloudAutoRefreshResult, MobileIcloudHandoffEventReportInput } from "./lifeosApi";
 
 const STORAGE_KEY = "lifeos_mobile_icloud_handoff";
 const ENTRIES_STORAGE_KEY = "lifeos_mobile_icloud_handoff_entries";
 const PENDING_EVENTS_STORAGE_KEY = "lifeos_mobile_icloud_handoff_pending_events";
+const SERVER_REPAIR_STORAGE_KEY = "lifeos_mobile_icloud_handoff_server_repair";
 const MAX_STORED_HANDOFF_ENTRIES = 8;
 const MAX_PENDING_HANDOFF_EVENTS = 12;
 
@@ -61,6 +62,18 @@ export type MobileIcloudHandoffActionKey =
   | "mobileDevice.icloudHandoffActionReopen"
   | "mobileDevice.icloudHandoffActionMismatch";
 
+export type MobileIcloudHandoffServerRepairStatus = {
+  eventType: MobileIcloudHandoffEventReportInput["eventType"];
+  entryBaseUrl: string;
+  reportedAt: number;
+  reported: boolean;
+  pending: boolean;
+  pendingCount: number;
+  refreshed: boolean;
+  refreshReason: string;
+  requestedReason?: string;
+};
+
 type MobileConnectivityLike = {
   ok: boolean;
   currentBase: string;
@@ -94,6 +107,13 @@ const icloudHandoffEventTypes = [
   "opened-legacy-entry",
   "opened-address-mismatch-entry",
 ] as const;
+
+function normalizeIcloudHandoffEventType(value: unknown): MobileIcloudHandoffEventReportInput["eventType"] | "" {
+  const eventType = String(value || "").trim();
+  return icloudHandoffEventTypes.includes(eventType as typeof icloudHandoffEventTypes[number])
+    ? eventType as MobileIcloudHandoffEventReportInput["eventType"]
+    : "";
+}
 
 function safeStorage() {
   try {
@@ -228,6 +248,61 @@ function queuePendingIcloudHandoffEvent(event: MobileIcloudHandoffEventReportInp
   return next.length;
 }
 
+function normalizeServerRepairStatus(parsed: any): MobileIcloudHandoffServerRepairStatus | null {
+  if (!parsed || typeof parsed !== "object") return null;
+  const eventType = normalizeIcloudHandoffEventType(parsed.eventType);
+  const entryBaseUrl = normalizeBaseUrl(parsed.entryBaseUrl);
+  const reportedAt = Number(parsed.reportedAt || 0);
+  if (!eventType || !entryBaseUrl || !reportedAt) return null;
+  return {
+    eventType,
+    entryBaseUrl,
+    reportedAt,
+    reported: Boolean(parsed.reported),
+    pending: Boolean(parsed.pending),
+    pendingCount: Math.max(0, Number(parsed.pendingCount || 0)),
+    refreshed: Boolean(parsed.refreshed),
+    refreshReason: normalizeEntryText(parsed.refreshReason || "unknown", 80) || "unknown",
+    requestedReason: normalizeEntryText(parsed.requestedReason, 100) || undefined,
+  };
+}
+
+function writeServerRepairStatus(
+  event: MobileIcloudHandoffEventReportInput,
+  input: { reported: boolean; pending: boolean; pendingCount: number; icloudRefresh?: IcloudAutoRefreshResult | null },
+  now = Date.now(),
+) {
+  const record = normalizeServerRepairStatus({
+    eventType: event.eventType,
+    entryBaseUrl: event.entryBaseUrl,
+    reportedAt: now,
+    reported: input.reported,
+    pending: input.pending,
+    pendingCount: input.pendingCount,
+    refreshed: Boolean(input.icloudRefresh?.refreshed),
+    refreshReason: input.icloudRefresh?.reason || (input.pending ? "queued" : "reported"),
+    requestedReason: input.icloudRefresh?.requestedReason,
+  });
+  const storage = safeStorage();
+  if (!storage || !record) return record;
+  try {
+    storage.setItem(SERVER_REPAIR_STORAGE_KEY, JSON.stringify(record));
+  } catch {
+    // This status is only a local hint; pending event durability is handled separately.
+  }
+  return record;
+}
+
+export function getMobileIcloudHandoffServerRepairStatus() {
+  const storage = safeStorage();
+  if (!storage) return null;
+  try {
+    return normalizeServerRepairStatus(JSON.parse(storage.getItem(SERVER_REPAIR_STORAGE_KEY) || "null"));
+  } catch {
+    return null;
+  }
+}
+
 export function getPendingMobileIcloudHandoffEventCount() {
   return readPendingIcloudHandoffEvents().length;
 }
@@ -239,32 +314,47 @@ async function reportOrQueueIcloudHandoffEvent(
 ) {
   const reportIcloudHandoffEvent = reporter || (await import("./lifeosApi")).reportMobileIcloudHandoffEvent;
   try {
-    await reportIcloudHandoffEvent(event);
+    const response = await reportIcloudHandoffEvent(event) as { icloudRefresh?: IcloudAutoRefreshResult } | undefined;
     const storage = safeStorage();
     if (storage) {
       const next = readPendingIcloudHandoffEvents(storage).filter((item) => mobileIcloudEventKey(item) !== mobileIcloudEventKey(event));
       writePendingIcloudHandoffEvents(next, storage);
-      return { reported: true, pendingCount: next.length };
+      return {
+        reported: true,
+        pendingCount: next.length,
+        serverRepair: writeServerRepairStatus(event, { reported: true, pending: false, pendingCount: next.length, icloudRefresh: response?.icloudRefresh }, now),
+      };
     }
-    return { reported: true, pendingCount: 0 };
+    return {
+      reported: true,
+      pendingCount: 0,
+      serverRepair: writeServerRepairStatus(event, { reported: true, pending: false, pendingCount: 0, icloudRefresh: response?.icloudRefresh }, now),
+    };
   } catch {
-    return { reported: false, pendingCount: queuePendingIcloudHandoffEvent(event, now) };
+    const pendingCount = queuePendingIcloudHandoffEvent(event, now);
+    return {
+      reported: false,
+      pendingCount,
+      serverRepair: writeServerRepairStatus(event, { reported: false, pending: true, pendingCount }, now),
+    };
   }
 }
 
 export async function flushPendingMobileIcloudHandoffEvents(reporter?: (event: MobileIcloudHandoffEventReportInput) => Promise<unknown>, now = Date.now()) {
   const storage = safeStorage();
-  if (!storage) return { attempted: 0, reported: 0, remaining: 0 };
+  if (!storage) return { attempted: 0, reported: 0, remaining: 0, serverRepair: null };
   const pending = readPendingIcloudHandoffEvents(storage);
-  if (!pending.length) return { attempted: 0, reported: 0, remaining: 0 };
+  if (!pending.length) return { attempted: 0, reported: 0, remaining: 0, serverRepair: getMobileIcloudHandoffServerRepairStatus() };
   const reportIcloudHandoffEvent = reporter || (await import("./lifeosApi")).reportMobileIcloudHandoffEvent;
   const remaining: PendingMobileIcloudHandoffEvent[] = [];
   let reported = 0;
+  let serverRepair: MobileIcloudHandoffServerRepairStatus | null = null;
   for (const item of pending) {
     const { queuedAt, attempts, lastTriedAt, ...event } = item;
     try {
-      await reportIcloudHandoffEvent(event);
+      const response = await reportIcloudHandoffEvent(event) as { icloudRefresh?: IcloudAutoRefreshResult } | undefined;
       reported += 1;
+      serverRepair = writeServerRepairStatus(event, { reported: true, pending: false, pendingCount: 0, icloudRefresh: response?.icloudRefresh }, now);
     } catch {
       remaining.push({
         ...item,
@@ -274,7 +364,7 @@ export async function flushPendingMobileIcloudHandoffEvents(reporter?: (event: M
     }
   }
   writePendingIcloudHandoffEvents(remaining, storage);
-  return { attempted: pending.length, reported, remaining: remaining.length };
+  return { attempted: pending.length, reported, remaining: remaining.length, serverRepair };
 }
 
 export function parseMobileIcloudHandoffFromUrl(href?: string, now = Date.now()): MobileIcloudHandoffEntry | null {

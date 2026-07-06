@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Copy, RefreshCw, Trash2, Wifi } from "lucide-react";
 import type { DeviceConnectivityReport } from "../../services/lifeosApi";
-import type { MobileIcloudHandoffEntry, MobileIcloudHandoffStatus } from "../../services/mobileIcloudHandoff";
+import type { MobileIcloudHandoffEntry, MobileIcloudHandoffServerRepairStatus, MobileIcloudHandoffStatus } from "../../services/mobileIcloudHandoff";
 import { buildMobileIcloudHandoffRecoveryPacket, buildMobileIcloudHandoffUrl, forgetStoredMobileIcloudHandoffEntry, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffEntryFreshness, getStoredMobileIcloudHandoffEntries } from "../../services/mobileIcloudHandoff";
 import type { OfflineMessageQueueSummary } from "../../services/offlineMessageQueue";
 import type { MobileConnectivityIssueKey, MobileConnectivityResult, MobileRecoveryHintKey, RemoteEntryStatus } from "../../services/pwaCapabilities";
@@ -39,6 +39,7 @@ export default function MobileRemoteEntryCard({
   currentEntryGuidance,
   healthNetworkMode,
   icloudHandoffStatus,
+  icloudServerRepair,
   lastConnectivityHints,
   lastConnectivityIssue,
   lastConnectivityReport,
@@ -54,6 +55,7 @@ export default function MobileRemoteEntryCard({
   currentEntryGuidance: MobileRecoveryHintKey[];
   healthNetworkMode?: string;
   icloudHandoffStatus: MobileIcloudHandoffStatus | null;
+  icloudServerRepair: MobileIcloudHandoffServerRepairStatus | null;
   lastConnectivityHints: MobileRecoveryHintKey[];
   lastConnectivityIssue: MobileConnectivityIssueKey | null;
   lastConnectivityReport: DeviceConnectivityReport | null;
@@ -70,6 +72,11 @@ export default function MobileRemoteEntryCard({
   const latestConnectivityOk = Boolean(lastConnectivityReport?.ok && !connectivityReportStale);
   const remoteReady = currentEntry.okForRemote && latestConnectivityOk && !queueWaiting;
   const icloudTone = icloudHandoffStatus?.needsRefresh ? "border-amber-400/20 bg-amber-500/10 text-amber-100" : "border-emerald-400/20 bg-emerald-500/10 text-emerald-100";
+  const icloudServerRepairTone = icloudServerRepair?.pending
+    ? "border-amber-400/20 bg-amber-500/10 text-amber-100"
+    : icloudServerRepair?.refreshed
+    ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100"
+    : "border-sky-400/20 bg-sky-500/10 text-sky-100";
   const icloudActionKey = icloudHandoffStatus ? getMobileIcloudHandoffActionKey(icloudHandoffStatus) : null;
   const copyIcloudRecoveryPacket = async () => {
     if (!icloudHandoffStatus) return;
@@ -131,6 +138,23 @@ export default function MobileRemoteEntryCard({
           <div className="font-bold">{t(icloudHandoffStatus.titleKey as any)}</div>
           <div className="mt-1 opacity-80">{t(icloudHandoffStatus.bodyKey as any)}</div>
           {icloudActionKey ? <div className="mt-2 rounded-xl border border-white/[0.08] bg-black/10 p-2 text-xs font-bold">{t(icloudActionKey as any)}</div> : null}
+          {icloudServerRepair ? (
+            <div className={`mt-3 rounded-xl border p-2 text-xs ${icloudServerRepairTone}`}>
+              <div className="font-bold">
+                {icloudServerRepair.pending
+                  ? t("mobileDevice.icloudHandoffDesktopRepairQueued")
+                  : icloudServerRepair.refreshed
+                  ? t("mobileDevice.icloudHandoffDesktopRepairRefreshed")
+                  : t("mobileDevice.icloudHandoffDesktopRepairReported")}
+              </div>
+              <div className="mt-1 opacity-80">
+                {t("mobileDevice.icloudHandoffDesktopRepairDetail", {
+                  reason: icloudServerRepair.refreshReason,
+                  time: new Date(icloudServerRepair.reportedAt).toLocaleString(),
+                })}
+              </div>
+            </div>
+          ) : null}
           {icloudEntries.length > 1 ? (
             <div className="mt-3 rounded-xl border border-white/[0.08] bg-black/10 p-2 text-xs">
               <div className="font-bold">{t("mobileDevice.icloudHandoffKnownDesktops")}</div>

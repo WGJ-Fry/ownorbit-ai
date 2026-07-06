@@ -529,7 +529,7 @@ test("mobile iCloud handoff launch reports stale entries to the desktop", async 
   installLocalStorage();
   t.after(cleanupLocalStorage);
   const now = 1_800_000_300_000;
-  const { handleMobileIcloudHandoffLaunch } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-stale-report-${Date.now()}`);
+  const { getMobileIcloudHandoffServerRepairStatus, handleMobileIcloudHandoffLaunch } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-stale-report-${Date.now()}`);
   let icloudEvent = null;
   const href = [
     "https://lifeos.example.com/mobile/chat?lifeosEntry=icloud",
@@ -561,7 +561,7 @@ test("mobile iCloud handoff launch reports stale entries to the desktop", async 
     reportConnectivity: async () => ({ ok: true }),
     reportIcloudHandoffEvent: async (event) => {
       icloudEvent = event;
-      return { ok: true };
+      return { ok: true, icloudRefresh: { refreshed: true, reason: "refreshed", requestedReason: "device-icloud-handoff-opened-stale-entry" } };
     },
   });
 
@@ -575,6 +575,12 @@ test("mobile iCloud handoff launch reports stale entries to the desktop", async 
   assert.equal(icloudEvent.storedGeneratedAt, now - 120_000);
   assert.equal(icloudEvent.checksumSha256, "f".repeat(64));
   assert.equal(icloudEvent.ignoredAt, now);
+  const serverRepair = getMobileIcloudHandoffServerRepairStatus();
+  assert.equal(serverRepair.reported, true);
+  assert.equal(serverRepair.pending, false);
+  assert.equal(serverRepair.refreshed, true);
+  assert.equal(serverRepair.refreshReason, "refreshed");
+  assert.equal(serverRepair.requestedReason, "device-icloud-handoff-opened-stale-entry");
 });
 
 test("mobile iCloud handoff queues failed desktop reports and flushes them later", async (t) => {
@@ -583,6 +589,7 @@ test("mobile iCloud handoff queues failed desktop reports and flushes them later
   const now = 1_800_000_360_000;
   const {
     flushPendingMobileIcloudHandoffEvents,
+    getMobileIcloudHandoffServerRepairStatus,
     getPendingMobileIcloudHandoffEventCount,
     handleMobileIcloudHandoffLaunch,
   } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-pending-reports-${Date.now()}`);
@@ -623,11 +630,12 @@ test("mobile iCloud handoff queues failed desktop reports and flushes them later
   assert.equal(launch.icloudEventType, "opened-stale-entry");
   assert.equal(launch.pendingIcloudEventCount, 1);
   assert.equal(getPendingMobileIcloudHandoffEventCount(), 1);
+  assert.equal(getMobileIcloudHandoffServerRepairStatus().pending, true);
 
   const reported = [];
   const flush = await flushPendingMobileIcloudHandoffEvents(async (event) => {
     reported.push(event);
-    return { ok: true };
+    return { ok: true, icloudRefresh: { refreshed: false, reason: "fresh", requestedReason: "device-icloud-handoff-opened-stale-entry" } };
   }, now + 1_000);
 
   assert.equal(flush.attempted, 1);
@@ -640,6 +648,10 @@ test("mobile iCloud handoff queues failed desktop reports and flushes them later
   assert.equal(reported[0].storedBaseUrl, "https://lifeos.example.com");
   assert.equal(reported[0].entryGeneratedAt, now - 120_000);
   assert.equal(reported[0].checksumSha256, "e".repeat(64));
+  assert.equal(flush.serverRepair.reported, true);
+  assert.equal(flush.serverRepair.pending, false);
+  assert.equal(flush.serverRepair.refreshReason, "fresh");
+  assert.equal(getMobileIcloudHandoffServerRepairStatus().refreshReason, "fresh");
 });
 
 test("mobile iCloud handoff launch flushes queued reports even without a new entry URL", async (t) => {

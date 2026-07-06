@@ -1324,6 +1324,7 @@ function checkAssets() {
   const mobileDeviceHealthSummarySource = exists("src/pages/mobile/MobileDeviceHealthSummary.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileDeviceHealthSummary.tsx"), "utf8") : "";
   const mobileDeviceStatusCardsSource = exists("src/pages/mobile/MobileDeviceStatusCards.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileDeviceStatusCards.tsx"), "utf8") : "";
   const mobileRemoteEntryCardSource = exists("src/pages/mobile/MobileRemoteEntryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileRemoteEntryCard.tsx"), "utf8") : "";
+  const mobilePwaCapabilitiesCardSource = exists("src/pages/mobile/MobilePwaCapabilitiesCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobilePwaCapabilitiesCard.tsx"), "utf8") : "";
   if (
     mobileDeviceStatusCardsSource.includes("mobileDevice.pastePairingLink") &&
     mobileDeviceSource.includes("mobileDevice.rebindButton") &&
@@ -1452,10 +1453,14 @@ function checkAssets() {
     translationsSource.includes("Phone just opened an old entry") &&
     translationsSource.includes("refresh the iCloud mobile entry and generate a fresh pairing QR") &&
     mobileIcloudHandoffSource.includes("PENDING_EVENTS_STORAGE_KEY") &&
+    mobileIcloudHandoffSource.includes("SERVER_REPAIR_STORAGE_KEY") &&
     mobileIcloudHandoffSource.includes("flushPendingMobileIcloudHandoffEvents") &&
+    mobileIcloudHandoffSource.includes("getMobileIcloudHandoffServerRepairStatus") &&
     mobileIcloudHandoffSource.includes("reportOrQueueIcloudHandoffEvent") &&
     mobileDeviceSource.includes("flushPendingMobileIcloudHandoffEvents") &&
+    mobileDeviceSource.includes("icloudServerRepair") &&
     pwaCapabilitiesTestSource.includes("queues failed desktop reports and flushes them later") &&
+    pwaCapabilitiesTestSource.includes("getMobileIcloudHandoffServerRepairStatus") &&
     pwaCapabilitiesTestSource.includes("flushes queued reports even without a new entry URL") &&
     apiAuthTestSource.includes("/api/v1/internal/icloud-handoff/refresh") &&
     apiAuthTestSource.includes("desktopInternalToken")
@@ -1823,7 +1828,10 @@ function checkAssets() {
     pwaCapabilitiesSource.includes("serviceWorkerControlled") &&
     pwaCapabilitiesSource.includes("backgroundSyncSupported") &&
     pwaCapabilitiesSource.includes("indexedDbSupported") &&
-    mobileDeviceSource.includes("mobileDevice.pwaTitle") &&
+    mobileDeviceSource.includes("MobilePwaCapabilitiesCard") &&
+    mobilePwaCapabilitiesCardSource.includes("mobileDevice.pwaTitle") &&
+    mobilePwaCapabilitiesCardSource.includes("pwaCapabilities.recommendations") &&
+    mobilePwaCapabilitiesCardSource.includes("pwaRecommendationKey") &&
     mobileDeviceSource.includes("MobileDeviceHealthSummary") &&
     mobileDeviceSource.includes("queueStorage={queueStorage}") &&
     mobileDeviceHealthSummarySource.includes("mobileDevice.healthTitle") &&
@@ -1896,10 +1904,10 @@ function checkAssets() {
     translationsSource.includes("mobileDevice.lastConnectivityStatus") &&
     translationsSource.includes("Report freshness") &&
     translationsSource.includes("mobileDevice.connectivitySteps") &&
-    mobileDeviceSource.includes("pwaCapabilities.recommendations") &&
-    mobileDeviceSource.includes("pwaRecommendationKey") &&
-    mobileDeviceSource.includes("mobileDevice.pwaRecommendation.addToHome") &&
-    mobileDeviceSource.includes("mobileDevice.pwaRecommendation.indexedDbUnavailable") &&
+    mobilePwaCapabilitiesCardSource.includes("pwaCapabilities.recommendations") &&
+    mobilePwaCapabilitiesCardSource.includes("pwaRecommendationKey") &&
+    mobilePwaCapabilitiesCardSource.includes("mobileDevice.pwaRecommendation.addToHome") &&
+    mobilePwaCapabilitiesCardSource.includes("mobileDevice.pwaRecommendation.indexedDbUnavailable") &&
     adminDashboardSource.includes("connectivityReport") &&
     adminDashboardSource.includes("DeviceConnectivityStatus") &&
     deviceConnectivityStatusSource.includes("mobileShellOk") &&
@@ -1930,6 +1938,7 @@ function checkAssets() {
     pwaCapabilitiesTestSource.includes("remote entry guidance is visible before manual connectivity tests") &&
     pwaCapabilitiesTestSource.includes("stored mobile connectivity reports restore actionable recovery diagnostics") &&
     pwaCapabilitiesTestSource.includes("degraded offline sync support") &&
+    frontendSmokeTestSource.includes("MobilePwaCapabilitiesCard") &&
     frontendSmokeTestSource.includes("mobileDevice\\.pwaTitle") &&
     frontendSmokeTestSource.includes("getRemoteEntryGuidance") &&
     frontendSmokeTestSource.includes("mobileConnectivityResultFromReport") &&

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowLeft, Download, KeyRound, LogOut, RefreshCw, ShieldCheck, Smartphone } from "lucide-react";
+import { AlertTriangle, ArrowLeft, KeyRound, LogOut, RefreshCw, ShieldCheck, Smartphone } from "lucide-react";
 import { clearStoredDeviceCredential, getHealth, getLatestMobileConnectivityReport, getStoredDeviceCredential, getStoredDeviceCredentialAsync, getStoredDeviceCredentialExpiryStatus, getStoredDeviceCredentialStorageStatus, reportMobileConnectivity, revokeCurrentDeviceBinding, rotateDeviceToken } from "../../services/lifeosApi";
 import type { DeviceConnectivityReport, DeviceCredentialStorageStatus } from "../../services/lifeosApi";
 import { clearOfflineMessageQueue, getOfflineMessageConflictGroups, getOfflineMessageQueue, getOfflineMessageQueueRecoverySummary, getOfflineMessageQueueStorageStatus, getOfflineMessageQueueSummary, removeFailedOfflineMessages, removeOfflineMessages, requestOfflineMessageQueuePersistentStorage, resolveOfflineMessageConflictGroup, retryFailedOfflineMessages, retryOfflineMessage, subscribeOfflineMessageQueue } from "../../services/offlineMessageQueue";
@@ -10,25 +10,17 @@ import { getMobileConnectivityIssue, getMobileRecoveryHints, getPwaCapabilitySta
 import type { MobileConnectivityResult } from "../../services/pwaCapabilities";
 import { getPwaServiceWorkerLifecycleStatus, subscribePwaServiceWorkerLifecycle } from "../../services/pwaServiceWorkerLifecycle";
 import type { PwaServiceWorkerLifecycleStatus } from "../../services/pwaServiceWorkerLifecycle";
-import { flushPendingMobileIcloudHandoffEvents, getMobileIcloudHandoffStatus, handleMobileIcloudHandoffLaunch } from "../../services/mobileIcloudHandoff";
+import { flushPendingMobileIcloudHandoffEvents, getMobileIcloudHandoffServerRepairStatus, getMobileIcloudHandoffStatus, handleMobileIcloudHandoffLaunch } from "../../services/mobileIcloudHandoff";
+import type { MobileIcloudHandoffServerRepairStatus } from "../../services/mobileIcloudHandoff";
 import MobileConnectionRecoveryCard from "./MobileConnectionRecoveryCard";
 import MobileDeviceHealthSummary from "./MobileDeviceHealthSummary";
 import MobileGeneratedToolsCard from "./MobileGeneratedToolsCard";
 import MobileOfflineQueueRecoveryCard from "./MobileOfflineQueueRecoveryCard";
 import MobileOfflineQueuePanel from "./MobileOfflineQueuePanel";
 import MobileRemoteEntryCard from "./MobileRemoteEntryCard";
-import { CapabilityRow, CredentialExpiryCard, CredentialStorageCard, PairingLinkPanel, Row } from "./MobileDeviceStatusCards";
+import MobilePwaCapabilitiesCard from "./MobilePwaCapabilitiesCard";
+import { CredentialExpiryCard, CredentialStorageCard, PairingLinkPanel, Row } from "./MobileDeviceStatusCards";
 import { useI18n } from "../../i18n/I18nProvider";
-
-function pwaRecommendationKey(recommendation: string) {
-  if (recommendation.includes("add LifeOS to the home screen")) return "mobileDevice.pwaRecommendation.addToHome";
-  if (recommendation.includes("does not support the offline shell")) return "mobileDevice.pwaRecommendation.offlineShellUnsupported";
-  if (recommendation.includes("offline shell is taking control")) return "mobileDevice.pwaRecommendation.refreshForShell";
-  if (recommendation.includes("background sync is unavailable")) return "mobileDevice.pwaRecommendation.openChatToSync";
-  if (recommendation.includes("IndexedDB is unavailable")) return "mobileDevice.pwaRecommendation.indexedDbUnavailable";
-  if (recommendation.includes("You are offline")) return "mobileDevice.pwaRecommendation.offlineQueue";
-  return "";
-}
 
 export default function MobileDevicePage() {
   const { t } = useI18n();
@@ -48,6 +40,7 @@ export default function MobileDevicePage() {
   const [connectivityTest, setConnectivityTest] = useState<MobileConnectivityResult | null>(null);
   const [lastConnectivityReport, setLastConnectivityReport] = useState<DeviceConnectivityReport | null>(null);
   const [icloudHandoffStatus, setIcloudHandoffStatus] = useState(() => getMobileIcloudHandoffStatus());
+  const [icloudServerRepair, setIcloudServerRepair] = useState<MobileIcloudHandoffServerRepairStatus | null>(() => getMobileIcloudHandoffServerRepairStatus());
   const [connectivityBusy, setConnectivityBusy] = useState(false);
   const [serverRefreshBusy, setServerRefreshBusy] = useState(false);
   const pairingPanelRef = useRef<HTMLDivElement | null>(null);
@@ -78,6 +71,7 @@ export default function MobileDevicePage() {
       if (reportResult.status === "fulfilled") setLastConnectivityReport(reportResult.value.report);
       await flushPendingMobileIcloudHandoffEvents().catch(() => null);
       setIcloudHandoffStatus(getMobileIcloudHandoffStatus());
+      setIcloudServerRepair(getMobileIcloudHandoffServerRepairStatus());
       if (options.announce) setStatus(t("mobileDevice.serverStateRefreshed"));
     } catch (error: any) {
       if (options.announce) setStatus(error.message || t("mobileDevice.serverStateRefreshFailed"));
@@ -91,12 +85,22 @@ export default function MobileDevicePage() {
   };
 
   useEffect(() => {
-    void handleMobileIcloudHandoffLaunch().finally(() => setIcloudHandoffStatus(getMobileIcloudHandoffStatus()));
+    void handleMobileIcloudHandoffLaunch().finally(() => {
+      setIcloudHandoffStatus(getMobileIcloudHandoffStatus());
+      setIcloudServerRepair(getMobileIcloudHandoffServerRepairStatus());
+    });
     setIcloudHandoffStatus(getMobileIcloudHandoffStatus());
+    setIcloudServerRepair(getMobileIcloudHandoffServerRepairStatus());
     let cancelled = false;
     getStoredDeviceCredentialAsync().then((next) => {
       if (!cancelled) setCredential(next);
-      if (next) void flushPendingMobileIcloudHandoffEvents().finally(() => !cancelled && setIcloudHandoffStatus(getMobileIcloudHandoffStatus()));
+      if (next) {
+        void flushPendingMobileIcloudHandoffEvents().finally(() => {
+          if (cancelled) return;
+          setIcloudHandoffStatus(getMobileIcloudHandoffStatus());
+          setIcloudServerRepair(getMobileIcloudHandoffServerRepairStatus());
+        });
+      }
       return refreshCredentialStorage();
     });
     refreshServiceWorkerLifecycle();
@@ -141,6 +145,7 @@ export default function MobileDevicePage() {
     setNetwork(getNetworkStatus());
     setPwaCapabilities(getPwaCapabilityStatus());
     setIcloudHandoffStatus(getMobileIcloudHandoffStatus());
+    setIcloudServerRepair(getMobileIcloudHandoffServerRepairStatus());
     refreshServiceWorkerLifecycle();
     refreshQueue();
     void refreshServerState();
@@ -434,46 +439,7 @@ export default function MobileDevicePage() {
             </div>
           )}
         </section>
-        <section className="mt-4 rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
-          <div className="mb-4 flex items-start gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-500/10">
-              <Download className="h-5 w-5 text-cyan-300" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold">{t("mobileDevice.pwaTitle")}</h2>
-              <p className="mt-1 text-sm leading-relaxed text-zinc-400">
-                {t("mobileDevice.pwaBody")}
-              </p>
-            </div>
-          </div>
-          <div className="grid gap-2 text-sm">
-            <CapabilityRow label={t("mobileDevice.standaloneMode")} ok={pwaCapabilities.standalone} value={pwaCapabilities.standalone ? t("mobileDevice.startedFromIcon") : t("mobileDevice.browserTab")} />
-            <CapabilityRow label="Service Worker" ok={pwaCapabilities.serviceWorkerSupported && pwaCapabilities.serviceWorkerControlled} value={pwaCapabilities.serviceWorkerControlled ? t("mobileDevice.offlineShellControlled") : pwaCapabilities.serviceWorkerSupported ? t("mobileDevice.supportedWaiting") : t("mobileDevice.unsupported")} />
-            <CapabilityRow label="Background Sync" ok={pwaCapabilities.backgroundSyncSupported} value={pwaCapabilities.backgroundSyncSupported ? t("mobileDevice.backgroundSyncOk") : t("mobileDevice.openChatToSync")} />
-            <CapabilityRow label="IndexedDB" ok={pwaCapabilities.indexedDbSupported} value={pwaCapabilities.indexedDbSupported ? t("mobileDevice.indexedDbCredentialOk") : t("mobileDevice.unavailable")} />
-            {swLifecycle ? (
-              <CapabilityRow label={t("mobileDevice.swLifecycle")} ok={swLifecycle.tone === "ok"} value={t(swLifecycle.titleKey as any)} />
-            ) : null}
-          </div>
-          {swLifecycle ? (
-            <div className={`mt-4 rounded-2xl border p-3 text-xs leading-relaxed ${swLifecycle.tone === "ok" ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100" : swLifecycle.tone === "warn" ? "border-amber-400/20 bg-amber-500/10 text-amber-100" : "border-red-400/20 bg-red-500/10 text-red-100"}`}>
-              <div className="font-bold">{t(swLifecycle.titleKey as any)}</div>
-              <div className="mt-1 opacity-80">{t(swLifecycle.bodyKey as any)}</div>
-            </div>
-          ) : null}
-          {pwaCapabilities.recommendations.length ? (
-            <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-100">
-              {pwaCapabilities.recommendations.map((recommendation) => {
-                const key = pwaRecommendationKey(recommendation);
-                return <div key={recommendation}>{key ? t(key as any) : recommendation}</div>;
-              })}
-            </div>
-          ) : (
-            <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-xs leading-relaxed text-emerald-100">
-              {t("mobileDevice.capabilityComplete")}
-            </div>
-          )}
-        </section>
+        <MobilePwaCapabilitiesCard pwaCapabilities={pwaCapabilities} swLifecycle={swLifecycle} />
         <MobileRemoteEntryCard
           connectivityBusy={connectivityBusy}
           connectivityReportStale={connectivityReportStale}
@@ -482,6 +448,7 @@ export default function MobileDevicePage() {
           currentEntryGuidance={currentEntryGuidance}
           healthNetworkMode={health?.networkMode}
           icloudHandoffStatus={icloudHandoffStatus}
+          icloudServerRepair={icloudServerRepair}
           lastConnectivityHints={lastConnectivityHints}
           lastConnectivityIssue={lastConnectivityIssue}
           lastConnectivityReport={lastConnectivityReport}
