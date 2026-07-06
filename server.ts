@@ -22,7 +22,7 @@ import { runMigrations } from "./server/migrations";
 import { redactApiErrorResponses, requireCsrf, securityHeaders } from "./server/httpSecurity";
 import { startBackupScheduler } from "./server/backupSchedule";
 import { maybeStartConfiguredCloudflareTunnel } from "./server/cloudflareTunnel";
-import { maybeStartConfiguredTailscaleServe } from "./server/networkDiagnostics";
+import { maybeRefreshIcloudHandoff, maybeStartConfiguredTailscaleServe } from "./server/networkDiagnostics";
 import { startRemoteHealthMonitor } from "./server/remoteHealthMonitor";
 import { getInstallPairingToken, htmlWithInstallPairingManifest, htmlWithPublicBaseHref, setInstallPairingIntentCookie } from "./server/mobileInstall";
 import { getConfiguredPublicBasePath } from "./server/publicBaseUrl";
@@ -163,11 +163,13 @@ async function startServer() {
 
   server.listen(PORT, HOST, () => {
     console.log(`Server running on http://${HOST === "0.0.0.0" ? "localhost" : HOST}:${PORT}`);
+    refreshIcloudHandoffAfterStartup("local-core-startup");
     maybeStartConfiguredCloudflareTunnel(String(PORT))
       .then((result) => {
         if (result.started && result.tunnel.url) {
           console.log(`Cloudflare Tunnel running at ${result.tunnel.url}`);
         }
+        refreshIcloudHandoffAfterStartup("cloudflare-autostart");
       })
       .catch((error) => {
         console.warn("Cloudflare Tunnel autostart failed:", error?.message || error);
@@ -177,6 +179,7 @@ async function startServer() {
       if (tailscale.started && tailscale.serve?.url) {
         console.log(`Tailscale HTTPS Serve running at ${tailscale.serve.url}`);
       }
+      refreshIcloudHandoffAfterStartup("tailscale-autostart");
     } catch (error: any) {
       console.warn("Tailscale HTTPS Serve autostart failed:", error?.message || error);
     }
@@ -190,6 +193,17 @@ async function startServer() {
   };
   process.once("SIGTERM", shutdown);
   process.once("SIGINT", shutdown);
+}
+
+function refreshIcloudHandoffAfterStartup(reason: string) {
+  try {
+    const result = maybeRefreshIcloudHandoff(reason);
+    if (result.refreshed) {
+      console.log(`iCloud mobile entry refreshed after ${reason}: ${result.recommendedBaseUrl || "updated"}`);
+    }
+  } catch (error: any) {
+    console.warn("iCloud mobile entry startup refresh failed:", error?.message || error);
+  }
 }
 
 startServer();

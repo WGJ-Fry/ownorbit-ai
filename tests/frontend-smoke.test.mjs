@@ -239,6 +239,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.doesNotMatch(indexHtmlSource, /href="\/icons\//);
   assert.match(serverSource, /RUNNING_BUNDLED_SERVER/);
   assert.match(serverSource, /process\.env\.NODE_ENV !== "production" && !RUNNING_BUNDLED_SERVER/);
+  assert.match(serverSource, /maybeRefreshIcloudHandoff/);
+  assert.match(serverSource, /refreshIcloudHandoffAfterStartup\("local-core-startup"\)/);
+  assert.match(serverSource, /refreshIcloudHandoffAfterStartup\("cloudflare-autostart"\)/);
+  assert.match(serverSource, /refreshIcloudHandoffAfterStartup\("tailscale-autostart"\)/);
 
   const appSource = await readFile(path.join(rootDir, "src", "App.tsx"), "utf8");
   assert.match(appSource, /useOfflineQueueSync\(flushOfflineMessages, \{/);
