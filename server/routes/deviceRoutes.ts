@@ -6,6 +6,7 @@ import { getRequestActor } from "../auth";
 import { BindingSession, DeviceRecord, confirmBindingSession, getBindingSessionById, getDevice, getDevices, getLatestDeviceConnectivityReport, getLatestDeviceIcloudHandoffEvent, getOpenBindingSessionByToken, insertBindingSession, insertDevice, insertDeviceConnectivityReport, insertDeviceIcloudHandoffEvent, pruneExpiredBindingSessions, revokeDeviceRecord, rotateDeviceToken } from "../devices";
 import { getDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { rateLimit } from "../httpSecurity";
+import { maybeRefreshIcloudHandoff } from "../networkDiagnostics";
 import { getConfiguredPublicBaseUrl, isTemporaryTryCloudflareUrl, normalizePublicBaseUrl } from "../publicBaseUrl";
 import { broadcastRealtime, closeDeviceConnection, isDeviceOnline, sendRealtimeToDevice } from "../realtime";
 import { createSecret, tokenHash } from "../security";
@@ -145,6 +146,20 @@ function pairingInstallUrl(baseUrl: string, token: string) {
   return `${baseUrl}/mobile/install/${encodeURIComponent(token)}`;
 }
 
+function safeRefreshIcloudForBinding(reason: string) {
+  try {
+    return maybeRefreshIcloudHandoff(reason);
+  } catch (error: any) {
+    return {
+      refreshed: false,
+      reason: "error",
+      requestedReason: reason,
+      status: "unknown",
+      error: String(error?.message || error || "iCloud Handoff refresh failed").slice(0, 240),
+    };
+  }
+}
+
 function revokeDevice(device: DeviceRecord, actor: { type: string; id: string }, reason: "admin" | "self") {
   const revokedAt = Date.now();
   const wasOnline = isDeviceOnline(device.id);
@@ -193,10 +208,21 @@ export function registerDeviceRoutes(app: express.Express) {
     try {
       pruneExpiredBindingSessions(now);
       insertBindingSession(session);
+      const icloudRefresh = safeRefreshIcloudForBinding("binding-session-created");
       insertAuditLog("binding_session_created", "binding_session", session.id, {
         baseUrl,
         expiresAt: session.expiresAt,
+        icloudRefresh,
       }, (req as any).actor?.type, (req as any).actor?.id);
+      return res.json({
+        id: session.id,
+        token,
+        expiresAt: session.expiresAt,
+        baseUrl,
+        pairingUrl: pairingInstallUrl(baseUrl, token),
+        localName: process.env.LIFEOS_DEVICE_NAME || "LifeOS Local Core",
+        icloudRefresh,
+      });
     } catch (error: any) {
       console.error("Failed to create binding session:", error?.message || error);
       return res.status(500).json({
@@ -204,15 +230,6 @@ export function registerDeviceRoutes(app: express.Express) {
         error: "Failed to generate the mobile pairing QR code. Restart LifeOS AI to finish the local data upgrade, then try again.",
       });
     }
-
-    res.json({
-      id: session.id,
-      token,
-      expiresAt: session.expiresAt,
-      baseUrl,
-      pairingUrl: pairingInstallUrl(baseUrl, token),
-      localName: process.env.LIFEOS_DEVICE_NAME || "LifeOS Local Core",
-    });
   });
 
   app.get("/api/v1/devices/bind/:bindingId", requireAdmin, (req, res) => {

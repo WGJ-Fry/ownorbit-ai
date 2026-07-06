@@ -627,6 +627,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(desktopConnectionConfig.config.host, "0.0.0.0");
   assert.equal(desktopConnectionConfig.config.allowPublic, true);
   assert.equal(desktopConnectionConfig.config.publicBaseUrl, "https://desktop-config.example.com/mobile");
+  assert.equal(desktopConnectionConfig.icloudRefresh.requestedReason, "desktop-connection-config-saved");
+  assert.equal(typeof desktopConnectionConfig.icloudRefresh.refreshed, "boolean");
   assert.equal(JSON.stringify(desktopConnectionConfig).includes("desktop-secret"), false);
   assert.equal(JSON.stringify(desktopConnectionConfig).includes("user:password"), false);
   const networkDiagnosticsAfterDesktopConfig = await request(port, "/api/v1/admin/network-diagnostics", { headers: adminHeaders }).then((res) => res.json());
@@ -649,6 +651,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     headers: adminHeaders,
     body: JSON.stringify({}),
   }).then((res) => res.json());
+  assert.equal(defaultBindingAfterStaleTemporaryCloudflare.icloudRefresh.requestedReason, "binding-session-created");
+  assert.equal(typeof defaultBindingAfterStaleTemporaryCloudflare.icloudRefresh.refreshed, "boolean");
   assert.notEqual(defaultBindingAfterStaleTemporaryCloudflare.baseUrl, "https://old-lifeos.trycloudflare.com");
   assert.equal(defaultBindingAfterStaleTemporaryCloudflare.pairingUrl.includes("old-lifeos.trycloudflare.com"), false);
   const tailscaleHttpsConnectionConfig = await request(port, "/api/v1/admin/desktop-connection-config", {

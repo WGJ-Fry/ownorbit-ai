@@ -119,6 +119,16 @@ export type BindingSession = {
   baseUrl?: string;
   pairingUrl: string;
   localName: string;
+  icloudRefresh?: {
+    refreshed: boolean;
+    reason: string;
+    requestedReason: string;
+    status: string;
+    previousStatus?: string;
+    generatedAt?: number;
+    recommendedBaseUrl?: string;
+    error?: string;
+  };
 };
 
 export type { DeviceCredentialExpiryStatus, StoredDeviceCredential };

@@ -8,7 +8,7 @@ import { createCalendarSyncRun, listCalendarSyncRuns } from "../calendarSyncRuns
 import { createAdminCredential, createAdminSession, getAdminSessionByToken, getBearerToken, isAdminConfigured, requireAdmin, verifyAdminPassword } from "../auth";
 import { createDiagnosticBundle, getReleaseDiagnostics } from "../diagnosticBundle";
 import { clearHttpOnlyCookie, getClientIp, rateLimit, setClientCookie, setHttpOnlyCookie } from "../httpSecurity";
-import { analyzeIcloudHandoffRepairPacket, exportIcloudHandoff, getNetworkDiagnostics, installTailscaleClient, startTailscaleHttpsServe, stopTailscaleHttpsServe, testConnectionUrl } from "../networkDiagnostics";
+import { analyzeIcloudHandoffRepairPacket, exportIcloudHandoff, getNetworkDiagnostics, installTailscaleClient, maybeRefreshIcloudHandoff, startTailscaleHttpsServe, stopTailscaleHttpsServe, testConnectionUrl } from "../networkDiagnostics";
 import { generateCloudflareNamedTunnelConfig, getCloudflareNamedTunnelStatus, getManagedCloudflareTunnelStatus, refreshCloudflareNamedTunnelConfigForPort, startConfiguredCloudflareNamedTunnel, startManagedCloudflareTunnel, stopManagedCloudflareTunnel } from "../cloudflareTunnel";
 import { saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
@@ -305,6 +305,20 @@ function getAdminNetworkDiagnostics() {
       latest: remoteAcceptanceRunbookRecords.slice(-3).reverse(),
     },
   };
+}
+
+function safeAutoRefreshIcloudHandoff(reason: string) {
+  try {
+    return maybeRefreshIcloudHandoff(reason);
+  } catch (error: any) {
+    return {
+      refreshed: false,
+      reason: "error",
+      requestedReason: reason,
+      status: "unknown",
+      error: String(error?.message || error || "iCloud Handoff refresh failed").slice(0, 240),
+    };
+  }
 }
 
 export function registerAdminRoutes(app: express.Express) {
@@ -717,14 +731,16 @@ export function registerAdminRoutes(app: express.Express) {
         process.env.LIFEOS_ALLOW_PUBLIC = "1";
         process.env.LIFEOS_TRUST_PROXY = "1";
       }
+      const icloudRefresh = safeAutoRefreshIcloudHandoff("cloudflare-named-tunnel-started");
       insertAuditLog("cloudflare_named_tunnel_started", "network", namedTunnel.baseUrl || "cloudflare-named", {
         pid: tunnel.pid,
         hostname: namedTunnel.hostname,
         configPath: namedTunnel.configPath,
         configRefreshReason: refresh.reason,
         configRefreshed: refresh.refreshed,
+        icloudRefresh,
       }, (req as any).actor?.type, (req as any).actor?.id);
-      res.json({ tunnel, namedTunnel, refresh, diagnostics: getAdminNetworkDiagnostics(), message: "Cloudflare Named Tunnel started. The stable HTTPS domain is now the mobile pairing address." });
+      res.json({ tunnel, namedTunnel, refresh, icloudRefresh, diagnostics: getAdminNetworkDiagnostics(), message: "Cloudflare Named Tunnel started. The stable HTTPS domain is now the mobile pairing address." });
     } catch (error: any) {
       insertAuditLog("cloudflare_named_tunnel_start_failed", "network", "cloudflare-named", {
         error: error?.message || "Cloudflare Named Tunnel start failed",
@@ -746,15 +762,18 @@ export function registerAdminRoutes(app: express.Express) {
       process.env.PUBLIC_BASE_URL = tunnel.url;
       process.env.LIFEOS_ALLOW_PUBLIC = "1";
       process.env.LIFEOS_TRUST_PROXY = "1";
+      const icloudRefresh = safeAutoRefreshIcloudHandoff("cloudflare-tunnel-started");
       insertAuditLog("cloudflare_tunnel_started", "network", tunnel.url, {
         pid: tunnel.pid,
         url: tunnel.url,
         configMode: config.mode,
         publicBaseUrlConfigured: Boolean(config.publicBaseUrl),
+        icloudRefresh,
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.json({
         tunnel,
         config,
+        icloudRefresh,
         diagnostics: getAdminNetworkDiagnostics(),
         message: "Cloudflare Tunnel started. The public HTTPS address has been saved for mobile pairing.",
       });
@@ -786,15 +805,18 @@ export function registerAdminRoutes(app: express.Express) {
       process.env.PUBLIC_BASE_URL = serve.url;
       process.env.LIFEOS_ALLOW_PUBLIC = "1";
       process.env.LIFEOS_TRUST_PROXY = "1";
+      const icloudRefresh = safeAutoRefreshIcloudHandoff("tailscale-serve-started");
       insertAuditLog("tailscale_https_serve_started", "network", serve.url, {
         command: serve.command,
         url: serve.url,
         configMode: config.mode,
         publicBaseUrlConfigured: Boolean(config.publicBaseUrl),
+        icloudRefresh,
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.json({
         serve,
         config,
+        icloudRefresh,
         diagnostics: getAdminNetworkDiagnostics(),
         message: "Tailscale HTTPS Serve started. The stable Tailnet HTTPS address has been saved for mobile pairing.",
       });
@@ -852,6 +874,7 @@ export function registerAdminRoutes(app: express.Express) {
         label: req.body?.label,
         baseUrl: req.body?.baseUrl,
       });
+      const icloudRefresh = safeAutoRefreshIcloudHandoff("desktop-connection-config-saved");
       insertAuditLog("desktop_connection_config_saved", "network", config.mode, {
         mode: config.mode,
         label: config.label,
@@ -860,9 +883,11 @@ export function registerAdminRoutes(app: express.Express) {
         publicBaseUrlConfigured: Boolean(config.publicBaseUrl),
         allowPublic: config.allowPublic,
         restartRequired: true,
+        icloudRefresh,
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.json({
         config,
+        icloudRefresh,
         restartRequired: true,
         message: "Desktop connection configuration saved. Quit and reopen LifeOS AI for it to take effect.",
       });
