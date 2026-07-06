@@ -16,6 +16,7 @@ type Props = {
   diagnostics: NetworkDiagnostics | null;
   busy: string | null;
   onExportIcloud: () => void;
+  onCleanupIcloud: () => void;
   onStartTailscale: () => void;
   onStartCloudflare: () => void;
   onSaveCandidate: (candidate: ConnectionCandidate) => void;
@@ -384,7 +385,7 @@ function icloudAcceptanceStatusTone(status: NonNullable<NetworkDiagnostics["iclo
   return "border-sky-300/20 bg-sky-400/10 text-sky-50";
 }
 
-export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportIcloud, onStartTailscale, onStartCloudflare, onSaveCandidate, onTestCandidate }: Props) {
+export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportIcloud, onCleanupIcloud, onStartTailscale, onStartCloudflare, onSaveCandidate, onTestCandidate }: Props) {
   const { t } = useI18n();
   const [repairText, setRepairText] = useState("");
   const [repairBusy, setRepairBusy] = useState(false);
@@ -412,6 +413,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const tailscaleInstalled = Boolean(diagnostics?.tailscale.installed);
   const tailscaleInstallUrl = diagnostics?.tailscale.installUrl || "https://tailscale.com/download";
   const isIcloudBusy = Boolean(busy?.startsWith("icloud-handoff"));
+  const isIcloudCleanupBusy = busy === "icloud-handoff-cleanup";
   const isBusy = Boolean(busy?.startsWith("remote-") || isIcloudBusy);
   const readinessTone = readiness?.severity === "ok" ? "text-emerald-200" : readiness?.severity === "danger" ? "text-red-200" : "text-amber-200";
   const candidateReady = Boolean(candidate);
@@ -1114,6 +1116,17 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                   <div className="mt-2 rounded-lg border border-amber-400/20 bg-amber-500/10 p-2 text-[11px] leading-relaxed text-amber-50">
                     {t("onboarding.appleRemoteIcloudLifecycleCleanupHint")}
                   </div>
+                ) : null}
+                {icloudLifecycle.prunableEntryCount > 0 || icloudLifecycle.orphanedFileCount > 0 ? (
+                  <button
+                    type="button"
+                    onClick={onCleanupIcloud}
+                    disabled={isBusy}
+                    className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-300/20 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-50 disabled:opacity-50"
+                  >
+                    {isIcloudCleanupBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                    {isIcloudCleanupBusy ? t("onboarding.appleRemoteIcloudCleanupCleaning") : t("onboarding.appleRemoteIcloudCleanupButton")}
+                  </button>
                 ) : null}
               </div>
             ) : null}

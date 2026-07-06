@@ -9,7 +9,7 @@ import { createCalendarSyncRun, listCalendarSyncRuns } from "../calendarSyncRuns
 import { createAdminCredential, createAdminSession, getAdminSessionByToken, getBearerToken, isAdminConfigured, requireAdmin, verifyAdminPassword } from "../auth";
 import { createDiagnosticBundle, getReleaseDiagnostics } from "../diagnosticBundle";
 import { clearHttpOnlyCookie, getClientIp, rateLimit, setClientCookie, setHttpOnlyCookie } from "../httpSecurity";
-import { analyzeIcloudHandoffRepairPacket, exportIcloudHandoff, getNetworkDiagnostics, installTailscaleClient, maybeRefreshIcloudHandoff, startTailscaleHttpsServe, stopTailscaleHttpsServe, testConnectionUrl } from "../networkDiagnostics";
+import { analyzeIcloudHandoffRepairPacket, cleanupIcloudHandoffEntries, exportIcloudHandoff, getNetworkDiagnostics, installTailscaleClient, maybeRefreshIcloudHandoff, startTailscaleHttpsServe, stopTailscaleHttpsServe, testConnectionUrl } from "../networkDiagnostics";
 import { generateCloudflareNamedTunnelConfig, getCloudflareNamedTunnelStatus, getManagedCloudflareTunnelStatus, refreshCloudflareNamedTunnelConfigForPort, startConfiguredCloudflareNamedTunnel, startManagedCloudflareTunnel, stopManagedCloudflareTunnel } from "../cloudflareTunnel";
 import { saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
@@ -661,6 +661,7 @@ export function registerAdminRoutes(app: express.Express) {
         recommendedMode: handoff.recommendedMode,
         realtimeTransport: handoff.realtimeTransport,
         cleanupRemovedEntryCount: handoff.cleanup?.removedEntryCount || 0,
+        cleanupRemovedOrphanedFileCount: handoff.cleanup?.removedOrphanedFileCount || 0,
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.json({
         handoff,
@@ -672,6 +673,28 @@ export function registerAdminRoutes(app: express.Express) {
         error: error?.message || "iCloud Handoff export failed",
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.status(400).json({ error: error.message || "iCloud Handoff export failed", diagnostics: getAdminNetworkDiagnostics() });
+    }
+  });
+
+  app.post("/api/v1/admin/icloud-handoff/cleanup", requireAdmin, (req, res) => {
+    try {
+      const handoff = cleanupIcloudHandoffEntries("admin-cleanup");
+      insertAuditLog("icloud_handoff_cleaned", "network", "icloud-handoff", {
+        removedEntryCount: handoff.cleanup.removedEntryCount,
+        removedOrphanedFileCount: handoff.cleanup.removedOrphanedFileCount,
+        removedFiles: handoff.cleanup.removedFiles,
+        errorCount: handoff.cleanup.errorCount,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.json({
+        handoff,
+        diagnostics: getAdminNetworkDiagnostics(),
+        message: "Old iCloud mobile entries were cleaned.",
+      });
+    } catch (error: any) {
+      insertAuditLog("icloud_handoff_cleanup_failed", "network", "icloud-handoff", {
+        error: error?.message || "iCloud Handoff cleanup failed",
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(400).json({ error: error.message || "iCloud Handoff cleanup failed", diagnostics: getAdminNetworkDiagnostics() });
     }
   });
 

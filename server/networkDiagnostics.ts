@@ -728,8 +728,13 @@ function cleanupExpiredIcloudHandoffEntries(appFolderPath: string, currentDeskto
     removeIcloudFile(appFolderPath, entry.packetFileName, removedFiles, errors);
     removeIcloudFile(appFolderPath, entry.htmlFileName, removedFiles, errors);
   }
+  const orphanedFiles = listIcloudOrphanedEntryFiles(appFolderPath, entries);
+  for (const file of orphanedFiles) {
+    removeIcloudFile(appFolderPath, file, removedFiles, errors);
+  }
   return {
     removedEntryCount: expiredEntries.length,
+    removedOrphanedFileCount: orphanedFiles.length,
     removedFiles: removedFiles.slice(0, 24),
     errorCount: errors.length,
     errors: errors.slice(0, 6),
@@ -2316,6 +2321,28 @@ export function exportIcloudHandoff(reason = "manual") {
     generatedAt,
     changeType,
     previousBaseUrl,
+    cleanup,
+    ...getIcloudHandoffStatus(diagnostics.connectionCandidates),
+  };
+}
+
+export function cleanupIcloudHandoffEntries(reason = "manual-cleanup") {
+  const diagnostics = getNetworkDiagnostics();
+  const status = diagnostics.icloud;
+  if (!status.platformSupported) {
+    throw new Error("iCloud Handoff cleanup is available only on Apple platforms.");
+  }
+  if (!status.available || !status.appFolderPath) {
+    throw new Error("iCloud Drive was not detected on this Mac. Enable iCloud Drive, then try again.");
+  }
+  const cleanedAt = Date.now();
+  const cleanup = cleanupExpiredIcloudHandoffEntries(status.appFolderPath, status.desktopId, cleanedAt);
+  const entries = readIcloudEntrySummaries(status.appFolderPath);
+  writePrivateFileAtomic(status.indexFilePath, buildIcloudHandoffIndexHtml({ generatedAt: cleanedAt, currentDesktopId: status.desktopId, entries }));
+  return {
+    ok: true,
+    reason,
+    cleanedAt,
     cleanup,
     ...getIcloudHandoffStatus(diagnostics.connectionCandidates),
   };

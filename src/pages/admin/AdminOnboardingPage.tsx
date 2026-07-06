@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type React from "react";
 import { AlertTriangle, ArrowRight, CheckCircle2, DatabaseBackup, KeyRound, Loader2, QrCode, ShieldAlert, SlidersHorizontal, Sparkles } from "lucide-react";
-import { completeOnboarding, createBackup, exportIcloudHandoff, getBackupSchedule, getConfigDiagnostics, getNetworkDiagnostics, getOnboardingStatus, listAiProviders, listBackups, listDevices, saveAiProviderKey, saveDesktopConnectionConfig, startCloudflareTunnel, startTailscaleHttpsServe, testAiProvider, testConnectionUrl, updateActiveAiProvider, updateAiProviderModel, updateBackupSchedule } from "../../services/lifeosApi";
+import { cleanupIcloudHandoffEntries, completeOnboarding, createBackup, exportIcloudHandoff, getBackupSchedule, getConfigDiagnostics, getNetworkDiagnostics, getOnboardingStatus, listAiProviders, listBackups, listDevices, saveAiProviderKey, saveDesktopConnectionConfig, startCloudflareTunnel, startTailscaleHttpsServe, testAiProvider, testConnectionUrl, updateActiveAiProvider, updateAiProviderModel, updateBackupSchedule } from "../../services/lifeosApi";
 import type { AiProviderId, AiProviderStatus, BackupRecord, BackupSchedule, BoundDevice, ConfigDiagnostics, NetworkDiagnostics, OnboardingStatus } from "../../services/lifeosApi";
 import LanguageSwitcher from "../../i18n/LanguageSwitcher";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -231,6 +231,24 @@ export default function AdminOnboardingPage() {
       setStatus(t("onboarding.appleRemoteIcloudExported", { path: result.handoff.handoffFilePath || "-" }));
     } catch (error: any) {
       setStatus(error.message || t("onboarding.appleRemoteIcloudExportFailed"));
+      await getNetworkDiagnostics().then(setNetworkDiagnostics).catch(() => null);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleCleanupIcloudHandoff = async () => {
+    setBusy("icloud-handoff-cleanup");
+    setStatus(null);
+    try {
+      const result = await cleanupIcloudHandoffEntries();
+      setNetworkDiagnostics(result.diagnostics);
+      setStatus(t("onboarding.appleRemoteIcloudCleanupDone", {
+        entries: result.handoff.cleanup.removedEntryCount,
+        files: result.handoff.cleanup.removedOrphanedFileCount,
+      }));
+    } catch (error: any) {
+      setStatus(error.message || t("onboarding.appleRemoteIcloudCleanupFailed"));
       await getNetworkDiagnostics().then(setNetworkDiagnostics).catch(() => null);
     } finally {
       setBusy(null);
@@ -468,6 +486,7 @@ export default function AdminOnboardingPage() {
                 diagnostics={networkDiagnostics}
                 busy={busy}
                 onExportIcloud={handleExportIcloudHandoff}
+                onCleanupIcloud={handleCleanupIcloudHandoff}
                 onStartTailscale={handleStartTailscaleRemote}
                 onStartCloudflare={handleStartCloudflareRemote}
                 onSaveCandidate={handleSaveRemoteCandidate}
@@ -528,6 +547,7 @@ export default function AdminOnboardingPage() {
                 diagnostics={networkDiagnostics}
                 busy={busy}
                 onExportIcloud={handleExportIcloudHandoff}
+                onCleanupIcloud={handleCleanupIcloudHandoff}
                 onStartTailscale={handleStartTailscaleRemote}
                 onStartCloudflare={handleStartCloudflareRemote}
                 onSaveCandidate={handleSaveRemoteCandidate}

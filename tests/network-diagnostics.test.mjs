@@ -494,6 +494,8 @@ test("iCloud handoff export prunes expired entries from other desktops", async (
   };
   await writeFile(path.join(appDir, oldPacket.packetFileName), `${JSON.stringify(oldPacket, null, 2)}\n`);
   await writeFile(path.join(appDir, oldPacket.htmlFileName), "<!doctype html><title>old</title>");
+  await writeFile(path.join(appDir, "lifeos-mobile-entry-orphan.json"), "{not json");
+  await writeFile(path.join(appDir, "lifeos-mobile-entry-orphan.html"), "<!doctype html><title>orphan</title>");
 
   process.env.LIFEOS_PORT = "4567";
   process.env.PUBLIC_BASE_URL = "https://new-lifeos.example.com";
@@ -508,10 +510,15 @@ test("iCloud handoff export prunes expired entries from other desktops", async (
   const result = exportIcloudHandoff("cleanup-test");
 
   assert.equal(result.cleanup.removedEntryCount, 1);
+  assert.equal(result.cleanup.removedOrphanedFileCount, 2);
   assert.equal(result.cleanup.removedFiles.includes(oldPacket.packetFileName), true);
   assert.equal(result.cleanup.removedFiles.includes(oldPacket.htmlFileName), true);
+  assert.equal(result.cleanup.removedFiles.includes("lifeos-mobile-entry-orphan.json"), true);
+  assert.equal(result.cleanup.removedFiles.includes("lifeos-mobile-entry-orphan.html"), true);
   assert.equal(fs.existsSync(path.join(appDir, oldPacket.packetFileName)), false);
   assert.equal(fs.existsSync(path.join(appDir, oldPacket.htmlFileName)), false);
+  assert.equal(fs.existsSync(path.join(appDir, "lifeos-mobile-entry-orphan.json")), false);
+  assert.equal(fs.existsSync(path.join(appDir, "lifeos-mobile-entry-orphan.html")), false);
   assert.equal(result.availableEntries.some((entry) => entry.desktopId === "old-desktop"), false);
   assert.equal(result.lifecycle.entryCount, 1);
   assert.equal(result.lifecycle.expiredEntryCount, 0);

@@ -627,6 +627,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /recommendedBaseUrl/);
   assert.match(onboardingAppleRemoteSource, /icloudLifecycle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudLifecycleTitle/);
+  assert.match(onboardingAppleRemoteSource, /onCleanupIcloud/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudCleanupButton/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudCleanupCleaning/);
   assert.match(onboardingAppleRemoteSource, /availableEntries/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudEntriesTitle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudEntryCurrent/);
@@ -701,6 +704,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingTailscaleSetupSource, /tailscale:\/\//);
   assert.match(lifeosApiSource, /\/api\/v1\/admin\/tailscale\/install/);
   assert.match(lifeosApiSource, /\/api\/v1\/admin\/icloud-handoff\/repair-packet/);
+  assert.match(lifeosApiSource, /cleanupIcloudHandoffEntries/);
+  assert.match(lifeosApiSource, /\/api\/v1\/admin\/icloud-handoff\/cleanup/);
   assert.match(lifeosApiSource, /IcloudHandoffRepairAnalysis/);
   assert.match(lifeosApiSource, /IcloudAutoRefreshResult/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudRepairAutoRefreshDone/);
@@ -781,6 +786,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Legacy entry/);
   assert.match(translationsSource, /iCloud Drive 自检/);
   assert.match(translationsSource, /iCloud Drive Check/);
+  assert.match(translationsSource, /清理旧 iCloud 入口/);
+  assert.match(translationsSource, /Clean Old iCloud Entries/);
   assert.match(translationsSource, /Apple ID 或 iCloud Drive 未启用/);
   assert.match(translationsSource, /Apple ID or iCloud Drive is not enabled/);
   assert.match(translationsSource, /先登录 Apple ID/);

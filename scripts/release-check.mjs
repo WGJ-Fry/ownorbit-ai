@@ -1453,14 +1453,19 @@ function checkAssets() {
     adminRoutesSource.includes("saveIcloudRepairImportAnalysis") &&
     adminRoutesSource.includes("admin-repair-packet-import") &&
     adminRoutesSource.includes("latestEntryRepair") &&
+    adminRoutesSource.includes("/api/v1/admin/icloud-handoff/cleanup") &&
+    adminRoutesSource.includes("icloud_handoff_cleaned") &&
     icloudRepairImportsSource.includes("lifeos_icloud_repair_imports") &&
     icloudRepairImportsSource.includes("getLatestIcloudRepairImportRecord") &&
     lifeosApiSource.includes("latestEntryRepair") &&
     lifeosApiSource.includes("latestRepairImport") &&
     lifeosApiSource.includes("IcloudAutoRefreshResult") &&
+    lifeosApiSource.includes("cleanupIcloudHandoffEntries") &&
+    lifeosApiSource.includes("/api/v1/admin/icloud-handoff/cleanup") &&
     apiAuthTestSource.includes("latestEntryRepair.status") &&
     apiAuthTestSource.includes("diagnostics.icloud.latestRepairImport.id") &&
     apiAuthTestSource.includes("icloudRepairPacket.icloudRefresh.requestedReason") &&
+    apiAuthTestSource.includes("/api/v1/admin/icloud-handoff/cleanup") &&
     translationsSource.includes("PUBLIC_BASE_URL changed") &&
     translationsSource.includes("Cloudflare address changed") &&
     translationsSource.includes("Tailscale address changed") &&
@@ -1469,6 +1474,12 @@ function checkAssets() {
     translationsSource.includes("Previous version:") &&
     translationsSource.includes("Phone just opened an old entry") &&
     translationsSource.includes("refresh the iCloud mobile entry and generate a fresh pairing QR") &&
+    translationsSource.includes("Clean Old iCloud Entries") &&
+    networkDiagnosticsSource.includes("cleanupIcloudHandoffEntries") &&
+    networkDiagnosticsSource.includes("removedOrphanedFileCount") &&
+    networkDiagnosticsTestSource.includes("lifeos-mobile-entry-orphan.json") &&
+    onboardingAppleRemoteSource.includes("onCleanupIcloud") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudCleanupButton") &&
     mobileIcloudHandoffSource.includes("PENDING_EVENTS_STORAGE_KEY") &&
     mobileIcloudHandoffSource.includes("SERVER_REPAIR_STORAGE_KEY") &&
     mobileIcloudHandoffSource.includes("flushPendingMobileIcloudHandoffEvents") &&

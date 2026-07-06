@@ -1968,6 +1968,7 @@ export function exportIcloudHandoff() {
       generatedAt: number;
       cleanup: {
         removedEntryCount: number;
+        removedOrphanedFileCount: number;
         removedFiles: string[];
         errorCount: number;
         errors: string[];
@@ -1977,6 +1978,25 @@ export function exportIcloudHandoff() {
     diagnostics: NetworkDiagnostics;
     message: string;
   }>("/api/v1/admin/icloud-handoff/export", { method: "POST" });
+}
+
+export function cleanupIcloudHandoffEntries() {
+  return requestJson<{
+    handoff: NetworkDiagnostics["icloud"] & {
+      ok: true;
+      cleanedAt: number;
+      cleanup: {
+        removedEntryCount: number;
+        removedOrphanedFileCount: number;
+        removedFiles: string[];
+        errorCount: number;
+        errors: string[];
+        expiredGraceMs: number;
+      };
+    };
+    diagnostics: NetworkDiagnostics;
+    message: string;
+  }>("/api/v1/admin/icloud-handoff/cleanup", { method: "POST" });
 }
 
 export function analyzeIcloudHandoffRepairPacket(packet: string) {
