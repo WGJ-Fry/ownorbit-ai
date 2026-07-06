@@ -656,6 +656,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Previous entry/);
   assert.match(translationsSource, /地址变化/);
   assert.match(translationsSource, /Address changed/);
+  assert.match(translationsSource, /备用入口变化/);
+  assert.match(translationsSource, /Fallback entries changed/);
   assert.match(translationsSource, /iCloud 入口校验不一致/);
   assert.match(translationsSource, /The iCloud entry checksum does not match/);
   assert.match(translationsSource, /入口文件不同步/);

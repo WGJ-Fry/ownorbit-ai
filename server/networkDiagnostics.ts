@@ -246,6 +246,7 @@ function buildIcloudEntryChecksum(packet: Record<string, unknown>) {
     secure: packet.secure,
     stability: packet.stability,
     requiresRestart: packet.requiresRestart,
+    fallbackCandidates: packet.fallbackCandidates,
     transport: packet.transport,
     realtimeTransport: packet.realtimeTransport,
   };
@@ -363,12 +364,19 @@ function buildIcloudHandoffHealth(input: {
   packetFilePath: string;
   handoffFilePath: string;
   candidate: ConnectionCandidate | null;
+  candidates?: ConnectionCandidate[];
   now?: number;
 }) {
   const now = input.now || Date.now();
   const packet = readIcloudHandoffPacket(input.packetFilePath);
   const generatedAt = Number(packet?.generatedAt || 0);
   const exportedBaseUrl = String(packet?.baseUrl || "");
+  const exportedFallbackCandidates = Array.isArray(packet?.fallbackCandidates) ? packet.fallbackCandidates : [];
+  const currentFallbackCandidates = summarizeIcloudFallbackCandidates(input.candidates || (input.candidate ? [input.candidate] : []));
+  const fallbackCandidatesChanged = Boolean(
+    packet &&
+    JSON.stringify(exportedFallbackCandidates) !== JSON.stringify(currentFallbackCandidates)
+  );
   const expiresAt = Number(packet?.expiresAt || (generatedAt ? generatedAt + ICLOUD_HANDOFF_EXPIRES_AFTER_MS : 0));
   const refreshAfter = Number(packet?.refreshAfter || (generatedAt ? generatedAt + ICLOUD_HANDOFF_REFRESH_AFTER_MS : 0));
   const exportedChecksum = String(packet?.entryChecksumSha256 || "").trim();
@@ -391,6 +399,9 @@ function buildIcloudHandoffHealth(input: {
     } else if (!exportedChecksum) {
       status = "legacy";
       reason = "The iCloud mobile entry was created by an older LifeOS version and should be refreshed.";
+    } else if (fallbackCandidatesChanged) {
+      status = "address-changed";
+      reason = "The phone fallback entry list changed after the last iCloud export.";
     } else if (!htmlConsistency.ok) {
       status = "html-mismatch";
       reason = htmlConsistency.reason;
@@ -1117,7 +1128,7 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
   const healthPacketFilePath = existsSync(packetFilePath) ? packetFilePath : legacyPacketFilePath;
   const candidate = preferredHandoffCandidate(candidates);
   const hasPhoneEntry = Boolean(candidate);
-  const handoffHealth = buildIcloudHandoffHealth({ packetFilePath: healthPacketFilePath, handoffFilePath: healthHandoffFilePath, candidate });
+  const handoffHealth = buildIcloudHandoffHealth({ packetFilePath: healthPacketFilePath, handoffFilePath: healthHandoffFilePath, candidate, candidates });
   const availableEntries = available ? readIcloudEntrySummaries(appFolderPath) : [];
   const entryHistory = available ? readIcloudHandoffHistory(historyFilePath) : [];
   const lifecycle = available ? getIcloudHandoffLifecycleStatus(appFolderPath, desktop.id) : {
@@ -1875,10 +1886,14 @@ export function exportIcloudHandoff(reason = "manual") {
   const generatedAt = Date.now();
   const previousPacket = readIcloudHandoffPacket(status.packetFilePath);
   const previousBaseUrl = String(previousPacket?.baseUrl || "");
+  const fallbackCandidates = summarizeIcloudFallbackCandidates(diagnostics.connectionCandidates);
+  const previousFallbackCandidates = Array.isArray(previousPacket?.fallbackCandidates) ? previousPacket.fallbackCandidates : [];
   const changeType = !previousBaseUrl
     ? "first-export"
     : previousBaseUrl !== candidate.baseUrl
     ? "address-changed"
+    : JSON.stringify(previousFallbackCandidates) !== JSON.stringify(fallbackCandidates)
+    ? "fallback-candidates-changed"
     : "refreshed-same-address";
   const packet = {
     kind: "lifeos-mobile-entry",
@@ -1904,7 +1919,7 @@ export function exportIcloudHandoff(reason = "manual") {
     changeType,
     previousBaseUrl,
     notes: candidate.notes,
-    fallbackCandidates: summarizeIcloudFallbackCandidates(diagnostics.connectionCandidates),
+    fallbackCandidates,
     remoteReadiness: diagnostics.remoteReadiness,
     recoveryActions: [
       "Refresh this iCloud entry after changing Wi-Fi, restarting a tunnel, or changing PUBLIC_BASE_URL.",
