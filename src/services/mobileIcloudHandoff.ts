@@ -325,3 +325,27 @@ export function getMobileIcloudHandoffActionKey(status: MobileIcloudHandoffStatu
   if (status.entry.lastConnectivityTestedAt && status.entry.lastConnectivityOk === false) return "mobileDevice.icloudHandoffActionRetest";
   return "mobileDevice.icloudHandoffActionReady";
 }
+
+function isoTime(value?: number) {
+  return value ? new Date(value).toISOString() : "-";
+}
+
+export function buildMobileIcloudHandoffRecoveryPacket(status: MobileIcloudHandoffStatus) {
+  const actionKey = getMobileIcloudHandoffActionKey(status);
+  return [
+    "LifeOS iCloud Mobile Entry Recovery",
+    `status=${status.status}`,
+    `action=${actionKey}`,
+    `entryBaseUrl=${normalizeBaseUrl(status.entry.baseUrl)}`,
+    `currentBaseUrl=${normalizeBaseUrl(status.currentBase) || "-"}`,
+    `mode=${status.entry.mode || "-"}`,
+    `stability=${status.entry.stability || "-"}`,
+    `label=${status.entry.label || "-"}`,
+    `generatedAt=${isoTime(status.entry.generatedAt)}`,
+    `refreshAfter=${isoTime(status.entry.refreshAfter)}`,
+    `expiresAt=${isoTime(status.entry.expiresAt)}`,
+    `lastConnectivityTestedAt=${isoTime(status.entry.lastConnectivityTestedAt)}`,
+    `lastConnectivityOk=${typeof status.entry.lastConnectivityOk === "boolean" ? String(status.entry.lastConnectivityOk) : "-"}`,
+    `lastConnectivityError=${status.entry.lastConnectivityError || "-"}`,
+  ].join("\n");
+}

@@ -743,6 +743,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffLastCheck/);
   assert.match(mobileRemoteEntryCardSource, /lastConnectivityTestedAt/);
   assert.match(mobileRemoteEntryCardSource, /getMobileIcloudHandoffActionKey/);
+  assert.match(mobileRemoteEntryCardSource, /buildMobileIcloudHandoffRecoveryPacket/);
+  assert.match(mobileRemoteEntryCardSource, /navigator\.clipboard\.writeText/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.copyIcloudHandoffRepair/);
   assert.match(mobileRemoteEntryCardSource, /icloudActionKey/);
   assert.match(mobileRemoteEntryCardSource, /icloudHandoffStatus/);
   assert.match(mobileRemoteEntryCardSource, /queueSummary\.failed/);

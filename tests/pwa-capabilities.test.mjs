@@ -394,7 +394,7 @@ test("mobile iCloud handoff stores non-sensitive entry metadata and detects stal
   installLocalStorage();
   t.after(cleanupLocalStorage);
   const now = 1_800_000_000_000;
-  const { consumeMobileIcloudHandoffFromUrl, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffStatus, getStoredMobileIcloudHandoff } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-handoff-${Date.now()}`);
+  const { buildMobileIcloudHandoffRecoveryPacket, consumeMobileIcloudHandoffFromUrl, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffStatus, getStoredMobileIcloudHandoff } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-handoff-${Date.now()}`);
   const href = [
     "https://lifeos.example.com/mobile/chat?lifeosEntry=icloud",
     `entryGeneratedAt=${now}`,
@@ -428,6 +428,12 @@ test("mobile iCloud handoff stores non-sensitive entry metadata and detects stal
   const mismatch = getMobileIcloudHandoffStatus(consumed, "https://new-lifeos.example.com/mobile/device", now + 1_000);
   assert.equal(mismatch.status, "address-mismatch");
   assert.equal(getMobileIcloudHandoffActionKey(mismatch), "mobileDevice.icloudHandoffActionMismatch");
+  const packet = buildMobileIcloudHandoffRecoveryPacket(mismatch);
+  assert.match(packet, /LifeOS iCloud Mobile Entry Recovery/);
+  assert.match(packet, /entryBaseUrl=https:\/\/lifeos\.example\.com/);
+  assert.match(packet, /currentBaseUrl=https:\/\/new-lifeos\.example\.com/);
+  assert.doesNotMatch(packet, /lifeosEntry=icloud/);
+  assert.doesNotMatch(packet, /entryGeneratedAt=/);
 });
 
 test("mobile iCloud handoff launch runs connectivity check and stores the result", async (t) => {

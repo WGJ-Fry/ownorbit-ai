@@ -1,7 +1,8 @@
-import { RefreshCw, Wifi } from "lucide-react";
+import { useState } from "react";
+import { Copy, RefreshCw, Wifi } from "lucide-react";
 import type { DeviceConnectivityReport } from "../../services/lifeosApi";
 import type { MobileIcloudHandoffStatus } from "../../services/mobileIcloudHandoff";
-import { getMobileIcloudHandoffActionKey } from "../../services/mobileIcloudHandoff";
+import { buildMobileIcloudHandoffRecoveryPacket, getMobileIcloudHandoffActionKey } from "../../services/mobileIcloudHandoff";
 import type { OfflineMessageQueueSummary } from "../../services/offlineMessageQueue";
 import type { MobileConnectivityIssueKey, MobileConnectivityResult, MobileRecoveryHintKey, RemoteEntryStatus } from "../../services/pwaCapabilities";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -45,11 +46,18 @@ export default function MobileRemoteEntryCard({
   onRefreshServer: () => void;
 }) {
   const { t } = useI18n();
+  const [copiedIcloudPacket, setCopiedIcloudPacket] = useState(false);
   const queueWaiting = queueSummary.failed > 0 || queueSummary.pending > 0 || queueSummary.syncing > 0;
   const latestConnectivityOk = Boolean(lastConnectivityReport?.ok && !connectivityReportStale);
   const remoteReady = currentEntry.okForRemote && latestConnectivityOk && !queueWaiting;
   const icloudTone = icloudHandoffStatus?.needsRefresh ? "border-amber-400/20 bg-amber-500/10 text-amber-100" : "border-emerald-400/20 bg-emerald-500/10 text-emerald-100";
   const icloudActionKey = icloudHandoffStatus ? getMobileIcloudHandoffActionKey(icloudHandoffStatus) : null;
+  const copyIcloudRecoveryPacket = async () => {
+    if (!icloudHandoffStatus) return;
+    await navigator.clipboard.writeText(buildMobileIcloudHandoffRecoveryPacket(icloudHandoffStatus)).catch(() => null);
+    setCopiedIcloudPacket(true);
+    window.setTimeout(() => setCopiedIcloudPacket(false), 1400);
+  };
 
   return (
     <section className="mt-4 rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
@@ -101,6 +109,10 @@ export default function MobileRemoteEntryCard({
             <Row label={t("mobileDevice.icloudHandoffLastResult")} value={icloudHandoffStatus.entry.lastConnectivityTestedAt ? (icloudHandoffStatus.entry.lastConnectivityOk ? t("mobileDevice.pass") : t("mobileDevice.fail")) : "-"} />
             {icloudHandoffStatus.entry.lastConnectivityError ? <Row label={t("mobileDevice.icloudHandoffLastError")} value={icloudHandoffStatus.entry.lastConnectivityError} /> : null}
           </div>
+          <button onClick={copyIcloudRecoveryPacket} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.1] bg-black/10 px-3 py-2 text-xs font-bold">
+            <Copy className="h-3.5 w-3.5" />
+            {copiedIcloudPacket ? t("mobileDevice.icloudHandoffRepairCopied") : t("mobileDevice.copyIcloudHandoffRepair")}
+          </button>
         </div>
       ) : null}
 
