@@ -694,6 +694,11 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                       ({icloudMonitor.lastResult.refreshReason} / {icloudMonitor.lastResult.status})
                     </div>
                   ) : null}
+                  {icloudMonitor.lastResult?.phoneConfirmationStatus || icloudMonitor.lastResult?.previousPhoneConfirmationStatus ? (
+                    <div>
+                      {t("onboarding.appleRemoteIcloudMonitorPhoneConfirmation")}: {icloudMonitor.lastResult.previousPhoneConfirmationStatus || icloudMonitor.lastResult.phoneConfirmationStatus} / {icloudMonitor.lastResult.phoneConfirmationAction || "-"}
+                    </div>
+                  ) : null}
                   {icloudMonitor.lastResult?.recommendedBaseUrl ? (
                     <div className="break-all">
                       {t("onboarding.appleRemoteIcloudMonitorLastEntry")}: {icloudMonitor.lastResult.recommendedBaseUrl}

@@ -962,6 +962,9 @@ export type NetworkDiagnostics = {
       refreshReason: string;
       status: string;
       previousStatus?: string;
+      phoneConfirmationStatus?: string;
+      phoneConfirmationAction?: string;
+      previousPhoneConfirmationStatus?: string;
       generatedAt?: number;
       recommendedBaseUrl?: string;
       error?: string;

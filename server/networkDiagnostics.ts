@@ -6,6 +6,8 @@ import path from "path";
 import { WebSocket } from "ws";
 import { extractCloudflareTunnelUrls, getManagedCloudflareTunnelStatus } from "./cloudflareTunnel.ts";
 import { DesktopRuntimeConfig, getDesktopRuntimeConfig, saveDesktopRuntimeConfig } from "./desktopRuntimeConfig.ts";
+import { getLatestIcloudHandoffEventByTypes } from "./devices.ts";
+import { buildIcloudPhoneConfirmationStatus } from "./icloudPhoneConfirmation.ts";
 import { getConfiguredPublicBaseUrl, isTemporaryTryCloudflareUrl } from "./publicBaseUrl";
 
 type CommandResult = {
@@ -2170,16 +2172,39 @@ export function exportIcloudHandoff(reason = "manual") {
 export function maybeRefreshIcloudHandoff(reason = "auto") {
   const diagnostics = getNetworkDiagnostics();
   const status = diagnostics.icloud;
+  const phoneConfirmation = buildIcloudPhoneConfirmationStatus({
+    handoffHealth: status.handoffHealth,
+    recommendedBaseUrl: status.recommendedBaseUrl,
+    latestEntryOpenEvent: getLatestIcloudHandoffEventByTypes(["opened-current-entry"]) || null,
+    latestIgnoredEntryEvent: getLatestIcloudHandoffEventByTypes(["ignored-superseded-entry"]) || null,
+    latestEntryIssueEvent: getLatestIcloudHandoffEventByTypes([
+      "opened-stale-entry",
+      "opened-expired-entry",
+      "opened-legacy-entry",
+      "opened-address-mismatch-entry",
+    ]) || null,
+  });
   if (!status.platformSupported) return { refreshed: false, reason: "unsupported-platform", requestedReason: reason, status: status.handoffHealth.status };
   if (!status.available) return { refreshed: false, reason: "icloud-unavailable", requestedReason: reason, status: status.handoffHealth.status };
   if (!status.canExport) return { refreshed: false, reason: "no-phone-entry", requestedReason: reason, status: status.handoffHealth.status };
-  if (!status.handoffHealth.needsRefresh) return { refreshed: false, reason: "fresh", requestedReason: reason, status: status.handoffHealth.status };
+  if (!status.handoffHealth.needsRefresh && phoneConfirmation.action !== "refresh-entry") {
+    return {
+      refreshed: false,
+      reason: "fresh",
+      requestedReason: reason,
+      status: status.handoffHealth.status,
+      phoneConfirmationStatus: phoneConfirmation.status,
+      phoneConfirmationAction: phoneConfirmation.action,
+    };
+  }
   const handoff = exportIcloudHandoff(reason);
   return {
     refreshed: true,
-    reason: "refreshed",
+    reason: status.handoffHealth.needsRefresh ? "refreshed" : "phone-confirmation-refresh",
     requestedReason: reason,
     previousStatus: status.handoffHealth.status,
+    previousPhoneConfirmationStatus: phoneConfirmation.status,
+    phoneConfirmationAction: phoneConfirmation.action,
     generatedAt: handoff.generatedAt,
     recommendedBaseUrl: handoff.recommendedBaseUrl,
     handoff,

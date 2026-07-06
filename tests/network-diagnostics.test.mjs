@@ -702,6 +702,92 @@ test("iCloud handoff monitor refreshes stale entries without remote health check
   assert.equal(getIcloudHandoffMonitorStatus().lastResult?.recommendedBaseUrl, "https://monitor-new-lifeos.example.com");
 });
 
+test("iCloud handoff monitor refreshes after a phone reports an old entry", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-phone-confirmation-refresh-db-"));
+  const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-phone-confirmation-refresh-drive-"));
+  t.after(async () => {
+    await rm(dataDir, { recursive: true, force: true });
+    await rm(icloudDir, { recursive: true, force: true });
+  });
+
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const { readFile } = await import("node:fs/promises");
+    const { exportIcloudHandoff } = await import("./server/networkDiagnostics.ts");
+    const { insertDevice, insertDeviceIcloudHandoffEvent } = await import("./server/devices.ts");
+    const { runIcloudHandoffRefreshCheck } = await import("./server/icloudHandoffMonitor.ts");
+
+    const first = exportIcloudHandoff("test-initial-phone-confirmation-refresh");
+    const firstPacket = JSON.parse(await readFile(first.packetFilePath, "utf8"));
+    const now = Date.now();
+    insertDevice({
+      id: "phone-confirmation-refresh-phone",
+      name: "Phone Confirmation Test",
+      type: "mobile",
+      status: "online",
+      accessTokenHash: "test-hash",
+      createdAt: now,
+      lastSeenAt: now,
+    });
+    insertDeviceIcloudHandoffEvent({
+      id: "phone-confirmation-current",
+      deviceId: "phone-confirmation-refresh-phone",
+      eventType: "opened-current-entry",
+      entryBaseUrl: firstPacket.baseUrl,
+      currentBaseUrl: firstPacket.baseUrl,
+      storedBaseUrl: firstPacket.baseUrl,
+      entryGeneratedAt: firstPacket.generatedAt,
+      storedGeneratedAt: firstPacket.generatedAt,
+      checksumSha256: firstPacket.entryChecksumSha256,
+      ignoredAt: now + 1,
+      createdAt: now + 1,
+    });
+    insertDeviceIcloudHandoffEvent({
+      id: "phone-confirmation-expired",
+      deviceId: "phone-confirmation-refresh-phone",
+      eventType: "opened-expired-entry",
+      entryBaseUrl: "https://expired-phone-entry.example.test/lifeos",
+      currentBaseUrl: "https://expired-phone-entry.example.test/lifeos",
+      storedBaseUrl: firstPacket.baseUrl,
+      entryGeneratedAt: firstPacket.generatedAt - 1000,
+      storedGeneratedAt: firstPacket.generatedAt,
+      checksumSha256: "f".repeat(64),
+      ignoredAt: now + 2,
+      createdAt: now + 2,
+    });
+
+    const monitorRun = runIcloudHandoffRefreshCheck("test-phone-confirmation-issue");
+    const nextPacket = JSON.parse(await readFile(first.packetFilePath, "utf8"));
+    process.stdout.write(JSON.stringify({ monitorRun, firstPacket, nextPacket }));
+  `], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      LIFEOS_DATA_DIR: dataDir,
+      LIFEOS_ICLOUD_DRIVE_DIR: icloudDir,
+      LIFEOS_FORCE_ICLOUD_HANDOFF: "1",
+      LIFEOS_PORT: "4567",
+      PUBLIC_BASE_URL: "https://phone-confirmation-lifeos.example.com",
+      APP_URL: "",
+      LIFEOS_CLOUDFLARED_BIN: "/definitely/missing/cloudflared",
+      LIFEOS_TAILSCALE_BIN: "/definitely/missing/tailscale",
+      LIFEOS_ICLOUD_HANDOFF_MONITOR: "1",
+    },
+    encoding: "utf8",
+  });
+  const { monitorRun, firstPacket, nextPacket } = JSON.parse(output);
+  assert.equal(firstPacket.baseUrl, "https://phone-confirmation-lifeos.example.com");
+  assert.equal(monitorRun.refreshed, true);
+  assert.equal(monitorRun.refreshReason, "phone-confirmation-refresh");
+  assert.equal(monitorRun.status, "fresh");
+  assert.equal(monitorRun.previousStatus, "fresh");
+  assert.equal(monitorRun.previousPhoneConfirmationStatus, "issue-after-confirm");
+  assert.equal(monitorRun.phoneConfirmationAction, "refresh-entry");
+  assert.equal(nextPacket.baseUrl, "https://phone-confirmation-lifeos.example.com");
+  assert.equal(nextPacket.changeType, "refreshed-same-address");
+  assert.equal(nextPacket.exportReason, "test-phone-confirmation-issue");
+  assert.notEqual(nextPacket.generatedAt, firstPacket.generatedAt);
+});
+
 test("iCloud repair packet analysis compares phone entry with current desktop entry", async (t) => {
   const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-repair-analysis-"));
   const oldPort = process.env.LIFEOS_PORT;

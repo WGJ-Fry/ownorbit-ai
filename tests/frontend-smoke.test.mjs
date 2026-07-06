@@ -595,6 +595,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAdvancedDiagnostics/);
   assert.match(onboardingAppleRemoteSource, /icloudAvailability\.pendingCount/);
   assert.match(onboardingAppleRemoteSource, /icloudMonitor/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudMonitorPhoneConfirmation/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudMonitorTitle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudMonitorLastEntry/);
   assert.match(onboardingAppleRemoteSource, /recommendedBaseUrl/);
@@ -643,6 +644,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /\/api\/v1\/admin\/icloud-handoff\/repair-packet/);
   assert.match(lifeosApiSource, /IcloudHandoffRepairAnalysis/);
   assert.match(lifeosApiSource, /icloudMonitor/);
+  assert.match(lifeosApiSource, /previousPhoneConfirmationStatus/);
   assert.match(lifeosApiSource, /recommendedBaseUrl\?: string/);
   assert.match(lifeosApiSource, /lifecycle/);
   assert.match(lifeosApiSource, /phoneConfirmation/);
@@ -701,6 +703,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Chooser out of sync/);
   assert.match(translationsSource, /后台自动刷新/);
   assert.match(translationsSource, /Background Auto-refresh/);
+  assert.match(translationsSource, /手机确认状态/);
+  assert.match(translationsSource, /Phone confirmation/);
   assert.match(translationsSource, /上次推荐入口/);
   assert.match(translationsSource, /Last recommended entry/);
   assert.match(translationsSource, /入口文件生命周期/);
