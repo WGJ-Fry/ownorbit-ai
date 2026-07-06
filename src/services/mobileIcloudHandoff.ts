@@ -2,7 +2,9 @@ import type { MobileIcloudHandoffEventReportInput } from "./lifeosApi";
 
 const STORAGE_KEY = "lifeos_mobile_icloud_handoff";
 const ENTRIES_STORAGE_KEY = "lifeos_mobile_icloud_handoff_entries";
+const PENDING_EVENTS_STORAGE_KEY = "lifeos_mobile_icloud_handoff_pending_events";
 const MAX_STORED_HANDOFF_ENTRIES = 8;
+const MAX_PENDING_HANDOFF_EVENTS = 12;
 
 const handoffParamKeys = [
   "lifeosEntry",
@@ -78,6 +80,21 @@ type HandoffLaunchOptions = {
   reportIcloudHandoffEvent?: (event: MobileIcloudHandoffEventReportInput) => Promise<unknown>;
 };
 
+type PendingMobileIcloudHandoffEvent = MobileIcloudHandoffEventReportInput & {
+  queuedAt: number;
+  attempts: number;
+  lastTriedAt?: number;
+};
+
+const icloudHandoffEventTypes = [
+  "opened-current-entry",
+  "ignored-superseded-entry",
+  "opened-stale-entry",
+  "opened-expired-entry",
+  "opened-legacy-entry",
+  "opened-address-mismatch-entry",
+] as const;
+
 function safeStorage() {
   try {
     return typeof localStorage === "undefined" ? null : localStorage;
@@ -140,6 +157,124 @@ function normalizeEntryId(value?: string | null) {
     .trim()
     .replace(/[^a-zA-Z0-9._:-]+/g, "")
     .slice(0, 80);
+}
+
+function normalizePendingIcloudHandoffEvent(parsed: any): PendingMobileIcloudHandoffEvent | null {
+  if (!parsed || typeof parsed !== "object") return null;
+  const eventType = String(parsed.eventType || "") as MobileIcloudHandoffEventReportInput["eventType"];
+  if (!icloudHandoffEventTypes.includes(eventType as typeof icloudHandoffEventTypes[number])) return null;
+  const entryBaseUrl = normalizeBaseUrl(parsed.entryBaseUrl);
+  const currentBaseUrl = normalizeBaseUrl(parsed.currentBaseUrl);
+  const storedBaseUrl = normalizeBaseUrl(parsed.storedBaseUrl);
+  if (!isHttpBaseUrl(entryBaseUrl) || !isHttpBaseUrl(currentBaseUrl) || !isHttpBaseUrl(storedBaseUrl)) return null;
+  return {
+    eventType,
+    entryBaseUrl,
+    currentBaseUrl,
+    storedBaseUrl,
+    entryGeneratedAt: Number(parsed.entryGeneratedAt || 0) || undefined,
+    storedGeneratedAt: Number(parsed.storedGeneratedAt || 0) || undefined,
+    checksumSha256: normalizeChecksum(parsed.checksumSha256) || undefined,
+    ignoredAt: Number(parsed.ignoredAt || 0) || undefined,
+    queuedAt: Number(parsed.queuedAt || Date.now()),
+    attempts: Math.max(0, Number(parsed.attempts || 0)),
+    lastTriedAt: Number(parsed.lastTriedAt || 0) || undefined,
+  };
+}
+
+function readPendingIcloudHandoffEvents(storage = safeStorage()) {
+  if (!storage) return [] as PendingMobileIcloudHandoffEvent[];
+  try {
+    const parsed = JSON.parse(storage.getItem(PENDING_EVENTS_STORAGE_KEY) || "[]");
+    return (Array.isArray(parsed) ? parsed : [])
+      .map(normalizePendingIcloudHandoffEvent)
+      .filter(Boolean) as PendingMobileIcloudHandoffEvent[];
+  } catch {
+    return [];
+  }
+}
+
+function writePendingIcloudHandoffEvents(events: PendingMobileIcloudHandoffEvent[], storage = safeStorage()) {
+  if (!storage) return false;
+  try {
+    storage.setItem(PENDING_EVENTS_STORAGE_KEY, JSON.stringify(events.slice(0, MAX_PENDING_HANDOFF_EVENTS)));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function mobileIcloudEventKey(event: MobileIcloudHandoffEventReportInput) {
+  return [
+    event.eventType,
+    normalizeBaseUrl(event.entryBaseUrl),
+    Number(event.entryGeneratedAt || 0),
+    normalizeBaseUrl(event.storedBaseUrl),
+    Number(event.storedGeneratedAt || 0),
+    normalizeChecksum(event.checksumSha256),
+  ].join("|");
+}
+
+function queuePendingIcloudHandoffEvent(event: MobileIcloudHandoffEventReportInput, now = Date.now()) {
+  const storage = safeStorage();
+  if (!storage) return 0;
+  const pendingEvent = normalizePendingIcloudHandoffEvent({ ...event, queuedAt: now, attempts: 0 });
+  if (!pendingEvent) return readPendingIcloudHandoffEvents(storage).length;
+  const next = [
+    pendingEvent,
+    ...readPendingIcloudHandoffEvents(storage).filter((item) => mobileIcloudEventKey(item) !== mobileIcloudEventKey(pendingEvent)),
+  ].slice(0, MAX_PENDING_HANDOFF_EVENTS);
+  writePendingIcloudHandoffEvents(next, storage);
+  return next.length;
+}
+
+export function getPendingMobileIcloudHandoffEventCount() {
+  return readPendingIcloudHandoffEvents().length;
+}
+
+async function reportOrQueueIcloudHandoffEvent(
+  event: MobileIcloudHandoffEventReportInput,
+  reporter?: (event: MobileIcloudHandoffEventReportInput) => Promise<unknown>,
+  now = Date.now(),
+) {
+  const reportIcloudHandoffEvent = reporter || (await import("./lifeosApi")).reportMobileIcloudHandoffEvent;
+  try {
+    await reportIcloudHandoffEvent(event);
+    const storage = safeStorage();
+    if (storage) {
+      const next = readPendingIcloudHandoffEvents(storage).filter((item) => mobileIcloudEventKey(item) !== mobileIcloudEventKey(event));
+      writePendingIcloudHandoffEvents(next, storage);
+      return { reported: true, pendingCount: next.length };
+    }
+    return { reported: true, pendingCount: 0 };
+  } catch {
+    return { reported: false, pendingCount: queuePendingIcloudHandoffEvent(event, now) };
+  }
+}
+
+export async function flushPendingMobileIcloudHandoffEvents(reporter?: (event: MobileIcloudHandoffEventReportInput) => Promise<unknown>, now = Date.now()) {
+  const storage = safeStorage();
+  if (!storage) return { attempted: 0, reported: 0, remaining: 0 };
+  const pending = readPendingIcloudHandoffEvents(storage);
+  if (!pending.length) return { attempted: 0, reported: 0, remaining: 0 };
+  const reportIcloudHandoffEvent = reporter || (await import("./lifeosApi")).reportMobileIcloudHandoffEvent;
+  const remaining: PendingMobileIcloudHandoffEvent[] = [];
+  let reported = 0;
+  for (const item of pending) {
+    const { queuedAt, attempts, lastTriedAt, ...event } = item;
+    try {
+      await reportIcloudHandoffEvent(event);
+      reported += 1;
+    } catch {
+      remaining.push({
+        ...item,
+        attempts: attempts + 1,
+        lastTriedAt: now,
+      });
+    }
+  }
+  writePendingIcloudHandoffEvents(remaining, storage);
+  return { attempted: pending.length, reported, remaining: remaining.length };
 }
 
 export function parseMobileIcloudHandoffFromUrl(href?: string, now = Date.now()): MobileIcloudHandoffEntry | null {
@@ -349,8 +484,7 @@ async function reportIcloudHandoffIssueEvent(
   now: number,
   reporter?: (event: MobileIcloudHandoffEventReportInput) => Promise<unknown>,
 ) {
-  const reportIcloudHandoffEvent = reporter || (await import("./lifeosApi")).reportMobileIcloudHandoffEvent;
-  await reportIcloudHandoffEvent({
+  return reportOrQueueIcloudHandoffEvent({
     eventType,
     entryBaseUrl: entry.baseUrl,
     currentBaseUrl: currentBaseFromHref(href) || entry.baseUrl,
@@ -359,7 +493,7 @@ async function reportIcloudHandoffIssueEvent(
     storedGeneratedAt: entry.generatedAt,
     checksumSha256: entry.checksumSha256,
     ignoredAt: now,
-  });
+  }, reporter, now);
 }
 
 export function consumeMobileIcloudHandoffFromUrl(href?: string, now = Date.now()) {
@@ -382,8 +516,9 @@ export function consumeMobileIcloudHandoffFromUrl(href?: string, now = Date.now(
 export async function handleMobileIcloudHandoffLaunch(options: HandoffLaunchOptions = {}) {
   const href = options.href || (typeof window === "undefined" ? "" : window.location.href);
   const now = options.now || Date.now();
+  const pendingBeforeLaunch = await flushPendingMobileIcloudHandoffEvents(options.reportIcloudHandoffEvent, now).catch(() => ({ attempted: 0, reported: 0, remaining: getPendingMobileIcloudHandoffEventCount() }));
   const parsedEntry = parseMobileIcloudHandoffFromUrl(href, now);
-  if (!parsedEntry) return null;
+  if (!parsedEntry) return pendingBeforeLaunch.attempted ? { entry: getStoredMobileIcloudHandoff(), result: null, reportSaved: false, icloudEventReported: false, pendingIcloudEventsFlushed: pendingBeforeLaunch.reported, pendingIcloudEventCount: pendingBeforeLaunch.remaining } : null;
   const storedBefore = getStoredMobileIcloudHandoff();
   const ignoredOlderEntry = isMobileIcloudHandoffSuperseded(parsedEntry, storedBefore);
   let entry = parsedEntry;
@@ -401,9 +536,9 @@ export async function handleMobileIcloudHandoffLaunch(options: HandoffLaunchOpti
   if (options.cleanupUrl !== false) stripMobileIcloudHandoffParamsFromUrl();
   if (ignoredOlderEntry) {
     let icloudEventReported = false;
+    let pendingIcloudEventCount = getPendingMobileIcloudHandoffEventCount();
     try {
-      const reportIcloudHandoffEvent = options.reportIcloudHandoffEvent || (await import("./lifeosApi")).reportMobileIcloudHandoffEvent;
-      await reportIcloudHandoffEvent({
+      const report = await reportOrQueueIcloudHandoffEvent({
         eventType: "ignored-superseded-entry",
         entryBaseUrl: parsedEntry.baseUrl,
         currentBaseUrl: currentBaseFromHref(href) || parsedEntry.baseUrl,
@@ -412,16 +547,20 @@ export async function handleMobileIcloudHandoffLaunch(options: HandoffLaunchOpti
         storedGeneratedAt: entry.generatedAt,
         checksumSha256: parsedEntry.checksumSha256,
         ignoredAt: now,
-      });
-      icloudEventReported = true;
+      }, options.reportIcloudHandoffEvent, now);
+      icloudEventReported = report.reported;
+      pendingIcloudEventCount = report.pendingCount;
     } catch {
       icloudEventReported = false;
+      pendingIcloudEventCount = getPendingMobileIcloudHandoffEventCount();
     }
     return {
       entry,
       result: null,
       reportSaved: false,
       icloudEventReported,
+      pendingIcloudEventsFlushed: pendingBeforeLaunch.reported,
+      pendingIcloudEventCount,
       ignoredOlderEntry: true,
     };
   }
@@ -431,8 +570,8 @@ export async function handleMobileIcloudHandoffLaunch(options: HandoffLaunchOpti
   let icloudEventReported = false;
   if (icloudOpenEventType) {
     try {
-      await reportIcloudHandoffIssueEvent(icloudOpenEventType, entry, href, now, options.reportIcloudHandoffEvent);
-      icloudEventReported = true;
+      const report = await reportIcloudHandoffIssueEvent(icloudOpenEventType, entry, href, now, options.reportIcloudHandoffEvent);
+      icloudEventReported = report.reported;
     } catch {
       icloudEventReported = false;
     }
@@ -467,6 +606,8 @@ export async function handleMobileIcloudHandoffLaunch(options: HandoffLaunchOpti
     reportSaved,
     icloudEventReported,
     icloudEventType: icloudOpenEventType,
+    pendingIcloudEventsFlushed: pendingBeforeLaunch.reported,
+    pendingIcloudEventCount: getPendingMobileIcloudHandoffEventCount(),
   };
 }
 

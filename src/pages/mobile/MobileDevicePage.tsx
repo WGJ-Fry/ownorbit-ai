@@ -10,7 +10,7 @@ import { getMobileConnectivityIssue, getMobileRecoveryHints, getPwaCapabilitySta
 import type { MobileConnectivityResult } from "../../services/pwaCapabilities";
 import { getPwaServiceWorkerLifecycleStatus, subscribePwaServiceWorkerLifecycle } from "../../services/pwaServiceWorkerLifecycle";
 import type { PwaServiceWorkerLifecycleStatus } from "../../services/pwaServiceWorkerLifecycle";
-import { getMobileIcloudHandoffStatus, handleMobileIcloudHandoffLaunch } from "../../services/mobileIcloudHandoff";
+import { flushPendingMobileIcloudHandoffEvents, getMobileIcloudHandoffStatus, handleMobileIcloudHandoffLaunch } from "../../services/mobileIcloudHandoff";
 import MobileConnectionRecoveryCard from "./MobileConnectionRecoveryCard";
 import MobileDeviceHealthSummary from "./MobileDeviceHealthSummary";
 import MobileGeneratedToolsCard from "./MobileGeneratedToolsCard";
@@ -73,12 +73,11 @@ export default function MobileDevicePage() {
       setStatus(null);
     }
     try {
-      const [healthResult, reportResult] = await Promise.allSettled([
-        getHealth(),
-        getLatestMobileConnectivityReport(),
-      ]);
+      const [healthResult, reportResult] = await Promise.allSettled([getHealth(), getLatestMobileConnectivityReport()]);
       if (healthResult.status === "fulfilled") setHealth(healthResult.value);
       if (reportResult.status === "fulfilled") setLastConnectivityReport(reportResult.value.report);
+      await flushPendingMobileIcloudHandoffEvents().catch(() => null);
+      setIcloudHandoffStatus(getMobileIcloudHandoffStatus());
       if (options.announce) setStatus(t("mobileDevice.serverStateRefreshed"));
     } catch (error: any) {
       if (options.announce) setStatus(error.message || t("mobileDevice.serverStateRefreshFailed"));
@@ -97,6 +96,7 @@ export default function MobileDevicePage() {
     let cancelled = false;
     getStoredDeviceCredentialAsync().then((next) => {
       if (!cancelled) setCredential(next);
+      if (next) void flushPendingMobileIcloudHandoffEvents().finally(() => !cancelled && setIcloudHandoffStatus(getMobileIcloudHandoffStatus()));
       return refreshCredentialStorage();
     });
     refreshServiceWorkerLifecycle();

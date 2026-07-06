@@ -577,6 +577,124 @@ test("mobile iCloud handoff launch reports stale entries to the desktop", async 
   assert.equal(icloudEvent.ignoredAt, now);
 });
 
+test("mobile iCloud handoff queues failed desktop reports and flushes them later", async (t) => {
+  installLocalStorage();
+  t.after(cleanupLocalStorage);
+  const now = 1_800_000_360_000;
+  const {
+    flushPendingMobileIcloudHandoffEvents,
+    getPendingMobileIcloudHandoffEventCount,
+    handleMobileIcloudHandoffLaunch,
+  } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-pending-reports-${Date.now()}`);
+  const href = [
+    "https://lifeos.example.com/mobile/chat?lifeosEntry=icloud",
+    `entryGeneratedAt=${now - 120_000}`,
+    `entryRefreshAfter=${now - 60_000}`,
+    `entryExpiresAt=${now + 600_000}`,
+    "entryBaseUrl=https%3A%2F%2Flifeos.example.com",
+    "entryMode=icloud",
+    "entryStability=stable",
+    "entryLabel=iCloud%20Handoff",
+    `entryChecksumSha256=${"e".repeat(64)}`,
+  ].join("&");
+
+  const launch = await handleMobileIcloudHandoffLaunch({
+    href,
+    cleanupUrl: false,
+    now,
+    testConnectivity: async () => ({
+      ok: true,
+      currentBase: "https://lifeos.example.com",
+      latencyMs: 18,
+      testedAt: now + 5,
+      steps: [
+        { id: "health", ok: true, url: "https://lifeos.example.com/api/v1/health", latencyMs: 6 },
+        { id: "mobile-shell", ok: true, url: "https://lifeos.example.com/mobile/chat", latencyMs: 6 },
+        { id: "websocket", ok: true, url: "wss://lifeos.example.com/api/v1/ws", latencyMs: 6 },
+      ],
+    }),
+    reportConnectivity: async () => ({ ok: true }),
+    reportIcloudHandoffEvent: async () => {
+      throw new Error("device credential not ready");
+    },
+  });
+
+  assert.equal(launch.icloudEventReported, false);
+  assert.equal(launch.icloudEventType, "opened-stale-entry");
+  assert.equal(launch.pendingIcloudEventCount, 1);
+  assert.equal(getPendingMobileIcloudHandoffEventCount(), 1);
+
+  const reported = [];
+  const flush = await flushPendingMobileIcloudHandoffEvents(async (event) => {
+    reported.push(event);
+    return { ok: true };
+  }, now + 1_000);
+
+  assert.equal(flush.attempted, 1);
+  assert.equal(flush.reported, 1);
+  assert.equal(flush.remaining, 0);
+  assert.equal(getPendingMobileIcloudHandoffEventCount(), 0);
+  assert.equal(reported[0].eventType, "opened-stale-entry");
+  assert.equal(reported[0].entryBaseUrl, "https://lifeos.example.com");
+  assert.equal(reported[0].currentBaseUrl, "https://lifeos.example.com");
+  assert.equal(reported[0].storedBaseUrl, "https://lifeos.example.com");
+  assert.equal(reported[0].entryGeneratedAt, now - 120_000);
+  assert.equal(reported[0].checksumSha256, "e".repeat(64));
+});
+
+test("mobile iCloud handoff launch flushes queued reports even without a new entry URL", async (t) => {
+  installLocalStorage();
+  t.after(cleanupLocalStorage);
+  const now = 1_800_000_390_000;
+  const {
+    flushPendingMobileIcloudHandoffEvents,
+    getPendingMobileIcloudHandoffEventCount,
+    handleMobileIcloudHandoffLaunch,
+  } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-pending-launch-flush-${Date.now()}`);
+  const href = [
+    "https://lifeos.example.com/mobile/chat?lifeosEntry=icloud",
+    `entryGeneratedAt=${now - 120_000}`,
+    `entryRefreshAfter=${now - 60_000}`,
+    `entryExpiresAt=${now + 600_000}`,
+    "entryBaseUrl=https%3A%2F%2Flifeos.example.com",
+    "entryMode=icloud",
+    "entryStability=stable",
+    "entryLabel=iCloud%20Handoff",
+    `entryChecksumSha256=${"9".repeat(64)}`,
+  ].join("&");
+
+  await handleMobileIcloudHandoffLaunch({
+    href,
+    cleanupUrl: false,
+    now,
+    testConnectivity: async () => ({ ok: true, currentBase: "https://lifeos.example.com", latencyMs: 1, testedAt: now, steps: [] }),
+    reportConnectivity: async () => ({ ok: true }),
+    reportIcloudHandoffEvent: async () => {
+      throw new Error("offline");
+    },
+  });
+  assert.equal(getPendingMobileIcloudHandoffEventCount(), 1);
+
+  const reported = [];
+  const launch = await handleMobileIcloudHandoffLaunch({
+    href: "https://lifeos.example.com/mobile/device",
+    now: now + 2_000,
+    reportIcloudHandoffEvent: async (event) => {
+      reported.push(event);
+      return { ok: true };
+    },
+  });
+
+  assert.equal(launch.result, null);
+  assert.equal(launch.pendingIcloudEventsFlushed, 1);
+  assert.equal(launch.pendingIcloudEventCount, 0);
+  assert.equal(reported.length, 1);
+  assert.equal(getPendingMobileIcloudHandoffEventCount(), 0);
+
+  const empty = await flushPendingMobileIcloudHandoffEvents(async () => ({ ok: true }), now + 3_000);
+  assert.equal(empty.attempted, 0);
+});
+
 test("mobile iCloud handoff ignores older entries instead of overwriting the latest entry", async (t) => {
   installLocalStorage();
   t.after(cleanupLocalStorage);

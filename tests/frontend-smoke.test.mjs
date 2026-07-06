@@ -794,6 +794,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileIcloudHandoffSource, /testMobileRemoteConnectivity/);
   assert.match(mobileIcloudHandoffSource, /reportMobileConnectivity/);
   assert.match(mobileIcloudHandoffSource, /reportIcloudHandoffIssueEvent/);
+  assert.match(mobileIcloudHandoffSource, /PENDING_EVENTS_STORAGE_KEY/);
+  assert.match(mobileIcloudHandoffSource, /flushPendingMobileIcloudHandoffEvents/);
+  assert.match(mobileIcloudHandoffSource, /getPendingMobileIcloudHandoffEventCount/);
+  assert.match(mobileIcloudHandoffSource, /reportOrQueueIcloudHandoffEvent/);
   assert.match(translationsSource, /onboarding\.handoffTitle/);
   assert.match(translationsSource, /onboarding\.handoffSummaryCopied/);
   assert.match(translationsSource, /开启每日自动备份/);
@@ -858,6 +862,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   const mobileToolsSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileToolsPage.tsx"), "utf8");
   const mobileDeviceStatusCardsSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileDeviceStatusCards.tsx"), "utf8");
   assert.match(mobileDeviceSource, /getPwaCapabilityStatus/);
+  assert.match(mobileDeviceSource, /flushPendingMobileIcloudHandoffEvents/);
   assert.match(mobileDeviceSource, /getRemoteEntryStatus/);
   assert.match(mobileDeviceSource, /getRemoteEntryGuidance/);
   assert.match(mobileDeviceSource, /getMobileIcloudHandoffStatus/);

@@ -725,6 +725,7 @@ function checkAssets() {
   const devicesSource = exists("server/devices.ts") ? fs.readFileSync(path.join(rootDir, "server/devices.ts"), "utf8") : "";
   const deviceRoutesSource = exists("server/routes/deviceRoutes.ts") ? fs.readFileSync(path.join(rootDir, "server/routes/deviceRoutes.ts"), "utf8") : "";
   const networkDiagnosticsTestSource = exists("tests/network-diagnostics.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/network-diagnostics.test.mjs"), "utf8") : "";
+  const pwaCapabilitiesTestSource = exists("tests/pwa-capabilities.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/pwa-capabilities.test.mjs"), "utf8") : "";
   const cloudflareTunnelSource = exists("server/cloudflareTunnel.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudflareTunnel.ts"), "utf8") : "";
   const cloudflareTunnelTestSource = exists("tests/cloudflare-tunnel.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudflare-tunnel.test.mjs"), "utf8") : "";
   const clientRoutingTestSource = exists("tests/client-routing.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/client-routing.test.mjs"), "utf8") : "";
@@ -1337,6 +1338,7 @@ function checkAssets() {
   const icloudAcceptanceSource = exists("server/icloudAcceptance.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudAcceptance.ts"), "utf8") : "";
   const icloudPairingSessionSource = exists("server/icloudPairingSession.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudPairingSession.ts"), "utf8") : "";
   const icloudHandoffMonitorSource = exists("server/icloudHandoffMonitor.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudHandoffMonitor.ts"), "utf8") : "";
+  const mobileIcloudHandoffSource = exists("src/services/mobileIcloudHandoff.ts") ? fs.readFileSync(path.join(rootDir, "src/services/mobileIcloudHandoff.ts"), "utf8") : "";
   if (
     deviceRoutesSource.includes("pairingInstallUrl") &&
     deviceRoutesSource.includes("/mobile/install/") &&
@@ -1413,10 +1415,16 @@ function checkAssets() {
     networkDiagnosticsTestSource.includes("iCloud handoff monitor refreshes stale desktop chooser index files") &&
     networkDiagnosticsTestSource.includes("monitorRun.trigger") &&
     networkDiagnosticsTestSource.includes("monitorRun.changeType") &&
+    mobileIcloudHandoffSource.includes("PENDING_EVENTS_STORAGE_KEY") &&
+    mobileIcloudHandoffSource.includes("flushPendingMobileIcloudHandoffEvents") &&
+    mobileIcloudHandoffSource.includes("reportOrQueueIcloudHandoffEvent") &&
+    mobileDeviceSource.includes("flushPendingMobileIcloudHandoffEvents") &&
+    pwaCapabilitiesTestSource.includes("queues failed desktop reports and flushes them later") &&
+    pwaCapabilitiesTestSource.includes("flushes queued reports even without a new entry URL") &&
     apiAuthTestSource.includes("/api/v1/internal/icloud-handoff/refresh") &&
     apiAuthTestSource.includes("desktopInternalToken")
-  ) pass("iCloud diagnostics surface stale QR, account state, Apple-device acceptance, desktop wake refresh, trigger/change reason, and handoff boundary with UI and tests");
-  else warn("iCloud diagnostics do not surface stale QR/account/acceptance/desktop wake refresh/trigger/change/handoff boundary state across API, UI, and tests");
+  ) pass("iCloud diagnostics surface stale QR, account state, Apple-device acceptance, desktop wake refresh, trigger/change reason, handoff boundary, and pending mobile event retry with UI and tests");
+  else warn("iCloud diagnostics do not surface stale QR/account/acceptance/desktop wake refresh/trigger/change/handoff boundary/pending mobile event retry state across API, UI, and tests");
   if (
     deviceRoutesSource.includes('app.delete("/api/v1/devices/me"') &&
     deviceRoutesSource.includes("device_self_revoked") &&
@@ -1747,7 +1755,6 @@ function checkAssets() {
   const chatRoutesSource = exists("server/routes/chatRoutes.ts") ? fs.readFileSync(path.join(rootDir, "server/routes/chatRoutes.ts"), "utf8") : "";
   const chatMigrationSource = exists("server/migrations/015_message_offline_sync_identity.sql") ? fs.readFileSync(path.join(rootDir, "server/migrations/015_message_offline_sync_identity.sql"), "utf8") : "";
   const pwaCapabilitiesSource = exists("src/services/pwaCapabilities.ts") ? fs.readFileSync(path.join(rootDir, "src/services/pwaCapabilities.ts"), "utf8") : "";
-  const pwaCapabilitiesTestSource = exists("tests/pwa-capabilities.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/pwa-capabilities.test.mjs"), "utf8") : "";
   const mobileConnectivityCardSource = exists("src/pages/mobile/MobileConnectivityCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileConnectivityCard.tsx"), "utf8") : "";
   const mobileLastConnectivityCardSource = exists("src/pages/mobile/MobileLastConnectivityCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileLastConnectivityCard.tsx"), "utf8") : "";
   const deviceConnectivityStatusSource = exists("src/pages/admin/DeviceConnectivityStatus.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/DeviceConnectivityStatus.tsx"), "utf8") : "";
