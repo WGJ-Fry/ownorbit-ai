@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "child_process";
-import { accessSync, constants, existsSync, mkdirSync, writeFileSync } from "fs";
+import { accessSync, constants, existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { WebSocket } from "ws";
@@ -54,6 +54,9 @@ type RemoteReadinessItemId =
   | "needsRestart"
   | "temporaryTunnel"
   | "ready";
+
+const ICLOUD_HANDOFF_REFRESH_AFTER_MS = 24 * 60 * 60 * 1000;
+const ICLOUD_HANDOFF_EXPIRES_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
 
 function runCommand(command: string, args: string[] = []): CommandResult {
   try {
@@ -222,6 +225,77 @@ function preferredHandoffCandidate(candidates: ConnectionCandidate[]) {
   );
 }
 
+function readIcloudHandoffPacket(packetFilePath: string) {
+  if (!packetFilePath || !existsSync(packetFilePath)) return null;
+  try {
+    const packet = JSON.parse(readFileSync(packetFilePath, "utf8"));
+    return packet && typeof packet === "object" ? packet as Record<string, unknown> : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildIcloudHandoffHealth(input: {
+  packetFilePath: string;
+  candidate: ConnectionCandidate | null;
+  now?: number;
+}) {
+  const now = input.now || Date.now();
+  const packet = readIcloudHandoffPacket(input.packetFilePath);
+  const generatedAt = Number(packet?.generatedAt || 0);
+  const exportedBaseUrl = String(packet?.baseUrl || "");
+  const expiresAt = Number(packet?.expiresAt || (generatedAt ? generatedAt + ICLOUD_HANDOFF_EXPIRES_AFTER_MS : 0));
+  const refreshAfter = Number(packet?.refreshAfter || (generatedAt ? generatedAt + ICLOUD_HANDOFF_REFRESH_AFTER_MS : 0));
+  let status: "missing" | "fresh" | "stale" | "address-changed" | "expired" = "missing";
+  let reason = "No iCloud mobile entry has been exported yet.";
+
+  if (packet && generatedAt > 0) {
+    if (expiresAt > 0 && now >= expiresAt) {
+      status = "expired";
+      reason = "The iCloud mobile entry is older than the recommended recovery window.";
+    } else if (input.candidate?.baseUrl && exportedBaseUrl && input.candidate.baseUrl !== exportedBaseUrl) {
+      status = "address-changed";
+      reason = "The best phone entry changed after the last iCloud export.";
+    } else if (refreshAfter > 0 && now >= refreshAfter) {
+      status = "stale";
+      reason = "The iCloud mobile entry should be refreshed after a day or after any network change.";
+    } else {
+      status = "fresh";
+      reason = "The iCloud mobile entry is fresh.";
+    }
+  }
+
+  return {
+    status,
+    needsRefresh: status !== "fresh",
+    lastExportedAt: generatedAt || 0,
+    lastExportedBaseUrl: exportedBaseUrl,
+    refreshAfter: refreshAfter || 0,
+    expiresAt: expiresAt || 0,
+    refreshAfterMs: ICLOUD_HANDOFF_REFRESH_AFTER_MS,
+    expiresAfterMs: ICLOUD_HANDOFF_EXPIRES_AFTER_MS,
+    reason,
+  };
+}
+
+function summarizeIcloudFallbackCandidates(candidates: ConnectionCandidate[]) {
+  return candidates
+    .filter((candidate) => candidate.mode !== "local")
+    .slice(0, 5)
+    .map((candidate) => ({
+      id: candidate.id,
+      label: candidate.label,
+      mode: candidate.mode,
+      baseUrl: candidate.baseUrl,
+      mobilePairUrl: candidate.mobilePairUrl,
+      mobileChatUrl: candidate.mobileChatUrl,
+      secure: candidate.secure,
+      stability: candidate.stability,
+      requiresRestart: candidate.requiresRestart,
+      notes: candidate.notes.slice(0, 3),
+    }));
+}
+
 function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
   const platformSupported = isApplePlatform();
   const drivePath = iCloudDrivePath();
@@ -231,6 +305,7 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
   const packetFilePath = path.join(appFolderPath, "lifeos-mobile-entry.json");
   const candidate = preferredHandoffCandidate(candidates);
   const hasPhoneEntry = Boolean(candidate);
+  const handoffHealth = buildIcloudHandoffHealth({ packetFilePath, candidate });
   return {
     platform: process.platform,
     platformSupported,
@@ -244,6 +319,7 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
     recommendedLabel: candidate?.label || "",
     recommendedMode: candidate?.mode || "",
     recommendedStability: candidate?.stability || "",
+    handoffHealth,
     realtimeTransport: false,
     transport: "handoff-only" as const,
     openInstruction: available
@@ -255,6 +331,7 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
       candidate?.baseUrl
         ? `Current handoff entry: ${candidate.label} (${candidate.baseUrl}).`
         : "No phone-reachable entry is available yet; use same Wi-Fi or configure an HTTPS remote entry first.",
+      handoffHealth.reason,
     ],
   };
 }
@@ -262,6 +339,10 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
 function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: ConnectionCandidate; packet: Record<string, unknown> }) {
   const title = "LifeOS AI Mobile Entry";
   const generatedAt = new Date(input.generatedAt).toLocaleString();
+  const refreshAfter = typeof input.packet.refreshAfter === "number" ? new Date(input.packet.refreshAfter).toLocaleString() : "-";
+  const expiresAt = typeof input.packet.expiresAt === "number" ? new Date(input.packet.expiresAt).toLocaleString() : "-";
+  const remoteReady = input.candidate.secure && input.candidate.stability === "stable" && !input.candidate.requiresRestart;
+  const fallbackCount = Array.isArray(input.packet.fallbackCandidates) ? input.packet.fallbackCandidates.length : 0;
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -275,21 +356,32 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
       p { color: #a1a1aa; line-height: 1.6; }
       a { display: flex; align-items: center; justify-content: center; min-height: 48px; margin-top: 14px; border-radius: 16px; background: #22d3ee; color: #061016; text-decoration: none; font-weight: 800; }
       .secondary { background: rgba(255,255,255,.06); color: #e4e4e7; border: 1px solid rgba(255,255,255,.1); }
+      .pill { display: inline-flex; align-items: center; margin-top: 14px; border-radius: 999px; padding: 6px 10px; font-size: 12px; font-weight: 800; background: ${remoteReady ? "rgba(16,185,129,.16)" : "rgba(245,158,11,.16)"}; color: ${remoteReady ? "#bbf7d0" : "#fde68a"}; }
       .meta { margin-top: 18px; padding: 12px; border-radius: 16px; background: rgba(255,255,255,.04); color: #cbd5e1; font-size: 12px; line-height: 1.6; word-break: break-all; }
       .warn { margin-top: 14px; color: #fef3c7; font-size: 12px; line-height: 1.6; }
+      .steps { margin: 14px 0 0; padding-left: 18px; color: #cbd5e1; font-size: 12px; line-height: 1.7; }
     </style>
   </head>
   <body>
     <main>
       <h1>LifeOS AI</h1>
       <p>Open the mobile companion from this Apple device. This file was synced through iCloud Drive.</p>
+      <div class="pill">${remoteReady ? "Ready for long-term remote use" : "Open now, then refresh after network changes"}</div>
       <a href="${htmlEscape(input.candidate.mobilePairUrl)}">Pair This Device</a>
       <a class="secondary" href="${htmlEscape(input.candidate.mobileChatUrl)}">Open Mobile Chat</a>
       <div class="meta">
         <strong>${htmlEscape(input.candidate.label)}</strong><br />
         ${htmlEscape(input.candidate.baseUrl)}<br />
-        Generated: ${htmlEscape(generatedAt)}
+        Generated: ${htmlEscape(generatedAt)}<br />
+        Refresh after: ${htmlEscape(refreshAfter)}<br />
+        Expires: ${htmlEscape(expiresAt)}<br />
+        Fallback entries: ${htmlEscape(fallbackCount)}
       </div>
+      <ol class="steps">
+        <li>If pairing fails, go back to the desktop app and export this iCloud entry again.</li>
+        <li>If chat works on Wi-Fi but fails outside, enable Tailscale HTTPS Serve or Cloudflare Tunnel.</li>
+        <li>If an old QR code expires, generate a new QR code from the desktop app.</li>
+      </ol>
       <div class="warn">iCloud syncs this entry file; it is not a live tunnel. If this address only works on the same Wi-Fi, remote chat will still need a reachable HTTPS entry.</div>
       <script type="application/json" id="lifeos-entry">${scriptJson(input.packet)}</script>
     </main>
@@ -861,8 +953,11 @@ export function exportIcloudHandoff() {
   const generatedAt = Date.now();
   const packet = {
     kind: "lifeos-mobile-entry",
-    version: 1,
+    version: 2,
     generatedAt,
+    refreshAfter: generatedAt + ICLOUD_HANDOFF_REFRESH_AFTER_MS,
+    expiresAt: generatedAt + ICLOUD_HANDOFF_EXPIRES_AFTER_MS,
+    candidateId: candidate.id,
     label: candidate.label,
     baseUrl: candidate.baseUrl,
     mobilePairUrl: candidate.mobilePairUrl,
@@ -872,6 +967,13 @@ export function exportIcloudHandoff() {
     stability: candidate.stability,
     requiresRestart: candidate.requiresRestart,
     notes: candidate.notes,
+    fallbackCandidates: summarizeIcloudFallbackCandidates(diagnostics.connectionCandidates),
+    remoteReadiness: diagnostics.remoteReadiness,
+    recoveryActions: [
+      "Refresh this iCloud entry after changing Wi-Fi, restarting a tunnel, or changing PUBLIC_BASE_URL.",
+      "Regenerate the phone pairing QR code when an old QR code expires or opens the wrong address.",
+      "Use Tailscale HTTPS Serve or Cloudflare Tunnel for live off-LAN chat; iCloud only syncs the entry file.",
+    ],
     transport: "icloud-handoff",
     realtimeTransport: false,
     warning: "iCloud syncs this entry file; it does not create a realtime tunnel.",

@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, Cloud, ExternalLink, Loader2, QrCode, ShieldCheck, Smartphone, Wifi } from "lucide-react";
+import { ArrowRight, CheckCircle2, Cloud, ExternalLink, Loader2, QrCode, RefreshCw, ShieldCheck, Smartphone, Wifi } from "lucide-react";
 import type { NetworkDiagnostics } from "../../services/lifeosApi";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { TranslationKey } from "../../i18n/translations";
@@ -24,6 +24,22 @@ const readinessStatusKeys: Record<NetworkDiagnostics["remoteReadiness"]["status"
   blocked: "connection.readiness.status.blocked",
 };
 
+const handoffHealthStatusKeys: Record<NetworkDiagnostics["icloud"]["handoffHealth"]["status"], TranslationKey> = {
+  missing: "onboarding.appleRemoteIcloudHealthMissing",
+  fresh: "onboarding.appleRemoteIcloudHealthFresh",
+  stale: "onboarding.appleRemoteIcloudHealthStale",
+  "address-changed": "onboarding.appleRemoteIcloudHealthAddressChanged",
+  expired: "onboarding.appleRemoteIcloudHealthExpired",
+};
+
+const handoffHealthReasonKeys: Record<NetworkDiagnostics["icloud"]["handoffHealth"]["status"], TranslationKey> = {
+  missing: "onboarding.appleRemoteIcloudReasonMissing",
+  fresh: "onboarding.appleRemoteIcloudReasonFresh",
+  stale: "onboarding.appleRemoteIcloudReasonStale",
+  "address-changed": "onboarding.appleRemoteIcloudReasonAddressChanged",
+  expired: "onboarding.appleRemoteIcloudReasonExpired",
+};
+
 function isAppleRuntime() {
   if (typeof navigator === "undefined") return false;
   const platform = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform || navigator.platform || "";
@@ -44,11 +60,21 @@ function getPreferredCandidate(diagnostics: NetworkDiagnostics | null) {
   );
 }
 
+function formatHandoffTime(value?: number) {
+  if (!value) return "";
+  try {
+    return new Date(value).toLocaleString();
+  } catch {
+    return "";
+  }
+}
+
 export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportIcloud, onStartTailscale, onStartCloudflare, onSaveCandidate, onTestCandidate }: Props) {
   const { t } = useI18n();
   const appleRuntime = isAppleRuntime();
   const candidate = getPreferredCandidate(diagnostics);
   const icloud = diagnostics?.icloud;
+  const handoffHealth = icloud?.handoffHealth;
   const readiness = diagnostics?.remoteReadiness;
   const tailscaleInstalled = Boolean(diagnostics?.tailscale.installed);
   const tailscaleInstallUrl = diagnostics?.tailscale.installUrl || "https://tailscale.com/download";
@@ -56,6 +82,9 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const readinessTone = readiness?.severity === "ok" ? "text-emerald-200" : readiness?.severity === "danger" ? "text-red-200" : "text-amber-200";
   const candidateReady = Boolean(candidate);
   const canExportIcloud = Boolean(icloud?.canExport);
+  const handoffHealthTone = handoffHealth?.status === "fresh" ? "bg-emerald-500/15 text-emerald-100" : handoffHealth?.status === "address-changed" || handoffHealth?.status === "expired" ? "bg-red-500/15 text-red-100" : "bg-amber-500/15 text-amber-100";
+  const lastExportedAt = formatHandoffTime(handoffHealth?.lastExportedAt);
+  const refreshAfter = formatHandoffTime(handoffHealth?.refreshAfter);
 
   return (
     <section className="rounded-[28px] border border-sky-400/15 bg-[#101722] p-5">
@@ -113,6 +142,21 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
           <div className="mt-2 break-all font-mono text-[11px] text-zinc-500">
             {icloud?.handoffFilePath || icloud?.openInstruction || t("onboarding.appleRemoteIcloudNoPath")}
           </div>
+          {handoffHealth ? (
+            <div className="mt-3 border-t border-white/[0.06] pt-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-bold text-zinc-100">{t("onboarding.appleRemoteIcloudHealthTitle")}</span>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${handoffHealthTone}`}>
+                  {t(handoffHealthStatusKeys[handoffHealth.status])}
+                </span>
+              </div>
+              <div className="mt-2 grid gap-1 text-[11px] text-zinc-500">
+                <div>{t("onboarding.appleRemoteIcloudLastExported")}: {lastExportedAt || t("onboarding.appleRemoteIcloudNeverExported")}</div>
+                <div>{t("onboarding.appleRemoteIcloudRefreshAfter")}: {refreshAfter || "-"}</div>
+                <div>{t("onboarding.appleRemoteIcloudReason")}: {t(handoffHealthReasonKeys[handoffHealth.status])}</div>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -123,8 +167,8 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
           disabled={!canExportIcloud || isBusy}
           className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sky-400 px-4 py-3 text-sm font-bold text-[#061016] disabled:opacity-50"
         >
-          {busy === "icloud-handoff" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Cloud className="h-4 w-4" />}
-          {canExportIcloud ? t("onboarding.appleRemoteExportIcloud") : t("onboarding.appleRemoteIcloudDisabled")}
+          {busy === "icloud-handoff" ? <Loader2 className="h-4 w-4 animate-spin" /> : handoffHealth?.needsRefresh ? <RefreshCw className="h-4 w-4" /> : <Cloud className="h-4 w-4" />}
+          {canExportIcloud ? (handoffHealth?.needsRefresh ? t("onboarding.appleRemoteRefreshIcloud") : t("onboarding.appleRemoteExportIcloud")) : t("onboarding.appleRemoteIcloudDisabled")}
         </button>
 
         <div className="grid gap-3 sm:grid-cols-2">

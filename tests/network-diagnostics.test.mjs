@@ -244,10 +244,75 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   const packet = JSON.parse(await readFile(result.packetFilePath, "utf8"));
   assert.match(html, /LifeOS AI Mobile Entry/);
   assert.match(html, /https:\/\/lifeos\.example\.com\/mobile\/pair/);
+  assert.match(html, /Refresh after:/);
+  assert.match(html, /If pairing fails/);
   assert.equal(packet.baseUrl, "https://lifeos.example.com");
+  assert.equal(packet.version, 2);
+  assert.equal(packet.candidateId, "configured-public");
   assert.equal(packet.mobileChatUrl, "https://lifeos.example.com/mobile/chat");
+  assert.equal(packet.refreshAfter > packet.generatedAt, true);
+  assert.equal(packet.expiresAt > packet.refreshAfter, true);
+  assert.equal(Array.isArray(packet.fallbackCandidates), true);
+  assert.equal(packet.fallbackCandidates.some((candidate) => candidate.baseUrl === "https://lifeos.example.com"), true);
+  assert.equal(Array.isArray(packet.recoveryActions), true);
+  assert.match(packet.recoveryActions.join("\n"), /Refresh this iCloud entry after changing Wi-Fi/);
   assert.equal(packet.realtimeTransport, false);
   assert.equal(packet.transport, "icloud-handoff");
+});
+
+test("iCloud handoff diagnostics mark exported entry stale when the recommended address changes", async (t) => {
+  const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-stale-"));
+  const appDir = path.join(icloudDir, "LifeOS AI");
+  fs.mkdirSync(appDir, { recursive: true });
+  await writeFile(path.join(appDir, "lifeos-mobile-entry.json"), JSON.stringify({
+    kind: "lifeos-mobile-entry",
+    version: 2,
+    generatedAt: Date.now() - 60_000,
+    refreshAfter: Date.now() + 60_000,
+    expiresAt: Date.now() + 600_000,
+    baseUrl: "https://old-lifeos.example.com",
+  }));
+  const oldPort = process.env.LIFEOS_PORT;
+  const oldPublicBaseUrl = process.env.PUBLIC_BASE_URL;
+  const oldAppUrl = process.env.APP_URL;
+  const oldCloudflaredBin = process.env.LIFEOS_CLOUDFLARED_BIN;
+  const oldTailscaleBin = process.env.LIFEOS_TAILSCALE_BIN;
+  const oldIcloudDriveDir = process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+  const oldForceIcloud = process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+
+  t.after(async () => {
+    if (oldPort === undefined) delete process.env.LIFEOS_PORT;
+    else process.env.LIFEOS_PORT = oldPort;
+    if (oldPublicBaseUrl === undefined) delete process.env.PUBLIC_BASE_URL;
+    else process.env.PUBLIC_BASE_URL = oldPublicBaseUrl;
+    if (oldAppUrl === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = oldAppUrl;
+    if (oldCloudflaredBin === undefined) delete process.env.LIFEOS_CLOUDFLARED_BIN;
+    else process.env.LIFEOS_CLOUDFLARED_BIN = oldCloudflaredBin;
+    if (oldTailscaleBin === undefined) delete process.env.LIFEOS_TAILSCALE_BIN;
+    else process.env.LIFEOS_TAILSCALE_BIN = oldTailscaleBin;
+    if (oldIcloudDriveDir === undefined) delete process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+    else process.env.LIFEOS_ICLOUD_DRIVE_DIR = oldIcloudDriveDir;
+    if (oldForceIcloud === undefined) delete process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+    else process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = oldForceIcloud;
+    await rm(icloudDir, { recursive: true, force: true });
+  });
+
+  process.env.LIFEOS_PORT = "4567";
+  process.env.PUBLIC_BASE_URL = "https://new-lifeos.example.com";
+  delete process.env.APP_URL;
+  process.env.LIFEOS_CLOUDFLARED_BIN = "/definitely/missing/cloudflared";
+  process.env.LIFEOS_TAILSCALE_BIN = "/definitely/missing/tailscale";
+  process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = "1";
+  process.env.LIFEOS_ICLOUD_DRIVE_DIR = icloudDir;
+
+  const { getNetworkDiagnostics } = await import(`../server/networkDiagnostics.ts?icloud-stale=${Date.now()}`);
+  const diagnostics = getNetworkDiagnostics();
+
+  assert.equal(diagnostics.icloud.handoffHealth.status, "address-changed");
+  assert.equal(diagnostics.icloud.handoffHealth.needsRefresh, true);
+  assert.equal(diagnostics.icloud.handoffHealth.lastExportedBaseUrl, "https://old-lifeos.example.com");
+  assert.equal(diagnostics.icloud.recommendedBaseUrl, "https://new-lifeos.example.com");
 });
 
 test("Tailscale installer uses explicit confirmation and mocked Homebrew only", async (t) => {

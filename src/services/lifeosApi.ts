@@ -636,6 +636,17 @@ export type NetworkDiagnostics = {
     recommendedLabel: string;
     recommendedMode: string;
     recommendedStability: string;
+    handoffHealth: {
+      status: "missing" | "fresh" | "stale" | "address-changed" | "expired";
+      needsRefresh: boolean;
+      lastExportedAt: number;
+      lastExportedBaseUrl: string;
+      refreshAfter: number;
+      expiresAt: number;
+      refreshAfterMs: number;
+      expiresAfterMs: number;
+      reason: string;
+    };
     realtimeTransport: false;
     transport: "handoff-only";
     openInstruction: string;
