@@ -1358,6 +1358,11 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("icloudPairingSessionKeys") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorPairingSession") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudPairingExpired") &&
+    onboardingAppleRemoteSource.includes("renderIcloudEventUrls") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudEventEntryUrl") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudEventCurrentUrl") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudEventStoredUrl") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudEventDesktopUrl") &&
     apiAuthTestSource.includes("networkDiagnosticsWithBinding.icloud.pairingSession.status") &&
     networkDiagnosticsTestSource.includes("iCloud pairing session status guides stale QR repair") &&
     networkDiagnosticsTestSource.includes("iCloud handoff monitor refreshes after the latest pairing QR expires")

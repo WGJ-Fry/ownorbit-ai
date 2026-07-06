@@ -156,6 +156,8 @@ const historyChangeTypeKeys: Record<string, TranslationKey> = {
   "refreshed-same-address": "onboarding.appleRemoteIcloudHistoryRefreshed",
 };
 
+type IcloudHandoffEvent = NonNullable<NetworkDiagnostics["icloud"]["latestEntryIssueEvent"]>;
+
 function isAppleRuntime() {
   if (typeof navigator === "undefined") return false;
   const platform = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform || navigator.platform || "";
@@ -183,6 +185,17 @@ function formatHandoffTime(value?: number) {
   } catch {
     return "";
   }
+}
+
+function compactEventUrls(event: IcloudHandoffEvent, desktopBaseUrl = "") {
+  return [
+    { key: "onboarding.appleRemoteIcloudEventEntryUrl" as TranslationKey, value: event.entryBaseUrl },
+    { key: "onboarding.appleRemoteIcloudEventCurrentUrl" as TranslationKey, value: event.currentBaseUrl },
+    { key: "onboarding.appleRemoteIcloudEventStoredUrl" as TranslationKey, value: event.storedBaseUrl },
+    { key: "onboarding.appleRemoteIcloudEventDesktopUrl" as TranslationKey, value: desktopBaseUrl },
+  ].filter((item, index, all) => (
+    item.value && all.findIndex((candidate) => candidate.value === item.value) === index
+  ));
 }
 
 function getSimpleIcloudStatus(icloud: NetworkDiagnostics["icloud"] | undefined) {
@@ -354,6 +367,21 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
       </a>
     </div>
   );
+
+  const renderIcloudEventUrls = (event: IcloudHandoffEvent) => {
+    const urls = compactEventUrls(event, icloud?.recommendedBaseUrl || "");
+    if (!urls.length) return null;
+    return (
+      <div className="mt-2 grid gap-1 rounded-lg bg-[#060a10]/40 p-2 font-mono text-[10px] text-amber-50/70">
+        {urls.map((item) => (
+          <div key={`${item.key}-${item.value}`} className="grid gap-0.5">
+            <span className="font-sans text-[10px] font-bold text-amber-50/80">{t(item.key)}</span>
+            <span className="break-all">{item.value}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   const renderRepairRecommendationAction = (item: IcloudHandoffRepairAnalysis["recommendations"][number]) => {
     const label = t(repairRecommendationKeys[item.id]);
@@ -605,9 +633,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                       time: latestIgnoredAt || "-",
                     })}
                   </div>
-                  <div className="mt-2 break-all rounded-lg bg-[#060a10]/40 p-2 font-mono text-[10px] text-amber-50/70">
-                    {latestIgnoredEntryEvent.entryBaseUrl}
-                  </div>
+                  {renderIcloudEventUrls(latestIgnoredEntryEvent)}
                   <div className="mt-2 text-[11px] font-bold text-amber-50">
                     {t("onboarding.appleRemoteIcloudOldEntryAction")}
                   </div>
@@ -629,9 +655,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                       time: latestIssueAt || "-",
                     })}
                   </div>
-                  <div className="mt-2 break-all rounded-lg bg-[#060a10]/40 p-2 font-mono text-[10px] text-amber-50/70">
-                    {latestEntryIssueEvent.entryBaseUrl}
-                  </div>
+                  {renderIcloudEventUrls(latestEntryIssueEvent)}
                   <div className="mt-2 text-[11px] font-bold text-amber-50">
                     {t("onboarding.appleRemoteIcloudIssueAction")}
                   </div>

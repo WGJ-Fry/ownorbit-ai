@@ -619,6 +619,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /latestIgnoredEntryEvent/);
   assert.match(onboardingAppleRemoteSource, /phoneConfirmation/);
   assert.match(onboardingAppleRemoteSource, /icloudPhoneConfirmationKeys/);
+  assert.match(onboardingAppleRemoteSource, /compactEventUrls/);
+  assert.match(onboardingAppleRemoteSource, /renderIcloudEventUrls/);
+  assert.match(onboardingAppleRemoteSource, /currentBaseUrl/);
+  assert.match(onboardingAppleRemoteSource, /storedBaseUrl/);
+  assert.match(onboardingAppleRemoteSource, /recommendedBaseUrl/);
   assert.match(onboardingAppleRemoteSource, /pairingSession/);
   assert.match(onboardingAppleRemoteSource, /icloudPairingSessionKeys/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudPairingExpired/);
@@ -631,6 +636,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudOldEntryTitle/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudPhoneConfirmConfirmed/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudOldEntryAction/);
+  assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudEventEntryUrl/);
+  assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudEventCurrentUrl/);
+  assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudEventStoredUrl/);
+  assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudEventDesktopUrl/);
   assert.match(onboardingAppleRemoteSource, /renderIcloudFixActions/);
   assert.match(onboardingAppleRemoteSource, /latestEntryIssueEvent/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudIssueTitle/);
@@ -668,6 +677,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /二维码已过期/);
   assert.match(translationsSource, /QR has expired/);
   assert.match(translationsSource, /手机入口已同步/);
+  assert.match(translationsSource, /手机打开的入口/);
+  assert.match(translationsSource, /Entry opened by phone/);
   assert.match(translationsSource, /Mobile entry is synced/);
   assert.match(translationsSource, /入口文件正在同步/);
   assert.match(translationsSource, /Entry files are still syncing/);
