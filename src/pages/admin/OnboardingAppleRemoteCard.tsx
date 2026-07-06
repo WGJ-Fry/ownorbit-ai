@@ -80,6 +80,14 @@ const repairRecommendationKeys: Record<IcloudHandoffRepairAnalysis["recommendati
   ready: "onboarding.appleRemoteIcloudRepairRecReady",
 };
 
+const issueEventKindKeys: Record<NonNullable<NetworkDiagnostics["icloud"]["latestEntryIssueEvent"]>["eventType"], TranslationKey> = {
+  "ignored-superseded-entry": "onboarding.appleRemoteIcloudIssueKindSuperseded",
+  "opened-stale-entry": "onboarding.appleRemoteIcloudIssueKindStale",
+  "opened-expired-entry": "onboarding.appleRemoteIcloudIssueKindExpired",
+  "opened-legacy-entry": "onboarding.appleRemoteIcloudIssueKindLegacy",
+  "opened-address-mismatch-entry": "onboarding.appleRemoteIcloudIssueKindMismatch",
+};
+
 function isAppleRuntime() {
   if (typeof navigator === "undefined") return false;
   const platform = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform || navigator.platform || "";
@@ -166,6 +174,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const icloudMonitor = diagnostics?.icloudMonitor;
   const icloudLifecycle = icloud?.lifecycle;
   const latestIgnoredEntryEvent = icloud?.latestIgnoredEntryEvent || null;
+  const latestEntryIssueEvent = icloud?.latestEntryIssueEvent || null;
   const latestHistory = icloud?.entryHistory?.slice(0, 3) || [];
   const availableEntryCount = icloud?.availableEntries?.length || 0;
   const readiness = diagnostics?.remoteReadiness;
@@ -185,6 +194,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const icloudMonitorNextRunAt = formatHandoffTime(icloudMonitor?.nextRunAt || undefined);
   const icloudMonitorIntervalSeconds = Math.round((icloudMonitor?.intervalMs || 0) / 1000);
   const latestIgnoredAt = formatHandoffTime(latestIgnoredEntryEvent?.ignoredAt);
+  const latestIssueAt = formatHandoffTime(latestEntryIssueEvent?.ignoredAt || latestEntryIssueEvent?.createdAt);
   const simpleIcloudStatus = getSimpleIcloudStatus(icloud);
 
   const handleAnalyzeRepair = async () => {
@@ -291,6 +301,29 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                   </div>
                   <div className="mt-2 text-[11px] font-bold text-amber-50">
                     {t("onboarding.appleRemoteIcloudOldEntryAction")}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {latestEntryIssueEvent ? (
+            <div className="mt-3 rounded-xl border border-amber-400/20 bg-amber-500/10 p-3 text-amber-50">
+              <div className="flex gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                  <div className="font-bold">{t("onboarding.appleRemoteIcloudIssueTitle")}</div>
+                  <div className="mt-1 text-[11px] leading-relaxed text-amber-50/80">
+                    {t("onboarding.appleRemoteIcloudIssueBody", {
+                      device: latestEntryIssueEvent.deviceName || latestEntryIssueEvent.deviceId,
+                      kind: t(issueEventKindKeys[latestEntryIssueEvent.eventType]),
+                      time: latestIssueAt || "-",
+                    })}
+                  </div>
+                  <div className="mt-2 break-all rounded-lg bg-[#060a10]/40 p-2 font-mono text-[10px] text-amber-50/70">
+                    {latestEntryIssueEvent.entryBaseUrl}
+                  </div>
+                  <div className="mt-2 text-[11px] font-bold text-amber-50">
+                    {t("onboarding.appleRemoteIcloudIssueAction")}
                   </div>
                 </div>
               </div>

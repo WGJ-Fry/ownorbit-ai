@@ -121,13 +121,21 @@ function normalizeOptionalTimestamp(value: unknown) {
 
 function normalizeIcloudHandoffEventPayload(body: any) {
   const eventType = String(body?.eventType || "").trim();
-  if (eventType !== "ignored-superseded-entry") throw new Error("Unsupported iCloud handoff event");
+  const supportedEventTypes = [
+    "ignored-superseded-entry",
+    "opened-stale-entry",
+    "opened-expired-entry",
+    "opened-legacy-entry",
+    "opened-address-mismatch-entry",
+  ] as const;
+  if (!supportedEventTypes.includes(eventType as typeof supportedEventTypes[number])) throw new Error("Unsupported iCloud handoff event");
+  const normalizedEventType = eventType as typeof supportedEventTypes[number];
   const checksum = String(body?.checksumSha256 || "").trim().toLowerCase();
   if (checksum && !/^[a-f0-9]{64}$/.test(checksum)) throw new Error("checksumSha256 is invalid");
   const now = Date.now();
   const ignoredAt = normalizeOptionalTimestamp(body?.ignoredAt) || now;
   return {
-    eventType,
+    eventType: normalizedEventType,
     entryBaseUrl: normalizeCleanHttpBaseUrl(body?.entryBaseUrl, "entryBaseUrl"),
     currentBaseUrl: normalizeCleanHttpBaseUrl(body?.currentBaseUrl, "currentBaseUrl"),
     storedBaseUrl: normalizeCleanHttpBaseUrl(body?.storedBaseUrl, "storedBaseUrl"),

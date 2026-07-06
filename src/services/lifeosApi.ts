@@ -36,7 +36,7 @@ export type DeviceIcloudHandoffEvent = {
   deviceId: string;
   deviceName?: string;
   deviceType?: BoundDevice["type"];
-  eventType: "ignored-superseded-entry";
+  eventType: "ignored-superseded-entry" | "opened-stale-entry" | "opened-expired-entry" | "opened-legacy-entry" | "opened-address-mismatch-entry";
   entryBaseUrl: string;
   currentBaseUrl: string;
   storedBaseUrl: string;
@@ -56,7 +56,7 @@ export type MobileConnectivityReportInput = {
 };
 
 export type MobileIcloudHandoffEventReportInput = {
-  eventType: "ignored-superseded-entry";
+  eventType: DeviceIcloudHandoffEvent["eventType"];
   entryBaseUrl: string;
   currentBaseUrl: string;
   storedBaseUrl: string;
@@ -826,6 +826,7 @@ export type NetworkDiagnostics = {
     openInstruction: string;
     notes: string[];
     latestIgnoredEntryEvent?: DeviceIcloudHandoffEvent | null;
+    latestEntryIssueEvent?: DeviceIcloudHandoffEvent | null;
   };
   remoteValidationReport: {
     id: string;

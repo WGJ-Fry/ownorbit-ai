@@ -596,6 +596,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudHistoryTitle/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudOldEntryTitle/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudOldEntryAction/);
+  assert.match(onboardingAppleRemoteSource, /latestEntryIssueEvent/);
+  assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudIssueTitle/);
   assert.match(onboardingAppleRemoteSource, /isIcloudBusy/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSyncing/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudHealthTitle/);
@@ -611,6 +613,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /IcloudHandoffRepairAnalysis/);
   assert.match(lifeosApiSource, /icloudMonitor/);
   assert.match(lifeosApiSource, /lifecycle/);
+  assert.match(lifeosApiSource, /opened-expired-entry/);
   assert.match(translationsSource, /Apple\/iCloud 手机入口/);
   assert.match(translationsSource, /备用：Tailscale 私有网络/);
   assert.match(translationsSource, /Fallback: Tailscale Private Network/);
@@ -623,6 +626,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /The recommended entry changed since the last export/);
   assert.match(translationsSource, /有手机打开了旧入口/);
   assert.match(translationsSource, /A phone opened an old entry/);
+  assert.match(translationsSource, /有手机打开了需要刷新的入口/);
+  assert.match(translationsSource, /A phone opened an entry that needs refresh/);
   assert.match(translationsSource, /检测到 \{\{count\}\} 个电脑入口/);
   assert.match(translationsSource, /\{\{count\}\} desktop entries detected/);
   assert.match(translationsSource, /最近导出历史/);
@@ -654,9 +659,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileIcloudHandoffSource, /isMobileIcloudHandoffSuperseded/);
   assert.match(mobileIcloudHandoffSource, /lastIgnoredBaseUrl/);
   assert.match(mobileIcloudHandoffSource, /getMobileIcloudHandoffStatus/);
+  assert.match(mobileIcloudHandoffSource, /eventTypeForIcloudHandoffStatus/);
+  assert.match(mobileIcloudHandoffSource, /opened-stale-entry/);
   assert.match(mobileIcloudHandoffSource, /handleMobileIcloudHandoffLaunch/);
   assert.match(mobileIcloudHandoffSource, /testMobileRemoteConnectivity/);
   assert.match(mobileIcloudHandoffSource, /reportMobileConnectivity/);
+  assert.match(mobileIcloudHandoffSource, /reportIcloudHandoffIssueEvent/);
   assert.match(translationsSource, /onboarding\.handoffTitle/);
   assert.match(translationsSource, /onboarding\.handoffSummaryCopied/);
   assert.match(translationsSource, /开启每日自动备份/);

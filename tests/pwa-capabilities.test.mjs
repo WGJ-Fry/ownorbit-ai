@@ -486,6 +486,8 @@ test("mobile iCloud handoff launch runs connectivity check and stores the result
   });
 
   assert.equal(launch.reportSaved, true);
+  assert.equal(launch.icloudEventReported, false);
+  assert.equal(launch.icloudEventType, null);
   assert.equal(launch.result.ok, true);
   assert.equal(reported.currentBase, "https://lifeos.example.com");
   const stored = getStoredMobileIcloudHandoff();
@@ -493,6 +495,58 @@ test("mobile iCloud handoff launch runs connectivity check and stores the result
   assert.equal(stored.lastConnectivityTestedAt, now + 10);
   assert.equal(stored.lastConnectivityOk, true);
   assert.equal(stored.lastConnectivityError, "");
+});
+
+test("mobile iCloud handoff launch reports stale entries to the desktop", async (t) => {
+  installLocalStorage();
+  t.after(cleanupLocalStorage);
+  const now = 1_800_000_300_000;
+  const { handleMobileIcloudHandoffLaunch } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-stale-report-${Date.now()}`);
+  let icloudEvent = null;
+  const href = [
+    "https://lifeos.example.com/mobile/chat?lifeosEntry=icloud",
+    `entryGeneratedAt=${now - 120_000}`,
+    `entryRefreshAfter=${now - 60_000}`,
+    `entryExpiresAt=${now + 600_000}`,
+    "entryBaseUrl=https%3A%2F%2Flifeos.example.com",
+    "entryMode=tailscale",
+    "entryStability=stable",
+    "entryLabel=Tailscale%20HTTPS%20Serve",
+    `entryChecksumSha256=${"f".repeat(64)}`,
+  ].join("&");
+
+  const launch = await handleMobileIcloudHandoffLaunch({
+    href,
+    cleanupUrl: false,
+    now,
+    testConnectivity: async () => ({
+      ok: true,
+      currentBase: "https://lifeos.example.com",
+      latencyMs: 24,
+      testedAt: now + 5,
+      steps: [
+        { id: "health", ok: true, url: "https://lifeos.example.com/api/v1/health", latencyMs: 8 },
+        { id: "mobile-shell", ok: true, url: "https://lifeos.example.com/mobile/chat", latencyMs: 8 },
+        { id: "websocket", ok: true, url: "wss://lifeos.example.com/api/v1/ws", latencyMs: 8 },
+      ],
+    }),
+    reportConnectivity: async () => ({ ok: true }),
+    reportIcloudHandoffEvent: async (event) => {
+      icloudEvent = event;
+      return { ok: true };
+    },
+  });
+
+  assert.equal(launch.icloudEventReported, true);
+  assert.equal(launch.icloudEventType, "opened-stale-entry");
+  assert.equal(icloudEvent.eventType, "opened-stale-entry");
+  assert.equal(icloudEvent.entryBaseUrl, "https://lifeos.example.com");
+  assert.equal(icloudEvent.currentBaseUrl, "https://lifeos.example.com");
+  assert.equal(icloudEvent.storedBaseUrl, "https://lifeos.example.com");
+  assert.equal(icloudEvent.entryGeneratedAt, now - 120_000);
+  assert.equal(icloudEvent.storedGeneratedAt, now - 120_000);
+  assert.equal(icloudEvent.checksumSha256, "f".repeat(64));
+  assert.equal(icloudEvent.ignoredAt, now);
 });
 
 test("mobile iCloud handoff ignores older entries instead of overwriting the latest entry", async (t) => {

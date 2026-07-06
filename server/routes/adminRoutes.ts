@@ -266,6 +266,7 @@ function getAdminNetworkDiagnostics() {
     icloud: {
       ...diagnostics.icloud,
       latestIgnoredEntryEvent: latestIcloudHandoffEvent?.eventType === "ignored-superseded-entry" ? latestIcloudHandoffEvent : null,
+      latestEntryIssueEvent: latestIcloudHandoffEvent && latestIcloudHandoffEvent.eventType !== "ignored-superseded-entry" ? latestIcloudHandoffEvent : null,
     },
     cloudflareNamedTunnel: getCloudflareNamedTunnelStatus(),
   };

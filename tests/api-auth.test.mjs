@@ -1570,6 +1570,27 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(networkDiagnosticsWithIcloudEvent.icloud.latestIgnoredEntryEvent.id, icloudHandoffEvent.body.event.id);
   assert.equal(networkDiagnosticsWithIcloudEvent.icloud.latestIgnoredEntryEvent.deviceName, "Test Phone");
   assert.equal(JSON.stringify(networkDiagnosticsWithIcloudEvent.icloud.latestIgnoredEntryEvent).includes("icloud-secret"), false);
+  const expiredIcloudHandoffEvent = await request(port, "/api/v1/devices/me/icloud-handoff-event", {
+    method: "POST",
+    headers: deviceHeaders,
+    body: JSON.stringify({
+      eventType: "opened-expired-entry",
+      entryBaseUrl: "https://expired.example.test/lifeos",
+      currentBaseUrl: "https://expired.example.test/lifeos",
+      storedBaseUrl: "https://expired.example.test/lifeos",
+      entryGeneratedAt: 1_800_000_000_000,
+      storedGeneratedAt: 1_800_000_000_000,
+      checksumSha256: "f".repeat(64),
+      ignoredAt: 1_800_000_300_000,
+    }),
+  }).then((res) => res.json().then((body) => ({ status: res.status, body })));
+  assert.equal(expiredIcloudHandoffEvent.status, 200, JSON.stringify(expiredIcloudHandoffEvent.body));
+  assert.equal(expiredIcloudHandoffEvent.body.event.eventType, "opened-expired-entry");
+  assert.equal(expiredIcloudHandoffEvent.body.event.entryBaseUrl, "https://expired.example.test/lifeos");
+  const networkDiagnosticsWithIssueEvent = await request(port, "/api/v1/admin/network-diagnostics", { headers: adminHeaders }).then((res) => res.json());
+  assert.equal(networkDiagnosticsWithIssueEvent.icloud.latestEntryIssueEvent.id, expiredIcloudHandoffEvent.body.event.id);
+  assert.equal(networkDiagnosticsWithIssueEvent.icloud.latestEntryIssueEvent.eventType, "opened-expired-entry");
+  assert.equal(networkDiagnosticsWithIssueEvent.icloud.latestEntryIssueEvent.deviceName, "Test Phone");
 
   const selfRevokeBinding = await request(port, "/api/v1/devices/bind/start", {
     method: "POST",

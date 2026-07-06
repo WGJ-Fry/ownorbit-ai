@@ -207,6 +207,34 @@ function createFailedConnectivityResult(entry: MobileIcloudHandoffEntry, href: s
   };
 }
 
+function eventTypeForIcloudHandoffStatus(status: MobileIcloudHandoffStatus): MobileIcloudHandoffEventReportInput["eventType"] | null {
+  if (status.status === "stale") return "opened-stale-entry";
+  if (status.status === "expired") return "opened-expired-entry";
+  if (status.status === "legacy") return "opened-legacy-entry";
+  if (status.status === "address-mismatch") return "opened-address-mismatch-entry";
+  return null;
+}
+
+async function reportIcloudHandoffIssueEvent(
+  eventType: MobileIcloudHandoffEventReportInput["eventType"],
+  entry: MobileIcloudHandoffEntry,
+  href: string,
+  now: number,
+  reporter?: (event: MobileIcloudHandoffEventReportInput) => Promise<unknown>,
+) {
+  const reportIcloudHandoffEvent = reporter || (await import("./lifeosApi")).reportMobileIcloudHandoffEvent;
+  await reportIcloudHandoffEvent({
+    eventType,
+    entryBaseUrl: entry.baseUrl,
+    currentBaseUrl: currentBaseFromHref(href) || entry.baseUrl,
+    storedBaseUrl: entry.baseUrl,
+    entryGeneratedAt: entry.generatedAt,
+    storedGeneratedAt: entry.generatedAt,
+    checksumSha256: entry.checksumSha256,
+    ignoredAt: now,
+  });
+}
+
 export function consumeMobileIcloudHandoffFromUrl(href?: string, now = Date.now()) {
   const entry = parseMobileIcloudHandoffFromUrl(href, now);
   if (!entry) return null;
@@ -271,6 +299,18 @@ export async function handleMobileIcloudHandoffLaunch(options: HandoffLaunchOpti
     };
   }
 
+  const statusAfterLaunch = getMobileIcloudHandoffStatus(entry, href, now);
+  const issueEventType = statusAfterLaunch ? eventTypeForIcloudHandoffStatus(statusAfterLaunch) : null;
+  let icloudEventReported = false;
+  if (issueEventType) {
+    try {
+      await reportIcloudHandoffIssueEvent(issueEventType, entry, href, now, options.reportIcloudHandoffEvent);
+      icloudEventReported = true;
+    } catch {
+      icloudEventReported = false;
+    }
+  }
+
   let result: MobileConnectivityLike;
   try {
     const testConnectivity = options.testConnectivity || (await import("./pwaCapabilities")).testMobileRemoteConnectivity;
@@ -298,6 +338,8 @@ export async function handleMobileIcloudHandoffLaunch(options: HandoffLaunchOpti
     entry: getStoredMobileIcloudHandoff() || entry,
     result,
     reportSaved,
+    icloudEventReported,
+    icloudEventType: issueEventType,
   };
 }
 

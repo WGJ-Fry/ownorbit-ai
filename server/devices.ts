@@ -32,7 +32,7 @@ export type DeviceIcloudHandoffEvent = {
   deviceId: string;
   deviceName?: string;
   deviceType?: DeviceRecord["type"];
-  eventType: "ignored-superseded-entry";
+  eventType: "ignored-superseded-entry" | "opened-stale-entry" | "opened-expired-entry" | "opened-legacy-entry" | "opened-address-mismatch-entry";
   entryBaseUrl: string;
   currentBaseUrl: string;
   storedBaseUrl: string;
