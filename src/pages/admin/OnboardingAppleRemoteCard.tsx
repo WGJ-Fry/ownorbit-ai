@@ -88,6 +88,12 @@ const issueEventKindKeys: Record<NonNullable<NetworkDiagnostics["icloud"]["lates
   "opened-address-mismatch-entry": "onboarding.appleRemoteIcloudIssueKindMismatch",
 };
 
+const historyChangeTypeKeys: Record<string, TranslationKey> = {
+  "first-export": "onboarding.appleRemoteIcloudHistoryFirstExport",
+  "address-changed": "onboarding.appleRemoteIcloudHistoryAddressChanged",
+  "refreshed-same-address": "onboarding.appleRemoteIcloudHistoryRefreshed",
+};
+
 function isAppleRuntime() {
   if (typeof navigator === "undefined") return false;
   const platform = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform || navigator.platform || "";
@@ -425,7 +431,10 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                     <div key={`${item.desktopId}-${item.generatedAt}`} className="rounded-lg bg-white/[0.03] p-2">
                       <div className="font-bold text-zinc-200">{item.desktopName}</div>
                       <div className="break-all font-mono text-[10px]">{item.baseUrl}</div>
-                      <div>{formatHandoffTime(item.generatedAt)} · {item.reason}</div>
+                      {item.previousBaseUrl && item.previousBaseUrl !== item.baseUrl ? (
+                        <div className="break-all font-mono text-[10px] text-zinc-500">{t("onboarding.appleRemoteIcloudHistoryPrevious")}: {item.previousBaseUrl}</div>
+                      ) : null}
+                      <div>{formatHandoffTime(item.generatedAt)} · {t(historyChangeTypeKeys[item.changeType] || "onboarding.appleRemoteIcloudHistoryUnknown")} · {item.reason}</div>
                     </div>
                   ))}
                 </div>

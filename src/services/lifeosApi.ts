@@ -764,6 +764,7 @@ export type NetworkDiagnostics = {
       desktopId: string;
       desktopName: string;
       reason: string;
+      changeType: "first-export" | "address-changed" | "refreshed-same-address" | string;
       previousBaseUrl: string;
       baseUrl: string;
       candidateId: string;

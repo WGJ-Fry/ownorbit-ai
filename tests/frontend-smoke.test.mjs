@@ -585,6 +585,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudMonitorTitle/);
   assert.match(onboardingAppleRemoteSource, /icloudLifecycle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudLifecycleTitle/);
+  assert.match(onboardingAppleRemoteSource, /historyChangeTypeKeys/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudHistoryPrevious/);
   assert.match(onboardingAppleRemoteSource, /analyzeIcloudHandoffRepairPacket/);
   assert.match(onboardingAppleRemoteSource, /repairReasonKeys/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudRepairTitle/);
@@ -631,6 +633,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /检测到 \{\{count\}\} 个电脑入口/);
   assert.match(translationsSource, /\{\{count\}\} desktop entries detected/);
   assert.match(translationsSource, /最近导出历史/);
+  assert.match(translationsSource, /上一个入口/);
+  assert.match(translationsSource, /Previous entry/);
+  assert.match(translationsSource, /地址变化/);
+  assert.match(translationsSource, /Address changed/);
   assert.match(translationsSource, /iCloud 入口校验不一致/);
   assert.match(translationsSource, /The iCloud entry checksum does not match/);
   assert.match(translationsSource, /入口文件不同步/);

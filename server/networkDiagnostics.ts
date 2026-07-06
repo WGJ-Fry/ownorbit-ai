@@ -586,6 +586,7 @@ function readIcloudHandoffHistory(historyFilePath: string) {
         desktopId: String(item.desktopId || "legacy").slice(0, 80),
         desktopName: String(item.desktopName || "LifeOS Desktop").slice(0, 80),
         reason: String(item.reason || "manual").slice(0, 120),
+        changeType: String(item.changeType || "unknown").slice(0, 80),
         previousBaseUrl: String(item.previousBaseUrl || ""),
         baseUrl: String(item.baseUrl || ""),
         candidateId: String(item.candidateId || ""),
@@ -609,6 +610,7 @@ function writeIcloudHandoffHistory(historyFilePath: string, record: Record<strin
       desktopId: String(record.desktopId || "legacy"),
       desktopName: String(record.desktopName || "LifeOS Desktop"),
       reason: String(record.reason || "manual"),
+      changeType: String(record.changeType || "unknown"),
       previousBaseUrl: String(record.previousBaseUrl || ""),
       baseUrl: String(record.baseUrl || ""),
       candidateId: String(record.candidateId || ""),
@@ -1796,6 +1798,12 @@ export function exportIcloudHandoff(reason = "manual") {
   mkdirSync(status.appFolderPath, { recursive: true });
   const generatedAt = Date.now();
   const previousPacket = readIcloudHandoffPacket(status.packetFilePath);
+  const previousBaseUrl = String(previousPacket?.baseUrl || "");
+  const changeType = !previousBaseUrl
+    ? "first-export"
+    : previousBaseUrl !== candidate.baseUrl
+    ? "address-changed"
+    : "refreshed-same-address";
   const packet = {
     kind: "lifeos-mobile-entry",
     version: 3,
@@ -1816,6 +1824,9 @@ export function exportIcloudHandoff(reason = "manual") {
     secure: candidate.secure,
     stability: candidate.stability,
     requiresRestart: candidate.requiresRestart,
+    exportReason: reason,
+    changeType,
+    previousBaseUrl,
     notes: candidate.notes,
     fallbackCandidates: summarizeIcloudFallbackCandidates(diagnostics.connectionCandidates),
     remoteReadiness: diagnostics.remoteReadiness,
@@ -1839,7 +1850,8 @@ export function exportIcloudHandoff(reason = "manual") {
     desktopId: status.desktopId,
     desktopName: status.desktopName,
     reason,
-    previousBaseUrl: previousPacket?.baseUrl || "",
+    changeType,
+    previousBaseUrl,
     baseUrl: candidate.baseUrl,
     candidateId: candidate.id,
     generatedAt,

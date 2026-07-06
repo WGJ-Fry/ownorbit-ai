@@ -278,6 +278,9 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.equal(path.basename(result.historyFilePath), "lifeos-mobile-entry-history.json");
   assert.match(packet.entryChecksumSha256, /^[a-f0-9]{64}$/);
   assert.equal(packet.candidateId, "configured-public");
+  assert.equal(packet.exportReason, "manual");
+  assert.equal(packet.changeType, "first-export");
+  assert.equal(packet.previousBaseUrl, "");
   assert.equal(packet.mobileChatUrl, "https://lifeos.example.com/mobile/chat");
   assert.equal(packet.refreshAfter > packet.generatedAt, true);
   assert.equal(packet.expiresAt > packet.refreshAfter, true);
@@ -307,6 +310,8 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.equal(history[0].desktopId, packet.desktopId);
   assert.equal(history[0].baseUrl, "https://lifeos.example.com");
   assert.equal(history[0].reason, "manual");
+  assert.equal(history[0].changeType, "first-export");
+  assert.equal(history[0].previousBaseUrl, "");
   assert.equal(fs.readdirSync(path.dirname(result.handoffFilePath)).some((name) => name.endsWith(".tmp")), false);
 });
 
@@ -488,9 +493,16 @@ test("iCloud handoff auto refresh updates exported entry after address changes",
   const refresh = maybeRefreshIcloudHandoff("test-address-change");
   const nextPacket = JSON.parse(await readFile(first.packetFilePath, "utf8"));
   const nextHtml = await readFile(first.handoffFilePath, "utf8");
+  const history = JSON.parse(await readFile(first.historyFilePath, "utf8"));
   assert.equal(refresh.refreshed, true);
   assert.equal(refresh.previousStatus, "address-changed");
   assert.equal(nextPacket.baseUrl, "https://new-lifeos.example.com");
+  assert.equal(nextPacket.changeType, "address-changed");
+  assert.equal(nextPacket.previousBaseUrl, "https://old-lifeos.example.com");
+  assert.equal(nextPacket.exportReason, "test-address-change");
+  assert.equal(history[0].baseUrl, "https://new-lifeos.example.com");
+  assert.equal(history[0].changeType, "address-changed");
+  assert.equal(history[0].previousBaseUrl, "https://old-lifeos.example.com");
   assert.match(nextHtml, /https:\/\/new-lifeos\.example\.com\/mobile\/pair/);
   assert.match(nextHtml, new RegExp(`name="lifeos-entry-checksum" content="${nextPacket.entryChecksumSha256}"`));
 });
