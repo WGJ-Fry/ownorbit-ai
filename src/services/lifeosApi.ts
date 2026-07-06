@@ -963,14 +963,14 @@ export type NetworkDiagnostics = {
       total: number;
       needsAction: number;
       manualRequired: number;
-      recommendedAction: "export-icloud-entry" | "open-on-phone" | "regenerate-qr" | "record-real-world-check" | "ready";
+      recommendedAction: "export-icloud-entry" | "open-on-phone" | "regenerate-qr" | "choose-live-network-entry" | "record-real-world-check" | "ready";
       nextReviewAt?: number;
       items: Array<{
-        id: "icloud-entry-synced" | "phone-opened-current-entry" | "pairing-qr-current" | "cellular-mobile-chat" | "network-switch" | "old-entry-repair";
+        id: "icloud-entry-synced" | "phone-opened-current-entry" | "pairing-qr-current" | "realtime-entry-ready" | "cellular-mobile-chat" | "network-switch" | "old-entry-repair";
         status: "passed" | "needs-action" | "manual-required";
         severity: "ok" | "warning" | "danger";
         evidence: string;
-        action: "export-icloud-entry" | "open-on-phone" | "regenerate-qr" | "record-real-world-check" | "ready";
+        action: "export-icloud-entry" | "open-on-phone" | "regenerate-qr" | "choose-live-network-entry" | "record-real-world-check" | "ready";
         acceptedAt?: number;
         expiresAt?: number;
       }>;

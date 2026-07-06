@@ -673,6 +673,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /icloudAcceptance/);
   assert.match(onboardingAppleRemoteSource, /icloudAcceptanceItemKeys/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAcceptanceTitle/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAcceptanceItemRealtime/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAcceptanceItemCellular/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudPhoneConfirmMissing/);
   assert.match(onboardingAppleRemoteSource, /availableEntryCount/);
@@ -728,6 +729,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /latestEntryRepair/);
   assert.match(lifeosApiSource, /refresh-and-regenerate-qr/);
   assert.match(lifeosApiSource, /acceptance\?:/);
+  assert.match(lifeosApiSource, /realtime-entry-ready/);
   assert.match(lifeosApiSource, /old-entry-repair/);
   assert.match(lifeosApiSource, /expiring-soon/);
   assert.match(lifeosApiSource, /issue-after-confirm/);
@@ -744,6 +746,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /QR has expired/);
   assert.match(translationsSource, /Apple 设备验收/);
   assert.match(translationsSource, /Apple Device Acceptance/);
+  assert.match(translationsSource, /离家实时入口/);
+  assert.match(translationsSource, /Off-LAN realtime entry/);
   assert.match(translationsSource, /蜂窝网络聊天/);
   assert.match(translationsSource, /Cellular mobile chat/);
   assert.match(translationsSource, /手机入口已同步/);

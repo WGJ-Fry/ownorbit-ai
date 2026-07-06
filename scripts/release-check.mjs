@@ -1416,18 +1416,23 @@ function checkAssets() {
     networkDiagnosticsTestSource.includes("iCloud pairing session status guides stale QR repair") &&
     networkDiagnosticsTestSource.includes("iCloud handoff monitor refreshes after the latest pairing QR expires") &&
     icloudAcceptanceSource.includes("buildIcloudAcceptanceSummary") &&
+    icloudAcceptanceSource.includes("realtime-entry-ready") &&
+    icloudAcceptanceSource.includes("choose-live-network-entry") &&
     icloudAcceptanceSource.includes("cellular-mobile-chat") &&
     icloudAcceptanceSource.includes("old-entry-repair") &&
     adminRoutesSource.includes("buildIcloudAcceptanceSummary") &&
     adminRoutesSource.includes("acceptance: buildIcloudAcceptanceSummary") &&
     lifeosApiSource.includes("acceptance?:") &&
+    lifeosApiSource.includes("realtime-entry-ready") &&
     onboardingAppleRemoteSource.includes("icloudAcceptanceItemKeys") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceItemRealtime") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceTitle") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEntriesTitle") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEntryCurrent") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEntryRefreshAfter") &&
     networkDiagnosticsTestSource.includes("entry.desktopName === packet.desktopName") &&
     networkDiagnosticsTestSource.includes("iCloud acceptance summary separates synced entry from real-device evidence") &&
+    networkDiagnosticsTestSource.includes("not a stable HTTPS\\/VPN entry") &&
     networkDiagnosticsTestSource.includes("iCloud startup refresh records local core restart state") &&
     networkDiagnosticsTestSource.includes("iCloud handoff monitor refreshes stale desktop chooser index files") &&
     networkDiagnosticsTestSource.includes("previousFallbackCandidateCount") &&
@@ -1481,6 +1486,8 @@ function checkAssets() {
     translationsSource.includes("refresh the iCloud mobile entry and generate a fresh pairing QR") &&
     translationsSource.includes("Clean Old iCloud Entries") &&
     translationsSource.includes("The iCloud mobile entry was refreshed automatically") &&
+    translationsSource.includes("Off-LAN realtime entry") &&
+    translationsSource.includes("iCloud syncs the entry file but does not carry realtime traffic") &&
     networkDiagnosticsSource.includes("cleanupIcloudHandoffEntries") &&
     networkDiagnosticsSource.includes("removedOrphanedFileCount") &&
     networkDiagnosticsTestSource.includes("lifeos-mobile-entry-orphan.json") &&

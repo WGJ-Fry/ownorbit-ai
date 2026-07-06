@@ -180,6 +180,7 @@ const icloudAcceptanceItemKeys: Record<NonNullable<NetworkDiagnostics["icloud"][
   "icloud-entry-synced": "onboarding.appleRemoteIcloudAcceptanceItemSynced",
   "phone-opened-current-entry": "onboarding.appleRemoteIcloudAcceptanceItemPhone",
   "pairing-qr-current": "onboarding.appleRemoteIcloudAcceptanceItemQr",
+  "realtime-entry-ready": "onboarding.appleRemoteIcloudAcceptanceItemRealtime",
   "cellular-mobile-chat": "onboarding.appleRemoteIcloudAcceptanceItemCellular",
   "network-switch": "onboarding.appleRemoteIcloudAcceptanceItemSwitch",
   "old-entry-repair": "onboarding.appleRemoteIcloudAcceptanceItemOldEntry",
@@ -189,6 +190,7 @@ const icloudAcceptanceActionKeys: Record<NonNullable<NetworkDiagnostics["icloud"
   "export-icloud-entry": "onboarding.appleRemoteIcloudAcceptanceActionExport",
   "open-on-phone": "onboarding.appleRemoteIcloudAcceptanceActionOpen",
   "regenerate-qr": "onboarding.appleRemoteIcloudAcceptanceActionQr",
+  "choose-live-network-entry": "onboarding.appleRemoteIcloudAcceptanceActionLiveEntry",
   "record-real-world-check": "onboarding.appleRemoteIcloudAcceptanceActionRecord",
   ready: "onboarding.appleRemoteIcloudAcceptanceActionReady",
 };

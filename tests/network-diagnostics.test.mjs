@@ -36,6 +36,8 @@ test("iCloud acceptance summary separates synced entry from real-device evidence
   const baseUrl = "https://lifeos.example.test";
   const icloud = {
     recommendedBaseUrl: baseUrl,
+    recommendedMode: "configured",
+    recommendedStability: "stable",
     syncReadiness: { status: "ready", canOpenOnPhone: true },
     handoffHealth: {
       status: "fresh",
@@ -58,11 +60,31 @@ test("iCloud acceptance summary separates synced entry from real-device evidence
 
   const missingRealDeviceEvidence = buildIcloudAcceptanceSummary({ icloud, now });
   assert.equal(missingRealDeviceEvidence.ready, false);
-  assert.equal(missingRealDeviceEvidence.passed, 3);
+  assert.equal(missingRealDeviceEvidence.passed, 4);
   assert.equal(missingRealDeviceEvidence.manualRequired, 3);
   assert.equal(missingRealDeviceEvidence.recommendedAction, "record-real-world-check");
   assert.equal(missingRealDeviceEvidence.items.find((item) => item.id === "icloud-entry-synced")?.status, "passed");
+  assert.equal(missingRealDeviceEvidence.items.find((item) => item.id === "realtime-entry-ready")?.status, "passed");
   assert.equal(missingRealDeviceEvidence.items.find((item) => item.id === "cellular-mobile-chat")?.status, "manual-required");
+
+  const lanOnlyEntry = buildIcloudAcceptanceSummary({
+    icloud: {
+      ...icloud,
+      recommendedBaseUrl: "http://192.168.0.12:3000",
+      recommendedMode: "lan",
+      recommendedStability: "temporary",
+      handoffHealth: {
+        ...icloud.handoffHealth,
+        lastExportedBaseUrl: "http://192.168.0.12:3000",
+      },
+    },
+    now,
+  });
+  const realtimeItem = lanOnlyEntry.items.find((item) => item.id === "realtime-entry-ready");
+  assert.equal(realtimeItem?.status, "needs-action");
+  assert.equal(realtimeItem?.action, "choose-live-network-entry");
+  assert.match(realtimeItem?.evidence || "", /not a stable HTTPS\/VPN entry/);
+  assert.equal(lanOnlyEntry.recommendedAction, "choose-live-network-entry");
 
   const complete = buildIcloudAcceptanceSummary({
     icloud: {

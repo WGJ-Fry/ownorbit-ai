@@ -6,6 +6,7 @@ export type IcloudAcceptanceItemId =
   | "icloud-entry-synced"
   | "phone-opened-current-entry"
   | "pairing-qr-current"
+  | "realtime-entry-ready"
   | "cellular-mobile-chat"
   | "network-switch"
   | "old-entry-repair";
@@ -15,7 +16,7 @@ export type IcloudAcceptanceItem = {
   status: "passed" | "needs-action" | "manual-required";
   severity: "ok" | "warning" | "danger";
   evidence: string;
-  action: "export-icloud-entry" | "open-on-phone" | "regenerate-qr" | "record-real-world-check" | "ready";
+  action: "export-icloud-entry" | "open-on-phone" | "regenerate-qr" | "choose-live-network-entry" | "record-real-world-check" | "ready";
   acceptedAt?: number;
   expiresAt?: number;
 };
@@ -34,6 +35,8 @@ export type IcloudAcceptanceSummary = {
 
 type IcloudLike = {
   recommendedBaseUrl?: string;
+  recommendedMode?: string;
+  recommendedStability?: string;
   syncReadiness?: { status?: string; canOpenOnPhone?: boolean };
   handoffHealth?: {
     status?: string;
@@ -103,6 +106,69 @@ function latestRemoteRecord(records: RemoteAcceptanceRecord[], id: string, baseU
 
 function eventTime(event?: { createdAt?: number; ignoredAt?: number } | null) {
   return Number(event?.ignoredAt || event?.createdAt || 0);
+}
+
+function baseUrlProtocol(baseUrl: string) {
+  try {
+    return new URL(baseUrl).protocol;
+  } catch {
+    return "";
+  }
+}
+
+function isTemporaryCloudflare(baseUrl: string) {
+  try {
+    return new URL(baseUrl).hostname.endsWith(".trycloudflare.com");
+  } catch {
+    return false;
+  }
+}
+
+function buildRealtimeEntryItem(icloud: IcloudLike, baseUrl: string): IcloudAcceptanceItem {
+  const mode = String(icloud.recommendedMode || "").toLowerCase();
+  const stability = String(icloud.recommendedStability || "").toLowerCase();
+  const protocol = baseUrlProtocol(baseUrl);
+  const isHttps = protocol === "https:";
+  const localOrLan = mode === "local" || mode === "lan" || /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|::1)([:/]|$)/i.test(baseUrl);
+  const stableRemote = Boolean(baseUrl && isHttps && !localOrLan && stability !== "temporary" && !isTemporaryCloudflare(baseUrl));
+
+  if (stableRemote) {
+    return {
+      id: "realtime-entry-ready",
+      status: "passed",
+      severity: "ok",
+      evidence: `Realtime chat can target a stable HTTPS/VPN entry: ${baseUrl}.`,
+      action: "ready",
+    };
+  }
+
+  if (!baseUrl) {
+    return {
+      id: "realtime-entry-ready",
+      status: "needs-action",
+      severity: "warning",
+      evidence: "No phone-reachable address is available yet. iCloud can sync an entry file only after LifeOS has a usable LAN, VPN, or HTTPS address.",
+      action: "choose-live-network-entry",
+    };
+  }
+
+  if (localOrLan || protocol !== "https:") {
+    return {
+      id: "realtime-entry-ready",
+      status: "needs-action",
+      severity: localOrLan ? "warning" : "danger",
+      evidence: `The iCloud entry points to ${baseUrl}, which is not a stable HTTPS/VPN entry for off-LAN realtime chat.`,
+      action: "choose-live-network-entry",
+    };
+  }
+
+  return {
+    id: "realtime-entry-ready",
+    status: "needs-action",
+    severity: "warning",
+    evidence: `The current HTTPS entry is temporary or not yet proven stable: ${baseUrl}. Use Tailscale HTTPS Serve, Cloudflare Named Tunnel, or another trusted HTTPS entry for long-term off-LAN chat.`,
+    action: "choose-live-network-entry",
+  };
 }
 
 function manualItem(
@@ -208,6 +274,7 @@ export function buildIcloudAcceptanceSummary(input: {
         evidence: "The current QR is missing, expired, or was created for a different mobile entry.",
         action: "regenerate-qr",
       },
+    buildRealtimeEntryItem(icloud, baseUrl),
     manualItem("cellular-mobile-chat", latestRemoteRecord(records, "cellular-mobile-chat", baseUrl, now), "Use a real iPhone on cellular data, open the iCloud entry, and send one mobile chat message."),
     manualItem("network-switch", latestRemoteRecord(records, "network-switch", baseUrl, now), "Switch the phone between Wi-Fi and cellular while using the iCloud entry, then confirm chat reconnects."),
     oldEntryEvidencePassed
