@@ -9,6 +9,7 @@ type ConnectionCandidate = NetworkDiagnostics["connectionCandidates"][number];
 type IcloudAvailability = NetworkDiagnostics["icloud"]["availability"];
 type IcloudFileState = IcloudAvailability["handoffFile"];
 type IcloudFileId = "html" | "packet" | "index";
+type IcloudAvailableEntry = NetworkDiagnostics["icloud"]["availableEntries"][number];
 
 type Props = {
   diagnostics: NetworkDiagnostics | null;
@@ -228,6 +229,25 @@ function icloudFileTone(file: IcloudFileState) {
   return "border-emerald-400/20 bg-emerald-500/10 text-emerald-50";
 }
 
+function icloudEntryState(entry: IcloudAvailableEntry, now = Date.now()) {
+  if (entry.expiresAt && now >= entry.expiresAt) {
+    return {
+      key: "onboarding.appleRemoteIcloudEntryExpired" as TranslationKey,
+      className: "bg-red-500/15 text-red-100",
+    };
+  }
+  if (entry.refreshAfter && now >= entry.refreshAfter) {
+    return {
+      key: "onboarding.appleRemoteIcloudEntryRefresh" as TranslationKey,
+      className: "bg-amber-500/15 text-amber-100",
+    };
+  }
+  return {
+    key: "onboarding.appleRemoteIcloudEntryUsable" as TranslationKey,
+    className: "bg-emerald-500/15 text-emerald-100",
+  };
+}
+
 type IcloudHandoffEvent = NonNullable<NetworkDiagnostics["icloud"]["latestEntryIssueEvent"]>;
 
 function isAppleRuntime() {
@@ -366,6 +386,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const latestEntryIssueEvent = icloud?.latestEntryIssueEvent || null;
   const latestHistory = icloud?.entryHistory?.slice(0, 3) || [];
   const availableEntryCount = icloud?.availableEntries?.length || 0;
+  const availableEntries = icloud?.availableEntries?.slice(0, 6) || [];
   const readiness = diagnostics?.remoteReadiness;
   const tailscaleInstalled = Boolean(diagnostics?.tailscale.installed);
   const tailscaleInstallUrl = diagnostics?.tailscale.installUrl || "https://tailscale.com/download";
@@ -1023,6 +1044,39 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                     {t("onboarding.appleRemoteIcloudLifecycleCleanupHint")}
                   </div>
                 ) : null}
+              </div>
+            ) : null}
+            {availableEntries.length ? (
+              <div className="mt-3 border-t border-white/[0.06] pt-3">
+                <div className="font-bold text-zinc-200">{t("onboarding.appleRemoteIcloudEntriesTitle")}</div>
+                <div className="mt-2 grid gap-2">
+                  {availableEntries.map((entry) => {
+                    const state = icloudEntryState(entry);
+                    const isCurrentDesktop = entry.desktopId === icloud?.desktopId;
+                    return (
+                      <div key={`${entry.desktopId}-${entry.generatedAt}`} className="rounded-lg border border-white/[0.05] bg-white/[0.03] p-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="font-bold text-zinc-200">
+                            {entry.desktopName}
+                            {isCurrentDesktop ? <span className="ml-2 text-[10px] text-sky-200">{t("onboarding.appleRemoteIcloudEntryCurrent")}</span> : null}
+                          </div>
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${state.className}`}>
+                            {t(state.key)}
+                          </span>
+                        </div>
+                        <div className="mt-1 break-all font-mono text-[10px] text-zinc-400">{entry.baseUrl}</div>
+                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-zinc-500">
+                          <span>{t("onboarding.appleRemoteIcloudEntryGenerated")}: {formatHandoffTime(entry.generatedAt) || "-"}</span>
+                          <span>{t("onboarding.appleRemoteIcloudEntryRefreshAfter")}: {formatHandoffTime(entry.refreshAfter) || "-"}</span>
+                          <span>{t("onboarding.appleRemoteIcloudEntryExpires")}: {formatHandoffTime(entry.expiresAt) || "-"}</span>
+                        </div>
+                        <div className="mt-1 text-[10px] text-zinc-500">
+                          {entry.mode || "-"} · {entry.stability || "-"} · {entry.secure ? "HTTPS" : "HTTP/LAN"}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             ) : null}
             {latestHistory.length ? (

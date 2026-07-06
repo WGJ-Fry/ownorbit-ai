@@ -1399,6 +1399,10 @@ function checkAssets() {
     lifeosApiSource.includes("acceptance?:") &&
     onboardingAppleRemoteSource.includes("icloudAcceptanceItemKeys") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceTitle") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudEntriesTitle") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudEntryCurrent") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudEntryRefreshAfter") &&
+    networkDiagnosticsTestSource.includes("entry.desktopName === packet.desktopName") &&
     networkDiagnosticsTestSource.includes("iCloud acceptance summary separates synced entry from real-device evidence") &&
     networkDiagnosticsTestSource.includes("iCloud startup refresh records local core restart state") &&
     networkDiagnosticsTestSource.includes("monitorRun.trigger") &&

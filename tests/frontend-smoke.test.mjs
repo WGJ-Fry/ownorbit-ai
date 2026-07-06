@@ -620,6 +620,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /recommendedBaseUrl/);
   assert.match(onboardingAppleRemoteSource, /icloudLifecycle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudLifecycleTitle/);
+  assert.match(onboardingAppleRemoteSource, /availableEntries/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudEntriesTitle/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudEntryCurrent/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudEntryRefreshAfter/);
   assert.match(onboardingAppleRemoteSource, /historyChangeTypeKeys/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudHistoryPrevious/);
   assert.match(onboardingAppleRemoteSource, /analyzeIcloudHandoffRepairPacket/);

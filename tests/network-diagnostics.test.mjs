@@ -407,6 +407,7 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.equal(result.indexConsistency.expectedEntryCount, 1);
   assert.equal(Array.isArray(result.availableEntries), true);
   assert.equal(result.availableEntries.some((entry) => entry.desktopId === packet.desktopId), true);
+  assert.equal(result.availableEntries.some((entry) => entry.desktopName === packet.desktopName && entry.baseUrl === packet.baseUrl && entry.expiresAt === packet.expiresAt), true);
   assert.equal(Array.isArray(result.entryHistory), true);
   assert.equal(result.lifecycle.entryCount >= 1, true);
   assert.equal(result.lifecycle.retentionLimit, 12);
