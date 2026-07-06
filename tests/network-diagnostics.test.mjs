@@ -405,6 +405,62 @@ test("iCloud handoff auto refresh updates exported entry after address changes",
   assert.match(nextHtml, new RegExp(`name="lifeos-entry-checksum" content="${nextPacket.entryChecksumSha256}"`));
 });
 
+test("iCloud handoff monitor refreshes stale entries without remote health checks", async (t) => {
+  const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-monitor-refresh-"));
+  const oldPort = process.env.LIFEOS_PORT;
+  const oldPublicBaseUrl = process.env.PUBLIC_BASE_URL;
+  const oldAppUrl = process.env.APP_URL;
+  const oldCloudflaredBin = process.env.LIFEOS_CLOUDFLARED_BIN;
+  const oldTailscaleBin = process.env.LIFEOS_TAILSCALE_BIN;
+  const oldIcloudDriveDir = process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+  const oldForceIcloud = process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+  const oldMonitor = process.env.LIFEOS_ICLOUD_HANDOFF_MONITOR;
+
+  t.after(async () => {
+    if (oldPort === undefined) delete process.env.LIFEOS_PORT;
+    else process.env.LIFEOS_PORT = oldPort;
+    if (oldPublicBaseUrl === undefined) delete process.env.PUBLIC_BASE_URL;
+    else process.env.PUBLIC_BASE_URL = oldPublicBaseUrl;
+    if (oldAppUrl === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = oldAppUrl;
+    if (oldCloudflaredBin === undefined) delete process.env.LIFEOS_CLOUDFLARED_BIN;
+    else process.env.LIFEOS_CLOUDFLARED_BIN = oldCloudflaredBin;
+    if (oldTailscaleBin === undefined) delete process.env.LIFEOS_TAILSCALE_BIN;
+    else process.env.LIFEOS_TAILSCALE_BIN = oldTailscaleBin;
+    if (oldIcloudDriveDir === undefined) delete process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+    else process.env.LIFEOS_ICLOUD_DRIVE_DIR = oldIcloudDriveDir;
+    if (oldForceIcloud === undefined) delete process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+    else process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = oldForceIcloud;
+    if (oldMonitor === undefined) delete process.env.LIFEOS_ICLOUD_HANDOFF_MONITOR;
+    else process.env.LIFEOS_ICLOUD_HANDOFF_MONITOR = oldMonitor;
+    await rm(icloudDir, { recursive: true, force: true });
+  });
+
+  process.env.LIFEOS_PORT = "4567";
+  process.env.PUBLIC_BASE_URL = "https://monitor-old-lifeos.example.com";
+  delete process.env.APP_URL;
+  process.env.LIFEOS_CLOUDFLARED_BIN = "/definitely/missing/cloudflared";
+  process.env.LIFEOS_TAILSCALE_BIN = "/definitely/missing/tailscale";
+  process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = "1";
+  process.env.LIFEOS_ICLOUD_DRIVE_DIR = icloudDir;
+  process.env.LIFEOS_ICLOUD_HANDOFF_MONITOR = "1";
+
+  const { exportIcloudHandoff } = await import(`../server/networkDiagnostics.ts?icloud-monitor-export=${Date.now()}`);
+  const { getIcloudHandoffMonitorStatus, runIcloudHandoffRefreshCheck } = await import(`../server/icloudHandoffMonitor.ts?icloud-monitor=${Date.now()}`);
+  const first = exportIcloudHandoff();
+  const firstPacket = JSON.parse(await readFile(first.packetFilePath, "utf8"));
+  assert.equal(firstPacket.baseUrl, "https://monitor-old-lifeos.example.com");
+
+  process.env.PUBLIC_BASE_URL = "https://monitor-new-lifeos.example.com";
+  const monitorRun = runIcloudHandoffRefreshCheck("test-icloud-monitor-address-change");
+  const nextPacket = JSON.parse(await readFile(first.packetFilePath, "utf8"));
+  assert.equal(monitorRun.refreshed, true);
+  assert.equal(monitorRun.refreshReason, "refreshed");
+  assert.equal(monitorRun.status, "address-changed");
+  assert.equal(nextPacket.baseUrl, "https://monitor-new-lifeos.example.com");
+  assert.equal(getIcloudHandoffMonitorStatus().lastResult?.refreshed, true);
+});
+
 test("iCloud repair packet analysis compares phone entry with current desktop entry", async (t) => {
   const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-repair-analysis-"));
   const oldPort = process.env.LIFEOS_PORT;

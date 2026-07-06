@@ -22,6 +22,7 @@ import { runMigrations } from "./server/migrations";
 import { redactApiErrorResponses, requireCsrf, securityHeaders } from "./server/httpSecurity";
 import { startBackupScheduler } from "./server/backupSchedule";
 import { maybeStartConfiguredCloudflareTunnel } from "./server/cloudflareTunnel";
+import { startIcloudHandoffMonitor } from "./server/icloudHandoffMonitor";
 import { maybeRefreshIcloudHandoff, maybeStartConfiguredTailscaleServe } from "./server/networkDiagnostics";
 import { startRemoteHealthMonitor } from "./server/remoteHealthMonitor";
 import { getInstallPairingToken, htmlWithInstallPairingManifest, htmlWithPublicBaseHref, setInstallPairingIntentCookie } from "./server/mobileInstall";
@@ -72,6 +73,7 @@ migrateLegacyJsonStore();
 migrateLegacyCustomAppsFromClientState();
 startBackupScheduler();
 startRemoteHealthMonitor();
+startIcloudHandoffMonitor();
 
 app.use((req, _res, next) => {
   const basePath = getConfiguredPublicBasePath();
