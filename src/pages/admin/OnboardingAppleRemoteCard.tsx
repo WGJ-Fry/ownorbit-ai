@@ -56,6 +56,26 @@ const icloudAvailabilityKeys: Record<NetworkDiagnostics["icloud"]["availability"
   ready: "onboarding.appleRemoteIcloudAvailabilityReady",
 };
 
+const icloudSyncReadinessKeys: Record<NetworkDiagnostics["icloud"]["syncReadiness"]["status"], TranslationKey> = {
+  unsupported: "onboarding.appleRemoteIcloudSyncUnsupported",
+  "missing-drive": "onboarding.appleRemoteIcloudSyncMissingDrive",
+  "read-only": "onboarding.appleRemoteIcloudSyncReadOnly",
+  "no-entry": "onboarding.appleRemoteIcloudSyncNoEntry",
+  "needs-refresh": "onboarding.appleRemoteIcloudSyncNeedsRefresh",
+  syncing: "onboarding.appleRemoteIcloudSyncSyncing",
+  ready: "onboarding.appleRemoteIcloudSyncReady",
+};
+
+const icloudSyncActionKeys: Record<NetworkDiagnostics["icloud"]["syncReadiness"]["action"], TranslationKey> = {
+  "use-apple-device": "onboarding.appleRemoteIcloudSyncActionApple",
+  "enable-icloud-drive": "onboarding.appleRemoteIcloudSyncActionEnable",
+  "fix-permissions": "onboarding.appleRemoteIcloudSyncActionPermissions",
+  "export-entry": "onboarding.appleRemoteIcloudSyncActionExport",
+  "refresh-entry": "onboarding.appleRemoteIcloudSyncActionRefresh",
+  "wait-for-sync": "onboarding.appleRemoteIcloudSyncActionWait",
+  "open-files-app": "onboarding.appleRemoteIcloudSyncActionOpen",
+};
+
 const repairReasonKeys: Record<IcloudHandoffRepairAnalysis["reason"], TranslationKey> = {
   ready: "onboarding.appleRemoteIcloudRepairReasonReady",
   "invalid-packet": "onboarding.appleRemoteIcloudRepairReasonInvalid",
@@ -177,6 +197,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const icloud = diagnostics?.icloud;
   const handoffHealth = icloud?.handoffHealth;
   const icloudAvailability = icloud?.availability;
+  const syncReadiness = icloud?.syncReadiness;
   const icloudMonitor = diagnostics?.icloudMonitor;
   const icloudLifecycle = icloud?.lifecycle;
   const latestIgnoredEntryEvent = icloud?.latestIgnoredEntryEvent || null;
@@ -193,6 +214,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const canExportIcloud = Boolean(icloud?.canExport);
   const handoffHealthTone = handoffHealth?.status === "fresh" ? "bg-emerald-500/15 text-emerald-100" : handoffHealth?.status === "address-changed" || handoffHealth?.status === "expired" || handoffHealth?.status === "invalid" || handoffHealth?.status === "html-mismatch" ? "bg-red-500/15 text-red-100" : "bg-amber-500/15 text-amber-100";
   const icloudAvailabilityTone = icloudAvailability?.severity === "ok" ? "bg-emerald-500/15 text-emerald-100" : icloudAvailability?.severity === "danger" ? "bg-red-500/15 text-red-100" : "bg-amber-500/15 text-amber-100";
+  const syncReadinessTone = syncReadiness?.severity === "ok" ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-50" : syncReadiness?.severity === "danger" ? "border-red-400/20 bg-red-500/10 text-red-50" : "border-amber-400/20 bg-amber-500/10 text-amber-50";
   const lastExportedAt = formatHandoffTime(handoffHealth?.lastExportedAt);
   const refreshAfter = formatHandoffTime(handoffHealth?.refreshAfter);
   const icloudMonitorStartedAt = formatHandoffTime(icloudMonitor?.startedAt || undefined);
@@ -416,6 +438,19 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
               </div>
             </div>
           </div>
+          {syncReadiness ? (
+            <div className={`mt-3 rounded-xl border p-3 ${syncReadinessTone}`}>
+              <div className="flex gap-2">
+                {syncReadiness.canOpenOnPhone ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : syncReadiness.status === "syncing" ? <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />}
+                <div>
+                  <div className="font-bold">{t(icloudSyncReadinessKeys[syncReadiness.status])}</div>
+                  <div className="mt-1 text-[11px] leading-relaxed opacity-80">
+                    {t(icloudSyncActionKeys[syncReadiness.action], { count: syncReadiness.pendingCount })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
           {availableEntryCount > 1 ? (
             <div className="mt-3 rounded-xl border border-sky-400/15 bg-sky-500/10 p-3 text-[11px] leading-relaxed text-sky-50/80">
               <div className="font-bold text-sky-50">{t("onboarding.appleRemoteIcloudMultiDesktopTitle", { count: availableEntryCount })}</div>

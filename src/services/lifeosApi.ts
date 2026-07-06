@@ -822,6 +822,18 @@ export type NetworkDiagnostics = {
       packetFile: IcloudFileAvailability;
       indexFile: IcloudFileAvailability;
     };
+    syncReadiness: {
+      status: "unsupported" | "missing-drive" | "read-only" | "no-entry" | "needs-refresh" | "syncing" | "ready";
+      severity: "ok" | "warning" | "danger";
+      canOpenOnPhone: boolean;
+      action: "use-apple-device" | "enable-icloud-drive" | "fix-permissions" | "export-entry" | "refresh-entry" | "wait-for-sync" | "open-files-app";
+      pendingCount: number;
+      pendingFiles: Array<"html" | "packet" | "index">;
+      missingFiles: Array<"html" | "packet" | "index">;
+      htmlFileState: IcloudFileAvailability["state"];
+      packetFileState: IcloudFileAvailability["state"];
+      indexFileState: IcloudFileAvailability["state"];
+    };
     realtimeTransport: false;
     transport: "handoff-only";
     openInstruction: string;

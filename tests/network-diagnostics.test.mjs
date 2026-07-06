@@ -296,6 +296,9 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.equal(result.handoffHealth.htmlConsistency.status, "matching");
   assert.equal(result.handoffHealth.htmlConsistency.checksumSha256, packet.entryChecksumSha256);
   assert.equal(result.handoffHealth.htmlConsistency.generatedAt, packet.generatedAt);
+  assert.equal(result.syncReadiness.status, "ready");
+  assert.equal(result.syncReadiness.canOpenOnPhone, true);
+  assert.equal(result.syncReadiness.action, "open-files-app");
   const indexHtml = await readFile(result.indexFilePath, "utf8");
   const history = JSON.parse(await readFile(result.historyFilePath, "utf8"));
   assert.match(indexHtml, /选择要连接的电脑/);
@@ -671,6 +674,10 @@ test("iCloud availability detects placeholder files that are still syncing", asy
   assert.equal(diagnostics.icloud.availability.metadataPendingCount, 0);
   assert.equal(diagnostics.icloud.availability.pendingCount, 1);
   assert.equal(diagnostics.icloud.availability.appFolderExists, true);
+  assert.equal(diagnostics.icloud.syncReadiness.status, "syncing");
+  assert.equal(diagnostics.icloud.syncReadiness.canOpenOnPhone, false);
+  assert.equal(diagnostics.icloud.syncReadiness.action, "wait-for-sync");
+  assert.equal(diagnostics.icloud.syncReadiness.pendingCount, 1);
 });
 
 test("iCloud availability uses macOS metadata to detect files that are still syncing", async (t) => {
@@ -737,6 +744,10 @@ if (file.endsWith(".html")) {
   assert.equal(diagnostics.icloud.availability.handoffFile.metadata.available, true);
   assert.equal(diagnostics.icloud.availability.handoffFile.metadata.downloading, true);
   assert.equal(diagnostics.icloud.availability.handoffFile.metadata.syncState, "syncing");
+  assert.equal(diagnostics.icloud.syncReadiness.status, "syncing");
+  assert.equal(diagnostics.icloud.syncReadiness.canOpenOnPhone, false);
+  assert.equal(diagnostics.icloud.syncReadiness.action, "wait-for-sync");
+  assert.equal(diagnostics.icloud.syncReadiness.pendingFiles.includes("html"), true);
 });
 
 test("iCloud handoff diagnostics mark modified entry invalid when checksum mismatches", async (t) => {

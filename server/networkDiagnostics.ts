@@ -908,6 +908,80 @@ function getIcloudAvailabilityStatus(input: {
   };
 }
 
+function buildIcloudSyncReadiness(input: {
+  availability: ReturnType<typeof getIcloudAvailabilityStatus>;
+  handoffHealth: ReturnType<typeof buildIcloudHandoffHealth>;
+}) {
+  const { availability, handoffHealth } = input;
+  const trackedFiles = [
+    { id: "html" as const, state: availability.handoffFile },
+    { id: "packet" as const, state: availability.packetFile },
+    { id: "index" as const, state: availability.indexFile },
+  ];
+  const pendingFiles = trackedFiles
+    .filter((file) => file.state.placeholder || ["syncing", "not-downloaded", "not-uploaded"].includes(file.state.metadata.syncState))
+    .map((file) => file.id);
+  const missingFiles = trackedFiles
+    .filter((file) => !file.state.exists && file.id !== "index")
+    .map((file) => file.id);
+  let status:
+    | "unsupported"
+    | "missing-drive"
+    | "read-only"
+    | "no-entry"
+    | "needs-refresh"
+    | "syncing"
+    | "ready" = "ready";
+  let severity: "ok" | "warning" | "danger" = "ok";
+  let action:
+    | "use-apple-device"
+    | "enable-icloud-drive"
+    | "fix-permissions"
+    | "export-entry"
+    | "refresh-entry"
+    | "wait-for-sync"
+    | "open-files-app" = "open-files-app";
+
+  if (availability.status === "unsupported") {
+    status = "unsupported";
+    severity = "warning";
+    action = "use-apple-device";
+  } else if (availability.status === "missing") {
+    status = "missing-drive";
+    severity = "danger";
+    action = "enable-icloud-drive";
+  } else if (availability.status === "read-only") {
+    status = "read-only";
+    severity = "danger";
+    action = "fix-permissions";
+  } else if (availability.status === "sync-pending" || pendingFiles.length > 0) {
+    status = "syncing";
+    severity = "warning";
+    action = "wait-for-sync";
+  } else if (handoffHealth.status === "missing" || missingFiles.length > 0) {
+    status = "no-entry";
+    severity = "warning";
+    action = "export-entry";
+  } else if (handoffHealth.needsRefresh) {
+    status = "needs-refresh";
+    severity = handoffHealth.status === "expired" || handoffHealth.status === "invalid" || handoffHealth.status === "html-mismatch" ? "danger" : "warning";
+    action = "refresh-entry";
+  }
+
+  return {
+    status,
+    severity,
+    canOpenOnPhone: status === "ready",
+    action,
+    pendingCount: availability.pendingCount,
+    pendingFiles,
+    missingFiles,
+    htmlFileState: availability.handoffFile.state,
+    packetFileState: availability.packetFile.state,
+    indexFileState: availability.indexFile.state,
+  };
+}
+
 export function analyzeIcloudHandoffRepairPacket(text: unknown) {
   const parsed = parseIcloudRepairPacket(text);
   if (!parsed.valid) {
@@ -1062,6 +1136,7 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
     packetFilePath,
     indexFilePath,
   });
+  const syncReadiness = buildIcloudSyncReadiness({ availability, handoffHealth });
   return {
     platform: process.platform,
     platformSupported,
@@ -1085,6 +1160,7 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
     recommendedStability: candidate?.stability || "",
     handoffHealth,
     availability,
+    syncReadiness,
     realtimeTransport: false,
     transport: "handoff-only" as const,
     openInstruction: available

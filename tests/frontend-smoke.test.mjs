@@ -582,6 +582,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAvailabilityTitle/);
   assert.match(onboardingAppleRemoteSource, /getSimpleIcloudStatus/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleReadyTitle/);
+  assert.match(onboardingAppleRemoteSource, /syncReadiness/);
+  assert.match(onboardingAppleRemoteSource, /icloudSyncReadinessKeys/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSyncReady/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAdvancedDiagnostics/);
   assert.match(onboardingAppleRemoteSource, /icloudAvailability\.pendingCount/);
   assert.match(onboardingAppleRemoteSource, /icloudMonitor/);
@@ -634,6 +637,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /iCloud syncs a mobile entry file/);
   assert.match(translationsSource, /同步包状态/);
   assert.match(translationsSource, /Sync packet status/);
+  assert.match(translationsSource, /手机入口已同步/);
+  assert.match(translationsSource, /Mobile entry is synced/);
+  assert.match(translationsSource, /入口文件正在同步/);
+  assert.match(translationsSource, /Entry files are still syncing/);
   assert.match(translationsSource, /可直接执行的修复动作/);
   assert.match(translationsSource, /Actionable repair steps/);
   assert.match(translationsSource, /当前推荐入口和上次导出的地址不同/);
