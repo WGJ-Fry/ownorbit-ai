@@ -21,6 +21,7 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   const oldLocalModelBaseUrl = process.env.LOCAL_MODEL_BASE_URL;
   const oldReleaseDir = process.env.LIFEOS_RELEASE_DIR;
   const oldIcloudDriveDir = process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+  const oldIcloudAccountStatus = process.env.LIFEOS_ICLOUD_ACCOUNT_STATUS;
   const releaseDir = path.join(dataDir, "private-release-token-should-not-leak");
 
   process.env.LIFEOS_DATA_DIR = dataDir;
@@ -34,6 +35,7 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   process.env.LOCAL_MODEL_BASE_URL = "http://user:password@127.0.0.1:11434/v1?token=local-secret";
   process.env.LIFEOS_RELEASE_DIR = releaseDir;
   process.env.LIFEOS_ICLOUD_DRIVE_DIR = path.join(dataDir, "private-icloud-token-should-not-leak");
+  process.env.LIFEOS_ICLOUD_ACCOUNT_STATUS = "drive-disabled";
   const releaseSha256 = "b".repeat(64);
   await mkdir(path.join(releaseDir, "update-feed"), { recursive: true });
   await writeFile(path.join(releaseDir, "SHA256SUMS"), `${releaseSha256}  LifeOS AI-0.1.0-arm64-unsigned.zip\n`);
@@ -74,6 +76,8 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
     else process.env.LIFEOS_RELEASE_DIR = oldReleaseDir;
     if (oldIcloudDriveDir === undefined) delete process.env.LIFEOS_ICLOUD_DRIVE_DIR;
     else process.env.LIFEOS_ICLOUD_DRIVE_DIR = oldIcloudDriveDir;
+    if (oldIcloudAccountStatus === undefined) delete process.env.LIFEOS_ICLOUD_ACCOUNT_STATUS;
+    else process.env.LIFEOS_ICLOUD_ACCOUNT_STATUS = oldIcloudAccountStatus;
     await rm(dataDir, { recursive: true, force: true });
   });
 
@@ -256,6 +260,11 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(bundle.icloudHandoff.latestIgnoredEntryEvent, null);
   assert.equal("drivePath" in bundle.icloudHandoff.availability, false);
   assert.equal("appFolderPath" in bundle.icloudHandoff.availability, false);
+  assert.equal(bundle.icloudHandoff.availability.account.checked, true);
+  assert.equal(bundle.icloudHandoff.availability.account.status, "drive-disabled");
+  assert.equal(bundle.icloudHandoff.availability.account.signedIn, true);
+  assert.equal(bundle.icloudHandoff.availability.account.driveEnabled, false);
+  assert.equal(serialized.includes("private-icloud-token-should-not-leak"), false);
   assert.equal(bundle.remote.acceptanceRunbooks.latest[0].entryKind, "stable-https");
   assert.equal(typeof bundle.remote.acceptanceEvidencePack.ready, "boolean");
   assert.equal(bundle.remote.acceptanceEvidencePack.baseUrl, "https://example.com/lifeos");

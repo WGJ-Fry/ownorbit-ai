@@ -2274,6 +2274,9 @@ function checkAssets() {
     diagnosticBundleTestSource.includes("bundle.release.version, packageJson.version") &&
     diagnosticBundleTestSource.includes("bundle.remote.healthSummary.status") &&
     diagnosticBundleTestSource.includes("bundle.remote.healthEvidence.total") &&
+    diagnosticBundleSource.includes("availability?.account") &&
+    diagnosticBundleTestSource.includes("bundle.icloudHandoff.availability.account.status") &&
+    diagnosticBundleTestSource.includes("private-icloud-token-should-not-leak") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceSummary.ready") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceEvidencePack.ready") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceEvidencePack.recommendedAction") &&

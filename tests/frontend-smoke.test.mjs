@@ -592,6 +592,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudIndexTitle/);
   assert.match(onboardingAppleRemoteSource, /getSimpleIcloudStatus/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleReadyTitle/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleAccountTitle/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleAccountBody/);
   assert.match(onboardingAppleRemoteSource, /syncReadiness/);
   assert.match(onboardingAppleRemoteSource, /icloudSyncReadinessKeys/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSyncReady/);
@@ -720,6 +722,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /iCloud Drive Check/);
   assert.match(translationsSource, /Apple ID 或 iCloud Drive 未启用/);
   assert.match(translationsSource, /Apple ID or iCloud Drive is not enabled/);
+  assert.match(translationsSource, /先登录 Apple ID/);
+  assert.match(translationsSource, /Sign in to Apple ID first/);
   assert.match(translationsSource, /iCloud 同步服务未运行/);
   assert.match(translationsSource, /iCloud sync service is not running/);
   assert.match(translationsSource, /iCloud 同步可能卡住/);

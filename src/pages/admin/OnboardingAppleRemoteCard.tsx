@@ -211,7 +211,15 @@ function getSimpleIcloudStatus(icloud: NetworkDiagnostics["icloud"] | undefined)
   const availability = icloud?.availability;
   const health = icloud?.handoffHealth;
   const syncReadiness = icloud?.syncReadiness;
-  if (!icloud?.canExport || availability?.status === "account-unavailable" || availability?.status === "missing" || availability?.status === "unsupported" || availability?.status === "read-only") {
+  if (availability?.status === "account-unavailable") {
+    return {
+      tone: "border-amber-400/20 bg-amber-500/10 text-amber-50",
+      icon: "warning" as const,
+      titleKey: "onboarding.appleRemoteIcloudSimpleAccountTitle" as TranslationKey,
+      bodyKey: "onboarding.appleRemoteIcloudSimpleAccountBody" as TranslationKey,
+    };
+  }
+  if (!icloud?.canExport || availability?.status === "missing" || availability?.status === "unsupported" || availability?.status === "read-only") {
     return {
       tone: "border-amber-400/20 bg-amber-500/10 text-amber-50",
       icon: "warning" as const,
