@@ -8,7 +8,7 @@ import { loadMobileInstallHintDismissed, saveMobileInstallHintDismissed } from "
 import LanguageSwitcher from "../../i18n/LanguageSwitcher";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { TranslationKey } from "../../i18n/translations";
-import { consumeMobileIcloudHandoffFromUrl, stripMobileIcloudHandoffParamsFromUrl } from "../../services/mobileIcloudHandoff";
+import { handleMobileIcloudHandoffLaunch } from "../../services/mobileIcloudHandoff";
 
 const STATUS_CLASS = {
   unbound: "border-amber-400/20 bg-amber-500/10 text-amber-200",
@@ -33,8 +33,7 @@ export default function MobileChatPage() {
   const launchPairingToken = extractPairingToken(new URLSearchParams(window.location.search).get("pairingToken") || "");
 
   useEffect(() => {
-    const entry = consumeMobileIcloudHandoffFromUrl();
-    if (entry) stripMobileIcloudHandoffParamsFromUrl();
+    void handleMobileIcloudHandoffLaunch();
   }, []);
 
   useEffect(() => {

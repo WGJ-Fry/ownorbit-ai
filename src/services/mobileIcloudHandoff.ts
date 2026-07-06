@@ -21,6 +21,9 @@ export type MobileIcloudHandoffEntry = {
   stability: string;
   label: string;
   savedAt: number;
+  lastConnectivityTestedAt?: number;
+  lastConnectivityOk?: boolean;
+  lastConnectivityError?: string;
 };
 
 export type MobileIcloudHandoffStatus = {
@@ -30,6 +33,24 @@ export type MobileIcloudHandoffStatus = {
   currentBase: string;
   titleKey: string;
   bodyKey: string;
+};
+
+type MobileConnectivityLike = {
+  ok: boolean;
+  currentBase: string;
+  latencyMs: number;
+  error?: string;
+  testedAt?: number;
+  steps: Array<{ id: "health" | "mobile-shell" | "websocket"; ok: boolean; url: string; latencyMs: number; status?: number; error?: string }>;
+};
+
+type HandoffLaunchOptions = {
+  href?: string;
+  cleanupUrl?: boolean;
+  timeoutMs?: number;
+  now?: number;
+  testConnectivity?: (options: { currentHref?: string; timeoutMs?: number }) => Promise<MobileConnectivityLike>;
+  reportConnectivity?: (result: MobileConnectivityLike) => Promise<unknown>;
 };
 
 function safeStorage() {
@@ -116,10 +137,89 @@ export function saveMobileIcloudHandoff(entry: MobileIcloudHandoffEntry) {
   }
 }
 
+function mergeMobileIcloudHandoffPatch(patch: Partial<MobileIcloudHandoffEntry>) {
+  const current = getStoredMobileIcloudHandoff();
+  if (!current) return null;
+  const next = { ...current, ...patch };
+  saveMobileIcloudHandoff(next);
+  return next;
+}
+
+function websocketUrlFromBase(base: string) {
+  if (!base) return "/api/v1/ws";
+  try {
+    const url = new URL(base);
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    url.pathname = `${url.pathname.replace(/\/+$/, "")}/api/v1/ws`;
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return `${base.replace(/\/+$/, "")}/api/v1/ws`;
+  }
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error || "Mobile connectivity test failed");
+}
+
+function createFailedConnectivityResult(entry: MobileIcloudHandoffEntry, href: string, error: unknown, testedAt: number): MobileConnectivityLike {
+  const currentBase = currentBaseFromHref(href) || entry.baseUrl;
+  const message = errorMessage(error);
+  return {
+    ok: false,
+    currentBase,
+    latencyMs: 0,
+    testedAt,
+    error: message,
+    steps: [
+      { id: "health", ok: false, url: `${currentBase}/api/v1/health`, latencyMs: 0, error: message },
+      { id: "mobile-shell", ok: false, url: `${currentBase}/mobile/chat`, latencyMs: 0, error: message },
+      { id: "websocket", ok: false, url: websocketUrlFromBase(currentBase), latencyMs: 0, error: message },
+    ],
+  };
+}
+
 export function consumeMobileIcloudHandoffFromUrl(href?: string, now = Date.now()) {
   const entry = parseMobileIcloudHandoffFromUrl(href, now);
   if (entry) saveMobileIcloudHandoff(entry);
   return entry;
+}
+
+export async function handleMobileIcloudHandoffLaunch(options: HandoffLaunchOptions = {}) {
+  const href = options.href || (typeof window === "undefined" ? "" : window.location.href);
+  const entry = consumeMobileIcloudHandoffFromUrl(href, options.now || Date.now());
+  if (!entry) return null;
+  if (options.cleanupUrl !== false) stripMobileIcloudHandoffParamsFromUrl();
+
+  let result: MobileConnectivityLike;
+  try {
+    const testConnectivity = options.testConnectivity || (await import("./pwaCapabilities")).testMobileRemoteConnectivity;
+    result = await testConnectivity({ currentHref: href, timeoutMs: options.timeoutMs });
+  } catch (error) {
+    result = createFailedConnectivityResult(entry, href, error, options.now || Date.now());
+  }
+  const testedAt = result.testedAt || options.now || Date.now();
+  mergeMobileIcloudHandoffPatch({
+    lastConnectivityTestedAt: testedAt,
+    lastConnectivityOk: result.ok,
+    lastConnectivityError: result.error || "",
+  });
+
+  let reportSaved = false;
+  try {
+    const reportConnectivity = options.reportConnectivity || (await import("./lifeosApi")).reportMobileConnectivity;
+    await reportConnectivity(result);
+    reportSaved = true;
+  } catch {
+    reportSaved = false;
+  }
+
+  return {
+    entry: getStoredMobileIcloudHandoff() || entry,
+    result,
+    reportSaved,
+  };
 }
 
 export function stripMobileIcloudHandoffParamsFromUrl() {
@@ -160,6 +260,9 @@ export function getStoredMobileIcloudHandoff(): MobileIcloudHandoffEntry | null 
       stability: String(parsed.stability || ""),
       label: String(parsed.label || "LifeOS iCloud Mobile Entry"),
       savedAt: Number(parsed.savedAt || 0),
+      lastConnectivityTestedAt: Number(parsed.lastConnectivityTestedAt || 0) || undefined,
+      lastConnectivityOk: typeof parsed.lastConnectivityOk === "boolean" ? parsed.lastConnectivityOk : undefined,
+      lastConnectivityError: String(parsed.lastConnectivityError || ""),
     };
   } catch {
     return null;

@@ -16,7 +16,7 @@ import { getMobilePairingErrorCopy } from "../../services/mobilePairingErrors";
 import type { MobilePairingErrorCopy } from "../../services/mobilePairingErrors";
 import { useI18n } from "../../i18n/I18nProvider";
 import MobileConnectivityCard from "./MobileConnectivityCard";
-import { consumeMobileIcloudHandoffFromUrl, stripMobileIcloudHandoffParamsFromUrl } from "../../services/mobileIcloudHandoff";
+import { handleMobileIcloudHandoffLaunch } from "../../services/mobileIcloudHandoff";
 
 export default function MobilePairPage() {
   const { t } = useI18n();
@@ -33,8 +33,7 @@ export default function MobilePairPage() {
   const signatureAvailable = isDeviceSignatureAvailable();
 
   useEffect(() => {
-    const entry = consumeMobileIcloudHandoffFromUrl();
-    if (entry) stripMobileIcloudHandoffParamsFromUrl();
+    void handleMobileIcloudHandoffLaunch();
   }, []);
 
   useEffect(() => {

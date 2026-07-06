@@ -426,6 +426,94 @@ test("mobile iCloud handoff stores non-sensitive entry metadata and detects stal
   assert.equal(mismatch.status, "address-mismatch");
 });
 
+test("mobile iCloud handoff launch runs connectivity check and stores the result", async (t) => {
+  installLocalStorage();
+  t.after(cleanupLocalStorage);
+  const now = 1_800_000_000_000;
+  const { getStoredMobileIcloudHandoff, handleMobileIcloudHandoffLaunch } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-auto-check-${Date.now()}`);
+  let reported = null;
+  const href = [
+    "https://lifeos.example.com/mobile/chat?lifeosEntry=icloud",
+    `entryGeneratedAt=${now}`,
+    `entryRefreshAfter=${now + 60_000}`,
+    `entryExpiresAt=${now + 120_000}`,
+    "entryBaseUrl=https%3A%2F%2Flifeos.example.com",
+    "entryMode=tailscale",
+    "entryStability=stable",
+    "entryLabel=Tailscale%20HTTPS%20Serve",
+  ].join("&");
+
+  const launch = await handleMobileIcloudHandoffLaunch({
+    href,
+    cleanupUrl: false,
+    now,
+    testConnectivity: async (options) => ({
+      ok: true,
+      currentBase: new URL(options.currentHref).origin,
+      latencyMs: 42,
+      testedAt: now + 10,
+      steps: [
+        { id: "health", ok: true, url: "https://lifeos.example.com/api/v1/health", latencyMs: 10 },
+        { id: "mobile-shell", ok: true, url: "https://lifeos.example.com/mobile/chat", latencyMs: 12 },
+        { id: "websocket", ok: true, url: "wss://lifeos.example.com/api/v1/ws", latencyMs: 20 },
+      ],
+    }),
+    reportConnectivity: async (result) => {
+      reported = result;
+      return { ok: true };
+    },
+  });
+
+  assert.equal(launch.reportSaved, true);
+  assert.equal(launch.result.ok, true);
+  assert.equal(reported.currentBase, "https://lifeos.example.com");
+  const stored = getStoredMobileIcloudHandoff();
+  assert.equal(stored.lastConnectivityTestedAt, now + 10);
+  assert.equal(stored.lastConnectivityOk, true);
+  assert.equal(stored.lastConnectivityError, "");
+});
+
+test("mobile iCloud handoff launch stores a failed result when connectivity probing throws", async (t) => {
+  installLocalStorage();
+  t.after(cleanupLocalStorage);
+  const now = 1_800_000_100_000;
+  const { getStoredMobileIcloudHandoff, handleMobileIcloudHandoffLaunch } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-auto-check-fail-${Date.now()}`);
+  let reported = null;
+  const href = [
+    "https://lifeos.example.com/mobile/chat?lifeosEntry=icloud",
+    `entryGeneratedAt=${now}`,
+    `entryRefreshAfter=${now + 60_000}`,
+    `entryExpiresAt=${now + 120_000}`,
+    "entryBaseUrl=https%3A%2F%2Flifeos.example.com",
+    "entryMode=icloud",
+    "entryStability=stable",
+    "entryLabel=iCloud%20Handoff",
+  ].join("&");
+
+  const launch = await handleMobileIcloudHandoffLaunch({
+    href,
+    cleanupUrl: false,
+    now,
+    testConnectivity: async () => {
+      throw new Error("probe unavailable");
+    },
+    reportConnectivity: async (result) => {
+      reported = result;
+      return { ok: true };
+    },
+  });
+
+  assert.equal(launch.reportSaved, true);
+  assert.equal(launch.result.ok, false);
+  assert.equal(launch.result.error, "probe unavailable");
+  assert.equal(launch.result.steps.length, 3);
+  assert.equal(reported.ok, false);
+  const stored = getStoredMobileIcloudHandoff();
+  assert.equal(stored.lastConnectivityTestedAt, now);
+  assert.equal(stored.lastConnectivityOk, false);
+  assert.equal(stored.lastConnectivityError, "probe unavailable");
+});
+
 test("remote entry guidance is visible before manual connectivity tests", async () => {
   const { getRemoteEntryGuidance } = await import(`../src/services/pwaCapabilities.ts?case=remote-entry-guidance-${Date.now()}`);
 

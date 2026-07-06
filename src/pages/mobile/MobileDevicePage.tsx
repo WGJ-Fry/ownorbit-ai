@@ -10,7 +10,7 @@ import { getMobileConnectivityIssue, getMobileRecoveryHints, getPwaCapabilitySta
 import type { MobileConnectivityResult } from "../../services/pwaCapabilities";
 import { getPwaServiceWorkerLifecycleStatus, subscribePwaServiceWorkerLifecycle } from "../../services/pwaServiceWorkerLifecycle";
 import type { PwaServiceWorkerLifecycleStatus } from "../../services/pwaServiceWorkerLifecycle";
-import { consumeMobileIcloudHandoffFromUrl, getMobileIcloudHandoffStatus, stripMobileIcloudHandoffParamsFromUrl } from "../../services/mobileIcloudHandoff";
+import { getMobileIcloudHandoffStatus, handleMobileIcloudHandoffLaunch } from "../../services/mobileIcloudHandoff";
 import MobileConnectionRecoveryCard from "./MobileConnectionRecoveryCard";
 import MobileDeviceHealthSummary from "./MobileDeviceHealthSummary";
 import MobileGeneratedToolsCard from "./MobileGeneratedToolsCard";
@@ -92,7 +92,7 @@ export default function MobileDevicePage() {
   };
 
   useEffect(() => {
-    if (consumeMobileIcloudHandoffFromUrl()) stripMobileIcloudHandoffParamsFromUrl();
+    void handleMobileIcloudHandoffLaunch().finally(() => setIcloudHandoffStatus(getMobileIcloudHandoffStatus()));
     setIcloudHandoffStatus(getMobileIcloudHandoffStatus());
     let cancelled = false;
     getStoredDeviceCredentialAsync().then((next) => {
