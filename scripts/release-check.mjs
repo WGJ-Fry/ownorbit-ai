@@ -1343,6 +1343,7 @@ function checkAssets() {
   const appleRemoteIcloudPrimaryActionSource = exists("src/pages/admin/appleRemoteIcloudPrimaryAction.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/appleRemoteIcloudPrimaryAction.ts"), "utf8") : "";
   const icloudAutoRefreshStatusSource = exists("src/pages/admin/icloudAutoRefreshStatus.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/icloudAutoRefreshStatus.ts"), "utf8") : "";
   const mobileIcloudHandoffSource = exists("src/services/mobileIcloudHandoff.ts") ? fs.readFileSync(path.join(rootDir, "src/services/mobileIcloudHandoff.ts"), "utf8") : "";
+  const diagnosticBundleSource = exists("server/diagnosticBundle.ts") ? fs.readFileSync(path.join(rootDir, "server/diagnosticBundle.ts"), "utf8") : "";
   if (
     deviceRoutesSource.includes("pairingInstallUrl") &&
     deviceRoutesSource.includes("/mobile/install/") &&
@@ -1488,6 +1489,12 @@ function checkAssets() {
     translationsSource.includes("The iCloud mobile entry was refreshed automatically") &&
     translationsSource.includes("Off-LAN realtime entry") &&
     translationsSource.includes("iCloud syncs the entry file but does not carry realtime traffic") &&
+    translationsSource.includes("True iCloud data sync would need CloudKit / iCloud Container plus native Apple clients") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudDataBoundaryBody") &&
+    diagnosticBundleSource.includes('dataSyncScope: "entry-file-only"') &&
+    diagnosticBundleSource.includes("cloudKitRequiredForDataSync") &&
+    diagnosticBundleSource.includes("nativeDataSyncOptions") &&
+    apiAuthTestSource.includes("cloudKitRequiredForDataSync") &&
     networkDiagnosticsSource.includes("cleanupIcloudHandoffEntries") &&
     networkDiagnosticsSource.includes("removedOrphanedFileCount") &&
     networkDiagnosticsTestSource.includes("lifeos-mobile-entry-orphan.json") &&
@@ -2396,7 +2403,6 @@ function checkAssets() {
     String(packageJson.scripts?.test || "").includes("tests/data-export-redaction.test.mjs")
   ) pass("data export redaction covers AI keys, tokens, auth headers, crypto fields, URLs, and local paths");
   else warn("data export redaction does not cover the full sensitive field set");
-  const diagnosticBundleSource = exists("server/diagnosticBundle.ts") ? fs.readFileSync(path.join(rootDir, "server/diagnosticBundle.ts"), "utf8") : "";
   const diagnosticBundleTestSource = exists("tests/diagnostic-bundle-redaction.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/diagnostic-bundle-redaction.test.mjs"), "utf8") : "";
   if (
     diagnosticBundleSource.includes("getReleaseDiagnostics") &&
@@ -2419,6 +2425,11 @@ function checkAssets() {
     diagnosticBundleSource.includes("buildLatestIcloudEntryRepairSummary") &&
     diagnosticBundleSource.includes("publicIcloudEntryRepair") &&
     diagnosticBundleSource.includes("publicIcloudRepairImport") &&
+    diagnosticBundleSource.includes('dataSyncScope: "entry-file-only"') &&
+    diagnosticBundleSource.includes("chatMemoryTaskSync") &&
+    diagnosticBundleSource.includes("cloudKitRequiredForDataSync") &&
+    diagnosticBundleTestSource.includes("pwaIcloudDataSyncUnsupported") &&
+    diagnosticBundleTestSource.includes("nativeDataSyncOptions") &&
     diagnosticBundleTestSource.includes("bundle.release.manifestAvailable") &&
     diagnosticBundleTestSource.includes("Basic Z2l0aHViOmRpYWdub3N0aWM=") &&
     diagnosticBundleTestSource.includes("github_pat_diagnosticSecret") &&

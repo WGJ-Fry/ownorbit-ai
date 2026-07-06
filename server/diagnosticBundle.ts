@@ -471,6 +471,13 @@ function buildIcloudDiagnosticSnapshot(network: ReturnType<typeof getNetworkDiag
     boundary: {
       handoffOnly: true,
       realtimeRequiresTrustedNetwork: true,
+      dataSyncScope: "entry-file-only",
+      chatMemoryTaskSync: false,
+      pwaIcloudDataSyncUnsupported: true,
+      cloudKitRequiredForDataSync: true,
+      syncedDataTypes: ["mobile-entry-file"],
+      notSyncedDataTypes: ["chat-history", "memory", "tasks", "calendar-writes", "sqlite-database", "ai-keys"],
+      nativeDataSyncOptions: ["cloudkit", "icloud-container", "macos-ios-native-clients"],
       recommendedRealtimeOptions: ["tailscale", "cloudflare-tunnel", "trusted-https"],
     },
   };

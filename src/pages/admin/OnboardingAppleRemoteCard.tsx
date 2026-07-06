@@ -697,6 +697,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
             <div>
               <div className="font-bold text-cyan-50">{t("onboarding.appleRemoteIcloudBoundaryTitle")}</div>
               <div className="mt-1">{t("onboarding.appleRemoteIcloudBoundaryBody")}</div>
+              <div className="mt-1">{t("onboarding.appleRemoteIcloudDataBoundaryBody")}</div>
             </div>
           </div>
         </div>

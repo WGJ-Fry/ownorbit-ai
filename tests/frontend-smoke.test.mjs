@@ -740,6 +740,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Apple\/iCloud Mobile Entry/);
   assert.match(translationsSource, /iCloud 会同步一个手机入口文件/);
   assert.match(translationsSource, /iCloud syncs a mobile entry file/);
+  assert.match(translationsSource, /CloudKit \/ iCloud Container/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudDataBoundaryBody/);
   assert.match(translationsSource, /同步包状态/);
   assert.match(translationsSource, /Sync packet status/);
   assert.match(translationsSource, /二维码已过期/);

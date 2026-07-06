@@ -269,6 +269,13 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(bundle.remote.acceptanceRunbooks.total, 1);
   assert.equal(bundle.icloudHandoff.boundary.handoffOnly, true);
   assert.equal(bundle.icloudHandoff.boundary.realtimeRequiresTrustedNetwork, true);
+  assert.equal(bundle.icloudHandoff.boundary.dataSyncScope, "entry-file-only");
+  assert.equal(bundle.icloudHandoff.boundary.chatMemoryTaskSync, false);
+  assert.equal(bundle.icloudHandoff.boundary.pwaIcloudDataSyncUnsupported, true);
+  assert.equal(bundle.icloudHandoff.boundary.cloudKitRequiredForDataSync, true);
+  assert.deepEqual(bundle.icloudHandoff.boundary.syncedDataTypes, ["mobile-entry-file"]);
+  assert.equal(bundle.icloudHandoff.boundary.notSyncedDataTypes.includes("memory"), true);
+  assert.equal(bundle.icloudHandoff.boundary.nativeDataSyncOptions.includes("macos-ios-native-clients"), true);
   assert.equal(bundle.icloudHandoff.monitor.enabled, true);
   assert.equal(bundle.icloudHandoff.transport, "handoff-only");
   assert.equal(bundle.icloudHandoff.phoneConfirmation.status, "confirmed");
