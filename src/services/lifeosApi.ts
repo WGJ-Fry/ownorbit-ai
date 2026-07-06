@@ -772,6 +772,14 @@ export type NetworkDiagnostics = {
       htmlFileName: string;
       packetFileName: string;
     }>;
+    lifecycle: {
+      retentionLimit: number;
+      expiredGraceMs: number;
+      entryCount: number;
+      expiredEntryCount: number;
+      prunableEntryCount: number;
+      orphanedFileCount: number;
+    };
     recommendedBaseUrl: string;
     recommendedLabel: string;
     recommendedMode: string;
@@ -1762,7 +1770,17 @@ export function startCloudflareTunnel() {
 
 export function exportIcloudHandoff() {
   return requestJson<{
-    handoff: NetworkDiagnostics["icloud"] & { ok: true; generatedAt: number };
+    handoff: NetworkDiagnostics["icloud"] & {
+      ok: true;
+      generatedAt: number;
+      cleanup: {
+        removedEntryCount: number;
+        removedFiles: string[];
+        errorCount: number;
+        errors: string[];
+        expiredGraceMs: number;
+      };
+    };
     diagnostics: NetworkDiagnostics;
     message: string;
   }>("/api/v1/admin/icloud-handoff/export", { method: "POST" });

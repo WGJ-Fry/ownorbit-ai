@@ -164,6 +164,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const handoffHealth = icloud?.handoffHealth;
   const icloudAvailability = icloud?.availability;
   const icloudMonitor = diagnostics?.icloudMonitor;
+  const icloudLifecycle = icloud?.lifecycle;
   const latestIgnoredEntryEvent = icloud?.latestIgnoredEntryEvent || null;
   const latestHistory = icloud?.entryHistory?.slice(0, 3) || [];
   const availableEntryCount = icloud?.availableEntries?.length || 0;
@@ -365,6 +366,22 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                     <div className="text-red-200">{t("onboarding.appleRemoteIcloudMonitorError")}: {icloudMonitor.lastResult.error}</div>
                   ) : null}
                 </div>
+              </div>
+            ) : null}
+            {icloudLifecycle ? (
+              <div className="mt-3 border-t border-white/[0.06] pt-3">
+                <div className="font-bold text-zinc-200">{t("onboarding.appleRemoteIcloudLifecycleTitle")}</div>
+                <div className="mt-2 grid gap-1 text-[11px] text-zinc-500">
+                  <div>{t("onboarding.appleRemoteIcloudLifecycleEntryCount")}: {icloudLifecycle.entryCount}</div>
+                  <div>{t("onboarding.appleRemoteIcloudLifecycleExpiredCount")}: {icloudLifecycle.expiredEntryCount}</div>
+                  <div>{t("onboarding.appleRemoteIcloudLifecyclePrunableCount")}: {icloudLifecycle.prunableEntryCount}</div>
+                  <div>{t("onboarding.appleRemoteIcloudLifecycleOrphanedCount")}: {icloudLifecycle.orphanedFileCount}</div>
+                </div>
+                {icloudLifecycle.prunableEntryCount > 0 ? (
+                  <div className="mt-2 rounded-lg border border-amber-400/20 bg-amber-500/10 p-2 text-[11px] leading-relaxed text-amber-50">
+                    {t("onboarding.appleRemoteIcloudLifecycleCleanupHint")}
+                  </div>
+                ) : null}
               </div>
             ) : null}
             {latestHistory.length ? (

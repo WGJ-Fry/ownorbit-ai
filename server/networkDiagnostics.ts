@@ -58,6 +58,8 @@ type RemoteReadinessItemId =
 
 const ICLOUD_HANDOFF_REFRESH_AFTER_MS = 24 * 60 * 60 * 1000;
 const ICLOUD_HANDOFF_EXPIRES_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
+const ICLOUD_HANDOFF_EXPIRED_CLEANUP_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
+const ICLOUD_HANDOFF_ENTRY_RETENTION_LIMIT = 12;
 const ICLOUD_MDLS_ATTRIBUTES = [
   "kMDItemUbiquitousItemIsDownloaded",
   "kMDItemUbiquitousItemIsDownloading",
@@ -471,10 +473,103 @@ function readIcloudEntrySummaries(appFolderPath: string) {
       })
       .filter((entry): entry is NonNullable<ReturnType<typeof summarizeIcloudEntryPacket>> => Boolean(entry))
       .sort((left, right) => right.generatedAt - left.generatedAt)
-      .slice(0, 12);
+      .slice(0, ICLOUD_HANDOFF_ENTRY_RETENTION_LIMIT);
   } catch {
     return [];
   }
+}
+
+function readAllIcloudEntrySummaries(appFolderPath: string) {
+  if (!appFolderPath || !existsSync(appFolderPath)) return [];
+  try {
+    return readdirSync(appFolderPath)
+      .filter((file) => /^lifeos-mobile-entry(?:-[a-z0-9._-]+)?\.json$/i.test(file))
+      .map((file) => {
+        try {
+          const packet = JSON.parse(readFileSync(path.join(appFolderPath, file), "utf8"));
+          return packet && typeof packet === "object" ? summarizeIcloudEntryPacket(packet, file) : null;
+        } catch {
+          return null;
+        }
+      })
+      .filter((entry): entry is NonNullable<ReturnType<typeof summarizeIcloudEntryPacket>> => Boolean(entry))
+      .sort((left, right) => right.generatedAt - left.generatedAt);
+  } catch {
+    return [];
+  }
+}
+
+function getIcloudExpiredCleanupGraceMs() {
+  const configured = Number.parseInt(String(process.env.LIFEOS_ICLOUD_EXPIRED_CLEANUP_GRACE_MS || ""), 10);
+  if (Number.isFinite(configured) && configured >= 0) return configured;
+  return ICLOUD_HANDOFF_EXPIRED_CLEANUP_GRACE_MS;
+}
+
+function listIcloudOrphanedEntryFiles(appFolderPath: string, entries = readAllIcloudEntrySummaries(appFolderPath)) {
+  if (!appFolderPath || !existsSync(appFolderPath)) return [];
+  const referencedFiles = new Set(entries.flatMap((entry) => [entry.htmlFileName, entry.packetFileName]).filter(Boolean));
+  try {
+    return readdirSync(appFolderPath)
+      .filter((file) => /^lifeos-mobile-entry-[a-z0-9._-]+\.(html|json)$/i.test(file) && !referencedFiles.has(file))
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+function getIcloudHandoffLifecycleStatus(appFolderPath: string, currentDesktopId: string, now = Date.now()) {
+  const entries = readAllIcloudEntrySummaries(appFolderPath);
+  const expiredGraceMs = getIcloudExpiredCleanupGraceMs();
+  const prunableEntries = entries.filter((entry) => (
+    entry.desktopId !== currentDesktopId &&
+    entry.expiresAt > 0 &&
+    now >= entry.expiresAt + expiredGraceMs
+  ));
+  const orphanedFiles = listIcloudOrphanedEntryFiles(appFolderPath, entries);
+  return {
+    retentionLimit: ICLOUD_HANDOFF_ENTRY_RETENTION_LIMIT,
+    expiredGraceMs,
+    entryCount: entries.length,
+    expiredEntryCount: entries.filter((entry) => entry.expiresAt > 0 && now >= entry.expiresAt).length,
+    prunableEntryCount: prunableEntries.length,
+    orphanedFileCount: orphanedFiles.length,
+  };
+}
+
+function removeIcloudFile(appFolderPath: string, fileName: string, removedFiles: string[], errors: string[]) {
+  if (!/^[a-z0-9._-]+\.(html|json)$/i.test(fileName)) return;
+  const targetPath = path.join(appFolderPath, fileName);
+  try {
+    if (existsSync(targetPath)) {
+      unlinkSync(targetPath);
+      removedFiles.push(fileName);
+    }
+  } catch (error: any) {
+    errors.push(`${fileName}: ${String(error?.message || error || "remove failed").slice(0, 160)}`);
+  }
+}
+
+function cleanupExpiredIcloudHandoffEntries(appFolderPath: string, currentDesktopId: string, now = Date.now()) {
+  const entries = readAllIcloudEntrySummaries(appFolderPath);
+  const expiredGraceMs = getIcloudExpiredCleanupGraceMs();
+  const expiredEntries = entries.filter((entry) => (
+    entry.desktopId !== currentDesktopId &&
+    entry.expiresAt > 0 &&
+    now >= entry.expiresAt + expiredGraceMs
+  ));
+  const removedFiles: string[] = [];
+  const errors: string[] = [];
+  for (const entry of expiredEntries) {
+    removeIcloudFile(appFolderPath, entry.packetFileName, removedFiles, errors);
+    removeIcloudFile(appFolderPath, entry.htmlFileName, removedFiles, errors);
+  }
+  return {
+    removedEntryCount: expiredEntries.length,
+    removedFiles: removedFiles.slice(0, 24),
+    errorCount: errors.length,
+    errors: errors.slice(0, 6),
+    expiredGraceMs,
+  };
 }
 
 function readIcloudHandoffHistory(historyFilePath: string) {
@@ -946,6 +1041,14 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
   const handoffHealth = buildIcloudHandoffHealth({ packetFilePath: healthPacketFilePath, handoffFilePath: healthHandoffFilePath, candidate });
   const availableEntries = available ? readIcloudEntrySummaries(appFolderPath) : [];
   const entryHistory = available ? readIcloudHandoffHistory(historyFilePath) : [];
+  const lifecycle = available ? getIcloudHandoffLifecycleStatus(appFolderPath, desktop.id) : {
+    retentionLimit: ICLOUD_HANDOFF_ENTRY_RETENTION_LIMIT,
+    expiredGraceMs: getIcloudExpiredCleanupGraceMs(),
+    entryCount: 0,
+    expiredEntryCount: 0,
+    prunableEntryCount: 0,
+    orphanedFileCount: 0,
+  };
   const availability = getIcloudAvailabilityStatus({
     platformSupported,
     drivePath,
@@ -970,6 +1073,7 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
     historyFilePath: available ? historyFilePath : "",
     availableEntries,
     entryHistory,
+    lifecycle,
     recommendedBaseUrl: candidate?.baseUrl || "",
     recommendedLabel: candidate?.label || "",
     recommendedMode: candidate?.mode || "",
@@ -1722,6 +1826,7 @@ export function exportIcloudHandoff(reason = "manual") {
   packet.entryChecksumSha256 = buildIcloudEntryChecksum(packet);
   writePrivateFileAtomic(status.packetFilePath, `${JSON.stringify(packet, null, 2)}\n`);
   writePrivateFileAtomic(status.handoffFilePath, buildIcloudHandoffHtml({ generatedAt, candidate, packet }));
+  const cleanup = cleanupExpiredIcloudHandoffEntries(status.appFolderPath, status.desktopId, generatedAt);
   const entries = readIcloudEntrySummaries(status.appFolderPath);
   writePrivateFileAtomic(status.indexFilePath, buildIcloudHandoffIndexHtml({ generatedAt, currentDesktopId: status.desktopId, entries }));
   writeIcloudHandoffHistory(status.historyFilePath, {
@@ -1739,6 +1844,7 @@ export function exportIcloudHandoff(reason = "manual") {
   return {
     ok: true,
     generatedAt,
+    cleanup,
     ...getIcloudHandoffStatus(diagnostics.connectionCandidates),
   };
 }

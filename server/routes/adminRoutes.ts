@@ -599,6 +599,7 @@ export function registerAdminRoutes(app: express.Express) {
         recommendedBaseUrl: handoff.recommendedBaseUrl,
         recommendedMode: handoff.recommendedMode,
         realtimeTransport: handoff.realtimeTransport,
+        cleanupRemovedEntryCount: handoff.cleanup?.removedEntryCount || 0,
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.json({
         handoff,

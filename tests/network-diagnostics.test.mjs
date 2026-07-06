@@ -298,10 +298,97 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.equal(Array.isArray(result.availableEntries), true);
   assert.equal(result.availableEntries.some((entry) => entry.desktopId === packet.desktopId), true);
   assert.equal(Array.isArray(result.entryHistory), true);
+  assert.equal(result.lifecycle.entryCount >= 1, true);
+  assert.equal(result.lifecycle.retentionLimit, 12);
+  assert.equal(result.lifecycle.expiredEntryCount, 0);
   assert.equal(history[0].desktopId, packet.desktopId);
   assert.equal(history[0].baseUrl, "https://lifeos.example.com");
   assert.equal(history[0].reason, "manual");
   assert.equal(fs.readdirSync(path.dirname(result.handoffFilePath)).some((name) => name.endsWith(".tmp")), false);
+});
+
+test("iCloud handoff export prunes expired entries from other desktops", async (t) => {
+  const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-cleanup-"));
+  const appDir = path.join(icloudDir, "LifeOS AI");
+  fs.mkdirSync(appDir, { recursive: true });
+  const oldPort = process.env.LIFEOS_PORT;
+  const oldPublicBaseUrl = process.env.PUBLIC_BASE_URL;
+  const oldAppUrl = process.env.APP_URL;
+  const oldCloudflaredBin = process.env.LIFEOS_CLOUDFLARED_BIN;
+  const oldTailscaleBin = process.env.LIFEOS_TAILSCALE_BIN;
+  const oldIcloudDriveDir = process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+  const oldForceIcloud = process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+  const oldCleanupGrace = process.env.LIFEOS_ICLOUD_EXPIRED_CLEANUP_GRACE_MS;
+
+  t.after(async () => {
+    if (oldPort === undefined) delete process.env.LIFEOS_PORT;
+    else process.env.LIFEOS_PORT = oldPort;
+    if (oldPublicBaseUrl === undefined) delete process.env.PUBLIC_BASE_URL;
+    else process.env.PUBLIC_BASE_URL = oldPublicBaseUrl;
+    if (oldAppUrl === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = oldAppUrl;
+    if (oldCloudflaredBin === undefined) delete process.env.LIFEOS_CLOUDFLARED_BIN;
+    else process.env.LIFEOS_CLOUDFLARED_BIN = oldCloudflaredBin;
+    if (oldTailscaleBin === undefined) delete process.env.LIFEOS_TAILSCALE_BIN;
+    else process.env.LIFEOS_TAILSCALE_BIN = oldTailscaleBin;
+    if (oldIcloudDriveDir === undefined) delete process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+    else process.env.LIFEOS_ICLOUD_DRIVE_DIR = oldIcloudDriveDir;
+    if (oldForceIcloud === undefined) delete process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+    else process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = oldForceIcloud;
+    if (oldCleanupGrace === undefined) delete process.env.LIFEOS_ICLOUD_EXPIRED_CLEANUP_GRACE_MS;
+    else process.env.LIFEOS_ICLOUD_EXPIRED_CLEANUP_GRACE_MS = oldCleanupGrace;
+    await rm(icloudDir, { recursive: true, force: true });
+  });
+
+  const oldGeneratedAt = Date.now() - 10 * 24 * 60 * 60 * 1000;
+  const oldPacket = {
+    kind: "lifeos-mobile-entry",
+    version: 3,
+    desktopId: "old-desktop",
+    desktopName: "Old Mac",
+    desktopSlug: "old-mac",
+    htmlFileName: "lifeos-mobile-entry-old-mac.html",
+    packetFileName: "lifeos-mobile-entry-old-mac.json",
+    generatedAt: oldGeneratedAt,
+    refreshAfter: oldGeneratedAt + 60_000,
+    expiresAt: oldGeneratedAt + 120_000,
+    candidateId: "old-cloudflare",
+    label: "Old Tunnel",
+    baseUrl: "https://old-lifeos.example.com",
+    mobilePairUrl: "https://old-lifeos.example.com/mobile/pair",
+    mobileChatUrl: "https://old-lifeos.example.com/mobile/chat",
+    mode: "cloudflare",
+    secure: true,
+    stability: "temporary",
+    requiresRestart: false,
+    transport: "icloud-handoff",
+    realtimeTransport: false,
+    entryChecksumSha256: "0".repeat(64),
+  };
+  await writeFile(path.join(appDir, oldPacket.packetFileName), `${JSON.stringify(oldPacket, null, 2)}\n`);
+  await writeFile(path.join(appDir, oldPacket.htmlFileName), "<!doctype html><title>old</title>");
+
+  process.env.LIFEOS_PORT = "4567";
+  process.env.PUBLIC_BASE_URL = "https://new-lifeos.example.com";
+  delete process.env.APP_URL;
+  process.env.LIFEOS_CLOUDFLARED_BIN = "/definitely/missing/cloudflared";
+  process.env.LIFEOS_TAILSCALE_BIN = "/definitely/missing/tailscale";
+  process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = "1";
+  process.env.LIFEOS_ICLOUD_DRIVE_DIR = icloudDir;
+  process.env.LIFEOS_ICLOUD_EXPIRED_CLEANUP_GRACE_MS = "0";
+
+  const { exportIcloudHandoff } = await import(`../server/networkDiagnostics.ts?icloud-cleanup=${Date.now()}`);
+  const result = exportIcloudHandoff("cleanup-test");
+
+  assert.equal(result.cleanup.removedEntryCount, 1);
+  assert.equal(result.cleanup.removedFiles.includes(oldPacket.packetFileName), true);
+  assert.equal(result.cleanup.removedFiles.includes(oldPacket.htmlFileName), true);
+  assert.equal(fs.existsSync(path.join(appDir, oldPacket.packetFileName)), false);
+  assert.equal(fs.existsSync(path.join(appDir, oldPacket.htmlFileName)), false);
+  assert.equal(result.availableEntries.some((entry) => entry.desktopId === "old-desktop"), false);
+  assert.equal(result.lifecycle.entryCount, 1);
+  assert.equal(result.lifecycle.expiredEntryCount, 0);
+  assert.equal(result.lifecycle.prunableEntryCount, 0);
 });
 
 test("iCloud handoff diagnostics detect HTML and JSON packet mismatches", async (t) => {
