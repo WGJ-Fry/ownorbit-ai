@@ -770,7 +770,7 @@ export type NetworkDiagnostics = {
       desktopId: string;
       desktopName: string;
       reason: string;
-      changeType: "first-export" | "address-changed" | "refreshed-same-address" | string;
+      changeType: "first-export" | "public-base-url-changed" | "address-changed" | "fallback-candidates-changed" | "refreshed-same-address" | string;
       previousBaseUrl: string;
       baseUrl: string;
       candidateId: string;

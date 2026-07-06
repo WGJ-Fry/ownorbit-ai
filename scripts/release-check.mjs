@@ -1415,6 +1415,10 @@ function checkAssets() {
     networkDiagnosticsTestSource.includes("iCloud handoff monitor refreshes stale desktop chooser index files") &&
     networkDiagnosticsTestSource.includes("monitorRun.trigger") &&
     networkDiagnosticsTestSource.includes("monitorRun.changeType") &&
+    networkDiagnosticsSource.includes("public-base-url-changed") &&
+    networkDiagnosticsTestSource.includes("public-base-url-changed") &&
+    onboardingAppleRemoteSource.includes("public-base-url-changed") &&
+    translationsSource.includes("PUBLIC_BASE_URL changed") &&
     mobileIcloudHandoffSource.includes("PENDING_EVENTS_STORAGE_KEY") &&
     mobileIcloudHandoffSource.includes("flushPendingMobileIcloudHandoffEvents") &&
     mobileIcloudHandoffSource.includes("reportOrQueueIcloudHandoffEvent") &&

@@ -2167,10 +2167,13 @@ export function exportIcloudHandoff(reason = "manual") {
   const previousBaseUrl = String(previousPacket?.baseUrl || "");
   const fallbackCandidates = summarizeIcloudFallbackCandidates(diagnostics.connectionCandidates);
   const previousFallbackCandidates = Array.isArray(previousPacket?.fallbackCandidates) ? previousPacket.fallbackCandidates : [];
+  const previousCandidateId = String(previousPacket?.candidateId || "");
   const changeType = !previousBaseUrl
     ? "first-export"
     : previousBaseUrl !== candidate.baseUrl
-    ? "address-changed"
+    ? candidate.id === "configured-public" || previousCandidateId === "configured-public"
+      ? "public-base-url-changed"
+      : "address-changed"
     : JSON.stringify(previousFallbackCandidates) !== JSON.stringify(fallbackCandidates)
     ? "fallback-candidates-changed"
     : "refreshed-same-address";
