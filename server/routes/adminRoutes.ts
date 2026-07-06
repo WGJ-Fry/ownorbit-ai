@@ -22,6 +22,7 @@ import { evaluatePasswordPolicy, getSecurityDiagnostics } from "../securityDiagn
 import { getOnboardingStatus, markOnboardingComplete } from "../onboarding";
 import { getBackupSchedule } from "../backupSchedule";
 import { getLatestBindingSession, getLatestIcloudHandoffEventByTypes } from "../devices";
+import { buildIcloudPhoneConfirmationStatus } from "../icloudPhoneConfirmation";
 import { checkReleaseUpdate } from "../releaseUpdateCheck";
 import { buildNativeAutomationPlan, executeNativeAutomation } from "../nativeAutomationBridge";
 
@@ -272,6 +273,13 @@ function getAdminNetworkDiagnostics() {
     ...diagnostics,
     icloud: {
       ...diagnostics.icloud,
+      phoneConfirmation: buildIcloudPhoneConfirmationStatus({
+        handoffHealth: diagnostics.icloud.handoffHealth,
+        recommendedBaseUrl: diagnostics.icloud.recommendedBaseUrl,
+        latestEntryOpenEvent: latestIcloudHandoffOpenEvent || null,
+        latestIgnoredEntryEvent: latestIgnoredIcloudHandoffEvent || null,
+        latestEntryIssueEvent: latestIcloudHandoffIssueEvent || null,
+      }),
       latestEntryOpenEvent: latestIcloudHandoffOpenEvent || null,
       latestIgnoredEntryEvent: latestIgnoredIcloudHandoffEvent || null,
       latestEntryIssueEvent: latestIcloudHandoffIssueEvent || null,

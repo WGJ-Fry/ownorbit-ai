@@ -861,6 +861,23 @@ export type NetworkDiagnostics = {
       packetFileState: IcloudFileAvailability["state"];
       indexFileState: IcloudFileAvailability["state"];
     };
+    phoneConfirmation: {
+      status: "missing" | "confirmed" | "stale" | "issue-after-confirm";
+      severity: "ok" | "warning" | "danger";
+      action: "none" | "open-on-phone" | "refresh-entry";
+      confirmedAt: number;
+      confirmedDeviceId: string;
+      confirmedDeviceName: string;
+      confirmedDeviceType: string;
+      confirmedEntryBaseUrl: string;
+      confirmedEntryGeneratedAt: number;
+      expectedEntryGeneratedAt: number;
+      expectedBaseUrl: string;
+      latestProblemAt: number;
+      latestProblemEventType: string;
+      latestProblemDeviceName: string;
+      reason: string;
+    };
     realtimeTransport: false;
     transport: "handoff-only";
     openInstruction: string;

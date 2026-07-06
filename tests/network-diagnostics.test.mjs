@@ -1877,3 +1877,72 @@ exit 1
   assert.equal(result.serve.status.serveRunning, true);
   assert.match(result.serve.status.serveStatus, /4567/);
 });
+
+test("iCloud phone confirmation status classifies missing, stale, and issue-after-confirm", async () => {
+  const { buildIcloudPhoneConfirmationStatus } = await import(`../server/icloudPhoneConfirmation.ts?phone-confirmation=${Date.now()}`);
+  const handoffHealth = {
+    status: "fresh",
+    needsRefresh: false,
+    lastExportedAt: 2_000,
+    lastExportedBaseUrl: "https://current.example.test/lifeos",
+  };
+  assert.equal(buildIcloudPhoneConfirmationStatus({ handoffHealth }).status, "missing");
+
+  const stale = buildIcloudPhoneConfirmationStatus({
+    handoffHealth,
+    latestEntryOpenEvent: {
+      id: "stale-open",
+      deviceId: "phone-1",
+      deviceName: "iPhone",
+      deviceType: "mobile",
+      eventType: "opened-current-entry",
+      entryBaseUrl: "https://old.example.test/lifeos",
+      currentBaseUrl: "https://old.example.test/lifeos",
+      storedBaseUrl: "https://old.example.test/lifeos",
+      entryGeneratedAt: 1_000,
+      storedGeneratedAt: 1_000,
+      checksumSha256: "a".repeat(64),
+      ignoredAt: 3_000,
+      createdAt: 3_000,
+    },
+  });
+  assert.equal(stale.status, "stale");
+  assert.equal(stale.action, "refresh-entry");
+
+  const issueAfterConfirm = buildIcloudPhoneConfirmationStatus({
+    handoffHealth,
+    latestEntryOpenEvent: {
+      id: "current-open",
+      deviceId: "phone-1",
+      deviceName: "iPhone",
+      deviceType: "mobile",
+      eventType: "opened-current-entry",
+      entryBaseUrl: "https://current.example.test/lifeos",
+      currentBaseUrl: "https://current.example.test/lifeos",
+      storedBaseUrl: "https://current.example.test/lifeos",
+      entryGeneratedAt: 2_000,
+      storedGeneratedAt: 2_000,
+      checksumSha256: "b".repeat(64),
+      ignoredAt: 3_000,
+      createdAt: 3_000,
+    },
+    latestEntryIssueEvent: {
+      id: "expired-open",
+      deviceId: "phone-1",
+      deviceName: "iPhone",
+      deviceType: "mobile",
+      eventType: "opened-expired-entry",
+      entryBaseUrl: "https://expired.example.test/lifeos",
+      currentBaseUrl: "https://expired.example.test/lifeos",
+      storedBaseUrl: "https://expired.example.test/lifeos",
+      entryGeneratedAt: 1_000,
+      storedGeneratedAt: 1_000,
+      checksumSha256: "c".repeat(64),
+      ignoredAt: 4_000,
+      createdAt: 4_000,
+    },
+  });
+  assert.equal(issueAfterConfirm.status, "issue-after-confirm");
+  assert.equal(issueAfterConfirm.severity, "danger");
+  assert.equal(issueAfterConfirm.latestProblemEventType, "opened-expired-entry");
+});

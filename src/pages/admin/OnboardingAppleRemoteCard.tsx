@@ -87,6 +87,19 @@ const icloudSyncActionKeys: Record<NetworkDiagnostics["icloud"]["syncReadiness"]
   "open-files-app": "onboarding.appleRemoteIcloudSyncActionOpen",
 };
 
+const icloudPhoneConfirmationKeys: Record<NetworkDiagnostics["icloud"]["phoneConfirmation"]["status"], TranslationKey> = {
+  missing: "onboarding.appleRemoteIcloudPhoneConfirmMissing",
+  confirmed: "onboarding.appleRemoteIcloudPhoneConfirmConfirmed",
+  stale: "onboarding.appleRemoteIcloudPhoneConfirmStale",
+  "issue-after-confirm": "onboarding.appleRemoteIcloudPhoneConfirmIssueAfter",
+};
+
+const icloudPhoneConfirmationActionKeys: Record<NetworkDiagnostics["icloud"]["phoneConfirmation"]["action"], TranslationKey> = {
+  none: "onboarding.appleRemoteIcloudPhoneConfirmActionNone",
+  "open-on-phone": "onboarding.appleRemoteIcloudPhoneConfirmActionOpen",
+  "refresh-entry": "onboarding.appleRemoteIcloudPhoneConfirmActionRefresh",
+};
+
 const repairReasonKeys: Record<IcloudHandoffRepairAnalysis["reason"], TranslationKey> = {
   ready: "onboarding.appleRemoteIcloudRepairReasonReady",
   "invalid-packet": "onboarding.appleRemoteIcloudRepairReasonInvalid",
@@ -229,9 +242,9 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const icloudAvailability = icloud?.availability;
   const indexConsistency = icloud?.indexConsistency;
   const syncReadiness = icloud?.syncReadiness;
+  const phoneConfirmation = icloud?.phoneConfirmation;
   const icloudMonitor = diagnostics?.icloudMonitor;
   const icloudLifecycle = icloud?.lifecycle;
-  const latestEntryOpenEvent = icloud?.latestEntryOpenEvent || null;
   const latestIgnoredEntryEvent = icloud?.latestIgnoredEntryEvent || null;
   const latestEntryIssueEvent = icloud?.latestEntryIssueEvent || null;
   const latestHistory = icloud?.entryHistory?.slice(0, 3) || [];
@@ -248,6 +261,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const icloudAvailabilityTone = icloudAvailability?.severity === "ok" ? "bg-emerald-500/15 text-emerald-100" : icloudAvailability?.severity === "danger" ? "bg-red-500/15 text-red-100" : "bg-amber-500/15 text-amber-100";
   const icloudIndexTone = indexConsistency?.ok ? "bg-emerald-500/15 text-emerald-100" : indexConsistency?.status === "mismatch" ? "bg-red-500/15 text-red-100" : "bg-amber-500/15 text-amber-100";
   const syncReadinessTone = syncReadiness?.severity === "ok" ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-50" : syncReadiness?.severity === "danger" ? "border-red-400/20 bg-red-500/10 text-red-50" : "border-amber-400/20 bg-amber-500/10 text-amber-50";
+  const phoneConfirmationTone = phoneConfirmation?.severity === "ok" ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-50" : phoneConfirmation?.severity === "danger" ? "border-red-400/20 bg-red-500/10 text-red-50" : "border-amber-400/20 bg-amber-500/10 text-amber-50";
   const icloudSyncStuckMinutes = Math.max(1, Math.round((icloudAvailability?.syncStuckAfterMs || 0) / 60000));
   const lastExportedAt = formatHandoffTime(handoffHealth?.lastExportedAt);
   const refreshAfter = formatHandoffTime(handoffHealth?.refreshAfter);
@@ -255,7 +269,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const icloudMonitorLastRunAt = formatHandoffTime(icloudMonitor?.lastRunAt || undefined);
   const icloudMonitorNextRunAt = formatHandoffTime(icloudMonitor?.nextRunAt || undefined);
   const icloudMonitorIntervalSeconds = Math.round((icloudMonitor?.intervalMs || 0) / 1000);
-  const latestOpenAt = formatHandoffTime(latestEntryOpenEvent?.ignoredAt || latestEntryOpenEvent?.createdAt);
+  const phoneConfirmationAt = formatHandoffTime(phoneConfirmation?.confirmedAt);
   const latestIgnoredAt = formatHandoffTime(latestIgnoredEntryEvent?.ignoredAt);
   const latestIssueAt = formatHandoffTime(latestEntryIssueEvent?.ignoredAt || latestEntryIssueEvent?.createdAt);
   const simpleIcloudStatus = getSimpleIcloudStatus(icloud);
@@ -515,16 +529,16 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
               <div className="mt-1">{t("onboarding.appleRemoteIcloudMultiDesktopBody")}</div>
             </div>
           ) : null}
-          {latestEntryOpenEvent ? (
-            <div className="mt-3 rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-emerald-50">
+          {phoneConfirmation ? (
+            <div className={`mt-3 rounded-xl border p-3 ${phoneConfirmationTone}`}>
               <div className="flex gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                {phoneConfirmation.severity === "ok" ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : phoneConfirmation.status === "missing" ? <Cloud className="mt-0.5 h-4 w-4 shrink-0" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />}
                 <div>
-                  <div className="font-bold">{t("onboarding.appleRemoteIcloudOpenConfirmTitle")}</div>
-                  <div className="mt-1 text-[11px] leading-relaxed text-emerald-50/80">
-                    {t("onboarding.appleRemoteIcloudOpenConfirmBody", {
-                      device: latestEntryOpenEvent.deviceName || latestEntryOpenEvent.deviceId,
-                      time: latestOpenAt || "-",
+                  <div className="font-bold">{t(icloudPhoneConfirmationKeys[phoneConfirmation.status])}</div>
+                  <div className="mt-1 text-[11px] leading-relaxed opacity-80">
+                    {t(icloudPhoneConfirmationActionKeys[phoneConfirmation.action], {
+                      device: phoneConfirmation.confirmedDeviceName || phoneConfirmation.confirmedDeviceId || "-",
+                      time: phoneConfirmationAt || "-",
                     })}
                   </div>
                 </div>

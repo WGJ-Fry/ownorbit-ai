@@ -6,6 +6,7 @@ import { buildCalendarSyncPreview } from "./calendarSyncPreview";
 import { db, getPendingRestore, listBackups } from "./db";
 import { getDevices, getLatestIcloudHandoffEventByTypes, type DeviceIcloudHandoffEvent } from "./devices";
 import { getIcloudHandoffMonitorStatus } from "./icloudHandoffMonitor";
+import { buildIcloudPhoneConfirmationStatus } from "./icloudPhoneConfirmation";
 import { getClientState } from "./clientState";
 import { getNetworkDiagnostics } from "./networkDiagnostics";
 import { getOnlineDeviceCount } from "./realtime";
@@ -235,14 +236,29 @@ function publicIcloudFileState(file: any) {
 }
 
 function buildIcloudDiagnosticSnapshot(network: ReturnType<typeof getNetworkDiagnostics>) {
-  const latestOpenEvent = publicIcloudHandoffEvent(getLatestIcloudHandoffEventByTypes(["opened-current-entry"]));
-  const latestIgnoredEvent = publicIcloudHandoffEvent(getLatestIcloudHandoffEventByTypes(["ignored-superseded-entry"]));
-  const latestIssueEvent = publicIcloudHandoffEvent(getLatestIcloudHandoffEventByTypes([
+  const rawLatestOpenEvent = getLatestIcloudHandoffEventByTypes(["opened-current-entry"]);
+  const rawLatestIgnoredEvent = getLatestIcloudHandoffEventByTypes(["ignored-superseded-entry"]);
+  const rawLatestIssueEvent = getLatestIcloudHandoffEventByTypes([
     "opened-stale-entry",
     "opened-expired-entry",
     "opened-legacy-entry",
     "opened-address-mismatch-entry",
-  ]));
+  ]);
+  const latestOpenEvent = publicIcloudHandoffEvent(rawLatestOpenEvent);
+  const latestIgnoredEvent = publicIcloudHandoffEvent(rawLatestIgnoredEvent);
+  const latestIssueEvent = publicIcloudHandoffEvent(rawLatestIssueEvent);
+  const phoneConfirmation = buildIcloudPhoneConfirmationStatus({
+    handoffHealth: network.icloud?.handoffHealth || {
+      status: "missing",
+      needsRefresh: true,
+      lastExportedAt: 0,
+      lastExportedBaseUrl: "",
+    },
+    recommendedBaseUrl: network.icloud?.recommendedBaseUrl || "",
+    latestEntryOpenEvent: rawLatestOpenEvent || null,
+    latestIgnoredEntryEvent: rawLatestIgnoredEvent || null,
+    latestEntryIssueEvent: rawLatestIssueEvent || null,
+  });
   return {
     platformSupported: Boolean(network.icloud?.platformSupported),
     available: Boolean(network.icloud?.available),
@@ -300,6 +316,21 @@ function buildIcloudDiagnosticSnapshot(network: ReturnType<typeof getNetworkDiag
       orphanedFileCount: 0,
     },
     monitor: getIcloudHandoffMonitorStatus(),
+    phoneConfirmation: {
+      status: phoneConfirmation.status,
+      severity: phoneConfirmation.severity,
+      action: phoneConfirmation.action,
+      confirmedAt: phoneConfirmation.confirmedAt,
+      confirmedDeviceName: phoneConfirmation.confirmedDeviceName ? redactDiagnosticActionText(phoneConfirmation.confirmedDeviceName, "Device").slice(0, 120) : "",
+      confirmedDeviceType: phoneConfirmation.confirmedDeviceType,
+      confirmedEntryBaseUrl: redactDiagnosticActionUrl(phoneConfirmation.confirmedEntryBaseUrl),
+      confirmedEntryGeneratedAt: phoneConfirmation.confirmedEntryGeneratedAt,
+      expectedEntryGeneratedAt: phoneConfirmation.expectedEntryGeneratedAt,
+      expectedBaseUrl: redactDiagnosticActionUrl(phoneConfirmation.expectedBaseUrl),
+      latestProblemAt: phoneConfirmation.latestProblemAt,
+      latestProblemEventType: phoneConfirmation.latestProblemEventType,
+      latestProblemDeviceName: phoneConfirmation.latestProblemDeviceName ? redactDiagnosticActionText(phoneConfirmation.latestProblemDeviceName, "Device").slice(0, 120) : "",
+    },
     latestEntryOpenEvent: latestOpenEvent,
     latestIgnoredEntryEvent: latestIgnoredEvent,
     latestEntryIssueEvent: latestIssueEvent,

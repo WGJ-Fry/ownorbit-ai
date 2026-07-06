@@ -234,6 +234,11 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(bundle.icloudHandoff.boundary.realtimeRequiresTrustedNetwork, true);
   assert.equal(bundle.icloudHandoff.monitor.enabled, true);
   assert.equal(bundle.icloudHandoff.transport, "handoff-only");
+  assert.equal(bundle.icloudHandoff.phoneConfirmation.status, "confirmed");
+  assert.equal(bundle.icloudHandoff.phoneConfirmation.confirmedDeviceName, "Phone token=[redacted]");
+  assert.equal(bundle.icloudHandoff.phoneConfirmation.confirmedEntryBaseUrl, "https://current.example.com/lifeos");
+  assert.equal(bundle.icloudHandoff.phoneConfirmation.latestProblemEventType, "opened-expired-entry");
+  assert.equal("confirmedDeviceId" in bundle.icloudHandoff.phoneConfirmation, false);
   assert.equal(bundle.icloudHandoff.latestEntryOpenEvent.id, "diagnostic-icloud-open-event");
   assert.equal(bundle.icloudHandoff.latestEntryOpenEvent.eventType, "opened-current-entry");
   assert.equal(bundle.icloudHandoff.latestEntryOpenEvent.deviceName, "Phone token=[redacted]");
