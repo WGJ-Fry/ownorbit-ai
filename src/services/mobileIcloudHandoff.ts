@@ -50,6 +50,8 @@ export type MobileIcloudHandoffStatus = {
   bodyKey: string;
 };
 
+export type MobileIcloudHandoffEntryFreshness = "fresh" | "stale" | "expired" | "legacy";
+
 export type MobileIcloudHandoffActionKey =
   | "mobileDevice.icloudHandoffActionReady"
   | "mobileDevice.icloudHandoffActionRetest"
@@ -522,20 +524,21 @@ export function getStoredMobileIcloudHandoff(): MobileIcloudHandoffEntry | null 
   }
 }
 
+export function getMobileIcloudHandoffEntryFreshness(entry: MobileIcloudHandoffEntry, now = Date.now()): MobileIcloudHandoffEntryFreshness {
+  if (entry.expiresAt && now >= entry.expiresAt) return "expired";
+  if (!entry.checksumSha256) return "legacy";
+  if (entry.refreshAfter && now >= entry.refreshAfter) return "stale";
+  return "fresh";
+}
+
 export function getMobileIcloudHandoffStatus(entry = getStoredMobileIcloudHandoff(), currentHref?: string, now = Date.now()): MobileIcloudHandoffStatus | null {
   if (!entry) return null;
   const currentBase = currentBaseFromHref(currentHref);
   const normalizedCurrentBase = normalizeBaseUrl(currentBase);
   const normalizedEntryBase = normalizeBaseUrl(entry.baseUrl);
-  let status: MobileIcloudHandoffStatus["status"] = "fresh";
+  let status: MobileIcloudHandoffStatus["status"] = getMobileIcloudHandoffEntryFreshness(entry, now);
   if (normalizedCurrentBase && normalizedEntryBase && normalizedCurrentBase !== normalizedEntryBase) {
     status = "address-mismatch";
-  } else if (entry.expiresAt && now >= entry.expiresAt) {
-    status = "expired";
-  } else if (!entry.checksumSha256) {
-    status = "legacy";
-  } else if (entry.refreshAfter && now >= entry.refreshAfter) {
-    status = "stale";
   }
 
   const keyByStatus: Record<MobileIcloudHandoffStatus["status"], { titleKey: string; bodyKey: string }> = {

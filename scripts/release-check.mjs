@@ -1794,6 +1794,13 @@ function checkAssets() {
     mobileDeviceSource.includes("MobileRemoteEntryCard") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.remoteVerdict") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.remoteReadinessReady") &&
+    mobileRemoteEntryCardSource.includes("getStoredMobileIcloudHandoffEntries") &&
+    mobileRemoteEntryCardSource.includes("getMobileIcloudHandoffEntryFreshness") &&
+    mobileRemoteEntryCardSource.includes("icloudEntryFreshnessKeys") &&
+    mobileRemoteEntryCardSource.includes("forgetStoredMobileIcloudHandoffEntry") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffKnownDesktops") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffEntryExpired") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffEntryRefresh") &&
     mobileDeviceSource.includes("health?.remoteEntryMode") &&
     lifeosApiSourceForRouting.includes("remoteEntryMode") &&
     mobileDeviceSource.includes("currentEntryGuidance") &&

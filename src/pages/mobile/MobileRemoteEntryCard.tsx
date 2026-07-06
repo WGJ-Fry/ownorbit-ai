@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Copy, RefreshCw, Trash2, Wifi } from "lucide-react";
 import type { DeviceConnectivityReport } from "../../services/lifeosApi";
 import type { MobileIcloudHandoffEntry, MobileIcloudHandoffStatus } from "../../services/mobileIcloudHandoff";
-import { buildMobileIcloudHandoffRecoveryPacket, buildMobileIcloudHandoffUrl, forgetStoredMobileIcloudHandoffEntry, getMobileIcloudHandoffActionKey, getStoredMobileIcloudHandoffEntries } from "../../services/mobileIcloudHandoff";
+import { buildMobileIcloudHandoffRecoveryPacket, buildMobileIcloudHandoffUrl, forgetStoredMobileIcloudHandoffEntry, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffEntryFreshness, getStoredMobileIcloudHandoffEntries } from "../../services/mobileIcloudHandoff";
 import type { OfflineMessageQueueSummary } from "../../services/offlineMessageQueue";
 import type { MobileConnectivityIssueKey, MobileConnectivityResult, MobileRecoveryHintKey, RemoteEntryStatus } from "../../services/pwaCapabilities";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -16,6 +16,19 @@ function readinessTone(ok: boolean) {
 
 function icloudEntryKey(entry: MobileIcloudHandoffEntry) {
   return entry.desktopId || entry.checksumSha256 || entry.baseUrl;
+}
+
+const icloudEntryFreshnessKeys = {
+  fresh: "mobileDevice.icloudHandoffEntryFresh",
+  stale: "mobileDevice.icloudHandoffEntryRefresh",
+  expired: "mobileDevice.icloudHandoffEntryExpired",
+  legacy: "mobileDevice.icloudHandoffEntryLegacy",
+} as const;
+
+function icloudEntryFreshnessTone(freshness: keyof typeof icloudEntryFreshnessKeys) {
+  if (freshness === "fresh") return "bg-emerald-500/15 text-emerald-100";
+  if (freshness === "expired") return "bg-red-500/15 text-red-100";
+  return "bg-amber-500/15 text-amber-100";
 }
 
 export default function MobileRemoteEntryCard({
@@ -124,6 +137,7 @@ export default function MobileRemoteEntryCard({
               <div className="mt-2 grid gap-2">
                 {icloudEntries.map((entry) => {
                   const active = icloudEntryKey(entry) === icloudEntryKey(icloudHandoffStatus.entry);
+                  const freshness = getMobileIcloudHandoffEntryFreshness(entry);
                   return (
                     <div
                       key={icloudEntryKey(entry)}
@@ -139,7 +153,12 @@ export default function MobileRemoteEntryCard({
                           <span className="block truncate font-bold">{entry.desktopName || entry.label || t("mobileDevice.icloudHandoffUnknownDesktop")}</span>
                           <span className="mt-0.5 block truncate opacity-70">{entry.baseUrl}</span>
                         </span>
-                        <span className="shrink-0 font-bold">{active ? t("mobileDevice.icloudHandoffCurrentDesktop") : t("mobileDevice.icloudHandoffOpenDesktop")}</span>
+                        <span className="flex shrink-0 flex-col items-end gap-1">
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${icloudEntryFreshnessTone(freshness)}`}>
+                            {t(icloudEntryFreshnessKeys[freshness] as any)}
+                          </span>
+                          <span className="font-bold">{active ? t("mobileDevice.icloudHandoffCurrentDesktop") : t("mobileDevice.icloudHandoffOpenDesktop")}</span>
+                        </span>
                       </button>
                       {!active ? (
                         <button
