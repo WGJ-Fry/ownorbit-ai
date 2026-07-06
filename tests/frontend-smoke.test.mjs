@@ -244,6 +244,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(serverSource, /refreshIcloudHandoffAfterStartup\("local-core-startup"\)/);
   assert.match(serverSource, /refreshIcloudHandoffAfterStartup\("cloudflare-autostart"\)/);
   assert.match(serverSource, /refreshIcloudHandoffAfterStartup\("tailscale-autostart"\)/);
+  const adminRoutesSource = await readFile(path.join(rootDir, "server", "routes", "adminRoutes.ts"), "utf8");
+  assert.match(adminRoutesSource, /getIcloudHandoffMonitorStatus/);
+  assert.match(adminRoutesSource, /icloudMonitor: getIcloudHandoffMonitorStatus\(\)/);
 
   const appSource = await readFile(path.join(rootDir, "src", "App.tsx"), "utf8");
   assert.match(appSource, /useOfflineQueueSync\(flushOfflineMessages, \{/);
@@ -578,6 +581,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleReadyTitle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAdvancedDiagnostics/);
   assert.match(onboardingAppleRemoteSource, /icloudAvailability\.pendingCount/);
+  assert.match(onboardingAppleRemoteSource, /icloudMonitor/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudMonitorTitle/);
   assert.match(onboardingAppleRemoteSource, /analyzeIcloudHandoffRepairPacket/);
   assert.match(onboardingAppleRemoteSource, /repairReasonKeys/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudRepairTitle/);
@@ -602,6 +607,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /\/api\/v1\/admin\/tailscale\/install/);
   assert.match(lifeosApiSource, /\/api\/v1\/admin\/icloud-handoff\/repair-packet/);
   assert.match(lifeosApiSource, /IcloudHandoffRepairAnalysis/);
+  assert.match(lifeosApiSource, /icloudMonitor/);
   assert.match(translationsSource, /Apple\/iCloud 手机入口/);
   assert.match(translationsSource, /备用：Tailscale 私有网络/);
   assert.match(translationsSource, /Fallback: Tailscale Private Network/);
@@ -625,6 +631,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Legacy entry/);
   assert.match(translationsSource, /iCloud Drive 自检/);
   assert.match(translationsSource, /iCloud Drive Check/);
+  assert.match(translationsSource, /后台自动刷新/);
+  assert.match(translationsSource, /Background Auto-refresh/);
   assert.match(translationsSource, /粘贴手机修复信息/);
   assert.match(translationsSource, /Paste Phone Repair Info/);
   assert.match(translationsSource, /分析修复信息/);

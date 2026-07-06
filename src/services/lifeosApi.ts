@@ -881,6 +881,22 @@ export type NetworkDiagnostics = {
     lastRunAt: number | null;
     nextRunAt: number | null;
   };
+  icloudMonitor: {
+    enabled: boolean;
+    running: boolean;
+    intervalMs: number;
+    startedAt: number | null;
+    lastRunAt: number | null;
+    nextRunAt: number | null;
+    lastResult: {
+      reason: string;
+      checkedAt: number;
+      refreshed: boolean;
+      refreshReason: string;
+      status: string;
+      error?: string;
+    } | null;
+  };
   remoteHealthEvidence: {
     total: number;
     passed: number;

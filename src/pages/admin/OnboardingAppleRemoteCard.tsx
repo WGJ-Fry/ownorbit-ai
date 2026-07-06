@@ -163,6 +163,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const icloud = diagnostics?.icloud;
   const handoffHealth = icloud?.handoffHealth;
   const icloudAvailability = icloud?.availability;
+  const icloudMonitor = diagnostics?.icloudMonitor;
   const latestIgnoredEntryEvent = icloud?.latestIgnoredEntryEvent || null;
   const latestHistory = icloud?.entryHistory?.slice(0, 3) || [];
   const availableEntryCount = icloud?.availableEntries?.length || 0;
@@ -178,6 +179,10 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const icloudAvailabilityTone = icloudAvailability?.severity === "ok" ? "bg-emerald-500/15 text-emerald-100" : icloudAvailability?.severity === "danger" ? "bg-red-500/15 text-red-100" : "bg-amber-500/15 text-amber-100";
   const lastExportedAt = formatHandoffTime(handoffHealth?.lastExportedAt);
   const refreshAfter = formatHandoffTime(handoffHealth?.refreshAfter);
+  const icloudMonitorStartedAt = formatHandoffTime(icloudMonitor?.startedAt || undefined);
+  const icloudMonitorLastRunAt = formatHandoffTime(icloudMonitor?.lastRunAt || undefined);
+  const icloudMonitorNextRunAt = formatHandoffTime(icloudMonitor?.nextRunAt || undefined);
+  const icloudMonitorIntervalSeconds = Math.round((icloudMonitor?.intervalMs || 0) / 1000);
   const latestIgnoredAt = formatHandoffTime(latestIgnoredEntryEvent?.ignoredAt);
   const simpleIcloudStatus = getSimpleIcloudStatus(icloud);
 
@@ -329,6 +334,36 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                   <div>{t("onboarding.appleRemoteIcloudLastExported")}: {lastExportedAt || t("onboarding.appleRemoteIcloudNeverExported")}</div>
                   <div>{t("onboarding.appleRemoteIcloudRefreshAfter")}: {refreshAfter || "-"}</div>
                   <div>{t("onboarding.appleRemoteIcloudReason")}: {t(handoffHealthReasonKeys[handoffHealth.status])}</div>
+                </div>
+              </div>
+            ) : null}
+            {icloudMonitor ? (
+              <div className="mt-3 border-t border-white/[0.06] pt-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-bold text-zinc-100">{t("onboarding.appleRemoteIcloudMonitorTitle")}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${icloudMonitor.running ? "bg-emerald-500/15 text-emerald-100" : icloudMonitor.enabled ? "bg-amber-500/15 text-amber-100" : "bg-zinc-500/15 text-zinc-200"}`}>
+                    {icloudMonitor.running ? t("onboarding.appleRemoteIcloudMonitorRunning") : icloudMonitor.enabled ? t("onboarding.appleRemoteIcloudMonitorIdle") : t("onboarding.appleRemoteIcloudMonitorDisabled")}
+                  </span>
+                </div>
+                <div className="mt-2 grid gap-1 text-[11px] text-zinc-500">
+                  <div>{t("onboarding.appleRemoteIcloudMonitorInterval")}: {icloudMonitorIntervalSeconds}s</div>
+                  <div>{t("onboarding.appleRemoteIcloudMonitorStartedAt")}: {icloudMonitorStartedAt || t("onboarding.appleRemoteIcloudNeverExported")}</div>
+                  <div>{t("onboarding.appleRemoteIcloudMonitorLastRun")}: {icloudMonitorLastRunAt || t("onboarding.appleRemoteIcloudNeverExported")}</div>
+                  <div>{t("onboarding.appleRemoteIcloudMonitorNextRun")}: {icloudMonitorNextRunAt || "-"}</div>
+                  {icloudMonitor.lastResult ? (
+                    <div>
+                      {t("onboarding.appleRemoteIcloudMonitorLastResult")}:{" "}
+                      {icloudMonitor.lastResult.error
+                        ? t("onboarding.appleRemoteIcloudMonitorResultFailed")
+                        : icloudMonitor.lastResult.refreshed
+                          ? t("onboarding.appleRemoteIcloudMonitorResultRefreshed")
+                          : t("onboarding.appleRemoteIcloudMonitorResultFresh")}{" "}
+                      ({icloudMonitor.lastResult.refreshReason} / {icloudMonitor.lastResult.status})
+                    </div>
+                  ) : null}
+                  {icloudMonitor.lastResult?.error ? (
+                    <div className="text-red-200">{t("onboarding.appleRemoteIcloudMonitorError")}: {icloudMonitor.lastResult.error}</div>
+                  ) : null}
                 </div>
               </div>
             ) : null}
