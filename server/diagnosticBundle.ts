@@ -4,8 +4,10 @@ import { getAiConfigStatus, listAiProviderStatuses } from "./appSecrets";
 import { listAuditLogs, redactAuditMetadata, redactAuditString } from "./audit";
 import { buildCalendarSyncPreview } from "./calendarSyncPreview";
 import { db, getPendingRestore, listBackups } from "./db";
-import { getDevices, getLatestIcloudHandoffEventByTypes, type DeviceIcloudHandoffEvent } from "./devices";
+import { getDevices, getLatestBindingSession, getLatestIcloudHandoffEventByTypes, type DeviceIcloudHandoffEvent } from "./devices";
+import { buildIcloudAcceptanceSummary, type IcloudAcceptanceSummary } from "./icloudAcceptance";
 import { getIcloudHandoffMonitorStatus } from "./icloudHandoffMonitor";
+import { buildIcloudPairingSessionStatus } from "./icloudPairingSession";
 import { buildIcloudPhoneConfirmationStatus } from "./icloudPhoneConfirmation";
 import { getClientState } from "./clientState";
 import { getNetworkDiagnostics } from "./networkDiagnostics";
@@ -235,7 +237,29 @@ function publicIcloudFileState(file: any) {
   };
 }
 
-function buildIcloudDiagnosticSnapshot(network: ReturnType<typeof getNetworkDiagnostics>) {
+function publicIcloudAcceptance(acceptance: IcloudAcceptanceSummary) {
+  return {
+    ready: acceptance.ready,
+    generatedAt: acceptance.generatedAt,
+    passed: acceptance.passed,
+    total: acceptance.total,
+    needsAction: acceptance.needsAction,
+    manualRequired: acceptance.manualRequired,
+    recommendedAction: acceptance.recommendedAction,
+    nextReviewAt: acceptance.nextReviewAt || null,
+    items: acceptance.items.map((item) => ({
+      id: item.id,
+      status: item.status,
+      severity: item.severity,
+      action: item.action,
+      acceptedAt: item.acceptedAt || null,
+      expiresAt: item.expiresAt || null,
+      evidence: redactDiagnosticActionText(item.evidence, "Evidence recorded"),
+    })),
+  };
+}
+
+function buildIcloudDiagnosticSnapshot(network: ReturnType<typeof getNetworkDiagnostics>, remoteAcceptanceRecords: ReturnType<typeof getRemoteAcceptanceRecords> = []) {
   const rawLatestOpenEvent = getLatestIcloudHandoffEventByTypes(["opened-current-entry"]);
   const rawLatestIgnoredEvent = getLatestIcloudHandoffEventByTypes(["ignored-superseded-entry"]);
   const rawLatestIssueEvent = getLatestIcloudHandoffEventByTypes([
@@ -247,6 +271,7 @@ function buildIcloudDiagnosticSnapshot(network: ReturnType<typeof getNetworkDiag
   const latestOpenEvent = publicIcloudHandoffEvent(rawLatestOpenEvent);
   const latestIgnoredEvent = publicIcloudHandoffEvent(rawLatestIgnoredEvent);
   const latestIssueEvent = publicIcloudHandoffEvent(rawLatestIssueEvent);
+  const latestBindingSession = getLatestBindingSession();
   const phoneConfirmation = buildIcloudPhoneConfirmationStatus({
     handoffHealth: network.icloud?.handoffHealth || {
       status: "missing",
@@ -258,6 +283,21 @@ function buildIcloudDiagnosticSnapshot(network: ReturnType<typeof getNetworkDiag
     latestEntryOpenEvent: rawLatestOpenEvent || null,
     latestIgnoredEntryEvent: rawLatestIgnoredEvent || null,
     latestEntryIssueEvent: rawLatestIssueEvent || null,
+  });
+  const pairingSession = buildIcloudPairingSessionStatus({
+    session: latestBindingSession || null,
+    recommendedBaseUrl: network.icloud?.recommendedBaseUrl || "",
+  });
+  const acceptance = buildIcloudAcceptanceSummary({
+    icloud: {
+      ...network.icloud,
+      phoneConfirmation,
+      pairingSession,
+      latestEntryOpenEvent: rawLatestOpenEvent || null,
+      latestIgnoredEntryEvent: rawLatestIgnoredEvent || null,
+      latestEntryIssueEvent: rawLatestIssueEvent || null,
+    },
+    remoteAcceptanceRecords,
   });
   return {
     platformSupported: Boolean(network.icloud?.platformSupported),
@@ -339,6 +379,17 @@ function buildIcloudDiagnosticSnapshot(network: ReturnType<typeof getNetworkDiag
       latestProblemEventType: phoneConfirmation.latestProblemEventType,
       latestProblemDeviceName: phoneConfirmation.latestProblemDeviceName ? redactDiagnosticActionText(phoneConfirmation.latestProblemDeviceName, "Device").slice(0, 120) : "",
     },
+    pairingSession: {
+      status: pairingSession.status,
+      severity: pairingSession.severity,
+      action: pairingSession.action,
+      createdAt: pairingSession.createdAt,
+      expiresAt: pairingSession.expiresAt,
+      confirmedAt: pairingSession.confirmedAt,
+      expired: pairingSession.expired,
+      secondsRemaining: pairingSession.secondsRemaining,
+    },
+    acceptance: publicIcloudAcceptance(acceptance),
     latestEntryOpenEvent: latestOpenEvent,
     latestIgnoredEntryEvent: latestIgnoredEvent,
     latestEntryIssueEvent: latestIssueEvent,
@@ -443,7 +494,7 @@ export function createDiagnosticBundle() {
       })),
     },
     network,
-    icloudHandoff: buildIcloudDiagnosticSnapshot(network),
+    icloudHandoff: buildIcloudDiagnosticSnapshot(network, remoteAcceptanceRecords),
     remote: {
       healthSummary: remoteHealthSummary,
       healthEvidence: getRemoteHealthEvidence(),

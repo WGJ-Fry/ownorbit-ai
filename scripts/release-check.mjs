@@ -1334,6 +1334,7 @@ function checkAssets() {
   const lifeosApiSource = exists("src/services/lifeosApi.ts") ? fs.readFileSync(path.join(rootDir, "src/services/lifeosApi.ts"), "utf8") : "";
   const apiAuthTestSource = exists("tests/api-auth.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/api-auth.test.mjs"), "utf8") : "";
   const onboardingAppleRemoteSource = exists("src/pages/admin/OnboardingAppleRemoteCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/OnboardingAppleRemoteCard.tsx"), "utf8") : "";
+  const icloudAcceptanceSource = exists("server/icloudAcceptance.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudAcceptance.ts"), "utf8") : "";
   const icloudPairingSessionSource = exists("server/icloudPairingSession.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudPairingSession.ts"), "utf8") : "";
   const icloudHandoffMonitorSource = exists("server/icloudHandoffMonitor.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudHandoffMonitor.ts"), "utf8") : "";
   if (
@@ -1370,9 +1371,18 @@ function checkAssets() {
     networkDiagnosticsTestSource.includes("iCloud availability blocks export when Apple ID or iCloud Drive is disabled") &&
     apiAuthTestSource.includes("networkDiagnosticsWithBinding.icloud.pairingSession.status") &&
     networkDiagnosticsTestSource.includes("iCloud pairing session status guides stale QR repair") &&
-    networkDiagnosticsTestSource.includes("iCloud handoff monitor refreshes after the latest pairing QR expires")
-  ) pass("iCloud diagnostics surface stale pairing QR status with UI and tests");
-  else warn("iCloud diagnostics do not surface stale pairing QR status across API, UI, and tests");
+    networkDiagnosticsTestSource.includes("iCloud handoff monitor refreshes after the latest pairing QR expires") &&
+    icloudAcceptanceSource.includes("buildIcloudAcceptanceSummary") &&
+    icloudAcceptanceSource.includes("cellular-mobile-chat") &&
+    icloudAcceptanceSource.includes("old-entry-repair") &&
+    adminRoutesSource.includes("buildIcloudAcceptanceSummary") &&
+    adminRoutesSource.includes("acceptance: buildIcloudAcceptanceSummary") &&
+    lifeosApiSource.includes("acceptance?:") &&
+    onboardingAppleRemoteSource.includes("icloudAcceptanceItemKeys") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceTitle") &&
+    networkDiagnosticsTestSource.includes("iCloud acceptance summary separates synced entry from real-device evidence")
+  ) pass("iCloud diagnostics surface stale QR, account state, and Apple-device acceptance with UI and tests");
+  else warn("iCloud diagnostics do not surface stale QR/account/acceptance state across API, UI, and tests");
   if (
     deviceRoutesSource.includes('app.delete("/api/v1/devices/me"') &&
     deviceRoutesSource.includes("device_self_revoked") &&

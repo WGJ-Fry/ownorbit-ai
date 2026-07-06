@@ -1114,6 +1114,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(diagnosticBundle.icloudHandoff.boundary.realtimeRequiresTrustedNetwork, true);
   assert.equal(diagnosticBundle.icloudHandoff.monitor.enabled, true);
   assert.equal(diagnosticBundle.icloudHandoff.transport, "handoff-only");
+  assert.equal(typeof diagnosticBundle.icloudHandoff.acceptance.ready, "boolean");
+  assert.equal(Array.isArray(diagnosticBundle.icloudHandoff.acceptance.items), true);
   assert.equal(typeof diagnosticBundle.systemActions.totalLogs, "number");
   assert.equal(diagnosticBundle.calendarSync.mode, "preview-only");
   assert.equal(diagnosticBundle.calendarSync.externalWritesEnabled, false);
@@ -1597,6 +1599,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const networkDiagnosticsWithIcloudEvent = await request(port, "/api/v1/admin/network-diagnostics", { headers: adminHeaders }).then((res) => res.json());
   assert.equal(networkDiagnosticsWithIcloudEvent.icloud.latestIgnoredEntryEvent.id, icloudHandoffEvent.body.event.id);
   assert.equal(networkDiagnosticsWithIcloudEvent.icloud.latestIgnoredEntryEvent.deviceName, "Test Phone");
+  assert.equal(typeof networkDiagnosticsWithIcloudEvent.icloud.acceptance.ready, "boolean");
+  assert.equal(networkDiagnosticsWithIcloudEvent.icloud.acceptance.items.some((item) => item.id === "old-entry-repair"), true);
   assert.equal(JSON.stringify(networkDiagnosticsWithIcloudEvent.icloud.latestIgnoredEntryEvent).includes("icloud-secret"), false);
   const currentIcloudHandoffEvent = await request(port, "/api/v1/devices/me/icloud-handoff-event", {
     method: "POST",

@@ -30,6 +30,72 @@ test("iCloud pairing session status guides stale QR repair", async () => {
   assert.equal(buildIcloudPairingSessionStatus({ session: { ...baseSession, confirmedAt: now - 5_000, confirmedDeviceId: "phone-1" }, recommendedBaseUrl: "https://new-lifeos.example.test", now }).status, "confirmed");
 });
 
+test("iCloud acceptance summary separates synced entry from real-device evidence", async () => {
+  const { buildIcloudAcceptanceSummary } = await import(`../server/icloudAcceptance.ts?icloud-acceptance=${Date.now()}`);
+  const now = 1_800_000_000_000;
+  const baseUrl = "https://lifeos.example.test";
+  const icloud = {
+    recommendedBaseUrl: baseUrl,
+    syncReadiness: { status: "ready", canOpenOnPhone: true },
+    handoffHealth: {
+      status: "fresh",
+      lastExportedAt: now - 1_000,
+      lastExportedBaseUrl: baseUrl,
+      expiresAt: now + 60_000,
+      htmlConsistency: { ok: true },
+    },
+    indexConsistency: { ok: true },
+    phoneConfirmation: {
+      status: "confirmed",
+      confirmedAt: now - 800,
+      confirmedDeviceName: "iPhone",
+    },
+    pairingSession: {
+      status: "ready",
+      expiresAt: now + 30_000,
+    },
+  };
+
+  const missingRealDeviceEvidence = buildIcloudAcceptanceSummary({ icloud, now });
+  assert.equal(missingRealDeviceEvidence.ready, false);
+  assert.equal(missingRealDeviceEvidence.passed, 3);
+  assert.equal(missingRealDeviceEvidence.manualRequired, 3);
+  assert.equal(missingRealDeviceEvidence.recommendedAction, "record-real-world-check");
+  assert.equal(missingRealDeviceEvidence.items.find((item) => item.id === "icloud-entry-synced")?.status, "passed");
+  assert.equal(missingRealDeviceEvidence.items.find((item) => item.id === "cellular-mobile-chat")?.status, "manual-required");
+
+  const complete = buildIcloudAcceptanceSummary({
+    icloud: {
+      ...icloud,
+      latestEntryIssueEvent: {
+        eventType: "opened-expired-entry",
+        entryBaseUrl: "https://old-lifeos.example.test",
+        ignoredAt: now,
+        createdAt: now,
+      },
+    },
+    remoteAcceptanceRecords: [
+      {
+        id: "cellular-mobile-chat",
+        baseUrl,
+        note: "iPhone cellular data opened the iCloud entry with Wi-Fi off and sent a mobile chat message.",
+        createdAt: now - 500,
+      },
+      {
+        id: "network-switch",
+        baseUrl,
+        note: "iPhone switched between Wi-Fi and cellular, then chat reconnected and queue recovered.",
+        createdAt: now - 400,
+      },
+    ],
+    now,
+  });
+  assert.equal(complete.ready, true);
+  assert.equal(complete.passed, complete.total);
+  assert.equal(complete.recommendedAction, "ready");
+  assert.equal(complete.items.find((item) => item.id === "old-entry-repair")?.status, "passed");
+});
+
 test("network diagnostics filters non-LAN interface addresses from LAN candidates", async (t) => {
   const oldNetworkInterfaces = os.networkInterfaces;
   const oldPort = process.env.LIFEOS_PORT;

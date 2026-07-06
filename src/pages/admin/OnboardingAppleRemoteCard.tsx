@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, ArrowRight, CheckCircle2, ClipboardPaste, Cloud, ExternalLink, Loader2, QrCode, RefreshCw, ShieldCheck, Smartphone, Wifi } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2, ClipboardCheck, ClipboardPaste, Cloud, ExternalLink, Loader2, QrCode, RefreshCw, ShieldCheck, Smartphone, Wifi } from "lucide-react";
 import { analyzeIcloudHandoffRepairPacket } from "../../services/lifeosApi";
 import type { IcloudHandoffRepairAnalysis, NetworkDiagnostics } from "../../services/lifeosApi";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -149,6 +149,23 @@ const repairRecommendationKeys: Record<IcloudHandoffRepairAnalysis["recommendati
   ready: "onboarding.appleRemoteIcloudRepairRecReady",
 };
 
+const icloudAcceptanceItemKeys: Record<NonNullable<NetworkDiagnostics["icloud"]["acceptance"]>["items"][number]["id"], TranslationKey> = {
+  "icloud-entry-synced": "onboarding.appleRemoteIcloudAcceptanceItemSynced",
+  "phone-opened-current-entry": "onboarding.appleRemoteIcloudAcceptanceItemPhone",
+  "pairing-qr-current": "onboarding.appleRemoteIcloudAcceptanceItemQr",
+  "cellular-mobile-chat": "onboarding.appleRemoteIcloudAcceptanceItemCellular",
+  "network-switch": "onboarding.appleRemoteIcloudAcceptanceItemSwitch",
+  "old-entry-repair": "onboarding.appleRemoteIcloudAcceptanceItemOldEntry",
+};
+
+const icloudAcceptanceActionKeys: Record<NonNullable<NetworkDiagnostics["icloud"]["acceptance"]>["recommendedAction"], TranslationKey> = {
+  "export-icloud-entry": "onboarding.appleRemoteIcloudAcceptanceActionExport",
+  "open-on-phone": "onboarding.appleRemoteIcloudAcceptanceActionOpen",
+  "regenerate-qr": "onboarding.appleRemoteIcloudAcceptanceActionQr",
+  "record-real-world-check": "onboarding.appleRemoteIcloudAcceptanceActionRecord",
+  ready: "onboarding.appleRemoteIcloudAcceptanceActionReady",
+};
+
 const issueEventKindKeys: Record<NonNullable<NetworkDiagnostics["icloud"]["latestEntryIssueEvent"]>["eventType"], TranslationKey> = {
   "opened-current-entry": "onboarding.appleRemoteIcloudIssueKindCurrent",
   "ignored-superseded-entry": "onboarding.appleRemoteIcloudIssueKindSuperseded",
@@ -275,6 +292,12 @@ function getSimpleIcloudStatus(icloud: NetworkDiagnostics["icloud"] | undefined)
   };
 }
 
+function icloudAcceptanceStatusTone(status: NonNullable<NetworkDiagnostics["icloud"]["acceptance"]>["items"][number]["status"]) {
+  if (status === "passed") return "border-emerald-300/20 bg-emerald-400/10 text-emerald-50";
+  if (status === "needs-action") return "border-amber-300/20 bg-amber-400/10 text-amber-50";
+  return "border-sky-300/20 bg-sky-400/10 text-sky-50";
+}
+
 export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportIcloud, onStartTailscale, onStartCloudflare, onSaveCandidate, onTestCandidate }: Props) {
   const { t } = useI18n();
   const [repairText, setRepairText] = useState("");
@@ -290,6 +313,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const syncReadiness = icloud?.syncReadiness;
   const phoneConfirmation = icloud?.phoneConfirmation;
   const pairingSession = icloud?.pairingSession;
+  const icloudAcceptance = icloud?.acceptance;
   const icloudMonitor = diagnostics?.icloudMonitor;
   const icloudLifecycle = icloud?.lifecycle;
   const latestIgnoredEntryEvent = icloud?.latestIgnoredEntryEvent || null;
@@ -632,6 +656,48 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                     <div className="mt-2 grid gap-1 rounded-lg bg-[#060a10]/40 p-2 font-mono text-[10px] opacity-80">
                       <div>{pairingSession.baseUrl || "-"}</div>
                       <div>{pairingSession.expectedBaseUrl || "-"}</div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {icloudAcceptance ? (
+            <div className={`mt-3 rounded-xl border p-3 ${icloudAcceptance.ready ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-50" : "border-sky-400/20 bg-sky-500/10 text-sky-50"}`}>
+              <div className="flex gap-2">
+                <ClipboardCheck className="mt-0.5 h-4 w-4 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="font-bold">{t("onboarding.appleRemoteIcloudAcceptanceTitle")}</div>
+                    <span className="rounded-full border border-current/15 bg-black/10 px-2 py-0.5 text-[10px] font-bold">
+                      {icloudAcceptance.passed}/{icloudAcceptance.total}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] leading-relaxed opacity-80">
+                    {icloudAcceptance.ready
+                      ? t("onboarding.appleRemoteIcloudAcceptanceReady")
+                      : t("onboarding.appleRemoteIcloudAcceptanceBody")}
+                  </p>
+                  <div className="mt-2 rounded-lg border border-current/10 bg-black/10 p-2 text-[11px] leading-relaxed">
+                    {t(icloudAcceptanceActionKeys[icloudAcceptance.recommendedAction])}
+                  </div>
+                  <div className="mt-2 grid gap-1.5">
+                    {icloudAcceptance.items
+                      .filter((item) => item.status !== "passed")
+                      .slice(0, 4)
+                      .map((item) => (
+                        <div key={item.id} className={`rounded-lg border px-2 py-1.5 text-[11px] ${icloudAcceptanceStatusTone(item.status)}`}>
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="font-bold">{t(icloudAcceptanceItemKeys[item.id])}</span>
+                            <span className="text-[10px] font-bold opacity-75">{t(`onboarding.appleRemoteIcloudAcceptanceStatus.${item.status}` as any)}</span>
+                          </div>
+                          <div className="mt-1 opacity-75">{item.evidence}</div>
+                        </div>
+                      ))}
+                  </div>
+                  {icloudAcceptance.nextReviewAt ? (
+                    <div className="mt-2 text-[10px] opacity-70">
+                      {t("onboarding.appleRemoteIcloudAcceptanceNextReview", { time: formatHandoffTime(icloudAcceptance.nextReviewAt) })}
                     </div>
                   ) : null}
                 </div>

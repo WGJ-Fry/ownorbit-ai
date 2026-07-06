@@ -15,6 +15,7 @@ import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
 import { getRemoteValidationReport, saveRemoteValidationReport, summarizeRemoteHealth } from "../remoteValidationReport";
 import { getRemoteHealthEvidence, getRemoteHealthMonitorStatus, getRemoteRecoveryReport, runRemoteHealthCheck } from "../remoteHealthMonitor";
 import { getIcloudHandoffMonitorStatus } from "../icloudHandoffMonitor";
+import { buildIcloudAcceptanceSummary } from "../icloudAcceptance";
 import { buildRemoteAcceptanceChecklist, buildRemoteAcceptanceEvidencePack, getRemoteAcceptanceRecords, getRemoteAcceptanceRunbookRecords, saveRemoteAcceptanceRecord, saveRemoteAcceptanceRunbookFromConnectionTest, saveRemoteAcceptanceRunbookReport, summarizeRemoteAcceptanceChecklist } from "../remoteAcceptance";
 import { createSecret, tokenHash } from "../security";
 import { setClientState } from "../clientState";
@@ -264,30 +265,38 @@ function getAdminNetworkDiagnostics() {
     "opened-legacy-entry",
     "opened-address-mismatch-entry",
   ]);
+  const remoteAcceptanceRecords = getRemoteAcceptanceRecords();
   const remoteHealthSummary = summarizeRemoteHealth({
     baseUrl: diagnostics.desktopRuntimeConfig?.publicBaseUrl || diagnostics.remoteReadiness.baseUrl,
     readiness: diagnostics.remoteReadiness,
     report: remoteValidationReport,
     pairingSession: latestBindingSession,
   });
-  const enrichedDiagnostics = {
-    ...diagnostics,
-    icloud: {
-      ...diagnostics.icloud,
-      phoneConfirmation: buildIcloudPhoneConfirmationStatus({
-        handoffHealth: diagnostics.icloud.handoffHealth,
-        recommendedBaseUrl: diagnostics.icloud.recommendedBaseUrl,
-        latestEntryOpenEvent: latestIcloudHandoffOpenEvent || null,
-        latestIgnoredEntryEvent: latestIgnoredIcloudHandoffEvent || null,
-        latestEntryIssueEvent: latestIcloudHandoffIssueEvent || null,
-      }),
-      pairingSession: buildIcloudPairingSessionStatus({
-        session: latestBindingSession || null,
-        recommendedBaseUrl: diagnostics.icloud.recommendedBaseUrl,
-      }),
+  const enrichedIcloud = {
+    ...diagnostics.icloud,
+    phoneConfirmation: buildIcloudPhoneConfirmationStatus({
+      handoffHealth: diagnostics.icloud.handoffHealth,
+      recommendedBaseUrl: diagnostics.icloud.recommendedBaseUrl,
       latestEntryOpenEvent: latestIcloudHandoffOpenEvent || null,
       latestIgnoredEntryEvent: latestIgnoredIcloudHandoffEvent || null,
       latestEntryIssueEvent: latestIcloudHandoffIssueEvent || null,
+    }),
+    pairingSession: buildIcloudPairingSessionStatus({
+      session: latestBindingSession || null,
+      recommendedBaseUrl: diagnostics.icloud.recommendedBaseUrl,
+    }),
+    latestEntryOpenEvent: latestIcloudHandoffOpenEvent || null,
+    latestIgnoredEntryEvent: latestIgnoredIcloudHandoffEvent || null,
+    latestEntryIssueEvent: latestIcloudHandoffIssueEvent || null,
+  };
+  const enrichedDiagnostics = {
+    ...diagnostics,
+    icloud: {
+      ...enrichedIcloud,
+      acceptance: buildIcloudAcceptanceSummary({
+        icloud: enrichedIcloud,
+        remoteAcceptanceRecords,
+      }),
     },
     cloudflareNamedTunnel: getCloudflareNamedTunnelStatus(),
   };
@@ -296,7 +305,7 @@ function getAdminNetworkDiagnostics() {
     diagnostics: enrichedDiagnostics,
     health: remoteHealthSummary,
     report: remoteValidationReport,
-    records: getRemoteAcceptanceRecords(),
+    records: remoteAcceptanceRecords,
   });
   const remoteAcceptanceSummary = summarizeRemoteAcceptanceChecklist(remoteAcceptanceChecklist);
   return {
