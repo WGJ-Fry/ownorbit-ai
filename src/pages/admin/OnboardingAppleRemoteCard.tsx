@@ -582,6 +582,15 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
           <span>{t("onboarding.appleRemoteIcloudHint")}</span>
         </div>
+        <div className="mt-3 rounded-xl border border-cyan-300/15 bg-cyan-500/10 p-3 text-[11px] leading-relaxed text-cyan-50/80">
+          <div className="flex gap-2">
+            <Cloud className="mt-0.5 h-4 w-4 shrink-0 text-cyan-200" />
+            <div>
+              <div className="font-bold text-cyan-50">{t("onboarding.appleRemoteIcloudBoundaryTitle")}</div>
+              <div className="mt-1">{t("onboarding.appleRemoteIcloudBoundaryBody")}</div>
+            </div>
+          </div>
+        </div>
         <div className="mt-3 rounded-xl border border-white/[0.06] bg-[#060a10]/45 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="font-bold text-zinc-100">{t("onboarding.appleRemoteIcloudStatus")}</span>

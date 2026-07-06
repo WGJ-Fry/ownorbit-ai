@@ -1365,6 +1365,8 @@ function checkAssets() {
     lifeosApiSource.includes("previousPairingSessionStatus") &&
     lifeosApiSource.includes("startupRunAt") &&
     onboardingAppleRemoteSource.includes("icloudPairingSessionKeys") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudBoundaryTitle") &&
+    translationsSource.includes("appleRemoteIcloudBoundaryBody") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorPairingSession") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorStartupRun") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudPairingExpired") &&
@@ -1393,8 +1395,8 @@ function checkAssets() {
     networkDiagnosticsTestSource.includes("iCloud startup refresh records local core restart state") &&
     apiAuthTestSource.includes("/api/v1/internal/icloud-handoff/refresh") &&
     apiAuthTestSource.includes("desktopInternalToken")
-  ) pass("iCloud diagnostics surface stale QR, account state, Apple-device acceptance, and desktop wake refresh with UI and tests");
-  else warn("iCloud diagnostics do not surface stale QR/account/acceptance/desktop wake refresh state across API, UI, and tests");
+  ) pass("iCloud diagnostics surface stale QR, account state, Apple-device acceptance, desktop wake refresh, and handoff boundary with UI and tests");
+  else warn("iCloud diagnostics do not surface stale QR/account/acceptance/desktop wake refresh/handoff boundary state across API, UI, and tests");
   if (
     deviceRoutesSource.includes('app.delete("/api/v1/devices/me"') &&
     deviceRoutesSource.includes("device_self_revoked") &&

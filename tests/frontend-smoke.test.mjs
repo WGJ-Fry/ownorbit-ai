@@ -575,6 +575,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteTitle/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteStartTailscale/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudHint/);
+  assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudBoundaryTitle/);
+  assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudBoundaryBody/);
+  assert.match(translationsSource, /onboarding\.appleRemoteIcloudBoundaryTitle/);
+  assert.match(translationsSource, /onboarding\.appleRemoteIcloudBoundaryBody/);
   assert.match(onboardingAppleRemoteSource, /handoffHealthStatusKeys/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudHealthInvalid/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudHealthHtmlMismatch/);
