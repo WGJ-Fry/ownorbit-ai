@@ -1,6 +1,6 @@
 import { execFileSync, spawnSync } from "child_process";
 import crypto from "crypto";
-import { accessSync, constants, existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "fs";
+import { accessSync, constants, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { WebSocket } from "ws";
@@ -223,6 +223,8 @@ function writePrivateFileAtomic(targetPath: string, body: string) {
 function buildIcloudEntryChecksum(packet: Record<string, unknown>) {
   const checksumPayload = {
     version: packet.version,
+    desktopId: packet.desktopId,
+    desktopName: packet.desktopName,
     generatedAt: packet.generatedAt,
     refreshAfter: packet.refreshAfter,
     expiresAt: packet.expiresAt,
@@ -266,6 +268,33 @@ function iCloudDrivePath() {
   const override = String(process.env.LIFEOS_ICLOUD_DRIVE_DIR || "").trim();
   if (override) return path.resolve(override);
   return path.join(os.homedir(), "Library", "Mobile Documents", "com~apple~CloudDocs");
+}
+
+function safeIcloudSlug(value: string) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48) || "desktop";
+}
+
+function getIcloudDesktopIdentity() {
+  const name = String(process.env.LIFEOS_DEVICE_NAME || os.hostname() || "LifeOS Desktop").trim().slice(0, 80) || "LifeOS Desktop";
+  const rawId = String(process.env.LIFEOS_DESKTOP_ID || "").trim();
+  const id = rawId || crypto
+    .createHash("sha256")
+    .update([os.hostname(), process.env.LIFEOS_DATA_DIR || process.cwd()].join("|"))
+    .digest("hex")
+    .slice(0, 12);
+  const slug = safeIcloudSlug(`${name}-${id}`);
+  return {
+    id,
+    name,
+    slug,
+    htmlFileName: `lifeos-mobile-entry-${slug}.html`,
+    packetFileName: `lifeos-mobile-entry-${slug}.json`,
+  };
 }
 
 function preferredHandoffCandidate(candidates: ConnectionCandidate[]) {
@@ -396,25 +425,192 @@ function summarizeIcloudFallbackCandidates(candidates: ConnectionCandidate[]) {
     }));
 }
 
+function summarizeIcloudEntryPacket(packet: Record<string, unknown>, fileName: string) {
+  const generatedAt = Number(packet.generatedAt || 0);
+  const baseUrl = String(packet.baseUrl || "").trim();
+  if (!generatedAt || !baseUrl) return null;
+  return {
+    desktopId: String(packet.desktopId || "legacy"),
+    desktopName: String(packet.desktopName || packet.label || "LifeOS Desktop").slice(0, 80),
+    desktopSlug: String(packet.desktopSlug || "").slice(0, 80),
+    fileName,
+    htmlFileName: String(packet.htmlFileName || fileName.replace(/\.json$/, ".html")),
+    packetFileName: fileName,
+    label: String(packet.label || "").slice(0, 120),
+    baseUrl,
+    mode: String(packet.mode || ""),
+    stability: String(packet.stability || ""),
+    secure: packet.secure === true,
+    generatedAt,
+    refreshAfter: Number(packet.refreshAfter || 0),
+    expiresAt: Number(packet.expiresAt || 0),
+    entryChecksumSha256: String(packet.entryChecksumSha256 || ""),
+  };
+}
+
+function readIcloudEntrySummaries(appFolderPath: string) {
+  if (!appFolderPath || !existsSync(appFolderPath)) return [];
+  try {
+    return readdirSync(appFolderPath)
+      .filter((file) => /^lifeos-mobile-entry(?:-[a-z0-9._-]+)?\.json$/i.test(file))
+      .map((file) => {
+        try {
+          const packet = JSON.parse(readFileSync(path.join(appFolderPath, file), "utf8"));
+          return packet && typeof packet === "object" ? summarizeIcloudEntryPacket(packet, file) : null;
+        } catch {
+          return null;
+        }
+      })
+      .filter((entry): entry is NonNullable<ReturnType<typeof summarizeIcloudEntryPacket>> => Boolean(entry))
+      .sort((left, right) => right.generatedAt - left.generatedAt)
+      .slice(0, 12);
+  } catch {
+    return [];
+  }
+}
+
+function readIcloudHandoffHistory(historyFilePath: string) {
+  if (!historyFilePath || !existsSync(historyFilePath)) return [];
+  try {
+    const parsed = JSON.parse(readFileSync(historyFilePath, "utf8"));
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item) => item && typeof item === "object")
+      .map((item) => ({
+        desktopId: String(item.desktopId || "legacy").slice(0, 80),
+        desktopName: String(item.desktopName || "LifeOS Desktop").slice(0, 80),
+        reason: String(item.reason || "manual").slice(0, 120),
+        previousBaseUrl: String(item.previousBaseUrl || ""),
+        baseUrl: String(item.baseUrl || ""),
+        candidateId: String(item.candidateId || ""),
+        generatedAt: Number(item.generatedAt || 0),
+        entryChecksumSha256: String(item.entryChecksumSha256 || ""),
+        htmlFileName: String(item.htmlFileName || ""),
+        packetFileName: String(item.packetFileName || ""),
+      }))
+      .filter((item) => item.generatedAt && item.baseUrl)
+      .sort((left, right) => right.generatedAt - left.generatedAt)
+      .slice(0, 12);
+  } catch {
+    return [];
+  }
+}
+
+function writeIcloudHandoffHistory(historyFilePath: string, record: Record<string, unknown>) {
+  const previous = readIcloudHandoffHistory(historyFilePath);
+  const next = [
+    {
+      desktopId: String(record.desktopId || "legacy"),
+      desktopName: String(record.desktopName || "LifeOS Desktop"),
+      reason: String(record.reason || "manual"),
+      previousBaseUrl: String(record.previousBaseUrl || ""),
+      baseUrl: String(record.baseUrl || ""),
+      candidateId: String(record.candidateId || ""),
+      generatedAt: Number(record.generatedAt || Date.now()),
+      entryChecksumSha256: String(record.entryChecksumSha256 || ""),
+      htmlFileName: String(record.htmlFileName || ""),
+      packetFileName: String(record.packetFileName || ""),
+    },
+    ...previous,
+  ]
+    .filter((item, index, all) => all.findIndex((candidate) => (
+      candidate.desktopId === item.desktopId &&
+      candidate.generatedAt === item.generatedAt &&
+      candidate.entryChecksumSha256 === item.entryChecksumSha256
+    )) === index)
+    .sort((left, right) => right.generatedAt - left.generatedAt)
+    .slice(0, 12);
+  writePrivateFileAtomic(historyFilePath, `${JSON.stringify(next, null, 2)}\n`);
+  return next;
+}
+
+function buildIcloudHandoffIndexHtml(input: {
+  generatedAt: number;
+  currentDesktopId: string;
+  entries: ReturnType<typeof readIcloudEntrySummaries>;
+}) {
+  const rows = input.entries.length
+    ? input.entries.map((entry) => {
+      const isCurrent = entry.desktopId === input.currentDesktopId;
+      const status = entry.expiresAt && input.generatedAt >= entry.expiresAt
+        ? "已过期 / Expired"
+        : entry.refreshAfter && input.generatedAt >= entry.refreshAfter
+        ? "建议刷新 / Refresh suggested"
+        : "可用 / Usable";
+      return `<a class="entry" href="${htmlEscape(entry.htmlFileName)}">
+        <strong>${htmlEscape(entry.desktopName)}${isCurrent ? " · 当前电脑 / This Mac" : ""}</strong>
+        <span>${htmlEscape(entry.baseUrl)}</span>
+        <small>${htmlEscape(status)} · ${htmlEscape(new Date(entry.generatedAt).toLocaleString())}</small>
+      </a>`;
+    }).join("\n")
+    : `<div class="empty">还没有可用入口 / No entries yet</div>`;
+  return `<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="lifeos-entry-index-generated-at" content="${htmlEscape(input.generatedAt)}" />
+    <title>LifeOS AI Mobile Entries</title>
+    <style>
+      body { margin: 0; min-height: 100vh; background: #060a10; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: grid; place-items: center; padding: 20px; }
+      main { width: min(620px, 100%); border: 1px solid rgba(255,255,255,.1); background: #101722; border-radius: 28px; padding: 24px; box-shadow: 0 24px 80px rgba(0,0,0,.35); }
+      h1 { margin: 0; font-size: 26px; letter-spacing: 0; }
+      p { color: #a1a1aa; line-height: 1.65; }
+      .entry { display: block; margin-top: 12px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09); color: #f4f4f5; text-decoration: none; }
+      .entry strong, .entry span, .entry small { display: block; }
+      .entry span { margin-top: 6px; color: #a5b4fc; word-break: break-all; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .entry small { margin-top: 8px; color: #94a3b8; }
+      .empty { margin-top: 16px; padding: 14px; border-radius: 16px; color: #fde68a; background: rgba(245,158,11,.12); }
+      .warn { margin-top: 16px; color: #fef3c7; font-size: 12px; line-height: 1.65; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>选择要连接的电脑 / Choose a Desktop</h1>
+      <p>如果你有多台 Mac，每台电脑会有自己的 LifeOS 入口。请选择当前想连接的那台电脑。</p>
+      <p>If you use multiple Macs, each desktop has its own LifeOS entry. Choose the desktop you want to connect to.</p>
+      ${rows}
+      <div class="warn">iCloud 只同步入口文件，不是实时网络隧道；异地实时聊天仍需要 Tailscale、Cloudflare Tunnel 或可信 HTTPS 入口。</div>
+    </main>
+  </body>
+</html>`;
+}
+
 function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
   const platformSupported = isApplePlatform();
   const drivePath = iCloudDrivePath();
   const available = platformSupported && existsSync(drivePath);
   const appFolderPath = path.join(drivePath, "LifeOS AI");
-  const handoffFilePath = path.join(appFolderPath, "lifeos-mobile-entry.html");
-  const packetFilePath = path.join(appFolderPath, "lifeos-mobile-entry.json");
+  const desktop = getIcloudDesktopIdentity();
+  const handoffFilePath = path.join(appFolderPath, desktop.htmlFileName);
+  const packetFilePath = path.join(appFolderPath, desktop.packetFileName);
+  const indexFilePath = path.join(appFolderPath, "lifeos-mobile-entry.html");
+  const historyFilePath = path.join(appFolderPath, "lifeos-mobile-entry-history.json");
+  const legacyHandoffFilePath = path.join(appFolderPath, "lifeos-mobile-entry.html");
+  const legacyPacketFilePath = path.join(appFolderPath, "lifeos-mobile-entry.json");
+  const healthHandoffFilePath = existsSync(handoffFilePath) ? handoffFilePath : legacyHandoffFilePath;
+  const healthPacketFilePath = existsSync(packetFilePath) ? packetFilePath : legacyPacketFilePath;
   const candidate = preferredHandoffCandidate(candidates);
   const hasPhoneEntry = Boolean(candidate);
-  const handoffHealth = buildIcloudHandoffHealth({ packetFilePath, handoffFilePath, candidate });
+  const handoffHealth = buildIcloudHandoffHealth({ packetFilePath: healthPacketFilePath, handoffFilePath: healthHandoffFilePath, candidate });
+  const availableEntries = available ? readIcloudEntrySummaries(appFolderPath) : [];
+  const entryHistory = available ? readIcloudHandoffHistory(historyFilePath) : [];
   return {
     platform: process.platform,
     platformSupported,
     available,
     canExport: available && hasPhoneEntry,
+    desktopId: desktop.id,
+    desktopName: desktop.name,
+    desktopSlug: desktop.slug,
     drivePath: available ? drivePath : "",
     appFolderPath: available ? appFolderPath : "",
     handoffFilePath: available ? handoffFilePath : "",
     packetFilePath: available ? packetFilePath : "",
+    indexFilePath: available ? indexFilePath : "",
+    historyFilePath: available ? historyFilePath : "",
+    availableEntries,
+    entryHistory,
     recommendedBaseUrl: candidate?.baseUrl || "",
     recommendedLabel: candidate?.label || "",
     recommendedMode: candidate?.mode || "",
@@ -423,10 +619,11 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
     realtimeTransport: false,
     transport: "handoff-only" as const,
     openInstruction: available
-      ? "Open Files on iPhone or iPad, go to iCloud Drive > LifeOS AI, then open lifeos-mobile-entry.html."
+      ? `Open Files on iPhone or iPad, go to iCloud Drive > LifeOS AI, then open lifeos-mobile-entry.html and choose ${desktop.name}.`
       : "Enable iCloud Drive on this Mac, then retry the LifeOS iCloud handoff export.",
     notes: [
       "iCloud Handoff syncs the current mobile entry file between Apple devices.",
+      `This desktop writes its own entry file: ${desktop.htmlFileName}.`,
       "iCloud Handoff does not create a live network tunnel. The mobile entry still needs LAN, Cloudflare, Tailscale, or another reachable HTTPS/LAN address.",
       candidate?.baseUrl
         ? `Current handoff entry: ${candidate.label} (${candidate.baseUrl}).`
@@ -490,6 +687,7 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
   <body>
     <main>
       <h1>LifeOS AI</h1>
+      <div class="pill">${htmlEscape(String(input.packet.desktopName || "LifeOS Desktop"))}</div>
       <p>这是通过 iCloud Drive 同步到这台 Apple 设备的 LifeOS 手机入口。先点“绑定这台设备”；已经绑定过时，可以直接打开手机聊天。</p>
       <p class="en">This LifeOS mobile entry was synced through iCloud Drive. Pair this device first, or open mobile chat if it is already paired.</p>
       <div class="pill">${remoteReady ? "适合长期异地使用 / Ready for long-term remote use" : "可先打开，换网后请刷新 / Refresh after network changes"}</div>
@@ -1111,7 +1309,7 @@ export function getNetworkDiagnostics() {
   };
 }
 
-export function exportIcloudHandoff() {
+export function exportIcloudHandoff(reason = "manual") {
   const diagnostics = getNetworkDiagnostics();
   const status = diagnostics.icloud;
   if (!status.platformSupported) {
@@ -1127,9 +1325,15 @@ export function exportIcloudHandoff() {
 
   mkdirSync(status.appFolderPath, { recursive: true });
   const generatedAt = Date.now();
+  const previousPacket = readIcloudHandoffPacket(status.packetFilePath);
   const packet = {
     kind: "lifeos-mobile-entry",
-    version: 2,
+    version: 3,
+    desktopId: status.desktopId,
+    desktopName: status.desktopName,
+    desktopSlug: status.desktopSlug,
+    htmlFileName: path.basename(status.handoffFilePath),
+    packetFileName: path.basename(status.packetFilePath),
     generatedAt,
     refreshAfter: generatedAt + ICLOUD_HANDOFF_REFRESH_AFTER_MS,
     expiresAt: generatedAt + ICLOUD_HANDOFF_EXPIRES_AFTER_MS,
@@ -1158,6 +1362,20 @@ export function exportIcloudHandoff() {
   packet.entryChecksumSha256 = buildIcloudEntryChecksum(packet);
   writePrivateFileAtomic(status.packetFilePath, `${JSON.stringify(packet, null, 2)}\n`);
   writePrivateFileAtomic(status.handoffFilePath, buildIcloudHandoffHtml({ generatedAt, candidate, packet }));
+  const entries = readIcloudEntrySummaries(status.appFolderPath);
+  writePrivateFileAtomic(status.indexFilePath, buildIcloudHandoffIndexHtml({ generatedAt, currentDesktopId: status.desktopId, entries }));
+  writeIcloudHandoffHistory(status.historyFilePath, {
+    desktopId: status.desktopId,
+    desktopName: status.desktopName,
+    reason,
+    previousBaseUrl: previousPacket?.baseUrl || "",
+    baseUrl: candidate.baseUrl,
+    candidateId: candidate.id,
+    generatedAt,
+    entryChecksumSha256: packet.entryChecksumSha256,
+    htmlFileName: packet.htmlFileName,
+    packetFileName: packet.packetFileName,
+  });
   return {
     ok: true,
     generatedAt,
@@ -1172,7 +1390,7 @@ export function maybeRefreshIcloudHandoff(reason = "auto") {
   if (!status.available) return { refreshed: false, reason: "icloud-unavailable", requestedReason: reason, status: status.handoffHealth.status };
   if (!status.canExport) return { refreshed: false, reason: "no-phone-entry", requestedReason: reason, status: status.handoffHealth.status };
   if (!status.handoffHealth.needsRefresh) return { refreshed: false, reason: "fresh", requestedReason: reason, status: status.handoffHealth.status };
-  const handoff = exportIcloudHandoff();
+  const handoff = exportIcloudHandoff(reason);
   return {
     refreshed: true,
     reason: "refreshed",

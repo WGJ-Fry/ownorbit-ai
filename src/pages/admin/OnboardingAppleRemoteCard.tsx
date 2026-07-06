@@ -82,6 +82,8 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const icloud = diagnostics?.icloud;
   const handoffHealth = icloud?.handoffHealth;
   const latestIgnoredEntryEvent = icloud?.latestIgnoredEntryEvent || null;
+  const latestHistory = icloud?.entryHistory?.slice(0, 3) || [];
+  const availableEntryCount = icloud?.availableEntries?.length || 0;
   const readiness = diagnostics?.remoteReadiness;
   const tailscaleInstalled = Boolean(diagnostics?.tailscale.installed);
   const tailscaleInstallUrl = diagnostics?.tailscale.installUrl || "https://tailscale.com/download";
@@ -160,11 +162,33 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                 </span>
               </div>
               <div className="mt-2 grid gap-1 text-[11px] text-zinc-500">
+                <div>{t("onboarding.appleRemoteIcloudDesktop")}: {icloud?.desktopName || "-"}</div>
+                <div>{t("onboarding.appleRemoteIcloudChooseFile")}: {icloud?.indexFilePath || "-"}</div>
                 <div>{t("onboarding.appleRemoteIcloudLastExported")}: {lastExportedAt || t("onboarding.appleRemoteIcloudNeverExported")}</div>
                 <div>{t("onboarding.appleRemoteIcloudRefreshAfter")}: {refreshAfter || "-"}</div>
                 <div>{t("onboarding.appleRemoteIcloudReason")}: {t(handoffHealthReasonKeys[handoffHealth.status])}</div>
               </div>
             </div>
+          ) : null}
+          {availableEntryCount > 1 ? (
+            <div className="mt-3 rounded-xl border border-sky-400/15 bg-sky-500/10 p-3 text-[11px] leading-relaxed text-sky-50/80">
+              <div className="font-bold text-sky-50">{t("onboarding.appleRemoteIcloudMultiDesktopTitle", { count: availableEntryCount })}</div>
+              <div className="mt-1">{t("onboarding.appleRemoteIcloudMultiDesktopBody")}</div>
+            </div>
+          ) : null}
+          {latestHistory.length ? (
+            <details className="mt-3 rounded-xl border border-white/[0.06] bg-[#060a10]/30 p-3 text-[11px] text-zinc-500">
+              <summary className="cursor-pointer font-bold text-zinc-200">{t("onboarding.appleRemoteIcloudHistoryTitle")}</summary>
+              <div className="mt-2 grid gap-2">
+                {latestHistory.map((item) => (
+                  <div key={`${item.desktopId}-${item.generatedAt}`} className="rounded-lg bg-white/[0.03] p-2">
+                    <div className="font-bold text-zinc-200">{item.desktopName}</div>
+                    <div className="break-all font-mono text-[10px]">{item.baseUrl}</div>
+                    <div>{formatHandoffTime(item.generatedAt)} · {item.reason}</div>
+                  </div>
+                ))}
+              </div>
+            </details>
           ) : null}
           {latestIgnoredEntryEvent ? (
             <div className="mt-3 rounded-xl border border-amber-400/20 bg-amber-500/10 p-3 text-amber-50">

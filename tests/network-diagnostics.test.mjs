@@ -264,7 +264,15 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.match(html, /entryChecksumSha256=[a-f0-9]{64}/);
   assert.doesNotMatch(html.match(/<textarea id="lifeos-recovery" readonly>([\s\S]*?)<\/textarea>/)?.[1] || "", /lifeosEntry=icloud/);
   assert.equal(packet.baseUrl, "https://lifeos.example.com");
-  assert.equal(packet.version, 2);
+  assert.equal(packet.version, 3);
+  assert.equal(typeof packet.desktopId, "string");
+  assert.equal(typeof packet.desktopName, "string");
+  assert.match(packet.htmlFileName, /^lifeos-mobile-entry-.+\.html$/);
+  assert.match(packet.packetFileName, /^lifeos-mobile-entry-.+\.json$/);
+  assert.equal(path.basename(result.handoffFilePath), packet.htmlFileName);
+  assert.equal(path.basename(result.packetFilePath), packet.packetFileName);
+  assert.equal(path.basename(result.indexFilePath), "lifeos-mobile-entry.html");
+  assert.equal(path.basename(result.historyFilePath), "lifeos-mobile-entry-history.json");
   assert.match(packet.entryChecksumSha256, /^[a-f0-9]{64}$/);
   assert.equal(packet.candidateId, "configured-public");
   assert.equal(packet.mobileChatUrl, "https://lifeos.example.com/mobile/chat");
@@ -282,6 +290,17 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.equal(result.handoffHealth.htmlConsistency.status, "matching");
   assert.equal(result.handoffHealth.htmlConsistency.checksumSha256, packet.entryChecksumSha256);
   assert.equal(result.handoffHealth.htmlConsistency.generatedAt, packet.generatedAt);
+  const indexHtml = await readFile(result.indexFilePath, "utf8");
+  const history = JSON.parse(await readFile(result.historyFilePath, "utf8"));
+  assert.match(indexHtml, /选择要连接的电脑/);
+  assert.match(indexHtml, /Choose a Desktop/);
+  assert.match(indexHtml, new RegExp(packet.htmlFileName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.equal(Array.isArray(result.availableEntries), true);
+  assert.equal(result.availableEntries.some((entry) => entry.desktopId === packet.desktopId), true);
+  assert.equal(Array.isArray(result.entryHistory), true);
+  assert.equal(history[0].desktopId, packet.desktopId);
+  assert.equal(history[0].baseUrl, "https://lifeos.example.com");
+  assert.equal(history[0].reason, "manual");
   assert.equal(fs.readdirSync(path.dirname(result.handoffFilePath)).some((name) => name.endsWith(".tmp")), false);
 });
 

@@ -568,6 +568,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudHealthInvalid/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudHealthHtmlMismatch/);
   assert.match(onboardingAppleRemoteSource, /latestIgnoredEntryEvent/);
+  assert.match(onboardingAppleRemoteSource, /availableEntryCount/);
+  assert.match(onboardingAppleRemoteSource, /latestHistory/);
+  assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudDesktop/);
+  assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudMultiDesktopTitle/);
+  assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudHistoryTitle/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudOldEntryTitle/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudOldEntryAction/);
   assert.match(onboardingAppleRemoteSource, /isIcloudBusy/);
@@ -593,6 +598,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /The recommended entry changed since the last export/);
   assert.match(translationsSource, /有手机打开了旧入口/);
   assert.match(translationsSource, /A phone opened an old entry/);
+  assert.match(translationsSource, /检测到 \{\{count\}\} 个电脑入口/);
+  assert.match(translationsSource, /\{\{count\}\} desktop entries detected/);
+  assert.match(translationsSource, /最近导出历史/);
   assert.match(translationsSource, /iCloud 入口校验不一致/);
   assert.match(translationsSource, /The iCloud entry checksum does not match/);
   assert.match(translationsSource, /入口文件不同步/);
