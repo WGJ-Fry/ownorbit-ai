@@ -18,6 +18,10 @@ export type IcloudHandoffMonitorRun = {
   refreshReason: string;
   status: string;
   previousStatus?: string;
+  indexConsistencyStatus?: string;
+  previousIndexConsistencyStatus?: string;
+  syncReadinessStatus?: string;
+  syncReadinessAction?: string;
   phoneConfirmationStatus?: string;
   phoneConfirmationAction?: string;
   previousPhoneConfirmationStatus?: string;
@@ -69,6 +73,10 @@ export function runIcloudHandoffRefreshCheck(reason = "manual"): IcloudHandoffMo
       refreshReason: refresh.reason,
       status: refresh.status || refresh.previousStatus || "unknown",
       previousStatus: refresh.previousStatus,
+      indexConsistencyStatus: refresh.indexConsistencyStatus,
+      previousIndexConsistencyStatus: refresh.previousIndexConsistencyStatus,
+      syncReadinessStatus: refresh.syncReadinessStatus,
+      syncReadinessAction: refresh.syncReadinessAction,
       phoneConfirmationStatus: refresh.phoneConfirmationStatus,
       phoneConfirmationAction: refresh.phoneConfirmationAction,
       previousPhoneConfirmationStatus: refresh.previousPhoneConfirmationStatus,

@@ -1019,6 +1019,16 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                       {t("onboarding.appleRemoteIcloudMonitorPairingSession")}: {icloudMonitor.lastResult.previousPairingSessionStatus || icloudMonitor.lastResult.pairingSessionStatus} / {icloudMonitor.lastResult.pairingSessionAction || "-"}
                     </div>
                   ) : null}
+                  {icloudMonitor.lastResult?.indexConsistencyStatus || icloudMonitor.lastResult?.previousIndexConsistencyStatus ? (
+                    <div>
+                      {t("onboarding.appleRemoteIcloudMonitorIndexConsistency")}: {icloudMonitor.lastResult.previousIndexConsistencyStatus || "-"} / {icloudMonitor.lastResult.indexConsistencyStatus || "-"}
+                    </div>
+                  ) : null}
+                  {icloudMonitor.lastResult?.syncReadinessStatus ? (
+                    <div>
+                      {t("onboarding.appleRemoteIcloudMonitorSyncReadiness")}: {icloudMonitor.lastResult.syncReadinessStatus} / {icloudMonitor.lastResult.syncReadinessAction || "-"}
+                    </div>
+                  ) : null}
                   {icloudMonitor.lastResult?.recommendedBaseUrl ? (
                     <div className="break-all">
                       {t("onboarding.appleRemoteIcloudMonitorLastEntry")}: {icloudMonitor.lastResult.recommendedBaseUrl}

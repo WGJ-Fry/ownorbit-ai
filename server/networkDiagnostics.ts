@@ -2242,6 +2242,7 @@ export function exportIcloudHandoff(reason = "manual") {
 export function maybeRefreshIcloudHandoff(reason = "auto") {
   const diagnostics = getNetworkDiagnostics();
   const status = diagnostics.icloud;
+  const indexConsistencyNeedsRefresh = !status.indexConsistency.ok || status.syncReadiness.action === "refresh-entry";
   const phoneConfirmation = buildIcloudPhoneConfirmationStatus({
     handoffHealth: status.handoffHealth,
     recommendedBaseUrl: status.recommendedBaseUrl,
@@ -2264,12 +2265,15 @@ export function maybeRefreshIcloudHandoff(reason = "auto") {
   if (status.availability.status === "account-unavailable") return { refreshed: false, reason: "icloud-account-unavailable", requestedReason: reason, status: status.handoffHealth.status };
   if (status.availability.status === "read-only") return { refreshed: false, reason: "icloud-read-only", requestedReason: reason, status: status.handoffHealth.status };
   if (!status.canExport) return { refreshed: false, reason: "no-phone-entry", requestedReason: reason, status: status.handoffHealth.status };
-  if (!status.handoffHealth.needsRefresh && phoneConfirmation.action !== "refresh-entry" && !pairingSessionNeedsRefresh) {
+  if (!status.handoffHealth.needsRefresh && !indexConsistencyNeedsRefresh && phoneConfirmation.action !== "refresh-entry" && !pairingSessionNeedsRefresh) {
     return {
       refreshed: false,
       reason: "fresh",
       requestedReason: reason,
       status: status.handoffHealth.status,
+      indexConsistencyStatus: status.indexConsistency.status,
+      syncReadinessStatus: status.syncReadiness.status,
+      syncReadinessAction: status.syncReadiness.action,
       phoneConfirmationStatus: phoneConfirmation.status,
       phoneConfirmationAction: phoneConfirmation.action,
       pairingSessionStatus: pairingSession.status,
@@ -2279,6 +2283,8 @@ export function maybeRefreshIcloudHandoff(reason = "auto") {
   const handoff = exportIcloudHandoff(reason);
   const refreshReason = status.handoffHealth.needsRefresh
     ? "refreshed"
+    : indexConsistencyNeedsRefresh
+    ? "index-consistency-refresh"
     : phoneConfirmation.action === "refresh-entry"
     ? "phone-confirmation-refresh"
     : "pairing-session-refresh";
@@ -2287,6 +2293,10 @@ export function maybeRefreshIcloudHandoff(reason = "auto") {
     reason: refreshReason,
     requestedReason: reason,
     previousStatus: status.handoffHealth.status,
+    previousIndexConsistencyStatus: status.indexConsistency.status,
+    indexConsistencyStatus: handoff.indexConsistency.status,
+    syncReadinessStatus: handoff.syncReadiness.status,
+    syncReadinessAction: handoff.syncReadiness.action,
     previousPhoneConfirmationStatus: phoneConfirmation.status,
     phoneConfirmationAction: phoneConfirmation.action,
     previousPairingSessionStatus: pairingSession.status,

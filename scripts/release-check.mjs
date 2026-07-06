@@ -1351,8 +1351,11 @@ function checkAssets() {
     adminRoutesSource.includes("buildIcloudPairingSessionStatus") &&
     adminRoutesSource.includes("pairingSession: buildIcloudPairingSessionStatus") &&
     networkDiagnosticsSource.includes("pairing-session-refresh") &&
+    networkDiagnosticsSource.includes("index-consistency-refresh") &&
     networkDiagnosticsSource.includes("previousPairingSessionStatus") &&
+    networkDiagnosticsSource.includes("previousIndexConsistencyStatus") &&
     icloudHandoffMonitorSource.includes("previousPairingSessionStatus") &&
+    icloudHandoffMonitorSource.includes("previousIndexConsistencyStatus") &&
     icloudHandoffMonitorSource.includes("classifyIcloudHandoffTrigger") &&
     icloudHandoffMonitorSource.includes("runIcloudHandoffStartupRefresh") &&
     serverSource.includes("runIcloudHandoffStartupRefresh") &&
@@ -1364,11 +1367,13 @@ function checkAssets() {
     lifeosApiSource.includes("pairingSession") &&
     lifeosApiSource.includes("expiring-soon") &&
     lifeosApiSource.includes("previousPairingSessionStatus") &&
+    lifeosApiSource.includes("previousIndexConsistencyStatus") &&
     lifeosApiSource.includes("startupRunAt") &&
     onboardingAppleRemoteSource.includes("icloudPairingSessionKeys") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudBoundaryTitle") &&
     translationsSource.includes("appleRemoteIcloudBoundaryBody") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorPairingSession") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorIndexConsistency") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorStartupRun") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorTrigger") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorChange") &&
@@ -1405,6 +1410,7 @@ function checkAssets() {
     networkDiagnosticsTestSource.includes("entry.desktopName === packet.desktopName") &&
     networkDiagnosticsTestSource.includes("iCloud acceptance summary separates synced entry from real-device evidence") &&
     networkDiagnosticsTestSource.includes("iCloud startup refresh records local core restart state") &&
+    networkDiagnosticsTestSource.includes("iCloud handoff monitor refreshes stale desktop chooser index files") &&
     networkDiagnosticsTestSource.includes("monitorRun.trigger") &&
     networkDiagnosticsTestSource.includes("monitorRun.changeType") &&
     apiAuthTestSource.includes("/api/v1/internal/icloud-handoff/refresh") &&

@@ -1011,6 +1011,10 @@ export type NetworkDiagnostics = {
       refreshReason: string;
       status: string;
       previousStatus?: string;
+      indexConsistencyStatus?: string;
+      previousIndexConsistencyStatus?: string;
+      syncReadinessStatus?: string;
+      syncReadinessAction?: string;
       phoneConfirmationStatus?: string;
       phoneConfirmationAction?: string;
       previousPhoneConfirmationStatus?: string;
@@ -1032,6 +1036,10 @@ export type NetworkDiagnostics = {
       refreshReason: string;
       status: string;
       previousStatus?: string;
+      indexConsistencyStatus?: string;
+      previousIndexConsistencyStatus?: string;
+      syncReadinessStatus?: string;
+      syncReadinessAction?: string;
       phoneConfirmationStatus?: string;
       phoneConfirmationAction?: string;
       previousPhoneConfirmationStatus?: string;

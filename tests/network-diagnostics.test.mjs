@@ -231,8 +231,15 @@ exit 1
   fs.mkdirSync(process.env.LIFEOS_ICLOUD_DRIVE_DIR, { recursive: true });
   delete process.env.LIFEOS_ALLOW_PUBLIC;
 
-  const { getNetworkDiagnostics } = await import(`../server/networkDiagnostics.ts?mock=${Date.now()}`);
-  const diagnostics = getNetworkDiagnostics();
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const { getNetworkDiagnostics } = await import("./server/networkDiagnostics.ts?mock-child=" + Date.now());
+    process.stdout.write(JSON.stringify(getNetworkDiagnostics()));
+  `], {
+    cwd: process.cwd(),
+    env: { ...process.env },
+    encoding: "utf8",
+  });
+  const diagnostics = JSON.parse(output);
   assert.equal(diagnostics.cloudflare.installed, true);
   assert.match(diagnostics.cloudflare.version, /cloudflared version 2026\.6\.0/);
   assert.equal(diagnostics.cloudflare.running, true);
@@ -998,6 +1005,54 @@ test("iCloud handoff monitor refreshes after the latest pairing QR expires", asy
   assert.equal(nextPacket.changeType, "refreshed-same-address");
   assert.equal(nextPacket.exportReason, "test-expired-pairing-session");
   assert.notEqual(nextPacket.generatedAt, firstPacket.generatedAt);
+});
+
+test("iCloud handoff monitor refreshes stale desktop chooser index files", async (t) => {
+  const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-monitor-index-refresh-"));
+  t.after(async () => {
+    await rm(icloudDir, { recursive: true, force: true });
+  });
+
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const { readFile, writeFile } = await import("node:fs/promises");
+    const { exportIcloudHandoff, getNetworkDiagnostics } = await import("./server/networkDiagnostics.ts");
+    const { runIcloudHandoffRefreshCheck } = await import("./server/icloudHandoffMonitor.ts");
+
+    const first = exportIcloudHandoff("test-initial-index-monitor-refresh");
+    const staleIndexHtml = await readFile(first.indexFilePath, "utf8");
+    await writeFile(
+      first.indexFilePath,
+      staleIndexHtml.replace(/name="lifeos-entry-index-checksum" content="[a-f0-9]{64}"/, 'name="lifeos-entry-index-checksum" content="${"2".repeat(64)}"'),
+    );
+    const before = getNetworkDiagnostics();
+    const monitorRun = runIcloudHandoffRefreshCheck("test-index-consistency-monitor");
+    const after = getNetworkDiagnostics();
+    process.stdout.write(JSON.stringify({ before: before.icloud.indexConsistency, monitorRun, after: after.icloud.indexConsistency }));
+  `], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      LIFEOS_ICLOUD_DRIVE_DIR: icloudDir,
+      LIFEOS_FORCE_ICLOUD_HANDOFF: "1",
+      LIFEOS_PORT: "4567",
+      PUBLIC_BASE_URL: "https://index-monitor-lifeos.example.com",
+      APP_URL: "",
+      LIFEOS_CLOUDFLARED_BIN: "/definitely/missing/cloudflared",
+      LIFEOS_TAILSCALE_BIN: "/definitely/missing/tailscale",
+      LIFEOS_ICLOUD_SYNC_SERVICE_STATUS: "running",
+      LIFEOS_ICLOUD_HANDOFF_MONITOR: "1",
+    },
+    encoding: "utf8",
+  });
+  const { before, monitorRun, after } = JSON.parse(output);
+  assert.equal(before.status, "mismatch");
+  assert.equal(monitorRun.refreshed, true);
+  assert.equal(monitorRun.refreshReason, "index-consistency-refresh");
+  assert.equal(monitorRun.previousIndexConsistencyStatus, "mismatch");
+  assert.equal(monitorRun.indexConsistencyStatus, "matching");
+  assert.equal(monitorRun.syncReadinessStatus, "ready");
+  assert.equal(monitorRun.syncReadinessAction, "open-files-app");
+  assert.equal(after.status, "matching");
 });
 
 test("iCloud repair packet analysis compares phone entry with current desktop entry", async (t) => {
