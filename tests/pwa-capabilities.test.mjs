@@ -791,7 +791,17 @@ test("mobile iCloud handoff can switch to an older entry from a different deskto
   installLocalStorage();
   t.after(cleanupLocalStorage);
   const now = 1_800_000_250_000;
-  const { buildMobileIcloudHandoffUrl, consumeMobileIcloudHandoffFromUrl, forgetStoredMobileIcloudHandoffEntry, getStoredMobileIcloudHandoff, getStoredMobileIcloudHandoffEntries, handleMobileIcloudHandoffLaunch, isMobileIcloudHandoffSuperseded } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-switch-desktop-${Date.now()}`);
+  const {
+    buildMobileIcloudHandoffUrl,
+    consumeMobileIcloudHandoffFromUrl,
+    forgetStoredMobileIcloudHandoffEntry,
+    getPreferredMobileIcloudHandoffEntryKey,
+    getStoredMobileIcloudHandoff,
+    getStoredMobileIcloudHandoffEntries,
+    handleMobileIcloudHandoffLaunch,
+    isMobileIcloudHandoffSuperseded,
+    setPreferredMobileIcloudHandoffEntry,
+  } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-switch-desktop-${Date.now()}`);
   const macA = [
     "https://mac-a.example.com/mobile/chat?lifeosEntry=icloud",
     `entryGeneratedAt=${now}`,
@@ -832,12 +842,16 @@ test("mobile iCloud handoff can switch to an older entry from a different deskto
   const storedEntries = getStoredMobileIcloudHandoffEntries();
   assert.equal(storedEntries.length, 2);
   assert.deepEqual(storedEntries.map((entry) => entry.desktopId), ["mac-b", "mac-a"]);
+  assert.equal(setPreferredMobileIcloudHandoffEntry(storedEntries[1]), true);
+  assert.match(getPreferredMobileIcloudHandoffEntryKey(), /mac-a/);
+  assert.deepEqual(getStoredMobileIcloudHandoffEntries().map((entry) => entry.desktopId), ["mac-a", "mac-b"]);
   const switchUrl = buildMobileIcloudHandoffUrl(storedEntries[1]);
   assert.match(switchUrl, /^https:\/\/mac-a\.example\.com\/mobile\/device\?/);
   assert.match(switchUrl, /lifeosEntry=icloud/);
   assert.match(switchUrl, /entryDesktopId=mac-a/);
   assert.equal(forgetStoredMobileIcloudHandoffEntry(storedEntries[1]), true);
   assert.deepEqual(getStoredMobileIcloudHandoffEntries().map((entry) => entry.desktopId), ["mac-b"]);
+  assert.equal(getPreferredMobileIcloudHandoffEntryKey(), "");
   assert.equal(forgetStoredMobileIcloudHandoffEntry(getStoredMobileIcloudHandoff()), false);
   assert.deepEqual(getStoredMobileIcloudHandoffEntries().map((entry) => entry.desktopId), ["mac-b"]);
 

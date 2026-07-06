@@ -2,6 +2,7 @@ import type { IcloudAutoRefreshResult, MobileIcloudHandoffEventReportInput } fro
 
 const STORAGE_KEY = "lifeos_mobile_icloud_handoff";
 const ENTRIES_STORAGE_KEY = "lifeos_mobile_icloud_handoff_entries";
+const PREFERRED_ENTRY_STORAGE_KEY = "lifeos_mobile_icloud_handoff_preferred_entry";
 const PENDING_EVENTS_STORAGE_KEY = "lifeos_mobile_icloud_handoff_pending_events";
 const SERVER_REPAIR_STORAGE_KEY = "lifeos_mobile_icloud_handoff_server_repair";
 const MAX_STORED_HANDOFF_ENTRIES = 8;
@@ -418,6 +419,10 @@ function mobileIcloudHandoffEntryKey(entry: MobileIcloudHandoffEntry) {
   return `base:${normalizeBaseUrl(entry.baseUrl)}`;
 }
 
+export function getMobileIcloudHandoffEntryKey(entry: MobileIcloudHandoffEntry) {
+  return mobileIcloudHandoffEntryKey(entry);
+}
+
 function normalizeStoredMobileIcloudHandoffEntry(parsed: any): MobileIcloudHandoffEntry | null {
   if (!parsed || parsed.source !== "icloud" || !isHttpBaseUrl(parsed.baseUrl)) return null;
   const entry = {
@@ -462,12 +467,45 @@ function mergeMobileIcloudHandoffEntries(entry: MobileIcloudHandoffEntry, entrie
     .slice(0, MAX_STORED_HANDOFF_ENTRIES);
 }
 
+export function getPreferredMobileIcloudHandoffEntryKey() {
+  const storage = safeStorage();
+  if (!storage) return "";
+  return normalizeEntryText(storage.getItem(PREFERRED_ENTRY_STORAGE_KEY), 160);
+}
+
+export function setPreferredMobileIcloudHandoffEntry(entry: MobileIcloudHandoffEntry) {
+  const storage = safeStorage();
+  if (!storage) return false;
+  try {
+    storage.setItem(PREFERRED_ENTRY_STORAGE_KEY, mobileIcloudHandoffEntryKey(entry));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function isPreferredMobileIcloudHandoffEntry(entry: MobileIcloudHandoffEntry) {
+  const preferred = getPreferredMobileIcloudHandoffEntryKey();
+  return Boolean(preferred && preferred === mobileIcloudHandoffEntryKey(entry));
+}
+
+function sortMobileIcloudHandoffEntriesByPreference(entries: MobileIcloudHandoffEntry[]) {
+  const preferred = getPreferredMobileIcloudHandoffEntryKey();
+  if (!preferred) return entries;
+  return [...entries].sort((left, right) => {
+    const leftPreferred = mobileIcloudHandoffEntryKey(left) === preferred;
+    const rightPreferred = mobileIcloudHandoffEntryKey(right) === preferred;
+    if (leftPreferred === rightPreferred) return 0;
+    return leftPreferred ? -1 : 1;
+  });
+}
+
 export function getStoredMobileIcloudHandoffEntries() {
   const storage = safeStorage();
   if (!storage) return [];
   const current = getStoredMobileIcloudHandoff();
   const entries = readMobileIcloudHandoffEntries(storage);
-  return current ? mergeMobileIcloudHandoffEntries(current, entries) : entries;
+  return sortMobileIcloudHandoffEntriesByPreference(current ? mergeMobileIcloudHandoffEntries(current, entries) : entries);
 }
 
 export function forgetStoredMobileIcloudHandoffEntry(entryToForget: MobileIcloudHandoffEntry) {
@@ -481,6 +519,7 @@ export function forgetStoredMobileIcloudHandoffEntry(entryToForget: MobileIcloud
   if (nextEntries.length === entries.length) return false;
   try {
     storage.setItem(ENTRIES_STORAGE_KEY, JSON.stringify(nextEntries));
+    if (getPreferredMobileIcloudHandoffEntryKey() === keyToForget) storage.removeItem(PREFERRED_ENTRY_STORAGE_KEY);
     return true;
   } catch {
     return false;

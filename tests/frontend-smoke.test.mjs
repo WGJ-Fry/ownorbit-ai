@@ -1009,11 +1009,16 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.remoteReadinessQueue/);
   assert.match(mobileRemoteEntryCardSource, /getStoredMobileIcloudHandoffEntries/);
   assert.match(mobileRemoteEntryCardSource, /forgetStoredMobileIcloudHandoffEntry/);
+  assert.match(mobileRemoteEntryCardSource, /getPreferredMobileIcloudHandoffEntryKey/);
+  assert.match(mobileRemoteEntryCardSource, /setPreferredMobileIcloudHandoffEntry/);
   assert.match(mobileRemoteEntryCardSource, /getMobileIcloudHandoffEntryFreshness/);
   assert.match(mobileRemoteEntryCardSource, /icloudEntryFreshnessKeys/);
   assert.match(mobileRemoteEntryCardSource, /Trash2/);
+  assert.match(mobileRemoteEntryCardSource, /Star/);
   assert.match(mobileRemoteEntryCardSource, /buildMobileIcloudHandoffUrl/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffKnownDesktops/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffDefaultDesktop/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffMakeDefault/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffForgetDesktop/);
   assert.match(mobileRemoteEntryCardSource, /showIcloudAdvanced/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffSummaryTitle/);
