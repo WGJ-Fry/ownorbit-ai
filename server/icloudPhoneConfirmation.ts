@@ -16,7 +16,7 @@ type Input = {
 };
 
 function eventTime(event?: DeviceIcloudHandoffEvent | null) {
-  return event?.ignoredAt || event?.createdAt || 0;
+  return Math.max(Number(event?.ignoredAt || 0), Number(event?.createdAt || 0));
 }
 
 function cleanBaseUrl(value?: string) {

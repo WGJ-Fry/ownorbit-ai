@@ -1599,6 +1599,11 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const networkDiagnosticsWithIcloudEvent = await request(port, "/api/v1/admin/network-diagnostics", { headers: adminHeaders }).then((res) => res.json());
   assert.equal(networkDiagnosticsWithIcloudEvent.icloud.latestIgnoredEntryEvent.id, icloudHandoffEvent.body.event.id);
   assert.equal(networkDiagnosticsWithIcloudEvent.icloud.latestIgnoredEntryEvent.deviceName, "Test Phone");
+  assert.equal(networkDiagnosticsWithIcloudEvent.icloud.latestEntryRepair.status, "old-entry-opened");
+  assert.equal(networkDiagnosticsWithIcloudEvent.icloud.latestEntryRepair.deviceName, "Test Phone");
+  assert.equal(networkDiagnosticsWithIcloudEvent.icloud.latestEntryRepair.entryBaseUrl, "https://old.example.test/lifeos");
+  assert.equal(networkDiagnosticsWithIcloudEvent.icloud.latestEntryRepair.storedBaseUrl, "https://new.example.test/lifeos");
+  assert.equal(networkDiagnosticsWithIcloudEvent.icloud.latestEntryRepair.action, "refresh-and-regenerate-qr");
   assert.equal(typeof networkDiagnosticsWithIcloudEvent.icloud.acceptance.ready, "boolean");
   assert.equal(networkDiagnosticsWithIcloudEvent.icloud.acceptance.items.some((item) => item.id === "old-entry-repair"), true);
   assert.equal(JSON.stringify(networkDiagnosticsWithIcloudEvent.icloud.latestIgnoredEntryEvent).includes("icloud-secret"), false);
@@ -1648,6 +1653,11 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(networkDiagnosticsWithIssueEvent.icloud.latestEntryIssueEvent.id, expiredIcloudHandoffEvent.body.event.id);
   assert.equal(networkDiagnosticsWithIssueEvent.icloud.latestEntryIssueEvent.eventType, "opened-expired-entry");
   assert.equal(networkDiagnosticsWithIssueEvent.icloud.latestEntryIssueEvent.deviceName, "Test Phone");
+  assert.equal(networkDiagnosticsWithIssueEvent.icloud.latestEntryRepair.status, "problem-entry-opened");
+  assert.equal(networkDiagnosticsWithIssueEvent.icloud.latestEntryRepair.severity, "danger");
+  assert.equal(networkDiagnosticsWithIssueEvent.icloud.latestEntryRepair.eventType, "opened-expired-entry");
+  assert.equal(networkDiagnosticsWithIssueEvent.icloud.latestEntryRepair.needsRefresh, true);
+  assert.equal(networkDiagnosticsWithIssueEvent.icloud.latestEntryRepair.needsQr, true);
   assert.equal(networkDiagnosticsWithIssueEvent.icloud.latestEntryOpenEvent.id, currentIcloudHandoffEvent.body.event.id);
   assert.equal(networkDiagnosticsWithIssueEvent.icloud.latestIgnoredEntryEvent.id, icloudHandoffEvent.body.event.id);
   assert.equal(networkDiagnosticsWithIssueEvent.icloud.phoneConfirmation.status, "issue-after-confirm");

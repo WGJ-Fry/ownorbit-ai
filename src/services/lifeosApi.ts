@@ -911,6 +911,28 @@ export type NetworkDiagnostics = {
     latestEntryOpenEvent?: DeviceIcloudHandoffEvent | null;
     latestIgnoredEntryEvent?: DeviceIcloudHandoffEvent | null;
     latestEntryIssueEvent?: DeviceIcloudHandoffEvent | null;
+    latestEntryRepair?: {
+      status: "none" | "current-entry-opened" | "old-entry-opened" | "problem-entry-opened" | "needs-refresh";
+      severity: "ok" | "warning" | "danger";
+      action: "none" | "open-on-phone" | "refresh-icloud" | "refresh-and-regenerate-qr";
+      eventId: string;
+      eventType: DeviceIcloudHandoffEvent["eventType"] | string;
+      deviceId: string;
+      deviceName: string;
+      deviceType: string;
+      eventAt: number;
+      entryBaseUrl: string;
+      currentBaseUrl: string;
+      storedBaseUrl: string;
+      recommendedBaseUrl: string;
+      lastExportedBaseUrl: string;
+      entryGeneratedAt: number;
+      storedGeneratedAt: number;
+      checksumPresent: boolean;
+      needsRefresh: boolean;
+      needsQr: boolean;
+      reason: string;
+    };
     acceptance?: {
       ready: boolean;
       generatedAt: number;

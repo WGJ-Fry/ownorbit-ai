@@ -1427,10 +1427,18 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("cloudflare-address-changed") &&
     onboardingAppleRemoteSource.includes("tailscale-address-changed") &&
     onboardingAppleRemoteSource.includes("lan-address-changed") &&
+    onboardingAppleRemoteSource.includes("latestEntryRepairStatusKeys") &&
+    onboardingAppleRemoteSource.includes("latestEntryRepairActionKeys") &&
+    adminRoutesSource.includes("buildLatestIcloudEntryRepairSummary") &&
+    adminRoutesSource.includes("latestEntryRepair") &&
+    lifeosApiSource.includes("latestEntryRepair") &&
+    apiAuthTestSource.includes("latestEntryRepair.status") &&
     translationsSource.includes("PUBLIC_BASE_URL changed") &&
     translationsSource.includes("Cloudflare address changed") &&
     translationsSource.includes("Tailscale address changed") &&
     translationsSource.includes("LAN IP changed") &&
+    translationsSource.includes("Phone just opened an old entry") &&
+    translationsSource.includes("refresh the iCloud mobile entry and generate a fresh pairing QR") &&
     mobileIcloudHandoffSource.includes("PENDING_EVENTS_STORAGE_KEY") &&
     mobileIcloudHandoffSource.includes("flushPendingMobileIcloudHandoffEvents") &&
     mobileIcloudHandoffSource.includes("reportOrQueueIcloudHandoffEvent") &&

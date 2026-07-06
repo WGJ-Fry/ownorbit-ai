@@ -200,6 +200,21 @@ const issueEventKindKeys: Record<NonNullable<NetworkDiagnostics["icloud"]["lates
   "opened-address-mismatch-entry": "onboarding.appleRemoteIcloudIssueKindMismatch",
 };
 
+const latestEntryRepairStatusKeys: Record<NonNullable<NetworkDiagnostics["icloud"]["latestEntryRepair"]>["status"], TranslationKey> = {
+  none: "onboarding.appleRemoteIcloudRepairStatusNone",
+  "current-entry-opened": "onboarding.appleRemoteIcloudRepairStatusCurrent",
+  "old-entry-opened": "onboarding.appleRemoteIcloudRepairStatusOld",
+  "problem-entry-opened": "onboarding.appleRemoteIcloudRepairStatusProblem",
+  "needs-refresh": "onboarding.appleRemoteIcloudRepairStatusRefresh",
+};
+
+const latestEntryRepairActionKeys: Record<NonNullable<NetworkDiagnostics["icloud"]["latestEntryRepair"]>["action"], TranslationKey> = {
+  none: "onboarding.appleRemoteIcloudRepairActionNone",
+  "open-on-phone": "onboarding.appleRemoteIcloudRepairActionOpen",
+  "refresh-icloud": "onboarding.appleRemoteIcloudRepairActionRefresh",
+  "refresh-and-regenerate-qr": "onboarding.appleRemoteIcloudRepairActionRefreshQr",
+};
+
 const historyChangeTypeKeys: Record<string, TranslationKey> = {
   "first-export": "onboarding.appleRemoteIcloudHistoryFirstExport",
   "public-base-url-changed": "onboarding.appleRemoteIcloudHistoryPublicBaseChanged",
@@ -252,7 +267,7 @@ function icloudEntryState(entry: IcloudAvailableEntry, now = Date.now()) {
   };
 }
 
-type IcloudHandoffEvent = NonNullable<NetworkDiagnostics["icloud"]["latestEntryIssueEvent"]>;
+type IcloudLatestEntryRepair = NonNullable<NetworkDiagnostics["icloud"]["latestEntryRepair"]>;
 
 function isAppleRuntime() {
   if (typeof navigator === "undefined") return false;
@@ -283,12 +298,12 @@ function formatHandoffTime(value?: number) {
   }
 }
 
-function compactEventUrls(event: IcloudHandoffEvent, desktopBaseUrl = "") {
+function compactLatestEntryRepairUrls(repair: IcloudLatestEntryRepair) {
   return [
-    { key: "onboarding.appleRemoteIcloudEventEntryUrl" as TranslationKey, value: event.entryBaseUrl },
-    { key: "onboarding.appleRemoteIcloudEventCurrentUrl" as TranslationKey, value: event.currentBaseUrl },
-    { key: "onboarding.appleRemoteIcloudEventStoredUrl" as TranslationKey, value: event.storedBaseUrl },
-    { key: "onboarding.appleRemoteIcloudEventDesktopUrl" as TranslationKey, value: desktopBaseUrl },
+    { key: "onboarding.appleRemoteIcloudEventEntryUrl" as TranslationKey, value: repair.entryBaseUrl },
+    { key: "onboarding.appleRemoteIcloudEventCurrentUrl" as TranslationKey, value: repair.currentBaseUrl },
+    { key: "onboarding.appleRemoteIcloudEventStoredUrl" as TranslationKey, value: repair.storedBaseUrl },
+    { key: "onboarding.appleRemoteIcloudEventDesktopUrl" as TranslationKey, value: repair.recommendedBaseUrl },
   ].filter((item, index, all) => (
     item.value && all.findIndex((candidate) => candidate.value === item.value) === index
   ));
@@ -386,8 +401,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const icloudAcceptance = icloud?.acceptance;
   const icloudMonitor = diagnostics?.icloudMonitor;
   const icloudLifecycle = icloud?.lifecycle;
-  const latestIgnoredEntryEvent = icloud?.latestIgnoredEntryEvent || null;
-  const latestEntryIssueEvent = icloud?.latestEntryIssueEvent || null;
+  const latestEntryRepair = icloud?.latestEntryRepair || null;
   const latestHistory = icloud?.entryHistory?.slice(0, 3) || [];
   const availableEntryCount = icloud?.availableEntries?.length || 0;
   const availableEntries = icloud?.availableEntries?.slice(0, 6) || [];
@@ -414,8 +428,8 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const icloudMonitorNextRunAt = formatHandoffTime(icloudMonitor?.nextRunAt || undefined);
   const icloudMonitorIntervalSeconds = Math.round((icloudMonitor?.intervalMs || 0) / 1000);
   const phoneConfirmationAt = formatHandoffTime(phoneConfirmation?.confirmedAt);
-  const latestIgnoredAt = formatHandoffTime(latestIgnoredEntryEvent?.ignoredAt);
-  const latestIssueAt = formatHandoffTime(latestEntryIssueEvent?.ignoredAt || latestEntryIssueEvent?.createdAt);
+  const latestRepairAt = formatHandoffTime(latestEntryRepair?.eventAt);
+  const latestEntryRepairTone = latestEntryRepair?.severity === "ok" ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-50" : latestEntryRepair?.severity === "danger" ? "border-red-400/20 bg-red-500/10 text-red-50" : "border-amber-400/20 bg-amber-500/10 text-amber-50";
   const simpleIcloudStatus = getSimpleIcloudStatus(icloud);
   const icloudTrackedFiles = icloudAvailability
     ? [
@@ -488,14 +502,14 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
     </div>
   );
 
-  const renderIcloudEventUrls = (event: IcloudHandoffEvent) => {
-    const urls = compactEventUrls(event, icloud?.recommendedBaseUrl || "");
+  const renderLatestEntryRepairUrls = (repair: IcloudLatestEntryRepair) => {
+    const urls = compactLatestEntryRepairUrls(repair);
     if (!urls.length) return null;
     return (
-      <div className="mt-2 grid gap-1 rounded-lg bg-[#060a10]/40 p-2 font-mono text-[10px] text-amber-50/70">
+      <div className="mt-2 grid gap-1 rounded-lg bg-[#060a10]/40 p-2 font-mono text-[10px] opacity-70">
         {urls.map((item) => (
           <div key={`${item.key}-${item.value}`} className="grid gap-0.5">
-            <span className="font-sans text-[10px] font-bold text-amber-50/80">{t(item.key)}</span>
+            <span className="font-sans text-[10px] font-bold opacity-80">{t(item.key)}</span>
             <span className="break-all">{item.value}</span>
           </div>
         ))}
@@ -792,45 +806,24 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
               </div>
             </div>
           ) : null}
-          {latestIgnoredEntryEvent ? (
-            <div className="mt-3 rounded-xl border border-amber-400/20 bg-amber-500/10 p-3 text-amber-50">
+          {latestEntryRepair && latestEntryRepair.status !== "none" ? (
+            <div className={`mt-3 rounded-xl border p-3 ${latestEntryRepairTone}`}>
               <div className="flex gap-2">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                <div>
-                  <div className="font-bold">{t("onboarding.appleRemoteIcloudOldEntryTitle")}</div>
-                  <div className="mt-1 text-[11px] leading-relaxed text-amber-50/80">
-                    {t("onboarding.appleRemoteIcloudOldEntryBody", {
-                      device: latestIgnoredEntryEvent.deviceName || latestIgnoredEntryEvent.deviceId,
-                      time: latestIgnoredAt || "-",
+                {latestEntryRepair.severity === "ok" ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />}
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold">{t(latestEntryRepairStatusKeys[latestEntryRepair.status])}</div>
+                  <div className="mt-1 text-[11px] leading-relaxed opacity-80">
+                    {t("onboarding.appleRemoteIcloudRepairSummaryBody", {
+                      device: latestEntryRepair.deviceName || latestEntryRepair.deviceId || "-",
+                      time: latestRepairAt || "-",
+                      kind: latestEntryRepair.eventType ? t(issueEventKindKeys[latestEntryRepair.eventType as keyof typeof issueEventKindKeys] || "onboarding.appleRemoteIcloudIssueKindCurrent") : "-",
                     })}
                   </div>
-                  {renderIcloudEventUrls(latestIgnoredEntryEvent)}
-                  <div className="mt-2 text-[11px] font-bold text-amber-50">
-                    {t("onboarding.appleRemoteIcloudOldEntryAction")}
+                  <div className="mt-2 rounded-lg border border-current/10 bg-black/10 p-2 text-[11px] font-bold">
+                    {t(latestEntryRepairActionKeys[latestEntryRepair.action])}
                   </div>
-                  {renderIcloudFixActions()}
-                </div>
-              </div>
-            </div>
-          ) : null}
-          {latestEntryIssueEvent ? (
-            <div className="mt-3 rounded-xl border border-amber-400/20 bg-amber-500/10 p-3 text-amber-50">
-              <div className="flex gap-2">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                <div>
-                  <div className="font-bold">{t("onboarding.appleRemoteIcloudIssueTitle")}</div>
-                  <div className="mt-1 text-[11px] leading-relaxed text-amber-50/80">
-                    {t("onboarding.appleRemoteIcloudIssueBody", {
-                      device: latestEntryIssueEvent.deviceName || latestEntryIssueEvent.deviceId,
-                      kind: t(issueEventKindKeys[latestEntryIssueEvent.eventType]),
-                      time: latestIssueAt || "-",
-                    })}
-                  </div>
-                  {renderIcloudEventUrls(latestEntryIssueEvent)}
-                  <div className="mt-2 text-[11px] font-bold text-amber-50">
-                    {t("onboarding.appleRemoteIcloudIssueAction")}
-                  </div>
-                  {renderIcloudFixActions()}
+                  {renderLatestEntryRepairUrls(latestEntryRepair)}
+                  {latestEntryRepair.needsRefresh || latestEntryRepair.needsQr ? renderIcloudFixActions() : null}
                 </div>
               </div>
             </div>
