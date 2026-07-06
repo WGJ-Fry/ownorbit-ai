@@ -23,9 +23,10 @@ import { setClientState } from "../clientState";
 import { evaluatePasswordPolicy, getSecurityDiagnostics } from "../securityDiagnostics";
 import { getOnboardingStatus, markOnboardingComplete } from "../onboarding";
 import { getBackupSchedule } from "../backupSchedule";
-import { getLatestBindingSession, getLatestIcloudHandoffEventByTypes, type DeviceIcloudHandoffEvent } from "../devices";
+import { getLatestBindingSession, getLatestIcloudHandoffEventByTypes } from "../devices";
 import { buildIcloudPhoneConfirmationStatus } from "../icloudPhoneConfirmation";
 import { buildIcloudPairingSessionStatus } from "../icloudPairingSession";
+import { buildLatestIcloudEntryRepairSummary } from "../icloudEntryRepair";
 import { checkReleaseUpdate } from "../releaseUpdateCheck";
 import { buildNativeAutomationPlan, executeNativeAutomation } from "../nativeAutomationBridge";
 
@@ -267,152 +268,6 @@ async function getAiProviderTestSummary(status: ReturnType<typeof getAiProviderS
 
 function getDataDirDiagnosticLabel() {
   return process.env.LIFEOS_DATA_DIR ? "Custom data directory configured" : "Default data directory";
-}
-
-function eventTime(event?: DeviceIcloudHandoffEvent | null) {
-  return Math.max(Number(event?.ignoredAt || 0), Number(event?.createdAt || 0));
-}
-
-function cleanDiagnosticBaseUrl(value?: string) {
-  const raw = String(value || "").trim();
-  if (!raw) return "";
-  try {
-    const url = new URL(raw);
-    url.username = "";
-    url.password = "";
-    url.search = "";
-    url.hash = "";
-    const pathname = url.pathname.replace(/\/+$/, "");
-    return `${url.origin}${pathname === "/" ? "" : pathname}`.replace(/\/$/, "");
-  } catch {
-    return raw.replace(/\/+$/, "");
-  }
-}
-
-function buildLatestIcloudEntryRepairSummary(input: {
-  latestEntryOpenEvent?: DeviceIcloudHandoffEvent | null;
-  latestIgnoredEntryEvent?: DeviceIcloudHandoffEvent | null;
-  latestEntryIssueEvent?: DeviceIcloudHandoffEvent | null;
-  recommendedBaseUrl?: string;
-  lastExportedBaseUrl?: string;
-  handoffNeedsRefresh?: boolean;
-  phoneConfirmationAction?: string;
-  pairingSessionAction?: string;
-}) {
-  const ignoredEvent = input.latestIgnoredEntryEvent || null;
-  const issueEvent = input.latestEntryIssueEvent || null;
-  const openEvent = input.latestEntryOpenEvent || null;
-  const issueAt = eventTime(issueEvent);
-  const ignoredAt = eventTime(ignoredEvent);
-  const openAt = eventTime(openEvent);
-  const problemEvent = issueAt >= ignoredAt ? issueEvent : ignoredEvent;
-  const problemAt = Math.max(issueAt, ignoredAt);
-  const recommendedBaseUrl = cleanDiagnosticBaseUrl(input.recommendedBaseUrl || input.lastExportedBaseUrl || "");
-  const lastExportedBaseUrl = cleanDiagnosticBaseUrl(input.lastExportedBaseUrl || "");
-  const event = problemEvent || openEvent || null;
-  const eventEntryBaseUrl = cleanDiagnosticBaseUrl(event?.entryBaseUrl || "");
-  const mismatchWithRecommended = Boolean(eventEntryBaseUrl && recommendedBaseUrl && eventEntryBaseUrl !== recommendedBaseUrl);
-  const needsQr = input.pairingSessionAction === "regenerate-qr" || Boolean(problemEvent);
-  const needsRefresh = Boolean(problemEvent || input.handoffNeedsRefresh || input.phoneConfirmationAction === "refresh-entry" || mismatchWithRecommended);
-
-  if (problemEvent && problemAt >= openAt) {
-    const status = problemEvent.eventType === "ignored-superseded-entry" ? "old-entry-opened" as const : "problem-entry-opened" as const;
-    return {
-      status,
-      severity: problemEvent.eventType === "opened-expired-entry" || problemEvent.eventType === "opened-address-mismatch-entry" ? "danger" as const : "warning" as const,
-      action: needsQr ? "refresh-and-regenerate-qr" as const : "refresh-icloud" as const,
-      eventId: problemEvent.id,
-      eventType: problemEvent.eventType,
-      deviceId: problemEvent.deviceId,
-      deviceName: problemEvent.deviceName || "",
-      deviceType: problemEvent.deviceType || "",
-      eventAt: problemAt,
-      entryBaseUrl: eventEntryBaseUrl,
-      currentBaseUrl: cleanDiagnosticBaseUrl(problemEvent.currentBaseUrl),
-      storedBaseUrl: cleanDiagnosticBaseUrl(problemEvent.storedBaseUrl),
-      recommendedBaseUrl,
-      lastExportedBaseUrl,
-      entryGeneratedAt: Number(problemEvent.entryGeneratedAt || 0),
-      storedGeneratedAt: Number(problemEvent.storedGeneratedAt || 0),
-      checksumPresent: Boolean(problemEvent.checksumSha256),
-      needsRefresh: true,
-      needsQr,
-      reason: status,
-    };
-  }
-
-  if (needsRefresh) {
-    return {
-      status: "needs-refresh" as const,
-      severity: "warning" as const,
-      action: needsQr ? "refresh-and-regenerate-qr" as const : "refresh-icloud" as const,
-      eventId: event?.id || "",
-      eventType: event?.eventType || "",
-      deviceId: event?.deviceId || "",
-      deviceName: event?.deviceName || "",
-      deviceType: event?.deviceType || "",
-      eventAt: eventTime(event),
-      entryBaseUrl: eventEntryBaseUrl,
-      currentBaseUrl: cleanDiagnosticBaseUrl(event?.currentBaseUrl || ""),
-      storedBaseUrl: cleanDiagnosticBaseUrl(event?.storedBaseUrl || ""),
-      recommendedBaseUrl,
-      lastExportedBaseUrl,
-      entryGeneratedAt: Number(event?.entryGeneratedAt || 0),
-      storedGeneratedAt: Number(event?.storedGeneratedAt || 0),
-      checksumPresent: Boolean(event?.checksumSha256),
-      needsRefresh: true,
-      needsQr,
-      reason: mismatchWithRecommended ? "entry-address-mismatch" : "desktop-entry-needs-refresh",
-    };
-  }
-
-  if (openEvent) {
-    return {
-      status: "current-entry-opened" as const,
-      severity: "ok" as const,
-      action: "none" as const,
-      eventId: openEvent.id,
-      eventType: openEvent.eventType,
-      deviceId: openEvent.deviceId,
-      deviceName: openEvent.deviceName || "",
-      deviceType: openEvent.deviceType || "",
-      eventAt: openAt,
-      entryBaseUrl: eventEntryBaseUrl,
-      currentBaseUrl: cleanDiagnosticBaseUrl(openEvent.currentBaseUrl),
-      storedBaseUrl: cleanDiagnosticBaseUrl(openEvent.storedBaseUrl),
-      recommendedBaseUrl,
-      lastExportedBaseUrl,
-      entryGeneratedAt: Number(openEvent.entryGeneratedAt || 0),
-      storedGeneratedAt: Number(openEvent.storedGeneratedAt || 0),
-      checksumPresent: Boolean(openEvent.checksumSha256),
-      needsRefresh: false,
-      needsQr: false,
-      reason: "phone-opened-current-entry",
-    };
-  }
-
-  return {
-    status: "none" as const,
-    severity: "warning" as const,
-    action: "open-on-phone" as const,
-    eventId: "",
-    eventType: "",
-    deviceId: "",
-    deviceName: "",
-    deviceType: "",
-    eventAt: 0,
-    entryBaseUrl: "",
-    currentBaseUrl: "",
-    storedBaseUrl: "",
-    recommendedBaseUrl,
-    lastExportedBaseUrl,
-    entryGeneratedAt: 0,
-    storedGeneratedAt: 0,
-    checksumPresent: false,
-    needsRefresh: false,
-    needsQr: false,
-    reason: "no-phone-open-event",
-  };
 }
 
 function getAdminNetworkDiagnostics() {

@@ -243,6 +243,14 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(bundle.icloudHandoff.phoneConfirmation.confirmedEntryBaseUrl, "https://current.example.com/lifeos");
   assert.equal(bundle.icloudHandoff.phoneConfirmation.latestProblemEventType, "opened-expired-entry");
   assert.equal("confirmedDeviceId" in bundle.icloudHandoff.phoneConfirmation, false);
+  assert.equal(bundle.icloudHandoff.latestEntryRepair.status, "current-entry-opened");
+  assert.equal(bundle.icloudHandoff.latestEntryRepair.action, "none");
+  assert.equal(bundle.icloudHandoff.latestEntryRepair.deviceName, "Phone token=[redacted]");
+  assert.equal(bundle.icloudHandoff.latestEntryRepair.entryBaseUrl, "https://current.example.com/lifeos");
+  assert.equal(bundle.icloudHandoff.latestEntryRepair.currentBaseUrl, "https://current.example.com/lifeos/mobile/chat");
+  assert.equal(bundle.icloudHandoff.latestEntryRepair.storedBaseUrl, "https://current.example.com/lifeos");
+  assert.equal(bundle.icloudHandoff.latestEntryRepair.checksumPresent, true);
+  assert.equal("deviceId" in bundle.icloudHandoff.latestEntryRepair, false);
   assert.equal(bundle.icloudHandoff.latestEntryOpenEvent.id, "diagnostic-icloud-open-event");
   assert.equal(bundle.icloudHandoff.latestEntryOpenEvent.eventType, "opened-current-entry");
   assert.equal(bundle.icloudHandoff.latestEntryOpenEvent.deviceName, "Phone token=[redacted]");

@@ -6,6 +6,7 @@ import { buildCalendarSyncPreview } from "./calendarSyncPreview";
 import { db, getPendingRestore, listBackups } from "./db";
 import { getDevices, getLatestBindingSession, getLatestIcloudHandoffEventByTypes, type DeviceIcloudHandoffEvent } from "./devices";
 import { buildIcloudAcceptanceSummary, type IcloudAcceptanceSummary } from "./icloudAcceptance";
+import { buildLatestIcloudEntryRepairSummary } from "./icloudEntryRepair";
 import { getIcloudHandoffMonitorStatus } from "./icloudHandoffMonitor";
 import { buildIcloudPairingSessionStatus } from "./icloudPairingSession";
 import { buildIcloudPhoneConfirmationStatus } from "./icloudPhoneConfirmation";
@@ -218,6 +219,30 @@ function publicIcloudHandoffEvent(event: DeviceIcloudHandoffEvent | undefined) {
   };
 }
 
+function publicIcloudEntryRepair(repair: ReturnType<typeof buildLatestIcloudEntryRepairSummary>) {
+  return {
+    status: repair.status,
+    severity: repair.severity,
+    action: repair.action,
+    eventId: repair.eventId,
+    eventType: repair.eventType,
+    deviceName: repair.deviceName ? redactDiagnosticActionText(repair.deviceName, "Device").slice(0, 80) : "",
+    deviceType: repair.deviceType,
+    eventAt: repair.eventAt,
+    entryBaseUrl: redactDiagnosticActionUrl(repair.entryBaseUrl),
+    currentBaseUrl: redactDiagnosticActionUrl(repair.currentBaseUrl),
+    storedBaseUrl: redactDiagnosticActionUrl(repair.storedBaseUrl),
+    recommendedBaseUrl: redactDiagnosticActionUrl(repair.recommendedBaseUrl),
+    lastExportedBaseUrl: redactDiagnosticActionUrl(repair.lastExportedBaseUrl),
+    entryGeneratedAt: repair.entryGeneratedAt,
+    storedGeneratedAt: repair.storedGeneratedAt,
+    checksumPresent: repair.checksumPresent,
+    needsRefresh: repair.needsRefresh,
+    needsQr: repair.needsQr,
+    reason: repair.reason,
+  };
+}
+
 function publicIcloudFileState(file: any) {
   return {
     exists: Boolean(file?.exists),
@@ -287,6 +312,16 @@ function buildIcloudDiagnosticSnapshot(network: ReturnType<typeof getNetworkDiag
   const pairingSession = buildIcloudPairingSessionStatus({
     session: latestBindingSession || null,
     recommendedBaseUrl: network.icloud?.recommendedBaseUrl || "",
+  });
+  const latestEntryRepair = buildLatestIcloudEntryRepairSummary({
+    latestEntryOpenEvent: rawLatestOpenEvent || null,
+    latestIgnoredEntryEvent: rawLatestIgnoredEvent || null,
+    latestEntryIssueEvent: rawLatestIssueEvent || null,
+    recommendedBaseUrl: network.icloud?.recommendedBaseUrl || "",
+    lastExportedBaseUrl: network.icloud?.handoffHealth?.lastExportedBaseUrl || "",
+    handoffNeedsRefresh: Boolean(network.icloud?.handoffHealth?.needsRefresh),
+    phoneConfirmationAction: phoneConfirmation.action,
+    pairingSessionAction: pairingSession.action,
   });
   const acceptance = buildIcloudAcceptanceSummary({
     icloud: {
@@ -390,6 +425,7 @@ function buildIcloudDiagnosticSnapshot(network: ReturnType<typeof getNetworkDiag
       secondsRemaining: pairingSession.secondsRemaining,
     },
     acceptance: publicIcloudAcceptance(acceptance),
+    latestEntryRepair: publicIcloudEntryRepair(latestEntryRepair),
     latestEntryOpenEvent: latestOpenEvent,
     latestIgnoredEntryEvent: latestIgnoredEvent,
     latestEntryIssueEvent: latestIssueEvent,

@@ -2349,6 +2349,8 @@ function checkAssets() {
     diagnosticBundleSource.includes("summarizeRemoteAcceptanceChecklist") &&
     diagnosticBundleSource.includes("acceptanceRecords") &&
     diagnosticBundleSource.includes("acceptanceRunbooks") &&
+    diagnosticBundleSource.includes("buildLatestIcloudEntryRepairSummary") &&
+    diagnosticBundleSource.includes("publicIcloudEntryRepair") &&
     diagnosticBundleTestSource.includes("bundle.release.manifestAvailable") &&
     diagnosticBundleTestSource.includes("Basic Z2l0aHViOmRpYWdub3N0aWM=") &&
     diagnosticBundleTestSource.includes("github_pat_diagnosticSecret") &&
@@ -2358,6 +2360,8 @@ function checkAssets() {
     diagnosticBundleTestSource.includes("bundle.remote.healthEvidence.total") &&
     diagnosticBundleSource.includes("availability?.account") &&
     diagnosticBundleTestSource.includes("bundle.icloudHandoff.availability.account.status") &&
+    diagnosticBundleTestSource.includes("bundle.icloudHandoff.latestEntryRepair.status") &&
+    diagnosticBundleTestSource.includes("\"deviceId\" in bundle.icloudHandoff.latestEntryRepair") &&
     diagnosticBundleTestSource.includes("private-icloud-token-should-not-leak") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceSummary.ready") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceEvidencePack.ready") &&
