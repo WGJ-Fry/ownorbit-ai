@@ -495,6 +495,72 @@ test("mobile iCloud handoff launch runs connectivity check and stores the result
   assert.equal(stored.lastConnectivityError, "");
 });
 
+test("mobile iCloud handoff ignores older entries instead of overwriting the latest entry", async (t) => {
+  installLocalStorage();
+  t.after(cleanupLocalStorage);
+  const now = 1_800_000_200_000;
+  const { consumeMobileIcloudHandoffFromUrl, getStoredMobileIcloudHandoff, handleMobileIcloudHandoffLaunch, isMobileIcloudHandoffSuperseded } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-ignore-older-${Date.now()}`);
+  const freshHref = [
+    "https://new-lifeos.example.com/mobile/chat?lifeosEntry=icloud",
+    `entryGeneratedAt=${now}`,
+    `entryRefreshAfter=${now + 60_000}`,
+    `entryExpiresAt=${now + 120_000}`,
+    "entryBaseUrl=https%3A%2F%2Fnew-lifeos.example.com",
+    "entryMode=tailscale",
+    "entryStability=stable",
+    "entryLabel=Fresh%20Tailscale",
+    `entryChecksumSha256=${"c".repeat(64)}`,
+  ].join("&");
+  const oldHref = [
+    "https://old-lifeos.example.com/mobile/chat?lifeosEntry=icloud",
+    `entryGeneratedAt=${now - 10_000}`,
+    `entryRefreshAfter=${now + 30_000}`,
+    `entryExpiresAt=${now + 90_000}`,
+    "entryBaseUrl=https%3A%2F%2Fold-lifeos.example.com",
+    "entryMode=cloudflare",
+    "entryStability=temporary",
+    "entryLabel=Old%20Tunnel",
+    `entryChecksumSha256=${"d".repeat(64)}`,
+  ].join("&");
+
+  const fresh = consumeMobileIcloudHandoffFromUrl(freshHref, now);
+  const old = consumeMobileIcloudHandoffFromUrl(oldHref, now + 1_000);
+  const storedAfterConsume = getStoredMobileIcloudHandoff();
+  assert.equal(fresh.baseUrl, "https://new-lifeos.example.com");
+  assert.equal(old.baseUrl, "https://new-lifeos.example.com");
+  assert.equal(isMobileIcloudHandoffSuperseded({ ...fresh, generatedAt: now - 1 }), true);
+  assert.equal(storedAfterConsume.baseUrl, "https://new-lifeos.example.com");
+  assert.equal(storedAfterConsume.checksumSha256, "c".repeat(64));
+  assert.equal(storedAfterConsume.lastIgnoredBaseUrl, "https://old-lifeos.example.com");
+  assert.equal(storedAfterConsume.lastIgnoredGeneratedAt, now - 10_000);
+
+  let testCalled = false;
+  let reportCalled = false;
+  const launch = await handleMobileIcloudHandoffLaunch({
+    href: oldHref,
+    cleanupUrl: false,
+    now: now + 2_000,
+    testConnectivity: async () => {
+      testCalled = true;
+      throw new Error("should not test superseded entry");
+    },
+    reportConnectivity: async () => {
+      reportCalled = true;
+      return { ok: true };
+    },
+  });
+
+  assert.equal(launch.ignoredOlderEntry, true);
+  assert.equal(launch.reportSaved, false);
+  assert.equal(launch.result, null);
+  assert.equal(testCalled, false);
+  assert.equal(reportCalled, false);
+  const storedAfterLaunch = getStoredMobileIcloudHandoff();
+  assert.equal(storedAfterLaunch.baseUrl, "https://new-lifeos.example.com");
+  assert.equal(storedAfterLaunch.lastIgnoredAt, now + 2_000);
+  assert.equal(storedAfterLaunch.lastIgnoredBaseUrl, "https://old-lifeos.example.com");
+});
+
 test("mobile iCloud handoff launch stores a failed result when connectivity probing throws", async (t) => {
   installLocalStorage();
   t.after(cleanupLocalStorage);

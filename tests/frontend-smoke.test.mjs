@@ -600,6 +600,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileIcloudHandoffSource, /entryExpiresAt/);
   assert.match(mobileIcloudHandoffSource, /entryChecksumSha256/);
   assert.match(mobileIcloudHandoffSource, /legacy/);
+  assert.match(mobileIcloudHandoffSource, /isMobileIcloudHandoffSuperseded/);
+  assert.match(mobileIcloudHandoffSource, /lastIgnoredBaseUrl/);
   assert.match(mobileIcloudHandoffSource, /getMobileIcloudHandoffStatus/);
   assert.match(mobileIcloudHandoffSource, /handleMobileIcloudHandoffLaunch/);
   assert.match(mobileIcloudHandoffSource, /testMobileRemoteConnectivity/);
@@ -750,6 +752,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffChecksum/);
   assert.match(mobileRemoteEntryCardSource, /checksumSha256/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffLastCheck/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffLastIgnored/);
   assert.match(mobileRemoteEntryCardSource, /lastConnectivityTestedAt/);
   assert.match(mobileRemoteEntryCardSource, /getMobileIcloudHandoffActionKey/);
   assert.match(mobileRemoteEntryCardSource, /buildMobileIcloudHandoffRecoveryPacket/);
@@ -766,6 +769,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /iCloud entry is fresh/);
   assert.match(translationsSource, /iCloud 入口需要升级/);
   assert.match(translationsSource, /Upgrade this iCloud entry/);
+  assert.match(translationsSource, /最近忽略的旧入口/);
+  assert.match(translationsSource, /Last ignored old entry/);
   assert.match(mobileDeviceSource, /testMobileRemoteConnectivity/);
   assert.match(mobileDeviceSource, /reportMobileConnectivity/);
   assert.match(mobileDeviceSource, /getLatestMobileConnectivityReport/);

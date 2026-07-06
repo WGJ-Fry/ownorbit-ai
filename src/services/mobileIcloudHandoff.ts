@@ -26,6 +26,9 @@ export type MobileIcloudHandoffEntry = {
   lastConnectivityTestedAt?: number;
   lastConnectivityOk?: boolean;
   lastConnectivityError?: string;
+  lastIgnoredAt?: number;
+  lastIgnoredGeneratedAt?: number;
+  lastIgnoredBaseUrl?: string;
 };
 
 export type MobileIcloudHandoffStatus = {
@@ -152,6 +155,12 @@ export function saveMobileIcloudHandoff(entry: MobileIcloudHandoffEntry) {
   }
 }
 
+export function isMobileIcloudHandoffSuperseded(entry: MobileIcloudHandoffEntry, current = getStoredMobileIcloudHandoff()) {
+  if (!current) return false;
+  if (current.generatedAt > entry.generatedAt) return true;
+  return current.generatedAt === entry.generatedAt && Boolean(current.checksumSha256) && !entry.checksumSha256;
+}
+
 function mergeMobileIcloudHandoffPatch(patch: Partial<MobileIcloudHandoffEntry>) {
   const current = getStoredMobileIcloudHandoff();
   if (!current) return null;
@@ -197,15 +206,49 @@ function createFailedConnectivityResult(entry: MobileIcloudHandoffEntry, href: s
 
 export function consumeMobileIcloudHandoffFromUrl(href?: string, now = Date.now()) {
   const entry = parseMobileIcloudHandoffFromUrl(href, now);
-  if (entry) saveMobileIcloudHandoff(entry);
+  if (!entry) return null;
+  const current = getStoredMobileIcloudHandoff();
+  if (isMobileIcloudHandoffSuperseded(entry, current)) {
+    saveMobileIcloudHandoff({
+      ...current!,
+      lastIgnoredAt: now,
+      lastIgnoredGeneratedAt: entry.generatedAt,
+      lastIgnoredBaseUrl: entry.baseUrl,
+    });
+    return current;
+  }
+  saveMobileIcloudHandoff(entry);
   return entry;
 }
 
 export async function handleMobileIcloudHandoffLaunch(options: HandoffLaunchOptions = {}) {
   const href = options.href || (typeof window === "undefined" ? "" : window.location.href);
-  const entry = consumeMobileIcloudHandoffFromUrl(href, options.now || Date.now());
-  if (!entry) return null;
+  const now = options.now || Date.now();
+  const parsedEntry = parseMobileIcloudHandoffFromUrl(href, now);
+  if (!parsedEntry) return null;
+  const storedBefore = getStoredMobileIcloudHandoff();
+  const ignoredOlderEntry = isMobileIcloudHandoffSuperseded(parsedEntry, storedBefore);
+  let entry = parsedEntry;
+  if (ignoredOlderEntry && storedBefore) {
+    entry = {
+      ...storedBefore,
+      lastIgnoredAt: now,
+      lastIgnoredGeneratedAt: parsedEntry.generatedAt,
+      lastIgnoredBaseUrl: parsedEntry.baseUrl,
+    };
+    saveMobileIcloudHandoff(entry);
+  } else {
+    saveMobileIcloudHandoff(parsedEntry);
+  }
   if (options.cleanupUrl !== false) stripMobileIcloudHandoffParamsFromUrl();
+  if (ignoredOlderEntry) {
+    return {
+      entry,
+      result: null,
+      reportSaved: false,
+      ignoredOlderEntry: true,
+    };
+  }
 
   let result: MobileConnectivityLike;
   try {
@@ -279,6 +322,9 @@ export function getStoredMobileIcloudHandoff(): MobileIcloudHandoffEntry | null 
       lastConnectivityTestedAt: Number(parsed.lastConnectivityTestedAt || 0) || undefined,
       lastConnectivityOk: typeof parsed.lastConnectivityOk === "boolean" ? parsed.lastConnectivityOk : undefined,
       lastConnectivityError: String(parsed.lastConnectivityError || ""),
+      lastIgnoredAt: Number(parsed.lastIgnoredAt || 0) || undefined,
+      lastIgnoredGeneratedAt: Number(parsed.lastIgnoredGeneratedAt || 0) || undefined,
+      lastIgnoredBaseUrl: normalizeBaseUrl(parsed.lastIgnoredBaseUrl || ""),
     };
   } catch {
     return null;

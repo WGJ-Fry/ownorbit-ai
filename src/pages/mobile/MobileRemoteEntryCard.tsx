@@ -109,6 +109,7 @@ export default function MobileRemoteEntryCard({
             <Row label={t("mobileDevice.icloudHandoffLastCheck")} value={icloudHandoffStatus.entry.lastConnectivityTestedAt ? new Date(icloudHandoffStatus.entry.lastConnectivityTestedAt).toLocaleString() : t("mobileDevice.icloudHandoffNotTested")} />
             <Row label={t("mobileDevice.icloudHandoffLastResult")} value={icloudHandoffStatus.entry.lastConnectivityTestedAt ? (icloudHandoffStatus.entry.lastConnectivityOk ? t("mobileDevice.pass") : t("mobileDevice.fail")) : "-"} />
             {icloudHandoffStatus.entry.lastConnectivityError ? <Row label={t("mobileDevice.icloudHandoffLastError")} value={icloudHandoffStatus.entry.lastConnectivityError} /> : null}
+            {icloudHandoffStatus.entry.lastIgnoredAt ? <Row label={t("mobileDevice.icloudHandoffLastIgnored")} value={`${icloudHandoffStatus.entry.lastIgnoredBaseUrl || "-"} · ${new Date(icloudHandoffStatus.entry.lastIgnoredAt).toLocaleString()}`} /> : null}
           </div>
           <button onClick={copyIcloudRecoveryPacket} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.1] bg-black/10 px-3 py-2 text-xs font-bold">
             <Copy className="h-3.5 w-3.5" />
