@@ -1468,6 +1468,23 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     assert.match(localOnlyPairingBaseUrlBody.error, /reachable from the phone/);
   }
 
+  const expiredBindingConfirm = await request(port, "/api/v1/devices/bind/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token: "bind_expired_or_old_qr", deviceName: "Expired Phone", deviceType: "mobile" }),
+  });
+  assert.equal(expiredBindingConfirm.status, 400);
+  const expiredBindingConfirmBody = await expiredBindingConfirm.json();
+  assert.equal(expiredBindingConfirmBody.code, "binding_token_invalid_or_expired", JSON.stringify(expiredBindingConfirmBody));
+  assert.equal(expiredBindingConfirmBody.recovery.reason, "binding-token-invalid-or-expired");
+  assert.equal(expiredBindingConfirmBody.recovery.action, "generate-new-qr");
+  assert.equal(expiredBindingConfirmBody.recovery.icloudRefresh.requestedReason, "binding-token-invalid-or-expired");
+  assert.equal(JSON.stringify(expiredBindingConfirmBody).includes("bind_expired_or_old_qr"), false);
+  const auditAfterExpiredBinding = await request(port, "/api/v1/audit-logs", { headers: adminHeaders }).then((res) => res.json());
+  const expiredBindingAudit = auditAfterExpiredBinding.logs.find((log) => log.action === "binding_session_invalid_or_expired");
+  assert.equal(expiredBindingAudit.metadata.deviceName, "Expired Phone");
+  assert.equal(expiredBindingAudit.metadata.icloudRefresh.requestedReason, "binding-token-invalid-or-expired");
+  assert.equal(JSON.stringify(expiredBindingAudit).includes("bind_expired_or_old_qr"), false);
+
   const credential = await request(port, "/api/v1/devices/bind/confirm", {
     method: "POST",
     body: JSON.stringify({ token: binding.token, deviceName: "Test Phone", deviceType: "mobile" }),

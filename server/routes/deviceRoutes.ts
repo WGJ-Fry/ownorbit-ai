@@ -264,7 +264,26 @@ export function registerDeviceRoutes(app: express.Express) {
     const now = Date.now();
     const session = getOpenBindingSessionByToken(token, now);
     if (!session) {
-      return res.status(400).json({ error: "Binding token is invalid or expired" });
+      const icloudRefresh = safeRefreshIcloudForBinding("binding-token-invalid-or-expired");
+      insertAuditLog("binding_session_invalid_or_expired", "binding_session", "unknown", {
+        deviceName: String(deviceName || "").slice(0, 80),
+        deviceType: deviceType === "desktop" || deviceType === "browser" ? deviceType : "mobile",
+        icloudRefresh,
+        attemptedAt: now,
+      }, "device", "unbound");
+      broadcastRealtime({
+        type: "pairing.invalid_or_expired",
+        timestamp: now,
+      });
+      return res.status(400).json({
+        code: "binding_token_invalid_or_expired",
+        error: "Binding token is invalid or expired",
+        recovery: {
+          reason: "binding-token-invalid-or-expired",
+          action: "generate-new-qr",
+          icloudRefresh,
+        },
+      });
     }
 
     const accessToken = createSecret("device");

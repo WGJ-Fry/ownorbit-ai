@@ -8,6 +8,7 @@ test("mobile pairing errors map expired tokens to a friendly recovery message", 
   assert.deepEqual(getMobilePairingErrorCopy({ status: 400, message: "Binding token is invalid or expired" }), {
     titleKey: "mobilePair.errorExpiredTitle",
     bodyKey: "mobilePair.errorExpiredBody",
+    recoveryAction: "generate-new-qr",
   });
 });
 

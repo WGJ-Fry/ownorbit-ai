@@ -3,6 +3,7 @@ import type { TranslationKey } from "../i18n/translations";
 export type MobilePairingErrorCopy = {
   titleKey: TranslationKey;
   bodyKey: TranslationKey;
+  recoveryAction?: "generate-new-qr";
 };
 
 function errorMessage(error: unknown) {
@@ -19,6 +20,7 @@ export function getMobilePairingErrorCopy(error: unknown): MobilePairingErrorCop
     return {
       titleKey: "mobilePair.errorExpiredTitle",
       bodyKey: "mobilePair.errorExpiredBody",
+      recoveryAction: "generate-new-qr",
     };
   }
 
