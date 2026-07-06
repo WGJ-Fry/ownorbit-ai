@@ -4,7 +4,8 @@ import { getAiConfigStatus, listAiProviderStatuses } from "./appSecrets";
 import { listAuditLogs, redactAuditMetadata, redactAuditString } from "./audit";
 import { buildCalendarSyncPreview } from "./calendarSyncPreview";
 import { db, getPendingRestore, listBackups } from "./db";
-import { getDevices } from "./devices";
+import { getDevices, getLatestIcloudHandoffEvent, type DeviceIcloudHandoffEvent } from "./devices";
+import { getIcloudHandoffMonitorStatus } from "./icloudHandoffMonitor";
 import { getClientState } from "./clientState";
 import { getNetworkDiagnostics } from "./networkDiagnostics";
 import { getOnlineDeviceCount } from "./realtime";
@@ -194,6 +195,105 @@ function publicReleaseManualReview() {
   };
 }
 
+function publicIcloudHandoffEvent(event: DeviceIcloudHandoffEvent | undefined) {
+  if (!event) return null;
+  return {
+    id: event.id,
+    deviceId: event.deviceId,
+    deviceName: event.deviceName ? redactDiagnosticActionText(event.deviceName, "Device").slice(0, 80) : "",
+    deviceType: event.deviceType || "",
+    eventType: event.eventType,
+    entryBaseUrl: redactDiagnosticActionUrl(event.entryBaseUrl),
+    currentBaseUrl: redactDiagnosticActionUrl(event.currentBaseUrl),
+    storedBaseUrl: redactDiagnosticActionUrl(event.storedBaseUrl),
+    entryGeneratedAt: event.entryGeneratedAt || null,
+    storedGeneratedAt: event.storedGeneratedAt || null,
+    checksumPresent: Boolean(event.checksumSha256),
+    checksumPrefix: event.checksumSha256 ? event.checksumSha256.slice(0, 12) : "",
+    ignoredAt: event.ignoredAt,
+    createdAt: event.createdAt,
+  };
+}
+
+function publicIcloudFileState(file: any) {
+  return {
+    exists: Boolean(file?.exists),
+    readable: Boolean(file?.readable),
+    placeholder: Boolean(file?.placeholder),
+    size: Number.isFinite(Number(file?.size)) ? Number(file.size) : 0,
+    state: String(file?.state || "unknown"),
+    metadata: {
+      available: Boolean(file?.metadata?.available),
+      downloaded: file?.metadata?.downloaded ?? null,
+      downloading: file?.metadata?.downloading ?? null,
+      uploaded: file?.metadata?.uploaded ?? null,
+      uploading: file?.metadata?.uploading ?? null,
+      syncState: String(file?.metadata?.syncState || "unknown"),
+      error: file?.metadata?.error ? redactAuditString(String(file.metadata.error)).slice(0, 160) : "",
+    },
+  };
+}
+
+function buildIcloudDiagnosticSnapshot(network: ReturnType<typeof getNetworkDiagnostics>) {
+  const latestEvent = getLatestIcloudHandoffEvent();
+  const latestPublicEvent = publicIcloudHandoffEvent(latestEvent);
+  return {
+    platformSupported: Boolean(network.icloud?.platformSupported),
+    available: Boolean(network.icloud?.available),
+    canExport: Boolean(network.icloud?.canExport),
+    transport: network.icloud?.transport || "handoff-only",
+    realtimeTransport: Boolean(network.icloud?.realtimeTransport),
+    recommendedMode: network.icloud?.recommendedMode || "",
+    recommendedStability: network.icloud?.recommendedStability || "",
+    recommendedBaseUrl: redactDiagnosticActionUrl(network.icloud?.recommendedBaseUrl),
+    handoffHealth: {
+      status: network.icloud?.handoffHealth?.status || "missing",
+      needsRefresh: Boolean(network.icloud?.handoffHealth?.needsRefresh),
+      lastExportedAt: network.icloud?.handoffHealth?.lastExportedAt || 0,
+      lastExportedBaseUrl: redactDiagnosticActionUrl(network.icloud?.handoffHealth?.lastExportedBaseUrl),
+      refreshAfter: network.icloud?.handoffHealth?.refreshAfter || 0,
+      expiresAt: network.icloud?.handoffHealth?.expiresAt || 0,
+      checksumOk: network.icloud?.handoffHealth?.checksumOk ?? null,
+      htmlConsistency: {
+        status: network.icloud?.handoffHealth?.htmlConsistency?.status || "missing",
+        ok: Boolean(network.icloud?.handoffHealth?.htmlConsistency?.ok),
+        exists: Boolean(network.icloud?.handoffHealth?.htmlConsistency?.exists),
+        generatedAt: network.icloud?.handoffHealth?.htmlConsistency?.generatedAt || 0,
+      },
+    },
+    availability: {
+      status: network.icloud?.availability?.status || "unsupported",
+      severity: network.icloud?.availability?.severity || "warning",
+      drivePathDetected: Boolean(network.icloud?.availability?.drivePathDetected),
+      appFolderExists: Boolean(network.icloud?.availability?.appFolderExists),
+      driveWritable: Boolean(network.icloud?.availability?.driveWritable),
+      appFolderWritable: Boolean(network.icloud?.availability?.appFolderWritable),
+      placeholderCount: network.icloud?.availability?.placeholderCount || 0,
+      metadataPendingCount: network.icloud?.availability?.metadataPendingCount || 0,
+      pendingCount: network.icloud?.availability?.pendingCount || 0,
+      handoffFile: publicIcloudFileState(network.icloud?.availability?.handoffFile),
+      packetFile: publicIcloudFileState(network.icloud?.availability?.packetFile),
+      indexFile: publicIcloudFileState(network.icloud?.availability?.indexFile),
+    },
+    lifecycle: network.icloud?.lifecycle || {
+      retentionLimit: 0,
+      expiredGraceMs: 0,
+      entryCount: 0,
+      expiredEntryCount: 0,
+      prunableEntryCount: 0,
+      orphanedFileCount: 0,
+    },
+    monitor: getIcloudHandoffMonitorStatus(),
+    latestIgnoredEntryEvent: latestEvent?.eventType === "ignored-superseded-entry" ? latestPublicEvent : null,
+    latestEntryIssueEvent: latestEvent && latestEvent.eventType !== "ignored-superseded-entry" ? latestPublicEvent : null,
+    boundary: {
+      handoffOnly: true,
+      realtimeRequiresTrustedNetwork: true,
+      recommendedRealtimeOptions: ["tailscale", "cloudflare-tunnel", "trusted-https"],
+    },
+  };
+}
+
 export function getReleaseDiagnostics() {
   for (const releaseDir of releaseDirCandidates()) {
     const manifestPath = path.join(releaseDir, "update-feed", "release-manifest.json");
@@ -287,6 +387,7 @@ export function createDiagnosticBundle() {
       })),
     },
     network,
+    icloudHandoff: buildIcloudDiagnosticSnapshot(network),
     remote: {
       healthSummary: remoteHealthSummary,
       healthEvidence: getRemoteHealthEvidence(),

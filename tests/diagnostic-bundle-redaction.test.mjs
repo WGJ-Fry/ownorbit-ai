@@ -20,6 +20,7 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   const oldOpenRouterKey = process.env.OPENROUTER_API_KEY;
   const oldLocalModelBaseUrl = process.env.LOCAL_MODEL_BASE_URL;
   const oldReleaseDir = process.env.LIFEOS_RELEASE_DIR;
+  const oldIcloudDriveDir = process.env.LIFEOS_ICLOUD_DRIVE_DIR;
   const releaseDir = path.join(dataDir, "private-release-token-should-not-leak");
 
   process.env.LIFEOS_DATA_DIR = dataDir;
@@ -32,6 +33,7 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   process.env.OPENROUTER_API_KEY = "sk-or-diagnostic-secret";
   process.env.LOCAL_MODEL_BASE_URL = "http://user:password@127.0.0.1:11434/v1?token=local-secret";
   process.env.LIFEOS_RELEASE_DIR = releaseDir;
+  process.env.LIFEOS_ICLOUD_DRIVE_DIR = path.join(dataDir, "private-icloud-token-should-not-leak");
   const releaseSha256 = "b".repeat(64);
   await mkdir(path.join(releaseDir, "update-feed"), { recursive: true });
   await writeFile(path.join(releaseDir, "SHA256SUMS"), `${releaseSha256}  LifeOS AI-0.1.0-arm64-unsigned.zip\n`);
@@ -70,6 +72,8 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
     else process.env.LOCAL_MODEL_BASE_URL = oldLocalModelBaseUrl;
     if (oldReleaseDir === undefined) delete process.env.LIFEOS_RELEASE_DIR;
     else process.env.LIFEOS_RELEASE_DIR = oldReleaseDir;
+    if (oldIcloudDriveDir === undefined) delete process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+    else process.env.LIFEOS_ICLOUD_DRIVE_DIR = oldIcloudDriveDir;
     await rm(dataDir, { recursive: true, force: true });
   });
 
@@ -168,6 +172,30 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
     },
     manualAcceptance: [{ id: "cellular-mobile-chat", title: "Phone cellular", required: true }],
   }, { type: "admin", id: "owner" });
+  const devicesModule = await import(`../server/devices.ts?diagnostic=${Date.now()}`);
+  const now = Date.now();
+  devicesModule.insertDevice({
+    id: "diagnostic-phone",
+    name: "Phone token=icloud-device-secret",
+    type: "mobile",
+    status: "online",
+    accessTokenHash: "diagnostic-device-token-hash",
+    createdAt: now,
+    lastSeenAt: now,
+  });
+  devicesModule.insertDeviceIcloudHandoffEvent({
+    id: "diagnostic-icloud-event",
+    deviceId: "diagnostic-phone",
+    eventType: "opened-expired-entry",
+    entryBaseUrl: "https://user:password@old.example.com/lifeos?token=icloud-event-secret#debug",
+    currentBaseUrl: "https://user:password@old.example.com/lifeos/mobile/chat?token=icloud-event-secret",
+    storedBaseUrl: "https://new.example.com/lifeos?secret=icloud-event-secret",
+    entryGeneratedAt: now - 10_000,
+    storedGeneratedAt: now,
+    checksumSha256: "c".repeat(64),
+    ignoredAt: now,
+    createdAt: now,
+  });
 
   const { createDiagnosticBundle } = await import(`../server/diagnosticBundle.ts?diagnostic=${Date.now()}`);
   const bundle = createDiagnosticBundle();
@@ -182,10 +210,27 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(serialized.includes("local-secret"), false);
   assert.equal(serialized.includes("remote-secret"), false);
   assert.equal(serialized.includes("diagnostic-action-secret"), false);
+  assert.equal(serialized.includes("icloud-device-secret"), false);
+  assert.equal(serialized.includes("icloud-event-secret"), false);
   assert.equal(serialized.includes("+15551234567"), false);
   assert.equal(serialized.includes("Z2l0aHViOmRpYWdub3N0aWM"), false);
   assert.equal(serialized.includes("github_pat_diagnosticSecret"), false);
   assert.equal(bundle.remote.acceptanceRunbooks.total, 1);
+  assert.equal(bundle.icloudHandoff.boundary.handoffOnly, true);
+  assert.equal(bundle.icloudHandoff.boundary.realtimeRequiresTrustedNetwork, true);
+  assert.equal(bundle.icloudHandoff.monitor.enabled, true);
+  assert.equal(bundle.icloudHandoff.transport, "handoff-only");
+  assert.equal(bundle.icloudHandoff.latestEntryIssueEvent.id, "diagnostic-icloud-event");
+  assert.equal(bundle.icloudHandoff.latestEntryIssueEvent.eventType, "opened-expired-entry");
+  assert.equal(bundle.icloudHandoff.latestEntryIssueEvent.deviceName, "Phone token=[redacted]");
+  assert.equal(bundle.icloudHandoff.latestEntryIssueEvent.entryBaseUrl, "https://old.example.com/lifeos?[redacted]");
+  assert.equal(bundle.icloudHandoff.latestEntryIssueEvent.currentBaseUrl, "https://old.example.com/lifeos/mobile/chat?[redacted]");
+  assert.equal(bundle.icloudHandoff.latestEntryIssueEvent.storedBaseUrl, "https://new.example.com/lifeos?[redacted]");
+  assert.equal(bundle.icloudHandoff.latestEntryIssueEvent.checksumPresent, true);
+  assert.equal(bundle.icloudHandoff.latestEntryIssueEvent.checksumPrefix, "c".repeat(12));
+  assert.equal(bundle.icloudHandoff.latestIgnoredEntryEvent, null);
+  assert.equal("drivePath" in bundle.icloudHandoff.availability, false);
+  assert.equal("appFolderPath" in bundle.icloudHandoff.availability, false);
   assert.equal(bundle.remote.acceptanceRunbooks.latest[0].entryKind, "stable-https");
   assert.equal(typeof bundle.remote.acceptanceEvidencePack.ready, "boolean");
   assert.equal(bundle.remote.acceptanceEvidencePack.baseUrl, "https://example.com/lifeos");

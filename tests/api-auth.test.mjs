@@ -1101,6 +1101,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     "devices",
     "environment",
     "generatedAt",
+    "icloudHandoff",
     "network",
     "recentAudit",
     "release",
@@ -1109,6 +1110,10 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     "service",
     "systemActions",
   ]);
+  assert.equal(diagnosticBundle.icloudHandoff.boundary.handoffOnly, true);
+  assert.equal(diagnosticBundle.icloudHandoff.boundary.realtimeRequiresTrustedNetwork, true);
+  assert.equal(diagnosticBundle.icloudHandoff.monitor.enabled, true);
+  assert.equal(diagnosticBundle.icloudHandoff.transport, "handoff-only");
   assert.equal(typeof diagnosticBundle.systemActions.totalLogs, "number");
   assert.equal(diagnosticBundle.calendarSync.mode, "preview-only");
   assert.equal(diagnosticBundle.calendarSync.externalWritesEnabled, false);
