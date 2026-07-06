@@ -628,8 +628,12 @@ test("iCloud handoff monitor refreshes stale entries without remote health check
   assert.equal(monitorRun.refreshed, true);
   assert.equal(monitorRun.refreshReason, "refreshed");
   assert.equal(monitorRun.status, "address-changed");
+  assert.equal(monitorRun.previousStatus, "address-changed");
+  assert.equal(monitorRun.recommendedBaseUrl, "https://monitor-new-lifeos.example.com");
+  assert.equal(typeof monitorRun.generatedAt, "number");
   assert.equal(nextPacket.baseUrl, "https://monitor-new-lifeos.example.com");
   assert.equal(getIcloudHandoffMonitorStatus().lastResult?.refreshed, true);
+  assert.equal(getIcloudHandoffMonitorStatus().lastResult?.recommendedBaseUrl, "https://monitor-new-lifeos.example.com");
 });
 
 test("iCloud repair packet analysis compares phone entry with current desktop entry", async (t) => {

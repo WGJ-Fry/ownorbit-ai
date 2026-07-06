@@ -600,6 +600,11 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                       ({icloudMonitor.lastResult.refreshReason} / {icloudMonitor.lastResult.status})
                     </div>
                   ) : null}
+                  {icloudMonitor.lastResult?.recommendedBaseUrl ? (
+                    <div className="break-all">
+                      {t("onboarding.appleRemoteIcloudMonitorLastEntry")}: {icloudMonitor.lastResult.recommendedBaseUrl}
+                    </div>
+                  ) : null}
                   {icloudMonitor.lastResult?.error ? (
                     <div className="text-red-200">{t("onboarding.appleRemoteIcloudMonitorError")}: {icloudMonitor.lastResult.error}</div>
                   ) : null}

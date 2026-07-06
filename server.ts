@@ -22,8 +22,8 @@ import { runMigrations } from "./server/migrations";
 import { redactApiErrorResponses, requireCsrf, securityHeaders } from "./server/httpSecurity";
 import { startBackupScheduler } from "./server/backupSchedule";
 import { maybeStartConfiguredCloudflareTunnel } from "./server/cloudflareTunnel";
-import { startIcloudHandoffMonitor } from "./server/icloudHandoffMonitor";
-import { maybeRefreshIcloudHandoff, maybeStartConfiguredTailscaleServe } from "./server/networkDiagnostics";
+import { runIcloudHandoffRefreshCheck, startIcloudHandoffMonitor } from "./server/icloudHandoffMonitor";
+import { maybeStartConfiguredTailscaleServe } from "./server/networkDiagnostics";
 import { startRemoteHealthMonitor } from "./server/remoteHealthMonitor";
 import { getInstallPairingToken, htmlWithInstallPairingManifest, htmlWithPublicBaseHref, setInstallPairingIntentCookie } from "./server/mobileInstall";
 import { getConfiguredPublicBasePath } from "./server/publicBaseUrl";
@@ -199,7 +199,7 @@ async function startServer() {
 
 function refreshIcloudHandoffAfterStartup(reason: string) {
   try {
-    const result = maybeRefreshIcloudHandoff(reason);
+    const result = runIcloudHandoffRefreshCheck(reason);
     if (result.refreshed) {
       console.log(`iCloud mobile entry refreshed after ${reason}: ${result.recommendedBaseUrl || "updated"}`);
     }

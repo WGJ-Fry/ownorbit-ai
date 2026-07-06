@@ -929,6 +929,9 @@ export type NetworkDiagnostics = {
       refreshed: boolean;
       refreshReason: string;
       status: string;
+      previousStatus?: string;
+      generatedAt?: number;
+      recommendedBaseUrl?: string;
       error?: string;
     } | null;
   };

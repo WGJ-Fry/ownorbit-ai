@@ -12,6 +12,9 @@ export type IcloudHandoffMonitorRun = {
   refreshed: boolean;
   refreshReason: string;
   status: string;
+  previousStatus?: string;
+  generatedAt?: number;
+  recommendedBaseUrl?: string;
   error?: string;
 };
 
@@ -36,6 +39,9 @@ export function runIcloudHandoffRefreshCheck(reason = "manual"): IcloudHandoffMo
       refreshed: refresh.refreshed,
       refreshReason: refresh.reason,
       status: refresh.status || refresh.previousStatus || "unknown",
+      previousStatus: refresh.previousStatus,
+      generatedAt: refresh.generatedAt,
+      recommendedBaseUrl: refresh.recommendedBaseUrl,
     };
     nextRunAt = monitorTimer ? checkedAt + intervalMs() : null;
     return lastResult;

@@ -240,7 +240,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(serverSource, /RUNNING_BUNDLED_SERVER/);
   assert.match(serverSource, /process\.env\.NODE_ENV !== "production" && !RUNNING_BUNDLED_SERVER/);
   assert.match(serverSource, /startIcloudHandoffMonitor/);
-  assert.match(serverSource, /maybeRefreshIcloudHandoff/);
+  assert.match(serverSource, /runIcloudHandoffRefreshCheck/);
   assert.match(serverSource, /refreshIcloudHandoffAfterStartup\("local-core-startup"\)/);
   assert.match(serverSource, /refreshIcloudHandoffAfterStartup\("cloudflare-autostart"\)/);
   assert.match(serverSource, /refreshIcloudHandoffAfterStartup\("tailscale-autostart"\)/);
@@ -593,6 +593,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /icloudAvailability\.pendingCount/);
   assert.match(onboardingAppleRemoteSource, /icloudMonitor/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudMonitorTitle/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudMonitorLastEntry/);
+  assert.match(onboardingAppleRemoteSource, /recommendedBaseUrl/);
   assert.match(onboardingAppleRemoteSource, /icloudLifecycle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudLifecycleTitle/);
   assert.match(onboardingAppleRemoteSource, /historyChangeTypeKeys/);
@@ -631,6 +633,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /\/api\/v1\/admin\/icloud-handoff\/repair-packet/);
   assert.match(lifeosApiSource, /IcloudHandoffRepairAnalysis/);
   assert.match(lifeosApiSource, /icloudMonitor/);
+  assert.match(lifeosApiSource, /recommendedBaseUrl\?: string/);
   assert.match(lifeosApiSource, /lifecycle/);
   assert.match(lifeosApiSource, /opened-expired-entry/);
   assert.match(translationsSource, /Apple\/iCloud 手机入口/);
@@ -676,6 +679,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /iCloud sync may be stuck/);
   assert.match(translationsSource, /后台自动刷新/);
   assert.match(translationsSource, /Background Auto-refresh/);
+  assert.match(translationsSource, /上次推荐入口/);
+  assert.match(translationsSource, /Last recommended entry/);
   assert.match(translationsSource, /入口文件生命周期/);
   assert.match(translationsSource, /Entry File Lifecycle/);
   assert.match(translationsSource, /粘贴手机修复信息/);
