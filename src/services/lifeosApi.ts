@@ -637,7 +637,7 @@ export type NetworkDiagnostics = {
     recommendedMode: string;
     recommendedStability: string;
     handoffHealth: {
-      status: "missing" | "fresh" | "stale" | "address-changed" | "expired";
+      status: "missing" | "fresh" | "stale" | "address-changed" | "expired" | "invalid";
       needsRefresh: boolean;
       lastExportedAt: number;
       lastExportedBaseUrl: string;
@@ -645,6 +645,9 @@ export type NetworkDiagnostics = {
       expiresAt: number;
       refreshAfterMs: number;
       expiresAfterMs: number;
+      checksumOk: boolean | null;
+      entryChecksumSha256: string;
+      expectedChecksumSha256: string;
       reason: string;
     };
     realtimeTransport: false;

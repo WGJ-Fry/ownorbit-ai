@@ -565,6 +565,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteStartTailscale/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudHint/);
   assert.match(onboardingAppleRemoteSource, /handoffHealthStatusKeys/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudHealthInvalid/);
   assert.match(onboardingAppleRemoteSource, /isIcloudBusy/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSyncing/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudHealthTitle/);
@@ -586,6 +587,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Sync packet status/);
   assert.match(translationsSource, /当前推荐入口和上次导出的地址不同/);
   assert.match(translationsSource, /The recommended entry changed since the last export/);
+  assert.match(translationsSource, /iCloud 入口校验不一致/);
+  assert.match(translationsSource, /The iCloud entry checksum does not match/);
   const onboardingHandoffSource = await readFile(path.join(rootDir, "src", "pages", "admin", "OnboardingHandoffCard.tsx"), "utf8");
   assert.match(onboardingHandoffSource, /onboarding\.handoffChatTitle/);
   assert.match(onboardingHandoffSource, /onboarding\.copyHandoffSummary/);

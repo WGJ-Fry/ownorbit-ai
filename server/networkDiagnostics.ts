@@ -298,11 +298,17 @@ function buildIcloudHandoffHealth(input: {
   const exportedBaseUrl = String(packet?.baseUrl || "");
   const expiresAt = Number(packet?.expiresAt || (generatedAt ? generatedAt + ICLOUD_HANDOFF_EXPIRES_AFTER_MS : 0));
   const refreshAfter = Number(packet?.refreshAfter || (generatedAt ? generatedAt + ICLOUD_HANDOFF_REFRESH_AFTER_MS : 0));
-  let status: "missing" | "fresh" | "stale" | "address-changed" | "expired" = "missing";
+  const exportedChecksum = String(packet?.entryChecksumSha256 || "").trim();
+  const expectedChecksum = packet ? buildIcloudEntryChecksum(packet) : "";
+  const checksumOk = packet ? (exportedChecksum ? exportedChecksum === expectedChecksum : null) : null;
+  let status: "missing" | "fresh" | "stale" | "address-changed" | "expired" | "invalid" = "missing";
   let reason = "No iCloud mobile entry has been exported yet.";
 
   if (packet && generatedAt > 0) {
-    if (expiresAt > 0 && now >= expiresAt) {
+    if (checksumOk === false) {
+      status = "invalid";
+      reason = "The iCloud mobile entry checksum does not match. The file may be partially synced or modified.";
+    } else if (expiresAt > 0 && now >= expiresAt) {
       status = "expired";
       reason = "The iCloud mobile entry is older than the recommended recovery window.";
     } else if (input.candidate?.baseUrl && exportedBaseUrl && input.candidate.baseUrl !== exportedBaseUrl) {
@@ -326,6 +332,9 @@ function buildIcloudHandoffHealth(input: {
     expiresAt: expiresAt || 0,
     refreshAfterMs: ICLOUD_HANDOFF_REFRESH_AFTER_MS,
     expiresAfterMs: ICLOUD_HANDOFF_EXPIRES_AFTER_MS,
+    checksumOk,
+    entryChecksumSha256: exportedChecksum,
+    expectedChecksumSha256: expectedChecksum,
     reason,
   };
 }

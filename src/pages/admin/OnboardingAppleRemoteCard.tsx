@@ -30,6 +30,7 @@ const handoffHealthStatusKeys: Record<NetworkDiagnostics["icloud"]["handoffHealt
   stale: "onboarding.appleRemoteIcloudHealthStale",
   "address-changed": "onboarding.appleRemoteIcloudHealthAddressChanged",
   expired: "onboarding.appleRemoteIcloudHealthExpired",
+  invalid: "onboarding.appleRemoteIcloudHealthInvalid",
 };
 
 const handoffHealthReasonKeys: Record<NetworkDiagnostics["icloud"]["handoffHealth"]["status"], TranslationKey> = {
@@ -38,6 +39,7 @@ const handoffHealthReasonKeys: Record<NetworkDiagnostics["icloud"]["handoffHealt
   stale: "onboarding.appleRemoteIcloudReasonStale",
   "address-changed": "onboarding.appleRemoteIcloudReasonAddressChanged",
   expired: "onboarding.appleRemoteIcloudReasonExpired",
+  invalid: "onboarding.appleRemoteIcloudReasonInvalid",
 };
 
 function isAppleRuntime() {
@@ -83,7 +85,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const readinessTone = readiness?.severity === "ok" ? "text-emerald-200" : readiness?.severity === "danger" ? "text-red-200" : "text-amber-200";
   const candidateReady = Boolean(candidate);
   const canExportIcloud = Boolean(icloud?.canExport);
-  const handoffHealthTone = handoffHealth?.status === "fresh" ? "bg-emerald-500/15 text-emerald-100" : handoffHealth?.status === "address-changed" || handoffHealth?.status === "expired" ? "bg-red-500/15 text-red-100" : "bg-amber-500/15 text-amber-100";
+  const handoffHealthTone = handoffHealth?.status === "fresh" ? "bg-emerald-500/15 text-emerald-100" : handoffHealth?.status === "address-changed" || handoffHealth?.status === "expired" || handoffHealth?.status === "invalid" ? "bg-red-500/15 text-red-100" : "bg-amber-500/15 text-amber-100";
   const lastExportedAt = formatHandoffTime(handoffHealth?.lastExportedAt);
   const refreshAfter = formatHandoffTime(handoffHealth?.refreshAfter);
 
