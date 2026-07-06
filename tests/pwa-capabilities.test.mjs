@@ -639,6 +639,85 @@ test("mobile iCloud handoff ignores older entries instead of overwriting the lat
   assert.equal(storedAfterLaunch.lastIgnoredBaseUrl, "https://old-lifeos.example.com");
 });
 
+test("mobile iCloud handoff can switch to an older entry from a different desktop", async (t) => {
+  installLocalStorage();
+  t.after(cleanupLocalStorage);
+  const now = 1_800_000_250_000;
+  const { consumeMobileIcloudHandoffFromUrl, getStoredMobileIcloudHandoff, handleMobileIcloudHandoffLaunch, isMobileIcloudHandoffSuperseded } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-switch-desktop-${Date.now()}`);
+  const macA = [
+    "https://mac-a.example.com/mobile/chat?lifeosEntry=icloud",
+    `entryGeneratedAt=${now}`,
+    `entryRefreshAfter=${now + 60_000}`,
+    `entryExpiresAt=${now + 120_000}`,
+    "entryBaseUrl=https%3A%2F%2Fmac-a.example.com",
+    "entryMode=tailscale",
+    "entryStability=stable",
+    "entryLabel=Mac%20A",
+    "entryDesktopId=mac-a",
+    "entryDesktopName=Kitchen%20Mac",
+    "entryDesktopSlug=kitchen-mac",
+    `entryChecksumSha256=${"1".repeat(64)}`,
+  ].join("&");
+  const macB = [
+    "https://mac-b.example.com/mobile/chat?lifeosEntry=icloud",
+    `entryGeneratedAt=${now - 10_000}`,
+    `entryRefreshAfter=${now + 50_000}`,
+    `entryExpiresAt=${now + 110_000}`,
+    "entryBaseUrl=https%3A%2F%2Fmac-b.example.com",
+    "entryMode=cloudflare",
+    "entryStability=stable",
+    "entryLabel=Mac%20B",
+    "entryDesktopId=mac-b",
+    "entryDesktopName=Studio%20Mac",
+    "entryDesktopSlug=studio-mac",
+    `entryChecksumSha256=${"2".repeat(64)}`,
+  ].join("&");
+
+  const first = consumeMobileIcloudHandoffFromUrl(macA, now);
+  const parsedDifferentDesktop = consumeMobileIcloudHandoffFromUrl(macB, now + 1_000);
+  assert.equal(first.desktopId, "mac-a");
+  assert.equal(parsedDifferentDesktop.desktopId, "mac-b");
+  assert.equal(parsedDifferentDesktop.baseUrl, "https://mac-b.example.com");
+  assert.equal(isMobileIcloudHandoffSuperseded({ ...parsedDifferentDesktop, generatedAt: now - 20_000 }, first), false);
+  assert.equal(getStoredMobileIcloudHandoff().desktopName, "Studio Mac");
+  assert.equal(getStoredMobileIcloudHandoff().lastIgnoredAt, undefined);
+
+  let testCalled = false;
+  let icloudEventCalled = false;
+  const launch = await handleMobileIcloudHandoffLaunch({
+    href: macB,
+    cleanupUrl: false,
+    now: now + 2_000,
+    testConnectivity: async () => {
+      testCalled = true;
+      return {
+        ok: true,
+        currentBase: "https://mac-b.example.com",
+        latencyMs: 21,
+        testedAt: now + 2_100,
+        steps: [
+          { id: "health", ok: true, url: "https://mac-b.example.com/api/v1/health", latencyMs: 7 },
+          { id: "mobile-shell", ok: true, url: "https://mac-b.example.com/mobile/chat", latencyMs: 7 },
+          { id: "websocket", ok: true, url: "wss://mac-b.example.com/api/v1/ws", latencyMs: 7 },
+        ],
+      };
+    },
+    reportConnectivity: async () => ({ ok: true }),
+    reportIcloudHandoffEvent: async () => {
+      icloudEventCalled = true;
+      return { ok: true };
+    },
+  });
+
+  assert.equal(launch.ignoredOlderEntry, undefined);
+  assert.equal(launch.reportSaved, true);
+  assert.equal(testCalled, true);
+  assert.equal(icloudEventCalled, false);
+  assert.equal(launch.entry.desktopId, "mac-b");
+  assert.equal(getStoredMobileIcloudHandoff().desktopId, "mac-b");
+  assert.equal(getStoredMobileIcloudHandoff().lastConnectivityOk, true);
+});
+
 test("mobile iCloud handoff launch stores a failed result when connectivity probing throws", async (t) => {
   installLocalStorage();
   t.after(cleanupLocalStorage);

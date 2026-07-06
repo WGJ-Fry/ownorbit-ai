@@ -183,6 +183,9 @@ export function saveMobileIcloudHandoff(entry: MobileIcloudHandoffEntry) {
 
 export function isMobileIcloudHandoffSuperseded(entry: MobileIcloudHandoffEntry, current = getStoredMobileIcloudHandoff()) {
   if (!current) return false;
+  const entryDesktopId = normalizeEntryId(entry.desktopId);
+  const currentDesktopId = normalizeEntryId(current.desktopId);
+  if (entryDesktopId && currentDesktopId && entryDesktopId !== currentDesktopId) return false;
   if (current.generatedAt > entry.generatedAt) return true;
   return current.generatedAt === entry.generatedAt && Boolean(current.checksumSha256) && !entry.checksumSha256;
 }
