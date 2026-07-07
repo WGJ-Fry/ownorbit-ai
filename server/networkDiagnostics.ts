@@ -252,6 +252,7 @@ function buildIcloudEntryChecksum(packet: Record<string, unknown>) {
     stability: packet.stability,
     requiresRestart: packet.requiresRestart,
     fallbackCandidates: packet.fallbackCandidates,
+    sameWifiOnly: packet.sameWifiOnly,
     transport: packet.transport,
     realtimeTransport: packet.realtimeTransport,
   };
@@ -1766,9 +1767,15 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
   const refreshAfter = typeof input.packet.refreshAfter === "number" ? new Date(input.packet.refreshAfter).toLocaleString() : "-";
   const expiresAt = typeof input.packet.expiresAt === "number" ? new Date(input.packet.expiresAt).toLocaleString() : "-";
   const remoteReady = input.candidate.secure && input.candidate.stability === "stable" && !input.candidate.requiresRestart;
+  const sameWifiOnly = isIcloudEntrySameWifiOnly(input.candidate);
   const fallbackCount = Array.isArray(input.packet.fallbackCandidates) ? input.packet.fallbackCandidates.length : 0;
   const mobilePairUrl = appendIcloudHandoffParams(input.candidate.mobilePairUrl, input.packet);
   const mobileChatUrl = appendIcloudHandoffParams(input.candidate.mobileChatUrl, input.packet);
+  const reachabilityLabel = remoteReady
+    ? "适合长期异地使用 / Ready for long-term remote use"
+    : sameWifiOnly
+    ? "只适合同一 Wi-Fi / Same Wi-Fi only"
+    : "可先打开，换网后请刷新 / Refresh after network changes";
   const recoverySummary = [
     "LifeOS iCloud Mobile Entry Recovery",
     `status=${remoteReady ? "ready" : "needs-refresh-after-network-change"}`,
@@ -1814,6 +1821,8 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
       .next-action strong, .next-action span { display: block; }
       .next-action strong { font-size: 13px; }
       .next-action span { margin-top: 4px; color: #a5f3fc; font-size: 12px; }
+      .same-wifi-warning { margin-top: 14px; border-radius: 18px; padding: 14px; background: rgba(245,158,11,.14); border: 1px solid rgba(245,158,11,.26); color: #fef3c7; font-size: 12px; line-height: 1.65; }
+      .same-wifi-warning strong { display: block; margin-bottom: 4px; color: #fde68a; }
       details.recovery { margin-top: 18px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,.04); color: #cbd5e1; font-size: 12px; line-height: 1.6; }
       details.recovery summary { cursor: pointer; font-weight: 800; color: #e4e4e7; }
       textarea { box-sizing: border-box; width: 100%; min-height: 150px; margin-top: 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 14px; background: rgba(0,0,0,.18); color: #cbd5e1; padding: 12px; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1.55; }
@@ -1826,12 +1835,17 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
       <div class="pill">${htmlEscape(String(input.packet.desktopName || "LifeOS Desktop"))}</div>
       <p>这是通过 iCloud Drive 同步到这台 Apple 设备的 LifeOS 手机入口。先点“绑定这台设备”；已经绑定过时，可以直接打开手机聊天。</p>
       <p class="en">This LifeOS mobile entry was synced through iCloud Drive. Pair this device first, or open mobile chat if it is already paired.</p>
-      <div class="pill">${remoteReady ? "适合长期异地使用 / Ready for long-term remote use" : "可先打开，换网后请刷新 / Refresh after network changes"}</div>
+      <div class="pill">${reachabilityLabel}</div>
       <div class="age age-ok" id="entry-age-status">正在确认这个入口是否可用 / Checking whether this entry is usable...</div>
       <div class="next-action" id="lifeos-next-action">
         <strong>下一步只做这一步 / Do this one thing next</strong>
         <span id="lifeos-next-action-text">点“绑定这台设备”。已经绑定过就点“打开手机聊天”。 / Tap Pair This Device. If already paired, tap Open Mobile Chat.</span>
       </div>
+      ${sameWifiOnly ? `<div class="same-wifi-warning" id="lifeos-same-wifi-warning">
+        <strong>这个入口只适合同一 Wi-Fi / This entry only works on the same Wi-Fi</strong>
+        <span>如果手机和电脑在同一个 Wi-Fi，可以继续绑定。离家使用前，请回电脑端开启 Tailscale HTTPS Serve 或 Cloudflare Tunnel，然后重新导出 iCloud 入口。</span>
+        <span class="en">If the phone and desktop are on the same Wi-Fi, continue pairing. Before using it away from home, enable Tailscale HTTPS Serve or Cloudflare Tunnel on the desktop, then export a fresh iCloud entry.</span>
+      </div>` : ""}
       <a href="${htmlEscape(mobilePairUrl)}">绑定这台设备 / Pair This Device</a>
       <a class="secondary" href="${htmlEscape(mobileChatUrl)}">打开手机聊天 / Open Mobile Chat</a>
       <div class="meta">
@@ -1868,6 +1882,7 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
             const now = Date.now();
             const refreshAfter = Number(packet.refreshAfter || 0);
             const expiresAt = Number(packet.expiresAt || 0);
+            const sameWifiOnly = packet.sameWifiOnly === true;
             status.classList.remove("age-ok", "age-warn", "age-danger");
             if (expiresAt && now >= expiresAt) {
               status.classList.add("age-danger");
@@ -1876,11 +1891,15 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
             } else if (refreshAfter && now >= refreshAfter) {
               status.classList.add("age-warn");
               status.textContent = "这个入口可能不是最新。能打开就继续，打不开就回电脑端重新生成。 / This entry may not be the latest. Continue if it opens; otherwise create a fresh one on the desktop.";
-              if (nextAction) nextAction.textContent = "现在只做这一步：先点“绑定这台设备”。如果打不开，再回电脑端重新导出入口。 / Do this now: tap Pair This Device first. If it does not open, export a fresh entry on the desktop.";
+              if (nextAction) nextAction.textContent = sameWifiOnly
+                ? "现在只做这一步：同一 Wi-Fi 下先点“绑定这台设备”；离家使用请回电脑端开启 Tailscale 或 Cloudflare 后重新导出入口。 / Do this now: on the same Wi-Fi, tap Pair This Device. Away from home, enable Tailscale or Cloudflare on the desktop, then export a fresh entry."
+                : "现在只做这一步：先点“绑定这台设备”。如果打不开，再回电脑端重新导出入口。 / Do this now: tap Pair This Device first. If it does not open, export a fresh entry on the desktop.";
             } else {
               status.classList.add("age-ok");
               status.textContent = "这个入口可用。可以继续绑定或打开聊天。 / This entry is usable. You can pair or open chat.";
-              if (nextAction) nextAction.textContent = "现在只做这一步：点“绑定这台设备”。已经绑定过就点“打开手机聊天”。 / Do this now: tap Pair This Device. If already paired, tap Open Mobile Chat.";
+              if (nextAction) nextAction.textContent = sameWifiOnly
+                ? "现在只做这一步：同一 Wi-Fi 下点“绑定这台设备”；离家使用请先在电脑端开启 Tailscale 或 Cloudflare。 / Do this now: on the same Wi-Fi, tap Pair This Device. Away from home, enable Tailscale or Cloudflare on the desktop first."
+                : "现在只做这一步：点“绑定这台设备”。已经绑定过就点“打开手机聊天”。 / Do this now: tap Pair This Device. If already paired, tap Open Mobile Chat.";
             }
           } catch {
             status.classList.add("age-warn");
@@ -2528,6 +2547,7 @@ export function exportIcloudHandoff(reason = "manual") {
     fallbackCandidateCount: fallbackCandidates.length,
     notes: candidate.notes,
     fallbackCandidates,
+    sameWifiOnly: isIcloudEntrySameWifiOnly(candidate),
     remoteReadiness: diagnostics.remoteReadiness,
     recoveryActions: [
       "Refresh this iCloud entry after changing Wi-Fi, restarting a tunnel, or changing PUBLIC_BASE_URL.",

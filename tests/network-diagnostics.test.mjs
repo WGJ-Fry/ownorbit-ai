@@ -468,6 +468,7 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.match(packet.recoveryActions.join("\n"), /Refresh this iCloud entry after changing Wi-Fi/);
   assert.equal(packet.realtimeTransport, false);
   assert.equal(packet.transport, "icloud-handoff");
+  assert.equal(packet.sameWifiOnly, false);
   assert.equal(result.handoffHealth.checksumOk, true);
   assert.equal(result.handoffHealth.entryChecksumSha256, packet.entryChecksumSha256);
   assert.equal(result.handoffHealth.expectedChecksumSha256, packet.entryChecksumSha256);
@@ -522,6 +523,66 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.equal(history[0].fallbackCandidateCount, packet.fallbackCandidates.length);
   assert.equal(history[0].previousGeneratedAt, 0);
   assert.equal(fs.readdirSync(path.dirname(result.handoffFilePath)).some((name) => name.endsWith(".tmp")), false);
+});
+
+test("iCloud handoff entry page warns when the exported address only works on the same Wi-Fi", async (t) => {
+  const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-lan-entry-"));
+  const oldPort = process.env.LIFEOS_PORT;
+  const oldPublicBaseUrl = process.env.PUBLIC_BASE_URL;
+  const oldAppUrl = process.env.APP_URL;
+  const oldCloudflaredBin = process.env.LIFEOS_CLOUDFLARED_BIN;
+  const oldTailscaleBin = process.env.LIFEOS_TAILSCALE_BIN;
+  const oldIcloudDriveDir = process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+  const oldForceIcloud = process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+  const oldDeviceName = process.env.LIFEOS_DEVICE_NAME;
+
+  t.after(async () => {
+    if (oldPort === undefined) delete process.env.LIFEOS_PORT;
+    else process.env.LIFEOS_PORT = oldPort;
+    if (oldPublicBaseUrl === undefined) delete process.env.PUBLIC_BASE_URL;
+    else process.env.PUBLIC_BASE_URL = oldPublicBaseUrl;
+    if (oldAppUrl === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = oldAppUrl;
+    if (oldCloudflaredBin === undefined) delete process.env.LIFEOS_CLOUDFLARED_BIN;
+    else process.env.LIFEOS_CLOUDFLARED_BIN = oldCloudflaredBin;
+    if (oldTailscaleBin === undefined) delete process.env.LIFEOS_TAILSCALE_BIN;
+    else process.env.LIFEOS_TAILSCALE_BIN = oldTailscaleBin;
+    if (oldIcloudDriveDir === undefined) delete process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+    else process.env.LIFEOS_ICLOUD_DRIVE_DIR = oldIcloudDriveDir;
+    if (oldForceIcloud === undefined) delete process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+    else process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = oldForceIcloud;
+    if (oldDeviceName === undefined) delete process.env.LIFEOS_DEVICE_NAME;
+    else process.env.LIFEOS_DEVICE_NAME = oldDeviceName;
+    await rm(icloudDir, { recursive: true, force: true });
+  });
+
+  process.env.LIFEOS_PORT = "4567";
+  process.env.PUBLIC_BASE_URL = "http://192.168.0.50:4567";
+  delete process.env.APP_URL;
+  process.env.LIFEOS_CLOUDFLARED_BIN = "/definitely/missing/cloudflared";
+  process.env.LIFEOS_TAILSCALE_BIN = "/definitely/missing/tailscale";
+  process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = "1";
+  process.env.LIFEOS_ICLOUD_DRIVE_DIR = icloudDir;
+  process.env.LIFEOS_DEVICE_NAME = "Kitchen Mac";
+
+  const { exportIcloudHandoff } = await import(`../server/networkDiagnostics.ts?icloud-lan-entry-warning=${Date.now()}`);
+  const result = exportIcloudHandoff("lan-warning-test");
+  const html = await readFile(result.handoffFilePath, "utf8");
+  const packet = JSON.parse(await readFile(result.packetFilePath, "utf8"));
+
+  assert.equal(result.ok, true);
+  assert.equal(result.recommendedBaseUrl, "http://192.168.0.50:4567");
+  assert.equal(packet.sameWifiOnly, true);
+  assert.equal(packet.baseUrl, "http://192.168.0.50:4567");
+  assert.match(packet.entryChecksumSha256, /^[a-f0-9]{64}$/);
+  assert.match(html, /id="lifeos-same-wifi-warning"/);
+  assert.match(html, /这个入口只适合同一 Wi-Fi/);
+  assert.match(html, /This entry only works on the same Wi-Fi/);
+  assert.match(html, /开启 Tailscale HTTPS Serve 或 Cloudflare Tunnel/);
+  assert.match(html, /Away from home, enable Tailscale or Cloudflare/);
+  assert.match(html, /只适合同一 Wi-Fi \/ Same Wi-Fi only/);
+  assert.match(html, /packet\.sameWifiOnly === true/);
+  assert.equal(result.handoffHealth.checksumOk, true);
 });
 
 test("iCloud handoff export prunes expired entries from other desktops", async (t) => {

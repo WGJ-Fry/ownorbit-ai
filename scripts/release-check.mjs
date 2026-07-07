@@ -1488,6 +1488,9 @@ function checkAssets() {
     networkDiagnosticsSource.includes("data-lifeos-desktop-short-id") &&
     networkDiagnosticsSource.includes("data-lifeos-entry-same-wifi-only") &&
     networkDiagnosticsSource.includes("Same Wi-Fi only") &&
+    networkDiagnosticsSource.includes("sameWifiOnly") &&
+    networkDiagnosticsSource.includes("lifeos-same-wifi-warning") &&
+    networkDiagnosticsSource.includes("This entry only works on the same Wi-Fi") &&
     networkDiagnosticsSource.includes("If two desktops share a name") &&
     networkDiagnosticsSource.includes("Open the Recommended Entry") &&
     networkDiagnosticsSource.includes("Other desktop entries") &&
@@ -1497,6 +1500,9 @@ function checkAssets() {
     networkDiagnosticsSource.includes("Checking whether this entry is usable") &&
     networkDiagnosticsSource.includes("Create a fresh entry from the desktop") &&
     networkDiagnosticsTestSource.includes("class=\"entry primary\"") &&
+    networkDiagnosticsTestSource.includes("iCloud handoff entry page warns when the exported address only works on the same Wi-Fi") &&
+    networkDiagnosticsTestSource.includes("packet.sameWifiOnly") &&
+    networkDiagnosticsTestSource.includes("lifeos-same-wifi-warning") &&
     networkDiagnosticsTestSource.includes("lifeos-mobile-entry-old-mac.html") &&
     networkDiagnosticsTestSource.includes("下一步只做这一步") &&
     networkDiagnosticsTestSource.includes("高级排障") &&
