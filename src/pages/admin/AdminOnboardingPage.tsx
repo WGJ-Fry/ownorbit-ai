@@ -20,6 +20,23 @@ const providerLabels: Record<string, string> = {
   local: "Local Model",
 };
 
+const icloudHandoffExportErrorKeys: Record<string, string> = {
+  icloud_handoff_unsupported_platform: "onboarding.appleRemoteIcloudExportUnsupported",
+  icloud_handoff_drive_missing: "onboarding.appleRemoteIcloudExportDriveMissing",
+  icloud_handoff_account_unavailable: "onboarding.appleRemoteIcloudExportAccountUnavailable",
+  icloud_handoff_read_only: "onboarding.appleRemoteIcloudExportReadOnly",
+  icloud_handoff_no_phone_entry: "onboarding.appleRemoteIcloudExportNoPhoneEntry",
+  icloud_handoff_write_denied: "onboarding.appleRemoteIcloudExportWriteDenied",
+  icloud_handoff_no_space: "onboarding.appleRemoteIcloudExportNoSpace",
+  icloud_handoff_folder_missing: "onboarding.appleRemoteIcloudExportFolderMissing",
+  icloud_handoff_write_failed: "onboarding.appleRemoteIcloudExportWriteFailed",
+};
+
+function formatIcloudHandoffExportError(error: any, t: (key: any, params?: Record<string, any>) => string) {
+  const key = icloudHandoffExportErrorKeys[String(error?.code || "")];
+  return key ? t(key as any) : error?.message || t("onboarding.appleRemoteIcloudExportFailed");
+}
+
 export default function AdminOnboardingPage() {
   const { t } = useI18n();
   const [diagnostics, setDiagnostics] = useState<ConfigDiagnostics | null>(null);
@@ -153,7 +170,7 @@ export default function AdminOnboardingPage() {
       })
       .catch(async (error: any) => {
         if (cancelled) return;
-        setStatus(error.message || t("onboarding.appleRemoteIcloudExportFailed"));
+        setStatus(formatIcloudHandoffExportError(error, t));
         await getNetworkDiagnostics().then(setNetworkDiagnostics).catch(() => null);
       })
       .finally(() => {
@@ -259,7 +276,7 @@ export default function AdminOnboardingPage() {
       setNetworkDiagnostics(result.diagnostics);
       setStatus(t("onboarding.appleRemoteIcloudExported", { path: result.handoff.handoffFilePath || "-" }));
     } catch (error: any) {
-      setStatus(error.message || t("onboarding.appleRemoteIcloudExportFailed"));
+      setStatus(formatIcloudHandoffExportError(error, t));
       await getNetworkDiagnostics().then(setNetworkDiagnostics).catch(() => null);
     } finally {
       setBusy(null);

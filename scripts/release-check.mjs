@@ -1408,6 +1408,11 @@ function checkAssets() {
     icloudHandoffMonitorSource.includes("runIcloudHandoffStartupRefresh") &&
     serverSource.includes("runIcloudHandoffStartupRefresh") &&
     adminRoutesSource.includes("/api/v1/internal/icloud-handoff/refresh") &&
+    adminRoutesSource.includes("IcloudHandoffExportError") &&
+    adminRoutesSource.includes("icloud_handoff_export_failed") &&
+    networkDiagnosticsSource.includes("IcloudHandoffExportError") &&
+    networkDiagnosticsSource.includes("icloud_handoff_write_denied") &&
+    networkDiagnosticsSource.includes("normalizeIcloudHandoffWriteError") &&
     adminRoutesSource.includes("verifyDesktopInternalToken") &&
     desktopMainSourceForRuntimeConfig.includes("powerMonitor.on(\"resume\"") &&
     desktopMainSourceForRuntimeConfig.includes("refreshIcloudHandoffFromDesktopWake") &&
@@ -1426,6 +1431,10 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("appleRemoteIcloudSimpleOldEntryTitle") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudSimpleQrTitle") &&
     onboardingAppleRemoteSource.includes('simpleIcloudStatus.icon === "qr"') &&
+    adminOnboardingSource.includes("formatIcloudHandoffExportError") &&
+    adminOnboardingSource.includes("onboarding.appleRemoteIcloudExportWriteDenied") &&
+    translationsSource.includes("没有检测到 iCloud Drive") &&
+    translationsSource.includes("macOS blocked writing to iCloud Drive") &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudNextStepOldEntryTitle") &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudNextStepExportTitle") &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudNextStepPhoneTitle") &&

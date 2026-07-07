@@ -74,6 +74,48 @@ const ICLOUD_MDLS_ATTRIBUTES = [
   "kMDItemUbiquitousItemUploadingStatus",
 ];
 
+export type IcloudHandoffExportErrorCode =
+  | "icloud_handoff_unsupported_platform"
+  | "icloud_handoff_drive_missing"
+  | "icloud_handoff_account_unavailable"
+  | "icloud_handoff_read_only"
+  | "icloud_handoff_no_phone_entry"
+  | "icloud_handoff_write_denied"
+  | "icloud_handoff_no_space"
+  | "icloud_handoff_folder_missing"
+  | "icloud_handoff_write_failed";
+
+export class IcloudHandoffExportError extends Error {
+  code: IcloudHandoffExportErrorCode;
+
+  constructor(code: IcloudHandoffExportErrorCode, message: string) {
+    super(message);
+    this.name = "IcloudHandoffExportError";
+    this.code = code;
+  }
+}
+
+function icloudHandoffExportError(code: IcloudHandoffExportErrorCode, message: string) {
+  return new IcloudHandoffExportError(code, message);
+}
+
+function normalizeIcloudHandoffWriteError(error: any): IcloudHandoffExportError {
+  const nodeCode = String(error?.code || "").toUpperCase();
+  if (["EACCES", "EPERM"].includes(nodeCode)) {
+    return icloudHandoffExportError("icloud_handoff_write_denied", "LifeOS cannot write to the iCloud Drive folder. Check Files/iCloud permissions, then try again.");
+  }
+  if (["ENOSPC", "EDQUOT"].includes(nodeCode)) {
+    return icloudHandoffExportError("icloud_handoff_no_space", "iCloud Drive or this Mac does not have enough free space. Free some space, then try again.");
+  }
+  if (nodeCode === "ENOENT") {
+    return icloudHandoffExportError("icloud_handoff_folder_missing", "The iCloud Drive folder is not ready yet. Open iCloud Drive in Finder, wait for it to load, then try again.");
+  }
+  if (nodeCode === "EROFS") {
+    return icloudHandoffExportError("icloud_handoff_read_only", "The iCloud Drive folder is read-only. Check iCloud Drive permissions, then try again.");
+  }
+  return icloudHandoffExportError("icloud_handoff_write_failed", error?.message || "LifeOS could not write the iCloud mobile entry. Reopen iCloud Drive, then try again.");
+}
+
 function runCommand(command: string, args: string[] = []): CommandResult {
   try {
     const output = execFileSync(command, args, {
@@ -2478,23 +2520,27 @@ export function exportIcloudHandoff(reason = "manual") {
   const diagnostics = getNetworkDiagnostics();
   const status = diagnostics.icloud;
   if (!status.platformSupported) {
-    throw new Error("iCloud Handoff is available only on Apple platforms.");
+    throw icloudHandoffExportError("icloud_handoff_unsupported_platform", "iCloud Handoff is available only on Apple platforms.");
   }
   if (!status.available) {
-    throw new Error("iCloud Drive was not detected on this Mac. Enable iCloud Drive, then try again.");
+    throw icloudHandoffExportError("icloud_handoff_drive_missing", "iCloud Drive was not detected on this Mac. Enable iCloud Drive, then try again.");
   }
   if (status.availability.status === "account-unavailable") {
-    throw new Error("iCloud account or iCloud Drive is not enabled on this Mac. Sign in to Apple ID, enable iCloud Drive, then try again.");
+    throw icloudHandoffExportError("icloud_handoff_account_unavailable", "iCloud account or iCloud Drive is not enabled on this Mac. Sign in to Apple ID, enable iCloud Drive, then try again.");
   }
   if (status.availability.status === "read-only") {
-    throw new Error("LifeOS cannot write to iCloud Drive. Check iCloud Drive permissions, then try again.");
+    throw icloudHandoffExportError("icloud_handoff_read_only", "LifeOS cannot write to iCloud Drive. Check iCloud Drive permissions, then try again.");
   }
   const candidate = preferredHandoffCandidate(diagnostics.connectionCandidates);
   if (!candidate) {
-    throw new Error("No phone-reachable LifeOS entry is available yet. Use same Wi-Fi, Cloudflare, Tailscale, or another trusted HTTPS entry first.");
+    throw icloudHandoffExportError("icloud_handoff_no_phone_entry", "No phone-reachable LifeOS entry is available yet. Use same Wi-Fi, Cloudflare, Tailscale, or another trusted HTTPS entry first.");
   }
 
-  mkdirSync(status.appFolderPath, { recursive: true });
+  try {
+    mkdirSync(status.appFolderPath, { recursive: true });
+  } catch (error: any) {
+    throw normalizeIcloudHandoffWriteError(error);
+  }
   const generatedAt = Date.now();
   const previousPacket = readIcloudHandoffPacket(status.packetFilePath);
   const previousBaseUrl = String(previousPacket?.baseUrl || "");
@@ -2560,33 +2606,39 @@ export function exportIcloudHandoff(reason = "manual") {
     warning: "iCloud syncs this entry file; it does not create a realtime tunnel.",
   };
   packet.entryChecksumSha256 = buildIcloudEntryChecksum(packet);
-  writePrivateFileAtomic(status.packetFilePath, `${JSON.stringify(packet, null, 2)}\n`);
-  writePrivateFileAtomic(status.handoffFilePath, buildIcloudHandoffHtml({ generatedAt, candidate, packet }));
-  const cleanup = cleanupExpiredIcloudHandoffEntries(status.appFolderPath, status.desktopId, generatedAt);
-  const entries = readIcloudEntrySummaries(status.appFolderPath);
-  writePrivateFileAtomic(status.indexFilePath, buildIcloudHandoffIndexHtml({ generatedAt, currentDesktopId: status.desktopId, entries }));
-  writeIcloudHandoffHistory(status.historyFilePath, {
-    desktopId: status.desktopId,
-    desktopName: status.desktopName,
-    reason,
-    changeType,
-    previousBaseUrl,
-    previousCandidateId,
-    previousMode,
-    previousStability,
-    previousGeneratedAt,
-    previousEntryChecksumSha256,
-    previousFallbackCandidateCount: previousFallbackCandidates.length,
-    baseUrl: candidate.baseUrl,
-    candidateId: candidate.id,
-    mode: candidate.mode,
-    stability: candidate.stability,
-    fallbackCandidateCount: fallbackCandidates.length,
-    generatedAt,
-    entryChecksumSha256: packet.entryChecksumSha256,
-    htmlFileName: packet.htmlFileName,
-    packetFileName: packet.packetFileName,
-  });
+  let cleanup: ReturnType<typeof cleanupExpiredIcloudHandoffEntries>;
+  try {
+    writePrivateFileAtomic(status.packetFilePath, `${JSON.stringify(packet, null, 2)}\n`);
+    writePrivateFileAtomic(status.handoffFilePath, buildIcloudHandoffHtml({ generatedAt, candidate, packet }));
+    cleanup = cleanupExpiredIcloudHandoffEntries(status.appFolderPath, status.desktopId, generatedAt);
+    const entries = readIcloudEntrySummaries(status.appFolderPath);
+    writePrivateFileAtomic(status.indexFilePath, buildIcloudHandoffIndexHtml({ generatedAt, currentDesktopId: status.desktopId, entries }));
+    writeIcloudHandoffHistory(status.historyFilePath, {
+      desktopId: status.desktopId,
+      desktopName: status.desktopName,
+      reason,
+      changeType,
+      previousBaseUrl,
+      previousCandidateId,
+      previousMode,
+      previousStability,
+      previousGeneratedAt,
+      previousEntryChecksumSha256,
+      previousFallbackCandidateCount: previousFallbackCandidates.length,
+      baseUrl: candidate.baseUrl,
+      candidateId: candidate.id,
+      mode: candidate.mode,
+      stability: candidate.stability,
+      fallbackCandidateCount: fallbackCandidates.length,
+      generatedAt,
+      entryChecksumSha256: packet.entryChecksumSha256,
+      htmlFileName: packet.htmlFileName,
+      packetFileName: packet.packetFileName,
+    });
+  } catch (error: any) {
+    if (error instanceof IcloudHandoffExportError) throw error;
+    throw normalizeIcloudHandoffWriteError(error);
+  }
   return {
     ok: true,
     generatedAt,

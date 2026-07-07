@@ -9,7 +9,7 @@ import { createCalendarSyncRun, listCalendarSyncRuns } from "../calendarSyncRuns
 import { createAdminCredential, createAdminSession, getAdminSessionByToken, getBearerToken, isAdminConfigured, requireAdmin, verifyAdminPassword } from "../auth";
 import { createDiagnosticBundle, getReleaseDiagnostics } from "../diagnosticBundle";
 import { clearHttpOnlyCookie, getClientIp, rateLimit, setClientCookie, setHttpOnlyCookie } from "../httpSecurity";
-import { analyzeIcloudHandoffRepairPacket, cleanupIcloudHandoffEntries, exportIcloudHandoff, getNetworkDiagnostics, installTailscaleClient, maybeRefreshIcloudHandoff, startTailscaleHttpsServe, stopTailscaleHttpsServe, testConnectionUrl } from "../networkDiagnostics";
+import { IcloudHandoffExportError, analyzeIcloudHandoffRepairPacket, cleanupIcloudHandoffEntries, exportIcloudHandoff, getNetworkDiagnostics, installTailscaleClient, maybeRefreshIcloudHandoff, startTailscaleHttpsServe, stopTailscaleHttpsServe, testConnectionUrl } from "../networkDiagnostics";
 import { generateCloudflareNamedTunnelConfig, getCloudflareNamedTunnelStatus, getManagedCloudflareTunnelStatus, refreshCloudflareNamedTunnelConfigForPort, startConfiguredCloudflareNamedTunnel, startManagedCloudflareTunnel, stopManagedCloudflareTunnel } from "../cloudflareTunnel";
 import { saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
@@ -669,10 +669,12 @@ export function registerAdminRoutes(app: express.Express) {
         message: "LifeOS mobile entry was exported to iCloud Drive.",
       });
     } catch (error: any) {
+      const code = error instanceof IcloudHandoffExportError ? error.code : "icloud_handoff_export_failed";
       insertAuditLog("icloud_handoff_export_failed", "network", "icloud-handoff", {
         error: error?.message || "iCloud Handoff export failed",
+        code,
       }, (req as any).actor?.type, (req as any).actor?.id);
-      res.status(400).json({ error: error.message || "iCloud Handoff export failed", diagnostics: getAdminNetworkDiagnostics() });
+      res.status(400).json({ error: error.message || "iCloud Handoff export failed", code, diagnostics: getAdminNetworkDiagnostics() });
     }
   });
 

@@ -1754,7 +1754,11 @@ test("iCloud availability blocks export when Apple ID or iCloud Drive is disable
   assert.equal(diagnostics.icloud.availability.account.driveEnabled, false);
   assert.equal(diagnostics.icloud.syncReadiness.status, "missing-drive");
   assert.equal(diagnostics.icloud.syncReadiness.action, "enable-icloud-drive");
-  assert.throws(() => exportIcloudHandoff("test-account-disabled"), /iCloud account or iCloud Drive is not enabled/);
+  assert.throws(() => exportIcloudHandoff("test-account-disabled"), (error) => {
+    assert.equal(error.code, "icloud_handoff_account_unavailable");
+    assert.match(error.message, /iCloud account or iCloud Drive is not enabled/);
+    return true;
+  });
 });
 
 test("iCloud availability flags entry files that appear stuck syncing", async (t) => {

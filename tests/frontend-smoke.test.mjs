@@ -534,6 +534,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.simpleProviderLabel/);
   assert.match(onboardingSource, /exportIcloudHandoff/);
   assert.match(onboardingSource, /icloud-handoff-auto/);
+  assert.match(onboardingSource, /formatIcloudHandoffExportError/);
+  assert.match(onboardingSource, /icloud_handoff_write_denied/);
+  assert.match(onboardingSource, /onboarding\.appleRemoteIcloudExportWriteDenied/);
   assert.match(onboardingSource, /appleRemoteIcloudAutoSyncing/);
   assert.match(onboardingSource, /onboarding\.appleRemoteIcloudExported/);
   assert.match(onboardingSource, /onboarding-icloud-quick-entry/);
@@ -749,6 +752,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /renderLatestEntryRepairPrimaryAction/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudRepairUrlDiagnostics/);
   assert.match(translationsSource, /手机刚打开的是旧入口/);
+  assert.match(translationsSource, /没有检测到 iCloud Drive/);
+  assert.match(translationsSource, /macOS blocked writing to iCloud Drive/);
   assert.match(translationsSource, /Waiting for iCloud sync/);
   assert.match(onboardingAppleRemoteSource, /issueEventKindKeys/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudRepairSummaryBody/);
