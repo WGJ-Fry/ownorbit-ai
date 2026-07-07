@@ -663,6 +663,10 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding.simpleDeviceBody") &&
     adminOnboardingSource.includes("onboarding-icloud-quick-entry") &&
     adminOnboardingSource.includes("onboarding-icloud-phone-pickup") &&
+    adminOnboardingSource.includes("onboarding-icloud-same-wifi-notice") &&
+    adminOnboardingSource.includes("isIcloudEntrySameWifiOnly") &&
+    adminOnboardingSource.includes("simpleIcloudSameWifiActionTailscale") &&
+    adminOnboardingSource.includes("simpleIcloudSameWifiActionCloudflare") &&
     adminOnboardingSource.includes("getIcloudPhonePickupStatus") &&
     adminOnboardingSource.includes("simpleIcloudPickupStatus.actionKey") &&
     adminOnboardingSource.includes("getPrimaryIcloudAction") &&
@@ -704,6 +708,8 @@ function checkAssets() {
     translationsSource.includes("onboarding.simpleIcloudPickupConfirmedTitle") &&
     translationsSource.includes("手机已经拿到最新入口") &&
     translationsSource.includes("Phone has the latest entry") &&
+    translationsSource.includes("当前 Apple 入口只适合同一 Wi-Fi") &&
+    translationsSource.includes("This Apple entry only works on the same Wi-Fi") &&
     translationsSource.includes("iPhone 文件 App：iCloud Drive > LifeOS AI > lifeos-mobile-entry.html") &&
     translationsSource.includes("iPhone Files app: iCloud Drive > LifeOS AI > lifeos-mobile-entry.html") &&
     translationsSource.includes("onboarding.simpleAdvancedSummary") &&

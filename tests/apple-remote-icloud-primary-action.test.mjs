@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getPrimaryIcloudAction } from "../src/pages/admin/appleRemoteIcloudPrimaryAction.ts";
+import { getPrimaryIcloudAction, isIcloudEntrySameWifiOnly } from "../src/pages/admin/appleRemoteIcloudPrimaryAction.ts";
 
 function baseIcloud(overrides = {}) {
   return {
@@ -105,4 +105,22 @@ test("iCloud primary action tells users when the entry is ready to open on phone
   assert.equal(action.icon, "phone");
   assert.equal(action.actionKey, "onboarding.appleRemoteIcloudActionOpenFiles");
   assert.equal(action.cta, "none");
+});
+
+test("iCloud helper identifies same-Wi-Fi entries that cannot carry off-LAN realtime chat", () => {
+  assert.equal(isIcloudEntrySameWifiOnly({
+    recommendedMode: "lan",
+    recommendedStability: "local",
+    recommendedBaseUrl: "http://192.168.0.17:3000",
+  }), true);
+  assert.equal(isIcloudEntrySameWifiOnly({
+    mode: "configured",
+    stability: "stable",
+    baseUrl: "http://lifeos.local:3000",
+  }), true);
+  assert.equal(isIcloudEntrySameWifiOnly({
+    recommendedMode: "tailscale",
+    recommendedStability: "stable",
+    recommendedBaseUrl: "https://lifeos-mac.tailnet.example.ts.net",
+  }), false);
 });

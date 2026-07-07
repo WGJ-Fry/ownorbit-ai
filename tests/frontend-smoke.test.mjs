@@ -538,6 +538,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.appleRemoteIcloudExported/);
   assert.match(onboardingSource, /onboarding-icloud-quick-entry/);
   assert.match(onboardingSource, /onboarding-icloud-phone-pickup/);
+  assert.match(onboardingSource, /onboarding-icloud-same-wifi-notice/);
+  assert.match(onboardingSource, /isIcloudEntrySameWifiOnly/);
+  assert.match(onboardingSource, /simpleIcloudSameWifiActionTailscale/);
+  assert.match(onboardingSource, /simpleIcloudSameWifiActionCloudflare/);
   assert.match(onboardingSource, /getIcloudPhonePickupStatus/);
   assert.match(onboardingSource, /simpleIcloudPickupStatus\.actionKey/);
   assert.match(onboardingSource, /getPrimaryIcloudAction/);
@@ -623,6 +627,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudNextStepExportTitle/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudNextStepPhoneTitle/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /latestEntryRepair\.needsQr/);
+  assert.match(appleRemoteIcloudPrimaryActionSource, /isIcloudEntrySameWifiOnly/);
   assert.match(icloudPhonePickupStatusSource, /simpleIcloudPickupConfirmedTitle/);
   assert.match(icloudPhonePickupStatusSource, /simpleIcloudPickupOldTitle/);
   assert.match(icloudPhonePickupStatusSource, /simpleIcloudPickupIssueTitle/);
@@ -630,6 +635,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Only do this now/);
   assert.match(translationsSource, /手机已经拿到最新入口/);
   assert.match(translationsSource, /Phone has the latest entry/);
+  assert.match(translationsSource, /当前 Apple 入口只适合同一 Wi-Fi/);
+  assert.match(translationsSource, /This Apple entry only works on the same Wi-Fi/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleReadyTitle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleAccountTitle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleAccountBody/);

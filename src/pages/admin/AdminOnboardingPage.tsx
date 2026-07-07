@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type React from "react";
-import { AlertTriangle, ArrowRight, CheckCircle2, Cloud, DatabaseBackup, KeyRound, Loader2, QrCode, RefreshCw, ShieldAlert, SlidersHorizontal, Sparkles, Smartphone } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2, Cloud, DatabaseBackup, KeyRound, Loader2, QrCode, RefreshCw, ShieldAlert, SlidersHorizontal, Sparkles, Smartphone, Wifi } from "lucide-react";
 import { cleanupIcloudHandoffEntries, completeOnboarding, createBackup, exportIcloudHandoff, getBackupSchedule, getConfigDiagnostics, getNetworkDiagnostics, getOnboardingStatus, listAiProviders, listBackups, listDevices, saveAiProviderKey, saveDesktopConnectionConfig, startCloudflareTunnel, startTailscaleHttpsServe, testAiProvider, testConnectionUrl, updateActiveAiProvider, updateAiProviderModel, updateBackupSchedule } from "../../services/lifeosApi";
 import type { AiProviderId, AiProviderStatus, BackupRecord, BackupSchedule, BoundDevice, ConfigDiagnostics, NetworkDiagnostics, OnboardingStatus } from "../../services/lifeosApi";
 import LanguageSwitcher from "../../i18n/LanguageSwitcher";
@@ -10,7 +10,7 @@ import OnboardingHandoffCard from "./OnboardingHandoffCard";
 import OnboardingRecoveryCard from "./OnboardingRecoveryCard";
 import { buildOnboardingHandoffSummary } from "../../services/onboardingHandoffSummary";
 import { appendIcloudAutoRefreshStatus } from "./icloudAutoRefreshStatus";
-import { getPrimaryIcloudAction } from "./appleRemoteIcloudPrimaryAction";
+import { getPrimaryIcloudAction, isIcloudEntrySameWifiOnly } from "./appleRemoteIcloudPrimaryAction";
 import { getIcloudPhonePickupStatus } from "./icloudPhonePickupStatus";
 
 const providerLabels: Record<string, string> = {
@@ -73,6 +73,12 @@ export default function AdminOnboardingPage() {
     latestEntryRepair: icloud?.latestEntryRepair || null,
   });
   const simpleIcloudPickupTime = simpleIcloudPickupStatus.confirmedAt ? new Date(simpleIcloudPickupStatus.confirmedAt).toLocaleString() : "-";
+  const simpleIcloudSameWifiOnly = isIcloudEntrySameWifiOnly(icloud);
+  const simpleIcloudOffLanAction = networkDiagnostics?.tailscale.installed
+    ? "tailscale"
+    : networkDiagnostics?.cloudflare.installed
+    ? "cloudflare"
+    : "guide";
   const localizedStepMeta = (stepId: OnboardingStatus["steps"][number]["id"], done: boolean) => {
     switch (stepId) {
       case "ai":
@@ -579,6 +585,55 @@ export default function AdminOnboardingPage() {
                         </div>
                       </div>
                     </div>
+                    {simpleIcloudSameWifiOnly ? (
+                      <div data-testid="onboarding-icloud-same-wifi-notice" className="mt-3 rounded-xl border border-amber-300/20 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-50">
+                        <div className="flex gap-2">
+                          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold">{t("onboarding.simpleIcloudSameWifiTitle")}</div>
+                            <div className="mt-1 text-amber-50/80">{t("onboarding.simpleIcloudSameWifiBody")}</div>
+                            <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-100/10 bg-black/15 p-2 font-bold">
+                              <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                              <span>
+                                {t("onboarding.appleRemoteIcloudOneNextAction", {
+                                  action: t(simpleIcloudOffLanAction === "tailscale"
+                                    ? "onboarding.simpleIcloudSameWifiActionTailscale"
+                                    : simpleIcloudOffLanAction === "cloudflare"
+                                    ? "onboarding.simpleIcloudSameWifiActionCloudflare"
+                                    : "onboarding.simpleIcloudSameWifiActionGuide"),
+                                })}
+                              </span>
+                            </div>
+                            {simpleIcloudOffLanAction === "tailscale" ? (
+                              <button
+                                type="button"
+                                onClick={handleStartTailscaleRemote}
+                                disabled={Boolean(busy)}
+                                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-100/20 bg-black/15 px-3 py-2 text-xs font-bold text-amber-50 disabled:opacity-50"
+                              >
+                                {busy === "remote-tailscale" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wifi className="h-3.5 w-3.5" />}
+                                {t("onboarding.simpleIcloudSameWifiStartTailscale")}
+                              </button>
+                            ) : simpleIcloudOffLanAction === "cloudflare" ? (
+                              <button
+                                type="button"
+                                onClick={handleStartCloudflareRemote}
+                                disabled={Boolean(busy)}
+                                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-100/20 bg-black/15 px-3 py-2 text-xs font-bold text-amber-50 disabled:opacity-50"
+                              >
+                                {busy === "remote-cloudflare" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Cloud className="h-3.5 w-3.5" />}
+                                {t("onboarding.simpleIcloudSameWifiStartCloudflare")}
+                              </button>
+                            ) : (
+                              <a href="/admin/settings#mobile-connect" className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-100/20 bg-black/15 px-3 py-2 text-xs font-bold text-amber-50">
+                                <SlidersHorizontal className="h-3.5 w-3.5" />
+                                {t("onboarding.simpleIcloudSameWifiOpenGuide")}
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
                 <div className="mt-4 grid gap-3">

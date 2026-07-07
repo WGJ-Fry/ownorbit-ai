@@ -12,6 +12,30 @@ export type IcloudPrimaryAction = {
   cta: "export" | "qr" | "none";
 };
 
+function isPrivateNetworkHost(hostname: string) {
+  const host = String(hostname || "").trim().toLowerCase();
+  if (!host || host === "localhost" || host.endsWith(".local")) return true;
+  if (/^127\./.test(host)) return true;
+  if (/^10\./.test(host)) return true;
+  if (/^192\.168\./.test(host)) return true;
+  const match = host.match(/^172\.(\d+)\./);
+  return Boolean(match && Number(match[1]) >= 16 && Number(match[1]) <= 31);
+}
+
+export function isIcloudEntrySameWifiOnly(entry?: Pick<NetworkDiagnostics["icloud"], "recommendedBaseUrl" | "recommendedMode" | "recommendedStability"> | Pick<NetworkDiagnostics["icloud"]["availableEntries"][number], "baseUrl" | "mode" | "stability"> | null) {
+  if (!entry) return false;
+  const mode = String("recommendedMode" in entry ? entry.recommendedMode : entry.mode || "").toLowerCase();
+  const stability = String("recommendedStability" in entry ? entry.recommendedStability : entry.stability || "").toLowerCase();
+  const baseUrl = String("recommendedBaseUrl" in entry ? entry.recommendedBaseUrl : entry.baseUrl || "");
+  if (mode === "lan" || mode === "local" || stability === "local") return true;
+  try {
+    const url = new URL(baseUrl);
+    return url.protocol === "http:" && isPrivateNetworkHost(url.hostname);
+  } catch {
+    return /^http:\/\/(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/i.test(baseUrl);
+  }
+}
+
 export function getPrimaryIcloudAction(input: {
   icloud: NetworkDiagnostics["icloud"] | undefined;
   latestEntryRepair: IcloudLatestEntryRepair | null;
