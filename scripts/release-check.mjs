@@ -3558,6 +3558,7 @@ function checkReleaseDocs() {
     "docs/user-install-guide.md",
     "docs/promotion-kit.md",
     "docs/faq.md",
+    "docs/icloud-data-sync-design.md",
   ];
   const publicReleaseDocs = publicReleaseDocPaths
     .filter((relativePath) => exists(relativePath))
@@ -3724,6 +3725,34 @@ function checkReleaseDocs() {
     }
   } else {
     warn("release checklist is missing: docs/release-checklist.md");
+  }
+
+  if (exists("docs/icloud-data-sync-design.md")) {
+    const icloudDataSyncDesign = fs.readFileSync(path.join(rootDir, "docs/icloud-data-sync-design.md"), "utf8");
+    const roadmap = exists("docs/version-roadmap.md") ? fs.readFileSync(path.join(rootDir, "docs/version-roadmap.md"), "utf8") : "";
+    const requiredIcloudDataSyncMarkers = [
+      "iCloud Drive to sync the mobile entry files",
+      "It does not sync chat history, memory, tasks, device credentials, SQLite databases, AI keys",
+      "Required Native Architecture",
+      "CloudKit container owned by the app bundle",
+      "No secret, token, AI key, session cookie, or raw device credential may be written to iCloud Drive or CloudKit user records",
+      "Do not claim real iCloud data sync until all of this is true",
+      "真正 iCloud 数据同步",
+    ];
+    const missingIcloudDataSyncMarkers = requiredIcloudDataSyncMarkers.filter((marker) => !icloudDataSyncDesign.includes(marker));
+    if (
+      missingIcloudDataSyncMarkers.length === 0 &&
+      readmeEn.includes("docs/icloud-data-sync-design.md") &&
+      readmeZh.includes("docs/icloud-data-sync-design.md") &&
+      roadmap.includes("iCloud Drive currently syncs only mobile entry files") &&
+      roadmap.includes("真正 iCloud 数据同步")
+    ) {
+      pass("iCloud data sync design boundary separates current handoff files from future CloudKit/native sync");
+    } else {
+      warn(`iCloud data sync boundary is incomplete: ${missingIcloudDataSyncMarkers.join(", ") || "README/roadmap link missing"}`);
+    }
+  } else {
+    warn("iCloud data sync design boundary is missing: docs/icloud-data-sync-design.md");
   }
 
   if (exists("docs/github-release.md")) {

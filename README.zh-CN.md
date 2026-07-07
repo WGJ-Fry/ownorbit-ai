@@ -293,6 +293,7 @@ LifeOS 仍是 alpha 软件。Docker quickstart 是目前最稳定的演示路径
 - 默认不启用自动更新；升级需要从 GitHub Releases 手动下载，并校验 `SHA256SUMS`。
 - 当前公开桌面包仍是 unsigned alpha。macOS Developer ID 签名/公证 和 Windows Authenticode 签名不在本版本内，所以 Gatekeeper 或 SmartScreen 可能提示。
 - 远程诊断可以验证配置，但长期稳定性仍需要用户自己完成真实设备长测：手机蜂窝网络、Wi-Fi 切换、电脑重启恢复、旧二维码修复和隧道断开恢复。
+- iCloud 目前只同步手机入口文件，不会同步聊天记录、记忆、任务、设备凭证、SQLite 数据、AI Key 或生成程序状态；真正 iCloud 数据同步需要 CloudKit / iCloud Container 和 Apple 原生客户端。见 [iCloud 数据同步设计边界](docs/icloud-data-sync-design.md)。
 - Docker/local 路径可以读取 Markdown，也可以读取本地 `.ics` 日历/任务文件。
 - Apple Calendar、Google Calendar、系统提醒事项的完整后台账号同步还没发布。`v0.1.5-alpha` 只新增很窄的 Apple Calendar、Google Calendar/Tasks、系统提醒事项连接器路径，必须显式开启并由管理员确认后才会写入 LifeOS 之外的系统；写入会进入 SQLite 历史、审计日志，并显示受控回滚状态。
 - `.ics` 只是本地只读读取，不是双向日历/任务管理。

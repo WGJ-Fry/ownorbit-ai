@@ -31,6 +31,7 @@ These are not bugs hidden from users; they are the honest alpha boundary.
 | Manual update | Automatic updates are not enabled for the public unsigned alpha. | Users update by downloading the next release manually and verifying SHA256. Signed distributions can use a safe HTTPS feed later. |
 | Real-device remote acceptance | Automated checks, diagnostics, and evidence records exist, but each user must still run real phone/cellular/Wi-Fi/restart/tunnel tests on their own network. | Remote diagnostics can say the setup is plausible; only real-device evidence proves long-term stability. |
 | Calendar and tasks | Local `.ics` ingestion is read-only. Apple Calendar, Google Calendar/Tasks, and system reminders use opt-in previews and narrow confirmed writes; broad unattended account sync is not shipped. | LifeOS can preview and perform narrowly gated writes with audit and rollback evidence, but it is not a full background account sync system yet. |
+| iCloud data sync | iCloud Drive currently syncs only mobile entry files, not chats, memories, tasks, device credentials, SQLite data, AI keys, or generated app state. | Apple users can open the phone entry from Files, but true data sync needs CloudKit / iCloud Container plus native macOS/iOS clients. |
 | Studio generated programs | Blueprints, templates, readiness/quality scoring, repair queue, smoke evidence, and rollback exist, but product-grade unattended self-repair is not complete. | Users can generate and refine tools, but should review outputs and repair decisions manually. |
 | Mobile offline queue | Retry, clear, failure state, storage health, idempotent replay, recovery evidence, and manual-review conflict groups exist. Deep multi-device merge and extreme weak-network recovery are still improving. | Offline messages are protected from simple loss and duplicate replay, but complex conflicts still need visible user review. |
 | Native automation | Local actions are still mostly URL Scheme / browser / Shortcuts bridge flows, with only narrow opt-in native bridge paths. | It is safer and reviewable, but not a full native OS automation system yet. |
@@ -45,6 +46,7 @@ Scope:
 - Publish a new tag instead of moving `v0.1.5-alpha`.
 - Keep README, Chinese README, release notes, Docker image, desktop asset names, and current alpha limits strictly aligned.
 - Add stronger in-product prompts for missing real-device remote evidence, especially cellular, network switch, restart recovery, stale QR repair, tunnel interruption, and diagnostic export.
+- Keep iCloud handoff and true iCloud data sync separate: document the CloudKit/native-client gate and prevent release copy from implying chats, memories, tasks, device credentials, or AI keys sync through iCloud.
 - Improve mobile weak-network background recovery and multi-device conflict review after phone restart, browser storage pressure, and stale remote entries.
 - Productize the calendar/reminders connector permission review: clearer setup steps, narrower scopes, conflict preview, rollback plan, and acceptance evidence export.
 - Continue Studio generated-program reliability: richer visual diff, template-specific repair recipes, stricter smoke checks, and clearer recovery when a repair worker fails mid-run.
@@ -74,6 +76,7 @@ These capabilities should not be described as current release features until the
 - Automatic update enabled by default for unsigned alpha builds.
 - Broad Google Calendar/Google Tasks two-way sync beyond the narrow connector paths.
 - Fully productized Apple Calendar and system Reminders two-way sync beyond the current opt-in connector path.
+- True iCloud data sync through CloudKit / iCloud Container for chats, memories, tasks, device trust, or generated app state.
 - Fully automatic unattended Studio repair.
 - Full native OS automation beyond URL Scheme / browser / Shortcuts bridge actions.
 - Real-world remote acceptance completed for every user's network without user evidence.
@@ -118,6 +121,7 @@ These capabilities should not be described as current release features until the
 | 手动更新 | 公开 unsigned alpha 默认不启用自动更新。 | 用户需要手动下载新版并校验 SHA256。signed 分发以后可以使用安全 HTTPS feed。 |
 | 真实异地长测 | 自动诊断和证据记录已经有，但用户仍需在自己的网络里做手机蜂窝、换 Wi-Fi、电脑重启、隧道断开恢复等长测。 | 程序可以证明配置大体可用，但长期稳定仍要真实设备证据。 |
 | 日历和任务 | 本地 `.ics` 仍是只读读取。Apple Calendar、Google Calendar/Tasks、系统提醒事项使用显式开启的预览和窄范围确认写入；宽泛无人值守账号同步还没发布。 | 可以预览并在非常窄的授权路径里执行写入、审计和回滚，但还不是完整后台账号同步系统。 |
+| iCloud 数据同步 | iCloud Drive 目前只同步手机入口文件，不同步聊天、记忆、任务、设备凭证、SQLite 数据、AI Key 或生成程序状态。 | Apple 用户可以从“文件”App 打开手机入口，但真正数据同步需要 CloudKit / iCloud Container 和 macOS/iOS 原生客户端。 |
 | Studio 生成程序 | 已有蓝图、模板、就绪/质量评分、修复队列、烟测证据和回滚，但产品级无人值守自修复还没完成。 | 用户可以生成和继续调整工具，但仍应人工确认输出和修复决策。 |
 | 手机离线队列 | 已有重试、清空、失败状态、存储健康、幂等重放、恢复证据和人工复核冲突组，复杂多设备合并和极弱网后台恢复还在增强。 | 普通离线消息不容易丢，也能避免简单重复写入，但复杂冲突仍需要用户可见地处理。 |
 | 原生自动化 | 本地动作仍主要是 URL Scheme / 浏览器 / Shortcuts 桥，只开放很窄的 opt-in 原生桥路径。 | 更安全、更容易审计，但还不是完整系统级自动化。 |
@@ -132,6 +136,7 @@ These capabilities should not be described as current release features until the
 - 新打 tag，不移动旧的 `v0.1.5-alpha`。
 - README、中文 README、Release notes、Docker 镜像、桌面资产名和 alpha 限制必须严格一致。
 - 增强真实异地证据缺失提示，尤其是蜂窝网络、换网、重启恢复、旧二维码修复、隧道中断和诊断导出。
+- 继续区分 iCloud 入口同步和真正 iCloud 数据同步：把 CloudKit/原生客户端门槛写清楚，防止 Release 文案暗示聊天、记忆、任务、设备凭证或 AI Key 已经通过 iCloud 同步。
 - 增强手机弱网后台恢复和多端冲突复核，覆盖手机重启、浏览器存储压力和过期远程入口。
 - 产品化日历/提醒事项连接器权限复核：更清楚的设置步骤、更窄授权范围、冲突预览、回滚计划和验收证据导出。
 - 继续增强 Studio 生成程序可靠性：更清楚的视觉 diff、模板级修复策略、更严格烟测和修复失败恢复。
@@ -147,6 +152,7 @@ These capabilities should not be described as current release features until the
 - unsigned alpha 默认自动更新。
 - 超出窄 connector 路径的 Google Calendar / Google Tasks 双向同步。
 - 超出当前 opt-in connector 的 Apple Calendar / 系统提醒事项完整双向同步。
+- 通过 CloudKit / iCloud Container 同步聊天、记忆、任务、设备信任或生成程序状态的真正 iCloud 数据同步。
 - 完全无人值守 Studio 自修复。
 - 超出 URL Scheme / 浏览器 / Shortcuts 桥的完整原生 OS 自动化。
 - 不需要用户证据就能替所有网络完成真实异地验收。
