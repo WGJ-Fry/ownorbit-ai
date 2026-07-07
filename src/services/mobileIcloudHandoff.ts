@@ -56,6 +56,15 @@ export type MobileIcloudHandoffStatus = {
 
 export type MobileIcloudHandoffEntryFreshness = "fresh" | "stale" | "expired" | "legacy";
 
+export type MobileIcloudHandoffEntryRecommendation = {
+  recommendedEntry: MobileIcloudHandoffEntry | null;
+  recommendedKey: string;
+  otherEntries: MobileIcloudHandoffEntry[];
+  preferredEntry: MobileIcloudHandoffEntry | null;
+  preferredNeedsSwitch: boolean;
+  preferredSwitchReason: "none" | "default-stale" | "default-expired" | "default-legacy" | "default-failed";
+};
+
 export type MobileIcloudHandoffActionKey =
   | "mobileDevice.icloudHandoffActionReady"
   | "mobileDevice.icloudHandoffActionRetest"
@@ -799,6 +808,55 @@ export function getMobileIcloudHandoffEntryFreshness(entry: MobileIcloudHandoffE
   if (!entry.checksumSha256) return "legacy";
   if (entry.refreshAfter && now >= entry.refreshAfter) return "stale";
   return "fresh";
+}
+
+function isRecommendedMobileIcloudHandoffEntry(entry: MobileIcloudHandoffEntry, now = Date.now()) {
+  return getMobileIcloudHandoffEntryFreshness(entry, now) === "fresh" && entry.lastConnectivityOk !== false;
+}
+
+function mobileIcloudEntryScore(entry: MobileIcloudHandoffEntry, now = Date.now()) {
+  const freshness = getMobileIcloudHandoffEntryFreshness(entry, now);
+  const freshnessScore = freshness === "fresh" ? 40 : freshness === "stale" ? 20 : freshness === "legacy" ? 10 : 0;
+  const connectivityScore = entry.lastConnectivityOk === true ? 20 : entry.lastConnectivityOk === false ? -30 : 0;
+  const stabilityScore = entry.stability === "stable" ? 12 : entry.stability === "temporary" ? 4 : 0;
+  const modeScore = entry.mode === "tailscale" || entry.mode === "configured" ? 8 : entry.mode === "cloudflare" ? 6 : entry.mode === "lan" ? 2 : 0;
+  return freshnessScore + connectivityScore + stabilityScore + modeScore + Math.min(10, Math.max(0, Math.floor((entry.generatedAt || 0) / 1_000_000_000_000)));
+}
+
+export function getMobileIcloudHandoffEntryRecommendation(
+  entries = getStoredMobileIcloudHandoffEntries(),
+  options: { now?: number; preferredKey?: string } = {},
+): MobileIcloudHandoffEntryRecommendation {
+  const now = options.now || Date.now();
+  const preferredKey = options.preferredKey ?? getPreferredMobileIcloudHandoffEntryKey();
+  const uniqueEntries = entries.filter((entry, index, all) => (
+    all.findIndex((candidate) => mobileIcloudHandoffEntryKey(candidate) === mobileIcloudHandoffEntryKey(entry)) === index
+  ));
+  const preferredEntry = preferredKey ? uniqueEntries.find((entry) => mobileIcloudHandoffEntryKey(entry) === preferredKey) || null : null;
+  const usablePreferred = preferredEntry && isRecommendedMobileIcloudHandoffEntry(preferredEntry, now) ? preferredEntry : null;
+  const recommendedEntry = usablePreferred || [...uniqueEntries]
+    .sort((left, right) => {
+      const scoreDelta = mobileIcloudEntryScore(right, now) - mobileIcloudEntryScore(left, now);
+      return scoreDelta || (right.generatedAt || 0) - (left.generatedAt || 0);
+    })
+    .find((entry) => isRecommendedMobileIcloudHandoffEntry(entry, now)) || uniqueEntries[0] || null;
+  const recommendedKey = recommendedEntry ? mobileIcloudHandoffEntryKey(recommendedEntry) : "";
+  let preferredSwitchReason: MobileIcloudHandoffEntryRecommendation["preferredSwitchReason"] = "none";
+  if (preferredEntry && recommendedKey && mobileIcloudHandoffEntryKey(preferredEntry) !== recommendedKey) {
+    const freshness = getMobileIcloudHandoffEntryFreshness(preferredEntry, now);
+    if (preferredEntry.lastConnectivityOk === false) preferredSwitchReason = "default-failed";
+    else if (freshness === "expired") preferredSwitchReason = "default-expired";
+    else if (freshness === "stale") preferredSwitchReason = "default-stale";
+    else if (freshness === "legacy") preferredSwitchReason = "default-legacy";
+  }
+  return {
+    recommendedEntry,
+    recommendedKey,
+    otherEntries: recommendedKey ? uniqueEntries.filter((entry) => mobileIcloudHandoffEntryKey(entry) !== recommendedKey) : uniqueEntries,
+    preferredEntry,
+    preferredNeedsSwitch: preferredSwitchReason !== "none",
+    preferredSwitchReason,
+  };
 }
 
 export function getMobileIcloudHandoffStatus(entry = getStoredMobileIcloudHandoff(), currentHref?: string, now = Date.now()): MobileIcloudHandoffStatus | null {

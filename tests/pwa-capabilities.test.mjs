@@ -461,6 +461,68 @@ test("mobile iCloud handoff stores non-sensitive entry metadata and detects stal
   assert.doesNotMatch(packet, /entryGeneratedAt=/);
 });
 
+test("mobile iCloud handoff recommends a usable desktop when the default entry fails", async (t) => {
+  installLocalStorage();
+  t.after(cleanupLocalStorage);
+  const now = 1_800_000_000_000;
+  const {
+    getMobileIcloudHandoffEntryKey,
+    getMobileIcloudHandoffEntryRecommendation,
+  } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-recommendation-${Date.now()}`);
+  const staleDefault = {
+    source: "icloud",
+    generatedAt: now - 180_000,
+    refreshAfter: now - 60_000,
+    expiresAt: now + 60_000,
+    baseUrl: "https://old.example.com",
+    mode: "cloudflare",
+    stability: "temporary",
+    label: "Old tunnel",
+    desktopId: "old-mac",
+    desktopName: "Old Mac",
+    checksumSha256: "a".repeat(64),
+    savedAt: now - 180_000,
+    lastConnectivityTestedAt: now - 1_000,
+    lastConnectivityOk: false,
+    lastConnectivityError: "HTTP 502",
+  };
+  const freshStable = {
+    source: "icloud",
+    generatedAt: now,
+    refreshAfter: now + 120_000,
+    expiresAt: now + 240_000,
+    baseUrl: "https://new.example.com",
+    mode: "tailscale",
+    stability: "stable",
+    label: "New tailnet",
+    desktopId: "new-mac",
+    desktopName: "New Mac",
+    checksumSha256: "b".repeat(64),
+    savedAt: now,
+    lastConnectivityTestedAt: now,
+    lastConnectivityOk: true,
+  };
+
+  const recommendation = getMobileIcloudHandoffEntryRecommendation([staleDefault, freshStable], {
+    now,
+    preferredKey: getMobileIcloudHandoffEntryKey(staleDefault),
+  });
+
+  assert.equal(recommendation.recommendedEntry.desktopId, "new-mac");
+  assert.equal(recommendation.recommendedKey, getMobileIcloudHandoffEntryKey(freshStable));
+  assert.equal(recommendation.preferredNeedsSwitch, true);
+  assert.equal(recommendation.preferredSwitchReason, "default-failed");
+  assert.equal(recommendation.otherEntries.length, 1);
+  assert.equal(recommendation.otherEntries[0].desktopId, "old-mac");
+
+  const preferredFresh = getMobileIcloudHandoffEntryRecommendation([freshStable, staleDefault], {
+    now,
+    preferredKey: getMobileIcloudHandoffEntryKey(freshStable),
+  });
+  assert.equal(preferredFresh.recommendedEntry.desktopId, "new-mac");
+  assert.equal(preferredFresh.preferredNeedsSwitch, false);
+});
+
 test("mobile iCloud handoff launch runs connectivity check and stores the result", async (t) => {
   installLocalStorage();
   t.after(cleanupLocalStorage);

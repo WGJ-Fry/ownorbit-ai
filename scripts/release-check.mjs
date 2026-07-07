@@ -1922,13 +1922,18 @@ function checkAssets() {
     mobileRemoteEntryCardSource.includes("getPreferredMobileIcloudHandoffEntryKey") &&
     mobileRemoteEntryCardSource.includes("setPreferredMobileIcloudHandoffEntry") &&
     mobileRemoteEntryCardSource.includes("getMobileIcloudHandoffEntryFreshness") &&
+    mobileRemoteEntryCardSource.includes("getMobileIcloudHandoffEntryRecommendation") &&
     mobileRemoteEntryCardSource.includes("icloudEntryFreshnessKeys") &&
     mobileRemoteEntryCardSource.includes("forgetStoredMobileIcloudHandoffEntry") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffKnownDesktops") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffRecommendedDesktop") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffShowOtherDesktops") &&
+    mobileRemoteEntryCardSource.includes("showIcloudDesktopAdvanced") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffDefaultDesktop") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffMakeDefault") &&
     pwaCapabilitiesTestSource.includes("getPreferredMobileIcloudHandoffEntryKey") &&
     pwaCapabilitiesTestSource.includes("setPreferredMobileIcloudHandoffEntry") &&
+    pwaCapabilitiesTestSource.includes("recommends a usable desktop when the default entry fails") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffEntryExpired") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffEntryRefresh") &&
     mobileDeviceSource.includes("health?.remoteEntryMode") &&

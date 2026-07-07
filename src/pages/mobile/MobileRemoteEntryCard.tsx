@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Copy, RefreshCw, Star, Trash2, Wifi } from "lucide-react";
 import type { DeviceConnectivityReport } from "../../services/lifeosApi";
-import type { MobileIcloudHandoffEntry, MobileIcloudHandoffServerRepairStatus, MobileIcloudHandoffStatus } from "../../services/mobileIcloudHandoff";
-import { buildMobileIcloudHandoffRecoveryPacket, buildMobileIcloudHandoffUrl, forgetStoredMobileIcloudHandoffEntry, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffEntryFreshness, getPreferredMobileIcloudHandoffEntryKey, getStoredMobileIcloudHandoffEntries, setPreferredMobileIcloudHandoffEntry } from "../../services/mobileIcloudHandoff";
+import type { MobileIcloudHandoffEntry, MobileIcloudHandoffEntryRecommendation, MobileIcloudHandoffServerRepairStatus, MobileIcloudHandoffStatus } from "../../services/mobileIcloudHandoff";
+import { buildMobileIcloudHandoffRecoveryPacket, buildMobileIcloudHandoffUrl, forgetStoredMobileIcloudHandoffEntry, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffEntryFreshness, getMobileIcloudHandoffEntryKey, getMobileIcloudHandoffEntryRecommendation, getPreferredMobileIcloudHandoffEntryKey, getStoredMobileIcloudHandoffEntries, setPreferredMobileIcloudHandoffEntry } from "../../services/mobileIcloudHandoff";
 import type { OfflineMessageQueueSummary } from "../../services/offlineMessageQueue";
 import type { MobileConnectivityIssueKey, MobileConnectivityResult, MobileRecoveryHintKey, RemoteEntryStatus } from "../../services/pwaCapabilities";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -14,16 +14,20 @@ function readinessTone(ok: boolean) {
   return ok ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100" : "border-amber-400/20 bg-amber-500/10 text-amber-100";
 }
 
-function icloudEntryKey(entry: MobileIcloudHandoffEntry) {
-  return entry.desktopId || entry.checksumSha256 || entry.baseUrl;
-}
-
 const icloudEntryFreshnessKeys = {
   fresh: "mobileDevice.icloudHandoffEntryFresh",
   stale: "mobileDevice.icloudHandoffEntryRefresh",
   expired: "mobileDevice.icloudHandoffEntryExpired",
   legacy: "mobileDevice.icloudHandoffEntryLegacy",
 } as const;
+
+const icloudPreferredSwitchReasonKeys: Record<MobileIcloudHandoffEntryRecommendation["preferredSwitchReason"], string> = {
+  none: "mobileDevice.icloudHandoffRecommendedBody",
+  "default-stale": "mobileDevice.icloudHandoffDefaultSwitchStale",
+  "default-expired": "mobileDevice.icloudHandoffDefaultSwitchExpired",
+  "default-legacy": "mobileDevice.icloudHandoffDefaultSwitchLegacy",
+  "default-failed": "mobileDevice.icloudHandoffDefaultSwitchFailed",
+};
 
 function icloudEntryFreshnessTone(freshness: keyof typeof icloudEntryFreshnessKeys) {
   if (freshness === "fresh") return "bg-emerald-500/15 text-emerald-100";
@@ -67,6 +71,7 @@ export default function MobileRemoteEntryCard({
   const { t } = useI18n();
   const [copiedIcloudPacket, setCopiedIcloudPacket] = useState(false);
   const [showIcloudAdvanced, setShowIcloudAdvanced] = useState(false);
+  const [showIcloudDesktopAdvanced, setShowIcloudDesktopAdvanced] = useState(false);
   const [icloudEntries, setIcloudEntries] = useState(() => getStoredMobileIcloudHandoffEntries());
   const [preferredIcloudEntryKey, setPreferredIcloudEntryKey] = useState(() => getPreferredMobileIcloudHandoffEntryKey());
   const queueWaiting = queueSummary.failed > 0 || queueSummary.pending > 0 || queueSummary.syncing > 0;
@@ -79,6 +84,12 @@ export default function MobileRemoteEntryCard({
     ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100"
     : "border-sky-400/20 bg-sky-500/10 text-sky-100";
   const icloudActionKey = icloudHandoffStatus ? getMobileIcloudHandoffActionKey(icloudHandoffStatus) : null;
+  const icloudEntryRecommendation = getMobileIcloudHandoffEntryRecommendation(icloudEntries, { preferredKey: preferredIcloudEntryKey });
+  const recommendedIcloudEntry = icloudEntryRecommendation.recommendedEntry;
+  const otherIcloudEntries = icloudEntryRecommendation.otherEntries;
+  const icloudRecommendedBodyKey = (icloudEntryRecommendation.preferredNeedsSwitch
+    ? icloudPreferredSwitchReasonKeys[icloudEntryRecommendation.preferredSwitchReason]
+    : "mobileDevice.icloudHandoffRecommendedBody") as any;
   const copyIcloudRecoveryPacket = async () => {
     if (!icloudHandoffStatus) return;
     await navigator.clipboard.writeText(buildMobileIcloudHandoffRecoveryPacket(icloudHandoffStatus)).catch(() => null);
@@ -97,6 +108,60 @@ export default function MobileRemoteEntryCard({
     if (!setPreferredMobileIcloudHandoffEntry(entry)) return;
     setPreferredIcloudEntryKey(getPreferredMobileIcloudHandoffEntryKey());
     setIcloudEntries(getStoredMobileIcloudHandoffEntries());
+  };
+  const renderIcloudEntryRow = (entry: MobileIcloudHandoffEntry, options: { recommended?: boolean } = {}) => {
+    const key = getMobileIcloudHandoffEntryKey(entry);
+    const active = icloudHandoffStatus ? key === getMobileIcloudHandoffEntryKey(icloudHandoffStatus.entry) : false;
+    const preferred = preferredIcloudEntryKey === key;
+    const freshness = getMobileIcloudHandoffEntryFreshness(entry);
+    return (
+      <div
+        key={key}
+        className={`flex items-center gap-2 rounded-xl border ${options.recommended ? "border-sky-300/25 bg-sky-500/10" : "border-white/[0.08] bg-white/[0.04]"}`}
+      >
+        <button
+          type="button"
+          onClick={() => openIcloudEntry(entry)}
+          disabled={active}
+          className="flex min-w-0 flex-1 items-center justify-between gap-3 px-3 py-2 text-left disabled:cursor-default disabled:opacity-70"
+        >
+          <span className="min-w-0">
+            <span className="block truncate font-bold">{entry.desktopName || entry.label || t("mobileDevice.icloudHandoffUnknownDesktop")}</span>
+            <span className="mt-0.5 block truncate opacity-70">{entry.baseUrl}</span>
+          </span>
+          <span className="flex shrink-0 flex-col items-end gap-1">
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${icloudEntryFreshnessTone(freshness)}`}>
+              {t(icloudEntryFreshnessKeys[freshness] as any)}
+            </span>
+            {preferred ? <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-bold text-sky-100">{t("mobileDevice.icloudHandoffDefaultDesktop")}</span> : null}
+            {options.recommended ? <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-100">{t("mobileDevice.icloudHandoffRecommendedBadge")}</span> : null}
+            <span className="font-bold">{active ? t("mobileDevice.icloudHandoffCurrentDesktop") : t("mobileDevice.icloudHandoffOpenDesktop")}</span>
+          </span>
+        </button>
+        {!preferred ? (
+          <button
+            type="button"
+            aria-label={t("mobileDevice.icloudHandoffMakeDefault")}
+            title={t("mobileDevice.icloudHandoffMakeDefault")}
+            onClick={() => preferIcloudEntry(entry)}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-black/10 text-sky-100"
+          >
+            <Star className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
+        {!active ? (
+          <button
+            type="button"
+            aria-label={t("mobileDevice.icloudHandoffForgetDesktop")}
+            title={t("mobileDevice.icloudHandoffForgetDesktop")}
+            onClick={() => forgetIcloudEntry(entry)}
+            className="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-black/10 text-zinc-200"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
+      </div>
+    );
   };
 
   useEffect(() => {
@@ -165,60 +230,30 @@ export default function MobileRemoteEntryCard({
           {icloudEntries.length > 1 ? (
             <div className="mt-3 rounded-xl border border-white/[0.08] bg-black/10 p-2 text-xs">
               <div className="font-bold">{t("mobileDevice.icloudHandoffKnownDesktops")}</div>
-              <div className="mt-2 grid gap-2">
-                {icloudEntries.map((entry) => {
-                  const active = icloudEntryKey(entry) === icloudEntryKey(icloudHandoffStatus.entry);
-                  const preferred = preferredIcloudEntryKey === icloudEntryKey(entry);
-                  const freshness = getMobileIcloudHandoffEntryFreshness(entry);
-                  return (
-                    <div
-                      key={icloudEntryKey(entry)}
-                      className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.04]"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => openIcloudEntry(entry)}
-                        disabled={active}
-                        className="flex min-w-0 flex-1 items-center justify-between gap-3 px-3 py-2 text-left disabled:cursor-default disabled:opacity-70"
-                      >
-                        <span className="min-w-0">
-                          <span className="block truncate font-bold">{entry.desktopName || entry.label || t("mobileDevice.icloudHandoffUnknownDesktop")}</span>
-                          <span className="mt-0.5 block truncate opacity-70">{entry.baseUrl}</span>
-                        </span>
-                        <span className="flex shrink-0 flex-col items-end gap-1">
-                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${icloudEntryFreshnessTone(freshness)}`}>
-                            {t(icloudEntryFreshnessKeys[freshness] as any)}
-                          </span>
-                          {preferred ? <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-bold text-sky-100">{t("mobileDevice.icloudHandoffDefaultDesktop")}</span> : null}
-                          <span className="font-bold">{active ? t("mobileDevice.icloudHandoffCurrentDesktop") : t("mobileDevice.icloudHandoffOpenDesktop")}</span>
-                        </span>
-                      </button>
-                      {!preferred ? (
-                        <button
-                          type="button"
-                          aria-label={t("mobileDevice.icloudHandoffMakeDefault")}
-                          title={t("mobileDevice.icloudHandoffMakeDefault")}
-                          onClick={() => preferIcloudEntry(entry)}
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-black/10 text-sky-100"
-                        >
-                          <Star className="h-3.5 w-3.5" />
-                        </button>
-                      ) : null}
-                      {!active ? (
-                        <button
-                          type="button"
-                          aria-label={t("mobileDevice.icloudHandoffForgetDesktop")}
-                          title={t("mobileDevice.icloudHandoffForgetDesktop")}
-                          onClick={() => forgetIcloudEntry(entry)}
-                          className="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-black/10 text-zinc-200"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      ) : null}
+              <div className="mt-1 opacity-80">{t(icloudRecommendedBodyKey)}</div>
+              {recommendedIcloudEntry ? (
+                <div className="mt-2 grid gap-2">
+                  <div className="font-bold text-sky-100">{t("mobileDevice.icloudHandoffRecommendedDesktop")}</div>
+                  {renderIcloudEntryRow(recommendedIcloudEntry, { recommended: true })}
+                </div>
+              ) : null}
+              {otherIcloudEntries.length ? (
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowIcloudDesktopAdvanced((value) => !value)}
+                    className="inline-flex w-full items-center justify-center rounded-xl border border-white/[0.08] bg-black/10 px-3 py-2 text-xs font-bold"
+                  >
+                    {showIcloudDesktopAdvanced ? t("mobileDevice.icloudHandoffHideOtherDesktops") : t("mobileDevice.icloudHandoffShowOtherDesktops", { count: otherIcloudEntries.length })}
+                  </button>
+                  {showIcloudDesktopAdvanced ? (
+                    <div className="mt-2 grid gap-2">
+                      <div className="font-bold">{t("mobileDevice.icloudHandoffOtherDesktops")}</div>
+                      {otherIcloudEntries.map((entry) => renderIcloudEntryRow(entry))}
                     </div>
-                  );
-                })}
-              </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : null}
           <div className="mt-3 grid gap-2 rounded-xl border border-white/[0.08] bg-black/10 p-2 text-xs">
