@@ -474,4 +474,8 @@ test("Electron desktop keeps a startup failure window open when local core fails
   assert.match(desktopMain, /Export Desktop Diagnostics/);
   assert.match(desktopMain, /Open Logs Folder/);
   assert.match(desktopMain, /Copy Logs Path/);
+  assert.match(desktopMain, /lifeos:open-icloud-folder/);
+  assert.match(desktopMain, /openIcloudFolder/);
+  const desktopPreload = await readFile(path.join(rootDir, "desktop", "preload.cjs"), "utf8");
+  assert.match(desktopPreload, /openIcloudFolder/);
 });

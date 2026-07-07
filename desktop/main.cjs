@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 const http = require("http");
 const net = require("net");
+const os = require("os");
 const path = require("path");
 
 let mainWindow;
@@ -358,6 +359,28 @@ function openLogsFolder() {
   shell.openPath(path.dirname(desktopLogPath)).catch((error) => {
     writeDesktopLog("Failed to open logs folder", error?.message || String(error));
   });
+}
+
+function getIcloudDriveRoot() {
+  const override = String(process.env.LIFEOS_ICLOUD_DRIVE_DIR || "").trim();
+  return override ? path.resolve(override) : path.join(os.homedir(), "Library", "Mobile Documents", "com~apple~CloudDocs");
+}
+
+function openIcloudFolder() {
+  const root = getIcloudDriveRoot();
+  const appFolder = path.join(root, "LifeOS AI");
+  let target = appFolder;
+  try {
+    if (!fs.existsSync(target) && fs.existsSync(root)) fs.mkdirSync(target, { recursive: true });
+    if (!fs.existsSync(target)) target = fs.existsSync(root) ? root : path.dirname(root);
+  } catch (error) {
+    writeDesktopLog("Failed to prepare iCloud folder", error?.message || String(error));
+    target = fs.existsSync(root) ? root : path.dirname(root);
+  }
+  shell.openPath(target).catch((error) => {
+    writeDesktopLog("Failed to open iCloud folder", error?.message || String(error));
+  });
+  return target;
 }
 
 function openLocalConsoleInBrowser(pathname = "/admin/login") {
@@ -945,6 +968,7 @@ if (!hasSingleInstanceLock) {
       openLogsFolder();
       return true;
     });
+    ipcMain.handle("lifeos:open-icloud-folder", async () => openIcloudFolder());
     ipcMain.handle("lifeos:copy-logs-path", async () => copyLogsPath());
     ipcMain.handle("lifeos:open-local-console", async () => openLocalConsoleInBrowser());
     ipcMain.handle("lifeos:copy-local-address", async () => {

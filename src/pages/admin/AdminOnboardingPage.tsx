@@ -353,7 +353,7 @@ export default function AdminOnboardingPage() {
     }
   };
 
-  const handleDesktopRecoveryAction = async (action: "logs" | "copyLogs" | "copyAddress" | "diagnostics") => {
+  const handleDesktopRecoveryAction = async (action: "logs" | "copyLogs" | "copyAddress" | "diagnostics" | "icloudFolder") => {
     const desktop = (window as any).lifeosDesktop;
     if (!desktop) {
       setStatus(t("onboarding.desktopActionsUnavailable"));
@@ -371,6 +371,9 @@ export default function AdminOnboardingPage() {
       } else if (action === "copyAddress") {
         const localAddress = await desktop.copyLocalAddress();
         setStatus(t("onboarding.localAddressCopied", { address: localAddress || "-" }));
+      } else if (action === "icloudFolder") {
+        const icloudPath = await desktop.openIcloudFolder();
+        setStatus(t("onboarding.icloudFolderOpened", { path: icloudPath || "-" }));
       } else {
         const outputPath = await desktop.exportDiagnostics();
         setStatus(outputPath ? t("onboarding.diagnosticsExported", { path: outputPath }) : t("onboarding.diagnosticsCancelled"));
@@ -572,6 +575,18 @@ export default function AdminOnboardingPage() {
                           </div>
                           <p className="mt-1 opacity-75">{t("onboarding.simpleIcloudFilesActionBody")}</p>
                           <div className="mt-2 break-all rounded-lg bg-black/20 p-2 font-mono text-[11px] opacity-75">{icloud?.handoffFilePath || t("onboarding.simpleIcloudFilesPath")}</div>
+                          {desktopBridgeAvailable ? (
+                            <button
+                              type="button"
+                              data-testid="onboarding-icloud-open-folder"
+                              onClick={() => handleDesktopRecoveryAction("icloudFolder")}
+                              disabled={busy === "desktop-icloudFolder"}
+                              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 font-bold disabled:opacity-50"
+                            >
+                              {busy === "desktop-icloudFolder" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Cloud className="h-3.5 w-3.5" />}
+                              {t("onboarding.simpleIcloudOpenFolder")}
+                            </button>
+                          ) : null}
                         </div>
                         <a data-testid="onboarding-icloud-ready-qr" href="/admin/devices/pair" className="rounded-xl border border-cyan-200/20 bg-cyan-400 px-3 py-3 text-xs font-bold leading-relaxed text-[#061016] shadow-lg shadow-cyan-950/20 transition hover:bg-cyan-300">
                           <div className="flex gap-2">

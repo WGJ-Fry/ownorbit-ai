@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 const desktopBridge = {
   openLogsFolder: () => ipcRenderer.invoke("lifeos:open-logs-folder"),
+  openIcloudFolder: () => ipcRenderer.invoke("lifeos:open-icloud-folder"),
   exportDiagnostics: () => ipcRenderer.invoke("lifeos:export-desktop-diagnostics"),
   retryStartup: () => ipcRenderer.invoke("lifeos:retry-startup"),
   copyLogsPath: () => ipcRenderer.invoke("lifeos:copy-logs-path"),

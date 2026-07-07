@@ -544,6 +544,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding-icloud-same-wifi-notice/);
   assert.match(onboardingSource, /onboarding-icloud-ready-actions/);
   assert.match(onboardingSource, /onboarding-icloud-ready-qr/);
+  assert.match(onboardingSource, /onboarding-icloud-open-folder/);
+  assert.match(onboardingSource, /desktop\.openIcloudFolder/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudOpenFolder/);
+  assert.match(onboardingSource, /onboarding\.icloudFolderOpened/);
   assert.match(onboardingSource, /onboarding-icloud-phone-pickup-cta/);
   assert.match(onboardingSource, /onboarding-device-advanced-icloud-tools/);
   assert.match(onboardingSource, /onboarding\.simpleDeviceAdvancedTitle/);
@@ -754,6 +758,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /手机刚打开的是旧入口/);
   assert.match(translationsSource, /没有检测到 iCloud Drive/);
   assert.match(translationsSource, /macOS blocked writing to iCloud Drive/);
+  assert.match(translationsSource, /在 Finder 打开 iCloud 文件夹/);
+  assert.match(translationsSource, /Open iCloud Folder in Finder/);
   assert.match(translationsSource, /Waiting for iCloud sync/);
   assert.match(onboardingAppleRemoteSource, /issueEventKindKeys/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudRepairSummaryBody/);

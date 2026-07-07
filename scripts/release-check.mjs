@@ -683,6 +683,9 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding.appleRemoteIcloudOneNextAction") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudFilesPath") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudFilesActionTitle") &&
+    adminOnboardingSource.includes("onboarding-icloud-open-folder") &&
+    adminOnboardingSource.includes("desktop.openIcloudFolder") &&
+    adminOnboardingSource.includes("onboarding.simpleIcloudOpenFolder") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudQrActionTitle") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudOpenQr") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudRegenerate") &&
@@ -3180,6 +3183,7 @@ function checkSecurityConfig() {
   else warn("data cleanup lacks dry-run preview, protection backup, UI, audit, or tests");
 
   const desktopMain = exists("desktop/main.cjs") ? fs.readFileSync(path.join(rootDir, "desktop/main.cjs"), "utf8") : "";
+  const desktopPreload = exists("desktop/preload.cjs") ? fs.readFileSync(path.join(rootDir, "desktop/preload.cjs"), "utf8") : "";
   if (desktopMain.includes("showStartupFailureWindow")) pass("desktop startup failure window is implemented");
   else warn("desktop startup failure window is not implemented");
   if (desktopMain.includes("exportDesktopDiagnosticBundle")) pass("desktop diagnostic export is implemented");
@@ -3188,6 +3192,8 @@ function checkSecurityConfig() {
   else warn("desktop diagnostic does not include main window state");
   if (desktopMain.includes("openLogsFolder") && desktopMain.includes("Open Logs Folder")) pass("desktop logs folder menu action is implemented");
   else warn("desktop logs folder menu action is not implemented");
+  if (desktopMain.includes("lifeos:open-icloud-folder") && desktopMain.includes("openIcloudFolder") && desktopPreload.includes("openIcloudFolder")) pass("desktop bridge can open the LifeOS iCloud folder");
+  else warn("desktop bridge cannot open the LifeOS iCloud folder");
   if (desktopMain.includes("lifeos-desktop.log") && desktopMain.includes("tail: readLogTail()")) pass("desktop diagnostic includes redacted log tail");
   else warn("desktop diagnostic does not include a redacted log tail");
   if (desktopMain.includes("directoryLabel") && desktopMain.includes("System log directory is configured")) pass("desktop diagnostic exposes a safe logs directory label");
