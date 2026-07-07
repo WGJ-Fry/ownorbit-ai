@@ -524,27 +524,6 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
     }
   };
 
-  const renderIcloudFixActions = () => (
-    <div className="mt-3 grid gap-2 sm:grid-cols-2">
-      <button
-        type="button"
-        onClick={onExportIcloud}
-        disabled={!canExportIcloud || isBusy}
-        className="inline-flex items-center justify-center gap-2 rounded-xl border border-sky-300/20 bg-sky-500/10 px-3 py-2 text-xs font-bold text-sky-50 disabled:opacity-50"
-      >
-        {isIcloudBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-        {t("onboarding.appleRemoteRefreshIcloud")}
-      </button>
-      <a
-        href="/admin/devices/pair"
-        className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200/20 bg-black/15 px-3 py-2 text-xs font-bold text-amber-50"
-      >
-        <QrCode className="h-3.5 w-3.5" />
-        {t("onboarding.appleRemoteOpenQr")}
-      </a>
-    </div>
-  );
-
   const renderLatestEntryRepairUrls = (repair: IcloudLatestEntryRepair) => {
     const urls = compactLatestEntryRepairUrls(repair);
     if (!urls.length) return null;
@@ -558,6 +537,34 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
         ))}
       </div>
     );
+  };
+
+  const renderLatestEntryRepairPrimaryAction = (repair: IcloudLatestEntryRepair) => {
+    if (repair.action === "refresh-icloud") {
+      return (
+        <button
+          type="button"
+          onClick={onExportIcloud}
+          disabled={!canExportIcloud || isBusy}
+          className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-sky-300/20 bg-sky-500/10 px-3 py-2 text-xs font-bold text-sky-50 disabled:opacity-50"
+        >
+          {isIcloudBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+          {t("onboarding.appleRemoteIcloudRepairButtonRefresh")}
+        </button>
+      );
+    }
+    if (repair.action === "refresh-and-regenerate-qr") {
+      return (
+        <a
+          href="/admin/devices/pair"
+          className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-200/20 bg-black/15 px-3 py-2 text-xs font-bold text-amber-50"
+        >
+          <QrCode className="h-3.5 w-3.5" />
+          {t("onboarding.appleRemoteIcloudRepairButtonQr")}
+        </a>
+      );
+    }
+    return null;
   };
 
   const renderRepairRecommendationAction = (item: IcloudHandoffRepairAnalysis["recommendations"][number]) => {
@@ -907,8 +914,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                   <div className="mt-2 rounded-lg border border-current/10 bg-black/10 p-2 text-[11px] font-bold">
                     {t(latestEntryRepairActionKeys[latestEntryRepair.action])}
                   </div>
-                  {renderLatestEntryRepairUrls(latestEntryRepair)}
-                  {latestEntryRepair.needsRefresh || latestEntryRepair.needsQr ? renderIcloudFixActions() : null}
+                  {renderLatestEntryRepairPrimaryAction(latestEntryRepair)}
                 </div>
               </div>
             </div>
@@ -940,6 +946,12 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
             <div className="mt-3 break-all font-mono text-[11px] text-zinc-500">
               {icloud?.handoffFilePath || icloud?.openInstruction || t("onboarding.appleRemoteIcloudNoPath")}
             </div>
+            {latestEntryRepair && latestEntryRepair.status !== "none" ? (
+              <div className="mt-3 border-t border-white/[0.06] pt-3">
+                <div className="font-bold text-zinc-200">{t("onboarding.appleRemoteIcloudRepairUrlDiagnostics")}</div>
+                {renderLatestEntryRepairUrls(latestEntryRepair)}
+              </div>
+            ) : null}
             {icloudAvailability ? (
               <div className="mt-3 rounded-xl border border-white/[0.06] bg-[#060a10]/30 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">

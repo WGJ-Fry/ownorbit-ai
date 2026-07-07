@@ -1431,6 +1431,8 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("appleRemoteIcloudPairingExpired") &&
     onboardingAppleRemoteSource.includes("compactLatestEntryRepairUrls") &&
     onboardingAppleRemoteSource.includes("renderLatestEntryRepairUrls") &&
+    onboardingAppleRemoteSource.includes("renderLatestEntryRepairPrimaryAction") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudRepairUrlDiagnostics") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEventEntryUrl") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEventCurrentUrl") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEventStoredUrl") &&
@@ -1542,12 +1544,14 @@ function checkAssets() {
     translationsSource.includes("LAN IP changed") &&
     translationsSource.includes("Current version:") &&
     translationsSource.includes("Previous version:") &&
-    translationsSource.includes("Phone just opened an old entry") &&
+    translationsSource.includes("The phone just opened an old entry") &&
     translationsSource.includes("Phone opened an old entry") &&
+    translationsSource.includes("Do not keep using this entry") &&
+    translationsSource.includes("Waiting for iCloud sync") &&
     translationsSource.includes("Do this one thing next") &&
     translationsSource.includes("Next step: wait for iCloud sync") &&
     translationsSource.includes("New mobile QR needed") &&
-    translationsSource.includes("refresh the iCloud mobile entry and generate a fresh pairing QR") &&
+    translationsSource.includes("generate a fresh QR code") &&
     translationsSource.includes("Clean Old iCloud Entries") &&
     translationsSource.includes("The iCloud mobile entry was refreshed automatically") &&
     translationsSource.includes("Automatically switched the default desktop") &&
