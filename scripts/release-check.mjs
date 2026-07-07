@@ -1450,6 +1450,12 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEntryCurrent") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEntryRefreshAfter") &&
     networkDiagnosticsTestSource.includes("entry.desktopName === packet.desktopName") &&
+    networkDiagnosticsSource.includes("chooseIcloudRecommendedIndexEntry") &&
+    networkDiagnosticsSource.includes("Open the Recommended Entry") &&
+    networkDiagnosticsSource.includes("Other desktop entries") &&
+    networkDiagnosticsSource.includes("lifeos-entry-index-recommended-html-file") &&
+    networkDiagnosticsTestSource.includes("class=\"entry primary\"") &&
+    networkDiagnosticsTestSource.includes("lifeos-mobile-entry-old-mac.html") &&
     networkDiagnosticsTestSource.includes("iCloud acceptance summary separates synced entry from real-device evidence") &&
     networkDiagnosticsTestSource.includes("Mac desktop app was restarted") &&
     networkDiagnosticsTestSource.includes("disconnected and reconnected") &&

@@ -367,6 +367,35 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = "1";
   process.env.LIFEOS_ICLOUD_DRIVE_DIR = icloudDir;
 
+  const appDir = path.join(icloudDir, "LifeOS AI");
+  fs.mkdirSync(appDir, { recursive: true });
+  const otherGeneratedAt = Date.now() - 60_000;
+  await writeFile(path.join(appDir, "lifeos-mobile-entry-old-mac.json"), JSON.stringify({
+    kind: "lifeos-mobile-entry",
+    version: 3,
+    desktopId: "old-mac",
+    desktopName: "Old Mac",
+    desktopSlug: "old-mac",
+    htmlFileName: "lifeos-mobile-entry-old-mac.html",
+    packetFileName: "lifeos-mobile-entry-old-mac.json",
+    generatedAt: otherGeneratedAt,
+    refreshAfter: otherGeneratedAt + 24 * 60 * 60 * 1000,
+    expiresAt: otherGeneratedAt + 7 * 24 * 60 * 60 * 1000,
+    candidateId: "old-cloudflare",
+    label: "Old Cloudflare",
+    baseUrl: "https://old-lifeos.example.com",
+    mobilePairUrl: "https://old-lifeos.example.com/mobile/pair",
+    mobileChatUrl: "https://old-lifeos.example.com/mobile/chat",
+    mode: "cloudflare",
+    secure: true,
+    stability: "temporary",
+    requiresRestart: false,
+    transport: "icloud-handoff",
+    realtimeTransport: false,
+    entryChecksumSha256: "1".repeat(64),
+  }, null, 2));
+  await writeFile(path.join(appDir, "lifeos-mobile-entry-old-mac.html"), "<!doctype html><title>Old Mac</title>");
+
   const { exportIcloudHandoff } = await import(`../server/networkDiagnostics.ts?icloud-export=${Date.now()}`);
   const result = exportIcloudHandoff();
 
@@ -440,22 +469,30 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.equal(result.syncReadiness.action, "open-files-app");
   const indexHtml = await readFile(result.indexFilePath, "utf8");
   const history = JSON.parse(await readFile(result.historyFilePath, "utf8"));
-  assert.match(indexHtml, /选择要连接的电脑/);
-  assert.match(indexHtml, /Choose a Desktop/);
+  assert.match(indexHtml, /打开推荐入口/);
+  assert.match(indexHtml, /Open the Recommended Entry/);
+  assert.match(indexHtml, /通常只点第一个入口即可/);
+  assert.match(indexHtml, /Other desktop entries/);
+  assert.match(indexHtml, /class="entry primary"/);
+  assert.match(indexHtml, /打开这个入口 \/ Open this entry/);
   assert.match(indexHtml, /name="lifeos-entry-index-checksum" content="[a-f0-9]{64}"/);
-  assert.match(indexHtml, /name="lifeos-entry-index-entry-count" content="1"/);
+  assert.match(indexHtml, /name="lifeos-entry-index-entry-count" content="2"/);
   assert.match(indexHtml, /name="lifeos-entry-index-latest-entry-generated-at"/);
   assert.match(indexHtml, /name="lifeos-entry-index-writer-desktop-id"/);
+  assert.match(indexHtml, /name="lifeos-entry-index-recommended-desktop-id"/);
+  assert.match(indexHtml, /name="lifeos-entry-index-recommended-html-file"/);
   assert.match(indexHtml, new RegExp(packet.htmlFileName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.equal(indexHtml.indexOf(packet.htmlFileName) < indexHtml.indexOf("lifeos-mobile-entry-old-mac.html"), true);
   assert.equal(result.indexConsistency.status, "matching");
   assert.equal(result.indexConsistency.ok, true);
-  assert.equal(result.indexConsistency.entryCount, 1);
-  assert.equal(result.indexConsistency.expectedEntryCount, 1);
+  assert.equal(result.indexConsistency.entryCount, 2);
+  assert.equal(result.indexConsistency.expectedEntryCount, 2);
   assert.equal(Array.isArray(result.availableEntries), true);
   assert.equal(result.availableEntries.some((entry) => entry.desktopId === packet.desktopId), true);
+  assert.equal(result.availableEntries.some((entry) => entry.desktopId === "old-mac"), true);
   assert.equal(result.availableEntries.some((entry) => entry.desktopName === packet.desktopName && entry.baseUrl === packet.baseUrl && entry.expiresAt === packet.expiresAt), true);
   assert.equal(Array.isArray(result.entryHistory), true);
-  assert.equal(result.lifecycle.entryCount >= 1, true);
+  assert.equal(result.lifecycle.entryCount >= 2, true);
   assert.equal(result.lifecycle.retentionLimit, 12);
   assert.equal(result.lifecycle.expiredEntryCount, 0);
   assert.equal(history[0].desktopId, packet.desktopId);

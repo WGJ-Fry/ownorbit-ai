@@ -817,6 +817,40 @@ function writeIcloudHandoffHistory(historyFilePath: string, record: Record<strin
   return next;
 }
 
+function icloudEntryPhoneScore(
+  entry: NonNullable<ReturnType<typeof summarizeIcloudEntryPacket>>,
+  now: number,
+  currentDesktopId: string,
+) {
+  const expired = Boolean(entry.expiresAt && now >= entry.expiresAt);
+  const stale = Boolean(!expired && entry.refreshAfter && now >= entry.refreshAfter);
+  const freshnessScore = expired ? -100 : stale ? 20 : 60;
+  const currentDesktopScore = entry.desktopId === currentDesktopId ? 45 : 0;
+  const secureScore = entry.secure ? 12 : 0;
+  const stabilityScore = entry.stability === "stable" ? 14 : entry.stability === "temporary" ? 4 : 0;
+  const modeScore = entry.mode === "tailscale" || entry.mode === "configured" ? 12 : entry.mode === "cloudflare" ? 8 : entry.mode === "lan" ? 2 : 0;
+  const recencyScore = Math.min(10, Math.max(0, Math.floor((entry.generatedAt || 0) / 1_000_000_000_000)));
+  return freshnessScore + currentDesktopScore + secureScore + stabilityScore + modeScore + recencyScore;
+}
+
+function chooseIcloudRecommendedIndexEntry(input: {
+  generatedAt: number;
+  currentDesktopId: string;
+  entries: ReturnType<typeof readIcloudEntrySummaries>;
+}) {
+  const currentFreshEntry = input.entries.find((entry) => (
+    entry.desktopId === input.currentDesktopId &&
+    (!entry.expiresAt || input.generatedAt < entry.expiresAt)
+  ));
+  if (currentFreshEntry) return currentFreshEntry;
+  return [...input.entries]
+    .sort((left, right) => {
+      const scoreDelta = icloudEntryPhoneScore(right, input.generatedAt, input.currentDesktopId) - icloudEntryPhoneScore(left, input.generatedAt, input.currentDesktopId);
+      return scoreDelta || (right.generatedAt || 0) - (left.generatedAt || 0);
+    })
+    .find((entry) => !entry.expiresAt || input.generatedAt < entry.expiresAt) || input.entries[0] || null;
+}
+
 function buildIcloudHandoffIndexHtml(input: {
   generatedAt: number;
   currentDesktopId: string;
@@ -824,20 +858,31 @@ function buildIcloudHandoffIndexHtml(input: {
 }) {
   const latestEntryGeneratedAt = Math.max(0, ...input.entries.map((entry) => entry.generatedAt || 0));
   const indexChecksumSha256 = buildIcloudIndexChecksum({ generatedAt: input.generatedAt, entries: input.entries });
-  const rows = input.entries.length
-    ? input.entries.map((entry) => {
-      const isCurrent = entry.desktopId === input.currentDesktopId;
-      const status = entry.expiresAt && input.generatedAt >= entry.expiresAt
-        ? "已过期 / Expired"
-        : entry.refreshAfter && input.generatedAt >= entry.refreshAfter
-        ? "建议刷新 / Refresh suggested"
-        : "可用 / Usable";
-      return `<a class="entry" href="${htmlEscape(entry.htmlFileName)}">
-        <strong>${htmlEscape(entry.desktopName)}${isCurrent ? " · 当前电脑 / This Mac" : ""}</strong>
-        <span>${htmlEscape(entry.baseUrl)}</span>
-        <small>${htmlEscape(status)} · ${htmlEscape(new Date(entry.generatedAt).toLocaleString())}</small>
-      </a>`;
-    }).join("\n")
+  const recommendedEntry = chooseIcloudRecommendedIndexEntry(input);
+  const recommendedKey = recommendedEntry ? `${recommendedEntry.desktopId}:${recommendedEntry.generatedAt}:${recommendedEntry.htmlFileName}` : "";
+  const otherEntries = recommendedKey
+    ? input.entries.filter((entry) => `${entry.desktopId}:${entry.generatedAt}:${entry.htmlFileName}` !== recommendedKey)
+    : input.entries;
+  const renderEntry = (entry: NonNullable<typeof recommendedEntry>, options: { primary?: boolean } = {}) => {
+    const isCurrent = entry.desktopId === input.currentDesktopId;
+    const status = entry.expiresAt && input.generatedAt >= entry.expiresAt
+      ? "已过期 / Expired"
+      : entry.refreshAfter && input.generatedAt >= entry.refreshAfter
+      ? "建议刷新 / Refresh suggested"
+      : "可用 / Usable";
+    return `<a class="entry${options.primary ? " primary" : ""}" href="${htmlEscape(entry.htmlFileName)}">
+      <strong>${htmlEscape(entry.desktopName)}${isCurrent ? " · 当前电脑 / This Mac" : ""}</strong>
+      <span>${htmlEscape(entry.baseUrl)}</span>
+      <small>${htmlEscape(status)} · ${htmlEscape(new Date(entry.generatedAt).toLocaleString())}</small>
+      ${options.primary ? `<em>打开这个入口 / Open this entry</em>` : ""}
+    </a>`;
+  };
+  const rows = recommendedEntry
+    ? `${renderEntry(recommendedEntry, { primary: true })}
+      ${otherEntries.length ? `<details class="advanced">
+        <summary>其他电脑入口 / Other desktop entries (${otherEntries.length})</summary>
+        ${otherEntries.map((entry) => renderEntry(entry)).join("\n")}
+      </details>` : ""}`
     : `<div class="empty">还没有可用入口 / No entries yet</div>`;
   return `<!doctype html>
 <html lang="zh-CN">
@@ -849,6 +894,8 @@ function buildIcloudHandoffIndexHtml(input: {
     <meta name="lifeos-entry-index-entry-count" content="${htmlEscape(input.entries.length)}" />
     <meta name="lifeos-entry-index-latest-entry-generated-at" content="${htmlEscape(latestEntryGeneratedAt)}" />
     <meta name="lifeos-entry-index-writer-desktop-id" content="${htmlEscape(input.currentDesktopId)}" />
+    <meta name="lifeos-entry-index-recommended-desktop-id" content="${htmlEscape(recommendedEntry?.desktopId || "")}" />
+    <meta name="lifeos-entry-index-recommended-html-file" content="${htmlEscape(recommendedEntry?.htmlFileName || "")}" />
     <title>LifeOS AI Mobile Entries</title>
     <style>
       body { margin: 0; min-height: 100vh; background: #060a10; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: grid; place-items: center; padding: 20px; }
@@ -856,18 +903,22 @@ function buildIcloudHandoffIndexHtml(input: {
       h1 { margin: 0; font-size: 26px; letter-spacing: 0; }
       p { color: #a1a1aa; line-height: 1.65; }
       .entry { display: block; margin-top: 12px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09); color: #f4f4f5; text-decoration: none; }
+      .entry.primary { border-color: rgba(34,211,238,.45); background: rgba(8,145,178,.18); box-shadow: 0 16px 48px rgba(8,145,178,.2); }
       .entry strong, .entry span, .entry small { display: block; }
       .entry span { margin-top: 6px; color: #a5b4fc; word-break: break-all; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
       .entry small { margin-top: 8px; color: #94a3b8; }
+      .entry em { display: inline-block; margin-top: 12px; border-radius: 999px; background: #22d3ee; color: #031018; padding: 8px 12px; font-style: normal; font-weight: 800; }
+      details.advanced { margin-top: 14px; border-top: 1px solid rgba(255,255,255,.08); padding-top: 12px; }
+      details.advanced summary { cursor: pointer; color: #cbd5e1; font-weight: 800; }
       .empty { margin-top: 16px; padding: 14px; border-radius: 16px; color: #fde68a; background: rgba(245,158,11,.12); }
       .warn { margin-top: 16px; color: #fef3c7; font-size: 12px; line-height: 1.65; }
     </style>
   </head>
   <body>
     <main>
-      <h1>选择要连接的电脑 / Choose a Desktop</h1>
-      <p>如果你有多台 Mac，每台电脑会有自己的 LifeOS 入口。请选择当前想连接的那台电脑。</p>
-      <p>If you use multiple Macs, each desktop has its own LifeOS entry. Choose the desktop you want to connect to.</p>
+      <h1>打开推荐入口 / Open the Recommended Entry</h1>
+      <p>通常只点第一个入口即可。其他电脑入口已经放到高级区，避免误连旧电脑。</p>
+      <p>Usually open the first entry only. Other desktop entries are tucked into Advanced so stale desktops are harder to pick by mistake.</p>
       ${rows}
       <div class="warn">iCloud 只同步入口文件，不是实时网络隧道；异地实时聊天仍需要 Tailscale、Cloudflare Tunnel 或可信 HTTPS 入口。</div>
     </main>
