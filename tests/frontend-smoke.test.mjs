@@ -682,6 +682,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAcceptanceTitle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAcceptanceItemRealtime/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAcceptanceItemCellular/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAcceptanceItemRestart/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAcceptanceItemInterruption/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudPhoneConfirmMissing/);
   assert.match(onboardingAppleRemoteSource, /availableEntryCount/);
   assert.match(onboardingAppleRemoteSource, /latestHistory/);

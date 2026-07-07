@@ -979,7 +979,7 @@ export type NetworkDiagnostics = {
       recommendedAction: "export-icloud-entry" | "open-on-phone" | "regenerate-qr" | "choose-live-network-entry" | "record-real-world-check" | "ready";
       nextReviewAt?: number;
       items: Array<{
-        id: "icloud-entry-synced" | "phone-opened-current-entry" | "pairing-qr-current" | "realtime-entry-ready" | "cellular-mobile-chat" | "network-switch" | "old-entry-repair";
+        id: "icloud-entry-synced" | "phone-opened-current-entry" | "pairing-qr-current" | "realtime-entry-ready" | "cellular-mobile-chat" | "restart-restore" | "network-switch" | "network-interruption" | "old-entry-repair";
         status: "passed" | "needs-action" | "manual-required";
         severity: "ok" | "warning" | "danger";
         evidence: string;

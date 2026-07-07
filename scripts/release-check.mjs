@@ -1428,6 +1428,8 @@ function checkAssets() {
     icloudAcceptanceSource.includes("realtime-entry-ready") &&
     icloudAcceptanceSource.includes("choose-live-network-entry") &&
     icloudAcceptanceSource.includes("cellular-mobile-chat") &&
+    icloudAcceptanceSource.includes("restart-restore") &&
+    icloudAcceptanceSource.includes("network-interruption") &&
     icloudAcceptanceSource.includes("old-entry-repair") &&
     adminRoutesSource.includes("buildIcloudAcceptanceSummary") &&
     adminRoutesSource.includes("acceptance: buildIcloudAcceptanceSummary") &&
@@ -1435,12 +1437,16 @@ function checkAssets() {
     lifeosApiSource.includes("realtime-entry-ready") &&
     onboardingAppleRemoteSource.includes("icloudAcceptanceItemKeys") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceItemRealtime") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceItemRestart") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceItemInterruption") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceTitle") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEntriesTitle") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEntryCurrent") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEntryRefreshAfter") &&
     networkDiagnosticsTestSource.includes("entry.desktopName === packet.desktopName") &&
     networkDiagnosticsTestSource.includes("iCloud acceptance summary separates synced entry from real-device evidence") &&
+    networkDiagnosticsTestSource.includes("Mac desktop app was restarted") &&
+    networkDiagnosticsTestSource.includes("disconnected and reconnected") &&
     networkDiagnosticsTestSource.includes("not a stable HTTPS\\/VPN entry") &&
     networkDiagnosticsTestSource.includes("iCloud startup refresh records local core restart state") &&
     networkDiagnosticsTestSource.includes("iCloud handoff monitor refreshes stale desktop chooser index files") &&

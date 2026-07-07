@@ -8,7 +8,9 @@ export type IcloudAcceptanceItemId =
   | "pairing-qr-current"
   | "realtime-entry-ready"
   | "cellular-mobile-chat"
+  | "restart-restore"
   | "network-switch"
+  | "network-interruption"
   | "old-entry-repair";
 
 export type IcloudAcceptanceItem = {
@@ -172,7 +174,7 @@ function buildRealtimeEntryItem(icloud: IcloudLike, baseUrl: string): IcloudAcce
 }
 
 function manualItem(
-  id: Extract<IcloudAcceptanceItemId, "cellular-mobile-chat" | "network-switch" | "old-entry-repair">,
+  id: Extract<IcloudAcceptanceItemId, "cellular-mobile-chat" | "restart-restore" | "network-switch" | "network-interruption" | "old-entry-repair">,
   record: RemoteAcceptanceRecord | null,
   actionEvidence: string,
 ): IcloudAcceptanceItem {
@@ -276,7 +278,9 @@ export function buildIcloudAcceptanceSummary(input: {
       },
     buildRealtimeEntryItem(icloud, baseUrl),
     manualItem("cellular-mobile-chat", latestRemoteRecord(records, "cellular-mobile-chat", baseUrl, now), "Use a real iPhone on cellular data, open the iCloud entry, and send one mobile chat message."),
+    manualItem("restart-restore", latestRemoteRecord(records, "restart-restore", baseUrl, now), "Quit and reopen the Mac desktop app, then confirm the same iCloud-synced mobile entry still opens and the saved HTTPS/VPN address still serves the phone."),
     manualItem("network-switch", latestRemoteRecord(records, "network-switch", baseUrl, now), "Switch the phone between Wi-Fi and cellular while using the iCloud entry, then confirm chat reconnects."),
+    manualItem("network-interruption", latestRemoteRecord(records, "network-interruption", baseUrl, now), "Interrupt and restore the VPN or HTTPS tunnel once, then confirm the phone gets a clear recovery path and the iCloud entry does not silently point at a dead address."),
     oldEntryEvidencePassed
       ? {
         id: "old-entry-repair",

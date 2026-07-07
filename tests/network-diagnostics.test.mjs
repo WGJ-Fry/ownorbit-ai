@@ -61,11 +61,13 @@ test("iCloud acceptance summary separates synced entry from real-device evidence
   const missingRealDeviceEvidence = buildIcloudAcceptanceSummary({ icloud, now });
   assert.equal(missingRealDeviceEvidence.ready, false);
   assert.equal(missingRealDeviceEvidence.passed, 4);
-  assert.equal(missingRealDeviceEvidence.manualRequired, 3);
+  assert.equal(missingRealDeviceEvidence.manualRequired, 5);
   assert.equal(missingRealDeviceEvidence.recommendedAction, "record-real-world-check");
   assert.equal(missingRealDeviceEvidence.items.find((item) => item.id === "icloud-entry-synced")?.status, "passed");
   assert.equal(missingRealDeviceEvidence.items.find((item) => item.id === "realtime-entry-ready")?.status, "passed");
   assert.equal(missingRealDeviceEvidence.items.find((item) => item.id === "cellular-mobile-chat")?.status, "manual-required");
+  assert.equal(missingRealDeviceEvidence.items.find((item) => item.id === "restart-restore")?.status, "manual-required");
+  assert.equal(missingRealDeviceEvidence.items.find((item) => item.id === "network-interruption")?.status, "manual-required");
 
   const lanOnlyEntry = buildIcloudAcceptanceSummary({
     icloud: {
@@ -108,6 +110,18 @@ test("iCloud acceptance summary separates synced entry from real-device evidence
         baseUrl,
         note: "iPhone switched between Wi-Fi and cellular, then chat reconnected and queue recovered.",
         createdAt: now - 400,
+      },
+      {
+        id: "restart-restore",
+        baseUrl,
+        note: "Mac desktop app was restarted and the same HTTPS iCloud entry still opened mobile chat and health checks.",
+        createdAt: now - 300,
+      },
+      {
+        id: "network-interruption",
+        baseUrl,
+        note: "Tailscale or HTTPS tunnel disconnected and reconnected; the phone recovered without changing the iCloud entry.",
+        createdAt: now - 200,
       },
     ],
     now,

@@ -186,7 +186,9 @@ const icloudAcceptanceItemKeys: Record<NonNullable<NetworkDiagnostics["icloud"][
   "pairing-qr-current": "onboarding.appleRemoteIcloudAcceptanceItemQr",
   "realtime-entry-ready": "onboarding.appleRemoteIcloudAcceptanceItemRealtime",
   "cellular-mobile-chat": "onboarding.appleRemoteIcloudAcceptanceItemCellular",
+  "restart-restore": "onboarding.appleRemoteIcloudAcceptanceItemRestart",
   "network-switch": "onboarding.appleRemoteIcloudAcceptanceItemSwitch",
+  "network-interruption": "onboarding.appleRemoteIcloudAcceptanceItemInterruption",
   "old-entry-repair": "onboarding.appleRemoteIcloudAcceptanceItemOldEntry",
 };
 
