@@ -1454,8 +1454,14 @@ function checkAssets() {
     networkDiagnosticsSource.includes("Open the Recommended Entry") &&
     networkDiagnosticsSource.includes("Other desktop entries") &&
     networkDiagnosticsSource.includes("lifeos-entry-index-recommended-html-file") &&
+    networkDiagnosticsSource.includes("Do this one thing next") &&
+    networkDiagnosticsSource.includes("Advanced recovery") &&
+    networkDiagnosticsSource.includes("Checking whether this entry is usable") &&
+    networkDiagnosticsSource.includes("Create a fresh entry from the desktop") &&
     networkDiagnosticsTestSource.includes("class=\"entry primary\"") &&
     networkDiagnosticsTestSource.includes("lifeos-mobile-entry-old-mac.html") &&
+    networkDiagnosticsTestSource.includes("下一步只做这一步") &&
+    networkDiagnosticsTestSource.includes("高级排障") &&
     networkDiagnosticsTestSource.includes("iCloud acceptance summary separates synced entry from real-device evidence") &&
     networkDiagnosticsTestSource.includes("Mac desktop app was restarted") &&
     networkDiagnosticsTestSource.includes("disconnected and reconnected") &&

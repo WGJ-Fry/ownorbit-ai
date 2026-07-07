@@ -1732,6 +1732,12 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
       .age-ok { background: rgba(16,185,129,.14); color: #bbf7d0; }
       .age-warn { background: rgba(245,158,11,.15); color: #fde68a; }
       .age-danger { background: rgba(239,68,68,.15); color: #fecaca; }
+      .next-action { margin-top: 14px; border-radius: 18px; padding: 14px; background: rgba(34,211,238,.12); border: 1px solid rgba(34,211,238,.24); color: #cffafe; line-height: 1.65; }
+      .next-action strong, .next-action span { display: block; }
+      .next-action strong { font-size: 13px; }
+      .next-action span { margin-top: 4px; color: #a5f3fc; font-size: 12px; }
+      details.recovery { margin-top: 18px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,.04); color: #cbd5e1; font-size: 12px; line-height: 1.6; }
+      details.recovery summary { cursor: pointer; font-weight: 800; color: #e4e4e7; }
       textarea { box-sizing: border-box; width: 100%; min-height: 150px; margin-top: 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 14px; background: rgba(0,0,0,.18); color: #cbd5e1; padding: 12px; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1.55; }
       .copied { display: none; margin-top: 8px; color: #bbf7d0; font-size: 12px; font-weight: 800; }
     </style>
@@ -1743,7 +1749,11 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
       <p>这是通过 iCloud Drive 同步到这台 Apple 设备的 LifeOS 手机入口。先点“绑定这台设备”；已经绑定过时，可以直接打开手机聊天。</p>
       <p class="en">This LifeOS mobile entry was synced through iCloud Drive. Pair this device first, or open mobile chat if it is already paired.</p>
       <div class="pill">${remoteReady ? "适合长期异地使用 / Ready for long-term remote use" : "可先打开，换网后请刷新 / Refresh after network changes"}</div>
-      <div class="age age-ok" id="entry-age-status">正在检查入口是否过期 / Checking entry freshness...</div>
+      <div class="age age-ok" id="entry-age-status">正在确认这个入口是否可用 / Checking whether this entry is usable...</div>
+      <div class="next-action" id="lifeos-next-action">
+        <strong>下一步只做这一步 / Do this one thing next</strong>
+        <span id="lifeos-next-action-text">点“绑定这台设备”。已经绑定过就点“打开手机聊天”。 / Tap Pair This Device. If already paired, tap Open Mobile Chat.</span>
+      </div>
       <a href="${htmlEscape(mobilePairUrl)}">绑定这台设备 / Pair This Device</a>
       <a class="secondary" href="${htmlEscape(mobileChatUrl)}">打开手机聊天 / Open Mobile Chat</a>
       <div class="meta">
@@ -1760,17 +1770,19 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
         <li>如果旧二维码过期或打开了错误地址，请从电脑端重新生成二维码。</li>
       </ol>
       <div class="warn">iCloud 只同步这个入口文件，不会创建实时网络隧道。如果这里的地址只能在同一 Wi-Fi 使用，异地聊天仍需要一个可访问的 HTTPS 入口。</div>
-      <div class="panel">
+      <details class="recovery">
+        <summary>高级排障 / Advanced recovery</summary>
         <h2>排障摘要 / Recovery Summary</h2>
         <div>如果手机打不开，把下面这段信息复制给电脑端或开发者排查。它不包含绑定 token 或密码。</div>
         <textarea id="lifeos-recovery" readonly>${htmlEscape(recoverySummary)}</textarea>
         <button class="secondary" type="button" id="copy-recovery">复制修复信息 / Copy Recovery Info</button>
         <div class="copied" id="copy-status">已复制 / Copied</div>
-      </div>
+      </details>
       <script type="application/json" id="lifeos-entry">${scriptJson(input.packet)}</script>
       <script>
         (() => {
           const status = document.getElementById("entry-age-status");
+          const nextAction = document.getElementById("lifeos-next-action-text");
           const packetNode = document.getElementById("lifeos-entry");
           if (!status || !packetNode) return;
           try {
@@ -1781,17 +1793,21 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
             status.classList.remove("age-ok", "age-warn", "age-danger");
             if (expiresAt && now >= expiresAt) {
               status.classList.add("age-danger");
-              status.textContent = "入口已过期：请回电脑端重新导出 iCloud 手机入口，再重新打开。 / Entry expired: export a fresh iCloud mobile entry from the desktop, then reopen it.";
+              status.textContent = "这个入口旧了。请回电脑端重新生成入口。 / This entry is old. Create a fresh entry from the desktop.";
+              if (nextAction) nextAction.textContent = "现在只做这一步：回电脑端点“重新导出 iCloud 手机入口”，再从 iPhone 文件 App 打开最新入口。 / Do this now: export a fresh iCloud mobile entry on the desktop, then open the latest entry from the iPhone Files app.";
             } else if (refreshAfter && now >= refreshAfter) {
               status.classList.add("age-warn");
-              status.textContent = "建议刷新：换 Wi-Fi、重启电脑或重启隧道后，请回电脑端重新导出。 / Refresh suggested after Wi-Fi, desktop, or tunnel changes.";
+              status.textContent = "这个入口可能不是最新。能打开就继续，打不开就回电脑端重新生成。 / This entry may not be the latest. Continue if it opens; otherwise create a fresh one on the desktop.";
+              if (nextAction) nextAction.textContent = "现在只做这一步：先点“绑定这台设备”。如果打不开，再回电脑端重新导出入口。 / Do this now: tap Pair This Device first. If it does not open, export a fresh entry on the desktop.";
             } else {
               status.classList.add("age-ok");
-              status.textContent = "入口仍然新鲜：可以继续绑定或打开聊天。 / Entry is fresh. You can pair or open chat.";
+              status.textContent = "这个入口可用。可以继续绑定或打开聊天。 / This entry is usable. You can pair or open chat.";
+              if (nextAction) nextAction.textContent = "现在只做这一步：点“绑定这台设备”。已经绑定过就点“打开手机聊天”。 / Do this now: tap Pair This Device. If already paired, tap Open Mobile Chat.";
             }
           } catch {
             status.classList.add("age-warn");
-            status.textContent = "无法读取入口状态：如果打不开，请回电脑端重新导出。 / Could not read entry status; export again if it does not open.";
+            status.textContent = "无法确认这个入口。打不开时，请回电脑端重新生成。 / This entry cannot be checked. Create a fresh one on the desktop if it does not open.";
+            if (nextAction) nextAction.textContent = "现在只做这一步：先点“绑定这台设备”。如果失败，再回电脑端重新导出入口。 / Do this now: try Pair This Device first. If it fails, export a fresh entry on the desktop.";
           }
         })();
         document.getElementById("copy-recovery")?.addEventListener("click", async () => {
