@@ -800,6 +800,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Off-LAN realtime entry/);
   assert.match(translationsSource, /蜂窝网络聊天/);
   assert.match(translationsSource, /Cellular mobile chat/);
+  assert.match(onboardingAppleRemoteSource, /icloudAcceptanceEvidenceKeys/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAcceptanceEvidenceDetail/);
+  assert.match(translationsSource, /iCloud 只负责把入口交给手机/);
+  assert.match(translationsSource, /iCloud only hands the entry to the phone/);
+  assert.match(translationsSource, /技术证据/);
+  assert.match(translationsSource, /Technical evidence/);
   assert.match(translationsSource, /手机入口已同步/);
   assert.match(translationsSource, /手机打开的入口/);
   assert.match(translationsSource, /Entry opened by phone/);

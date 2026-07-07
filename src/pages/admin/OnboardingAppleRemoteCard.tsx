@@ -201,6 +201,18 @@ const icloudAcceptanceActionKeys: Record<NonNullable<NetworkDiagnostics["icloud"
   ready: "onboarding.appleRemoteIcloudAcceptanceActionReady",
 };
 
+const icloudAcceptanceEvidenceKeys: Record<NonNullable<NetworkDiagnostics["icloud"]["acceptance"]>["items"][number]["id"], TranslationKey> = {
+  "icloud-entry-synced": "onboarding.appleRemoteIcloudAcceptanceEvidenceSynced",
+  "phone-opened-current-entry": "onboarding.appleRemoteIcloudAcceptanceEvidencePhone",
+  "pairing-qr-current": "onboarding.appleRemoteIcloudAcceptanceEvidenceQr",
+  "realtime-entry-ready": "onboarding.appleRemoteIcloudAcceptanceEvidenceRealtime",
+  "cellular-mobile-chat": "onboarding.appleRemoteIcloudAcceptanceEvidenceCellular",
+  "restart-restore": "onboarding.appleRemoteIcloudAcceptanceEvidenceRestart",
+  "network-switch": "onboarding.appleRemoteIcloudAcceptanceEvidenceSwitch",
+  "network-interruption": "onboarding.appleRemoteIcloudAcceptanceEvidenceInterruption",
+  "old-entry-repair": "onboarding.appleRemoteIcloudAcceptanceEvidenceOldEntry",
+};
+
 const issueEventKindKeys: Record<NonNullable<NetworkDiagnostics["icloud"]["latestEntryIssueEvent"]>["eventType"], TranslationKey> = {
   "opened-current-entry": "onboarding.appleRemoteIcloudIssueKindCurrent",
   "ignored-superseded-entry": "onboarding.appleRemoteIcloudIssueKindSuperseded",
@@ -916,7 +928,11 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                             <span className="font-bold">{t(icloudAcceptanceItemKeys[item.id])}</span>
                             <span className="text-[10px] font-bold opacity-75">{t(`onboarding.appleRemoteIcloudAcceptanceStatus.${item.status}` as any)}</span>
                           </div>
-                          <div className="mt-1 opacity-75">{item.evidence}</div>
+                          <div className="mt-1 opacity-80">{t(icloudAcceptanceEvidenceKeys[item.id])}</div>
+                          <details className="mt-1 text-[10px] opacity-60">
+                            <summary className="cursor-pointer font-bold">{t("onboarding.appleRemoteIcloudAcceptanceEvidenceDetail")}</summary>
+                            <div className="mt-1 break-words">{item.evidence}</div>
+                          </details>
                         </div>
                       ))}
                   </div>

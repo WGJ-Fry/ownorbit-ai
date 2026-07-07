@@ -1472,9 +1472,11 @@ function checkAssets() {
     lifeosApiSource.includes("acceptance?:") &&
     lifeosApiSource.includes("realtime-entry-ready") &&
     onboardingAppleRemoteSource.includes("icloudAcceptanceItemKeys") &&
+    onboardingAppleRemoteSource.includes("icloudAcceptanceEvidenceKeys") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceItemRealtime") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceItemRestart") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceItemInterruption") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceEvidenceDetail") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceTitle") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEntriesTitle") &&
     onboardingAppleRemoteSource.includes("getDuplicateIcloudDesktopNames") &&
@@ -1577,6 +1579,9 @@ function checkAssets() {
     translationsSource.includes("The iCloud mobile entry was refreshed automatically") &&
     translationsSource.includes("Automatically switched the default desktop") &&
     translationsSource.includes("Off-LAN realtime entry") &&
+    translationsSource.includes("iCloud 只负责把入口交给手机") &&
+    translationsSource.includes("iCloud only hands the entry to the phone") &&
+    translationsSource.includes("Technical evidence") &&
     translationsSource.includes("iCloud syncs the entry file but does not carry realtime traffic") &&
     translationsSource.includes("True iCloud data sync would need CloudKit / iCloud Container plus native Apple clients") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudDataBoundaryBody") &&
