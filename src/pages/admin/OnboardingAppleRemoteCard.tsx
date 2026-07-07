@@ -123,6 +123,10 @@ const icloudSyncActionKeys: Record<NetworkDiagnostics["icloud"]["syncReadiness"]
   "open-files-app": "onboarding.appleRemoteIcloudSyncActionOpen",
 };
 
+function safeIcloudSyncUserStepKey(value: string | undefined, fallback: TranslationKey): TranslationKey {
+  return value && value.startsWith("onboarding.appleRemoteIcloudNextStep") ? value as TranslationKey : fallback;
+}
+
 const icloudPhoneConfirmationKeys: Record<NetworkDiagnostics["icloud"]["phoneConfirmation"]["status"], TranslationKey> = {
   missing: "onboarding.appleRemoteIcloudPhoneConfirmMissing",
   confirmed: "onboarding.appleRemoteIcloudPhoneConfirmConfirmed",
@@ -419,6 +423,8 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const icloudAvailability = icloud?.availability;
   const indexConsistency = icloud?.indexConsistency;
   const syncReadiness = icloud?.syncReadiness;
+  const syncUserStepTitleKey = safeIcloudSyncUserStepKey(syncReadiness?.userStep?.titleKey, "onboarding.appleRemoteIcloudNextStepReviewTitle");
+  const syncUserStepBodyKey = safeIcloudSyncUserStepKey(syncReadiness?.userStep?.bodyKey, "onboarding.appleRemoteIcloudNextStepReviewBody");
   const phoneConfirmation = icloud?.phoneConfirmation;
   const pairingSession = icloud?.pairingSession;
   const icloudAcceptance = icloud?.acceptance;
@@ -771,7 +777,11 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                 <div>
                   <div className="font-bold">{t(icloudSyncReadinessKeys[syncReadiness.status])}</div>
                   <div className="mt-1 text-[11px] leading-relaxed opacity-80">
-                    {t(icloudSyncActionKeys[syncReadiness.action], { count: syncReadiness.pendingCount, minutes: icloudSyncStuckMinutes })}
+                    <div className="font-bold">{t(syncUserStepTitleKey)}</div>
+                    <div className="mt-0.5">{t(syncUserStepBodyKey, { count: syncReadiness.userStep.pendingCount, minutes: icloudSyncStuckMinutes })}</div>
+                    <div className="mt-1 opacity-60">
+                      {t(icloudSyncActionKeys[syncReadiness.action], { count: syncReadiness.pendingCount, minutes: icloudSyncStuckMinutes })}
+                    </div>
                   </div>
                 </div>
               </div>

@@ -411,6 +411,23 @@ function buildIcloudDiagnosticSnapshot(network: ReturnType<typeof getNetworkDiag
       entryCount: network.icloud?.indexConsistency?.entryCount || 0,
       expectedEntryCount: network.icloud?.indexConsistency?.expectedEntryCount || 0,
     },
+    syncReadiness: {
+      status: network.icloud?.syncReadiness?.status || "unsupported",
+      severity: network.icloud?.syncReadiness?.severity || "warning",
+      canOpenOnPhone: Boolean(network.icloud?.syncReadiness?.canOpenOnPhone),
+      action: network.icloud?.syncReadiness?.action || "use-apple-device",
+      userStep: network.icloud?.syncReadiness?.userStep || {
+        id: "use-apple-device",
+        primaryAction: "use-qr-or-tunnel",
+        titleKey: "onboarding.appleRemoteIcloudNextStepUnsupportedTitle",
+        bodyKey: "onboarding.appleRemoteIcloudNextStepUnsupportedBody",
+        severity: "warning",
+        pendingCount: 0,
+      },
+      pendingCount: network.icloud?.syncReadiness?.pendingCount || 0,
+      pendingFiles: network.icloud?.syncReadiness?.pendingFiles || [],
+      missingFiles: network.icloud?.syncReadiness?.missingFiles || [],
+    },
     availability: {
       status: network.icloud?.availability?.status || "unsupported",
       severity: network.icloud?.availability?.severity || "warning",

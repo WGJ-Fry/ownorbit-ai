@@ -1443,6 +1443,9 @@ test("iCloud availability detects placeholder files that are still syncing", asy
   assert.equal(diagnostics.icloud.syncReadiness.status, "syncing");
   assert.equal(diagnostics.icloud.syncReadiness.canOpenOnPhone, false);
   assert.equal(diagnostics.icloud.syncReadiness.action, "wait-for-sync");
+  assert.equal(diagnostics.icloud.syncReadiness.userStep.id, "waiting-for-icloud-sync");
+  assert.equal(diagnostics.icloud.syncReadiness.userStep.primaryAction, "wait");
+  assert.equal(diagnostics.icloud.syncReadiness.userStep.titleKey, "onboarding.appleRemoteIcloudNextStepWaitTitle");
   assert.equal(diagnostics.icloud.syncReadiness.pendingCount, 1);
   assert.deepEqual(diagnostics.icloud.availability.placeholderSamples, [".lifeos-mobile-entry-placeholder.html.icloud"]);
 });
@@ -1689,6 +1692,9 @@ test("iCloud availability flags entry files that appear stuck syncing", async (t
   assert.equal(diagnostics.icloud.syncReadiness.status, "sync-stuck");
   assert.equal(diagnostics.icloud.syncReadiness.canOpenOnPhone, false);
   assert.equal(diagnostics.icloud.syncReadiness.action, "fix-icloud-sync");
+  assert.equal(diagnostics.icloud.syncReadiness.userStep.id, "repair-icloud-sync");
+  assert.equal(diagnostics.icloud.syncReadiness.userStep.primaryAction, "open-icloud-settings");
+  assert.equal(diagnostics.icloud.syncReadiness.userStep.titleKey, "onboarding.appleRemoteIcloudNextStepFixSyncTitle");
 });
 
 test("iCloud handoff diagnostics mark modified entry invalid when checksum mismatches", async (t) => {

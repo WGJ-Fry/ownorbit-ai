@@ -892,6 +892,14 @@ export type NetworkDiagnostics = {
       severity: "ok" | "warning" | "danger";
       canOpenOnPhone: boolean;
       action: "use-apple-device" | "enable-icloud-drive" | "fix-permissions" | "export-entry" | "refresh-entry" | "fix-icloud-sync" | "wait-for-sync" | "open-files-app";
+      userStep: {
+        id: "use-apple-device" | "enable-icloud-drive" | "fix-permissions" | "create-phone-entry" | "refresh-phone-entry" | "repair-icloud-sync" | "waiting-for-icloud-sync" | "open-phone-files-app";
+        primaryAction: "use-qr-or-tunnel" | "open-icloud-settings" | "export-icloud-entry" | "refresh-icloud-entry" | "wait" | "open-files-app";
+        titleKey: string;
+        bodyKey: string;
+        severity: "ok" | "warning" | "danger";
+        pendingCount: number;
+      };
       pendingCount: number;
       pendingFiles: Array<"html" | "packet" | "index">;
       missingFiles: Array<"html" | "packet" | "index">;

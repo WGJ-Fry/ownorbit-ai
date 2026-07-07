@@ -616,6 +616,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /手机打开了旧入口/);
   assert.match(translationsSource, /Phone opened an old entry/);
   assert.match(onboardingAppleRemoteSource, /syncReadiness/);
+  assert.match(onboardingAppleRemoteSource, /syncReadiness\?\.userStep/);
+  assert.match(onboardingAppleRemoteSource, /safeIcloudSyncUserStepKey/);
   assert.match(onboardingAppleRemoteSource, /icloudSyncReadinessKeys/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSyncReady/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAdvancedDiagnostics/);

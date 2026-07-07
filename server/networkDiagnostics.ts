@@ -1310,17 +1310,89 @@ function buildIcloudSyncReadiness(input: {
     action = "refresh-entry";
   }
 
+  const userStep = buildIcloudSyncUserStep({ action, severity, pendingCount: availability.pendingCount });
   return {
     status,
     severity,
     canOpenOnPhone: status === "ready",
     action,
+    userStep,
     pendingCount: availability.pendingCount,
     pendingFiles,
     missingFiles,
     htmlFileState: availability.handoffFile.state,
     packetFileState: availability.packetFile.state,
     indexFileState: availability.indexFile.state,
+  };
+}
+
+function buildIcloudSyncUserStep(input: {
+  action:
+    | "use-apple-device"
+    | "enable-icloud-drive"
+    | "fix-permissions"
+    | "export-entry"
+    | "refresh-entry"
+    | "fix-icloud-sync"
+    | "wait-for-sync"
+    | "open-files-app";
+  severity: "ok" | "warning" | "danger";
+  pendingCount: number;
+}) {
+  const stepByAction = {
+    "use-apple-device": {
+      id: "use-apple-device",
+      primaryAction: "use-qr-or-tunnel",
+      titleKey: "onboarding.appleRemoteIcloudNextStepUnsupportedTitle",
+      bodyKey: "onboarding.appleRemoteIcloudNextStepUnsupportedBody",
+    },
+    "enable-icloud-drive": {
+      id: "enable-icloud-drive",
+      primaryAction: "open-icloud-settings",
+      titleKey: "onboarding.appleRemoteIcloudNextStepEnableTitle",
+      bodyKey: "onboarding.appleRemoteIcloudNextStepEnableBody",
+    },
+    "fix-permissions": {
+      id: "fix-permissions",
+      primaryAction: "open-icloud-settings",
+      titleKey: "onboarding.appleRemoteIcloudNextStepPermissionsTitle",
+      bodyKey: "onboarding.appleRemoteIcloudNextStepPermissionsBody",
+    },
+    "export-entry": {
+      id: "create-phone-entry",
+      primaryAction: "export-icloud-entry",
+      titleKey: "onboarding.appleRemoteIcloudNextStepExportTitle",
+      bodyKey: "onboarding.appleRemoteIcloudNextStepExportBody",
+    },
+    "refresh-entry": {
+      id: "refresh-phone-entry",
+      primaryAction: "refresh-icloud-entry",
+      titleKey: "onboarding.appleRemoteIcloudNextStepRefreshTitle",
+      bodyKey: "onboarding.appleRemoteIcloudNextStepRefreshBody",
+    },
+    "fix-icloud-sync": {
+      id: "repair-icloud-sync",
+      primaryAction: "open-icloud-settings",
+      titleKey: "onboarding.appleRemoteIcloudNextStepFixSyncTitle",
+      bodyKey: "onboarding.appleRemoteIcloudNextStepFixSyncBody",
+    },
+    "wait-for-sync": {
+      id: "waiting-for-icloud-sync",
+      primaryAction: "wait",
+      titleKey: "onboarding.appleRemoteIcloudNextStepWaitTitle",
+      bodyKey: "onboarding.appleRemoteIcloudNextStepWaitBody",
+    },
+    "open-files-app": {
+      id: "open-phone-files-app",
+      primaryAction: "open-files-app",
+      titleKey: "onboarding.appleRemoteIcloudNextStepPhoneTitle",
+      bodyKey: "onboarding.appleRemoteIcloudNextStepPhoneBody",
+    },
+  } as const;
+  return {
+    ...stepByAction[input.action],
+    severity: input.severity,
+    pendingCount: input.pendingCount,
   };
 }
 

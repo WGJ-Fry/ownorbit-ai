@@ -1415,7 +1415,11 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("appleRemoteIcloudFileTitle") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMetadataState") &&
     onboardingAppleRemoteSource.includes("placeholderSamples") &&
+    networkDiagnosticsSource.includes("buildIcloudSyncUserStep") &&
+    networkDiagnosticsSource.includes("waiting-for-icloud-sync") &&
+    onboardingAppleRemoteSource.includes("safeIcloudSyncUserStepKey") &&
     networkDiagnosticsTestSource.includes("iCloud availability blocks export when Apple ID or iCloud Drive is disabled") &&
+    networkDiagnosticsTestSource.includes("syncReadiness.userStep.id") &&
     networkDiagnosticsTestSource.includes('pendingFiles.includes("html")') &&
     apiAuthTestSource.includes("networkDiagnosticsWithBinding.icloud.pairingSession.status") &&
     networkDiagnosticsTestSource.includes("iCloud pairing session status guides stale QR repair") &&
@@ -1475,6 +1479,7 @@ function checkAssets() {
     lifeosApiSource.includes("latestEntryRepair") &&
     lifeosApiSource.includes("latestRepairImport") &&
     lifeosApiSource.includes("nextAction") &&
+    lifeosApiSource.includes("userStep") &&
     lifeosApiSource.includes("IcloudAutoRefreshResult") &&
     lifeosApiSource.includes("icloudRefresh: IcloudAutoRefreshResult") &&
     lifeosApiSource.includes("cleanupIcloudHandoffEntries") &&
@@ -1494,6 +1499,7 @@ function checkAssets() {
     translationsSource.includes("Phone just opened an old entry") &&
     translationsSource.includes("Phone opened an old entry") &&
     translationsSource.includes("Do this one thing next") &&
+    translationsSource.includes("Next step: wait for iCloud sync") &&
     translationsSource.includes("New mobile QR needed") &&
     translationsSource.includes("refresh the iCloud mobile entry and generate a fresh pairing QR") &&
     translationsSource.includes("Clean Old iCloud Entries") &&
@@ -1504,6 +1510,8 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("appleRemoteIcloudDataBoundaryBody") &&
     diagnosticBundleSource.includes('dataSyncScope: "entry-file-only"') &&
     diagnosticBundleSource.includes("repairImport.nextAction.id") &&
+    diagnosticBundleSource.includes("syncReadiness") &&
+    diagnosticBundleSource.includes("network.icloud?.syncReadiness?.userStep") &&
     diagnosticBundleSource.includes("cloudKitRequiredForDataSync") &&
     diagnosticBundleSource.includes("nativeDataSyncOptions") &&
     apiAuthTestSource.includes("cloudKitRequiredForDataSync") &&
