@@ -537,6 +537,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /appleRemoteIcloudAutoSyncing/);
   assert.match(onboardingSource, /onboarding\.appleRemoteIcloudExported/);
   assert.match(onboardingSource, /onboarding-icloud-quick-entry/);
+  assert.match(onboardingSource, /onboarding-icloud-phone-pickup/);
+  assert.match(onboardingSource, /getIcloudPhonePickupStatus/);
+  assert.match(onboardingSource, /simpleIcloudPickupStatus\.actionKey/);
   assert.match(onboardingSource, /getPrimaryIcloudAction/);
   assert.match(onboardingSource, /simpleIcloudAction\.cta === "qr"/);
   assert.match(onboardingSource, /simpleIcloudAction\.cta === "export"/);
@@ -582,6 +585,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /onboarding\.remoteReadinessTitle/);
   const onboardingAppleRemoteSource = await readFile(path.join(rootDir, "src", "pages", "admin", "OnboardingAppleRemoteCard.tsx"), "utf8");
   const appleRemoteIcloudPrimaryActionSource = await readFile(path.join(rootDir, "src", "pages", "admin", "appleRemoteIcloudPrimaryAction.ts"), "utf8");
+  const icloudPhonePickupStatusSource = await readFile(path.join(rootDir, "src", "pages", "admin", "icloudPhonePickupStatus.ts"), "utf8");
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteTitle/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteStartTailscale/);
   assert.match(onboardingAppleRemoteSource, /onboarding\.appleRemoteIcloudHint/);
@@ -619,8 +623,13 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudNextStepExportTitle/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudNextStepPhoneTitle/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /latestEntryRepair\.needsQr/);
+  assert.match(icloudPhonePickupStatusSource, /simpleIcloudPickupConfirmedTitle/);
+  assert.match(icloudPhonePickupStatusSource, /simpleIcloudPickupOldTitle/);
+  assert.match(icloudPhonePickupStatusSource, /simpleIcloudPickupIssueTitle/);
   assert.match(translationsSource, /现在只做这一步/);
   assert.match(translationsSource, /Only do this now/);
+  assert.match(translationsSource, /手机已经拿到最新入口/);
+  assert.match(translationsSource, /Phone has the latest entry/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleReadyTitle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleAccountTitle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleAccountBody/);

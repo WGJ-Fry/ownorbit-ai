@@ -11,6 +11,7 @@ import OnboardingRecoveryCard from "./OnboardingRecoveryCard";
 import { buildOnboardingHandoffSummary } from "../../services/onboardingHandoffSummary";
 import { appendIcloudAutoRefreshStatus } from "./icloudAutoRefreshStatus";
 import { getPrimaryIcloudAction } from "./appleRemoteIcloudPrimaryAction";
+import { getIcloudPhonePickupStatus } from "./icloudPhonePickupStatus";
 
 const providerLabels: Record<string, string> = {
   gemini: "Google Gemini",
@@ -67,6 +68,11 @@ export default function AdminOnboardingPage() {
   const simpleIcloudEntryReady = simpleIcloudAction.icon === "phone" && Boolean(icloud?.syncReadiness?.canOpenOnPhone);
   const simpleIcloudTitleKey = simpleIcloudBusy ? "onboarding.simpleIcloudAutoTitle" : simpleIcloudAction.titleKey;
   const simpleIcloudBodyKey = simpleIcloudBusy ? "onboarding.simpleIcloudAutoBody" : simpleIcloudAction.bodyKey;
+  const simpleIcloudPickupStatus = getIcloudPhonePickupStatus({
+    phoneConfirmation: icloud?.phoneConfirmation,
+    latestEntryRepair: icloud?.latestEntryRepair || null,
+  });
+  const simpleIcloudPickupTime = simpleIcloudPickupStatus.confirmedAt ? new Date(simpleIcloudPickupStatus.confirmedAt).toLocaleString() : "-";
   const localizedStepMeta = (stepId: OnboardingStatus["steps"][number]["id"], done: boolean) => {
     switch (stepId) {
       case "ai":
@@ -543,6 +549,36 @@ export default function AdminOnboardingPage() {
                         <div className="mt-1 break-all font-mono text-[11px] opacity-70">{icloud?.handoffFilePath || "-"}</div>
                       </div>
                     ) : null}
+                    <div data-testid="onboarding-icloud-phone-pickup" className={`mt-3 rounded-xl border p-3 text-xs leading-relaxed ${simpleIcloudPickupStatus.tone}`}>
+                      <div className="flex gap-2">
+                        {simpleIcloudPickupStatus.icon === "ready" ? (
+                          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                        ) : simpleIcloudPickupStatus.icon === "refresh" ? (
+                          <RefreshCw className="mt-0.5 h-4 w-4 shrink-0" />
+                        ) : simpleIcloudPickupStatus.icon === "warning" ? (
+                          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                        ) : (
+                          <Smartphone className="mt-0.5 h-4 w-4 shrink-0" />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold">{t(simpleIcloudPickupStatus.titleKey)}</div>
+                          <div className="mt-1 opacity-80">
+                            {t(simpleIcloudPickupStatus.bodyKey, {
+                              device: simpleIcloudPickupStatus.deviceName || t("onboarding.simpleIcloudPickupUnknownDevice"),
+                              time: simpleIcloudPickupTime,
+                            })}
+                          </div>
+                          <div className="mt-2 flex items-start gap-2 rounded-lg border border-current/10 bg-black/15 p-2 font-bold">
+                            <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                            <span>
+                              {t("onboarding.appleRemoteIcloudOneNextAction", {
+                                action: t(simpleIcloudPickupStatus.actionKey),
+                              })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div className="mt-4 grid gap-3">

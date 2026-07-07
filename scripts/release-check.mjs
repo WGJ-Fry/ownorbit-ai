@@ -662,6 +662,9 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding.simpleDeviceTitle") &&
     adminOnboardingSource.includes("onboarding.simpleDeviceBody") &&
     adminOnboardingSource.includes("onboarding-icloud-quick-entry") &&
+    adminOnboardingSource.includes("onboarding-icloud-phone-pickup") &&
+    adminOnboardingSource.includes("getIcloudPhonePickupStatus") &&
+    adminOnboardingSource.includes("simpleIcloudPickupStatus.actionKey") &&
     adminOnboardingSource.includes("getPrimaryIcloudAction") &&
     adminOnboardingSource.includes("simpleIcloudAction.cta === \"qr\"") &&
     adminOnboardingSource.includes("simpleIcloudAction.cta === \"export\"") &&
@@ -698,6 +701,9 @@ function checkAssets() {
     translationsSource.includes("onboarding.simpleDeviceTitle") &&
     translationsSource.includes("onboarding.simpleDeviceBody") &&
     translationsSource.includes("onboarding.simpleIcloudReadyTitle") &&
+    translationsSource.includes("onboarding.simpleIcloudPickupConfirmedTitle") &&
+    translationsSource.includes("手机已经拿到最新入口") &&
+    translationsSource.includes("Phone has the latest entry") &&
     translationsSource.includes("iPhone 文件 App：iCloud Drive > LifeOS AI > lifeos-mobile-entry.html") &&
     translationsSource.includes("iPhone Files app: iCloud Drive > LifeOS AI > lifeos-mobile-entry.html") &&
     translationsSource.includes("onboarding.simpleAdvancedSummary") &&
@@ -1352,6 +1358,7 @@ function checkAssets() {
   const icloudHandoffMonitorSource = exists("server/icloudHandoffMonitor.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudHandoffMonitor.ts"), "utf8") : "";
   const icloudRepairImportsSource = exists("server/icloudRepairImports.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudRepairImports.ts"), "utf8") : "";
   const appleRemoteIcloudPrimaryActionSource = exists("src/pages/admin/appleRemoteIcloudPrimaryAction.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/appleRemoteIcloudPrimaryAction.ts"), "utf8") : "";
+  const icloudPhonePickupStatusSource = exists("src/pages/admin/icloudPhonePickupStatus.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/icloudPhonePickupStatus.ts"), "utf8") : "";
   const icloudAutoRefreshStatusSource = exists("src/pages/admin/icloudAutoRefreshStatus.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/icloudAutoRefreshStatus.ts"), "utf8") : "";
   const mobileIcloudHandoffSource = exists("src/services/mobileIcloudHandoff.ts") ? fs.readFileSync(path.join(rootDir, "src/services/mobileIcloudHandoff.ts"), "utf8") : "";
   const diagnosticBundleSource = exists("server/diagnosticBundle.ts") ? fs.readFileSync(path.join(rootDir, "server/diagnosticBundle.ts"), "utf8") : "";
@@ -1405,6 +1412,10 @@ function checkAssets() {
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudActionWaitSync") &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudActionOpenFiles") &&
     appleRemoteIcloudPrimaryActionSource.includes("latestEntryRepair.needsQr") &&
+    icloudPhonePickupStatusSource.includes("simpleIcloudPickupConfirmedTitle") &&
+    icloudPhonePickupStatusSource.includes("simpleIcloudPickupOldTitle") &&
+    icloudPhonePickupStatusSource.includes("simpleIcloudPickupIssueTitle") &&
+    packageJson.scripts.test.includes("tests/apple-remote-icloud-phone-pickup.test.mjs") &&
     packageJson.scripts.test.includes("tests/apple-remote-icloud-primary-action.test.mjs") &&
     packageJson.scripts.test.includes("tests/apple-remote-icloud-simple-status.test.mjs") &&
     translationsSource.includes("appleRemoteIcloudBoundaryBody") &&
