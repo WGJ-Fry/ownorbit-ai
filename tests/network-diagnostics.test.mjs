@@ -340,6 +340,7 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   const oldTailscaleBin = process.env.LIFEOS_TAILSCALE_BIN;
   const oldIcloudDriveDir = process.env.LIFEOS_ICLOUD_DRIVE_DIR;
   const oldForceIcloud = process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+  const oldDeviceName = process.env.LIFEOS_DEVICE_NAME;
 
   t.after(async () => {
     if (oldPort === undefined) delete process.env.LIFEOS_PORT;
@@ -356,6 +357,8 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
     else process.env.LIFEOS_ICLOUD_DRIVE_DIR = oldIcloudDriveDir;
     if (oldForceIcloud === undefined) delete process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
     else process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = oldForceIcloud;
+    if (oldDeviceName === undefined) delete process.env.LIFEOS_DEVICE_NAME;
+    else process.env.LIFEOS_DEVICE_NAME = oldDeviceName;
     await rm(icloudDir, { recursive: true, force: true });
   });
 
@@ -366,6 +369,7 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   process.env.LIFEOS_TAILSCALE_BIN = "/definitely/missing/tailscale";
   process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = "1";
   process.env.LIFEOS_ICLOUD_DRIVE_DIR = icloudDir;
+  process.env.LIFEOS_DEVICE_NAME = "Kitchen Mac";
 
   const appDir = path.join(icloudDir, "LifeOS AI");
   fs.mkdirSync(appDir, { recursive: true });
@@ -374,7 +378,7 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
     kind: "lifeos-mobile-entry",
     version: 3,
     desktopId: "old-mac",
-    desktopName: "Old Mac",
+    desktopName: "Kitchen Mac",
     desktopSlug: "old-mac",
     htmlFileName: "lifeos-mobile-entry-old-mac.html",
     packetFileName: "lifeos-mobile-entry-old-mac.json",
@@ -394,7 +398,7 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
     realtimeTransport: false,
     entryChecksumSha256: "1".repeat(64),
   }, null, 2));
-  await writeFile(path.join(appDir, "lifeos-mobile-entry-old-mac.html"), "<!doctype html><title>Old Mac</title>");
+  await writeFile(path.join(appDir, "lifeos-mobile-entry-old-mac.html"), "<!doctype html><title>Kitchen Mac</title>");
 
   const { exportIcloudHandoff } = await import(`../server/networkDiagnostics.ts?icloud-export=${Date.now()}`);
   const result = exportIcloudHandoff();
@@ -479,6 +483,11 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.match(indexHtml, /Open the Recommended Entry/);
   assert.match(indexHtml, /通常只点第一个入口即可/);
   assert.match(indexHtml, /Other desktop entries/);
+  assert.match(indexHtml, /如果两台电脑名字一样/);
+  assert.match(indexHtml, /If two desktops share a name/);
+  assert.match(indexHtml, /data-lifeos-desktop-short-id="oldmac"/);
+  assert.match(indexHtml, /Kitchen Mac · oldmac/);
+  assert.match(indexHtml, /ID oldmac/);
   assert.match(indexHtml, /class="entry primary"/);
   assert.match(indexHtml, /打开这个入口 \/ Open this entry/);
   assert.match(indexHtml, /name="lifeos-entry-index-checksum" content="[a-f0-9]{64}"/);

@@ -1471,10 +1471,16 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceItemInterruption") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceTitle") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEntriesTitle") &&
+    onboardingAppleRemoteSource.includes("getDuplicateIcloudDesktopNames") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudDuplicateDesktopHint") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudEntryShortId") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEntryCurrent") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEntryRefreshAfter") &&
     networkDiagnosticsTestSource.includes("entry.desktopName === packet.desktopName") &&
     networkDiagnosticsSource.includes("chooseIcloudRecommendedIndexEntry") &&
+    networkDiagnosticsSource.includes("formatIcloudDesktopDisplayName") &&
+    networkDiagnosticsSource.includes("data-lifeos-desktop-short-id") &&
+    networkDiagnosticsSource.includes("If two desktops share a name") &&
     networkDiagnosticsSource.includes("Open the Recommended Entry") &&
     networkDiagnosticsSource.includes("Other desktop entries") &&
     networkDiagnosticsSource.includes("lifeos-entry-index-recommended-html-file") &&
@@ -1980,6 +1986,9 @@ function checkAssets() {
     mobileRemoteEntryCardSource.includes("icloudEntryFreshnessKeys") &&
     mobileRemoteEntryCardSource.includes("forgetStoredMobileIcloudHandoffEntry") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffKnownDesktops") &&
+    mobileRemoteEntryCardSource.includes("getDuplicateMobileIcloudDesktopNames") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffDuplicateHint") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffShortId") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffRecommendedDesktop") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffShowOtherDesktops") &&
     mobileRemoteEntryCardSource.includes("showIcloudDesktopAdvanced") &&

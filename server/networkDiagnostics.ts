@@ -535,6 +535,51 @@ function readIcloudEntrySummaries(appFolderPath: string) {
   }
 }
 
+function icloudDesktopNameKey(value: string) {
+  return String(value || "LifeOS Desktop").trim().toLowerCase() || "lifeos desktop";
+}
+
+function getIcloudDesktopShortId(entry: {
+  desktopSlug?: string;
+  desktopId?: string;
+  packetFileName?: string;
+  htmlFileName?: string;
+  fileName?: string;
+}) {
+  const source = [
+    entry.desktopSlug,
+    entry.desktopId,
+    entry.packetFileName,
+    entry.htmlFileName,
+    entry.fileName,
+  ].find((value) => String(value || "").trim());
+  const normalized = String(source || "")
+    .replace(/^lifeos-mobile-entry-?/i, "")
+    .replace(/\.(json|html)$/i, "")
+    .replace(/[^a-z0-9]+/gi, "")
+    .toLowerCase();
+  return normalized.slice(0, 8) || "entry";
+}
+
+function getDuplicateIcloudDesktopNames(entries: ReturnType<typeof readIcloudEntrySummaries>) {
+  const counts = new Map<string, number>();
+  for (const entry of entries) {
+    const key = icloudDesktopNameKey(entry.desktopName);
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  return new Set([...counts.entries()].filter(([, count]) => count > 1).map(([key]) => key));
+}
+
+function formatIcloudDesktopDisplayName(
+  entry: NonNullable<ReturnType<typeof summarizeIcloudEntryPacket>>,
+  duplicateNames: Set<string>,
+) {
+  const baseName = entry.desktopName || "LifeOS Desktop";
+  return duplicateNames.has(icloudDesktopNameKey(baseName))
+    ? `${baseName} · ${getIcloudDesktopShortId(entry)}`
+    : baseName;
+}
+
 function buildIcloudIndexChecksum(input: {
   generatedAt: number;
   entries: ReturnType<typeof readIcloudEntrySummaries>;
@@ -863,17 +908,20 @@ function buildIcloudHandoffIndexHtml(input: {
   const otherEntries = recommendedKey
     ? input.entries.filter((entry) => `${entry.desktopId}:${entry.generatedAt}:${entry.htmlFileName}` !== recommendedKey)
     : input.entries;
+  const duplicateDesktopNames = getDuplicateIcloudDesktopNames(input.entries);
   const renderEntry = (entry: NonNullable<typeof recommendedEntry>, options: { primary?: boolean } = {}) => {
     const isCurrent = entry.desktopId === input.currentDesktopId;
+    const shortId = getIcloudDesktopShortId(entry);
+    const displayName = formatIcloudDesktopDisplayName(entry, duplicateDesktopNames);
     const status = entry.expiresAt && input.generatedAt >= entry.expiresAt
       ? "已过期 / Expired"
       : entry.refreshAfter && input.generatedAt >= entry.refreshAfter
       ? "建议刷新 / Refresh suggested"
       : "可用 / Usable";
-    return `<a class="entry${options.primary ? " primary" : ""}" href="${htmlEscape(entry.htmlFileName)}">
-      <strong>${htmlEscape(entry.desktopName)}${isCurrent ? " · 当前电脑 / This Mac" : ""}</strong>
+    return `<a class="entry${options.primary ? " primary" : ""}" href="${htmlEscape(entry.htmlFileName)}" data-lifeos-desktop-short-id="${htmlEscape(shortId)}" data-lifeos-desktop-display-name="${htmlEscape(displayName)}">
+      <strong>${htmlEscape(displayName)}${isCurrent ? " · 当前电脑 / This Mac" : ""}</strong>
       <span>${htmlEscape(entry.baseUrl)}</span>
-      <small>${htmlEscape(status)} · ${htmlEscape(new Date(entry.generatedAt).toLocaleString())}</small>
+      <small>${htmlEscape(status)} · ID ${htmlEscape(shortId)} · ${htmlEscape(new Date(entry.generatedAt).toLocaleString())}</small>
       ${options.primary ? `<em>打开这个入口 / Open this entry</em>` : ""}
     </a>`;
   };
@@ -902,6 +950,7 @@ function buildIcloudHandoffIndexHtml(input: {
       main { width: min(620px, 100%); border: 1px solid rgba(255,255,255,.1); background: #101722; border-radius: 28px; padding: 24px; box-shadow: 0 24px 80px rgba(0,0,0,.35); }
       h1 { margin: 0; font-size: 26px; letter-spacing: 0; }
       p { color: #a1a1aa; line-height: 1.65; }
+      .hint { margin-top: 12px; border-radius: 14px; border: 1px solid rgba(34,211,238,.22); background: rgba(8,145,178,.12); color: #bae6fd; padding: 10px 12px; font-size: 12px; }
       .entry { display: block; margin-top: 12px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09); color: #f4f4f5; text-decoration: none; }
       .entry.primary { border-color: rgba(34,211,238,.45); background: rgba(8,145,178,.18); box-shadow: 0 16px 48px rgba(8,145,178,.2); }
       .entry strong, .entry span, .entry small { display: block; }
@@ -919,6 +968,7 @@ function buildIcloudHandoffIndexHtml(input: {
       <h1>打开推荐入口 / Open the Recommended Entry</h1>
       <p>通常只点第一个入口即可。其他电脑入口已经放到高级区，避免误连旧电脑。</p>
       <p>Usually open the first entry only. Other desktop entries are tucked into Advanced so stale desktops are harder to pick by mistake.</p>
+      ${duplicateDesktopNames.size ? `<div class="hint">如果两台电脑名字一样，请看短 ID 和更新时间。/ If two desktops share a name, use the short ID and update time.</div>` : ""}
       ${rows}
       <div class="warn">iCloud 只同步入口文件，不是实时网络隧道；异地实时聊天仍需要 Tailscale、Cloudflare Tunnel 或可信 HTTPS 入口。</div>
     </main>

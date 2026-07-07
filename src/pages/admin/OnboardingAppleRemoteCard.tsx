@@ -308,6 +308,35 @@ function formatHandoffTime(value?: number) {
   }
 }
 
+function icloudDesktopNameKey(value?: string) {
+  return String(value || "LifeOS Desktop").trim().toLowerCase() || "lifeos desktop";
+}
+
+function getIcloudDesktopShortId(entry: Pick<IcloudAvailableEntry, "desktopSlug" | "desktopId" | "packetFileName" | "htmlFileName" | "fileName">) {
+  const source = [
+    entry.desktopSlug,
+    entry.desktopId,
+    entry.packetFileName,
+    entry.htmlFileName,
+    entry.fileName,
+  ].find((value) => String(value || "").trim());
+  const normalized = String(source || "")
+    .replace(/^lifeos-mobile-entry-?/i, "")
+    .replace(/\.(json|html)$/i, "")
+    .replace(/[^a-z0-9]+/gi, "")
+    .toLowerCase();
+  return normalized.slice(0, 8) || "entry";
+}
+
+function getDuplicateIcloudDesktopNames(entries: IcloudAvailableEntry[]) {
+  const counts = new Map<string, number>();
+  for (const entry of entries) {
+    const key = icloudDesktopNameKey(entry.desktopName);
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  return new Set([...counts.entries()].filter(([, count]) => count > 1).map(([key]) => key));
+}
+
 function compactLatestEntryRepairUrls(repair: IcloudLatestEntryRepair) {
   return [
     { key: "onboarding.appleRemoteIcloudEventEntryUrl" as TranslationKey, value: repair.entryBaseUrl },
@@ -437,6 +466,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const latestHistory = icloud?.entryHistory?.slice(0, 3) || [];
   const availableEntryCount = icloud?.availableEntries?.length || 0;
   const availableEntries = icloud?.availableEntries?.slice(0, 6) || [];
+  const duplicateIcloudDesktopNames = getDuplicateIcloudDesktopNames(availableEntries);
   const readiness = diagnostics?.remoteReadiness;
   const tailscaleInstalled = Boolean(diagnostics?.tailscale.installed);
   const tailscaleInstallUrl = diagnostics?.tailscale.installUrl || "https://tailscale.com/download";
@@ -1186,15 +1216,23 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
             {availableEntries.length ? (
               <div className="mt-3 border-t border-white/[0.06] pt-3">
                 <div className="font-bold text-zinc-200">{t("onboarding.appleRemoteIcloudEntriesTitle")}</div>
+                {duplicateIcloudDesktopNames.size ? (
+                  <div className="mt-2 rounded-lg border border-sky-400/20 bg-sky-500/10 p-2 text-[11px] leading-relaxed text-sky-50">
+                    {t("onboarding.appleRemoteIcloudDuplicateDesktopHint")}
+                  </div>
+                ) : null}
                 <div className="mt-2 grid gap-2">
                   {availableEntries.map((entry) => {
                     const state = icloudEntryState(entry);
                     const isCurrentDesktop = entry.desktopId === icloud?.desktopId;
+                    const shortDesktopId = getIcloudDesktopShortId(entry);
+                    const hasDuplicateName = duplicateIcloudDesktopNames.has(icloudDesktopNameKey(entry.desktopName));
                     return (
                       <div key={`${entry.desktopId}-${entry.generatedAt}`} className="rounded-lg border border-white/[0.05] bg-white/[0.03] p-2">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="font-bold text-zinc-200">
                             {entry.desktopName}
+                            {hasDuplicateName ? <span className="ml-2 text-[10px] text-zinc-400">{t("onboarding.appleRemoteIcloudEntryShortId", { id: shortDesktopId })}</span> : null}
                             {isCurrentDesktop ? <span className="ml-2 text-[10px] text-sky-200">{t("onboarding.appleRemoteIcloudEntryCurrent")}</span> : null}
                           </div>
                           <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${state.className}`}>
@@ -1203,6 +1241,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                         </div>
                         <div className="mt-1 break-all font-mono text-[10px] text-zinc-400">{entry.baseUrl}</div>
                         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-zinc-500">
+                          <span>{t("onboarding.appleRemoteIcloudEntryShortId", { id: shortDesktopId })}</span>
                           <span>{t("onboarding.appleRemoteIcloudEntryGenerated")}: {formatHandoffTime(entry.generatedAt) || "-"}</span>
                           <span>{t("onboarding.appleRemoteIcloudEntryRefreshAfter")}: {formatHandoffTime(entry.refreshAfter) || "-"}</span>
                           <span>{t("onboarding.appleRemoteIcloudEntryExpires")}: {formatHandoffTime(entry.expiresAt) || "-"}</span>

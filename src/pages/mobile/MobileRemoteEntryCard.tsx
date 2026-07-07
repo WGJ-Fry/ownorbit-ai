@@ -35,6 +35,33 @@ function icloudEntryFreshnessTone(freshness: keyof typeof icloudEntryFreshnessKe
   return "bg-amber-500/15 text-amber-100";
 }
 
+function mobileIcloudDesktopNameKey(entry: MobileIcloudHandoffEntry) {
+  return String(entry.desktopName || entry.label || "LifeOS desktop").trim().toLowerCase() || "lifeos desktop";
+}
+
+function getMobileIcloudDesktopShortId(entry: MobileIcloudHandoffEntry) {
+  const source = [
+    entry.desktopSlug,
+    entry.desktopId,
+    entry.checksumSha256,
+    entry.baseUrl,
+  ].find((value) => String(value || "").trim());
+  const normalized = String(source || "")
+    .replace(/https?:\/\//i, "")
+    .replace(/[^a-z0-9]+/gi, "")
+    .toLowerCase();
+  return normalized.slice(0, 8) || "entry";
+}
+
+function getDuplicateMobileIcloudDesktopNames(entries: MobileIcloudHandoffEntry[]) {
+  const counts = new Map<string, number>();
+  for (const entry of entries) {
+    const key = mobileIcloudDesktopNameKey(entry);
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  return new Set([...counts.entries()].filter(([, count]) => count > 1).map(([key]) => key));
+}
+
 export default function MobileRemoteEntryCard({
   connectivityBusy,
   connectivityReportStale,
@@ -88,6 +115,7 @@ export default function MobileRemoteEntryCard({
   const icloudEntryRecommendation = getMobileIcloudHandoffEntryRecommendation(icloudEntries, { preferredKey: preferredIcloudEntryKey });
   const recommendedIcloudEntry = icloudEntryRecommendation.recommendedEntry;
   const otherIcloudEntries = icloudEntryRecommendation.otherEntries;
+  const duplicateIcloudDesktopNames = getDuplicateMobileIcloudDesktopNames(icloudEntries);
   const icloudRecommendedBodyKey = (icloudEntryRecommendation.preferredNeedsSwitch
     ? icloudPreferredSwitchReasonKeys[icloudEntryRecommendation.preferredSwitchReason]
     : "mobileDevice.icloudHandoffRecommendedBody") as any;
@@ -115,6 +143,8 @@ export default function MobileRemoteEntryCard({
     const active = icloudHandoffStatus ? key === getMobileIcloudHandoffEntryKey(icloudHandoffStatus.entry) : false;
     const preferred = preferredIcloudEntryKey === key;
     const freshness = getMobileIcloudHandoffEntryFreshness(entry);
+    const shortDesktopId = getMobileIcloudDesktopShortId(entry);
+    const hasDuplicateName = duplicateIcloudDesktopNames.has(mobileIcloudDesktopNameKey(entry));
     return (
       <div
         key={key}
@@ -128,6 +158,7 @@ export default function MobileRemoteEntryCard({
         >
           <span className="min-w-0">
             <span className="block truncate font-bold">{entry.desktopName || entry.label || t("mobileDevice.icloudHandoffUnknownDesktop")}</span>
+            {hasDuplicateName ? <span className="mt-0.5 block text-[10px] opacity-70">{t("mobileDevice.icloudHandoffShortId", { id: shortDesktopId })}</span> : null}
             <span className="mt-0.5 block truncate opacity-70">{entry.baseUrl}</span>
           </span>
           <span className="flex shrink-0 flex-col items-end gap-1">
@@ -247,6 +278,11 @@ export default function MobileRemoteEntryCard({
             <div className="mt-3 rounded-xl border border-white/[0.08] bg-black/10 p-2 text-xs">
               <div className="font-bold">{t("mobileDevice.icloudHandoffKnownDesktops")}</div>
               <div className="mt-1 opacity-80">{t(icloudRecommendedBodyKey)}</div>
+              {duplicateIcloudDesktopNames.size ? (
+                <div className="mt-2 rounded-lg border border-sky-300/20 bg-sky-500/10 p-2 text-[11px] leading-relaxed text-sky-50">
+                  {t("mobileDevice.icloudHandoffDuplicateHint")}
+                </div>
+              ) : null}
               {recommendedIcloudEntry ? (
                 <div className="mt-2 grid gap-2">
                   <div className="font-bold text-sky-100">{t("mobileDevice.icloudHandoffRecommendedDesktop")}</div>

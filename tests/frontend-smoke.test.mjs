@@ -663,6 +663,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudCleanupCleaning/);
   assert.match(onboardingAppleRemoteSource, /availableEntries/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudEntriesTitle/);
+  assert.match(onboardingAppleRemoteSource, /getDuplicateIcloudDesktopNames/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudDuplicateDesktopHint/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudEntryShortId/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudEntryCurrent/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudEntryRefreshAfter/);
   assert.match(onboardingAppleRemoteSource, /historyChangeTypeKeys/);
@@ -1050,6 +1053,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /Star/);
   assert.match(mobileRemoteEntryCardSource, /buildMobileIcloudHandoffUrl/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffKnownDesktops/);
+  assert.match(mobileRemoteEntryCardSource, /getDuplicateMobileIcloudDesktopNames/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffDuplicateHint/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffShortId/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffRecommendedDesktop/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffShowOtherDesktops/);
   assert.match(mobileRemoteEntryCardSource, /showIcloudDesktopAdvanced/);
