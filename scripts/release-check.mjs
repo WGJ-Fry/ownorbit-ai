@@ -686,6 +686,9 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding-icloud-open-folder") &&
     adminOnboardingSource.includes("desktop.openIcloudFolder") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudOpenFolder") &&
+    adminOnboardingSource.includes("onboarding-icloud-open-settings") &&
+    adminOnboardingSource.includes("desktop.openIcloudSettings") &&
+    adminOnboardingSource.includes("onboarding.simpleIcloudOpenSettings") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudQrActionTitle") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudOpenQr") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudRegenerate") &&
@@ -3194,6 +3197,8 @@ function checkSecurityConfig() {
   else warn("desktop logs folder menu action is not implemented");
   if (desktopMain.includes("lifeos:open-icloud-folder") && desktopMain.includes("openIcloudFolder") && desktopPreload.includes("openIcloudFolder")) pass("desktop bridge can open the LifeOS iCloud folder");
   else warn("desktop bridge cannot open the LifeOS iCloud folder");
+  if (desktopMain.includes("lifeos:open-icloud-settings") && desktopMain.includes("openIcloudSettings") && desktopPreload.includes("openIcloudSettings")) pass("desktop bridge can open iCloud settings");
+  else warn("desktop bridge cannot open iCloud settings");
   if (desktopMain.includes("lifeos-desktop.log") && desktopMain.includes("tail: readLogTail()")) pass("desktop diagnostic includes redacted log tail");
   else warn("desktop diagnostic does not include a redacted log tail");
   if (desktopMain.includes("directoryLabel") && desktopMain.includes("System log directory is configured")) pass("desktop diagnostic exposes a safe logs directory label");

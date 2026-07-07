@@ -383,6 +383,14 @@ function openIcloudFolder() {
   return target;
 }
 
+function openIcloudSettings() {
+  const target = "x-apple.systempreferences:com.apple.preferences.AppleIDPrefPane?iCloud";
+  shell.openExternal(target).catch((error) => {
+    writeDesktopLog("Failed to open iCloud settings", error?.message || String(error));
+  });
+  return target;
+}
+
 function openLocalConsoleInBrowser(pathname = "/admin/login") {
   const target = localUrl(pathname);
   shell.openExternal(target).catch((error) => {
@@ -969,6 +977,7 @@ if (!hasSingleInstanceLock) {
       return true;
     });
     ipcMain.handle("lifeos:open-icloud-folder", async () => openIcloudFolder());
+    ipcMain.handle("lifeos:open-icloud-settings", async () => openIcloudSettings());
     ipcMain.handle("lifeos:copy-logs-path", async () => copyLogsPath());
     ipcMain.handle("lifeos:open-local-console", async () => openLocalConsoleInBrowser());
     ipcMain.handle("lifeos:copy-local-address", async () => {

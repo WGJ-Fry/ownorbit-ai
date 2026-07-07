@@ -83,6 +83,10 @@ export default function AdminOnboardingPage() {
     canExportIcloud: simpleIcloudCanExport,
   });
   const simpleIcloudEntryReady = simpleIcloudAction.icon === "phone" && Boolean(icloud?.syncReadiness?.canOpenOnPhone);
+  const simpleIcloudNeedsSettings = desktopBridgeAvailable && !simpleIcloudBusy && (
+    simpleIcloudAction.actionKey === "onboarding.appleRemoteIcloudActionEnableDrive" ||
+    simpleIcloudAction.actionKey === "onboarding.appleRemoteIcloudActionFixSync"
+  );
   const simpleIcloudTitleKey = simpleIcloudBusy ? "onboarding.simpleIcloudAutoTitle" : simpleIcloudAction.titleKey;
   const simpleIcloudBodyKey = simpleIcloudBusy ? "onboarding.simpleIcloudAutoBody" : simpleIcloudAction.bodyKey;
   const simpleIcloudPickupStatus = getIcloudPhonePickupStatus({
@@ -353,7 +357,7 @@ export default function AdminOnboardingPage() {
     }
   };
 
-  const handleDesktopRecoveryAction = async (action: "logs" | "copyLogs" | "copyAddress" | "diagnostics" | "icloudFolder") => {
+  const handleDesktopRecoveryAction = async (action: "logs" | "copyLogs" | "copyAddress" | "diagnostics" | "icloudFolder" | "icloudSettings") => {
     const desktop = (window as any).lifeosDesktop;
     if (!desktop) {
       setStatus(t("onboarding.desktopActionsUnavailable"));
@@ -374,6 +378,9 @@ export default function AdminOnboardingPage() {
       } else if (action === "icloudFolder") {
         const icloudPath = await desktop.openIcloudFolder();
         setStatus(t("onboarding.icloudFolderOpened", { path: icloudPath || "-" }));
+      } else if (action === "icloudSettings") {
+        await desktop.openIcloudSettings();
+        setStatus(t("onboarding.icloudSettingsOpened"));
       } else {
         const outputPath = await desktop.exportDiagnostics();
         setStatus(outputPath ? t("onboarding.diagnosticsExported", { path: outputPath }) : t("onboarding.diagnosticsCancelled"));
@@ -565,6 +572,18 @@ export default function AdminOnboardingPage() {
                           })}
                         </span>
                       </div>
+                    ) : null}
+                    {simpleIcloudNeedsSettings ? (
+                      <button
+                        type="button"
+                        data-testid="onboarding-icloud-open-settings"
+                        onClick={() => handleDesktopRecoveryAction("icloudSettings")}
+                        disabled={busy === "desktop-icloudSettings"}
+                        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-xs font-bold disabled:opacity-50"
+                      >
+                        {busy === "desktop-icloudSettings" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Cloud className="h-3.5 w-3.5" />}
+                        {t("onboarding.simpleIcloudOpenSettings")}
+                      </button>
                     ) : null}
                     {simpleIcloudEntryReady ? (
                       <div data-testid="onboarding-icloud-ready-actions" className="mt-3 grid gap-2 sm:grid-cols-2">
