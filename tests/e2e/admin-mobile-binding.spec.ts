@@ -78,7 +78,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(page.getByText("OpenAI 配置检查通过，当前模型：gpt-4o。")).toBeVisible();
   await expect(page.getByText("这一步不会向外部模型发起真实请求；第一次聊天会使用该配置。")).toBeVisible();
   await expect(page.getByText("已是默认聊天 Provider").first()).toBeVisible();
-  await expect(page.getByRole("link", { name: "生成手机二维码" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "生成手机二维码" }).last()).toBeVisible();
   await expect(page.getByText("第二步：用手机扫码")).toBeVisible();
   await expect(page.getByTestId("onboarding-progress-count")).toHaveText("1 / 3");
   await page.unroute("**/api/v1/admin/ai-providers/openai/test");

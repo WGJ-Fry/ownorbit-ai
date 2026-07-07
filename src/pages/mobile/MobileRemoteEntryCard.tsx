@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Copy, RefreshCw, Star, Trash2, Wifi } from "lucide-react";
 import type { DeviceConnectivityReport } from "../../services/lifeosApi";
 import type { MobileIcloudHandoffEntry, MobileIcloudHandoffEntryRecommendation, MobileIcloudHandoffServerRepairStatus, MobileIcloudHandoffStatus } from "../../services/mobileIcloudHandoff";
-import { buildMobileIcloudHandoffRecoveryPacket, buildMobileIcloudHandoffUrl, forgetStoredMobileIcloudHandoffEntry, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffEntryFreshness, getMobileIcloudHandoffEntryKey, getMobileIcloudHandoffEntryRecommendation, getPreferredMobileIcloudHandoffEntryKey, getStoredMobileIcloudHandoffEntries, setPreferredMobileIcloudHandoffEntry } from "../../services/mobileIcloudHandoff";
+import { autoSelectRecommendedMobileIcloudHandoffEntry, buildMobileIcloudHandoffRecoveryPacket, buildMobileIcloudHandoffUrl, forgetStoredMobileIcloudHandoffEntry, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffEntryFreshness, getMobileIcloudHandoffEntryKey, getMobileIcloudHandoffEntryRecommendation, getPreferredMobileIcloudHandoffEntryKey, getStoredMobileIcloudHandoffEntries, setPreferredMobileIcloudHandoffEntry } from "../../services/mobileIcloudHandoff";
 import type { OfflineMessageQueueSummary } from "../../services/offlineMessageQueue";
 import type { MobileConnectivityIssueKey, MobileConnectivityResult, MobileRecoveryHintKey, RemoteEntryStatus } from "../../services/pwaCapabilities";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -74,6 +74,7 @@ export default function MobileRemoteEntryCard({
   const [showIcloudDesktopAdvanced, setShowIcloudDesktopAdvanced] = useState(false);
   const [icloudEntries, setIcloudEntries] = useState(() => getStoredMobileIcloudHandoffEntries());
   const [preferredIcloudEntryKey, setPreferredIcloudEntryKey] = useState(() => getPreferredMobileIcloudHandoffEntryKey());
+  const [autoSwitchedIcloudEntryName, setAutoSwitchedIcloudEntryName] = useState("");
   const queueWaiting = queueSummary.failed > 0 || queueSummary.pending > 0 || queueSummary.syncing > 0;
   const latestConnectivityOk = Boolean(lastConnectivityReport?.ok && !connectivityReportStale);
   const remoteReady = currentEntry.okForRemote && latestConnectivityOk && !queueWaiting;
@@ -168,6 +169,14 @@ export default function MobileRemoteEntryCard({
     setIcloudEntries(getStoredMobileIcloudHandoffEntries());
   }, [icloudHandoffStatus?.entry.baseUrl, icloudHandoffStatus?.entry.desktopId, icloudHandoffStatus?.entry.generatedAt]);
 
+  useEffect(() => {
+    const result = autoSelectRecommendedMobileIcloudHandoffEntry(icloudEntries, { preferredKey: preferredIcloudEntryKey });
+    if (!result.switched || !result.nextEntry) return;
+    setPreferredIcloudEntryKey(getPreferredMobileIcloudHandoffEntryKey());
+    setIcloudEntries(getStoredMobileIcloudHandoffEntries());
+    setAutoSwitchedIcloudEntryName(result.nextEntry.desktopName || result.nextEntry.label || "");
+  }, [icloudEntries, preferredIcloudEntryKey]);
+
   return (
     <section className="mt-4 rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
       <div className="mb-4 flex items-start gap-3">
@@ -210,6 +219,13 @@ export default function MobileRemoteEntryCard({
           <div className="font-bold">{t(icloudHandoffStatus.titleKey as any)}</div>
           <div className="mt-1 opacity-80">{t(icloudHandoffStatus.bodyKey as any)}</div>
           {icloudActionKey ? <div className="mt-2 rounded-xl border border-white/[0.08] bg-black/10 p-2 text-xs font-bold">{t(icloudActionKey as any)}</div> : null}
+          {autoSwitchedIcloudEntryName ? (
+            <div className="mt-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-2 text-xs font-bold text-emerald-100">
+              {t("mobileDevice.icloudHandoffAutoSwitched", {
+                desktop: autoSwitchedIcloudEntryName || t("mobileDevice.icloudHandoffUnknownDesktop"),
+              })}
+            </div>
+          ) : null}
           {icloudServerRepair ? (
             <div className={`mt-3 rounded-xl border p-2 text-xs ${icloudServerRepairTone}`}>
               <div className="font-bold">

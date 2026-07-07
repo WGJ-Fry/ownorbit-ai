@@ -65,6 +65,13 @@ export type MobileIcloudHandoffEntryRecommendation = {
   preferredSwitchReason: "none" | "default-stale" | "default-expired" | "default-legacy" | "default-failed";
 };
 
+export type MobileIcloudHandoffAutoSwitchResult = {
+  switched: boolean;
+  recommendation: MobileIcloudHandoffEntryRecommendation;
+  previousEntry: MobileIcloudHandoffEntry | null;
+  nextEntry: MobileIcloudHandoffEntry | null;
+};
+
 export type MobileIcloudHandoffActionKey =
   | "mobileDevice.icloudHandoffActionReady"
   | "mobileDevice.icloudHandoffActionRetest"
@@ -856,6 +863,37 @@ export function getMobileIcloudHandoffEntryRecommendation(
     preferredEntry,
     preferredNeedsSwitch: preferredSwitchReason !== "none",
     preferredSwitchReason,
+  };
+}
+
+export function autoSelectRecommendedMobileIcloudHandoffEntry(
+  entries = getStoredMobileIcloudHandoffEntries(),
+  options: { now?: number; preferredKey?: string } = {},
+): MobileIcloudHandoffAutoSwitchResult {
+  const now = options.now || Date.now();
+  const recommendation = getMobileIcloudHandoffEntryRecommendation(entries, { ...options, now });
+  const previousEntry = recommendation.preferredEntry;
+  const nextEntry = recommendation.recommendedEntry;
+  if (
+    !recommendation.preferredNeedsSwitch ||
+    !previousEntry ||
+    !nextEntry ||
+    recommendation.recommendedKey === mobileIcloudHandoffEntryKey(previousEntry) ||
+    !isRecommendedMobileIcloudHandoffEntry(nextEntry, now)
+  ) {
+    return {
+      switched: false,
+      recommendation,
+      previousEntry,
+      nextEntry,
+    };
+  }
+  const switched = setPreferredMobileIcloudHandoffEntry(nextEntry);
+  return {
+    switched,
+    recommendation,
+    previousEntry,
+    nextEntry: switched ? nextEntry : null,
   };
 }
 

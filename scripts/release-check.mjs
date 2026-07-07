@@ -1550,6 +1550,7 @@ function checkAssets() {
     translationsSource.includes("refresh the iCloud mobile entry and generate a fresh pairing QR") &&
     translationsSource.includes("Clean Old iCloud Entries") &&
     translationsSource.includes("The iCloud mobile entry was refreshed automatically") &&
+    translationsSource.includes("Automatically switched the default desktop") &&
     translationsSource.includes("Off-LAN realtime entry") &&
     translationsSource.includes("iCloud syncs the entry file but does not carry realtime traffic") &&
     translationsSource.includes("True iCloud data sync would need CloudKit / iCloud Container plus native Apple clients") &&
@@ -1573,11 +1574,14 @@ function checkAssets() {
     icloudAutoRefreshStatusSource.includes("icloud.autoRefresh.updated") &&
     mobileIcloudHandoffSource.includes("PENDING_EVENTS_STORAGE_KEY") &&
     mobileIcloudHandoffSource.includes("SERVER_REPAIR_STORAGE_KEY") &&
+    mobileIcloudHandoffSource.includes("autoSelectRecommendedMobileIcloudHandoffEntry") &&
     mobileIcloudHandoffSource.includes("flushPendingMobileIcloudHandoffEvents") &&
     mobileIcloudHandoffSource.includes("getMobileIcloudHandoffServerRepairStatus") &&
     mobileIcloudHandoffSource.includes("reportOrQueueIcloudHandoffEvent") &&
+    mobileRemoteEntryCardSource.includes("autoSelectRecommendedMobileIcloudHandoffEntry") &&
     mobileDeviceSource.includes("flushPendingMobileIcloudHandoffEvents") &&
     mobileDeviceSource.includes("icloudServerRepair") &&
+    pwaCapabilitiesTestSource.includes("autoSelectRecommendedMobileIcloudHandoffEntry") &&
     pwaCapabilitiesTestSource.includes("queues failed desktop reports and flushes them later") &&
     pwaCapabilitiesTestSource.includes("getMobileIcloudHandoffServerRepairStatus") &&
     pwaCapabilitiesTestSource.includes("flushes queued reports even without a new entry URL") &&
