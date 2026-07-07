@@ -39,6 +39,11 @@ export type IcloudRepairImportRecord = {
     severity: "ok" | "warning" | "danger";
     detail: string;
   }>;
+  nextAction: {
+    id: string;
+    severity: "ok" | "warning" | "danger";
+    detail: string;
+  };
 };
 
 function cleanUrl(value: unknown) {
@@ -72,12 +77,48 @@ function safeSeverity(value: unknown): "ok" | "warning" | "danger" {
   return value === "ok" || value === "warning" || value === "danger" ? value : "warning";
 }
 
+const NEXT_ACTION_PRIORITY = [
+  "refresh-icloud",
+  "regenerate-qr",
+  "start-tailscale",
+  "start-cloudflare",
+  "save-stable-entry",
+  "open-latest-entry",
+  "test-phone-entry",
+  "ready",
+];
+
+function normalizeRecommendation(value: unknown) {
+  const item = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  return {
+    id: safeText(item.id, 80),
+    severity: safeSeverity(item.severity),
+    detail: safeText(item.detail, 220),
+  };
+}
+
+function chooseNextAction(recommendations: Array<{ id: string; severity: "ok" | "warning" | "danger"; detail: string }>, input: unknown) {
+  const normalizedInput = normalizeRecommendation(input);
+  if (normalizedInput.id) return normalizedInput;
+  for (const id of NEXT_ACTION_PRIORITY) {
+    const recommendation = recommendations.find((item) => item.id === id);
+    if (recommendation) return recommendation;
+  }
+  return recommendations[0] || {
+    id: "ready",
+    severity: "ok" as const,
+    detail: "The phone repair info matches the current desktop entry.",
+  };
+}
+
 function normalizeRecord(value: unknown): IcloudRepairImportRecord | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const item = value as Record<string, any>;
   const parsed = item.parsed && typeof item.parsed === "object" ? item.parsed : {};
   const desktop = item.desktop && typeof item.desktop === "object" ? item.desktop : {};
-  const recommendations = Array.isArray(item.recommendations) ? item.recommendations : [];
+  const recommendations = (Array.isArray(item.recommendations) ? item.recommendations : [])
+    .slice(0, 8)
+    .map(normalizeRecommendation);
   return {
     id: safeText(item.id || crypto.randomUUID(), 80),
     importedAt: safeTime(item.importedAt),
@@ -107,11 +148,8 @@ function normalizeRecord(value: unknown): IcloudRepairImportRecord | null {
       recommendedMode: safeText(desktop.recommendedMode, 40),
       recommendedStability: safeText(desktop.recommendedStability, 40),
     },
-    recommendations: recommendations.slice(0, 8).map((recommendation: any) => ({
-      id: safeText(recommendation?.id, 80),
-      severity: safeSeverity(recommendation?.severity),
-      detail: safeText(recommendation?.detail, 220),
-    })),
+    recommendations,
+    nextAction: chooseNextAction(recommendations, item.nextAction),
   };
 }
 
@@ -137,6 +175,7 @@ export function saveIcloudRepairImportAnalysis(analysis: any, actor?: { type: st
     parsed: analysis?.parsed,
     desktop: analysis?.desktop,
     recommendations: analysis?.recommendations,
+    nextAction: analysis?.nextAction,
   });
   if (!record) throw new Error("Invalid iCloud repair analysis");
   const previous = getIcloudRepairImportRecords();

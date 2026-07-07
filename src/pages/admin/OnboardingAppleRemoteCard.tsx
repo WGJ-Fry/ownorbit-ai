@@ -457,10 +457,10 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const latestRepairImportAt = formatHandoffTime(latestRepairImport?.importedAt);
   const latestEntryRepairTone = latestEntryRepair?.severity === "ok" ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-50" : latestEntryRepair?.severity === "danger" ? "border-red-400/20 bg-red-500/10 text-red-50" : "border-amber-400/20 bg-amber-500/10 text-amber-50";
   const latestRepairImportTone = latestRepairImport?.severity === "ok" ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-50" : latestRepairImport?.severity === "danger" ? "border-red-400/20 bg-red-500/10 text-red-50" : "border-amber-400/20 bg-amber-500/10 text-amber-50";
-  const latestRepairImportActions = latestRepairImport?.recommendations
-    ?.slice(0, 3)
-    .map((item) => t((repairRecommendationKeys[item.id as keyof typeof repairRecommendationKeys] || "onboarding.appleRemoteIcloudRepairRecReady") as TranslationKey))
-    .join(" / ") || "";
+  const latestRepairImportNextAction = latestRepairImport?.nextAction || latestRepairImport?.recommendations?.[0] || null;
+  const latestRepairImportNextActionLabel = latestRepairImportNextAction
+    ? t((repairRecommendationKeys[latestRepairImportNextAction.id as keyof typeof repairRecommendationKeys] || "onboarding.appleRemoteIcloudRepairRecReady") as TranslationKey)
+    : "";
   const simpleIcloudStatus = getSimpleIcloudStatus(icloud);
   const primaryIcloudAction = getPrimaryIcloudAction({ icloud, latestEntryRepair, pairingSession, syncReadiness, handoffHealth, canExportIcloud });
   const icloudTrackedFiles = icloudAvailability
@@ -906,9 +906,9 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                       reason: t(repairReasonKeys[latestRepairImport.reason as keyof typeof repairReasonKeys] || "onboarding.appleRemoteIcloudRepairReasonInvalid"),
                     })}
                   </div>
-                  {latestRepairImportActions ? (
+                  {latestRepairImportNextActionLabel ? (
                     <div className="mt-2 rounded-lg border border-current/10 bg-black/10 p-2 text-[11px] font-bold">
-                      {t("onboarding.appleRemoteIcloudRepairImportAction", { actions: latestRepairImportActions })}
+                      {t("onboarding.appleRemoteIcloudRepairNextAction", { action: latestRepairImportNextActionLabel })}
                     </div>
                   ) : null}
                 </div>
@@ -1281,12 +1281,20 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                   <div>{t("onboarding.appleRemoteIcloudRepairPhoneEntry")}: {repairAnalysis.parsed.entryBaseUrl || "-"}</div>
                   <div>{t("onboarding.appleRemoteIcloudRepairDesktopEntry")}: {repairAnalysis.desktop.recommendedBaseUrl || "-"}</div>
                 </div>
-                <div className="mt-3 text-[11px] font-bold opacity-80">{t("onboarding.appleRemoteIcloudRepairActions")}</div>
-                <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                  {repairAnalysis.recommendations.map((item) => (
-                    renderRepairRecommendationAction(item)
-                  ))}
+                <div className="mt-3 text-[11px] font-bold opacity-80">{t("onboarding.appleRemoteIcloudRepairNextActionLabel")}</div>
+                <div className="mt-2">
+                  {renderRepairRecommendationAction(repairAnalysis.nextAction)}
                 </div>
+                {repairAnalysis.recommendations.some((item) => item.id !== repairAnalysis.nextAction.id) ? (
+                  <>
+                    <div className="mt-3 text-[11px] font-bold opacity-80">{t("onboarding.appleRemoteIcloudRepairActions")}</div>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      {repairAnalysis.recommendations.filter((item) => item.id !== repairAnalysis.nextAction.id).map((item) => (
+                        renderRepairRecommendationAction(item)
+                      ))}
+                    </div>
+                  </>
+                ) : null}
               </div>
             ) : null}
           </details>

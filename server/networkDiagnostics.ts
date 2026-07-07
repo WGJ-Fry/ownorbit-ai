@@ -1324,6 +1324,41 @@ function buildIcloudSyncReadiness(input: {
   };
 }
 
+type IcloudRepairRecommendationId =
+  | "refresh-icloud"
+  | "open-latest-entry"
+  | "regenerate-qr"
+  | "start-tailscale"
+  | "start-cloudflare"
+  | "save-stable-entry"
+  | "test-phone-entry"
+  | "ready";
+
+type IcloudRepairRecommendation = {
+  id: IcloudRepairRecommendationId;
+  severity: "ok" | "warning" | "danger";
+  detail: string;
+};
+
+const ICLOUD_REPAIR_NEXT_ACTION_PRIORITY: IcloudRepairRecommendationId[] = [
+  "refresh-icloud",
+  "regenerate-qr",
+  "start-tailscale",
+  "start-cloudflare",
+  "save-stable-entry",
+  "open-latest-entry",
+  "test-phone-entry",
+  "ready",
+];
+
+function chooseIcloudRepairNextAction(recommendations: IcloudRepairRecommendation[]): IcloudRepairRecommendation {
+  for (const id of ICLOUD_REPAIR_NEXT_ACTION_PRIORITY) {
+    const recommendation = recommendations.find((item) => item.id === id);
+    if (recommendation) return recommendation;
+  }
+  return recommendations[0] || { id: "ready", severity: "ok", detail: "The phone repair info matches the current desktop entry." };
+}
+
 export function analyzeIcloudHandoffRepairPacket(text: unknown) {
   const parsed = parseIcloudRepairPacket(text);
   if (!parsed.valid) {
@@ -1340,11 +1375,7 @@ export function analyzeIcloudHandoffRepairPacket(text: unknown) {
   const generatedAt = parseRepairTime(parsed.fields.generatedAt);
   const expiresAt = parseRepairTime(parsed.fields.expiresAt);
   const now = Date.now();
-  const recommendations: Array<{
-    id: "refresh-icloud" | "open-latest-entry" | "regenerate-qr" | "start-tailscale" | "start-cloudflare" | "save-stable-entry" | "test-phone-entry" | "ready";
-    severity: "ok" | "warning" | "danger";
-    detail: string;
-  }> = [];
+  const recommendations: IcloudRepairRecommendation[] = [];
   const seenRecommendations = new Set<string>();
   const addRecommendation = (id: typeof recommendations[number]["id"], severity: typeof recommendations[number]["severity"], detail: string) => {
     if (seenRecommendations.has(id)) return;
@@ -1410,6 +1441,8 @@ export function analyzeIcloudHandoffRepairPacket(text: unknown) {
     addRecommendation("ready", "ok", "The phone repair info matches the current desktop entry.");
   }
 
+  const nextAction = chooseIcloudRepairNextAction(recommendations);
+
   return {
     ok: true,
     reason,
@@ -1440,6 +1473,7 @@ export function analyzeIcloudHandoffRepairPacket(text: unknown) {
       recommendedStability: diagnostics.icloud.recommendedStability,
     },
     recommendations,
+    nextAction,
   };
 }
 

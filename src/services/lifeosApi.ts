@@ -110,6 +110,11 @@ export type IcloudHandoffRepairAnalysis = {
     severity: "ok" | "warning" | "danger";
     detail: string;
   }>;
+  nextAction: {
+    id: "refresh-icloud" | "open-latest-entry" | "regenerate-qr" | "start-tailscale" | "start-cloudflare" | "save-stable-entry" | "test-phone-entry" | "ready";
+    severity: "ok" | "warning" | "danger";
+    detail: string;
+  };
 };
 
 export type IcloudRepairImportRecord = Omit<IcloudHandoffRepairAnalysis, "ok"> & {

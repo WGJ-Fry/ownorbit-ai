@@ -718,6 +718,7 @@ export function registerAdminRoutes(app: express.Express) {
         phoneEntryBaseUrl: analysis.parsed.entryBaseUrl || null,
         desktopRecommendedBaseUrl: analysis.desktop.recommendedBaseUrl || null,
         recommendations: analysis.recommendations.map((item) => item.id),
+        nextAction: analysis.nextAction.id,
         autoRefreshAttempted: shouldAutoRefresh,
         icloudRefresh: {
           refreshed: icloudRefresh.refreshed,

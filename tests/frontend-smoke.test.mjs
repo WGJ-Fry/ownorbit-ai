@@ -765,6 +765,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Entry files are still syncing/);
   assert.match(translationsSource, /可直接执行的修复动作/);
   assert.match(translationsSource, /Actionable repair steps/);
+  assert.match(translationsSource, /下一步只做这个/);
+  assert.match(translationsSource, /Do this one thing next/);
   assert.match(translationsSource, /当前推荐入口和上次导出的地址不同/);
   assert.match(translationsSource, /The recommended entry changed since the last export/);
   assert.match(translationsSource, /有手机打开了旧入口/);

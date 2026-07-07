@@ -278,6 +278,11 @@ function publicIcloudRepairImport(repairImport: ReturnType<typeof getNetworkDiag
       severity: item.severity,
       detail: redactDiagnosticActionText(item.detail, "Recommendation").slice(0, 220),
     })),
+    nextAction: {
+      id: repairImport.nextAction.id,
+      severity: repairImport.nextAction.severity,
+      detail: redactDiagnosticActionText(repairImport.nextAction.detail, "Next action").slice(0, 220),
+    },
   };
 }
 

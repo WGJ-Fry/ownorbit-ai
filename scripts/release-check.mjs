@@ -1460,9 +1460,11 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("latestEntryRepairStatusKeys") &&
     onboardingAppleRemoteSource.includes("latestEntryRepairActionKeys") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudRepairImportTitle") &&
+    onboardingAppleRemoteSource.includes("repairAnalysis.nextAction") &&
     adminRoutesSource.includes("buildLatestIcloudEntryRepairSummary") &&
     adminRoutesSource.includes("saveIcloudRepairImportAnalysis") &&
     adminRoutesSource.includes("admin-repair-packet-import") &&
+    adminRoutesSource.includes("nextAction: analysis.nextAction.id") &&
     adminRoutesSource.includes("latestEntryRepair") &&
     adminRoutesSource.includes("/api/v1/admin/icloud-handoff/cleanup") &&
     adminRoutesSource.includes("icloud_handoff_cleaned") &&
@@ -1472,12 +1474,14 @@ function checkAssets() {
     icloudRepairImportsSource.includes("getLatestIcloudRepairImportRecord") &&
     lifeosApiSource.includes("latestEntryRepair") &&
     lifeosApiSource.includes("latestRepairImport") &&
+    lifeosApiSource.includes("nextAction") &&
     lifeosApiSource.includes("IcloudAutoRefreshResult") &&
     lifeosApiSource.includes("icloudRefresh: IcloudAutoRefreshResult") &&
     lifeosApiSource.includes("cleanupIcloudHandoffEntries") &&
     lifeosApiSource.includes("/api/v1/admin/icloud-handoff/cleanup") &&
     apiAuthTestSource.includes("latestEntryRepair.status") &&
     apiAuthTestSource.includes("diagnostics.icloud.latestRepairImport.id") &&
+    apiAuthTestSource.includes("diagnostics.icloud.latestRepairImport.nextAction.id") &&
     apiAuthTestSource.includes("icloudRepairPacket.icloudRefresh.requestedReason") &&
     apiAuthTestSource.includes("desktopConnectionConfig.diagnostics.desktopRuntimeConfig.publicBaseUrl") &&
     apiAuthTestSource.includes("/api/v1/admin/icloud-handoff/cleanup") &&
@@ -1489,6 +1493,7 @@ function checkAssets() {
     translationsSource.includes("Previous version:") &&
     translationsSource.includes("Phone just opened an old entry") &&
     translationsSource.includes("Phone opened an old entry") &&
+    translationsSource.includes("Do this one thing next") &&
     translationsSource.includes("New mobile QR needed") &&
     translationsSource.includes("refresh the iCloud mobile entry and generate a fresh pairing QR") &&
     translationsSource.includes("Clean Old iCloud Entries") &&
@@ -1498,6 +1503,7 @@ function checkAssets() {
     translationsSource.includes("True iCloud data sync would need CloudKit / iCloud Container plus native Apple clients") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudDataBoundaryBody") &&
     diagnosticBundleSource.includes('dataSyncScope: "entry-file-only"') &&
+    diagnosticBundleSource.includes("repairImport.nextAction.id") &&
     diagnosticBundleSource.includes("cloudKitRequiredForDataSync") &&
     diagnosticBundleSource.includes("nativeDataSyncOptions") &&
     apiAuthTestSource.includes("cloudKitRequiredForDataSync") &&

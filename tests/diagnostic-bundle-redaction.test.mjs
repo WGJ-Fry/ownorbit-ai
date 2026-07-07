@@ -278,6 +278,8 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(bundle.icloudHandoff.boundary.nativeDataSyncOptions.includes("macos-ios-native-clients"), true);
   assert.equal(bundle.icloudHandoff.monitor.enabled, true);
   assert.equal(bundle.icloudHandoff.transport, "handoff-only");
+  assert.equal(bundle.icloudHandoff.latestRepairImport.nextAction.id, "refresh-icloud");
+  assert.equal(bundle.icloudHandoff.latestRepairImport.nextAction.detail.includes("repair-import-secret"), false);
   assert.equal(bundle.icloudHandoff.phoneConfirmation.status, "confirmed");
   assert.equal(bundle.icloudHandoff.phoneConfirmation.confirmedDeviceName, "Phone token=[redacted]");
   assert.equal(bundle.icloudHandoff.phoneConfirmation.confirmedEntryBaseUrl, "https://current.example.com/lifeos");

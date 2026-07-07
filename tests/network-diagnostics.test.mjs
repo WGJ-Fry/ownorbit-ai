@@ -1388,6 +1388,8 @@ test("iCloud repair packet analysis compares phone entry with current desktop en
   assert.equal(analysis.desktop.recommendedBaseUrl, "https://new-lifeos.example.com");
   assert.equal(analysis.recommendations.some((item) => item.id === "refresh-icloud"), true);
   assert.equal(analysis.recommendations.some((item) => item.id === "regenerate-qr"), true);
+  assert.equal(analysis.nextAction.id, "refresh-icloud");
+  assert.equal(analysis.nextAction.severity, "danger");
   assert.equal(JSON.stringify(analysis).includes("should-not-survive"), false);
 });
 
