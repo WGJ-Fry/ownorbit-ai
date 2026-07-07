@@ -539,6 +539,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding-icloud-quick-entry/);
   assert.match(onboardingSource, /onboarding-icloud-phone-pickup/);
   assert.match(onboardingSource, /onboarding-icloud-same-wifi-notice/);
+  assert.match(onboardingSource, /onboarding-icloud-ready-actions/);
+  assert.match(onboardingSource, /onboarding-icloud-ready-qr/);
   assert.match(onboardingSource, /onboarding-device-advanced-icloud-tools/);
   assert.match(onboardingSource, /onboarding\.simpleDeviceAdvancedTitle/);
   assert.match(onboardingSource, /onboarding\.simpleDeviceAdvancedBody/);
@@ -552,6 +554,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /simpleIcloudAction\.cta === "export"/);
   assert.match(onboardingSource, /onboarding\.appleRemoteIcloudOneNextAction/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudFilesPath/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudFilesActionTitle/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudQrActionTitle/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudOpenQr/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudRegenerate/);
   assert.match(onboardingSource, /onboarding\.simpleStartChat/);
@@ -793,6 +797,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /iCloud syncs a mobile entry file/);
   assert.match(translationsSource, /高级连接与 iCloud 诊断/);
   assert.match(translationsSource, /Advanced connection and iCloud diagnostics/);
+  assert.match(translationsSource, /在 iPhone 文件 App 打开/);
+  assert.match(translationsSource, /Open the iPhone Files app/);
+  assert.match(translationsSource, /生成手机二维码/);
+  assert.match(translationsSource, /Generate the phone QR/);
   assert.match(translationsSource, /CloudKit \/ iCloud Container/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudDataBoundaryBody/);
   assert.match(translationsSource, /同步包状态/);

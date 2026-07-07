@@ -664,6 +664,8 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding-icloud-quick-entry") &&
     adminOnboardingSource.includes("onboarding-icloud-phone-pickup") &&
     adminOnboardingSource.includes("onboarding-icloud-same-wifi-notice") &&
+    adminOnboardingSource.includes("onboarding-icloud-ready-actions") &&
+    adminOnboardingSource.includes("onboarding-icloud-ready-qr") &&
     adminOnboardingSource.includes("onboarding-device-advanced-icloud-tools") &&
     adminOnboardingSource.includes("onboarding.simpleDeviceAdvancedTitle") &&
     adminOnboardingSource.includes("onboarding.simpleDeviceAdvancedBody") &&
@@ -677,6 +679,8 @@ function checkAssets() {
     adminOnboardingSource.includes("simpleIcloudAction.cta === \"export\"") &&
     adminOnboardingSource.includes("onboarding.appleRemoteIcloudOneNextAction") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudFilesPath") &&
+    adminOnboardingSource.includes("onboarding.simpleIcloudFilesActionTitle") &&
+    adminOnboardingSource.includes("onboarding.simpleIcloudQrActionTitle") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudOpenQr") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudRegenerate") &&
     adminOnboardingSource.includes("onboarding.simpleStartChat") &&
@@ -710,6 +714,8 @@ function checkAssets() {
     translationsSource.includes("onboarding.simpleDeviceAdvancedTitle") &&
     translationsSource.includes("onboarding.simpleDeviceAdvancedBody") &&
     translationsSource.includes("onboarding.simpleIcloudReadyTitle") &&
+    translationsSource.includes("onboarding.simpleIcloudFilesActionTitle") &&
+    translationsSource.includes("onboarding.simpleIcloudQrActionTitle") &&
     translationsSource.includes("onboarding.simpleIcloudPickupConfirmedTitle") &&
     translationsSource.includes("手机已经拿到最新入口") &&
     translationsSource.includes("Phone has the latest entry") &&

@@ -547,12 +547,22 @@ export default function AdminOnboardingPage() {
                       </div>
                     ) : null}
                     {simpleIcloudEntryReady ? (
-                      <div className="mt-3 rounded-xl border border-current/10 bg-[#060a10]/35 p-3 text-xs leading-relaxed opacity-85">
-                        <div className="flex gap-2">
-                          <Smartphone className="mt-0.5 h-4 w-4 shrink-0" />
-                          <span>{t("onboarding.simpleIcloudFilesPath")}</span>
+                      <div data-testid="onboarding-icloud-ready-actions" className="mt-3 grid gap-2 sm:grid-cols-2">
+                        <div className="rounded-xl border border-current/10 bg-[#060a10]/35 p-3 text-xs leading-relaxed opacity-90">
+                          <div className="flex gap-2 font-bold">
+                            <Smartphone className="mt-0.5 h-4 w-4 shrink-0" />
+                            <span>{t("onboarding.simpleIcloudFilesActionTitle")}</span>
+                          </div>
+                          <p className="mt-1 opacity-75">{t("onboarding.simpleIcloudFilesActionBody")}</p>
+                          <div className="mt-2 break-all rounded-lg bg-black/20 p-2 font-mono text-[11px] opacity-75">{icloud?.handoffFilePath || t("onboarding.simpleIcloudFilesPath")}</div>
                         </div>
-                        <div className="mt-1 break-all font-mono text-[11px] opacity-70">{icloud?.handoffFilePath || "-"}</div>
+                        <a data-testid="onboarding-icloud-ready-qr" href="/admin/devices/pair" className="rounded-xl border border-cyan-200/20 bg-cyan-400 px-3 py-3 text-xs font-bold leading-relaxed text-[#061016] shadow-lg shadow-cyan-950/20 transition hover:bg-cyan-300">
+                          <div className="flex gap-2">
+                            <QrCode className="mt-0.5 h-4 w-4 shrink-0" />
+                            <span>{t("onboarding.simpleIcloudQrActionTitle")}</span>
+                          </div>
+                          <p className="mt-1 font-semibold opacity-80">{t("onboarding.simpleIcloudQrActionBody")}</p>
+                        </a>
                       </div>
                     ) : null}
                     <div data-testid="onboarding-icloud-phone-pickup" className={`mt-3 rounded-xl border p-3 text-xs leading-relaxed ${simpleIcloudPickupStatus.tone}`}>
@@ -637,7 +647,7 @@ export default function AdminOnboardingPage() {
                   </div>
                 </div>
                 <div className="mt-4 grid gap-3">
-                  {simpleIcloudAction.cta === "qr" ? (
+                  {simpleIcloudAction.cta === "qr" && !simpleIcloudEntryReady ? (
                   <a href="/admin/devices/pair" className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-400 px-4 py-3 text-sm font-bold text-[#061016]">
                     <QrCode className="h-4 w-4" />
                     {t("onboarding.simpleIcloudOpenQr")}
