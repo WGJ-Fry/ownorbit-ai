@@ -118,7 +118,9 @@ export default function MobileRemoteEntryCard({
   const duplicateIcloudDesktopNames = getDuplicateMobileIcloudDesktopNames(icloudEntries);
   const currentIcloudEntryKey = icloudHandoffStatus ? getMobileIcloudHandoffEntryKey(icloudHandoffStatus.entry) : "";
   const recommendedIcloudEntryKey = recommendedIcloudEntry ? getMobileIcloudHandoffEntryKey(recommendedIcloudEntry) : "";
+  const recommendedIcloudEntryName = recommendedIcloudEntry?.desktopName || recommendedIcloudEntry?.label || t("mobileDevice.icloudHandoffUnknownDesktop");
   const shouldOpenRecommendedIcloudEntry = Boolean(icloudHandoffStatus && recommendedIcloudEntry && recommendedIcloudEntryKey && recommendedIcloudEntryKey !== currentIcloudEntryKey);
+  const shouldSwitchDefaultIcloudEntry = Boolean(recommendedIcloudEntry && recommendedIcloudEntryKey && recommendedIcloudEntryKey !== preferredIcloudEntryKey && icloudEntryRecommendation.preferredNeedsSwitch);
   const currentIcloudSameWifiOnly = Boolean(icloudHandoffStatus && isMobileIcloudHandoffSameWifiOnly(icloudHandoffStatus.entry));
   const icloudRecommendedBodyKey = (icloudEntryRecommendation.preferredNeedsSwitch
     ? icloudPreferredSwitchReasonKeys[icloudEntryRecommendation.preferredSwitchReason]
@@ -273,7 +275,7 @@ export default function MobileRemoteEntryCard({
               <div className="font-bold">{t("mobileDevice.icloudHandoffOpenRecommendedTitle")}</div>
               <div className="mt-1 text-sky-50/80">
                 {t("mobileDevice.icloudHandoffOpenRecommendedBody", {
-                  desktop: recommendedIcloudEntry.desktopName || recommendedIcloudEntry.label || t("mobileDevice.icloudHandoffUnknownDesktop"),
+                  desktop: recommendedIcloudEntryName,
                 })}
               </div>
               <button
@@ -283,6 +285,34 @@ export default function MobileRemoteEntryCard({
               >
                 {t("mobileDevice.icloudHandoffOpenRecommendedAction")}
               </button>
+            </div>
+          ) : null}
+          {shouldSwitchDefaultIcloudEntry && recommendedIcloudEntry ? (
+            <div data-testid="mobile-icloud-default-switch" className="mt-3 rounded-xl border border-cyan-300/20 bg-cyan-500/10 p-3 text-xs leading-relaxed text-cyan-50">
+              <div className="font-bold">{t("mobileDevice.icloudHandoffDefaultSwitchTitle")}</div>
+              <div className="mt-1 text-cyan-50/80">
+                {t("mobileDevice.icloudHandoffDefaultSwitchBody", {
+                  desktop: recommendedIcloudEntryName,
+                })}
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  data-testid="mobile-icloud-default-switch-open"
+                  onClick={() => openIcloudEntry(recommendedIcloudEntry)}
+                  className="inline-flex w-full items-center justify-center rounded-xl bg-cyan-300 px-3 py-2 text-xs font-bold text-[#061016]"
+                >
+                  {t("mobileDevice.icloudHandoffOpenRecommendedAction")}
+                </button>
+                <button
+                  type="button"
+                  data-testid="mobile-icloud-default-switch-default"
+                  onClick={() => preferIcloudEntry(recommendedIcloudEntry)}
+                  className="inline-flex w-full items-center justify-center rounded-xl border border-cyan-200/25 bg-black/10 px-3 py-2 text-xs font-bold text-cyan-50"
+                >
+                  {t("mobileDevice.icloudHandoffMakeRecommendedDefault")}
+                </button>
+              </div>
             </div>
           ) : null}
           {icloudServerRepair ? (

@@ -1627,8 +1627,12 @@ function checkAssets() {
     mobileRemoteEntryCardSource.includes("autoSelectRecommendedMobileIcloudHandoffEntry") &&
     mobileRemoteEntryCardSource.includes("mobile-icloud-recommended-switch") &&
     mobileRemoteEntryCardSource.includes("shouldOpenRecommendedIcloudEntry") &&
+    mobileRemoteEntryCardSource.includes("mobile-icloud-default-switch") &&
+    mobileRemoteEntryCardSource.includes("shouldSwitchDefaultIcloudEntry") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffOpenRecommendedAction") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffMakeRecommendedDefault") &&
     translationsSource.includes("A better entry is available") &&
+    translationsSource.includes("Default entry needs switching") &&
     mobileDeviceSource.includes("flushPendingMobileIcloudHandoffEvents") &&
     mobileDeviceSource.includes("icloudServerRepair") &&
     pwaCapabilitiesTestSource.includes("autoSelectRecommendedMobileIcloudHandoffEntry") &&
@@ -2037,6 +2041,8 @@ function checkAssets() {
     mobileRemoteEntryCardSource.includes("showIcloudDesktopAdvanced") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffDefaultDesktop") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffMakeDefault") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffDefaultSwitchTitle") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffMakeRecommendedDefault") &&
     pwaCapabilitiesTestSource.includes("getPreferredMobileIcloudHandoffEntryKey") &&
     pwaCapabilitiesTestSource.includes("setPreferredMobileIcloudHandoffEntry") &&
     pwaCapabilitiesTestSource.includes("recommends a usable desktop when the default entry fails") &&
