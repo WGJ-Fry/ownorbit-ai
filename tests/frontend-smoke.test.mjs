@@ -1072,6 +1072,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffDefaultDesktop/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffMakeDefault/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffForgetDesktop/);
+  assert.match(mobileRemoteEntryCardSource, /mobile-icloud-recommended-switch/);
+  assert.match(mobileRemoteEntryCardSource, /shouldOpenRecommendedIcloudEntry/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffOpenRecommendedTitle/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffOpenRecommendedAction/);
   assert.match(mobileRemoteEntryCardSource, /showIcloudAdvanced/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffSummaryTitle/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffShowAdvanced/);
@@ -1086,6 +1090,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /lastConnectivityTestedAt/);
   assert.match(translationsSource, /推荐入口/);
   assert.match(translationsSource, /Recommended entry/);
+  assert.match(translationsSource, /发现更适合的入口/);
+  assert.match(translationsSource, /A better entry is available/);
+  assert.match(translationsSource, /Open Recommended Entry/);
   assert.match(translationsSource, /这个 iCloud 入口只适合同一 Wi-Fi/);
   assert.match(translationsSource, /This iCloud entry only works on the same Wi-Fi/);
   assert.match(mobileRemoteEntryCardSource, /getMobileIcloudHandoffActionKey/);

@@ -1603,6 +1603,10 @@ function checkAssets() {
     mobileIcloudHandoffSource.includes("getMobileIcloudHandoffServerRepairStatus") &&
     mobileIcloudHandoffSource.includes("reportOrQueueIcloudHandoffEvent") &&
     mobileRemoteEntryCardSource.includes("autoSelectRecommendedMobileIcloudHandoffEntry") &&
+    mobileRemoteEntryCardSource.includes("mobile-icloud-recommended-switch") &&
+    mobileRemoteEntryCardSource.includes("shouldOpenRecommendedIcloudEntry") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffOpenRecommendedAction") &&
+    translationsSource.includes("A better entry is available") &&
     mobileDeviceSource.includes("flushPendingMobileIcloudHandoffEvents") &&
     mobileDeviceSource.includes("icloudServerRepair") &&
     pwaCapabilitiesTestSource.includes("autoSelectRecommendedMobileIcloudHandoffEntry") &&

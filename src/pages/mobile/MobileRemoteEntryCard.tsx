@@ -116,6 +116,9 @@ export default function MobileRemoteEntryCard({
   const recommendedIcloudEntry = icloudEntryRecommendation.recommendedEntry;
   const otherIcloudEntries = icloudEntryRecommendation.otherEntries;
   const duplicateIcloudDesktopNames = getDuplicateMobileIcloudDesktopNames(icloudEntries);
+  const currentIcloudEntryKey = icloudHandoffStatus ? getMobileIcloudHandoffEntryKey(icloudHandoffStatus.entry) : "";
+  const recommendedIcloudEntryKey = recommendedIcloudEntry ? getMobileIcloudHandoffEntryKey(recommendedIcloudEntry) : "";
+  const shouldOpenRecommendedIcloudEntry = Boolean(icloudHandoffStatus && recommendedIcloudEntry && recommendedIcloudEntryKey && recommendedIcloudEntryKey !== currentIcloudEntryKey);
   const currentIcloudSameWifiOnly = Boolean(icloudHandoffStatus && isMobileIcloudHandoffSameWifiOnly(icloudHandoffStatus.entry));
   const icloudRecommendedBodyKey = (icloudEntryRecommendation.preferredNeedsSwitch
     ? icloudPreferredSwitchReasonKeys[icloudEntryRecommendation.preferredSwitchReason]
@@ -263,6 +266,23 @@ export default function MobileRemoteEntryCard({
               {t("mobileDevice.icloudHandoffAutoSwitched", {
                 desktop: autoSwitchedIcloudEntryName || t("mobileDevice.icloudHandoffUnknownDesktop"),
               })}
+            </div>
+          ) : null}
+          {shouldOpenRecommendedIcloudEntry && recommendedIcloudEntry ? (
+            <div data-testid="mobile-icloud-recommended-switch" className="mt-3 rounded-xl border border-sky-300/20 bg-sky-500/10 p-3 text-xs leading-relaxed text-sky-50">
+              <div className="font-bold">{t("mobileDevice.icloudHandoffOpenRecommendedTitle")}</div>
+              <div className="mt-1 text-sky-50/80">
+                {t("mobileDevice.icloudHandoffOpenRecommendedBody", {
+                  desktop: recommendedIcloudEntry.desktopName || recommendedIcloudEntry.label || t("mobileDevice.icloudHandoffUnknownDesktop"),
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={() => openIcloudEntry(recommendedIcloudEntry)}
+                className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-sky-300 px-3 py-2 text-xs font-bold text-[#061016]"
+              >
+                {t("mobileDevice.icloudHandoffOpenRecommendedAction")}
+              </button>
             </div>
           ) : null}
           {icloudServerRepair ? (
