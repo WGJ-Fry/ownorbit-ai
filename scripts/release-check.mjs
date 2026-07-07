@@ -662,7 +662,10 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding.simpleDeviceTitle") &&
     adminOnboardingSource.includes("onboarding.simpleDeviceBody") &&
     adminOnboardingSource.includes("onboarding-icloud-quick-entry") &&
-    adminOnboardingSource.includes("onboarding.simpleIcloudReadyTitle") &&
+    adminOnboardingSource.includes("getPrimaryIcloudAction") &&
+    adminOnboardingSource.includes("simpleIcloudAction.cta === \"qr\"") &&
+    adminOnboardingSource.includes("simpleIcloudAction.cta === \"export\"") &&
+    adminOnboardingSource.includes("onboarding.appleRemoteIcloudOneNextAction") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudFilesPath") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudOpenQr") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudRegenerate") &&
