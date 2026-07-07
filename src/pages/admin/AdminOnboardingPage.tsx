@@ -592,6 +592,28 @@ export default function AdminOnboardingPage() {
                               })}
                             </span>
                           </div>
+                          {simpleIcloudPickupStatus.cta === "export" ? (
+                            <button
+                              data-testid="onboarding-icloud-phone-pickup-cta"
+                              type="button"
+                              onClick={handleExportIcloudHandoff}
+                              disabled={!simpleIcloudCanExport || simpleIcloudBusy}
+                              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-xs font-bold disabled:opacity-50"
+                            >
+                              {simpleIcloudBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                              {simpleIcloudBusy ? t("onboarding.simpleIcloudGenerating") : t("onboarding.simpleIcloudRegenerate")}
+                            </button>
+                          ) : null}
+                          {simpleIcloudPickupStatus.cta === "qr" ? (
+                            <a
+                              data-testid="onboarding-icloud-phone-pickup-cta"
+                              href="/admin/devices/pair"
+                              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-400 px-3 py-2 text-xs font-bold text-[#061016] shadow-lg shadow-cyan-950/20 transition hover:bg-cyan-300"
+                            >
+                              <QrCode className="h-3.5 w-3.5" />
+                              {t("onboarding.simpleIcloudOpenQr")}
+                            </a>
+                          ) : null}
                         </div>
                       </div>
                     </div>

@@ -541,6 +541,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding-icloud-same-wifi-notice/);
   assert.match(onboardingSource, /onboarding-icloud-ready-actions/);
   assert.match(onboardingSource, /onboarding-icloud-ready-qr/);
+  assert.match(onboardingSource, /onboarding-icloud-phone-pickup-cta/);
   assert.match(onboardingSource, /onboarding-device-advanced-icloud-tools/);
   assert.match(onboardingSource, /onboarding\.simpleDeviceAdvancedTitle/);
   assert.match(onboardingSource, /onboarding\.simpleDeviceAdvancedBody/);
@@ -549,6 +550,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /simpleIcloudSameWifiActionCloudflare/);
   assert.match(onboardingSource, /getIcloudPhonePickupStatus/);
   assert.match(onboardingSource, /simpleIcloudPickupStatus\.actionKey/);
+  assert.match(onboardingSource, /simpleIcloudPickupStatus\.cta === "export"/);
+  assert.match(onboardingSource, /simpleIcloudPickupStatus\.cta === "qr"/);
   assert.match(onboardingSource, /getPrimaryIcloudAction/);
   assert.match(onboardingSource, /simpleIcloudAction\.cta === "qr"/);
   assert.match(onboardingSource, /simpleIcloudAction\.cta === "export"/);

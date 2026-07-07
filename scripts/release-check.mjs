@@ -666,6 +666,7 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding-icloud-same-wifi-notice") &&
     adminOnboardingSource.includes("onboarding-icloud-ready-actions") &&
     adminOnboardingSource.includes("onboarding-icloud-ready-qr") &&
+    adminOnboardingSource.includes("onboarding-icloud-phone-pickup-cta") &&
     adminOnboardingSource.includes("onboarding-device-advanced-icloud-tools") &&
     adminOnboardingSource.includes("onboarding.simpleDeviceAdvancedTitle") &&
     adminOnboardingSource.includes("onboarding.simpleDeviceAdvancedBody") &&
@@ -674,6 +675,8 @@ function checkAssets() {
     adminOnboardingSource.includes("simpleIcloudSameWifiActionCloudflare") &&
     adminOnboardingSource.includes("getIcloudPhonePickupStatus") &&
     adminOnboardingSource.includes("simpleIcloudPickupStatus.actionKey") &&
+    adminOnboardingSource.includes("simpleIcloudPickupStatus.cta === \"export\"") &&
+    adminOnboardingSource.includes("simpleIcloudPickupStatus.cta === \"qr\"") &&
     adminOnboardingSource.includes("getPrimaryIcloudAction") &&
     adminOnboardingSource.includes("simpleIcloudAction.cta === \"qr\"") &&
     adminOnboardingSource.includes("simpleIcloudAction.cta === \"export\"") &&
