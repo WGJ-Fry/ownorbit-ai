@@ -558,6 +558,14 @@ export default function AdminOnboardingPage() {
             <div className="mt-5 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-xs leading-relaxed text-zinc-400">
               {remoteReady ? t("onboarding.simpleRemoteReady") : t("onboarding.simpleSameWifiHint")}
             </div>
+            <a
+              data-testid="onboarding-simple-phone-qr"
+              href="/admin/devices/pair"
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-400 px-4 py-3 text-sm font-bold text-[#061016] shadow-lg shadow-cyan-950/20 transition hover:bg-cyan-300"
+            >
+              <QrCode className="h-4 w-4" />
+              {t("onboarding.simpleOpenQr")}
+            </a>
             {showSimpleIcloudEntry ? (
               <div data-testid="onboarding-icloud-quick-entry" className={`mt-5 rounded-2xl border p-4 ${simpleIcloudAction.tone}`}>
                 <div className="flex gap-3">

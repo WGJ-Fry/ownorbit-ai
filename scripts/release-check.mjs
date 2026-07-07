@@ -661,6 +661,8 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding.simpleAiTitle") &&
     adminOnboardingSource.includes("onboarding.simpleDeviceTitle") &&
     adminOnboardingSource.includes("onboarding.simpleDeviceBody") &&
+    adminOnboardingSource.includes("onboarding-simple-phone-qr") &&
+    adminOnboardingSource.includes("onboarding.simpleOpenQr") &&
     adminOnboardingSource.includes("onboarding-icloud-quick-entry") &&
     adminOnboardingSource.includes("onboarding-icloud-phone-pickup") &&
     adminOnboardingSource.includes("onboarding-icloud-same-wifi-notice") &&
