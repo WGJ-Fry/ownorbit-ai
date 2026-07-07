@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Copy, RefreshCw, Star, Trash2, Wifi } from "lucide-react";
 import type { DeviceConnectivityReport } from "../../services/lifeosApi";
 import type { MobileIcloudHandoffEntry, MobileIcloudHandoffEntryRecommendation, MobileIcloudHandoffServerRepairStatus, MobileIcloudHandoffStatus } from "../../services/mobileIcloudHandoff";
-import { autoSelectRecommendedMobileIcloudHandoffEntry, buildMobileIcloudHandoffRecoveryPacket, buildMobileIcloudHandoffUrl, forgetStoredMobileIcloudHandoffEntry, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffEntryFreshness, getMobileIcloudHandoffEntryKey, getMobileIcloudHandoffEntryRecommendation, getPreferredMobileIcloudHandoffEntryKey, getStoredMobileIcloudHandoffEntries, setPreferredMobileIcloudHandoffEntry } from "../../services/mobileIcloudHandoff";
+import { autoSelectRecommendedMobileIcloudHandoffEntry, buildMobileIcloudHandoffRecoveryPacket, buildMobileIcloudHandoffUrl, forgetStoredMobileIcloudHandoffEntry, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffEntryFreshness, getMobileIcloudHandoffEntryKey, getMobileIcloudHandoffEntryRecommendation, getPreferredMobileIcloudHandoffEntryKey, getStoredMobileIcloudHandoffEntries, isMobileIcloudHandoffSameWifiOnly, setPreferredMobileIcloudHandoffEntry } from "../../services/mobileIcloudHandoff";
 import type { OfflineMessageQueueSummary } from "../../services/offlineMessageQueue";
 import type { MobileConnectivityIssueKey, MobileConnectivityResult, MobileRecoveryHintKey, RemoteEntryStatus } from "../../services/pwaCapabilities";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -116,6 +116,7 @@ export default function MobileRemoteEntryCard({
   const recommendedIcloudEntry = icloudEntryRecommendation.recommendedEntry;
   const otherIcloudEntries = icloudEntryRecommendation.otherEntries;
   const duplicateIcloudDesktopNames = getDuplicateMobileIcloudDesktopNames(icloudEntries);
+  const currentIcloudSameWifiOnly = Boolean(icloudHandoffStatus && isMobileIcloudHandoffSameWifiOnly(icloudHandoffStatus.entry));
   const icloudRecommendedBodyKey = (icloudEntryRecommendation.preferredNeedsSwitch
     ? icloudPreferredSwitchReasonKeys[icloudEntryRecommendation.preferredSwitchReason]
     : "mobileDevice.icloudHandoffRecommendedBody") as any;
@@ -145,6 +146,7 @@ export default function MobileRemoteEntryCard({
     const freshness = getMobileIcloudHandoffEntryFreshness(entry);
     const shortDesktopId = getMobileIcloudDesktopShortId(entry);
     const hasDuplicateName = duplicateIcloudDesktopNames.has(mobileIcloudDesktopNameKey(entry));
+    const sameWifiOnly = isMobileIcloudHandoffSameWifiOnly(entry);
     return (
       <div
         key={key}
@@ -167,6 +169,7 @@ export default function MobileRemoteEntryCard({
             </span>
             {preferred ? <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-bold text-sky-100">{t("mobileDevice.icloudHandoffDefaultDesktop")}</span> : null}
             {options.recommended ? <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-100">{t("mobileDevice.icloudHandoffRecommendedBadge")}</span> : null}
+            {sameWifiOnly ? <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-100">{t("mobileDevice.icloudHandoffSameWifiBadge")}</span> : null}
             <span className="font-bold">{active ? t("mobileDevice.icloudHandoffCurrentDesktop") : t("mobileDevice.icloudHandoffOpenDesktop")}</span>
           </span>
         </button>
@@ -249,6 +252,11 @@ export default function MobileRemoteEntryCard({
         <div className={`mt-3 rounded-2xl border p-3 text-sm leading-relaxed ${icloudTone}`}>
           <div className="font-bold">{t(icloudHandoffStatus.titleKey as any)}</div>
           <div className="mt-1 opacity-80">{t(icloudHandoffStatus.bodyKey as any)}</div>
+          {currentIcloudSameWifiOnly ? (
+            <div className="mt-2 rounded-xl border border-amber-400/20 bg-amber-500/10 p-2 text-xs font-bold text-amber-100">
+              {t("mobileDevice.icloudHandoffSameWifiWarning")}
+            </div>
+          ) : null}
           {icloudActionKey ? <div className="mt-2 rounded-xl border border-white/[0.08] bg-black/10 p-2 text-xs font-bold">{t(icloudActionKey as any)}</div> : null}
           {autoSwitchedIcloudEntryName ? (
             <div className="mt-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-2 text-xs font-bold text-emerald-100">

@@ -385,13 +385,13 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
     generatedAt: otherGeneratedAt,
     refreshAfter: otherGeneratedAt + 24 * 60 * 60 * 1000,
     expiresAt: otherGeneratedAt + 7 * 24 * 60 * 60 * 1000,
-    candidateId: "old-cloudflare",
-    label: "Old Cloudflare",
-    baseUrl: "https://old-lifeos.example.com",
-    mobilePairUrl: "https://old-lifeos.example.com/mobile/pair",
-    mobileChatUrl: "https://old-lifeos.example.com/mobile/chat",
-    mode: "cloudflare",
-    secure: true,
+    candidateId: "old-lan",
+    label: "Old LAN",
+    baseUrl: "http://192.168.0.50:4567",
+    mobilePairUrl: "http://192.168.0.50:4567/mobile/pair",
+    mobileChatUrl: "http://192.168.0.50:4567/mobile/chat",
+    mode: "lan",
+    secure: false,
     stability: "temporary",
     requiresRestart: false,
     transport: "icloud-handoff",
@@ -488,6 +488,8 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.match(indexHtml, /data-lifeos-desktop-short-id="oldmac"/);
   assert.match(indexHtml, /Kitchen Mac · oldmac/);
   assert.match(indexHtml, /ID oldmac/);
+  assert.match(indexHtml, /data-lifeos-entry-same-wifi-only="1"/);
+  assert.match(indexHtml, /同一 Wi-Fi \/ Same Wi-Fi only/);
   assert.match(indexHtml, /class="entry primary"/);
   assert.match(indexHtml, /打开这个入口 \/ Open this entry/);
   assert.match(indexHtml, /name="lifeos-entry-index-checksum" content="[a-f0-9]{64}"/);

@@ -1480,6 +1480,8 @@ function checkAssets() {
     networkDiagnosticsSource.includes("chooseIcloudRecommendedIndexEntry") &&
     networkDiagnosticsSource.includes("formatIcloudDesktopDisplayName") &&
     networkDiagnosticsSource.includes("data-lifeos-desktop-short-id") &&
+    networkDiagnosticsSource.includes("data-lifeos-entry-same-wifi-only") &&
+    networkDiagnosticsSource.includes("Same Wi-Fi only") &&
     networkDiagnosticsSource.includes("If two desktops share a name") &&
     networkDiagnosticsSource.includes("Open the Recommended Entry") &&
     networkDiagnosticsSource.includes("Other desktop entries") &&
@@ -1989,6 +1991,9 @@ function checkAssets() {
     mobileRemoteEntryCardSource.includes("getDuplicateMobileIcloudDesktopNames") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffDuplicateHint") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffShortId") &&
+    mobileRemoteEntryCardSource.includes("isMobileIcloudHandoffSameWifiOnly") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffSameWifiBadge") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffSameWifiWarning") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffRecommendedDesktop") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffShowOtherDesktops") &&
     mobileRemoteEntryCardSource.includes("showIcloudDesktopAdvanced") &&

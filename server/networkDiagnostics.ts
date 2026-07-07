@@ -580,6 +580,28 @@ function formatIcloudDesktopDisplayName(
     : baseName;
 }
 
+function isPrivateNetworkHost(hostname: string) {
+  const host = String(hostname || "").trim().toLowerCase();
+  if (!host || host === "localhost" || host.endsWith(".local")) return true;
+  if (/^127\./.test(host)) return true;
+  if (/^10\./.test(host)) return true;
+  if (/^192\.168\./.test(host)) return true;
+  const match = host.match(/^172\.(\d+)\./);
+  return Boolean(match && Number(match[1]) >= 16 && Number(match[1]) <= 31);
+}
+
+function isIcloudEntrySameWifiOnly(entry: Pick<NonNullable<ReturnType<typeof summarizeIcloudEntryPacket>>, "mode" | "stability" | "baseUrl">) {
+  const mode = String(entry.mode || "").toLowerCase();
+  const stability = String(entry.stability || "").toLowerCase();
+  if (mode === "lan" || mode === "local" || stability === "local") return true;
+  try {
+    const url = new URL(entry.baseUrl);
+    return url.protocol === "http:" && isPrivateNetworkHost(url.hostname);
+  } catch {
+    return /^http:\/\/(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/i.test(String(entry.baseUrl || ""));
+  }
+}
+
 function buildIcloudIndexChecksum(input: {
   generatedAt: number;
   entries: ReturnType<typeof readIcloudEntrySummaries>;
@@ -909,19 +931,22 @@ function buildIcloudHandoffIndexHtml(input: {
     ? input.entries.filter((entry) => `${entry.desktopId}:${entry.generatedAt}:${entry.htmlFileName}` !== recommendedKey)
     : input.entries;
   const duplicateDesktopNames = getDuplicateIcloudDesktopNames(input.entries);
+  const recommendedSameWifiOnly = Boolean(recommendedEntry && isIcloudEntrySameWifiOnly(recommendedEntry));
   const renderEntry = (entry: NonNullable<typeof recommendedEntry>, options: { primary?: boolean } = {}) => {
     const isCurrent = entry.desktopId === input.currentDesktopId;
     const shortId = getIcloudDesktopShortId(entry);
     const displayName = formatIcloudDesktopDisplayName(entry, duplicateDesktopNames);
+    const sameWifiOnly = isIcloudEntrySameWifiOnly(entry);
+    const reachability = sameWifiOnly ? "同一 Wi-Fi / Same Wi-Fi only" : "异地可用入口 / Off-LAN entry";
     const status = entry.expiresAt && input.generatedAt >= entry.expiresAt
       ? "已过期 / Expired"
       : entry.refreshAfter && input.generatedAt >= entry.refreshAfter
       ? "建议刷新 / Refresh suggested"
       : "可用 / Usable";
-    return `<a class="entry${options.primary ? " primary" : ""}" href="${htmlEscape(entry.htmlFileName)}" data-lifeos-desktop-short-id="${htmlEscape(shortId)}" data-lifeos-desktop-display-name="${htmlEscape(displayName)}">
+    return `<a class="entry${options.primary ? " primary" : ""}${sameWifiOnly ? " same-wifi" : ""}" href="${htmlEscape(entry.htmlFileName)}" data-lifeos-desktop-short-id="${htmlEscape(shortId)}" data-lifeos-desktop-display-name="${htmlEscape(displayName)}" data-lifeos-entry-same-wifi-only="${sameWifiOnly ? "1" : "0"}">
       <strong>${htmlEscape(displayName)}${isCurrent ? " · 当前电脑 / This Mac" : ""}</strong>
       <span>${htmlEscape(entry.baseUrl)}</span>
-      <small>${htmlEscape(status)} · ID ${htmlEscape(shortId)} · ${htmlEscape(new Date(entry.generatedAt).toLocaleString())}</small>
+      <small>${htmlEscape(status)} · ${htmlEscape(reachability)} · ID ${htmlEscape(shortId)} · ${htmlEscape(new Date(entry.generatedAt).toLocaleString())}</small>
       ${options.primary ? `<em>打开这个入口 / Open this entry</em>` : ""}
     </a>`;
   };
@@ -951,8 +976,10 @@ function buildIcloudHandoffIndexHtml(input: {
       h1 { margin: 0; font-size: 26px; letter-spacing: 0; }
       p { color: #a1a1aa; line-height: 1.65; }
       .hint { margin-top: 12px; border-radius: 14px; border: 1px solid rgba(34,211,238,.22); background: rgba(8,145,178,.12); color: #bae6fd; padding: 10px 12px; font-size: 12px; }
+      .hint.warning { border-color: rgba(245,158,11,.32); background: rgba(245,158,11,.12); color: #fef3c7; }
       .entry { display: block; margin-top: 12px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09); color: #f4f4f5; text-decoration: none; }
       .entry.primary { border-color: rgba(34,211,238,.45); background: rgba(8,145,178,.18); box-shadow: 0 16px 48px rgba(8,145,178,.2); }
+      .entry.same-wifi { border-color: rgba(245,158,11,.35); }
       .entry strong, .entry span, .entry small { display: block; }
       .entry span { margin-top: 6px; color: #a5b4fc; word-break: break-all; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
       .entry small { margin-top: 8px; color: #94a3b8; }
@@ -969,6 +996,7 @@ function buildIcloudHandoffIndexHtml(input: {
       <p>通常只点第一个入口即可。其他电脑入口已经放到高级区，避免误连旧电脑。</p>
       <p>Usually open the first entry only. Other desktop entries are tucked into Advanced so stale desktops are harder to pick by mistake.</p>
       ${duplicateDesktopNames.size ? `<div class="hint">如果两台电脑名字一样，请看短 ID 和更新时间。/ If two desktops share a name, use the short ID and update time.</div>` : ""}
+      ${recommendedSameWifiOnly ? `<div class="hint warning">这个入口只适合同一 Wi-Fi。离家使用请先在电脑端切换 Tailscale 或 Cloudflare。/ This entry only works on the same Wi-Fi. Away from home, switch to Tailscale or Cloudflare on the desktop first.</div>` : ""}
       ${rows}
       <div class="warn">iCloud 只同步入口文件，不是实时网络隧道；异地实时聊天仍需要 Tailscale、Cloudflare Tunnel 或可信 HTTPS 入口。</div>
     </main>

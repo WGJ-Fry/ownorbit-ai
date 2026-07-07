@@ -470,6 +470,7 @@ test("mobile iCloud handoff recommends a usable desktop when the default entry f
     getMobileIcloudHandoffEntryKey,
     getMobileIcloudHandoffEntryRecommendation,
     getPreferredMobileIcloudHandoffEntryKey,
+    isMobileIcloudHandoffSameWifiOnly,
   } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-recommendation-${Date.now()}`);
   const staleDefault = {
     source: "icloud",
@@ -516,6 +517,8 @@ test("mobile iCloud handoff recommends a usable desktop when the default entry f
   assert.equal(recommendation.preferredSwitchReason, "default-failed");
   assert.equal(recommendation.otherEntries.length, 1);
   assert.equal(recommendation.otherEntries[0].desktopId, "old-mac");
+  assert.equal(isMobileIcloudHandoffSameWifiOnly({ ...freshStable, mode: "lan", baseUrl: "http://192.168.0.17:3000" }), true);
+  assert.equal(isMobileIcloudHandoffSameWifiOnly({ ...freshStable, mode: "cloudflare", baseUrl: "https://lifeos.example.com" }), false);
 
   const preferredFresh = getMobileIcloudHandoffEntryRecommendation([freshStable, staleDefault], {
     now,

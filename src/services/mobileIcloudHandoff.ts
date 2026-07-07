@@ -177,6 +177,28 @@ function isHttpBaseUrl(value: string) {
   }
 }
 
+function isPrivateNetworkHost(hostname: string) {
+  const host = String(hostname || "").trim().toLowerCase();
+  if (!host || host === "localhost" || host.endsWith(".local")) return true;
+  if (/^127\./.test(host)) return true;
+  if (/^10\./.test(host)) return true;
+  if (/^192\.168\./.test(host)) return true;
+  const match = host.match(/^172\.(\d+)\./);
+  return Boolean(match && Number(match[1]) >= 16 && Number(match[1]) <= 31);
+}
+
+export function isMobileIcloudHandoffSameWifiOnly(entry: Pick<MobileIcloudHandoffEntry, "baseUrl" | "mode" | "stability">) {
+  const mode = String(entry.mode || "").toLowerCase();
+  const stability = String(entry.stability || "").toLowerCase();
+  if (mode === "lan" || mode === "local" || stability === "local") return true;
+  try {
+    const url = new URL(entry.baseUrl);
+    return url.protocol === "http:" && isPrivateNetworkHost(url.hostname);
+  } catch {
+    return /^http:\/\/(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/i.test(String(entry.baseUrl || ""));
+  }
+}
+
 function normalizeChecksum(value?: string | null) {
   const checksum = String(value || "").trim().toLowerCase();
   return /^[a-f0-9]{64}$/.test(checksum) ? checksum : "";

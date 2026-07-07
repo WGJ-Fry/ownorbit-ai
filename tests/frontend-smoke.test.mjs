@@ -1056,6 +1056,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /getDuplicateMobileIcloudDesktopNames/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffDuplicateHint/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffShortId/);
+  assert.match(mobileRemoteEntryCardSource, /isMobileIcloudHandoffSameWifiOnly/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffSameWifiBadge/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffSameWifiWarning/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffRecommendedDesktop/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffShowOtherDesktops/);
   assert.match(mobileRemoteEntryCardSource, /showIcloudDesktopAdvanced/);
@@ -1076,6 +1079,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /lastConnectivityTestedAt/);
   assert.match(translationsSource, /推荐入口/);
   assert.match(translationsSource, /Recommended entry/);
+  assert.match(translationsSource, /这个 iCloud 入口只适合同一 Wi-Fi/);
+  assert.match(translationsSource, /This iCloud entry only works on the same Wi-Fi/);
   assert.match(mobileRemoteEntryCardSource, /getMobileIcloudHandoffActionKey/);
   assert.match(mobileRemoteEntryCardSource, /buildMobileIcloudHandoffRecoveryPacket/);
   assert.match(mobileRemoteEntryCardSource, /navigator\.clipboard\.writeText/);
