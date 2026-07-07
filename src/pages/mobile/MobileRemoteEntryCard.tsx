@@ -27,6 +27,7 @@ const icloudPreferredSwitchReasonKeys: Record<MobileIcloudHandoffEntryRecommenda
   "default-expired": "mobileDevice.icloudHandoffDefaultSwitchExpired",
   "default-legacy": "mobileDevice.icloudHandoffDefaultSwitchLegacy",
   "default-failed": "mobileDevice.icloudHandoffDefaultSwitchFailed",
+  "default-same-wifi": "mobileDevice.icloudHandoffDefaultSwitchSameWifi",
 };
 
 function icloudEntryFreshnessTone(freshness: keyof typeof icloudEntryFreshnessKeys) {

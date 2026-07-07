@@ -1132,6 +1132,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /shouldSwitchDefaultIcloudEntry/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffDefaultSwitchTitle/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffMakeRecommendedDefault/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffDefaultSwitchSameWifi/);
   assert.match(mobileRemoteEntryCardSource, /showIcloudAdvanced/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffSummaryTitle/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffShowAdvanced/);
@@ -1151,6 +1152,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Default entry needs switching/);
   assert.match(translationsSource, /A better entry is available/);
   assert.match(translationsSource, /Open Recommended Entry/);
+  assert.match(translationsSource, /only works on the same Wi-Fi/);
   assert.match(translationsSource, /这个 iCloud 入口只适合同一 Wi-Fi/);
   assert.match(translationsSource, /This iCloud entry only works on the same Wi-Fi/);
   assert.match(mobileRemoteEntryCardSource, /getMobileIcloudHandoffActionKey/);

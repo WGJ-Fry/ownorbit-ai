@@ -527,6 +527,48 @@ test("mobile iCloud handoff recommends a usable desktop when the default entry f
   assert.equal(preferredFresh.recommendedEntry.desktopId, "new-mac");
   assert.equal(preferredFresh.preferredNeedsSwitch, false);
 
+  const sameWifiDefault = {
+    ...freshStable,
+    generatedAt: now + 1_000,
+    refreshAfter: now + 180_000,
+    expiresAt: now + 300_000,
+    baseUrl: "http://192.168.0.17:3000",
+    mode: "lan",
+    stability: "local",
+    label: "Home Wi-Fi",
+    desktopId: "home-lan-mac",
+    desktopName: "Home Mac LAN",
+    checksumSha256: "c".repeat(64),
+    savedAt: now + 1_000,
+    lastConnectivityOk: true,
+  };
+  const longTermRemote = {
+    ...freshStable,
+    generatedAt: now,
+    baseUrl: "https://lifeos-mac.tailnet.example.ts.net",
+    mode: "tailscale",
+    stability: "stable",
+    label: "Tailscale HTTPS Serve",
+    desktopId: "home-tailnet-mac",
+    desktopName: "Home Mac Remote",
+    checksumSha256: "d".repeat(64),
+    lastConnectivityOk: true,
+  };
+  const sameWifiRecommendation = getMobileIcloudHandoffEntryRecommendation([sameWifiDefault, longTermRemote], {
+    now,
+    preferredKey: getMobileIcloudHandoffEntryKey(sameWifiDefault),
+  });
+  assert.equal(sameWifiRecommendation.recommendedEntry.desktopId, "home-tailnet-mac");
+  assert.equal(sameWifiRecommendation.preferredNeedsSwitch, true);
+  assert.equal(sameWifiRecommendation.preferredSwitchReason, "default-same-wifi");
+
+  const sameWifiOnlyRecommendation = getMobileIcloudHandoffEntryRecommendation([sameWifiDefault], {
+    now,
+    preferredKey: getMobileIcloudHandoffEntryKey(sameWifiDefault),
+  });
+  assert.equal(sameWifiOnlyRecommendation.recommendedEntry.desktopId, "home-lan-mac");
+  assert.equal(sameWifiOnlyRecommendation.preferredNeedsSwitch, false);
+
   const autoSwitch = autoSelectRecommendedMobileIcloudHandoffEntry([staleDefault, freshStable], {
     now,
     preferredKey: getMobileIcloudHandoffEntryKey(staleDefault),
@@ -535,6 +577,15 @@ test("mobile iCloud handoff recommends a usable desktop when the default entry f
   assert.equal(autoSwitch.previousEntry.desktopId, "old-mac");
   assert.equal(autoSwitch.nextEntry.desktopId, "new-mac");
   assert.equal(getPreferredMobileIcloudHandoffEntryKey(), getMobileIcloudHandoffEntryKey(freshStable));
+
+  const sameWifiAutoSwitch = autoSelectRecommendedMobileIcloudHandoffEntry([sameWifiDefault, longTermRemote], {
+    now,
+    preferredKey: getMobileIcloudHandoffEntryKey(sameWifiDefault),
+  });
+  assert.equal(sameWifiAutoSwitch.switched, true);
+  assert.equal(sameWifiAutoSwitch.previousEntry.desktopId, "home-lan-mac");
+  assert.equal(sameWifiAutoSwitch.nextEntry.desktopId, "home-tailnet-mac");
+  assert.equal(getPreferredMobileIcloudHandoffEntryKey(), getMobileIcloudHandoffEntryKey(longTermRemote));
 
   const staleCandidate = {
     ...freshStable,

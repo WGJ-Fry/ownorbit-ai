@@ -1607,6 +1607,12 @@ function checkAssets() {
     translationsSource.includes("Next step: wait for iCloud sync") &&
     translationsSource.includes("New mobile QR needed") &&
     translationsSource.includes("generate a fresh QR code") &&
+    mobileIcloudHandoffSource.includes("default-same-wifi") &&
+    mobileIcloudHandoffSource.includes("isLongTermRemoteMobileIcloudHandoffEntry") &&
+    mobileIcloudHandoffSource.includes("bestLongTermEntry") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffDefaultSwitchSameWifi") &&
+    translationsSource.includes("默认电脑入口只能同 Wi-Fi 使用") &&
+    translationsSource.includes("Your default desktop entry only works on the same Wi-Fi") &&
     translationsSource.includes("Old iCloud entries can be cleaned") &&
     translationsSource.includes("Clean Old iCloud Entries") &&
     translationsSource.includes("The iCloud mobile entry was refreshed automatically") &&
