@@ -544,6 +544,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding-icloud-same-wifi-notice/);
   assert.match(onboardingSource, /onboarding-icloud-ready-actions/);
   assert.match(onboardingSource, /onboarding-icloud-ready-qr/);
+  assert.match(onboardingSource, /onboarding-icloud-copy-entry-path/);
+  assert.match(onboardingSource, /handleCopyIcloudEntryPath/);
+  assert.match(onboardingSource, /navigator\.clipboard\.writeText\(entryPath\)/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudCopyPath/);
+  assert.match(onboardingSource, /onboarding\.icloudEntryPathCopied/);
   assert.match(onboardingSource, /onboarding-icloud-open-folder/);
   assert.match(onboardingSource, /desktop\.openIcloudFolder/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudOpenFolder/);
@@ -765,6 +770,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /macOS blocked writing to iCloud Drive/);
   assert.match(translationsSource, /在 Finder 打开 iCloud 文件夹/);
   assert.match(translationsSource, /Open iCloud Folder in Finder/);
+  assert.match(translationsSource, /复制入口路径/);
+  assert.match(translationsSource, /Copy Entry Path/);
   assert.match(translationsSource, /打开 iCloud 设置/);
   assert.match(translationsSource, /Open iCloud Settings/);
   assert.match(translationsSource, /Waiting for iCloud sync/);

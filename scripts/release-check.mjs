@@ -683,6 +683,10 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding.appleRemoteIcloudOneNextAction") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudFilesPath") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudFilesActionTitle") &&
+    adminOnboardingSource.includes("onboarding-icloud-copy-entry-path") &&
+    adminOnboardingSource.includes("handleCopyIcloudEntryPath") &&
+    adminOnboardingSource.includes("navigator.clipboard.writeText(entryPath)") &&
+    adminOnboardingSource.includes("onboarding.simpleIcloudCopyPath") &&
     adminOnboardingSource.includes("onboarding-icloud-open-folder") &&
     adminOnboardingSource.includes("desktop.openIcloudFolder") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudOpenFolder") &&
