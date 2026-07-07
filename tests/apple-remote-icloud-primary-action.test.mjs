@@ -36,6 +36,7 @@ test("iCloud primary action asks Apple users to enable iCloud Drive before expor
   });
 
   assert.equal(action.titleKey, "onboarding.appleRemoteIcloudNextStepEnableTitle");
+  assert.equal(action.actionKey, "onboarding.appleRemoteIcloudActionEnableDrive");
   assert.equal(action.cta, "none");
 });
 
@@ -56,6 +57,7 @@ test("iCloud primary action prioritizes old phone entry repair over generic read
 
   assert.equal(action.titleKey, "onboarding.appleRemoteIcloudNextStepOldEntryTitle");
   assert.equal(action.bodyKey, "onboarding.appleRemoteIcloudNextStepOldEntryQrBody");
+  assert.equal(action.actionKey, "onboarding.appleRemoteIcloudActionRefreshAndQr");
   assert.equal(action.cta, "qr");
 });
 
@@ -70,7 +72,23 @@ test("iCloud primary action sends missing entries to export instead of diagnosti
   });
 
   assert.equal(action.titleKey, "onboarding.appleRemoteIcloudNextStepExportTitle");
+  assert.equal(action.actionKey, "onboarding.appleRemoteIcloudActionCreateEntry");
   assert.equal(action.cta, "export");
+});
+
+test("iCloud primary action gives one plain wait action while files sync", () => {
+  const action = getPrimaryIcloudAction({
+    icloud: baseIcloud(),
+    latestEntryRepair: null,
+    pairingSession: { action: "none" },
+    syncReadiness: baseSyncReadiness({ action: "wait-for-sync", canOpenOnPhone: false }),
+    handoffHealth: baseHandoffHealth({ status: "fresh", needsRefresh: false }),
+    canExportIcloud: true,
+  });
+
+  assert.equal(action.titleKey, "onboarding.appleRemoteIcloudNextStepWaitTitle");
+  assert.equal(action.actionKey, "onboarding.appleRemoteIcloudActionWaitSync");
+  assert.equal(action.cta, "none");
 });
 
 test("iCloud primary action tells users when the entry is ready to open on phone", () => {
@@ -85,5 +103,6 @@ test("iCloud primary action tells users when the entry is ready to open on phone
 
   assert.equal(action.titleKey, "onboarding.appleRemoteIcloudNextStepPhoneTitle");
   assert.equal(action.icon, "phone");
+  assert.equal(action.actionKey, "onboarding.appleRemoteIcloudActionOpenFiles");
   assert.equal(action.cta, "none");
 });

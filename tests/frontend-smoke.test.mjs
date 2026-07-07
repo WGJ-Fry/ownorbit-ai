@@ -603,10 +603,16 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /getSimpleIcloudStatus/);
   assert.match(onboardingAppleRemoteSource, /getPrimaryIcloudAction/);
   assert.match(onboardingAppleRemoteSource, /primaryIcloudAction/);
+  assert.match(onboardingAppleRemoteSource, /primaryIcloudAction\.actionKey/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudOneNextAction/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudNextStepOldEntryTitle/);
+  assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudActionWaitSync/);
+  assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudActionOpenFiles/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudNextStepExportTitle/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudNextStepPhoneTitle/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /latestEntryRepair\.needsQr/);
+  assert.match(translationsSource, /现在只做这一步/);
+  assert.match(translationsSource, /Only do this now/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleReadyTitle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleAccountTitle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleAccountBody/);

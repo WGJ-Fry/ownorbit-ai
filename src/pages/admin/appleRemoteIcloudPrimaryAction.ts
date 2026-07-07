@@ -8,6 +8,7 @@ export type IcloudPrimaryAction = {
   icon: "ready" | "refresh" | "qr" | "sync" | "warning" | "phone";
   titleKey: TranslationKey;
   bodyKey: TranslationKey;
+  actionKey: TranslationKey;
   cta: "export" | "qr" | "none";
 };
 
@@ -30,6 +31,7 @@ export function getPrimaryIcloudAction(input: {
       icon: "warning",
       titleKey: "onboarding.appleRemoteIcloudNextStepUnsupportedTitle",
       bodyKey: "onboarding.appleRemoteIcloudNextStepUnsupportedBody",
+      actionKey: "onboarding.appleRemoteIcloudActionUseQrOrTunnel",
       cta: "none",
     };
   }
@@ -40,6 +42,7 @@ export function getPrimaryIcloudAction(input: {
       icon: "warning",
       titleKey: "onboarding.appleRemoteIcloudNextStepEnableTitle",
       bodyKey: "onboarding.appleRemoteIcloudNextStepEnableBody",
+      actionKey: "onboarding.appleRemoteIcloudActionEnableDrive",
       cta: "none",
     };
   }
@@ -50,6 +53,7 @@ export function getPrimaryIcloudAction(input: {
       icon: input.latestEntryRepair.needsQr ? "qr" : "refresh",
       titleKey: "onboarding.appleRemoteIcloudNextStepOldEntryTitle",
       bodyKey: input.latestEntryRepair.needsQr ? "onboarding.appleRemoteIcloudNextStepOldEntryQrBody" : "onboarding.appleRemoteIcloudNextStepOldEntryBody",
+      actionKey: input.latestEntryRepair.needsQr ? "onboarding.appleRemoteIcloudActionRefreshAndQr" : "onboarding.appleRemoteIcloudActionRefreshEntry",
       cta: input.latestEntryRepair.needsQr ? "qr" : "export",
     };
   }
@@ -60,6 +64,7 @@ export function getPrimaryIcloudAction(input: {
       icon: "qr",
       titleKey: "onboarding.appleRemoteIcloudNextStepQrTitle",
       bodyKey: "onboarding.appleRemoteIcloudNextStepQrBody",
+      actionKey: "onboarding.appleRemoteIcloudActionGenerateQr",
       cta: "qr",
     };
   }
@@ -70,6 +75,7 @@ export function getPrimaryIcloudAction(input: {
       icon: "sync",
       titleKey: "onboarding.appleRemoteIcloudNextStepExportTitle",
       bodyKey: "onboarding.appleRemoteIcloudNextStepExportBody",
+      actionKey: "onboarding.appleRemoteIcloudActionCreateEntry",
       cta: "export",
     };
   }
@@ -80,6 +86,7 @@ export function getPrimaryIcloudAction(input: {
       icon: "refresh",
       titleKey: "onboarding.appleRemoteIcloudNextStepRefreshTitle",
       bodyKey: "onboarding.appleRemoteIcloudNextStepRefreshBody",
+      actionKey: "onboarding.appleRemoteIcloudActionRefreshEntry",
       cta: "export",
     };
   }
@@ -90,6 +97,7 @@ export function getPrimaryIcloudAction(input: {
       icon: "warning",
       titleKey: "onboarding.appleRemoteIcloudNextStepFixSyncTitle",
       bodyKey: "onboarding.appleRemoteIcloudNextStepFixSyncBody",
+      actionKey: "onboarding.appleRemoteIcloudActionFixSync",
       cta: "none",
     };
   }
@@ -100,6 +108,7 @@ export function getPrimaryIcloudAction(input: {
       icon: "sync",
       titleKey: "onboarding.appleRemoteIcloudNextStepWaitTitle",
       bodyKey: "onboarding.appleRemoteIcloudNextStepWaitBody",
+      actionKey: "onboarding.appleRemoteIcloudActionWaitSync",
       cta: "none",
     };
   }
@@ -110,6 +119,7 @@ export function getPrimaryIcloudAction(input: {
       icon: "phone",
       titleKey: "onboarding.appleRemoteIcloudNextStepPhoneTitle",
       bodyKey: "onboarding.appleRemoteIcloudNextStepPhoneBody",
+      actionKey: "onboarding.appleRemoteIcloudActionOpenFiles",
       cta: "none",
     };
   }
@@ -119,6 +129,7 @@ export function getPrimaryIcloudAction(input: {
     icon: "refresh",
     titleKey: "onboarding.appleRemoteIcloudNextStepReviewTitle",
     bodyKey: "onboarding.appleRemoteIcloudNextStepReviewBody",
+    actionKey: "onboarding.appleRemoteIcloudActionReview",
     cta: "export",
   };
 }

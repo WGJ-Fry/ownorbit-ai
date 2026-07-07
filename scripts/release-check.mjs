@@ -1383,17 +1383,23 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("appleRemoteIcloudBoundaryTitle") &&
     onboardingAppleRemoteSource.includes("getPrimaryIcloudAction") &&
     onboardingAppleRemoteSource.includes("primaryIcloudAction") &&
+    onboardingAppleRemoteSource.includes("primaryIcloudAction.actionKey") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudOneNextAction") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudSimpleOldEntryTitle") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudSimpleQrTitle") &&
     onboardingAppleRemoteSource.includes('simpleIcloudStatus.icon === "qr"') &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudNextStepOldEntryTitle") &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudNextStepExportTitle") &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudNextStepPhoneTitle") &&
+    appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudActionWaitSync") &&
+    appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudActionOpenFiles") &&
     appleRemoteIcloudPrimaryActionSource.includes("latestEntryRepair.needsQr") &&
     packageJson.scripts.test.includes("tests/apple-remote-icloud-primary-action.test.mjs") &&
     packageJson.scripts.test.includes("tests/apple-remote-icloud-simple-status.test.mjs") &&
     translationsSource.includes("appleRemoteIcloudBoundaryBody") &&
     translationsSource.includes("Next step: create the phone entry") &&
+    translationsSource.includes("Only do this now") &&
+    translationsSource.includes("现在只做这一步") &&
     translationsSource.includes("open the phone Files app") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorPairingSession") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorIndexConsistency") &&

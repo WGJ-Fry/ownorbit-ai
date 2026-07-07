@@ -749,6 +749,14 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
               <div className="min-w-0 flex-1">
                 <div className="font-bold">{t(primaryIcloudAction.titleKey)}</div>
                 <div className="mt-1 text-[11px] leading-relaxed opacity-80">{t(primaryIcloudAction.bodyKey)}</div>
+                <div className="mt-3 flex items-start gap-2 rounded-xl border border-current/10 bg-black/15 p-2 text-[11px] font-bold">
+                  <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span>
+                    {t("onboarding.appleRemoteIcloudOneNextAction", {
+                      action: t(primaryIcloudAction.actionKey),
+                    })}
+                  </span>
+                </div>
                 {primaryIcloudAction.cta === "export" ? (
                   <button
                     type="button"
