@@ -1572,6 +1572,7 @@ function checkAssets() {
     translationsSource.includes("Next step: wait for iCloud sync") &&
     translationsSource.includes("New mobile QR needed") &&
     translationsSource.includes("generate a fresh QR code") &&
+    translationsSource.includes("Old iCloud entries can be cleaned") &&
     translationsSource.includes("Clean Old iCloud Entries") &&
     translationsSource.includes("The iCloud mobile entry was refreshed automatically") &&
     translationsSource.includes("Automatically switched the default desktop") &&
@@ -1592,6 +1593,8 @@ function checkAssets() {
     adminOnboardingSource.includes("appendIcloudAutoRefreshStatus") &&
     connectionGuideSource.includes("appendIcloudAutoRefreshStatus") &&
     customRemoteEntrySource.includes("appendIcloudAutoRefreshStatus") &&
+    onboardingAppleRemoteSource.includes("icloudCleanupNeeded") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-cleanup-next-step") &&
     onboardingAppleRemoteSource.includes("onCleanupIcloud") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudCleanupButton") &&
     icloudAutoRefreshStatusSource.includes("formatIcloudAutoRefreshStatus") &&

@@ -461,6 +461,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const icloudAcceptance = icloud?.acceptance;
   const icloudMonitor = diagnostics?.icloudMonitor;
   const icloudLifecycle = icloud?.lifecycle;
+  const icloudCleanupNeeded = Boolean(icloudLifecycle && (icloudLifecycle.prunableEntryCount > 0 || icloudLifecycle.orphanedFileCount > 0));
   const latestEntryRepair = icloud?.latestEntryRepair || null;
   const latestRepairImport = icloud?.latestRepairImport || null;
   const latestHistory = icloud?.entryHistory?.slice(0, 3) || [];
@@ -967,6 +968,34 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                       {t("onboarding.appleRemoteIcloudRepairNextAction", { action: latestRepairImportNextActionLabel })}
                     </div>
                   ) : null}
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {icloudCleanupNeeded && icloudLifecycle ? (
+            <div data-testid="onboarding-icloud-cleanup-next-step" className="mt-3 rounded-xl border border-amber-300/20 bg-amber-500/10 p-3 text-amber-50">
+              <div className="flex gap-2">
+                <RefreshCw className="mt-0.5 h-4 w-4 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold">{t("onboarding.appleRemoteIcloudCleanupNextTitle")}</div>
+                  <div className="mt-1 text-[11px] leading-relaxed text-amber-50/80">
+                    {t("onboarding.appleRemoteIcloudCleanupNextBody", {
+                      entries: icloudLifecycle.prunableEntryCount,
+                      files: icloudLifecycle.orphanedFileCount,
+                    })}
+                  </div>
+                  <div className="mt-2 rounded-lg border border-current/10 bg-black/10 p-2 text-[11px] font-bold">
+                    {t("onboarding.appleRemoteIcloudOneNextAction", { action: t("onboarding.appleRemoteIcloudCleanupButton") })}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onCleanupIcloud}
+                    disabled={isBusy}
+                    className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-300 px-3 py-2 text-xs font-bold text-zinc-950 shadow-lg shadow-amber-950/20 transition hover:bg-amber-200 disabled:opacity-50"
+                  >
+                    {isIcloudCleanupBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                    {isIcloudCleanupBusy ? t("onboarding.appleRemoteIcloudCleanupCleaning") : t("onboarding.appleRemoteIcloudCleanupButton")}
+                  </button>
                 </div>
               </div>
             </div>

@@ -664,7 +664,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudMonitorLastEntry/);
   assert.match(onboardingAppleRemoteSource, /recommendedBaseUrl/);
   assert.match(onboardingAppleRemoteSource, /icloudLifecycle/);
+  assert.match(onboardingAppleRemoteSource, /icloudCleanupNeeded/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-cleanup-next-step/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudLifecycleTitle/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudCleanupNextTitle/);
   assert.match(onboardingAppleRemoteSource, /onCleanupIcloud/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudCleanupButton/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudCleanupCleaning/);
@@ -842,6 +845,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Legacy entry/);
   assert.match(translationsSource, /iCloud Drive 自检/);
   assert.match(translationsSource, /iCloud Drive Check/);
+  assert.match(translationsSource, /可以清理旧 iCloud 入口/);
+  assert.match(translationsSource, /Old iCloud entries can be cleaned/);
   assert.match(translationsSource, /清理旧 iCloud 入口/);
   assert.match(translationsSource, /Clean Old iCloud Entries/);
   assert.match(translationsSource, /iCloud 手机入口已自动刷新/);
