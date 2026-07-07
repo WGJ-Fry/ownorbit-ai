@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type React from "react";
-import { AlertTriangle, ArrowRight, CheckCircle2, DatabaseBackup, KeyRound, Loader2, QrCode, ShieldAlert, SlidersHorizontal, Sparkles } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2, Cloud, DatabaseBackup, KeyRound, Loader2, QrCode, ShieldAlert, SlidersHorizontal, Sparkles, Smartphone } from "lucide-react";
 import { cleanupIcloudHandoffEntries, completeOnboarding, createBackup, exportIcloudHandoff, getBackupSchedule, getConfigDiagnostics, getNetworkDiagnostics, getOnboardingStatus, listAiProviders, listBackups, listDevices, saveAiProviderKey, saveDesktopConnectionConfig, startCloudflareTunnel, startTailscaleHttpsServe, testAiProvider, testConnectionUrl, updateActiveAiProvider, updateAiProviderModel, updateBackupSchedule } from "../../services/lifeosApi";
 import type { AiProviderId, AiProviderStatus, BackupRecord, BackupSchedule, BoundDevice, ConfigDiagnostics, NetworkDiagnostics, OnboardingStatus } from "../../services/lifeosApi";
 import LanguageSwitcher from "../../i18n/LanguageSwitcher";
@@ -51,6 +51,25 @@ export default function AdminOnboardingPage() {
   const securityItems = diagnostics?.securityCheck.items || [];
   const securityRiskCount = securityItems.filter((item) => item.status !== "ok").length;
   const remoteReady = networkDiagnostics?.remoteReadiness?.severity === "ok";
+  const icloud = networkDiagnostics?.icloud;
+  const showSimpleIcloudEntry = primaryStep === "device" && Boolean(icloud?.platformSupported);
+  const simpleIcloudEntryReady = Boolean(icloud?.handoffHealth?.status === "fresh" && icloud?.syncReadiness?.canOpenOnPhone);
+  const simpleIcloudBusy = busy === "icloud-handoff-auto" || busy === "icloud-handoff";
+  const simpleIcloudCanExport = Boolean(icloud?.canExport);
+  const simpleIcloudTitleKey = simpleIcloudBusy
+    ? "onboarding.simpleIcloudAutoTitle"
+    : simpleIcloudEntryReady
+      ? "onboarding.simpleIcloudReadyTitle"
+      : simpleIcloudCanExport
+        ? "onboarding.simpleIcloudPrepareTitle"
+        : "onboarding.simpleIcloudUnavailableTitle";
+  const simpleIcloudBodyKey = simpleIcloudBusy
+    ? "onboarding.simpleIcloudAutoBody"
+    : simpleIcloudEntryReady
+      ? "onboarding.simpleIcloudReadyBody"
+      : simpleIcloudCanExport
+        ? "onboarding.simpleIcloudPrepareBody"
+        : "onboarding.simpleIcloudUnavailableBody";
   const localizedStepMeta = (stepId: OnboardingStatus["steps"][number]["id"], done: boolean) => {
     switch (stepId) {
       case "ai":
@@ -485,6 +504,43 @@ export default function AdminOnboardingPage() {
             <div className="mt-5 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-xs leading-relaxed text-zinc-400">
               {remoteReady ? t("onboarding.simpleRemoteReady") : t("onboarding.simpleSameWifiHint")}
             </div>
+            {showSimpleIcloudEntry ? (
+              <div data-testid="onboarding-icloud-quick-entry" className="mt-5 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 p-4">
+                <div className="flex gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/20 bg-[#060a10]/40 text-cyan-200">
+                    {simpleIcloudBusy ? <Loader2 className="h-5 w-5 animate-spin" /> : simpleIcloudEntryReady ? <CheckCircle2 className="h-5 w-5 text-emerald-300" /> : <Cloud className="h-5 w-5" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold text-cyan-50">{t(simpleIcloudTitleKey as any)}</div>
+                    <p className="mt-1 text-xs leading-relaxed text-cyan-50/75">{t(simpleIcloudBodyKey as any)}</p>
+                    {simpleIcloudEntryReady ? (
+                      <div className="mt-3 rounded-xl border border-cyan-100/10 bg-[#060a10]/35 p-3 text-xs leading-relaxed text-cyan-50/80">
+                        <div className="flex gap-2">
+                          <Smartphone className="mt-0.5 h-4 w-4 shrink-0" />
+                          <span>{t("onboarding.simpleIcloudFilesPath")}</span>
+                        </div>
+                        <div className="mt-1 break-all font-mono text-[11px] text-cyan-100/65">{icloud?.handoffFilePath || "-"}</div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <a href="/admin/devices/pair" className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-400 px-4 py-3 text-sm font-bold text-[#061016]">
+                    <QrCode className="h-4 w-4" />
+                    {t("onboarding.simpleIcloudOpenQr")}
+                  </a>
+                  <button
+                    type="button"
+                    onClick={handleExportIcloudHandoff}
+                    disabled={!simpleIcloudCanExport || simpleIcloudBusy}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-100/15 bg-[#060a10]/35 px-4 py-3 text-sm font-bold text-cyan-50 disabled:opacity-50"
+                  >
+                    {simpleIcloudBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Cloud className="h-4 w-4" />}
+                    {simpleIcloudBusy ? t("onboarding.simpleIcloudGenerating") : t("onboarding.simpleIcloudRegenerate")}
+                  </button>
+                </div>
+              </div>
+            ) : null}
             <div className="mt-5">
               <OnboardingAppleRemoteCard
                 diagnostics={networkDiagnostics}

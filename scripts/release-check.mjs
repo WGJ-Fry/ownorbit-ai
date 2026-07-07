@@ -661,6 +661,11 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding.simpleAiTitle") &&
     adminOnboardingSource.includes("onboarding.simpleDeviceTitle") &&
     adminOnboardingSource.includes("onboarding.simpleDeviceBody") &&
+    adminOnboardingSource.includes("onboarding-icloud-quick-entry") &&
+    adminOnboardingSource.includes("onboarding.simpleIcloudReadyTitle") &&
+    adminOnboardingSource.includes("onboarding.simpleIcloudFilesPath") &&
+    adminOnboardingSource.includes("onboarding.simpleIcloudOpenQr") &&
+    adminOnboardingSource.includes("onboarding.simpleIcloudRegenerate") &&
     adminOnboardingSource.includes("onboarding.simpleStartChat") &&
     adminOnboardingSource.includes("onboarding.simpleAdvancedSummary") &&
     adminOnboardingSource.includes("<details") &&
@@ -689,6 +694,9 @@ function checkAssets() {
     translationsSource.includes("onboarding.simpleTitle") &&
     translationsSource.includes("onboarding.simpleDeviceTitle") &&
     translationsSource.includes("onboarding.simpleDeviceBody") &&
+    translationsSource.includes("onboarding.simpleIcloudReadyTitle") &&
+    translationsSource.includes("iPhone 文件 App：iCloud Drive > LifeOS AI > lifeos-mobile-entry.html") &&
+    translationsSource.includes("iPhone Files app: iCloud Drive > LifeOS AI > lifeos-mobile-entry.html") &&
     translationsSource.includes("onboarding.simpleAdvancedSummary") &&
     translationsSource.includes("onboarding.handoffSummaryCopied") &&
     translationsSource.includes("onboarding.handoffTitle") &&

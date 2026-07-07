@@ -536,6 +536,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /icloud-handoff-auto/);
   assert.match(onboardingSource, /appleRemoteIcloudAutoSyncing/);
   assert.match(onboardingSource, /onboarding\.appleRemoteIcloudExported/);
+  assert.match(onboardingSource, /onboarding-icloud-quick-entry/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudReadyTitle/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudFilesPath/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudOpenQr/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudRegenerate/);
   assert.match(onboardingSource, /onboarding\.simpleStartChat/);
   assert.match(onboardingSource, /onboarding\.simpleAdvancedSummary/);
   assert.match(onboardingSource, /<details/);
