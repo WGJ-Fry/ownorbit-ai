@@ -539,6 +539,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding-icloud-quick-entry/);
   assert.match(onboardingSource, /onboarding-icloud-phone-pickup/);
   assert.match(onboardingSource, /onboarding-icloud-same-wifi-notice/);
+  assert.match(onboardingSource, /onboarding-device-advanced-icloud-tools/);
+  assert.match(onboardingSource, /onboarding\.simpleDeviceAdvancedTitle/);
+  assert.match(onboardingSource, /onboarding\.simpleDeviceAdvancedBody/);
   assert.match(onboardingSource, /isIcloudEntrySameWifiOnly/);
   assert.match(onboardingSource, /simpleIcloudSameWifiActionTailscale/);
   assert.match(onboardingSource, /simpleIcloudSameWifiActionCloudflare/);
@@ -788,6 +791,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Apple\/iCloud Mobile Entry/);
   assert.match(translationsSource, /iCloud 会同步一个手机入口文件/);
   assert.match(translationsSource, /iCloud syncs a mobile entry file/);
+  assert.match(translationsSource, /高级连接与 iCloud 诊断/);
+  assert.match(translationsSource, /Advanced connection and iCloud diagnostics/);
   assert.match(translationsSource, /CloudKit \/ iCloud Container/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudDataBoundaryBody/);
   assert.match(translationsSource, /同步包状态/);

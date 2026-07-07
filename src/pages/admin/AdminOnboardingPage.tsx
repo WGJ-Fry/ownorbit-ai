@@ -657,18 +657,27 @@ export default function AdminOnboardingPage() {
                 </div>
               </div>
             ) : null}
-            <div className="mt-5">
-              <OnboardingAppleRemoteCard
-                diagnostics={networkDiagnostics}
-                busy={busy}
-                onExportIcloud={handleExportIcloudHandoff}
-                onCleanupIcloud={handleCleanupIcloudHandoff}
-                onStartTailscale={handleStartTailscaleRemote}
-                onStartCloudflare={handleStartCloudflareRemote}
-                onSaveCandidate={handleSaveRemoteCandidate}
-                onTestCandidate={handleTestRemoteCandidate}
-              />
-            </div>
+            <details data-testid="onboarding-device-advanced-icloud-tools" className="mt-5 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4">
+              <summary className="flex cursor-pointer items-center justify-between gap-3 text-sm font-bold text-zinc-200">
+                <span className="inline-flex items-center gap-2">
+                  <SlidersHorizontal className="h-4 w-4 text-cyan-200" />
+                  {t("onboarding.simpleDeviceAdvancedTitle")}
+                </span>
+                <span className="text-[11px] font-semibold text-zinc-500">{t("onboarding.simpleDeviceAdvancedBody")}</span>
+              </summary>
+              <div className="mt-4">
+                <OnboardingAppleRemoteCard
+                  diagnostics={networkDiagnostics}
+                  busy={busy}
+                  onExportIcloud={handleExportIcloudHandoff}
+                  onCleanupIcloud={handleCleanupIcloudHandoff}
+                  onStartTailscale={handleStartTailscaleRemote}
+                  onStartCloudflare={handleStartCloudflareRemote}
+                  onSaveCandidate={handleSaveRemoteCandidate}
+                  onTestCandidate={handleTestRemoteCandidate}
+                />
+              </div>
+            </details>
           </section>
         ) : null}
 

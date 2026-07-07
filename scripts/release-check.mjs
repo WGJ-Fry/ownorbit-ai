@@ -664,6 +664,9 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding-icloud-quick-entry") &&
     adminOnboardingSource.includes("onboarding-icloud-phone-pickup") &&
     adminOnboardingSource.includes("onboarding-icloud-same-wifi-notice") &&
+    adminOnboardingSource.includes("onboarding-device-advanced-icloud-tools") &&
+    adminOnboardingSource.includes("onboarding.simpleDeviceAdvancedTitle") &&
+    adminOnboardingSource.includes("onboarding.simpleDeviceAdvancedBody") &&
     adminOnboardingSource.includes("isIcloudEntrySameWifiOnly") &&
     adminOnboardingSource.includes("simpleIcloudSameWifiActionTailscale") &&
     adminOnboardingSource.includes("simpleIcloudSameWifiActionCloudflare") &&
@@ -704,6 +707,8 @@ function checkAssets() {
     translationsSource.includes("onboarding.simpleTitle") &&
     translationsSource.includes("onboarding.simpleDeviceTitle") &&
     translationsSource.includes("onboarding.simpleDeviceBody") &&
+    translationsSource.includes("onboarding.simpleDeviceAdvancedTitle") &&
+    translationsSource.includes("onboarding.simpleDeviceAdvancedBody") &&
     translationsSource.includes("onboarding.simpleIcloudReadyTitle") &&
     translationsSource.includes("onboarding.simpleIcloudPickupConfirmedTitle") &&
     translationsSource.includes("手机已经拿到最新入口") &&
