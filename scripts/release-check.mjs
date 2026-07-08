@@ -681,8 +681,13 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding.simpleAiTitle") &&
     adminOnboardingSource.includes("onboarding.simpleDeviceTitle") &&
     adminOnboardingSource.includes("onboarding.simpleDeviceBody") &&
+    adminOnboardingSource.includes("onboarding.simpleDeviceBodyApple") &&
+    adminOnboardingSource.includes("showSimpleIcloudEntry ? t(\"onboarding.simpleDeviceBodyApple\")") &&
+    adminOnboardingSource.includes("!showSimpleIcloudEntry ?") &&
     adminOnboardingSource.includes("onboarding-simple-phone-qr") &&
     adminOnboardingSource.includes("onboarding.simpleOpenQr") &&
+    adminOnboardingSource.includes("onboarding-device-backup-qr") &&
+    adminOnboardingSource.includes("onboarding.simpleDeviceFallbackQrTitle") &&
     adminOnboardingSource.includes("onboarding-icloud-quick-entry") &&
     adminOnboardingSource.includes("onboarding-icloud-default-flow") &&
     adminOnboardingSource.includes("data-onboarding-icloud-flow-step") &&
@@ -774,6 +779,10 @@ function checkAssets() {
     translationsSource.includes("onboarding.simpleTitle") &&
     translationsSource.includes("onboarding.simpleDeviceTitle") &&
     translationsSource.includes("onboarding.simpleDeviceBody") &&
+    translationsSource.includes("Apple 设备会先走最省心的默认流程") &&
+    translationsSource.includes("Apple devices start with the simplest default flow") &&
+    translationsSource.includes("备用：直接扫码绑定") &&
+    translationsSource.includes("Backup: pair directly by QR") &&
     translationsSource.includes("onboarding.simpleDeviceAdvancedTitle") &&
     translationsSource.includes("onboarding.simpleDeviceAdvancedBody") &&
     translationsSource.includes("onboarding.simpleIcloudReadyTitle") &&

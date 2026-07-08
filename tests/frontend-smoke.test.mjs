@@ -540,7 +540,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.appleRemoteIcloudExportWriteDenied/);
   assert.match(onboardingSource, /appleRemoteIcloudAutoSyncing/);
   assert.match(onboardingSource, /onboarding\.appleRemoteIcloudExported/);
+  assert.match(onboardingSource, /onboarding\.simpleDeviceBodyApple/);
+  assert.match(onboardingSource, /showSimpleIcloudEntry \? t\("onboarding\.simpleDeviceBodyApple"\)/);
+  assert.match(onboardingSource, /!showSimpleIcloudEntry \?/);
   assert.match(onboardingSource, /onboarding-simple-phone-qr/);
+  assert.match(onboardingSource, /onboarding-device-backup-qr/);
+  assert.match(onboardingSource, /onboarding\.simpleDeviceFallbackQrTitle/);
   assert.match(onboardingSource, /onboarding-icloud-quick-entry/);
   assert.match(onboardingSource, /onboarding-icloud-default-flow/);
   assert.match(onboardingSource, /data-onboarding-icloud-flow-step/);
@@ -652,6 +657,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /buildOnboardingHandoffSummary/);
   assert.match(onboardingSource, /onboarding\.handoffSummaryCopied/);
   assert.match(onboardingSource, /primaryProgress} \/ \{primaryStepsTotal/);
+  assert.match(translationsSource, /Apple 设备会先走最省心的默认流程/);
+  assert.match(translationsSource, /Apple devices start with the simplest default flow/);
+  assert.match(translationsSource, /备用：直接扫码绑定/);
+  assert.match(translationsSource, /Backup: pair directly by QR/);
   const onboardingRecoverySource = await readFile(path.join(rootDir, "src", "pages", "admin", "OnboardingRecoveryCard.tsx"), "utf8");
   assert.match(onboardingRecoverySource, /onboarding\.copyLocalAddress/);
   assert.match(onboardingRecoverySource, /onboarding\.openLogsFolder/);

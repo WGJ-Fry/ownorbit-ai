@@ -717,18 +717,24 @@ export default function AdminOnboardingPage() {
         {primaryStep === "device" ? (
           <section className="rounded-[28px] border border-cyan-400/20 bg-[#101722] p-5 shadow-2xl shadow-cyan-950/20">
             <StepHeader done={hasDevice} icon={<QrCode className="h-5 w-5" />} title={t("onboarding.simpleDeviceTitle")} />
-            <p className="mt-3 text-sm leading-relaxed text-zinc-400">{t("onboarding.simpleDeviceBody")}</p>
-            <div className="mt-5 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-xs leading-relaxed text-zinc-400">
-              {remoteReady ? t("onboarding.simpleRemoteReady") : t("onboarding.simpleSameWifiHint")}
-            </div>
-            <a
-              data-testid="onboarding-simple-phone-qr"
-              href="/admin/devices/pair"
-              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-400 px-4 py-3 text-sm font-bold text-[#061016] shadow-lg shadow-cyan-950/20 transition hover:bg-cyan-300"
-            >
-              <QrCode className="h-4 w-4" />
-              {t("onboarding.simpleOpenQr")}
-            </a>
+            <p className="mt-3 text-sm leading-relaxed text-zinc-400">
+              {showSimpleIcloudEntry ? t("onboarding.simpleDeviceBodyApple") : t("onboarding.simpleDeviceBody")}
+            </p>
+            {!showSimpleIcloudEntry ? (
+              <>
+                <div className="mt-5 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-xs leading-relaxed text-zinc-400">
+                  {remoteReady ? t("onboarding.simpleRemoteReady") : t("onboarding.simpleSameWifiHint")}
+                </div>
+                <a
+                  data-testid="onboarding-simple-phone-qr"
+                  href="/admin/devices/pair"
+                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-400 px-4 py-3 text-sm font-bold text-[#061016] shadow-lg shadow-cyan-950/20 transition hover:bg-cyan-300"
+                >
+                  <QrCode className="h-4 w-4" />
+                  {t("onboarding.simpleOpenQr")}
+                </a>
+              </>
+            ) : null}
             {showSimpleIcloudEntry ? (
               <div data-testid="onboarding-icloud-quick-entry" className={`mt-5 rounded-2xl border p-4 ${simpleIcloudAction.tone}`}>
                 <div data-testid="onboarding-icloud-default-flow" className="mb-4 rounded-2xl border border-cyan-200/15 bg-cyan-400/10 p-4 text-cyan-50">
@@ -1066,6 +1072,20 @@ export default function AdminOnboardingPage() {
                   ) : null}
                 </div>
               </div>
+            ) : null}
+            {showSimpleIcloudEntry ? (
+              <details data-testid="onboarding-device-backup-qr" className="mt-4 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4">
+                <summary className="cursor-pointer text-sm font-bold text-zinc-200">{t("onboarding.simpleDeviceFallbackQrTitle")}</summary>
+                <p className="mt-3 text-xs leading-relaxed text-zinc-500">{t("onboarding.simpleDeviceFallbackQrBody")}</p>
+                <a
+                  data-testid="onboarding-simple-phone-qr"
+                  href="/admin/devices/pair"
+                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-100/15 bg-[#060a10]/35 px-4 py-3 text-sm font-bold text-cyan-50"
+                >
+                  <QrCode className="h-4 w-4" />
+                  {t("onboarding.simpleOpenQr")}
+                </a>
+              </details>
             ) : null}
             <details data-testid="onboarding-device-advanced-icloud-tools" className="mt-5 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4">
               <summary className="flex cursor-pointer items-center justify-between gap-3 text-sm font-bold text-zinc-200">
