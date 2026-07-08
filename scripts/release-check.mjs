@@ -1461,6 +1461,11 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("primaryIcloudAction.actionKey") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudOneNextAction") &&
     adminOnboardingSource.includes("getIcloudActionFollowupKey") &&
+    adminOnboardingSource.includes("QRCodeSVG") &&
+    adminOnboardingSource.includes("startBindingSession") &&
+    adminOnboardingSource.includes("getBindingSession") &&
+    adminOnboardingSource.includes("inlinePairingSession") &&
+    adminOnboardingSource.includes("handleCreateInlinePairing") &&
     adminOnboardingSource.includes("simpleIcloudActionFollowupKey") &&
     adminOnboardingSource.includes("onboarding-icloud-quick-one-step") &&
     adminOnboardingSource.includes("onboarding-icloud-quick-followup") &&
@@ -1469,8 +1474,13 @@ function checkAssets() {
     adminOnboardingSource.includes("simpleIcloudCurrentEntry") &&
     adminOnboardingSource.includes("onboarding-icloud-current-entry") &&
     adminOnboardingSource.includes("simpleIcloudCurrentEntryTitle") &&
+    adminOnboardingSource.includes("onboarding-icloud-inline-qr") &&
+    adminOnboardingSource.includes("simpleIcloudInlineQrReady") &&
+    adminOnboardingSource.includes("simpleIcloudInlineQrFullPage") &&
     translationsSource.includes("当前手机入口") &&
     translationsSource.includes("Current phone entry") &&
+    translationsSource.includes("手机绑定二维码已准备好") &&
+    translationsSource.includes("The phone pairing QR is ready") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudSimpleOldEntryTitle") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudSimpleQrTitle") &&
     onboardingAppleRemoteSource.includes('simpleIcloudStatus.icon === "qr"') &&

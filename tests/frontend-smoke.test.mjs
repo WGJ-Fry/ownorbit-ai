@@ -569,6 +569,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /simpleIcloudSameWifiActionCloudflare/);
   assert.match(onboardingSource, /getIcloudPhonePickupStatus/);
   assert.match(onboardingSource, /getIcloudActionFollowupKey/);
+  assert.match(onboardingSource, /QRCodeSVG/);
+  assert.match(onboardingSource, /startBindingSession/);
+  assert.match(onboardingSource, /getBindingSession/);
+  assert.match(onboardingSource, /inlinePairingSession/);
+  assert.match(onboardingSource, /inlinePairingBusy/);
+  assert.match(onboardingSource, /handleCreateInlinePairing/);
   assert.match(onboardingSource, /simpleIcloudActionFollowupKey/);
   assert.match(onboardingSource, /onboarding-icloud-quick-one-step/);
   assert.match(onboardingSource, /onboarding-icloud-quick-followup/);
@@ -589,6 +595,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.simpleIcloudCurrentEntryTitle/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudCurrentEntryBody/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudQrActionTitle/);
+  assert.match(onboardingSource, /onboarding-icloud-inline-qr/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudInlineQrReady/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudInlineQrFullPage/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudOpenQr/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudRegenerate/);
   assert.match(onboardingSource, /onboarding\.simpleStartChat/);
@@ -702,6 +711,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /This Apple entry only works on the same Wi-Fi/);
   assert.match(translationsSource, /当前手机入口/);
   assert.match(translationsSource, /Current phone entry/);
+  assert.match(translationsSource, /手机绑定二维码已准备好/);
+  assert.match(translationsSource, /The phone pairing QR is ready/);
   assert.match(translationsSource, /下一步：切换到异地入口/);
   assert.match(translationsSource, /Next step: switch to a remote entry/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleReadyTitle/);

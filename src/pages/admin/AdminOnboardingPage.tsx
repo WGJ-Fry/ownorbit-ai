@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import type React from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { AlertTriangle, ArrowRight, CheckCircle2, Cloud, Copy, DatabaseBackup, KeyRound, Loader2, QrCode, RefreshCw, ShieldAlert, SlidersHorizontal, Sparkles, Smartphone, Wifi } from "lucide-react";
-import { cleanupIcloudHandoffEntries, completeOnboarding, createBackup, exportIcloudHandoff, getBackupSchedule, getConfigDiagnostics, getNetworkDiagnostics, getOnboardingStatus, listAiProviders, listBackups, listDevices, saveAiProviderKey, saveDesktopConnectionConfig, startCloudflareTunnel, startTailscaleHttpsServe, testAiProvider, testConnectionUrl, updateActiveAiProvider, updateAiProviderModel, updateBackupSchedule } from "../../services/lifeosApi";
-import type { AiProviderId, AiProviderStatus, BackupRecord, BackupSchedule, BoundDevice, ConfigDiagnostics, NetworkDiagnostics, OnboardingStatus } from "../../services/lifeosApi";
+import { cleanupIcloudHandoffEntries, completeOnboarding, createBackup, exportIcloudHandoff, getBackupSchedule, getBindingSession, getConfigDiagnostics, getNetworkDiagnostics, getOnboardingStatus, listAiProviders, listBackups, listDevices, saveAiProviderKey, saveDesktopConnectionConfig, startBindingSession, startCloudflareTunnel, startTailscaleHttpsServe, testAiProvider, testConnectionUrl, updateActiveAiProvider, updateAiProviderModel, updateBackupSchedule } from "../../services/lifeosApi";
+import type { AiProviderId, AiProviderStatus, BackupRecord, BackupSchedule, BindingSession, BoundDevice, ConfigDiagnostics, NetworkDiagnostics, OnboardingStatus } from "../../services/lifeosApi";
 import LanguageSwitcher from "../../i18n/LanguageSwitcher";
 import { useI18n } from "../../i18n/I18nProvider";
 import OnboardingAppleRemoteCard from "./OnboardingAppleRemoteCard";
@@ -53,6 +54,9 @@ export default function AdminOnboardingPage() {
   const [status, setStatus] = useState<string | null>(null);
   const [desktopBridgeAvailable, setDesktopBridgeAvailable] = useState(false);
   const [autoIcloudExportAttempted, setAutoIcloudExportAttempted] = useState(false);
+  const [inlinePairingSession, setInlinePairingSession] = useState<BindingSession | null>(null);
+  const [inlinePairingBusy, setInlinePairingBusy] = useState(false);
+  const [inlinePairingError, setInlinePairingError] = useState("");
 
   const activeProvider = useMemo(() => providers.find((provider) => provider.id === selectedProvider), [providers, selectedProvider]);
   const isLocalProvider = selectedProvider === "local";
@@ -85,6 +89,7 @@ export default function AdminOnboardingPage() {
   const simpleIcloudActionFollowupKey = getIcloudActionFollowupKey(simpleIcloudAction.actionKey);
   const simpleIcloudEntryReady = simpleIcloudAction.icon === "phone" && Boolean(icloud?.syncReadiness?.canOpenOnPhone);
   const simpleIcloudCurrentEntry = icloud?.recommendedBaseUrl || networkDiagnostics?.recommendedBaseUrl || "";
+  const inlinePairingExpiresIn = inlinePairingSession ? Math.max(0, Math.ceil((inlinePairingSession.expiresAt - Date.now()) / 1000)) : 0;
   const simpleIcloudNeedsSettings = desktopBridgeAvailable && !simpleIcloudBusy && (
     simpleIcloudAction.actionKey === "onboarding.appleRemoteIcloudActionEnableDrive" ||
     simpleIcloudAction.actionKey === "onboarding.appleRemoteIcloudActionFixSync"
@@ -187,6 +192,52 @@ export default function AdminOnboardingPage() {
     };
   }, [primaryStep, busy, autoIcloudExportAttempted, networkDiagnostics?.icloud?.canExport, simpleIcloudAction.cta, t]);
 
+  useEffect(() => {
+    if (primaryStep !== "device" || hasDevice || !simpleIcloudEntryReady || !simpleIcloudCurrentEntry || inlinePairingSession || inlinePairingBusy || inlinePairingError) return;
+    let cancelled = false;
+    setInlinePairingBusy(true);
+    startBindingSession(simpleIcloudCurrentEntry)
+      .then((session) => {
+        if (cancelled) return;
+        setInlinePairingSession(session);
+        setStatus(appendIcloudAutoRefreshStatus(t("onboarding.simpleIcloudInlineQrReady"), session.icloudRefresh, t));
+      })
+      .catch((error: any) => {
+        if (cancelled) return;
+        setInlinePairingError(error.message || t("onboarding.simpleIcloudInlineQrError"));
+      })
+      .finally(() => {
+        if (!cancelled) setInlinePairingBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [primaryStep, hasDevice, simpleIcloudEntryReady, simpleIcloudCurrentEntry, inlinePairingSession, inlinePairingBusy, inlinePairingError, t]);
+
+  useEffect(() => {
+    if (!inlinePairingSession || hasDevice) return;
+    let stopped = false;
+    const interval = window.setInterval(async () => {
+      try {
+        const result = await getBindingSession(inlinePairingSession.id);
+        if (stopped || !result.device) return;
+        window.clearInterval(interval);
+        setDevices((current) => {
+          if (current.some((device) => device.id === result.device?.id)) return current;
+          return result.device ? [result.device, ...current] : current;
+        });
+        setStatus(t("devicePair.successBody", { name: result.device.name }));
+        await refresh().catch(() => null);
+      } catch {
+        // Polling is best effort; the full QR page remains available if this view misses a confirmation.
+      }
+    }, 1500);
+    return () => {
+      stopped = true;
+      window.clearInterval(interval);
+    };
+  }, [inlinePairingSession, hasDevice, t]);
+
   const handleSaveAiKey = async () => {
     if (!apiKey.trim()) {
       setStatus(t("onboarding.enterAiKey"));
@@ -286,6 +337,25 @@ export default function AdminOnboardingPage() {
       await getNetworkDiagnostics().then(setNetworkDiagnostics).catch(() => null);
     } finally {
       setBusy(null);
+    }
+  };
+
+  const handleCreateInlinePairing = async () => {
+    if (!simpleIcloudCurrentEntry) {
+      setInlinePairingError(t("devicePair.noReachableAddress"));
+      return;
+    }
+    setInlinePairingBusy(true);
+    setInlinePairingError("");
+    setInlinePairingSession(null);
+    try {
+      const session = await startBindingSession(simpleIcloudCurrentEntry);
+      setInlinePairingSession(session);
+      setStatus(appendIcloudAutoRefreshStatus(t("onboarding.simpleIcloudInlineQrReady"), session.icloudRefresh, t));
+    } catch (error: any) {
+      setInlinePairingError(error.message || t("onboarding.simpleIcloudInlineQrError"));
+    } finally {
+      setInlinePairingBusy(false);
     }
   };
 
@@ -660,13 +730,48 @@ export default function AdminOnboardingPage() {
                             <div className="mt-2 break-all rounded-lg bg-black/20 p-2 font-mono text-[11px] opacity-75">{simpleIcloudCurrentEntry}</div>
                           </div>
                         ) : null}
-                        <a data-testid="onboarding-icloud-ready-qr" href="/admin/devices/pair" className="rounded-xl border border-cyan-200/20 bg-cyan-400 px-3 py-3 text-xs font-bold leading-relaxed text-[#061016] shadow-lg shadow-cyan-950/20 transition hover:bg-cyan-300">
+                        <div data-testid="onboarding-icloud-ready-qr" className="rounded-xl border border-cyan-200/20 bg-cyan-400 px-3 py-3 text-xs font-bold leading-relaxed text-[#061016] shadow-lg shadow-cyan-950/20">
                           <div className="flex gap-2">
                             <QrCode className="mt-0.5 h-4 w-4 shrink-0" />
                             <span>{t("onboarding.simpleIcloudQrActionTitle")}</span>
                           </div>
                           <p className="mt-1 font-semibold opacity-80">{t("onboarding.simpleIcloudQrActionBody")}</p>
-                        </a>
+                          <div className="mt-3 rounded-2xl bg-white p-3 text-center">
+                            {inlinePairingSession ? (
+                              <QRCodeSVG data-testid="onboarding-icloud-inline-qr" value={inlinePairingSession.pairingUrl} size={132} />
+                            ) : inlinePairingBusy ? (
+                              <div className="flex min-h-[132px] items-center justify-center gap-2 text-[#061016]/70">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                {t("onboarding.simpleIcloudInlineQrCreating")}
+                              </div>
+                            ) : (
+                              <div className="flex min-h-[132px] flex-col items-center justify-center gap-2 text-[#061016]/70">
+                                <AlertTriangle className="h-5 w-5" />
+                                <span>{inlinePairingError || t("onboarding.simpleIcloudInlineQrError")}</span>
+                              </div>
+                            )}
+                          </div>
+                          {inlinePairingSession ? (
+                            <div className="mt-2 text-center text-[11px] font-semibold opacity-75">
+                              {t("devicePair.qrExpires", { value: inlinePairingExpiresIn > 0 ? t("devicePair.expiresIn", { seconds: inlinePairingExpiresIn }) : t("devicePair.expired") })}
+                            </div>
+                          ) : null}
+                          <div className="mt-3 grid gap-2">
+                            <button
+                              type="button"
+                              onClick={handleCreateInlinePairing}
+                              disabled={inlinePairingBusy}
+                              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#061016]/15 bg-[#061016]/10 px-3 py-2 text-xs font-bold disabled:opacity-50"
+                            >
+                              {inlinePairingBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                              {inlinePairingSession ? t("devicePair.regenerate") : t("onboarding.simpleIcloudInlineQrRetry")}
+                            </button>
+                            <a href="/admin/devices/pair" className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#061016]/15 bg-white/40 px-3 py-2 text-xs font-bold">
+                              <QrCode className="h-3.5 w-3.5" />
+                              {t("onboarding.simpleIcloudInlineQrFullPage")}
+                            </a>
+                          </div>
+                        </div>
                       </div>
                     ) : null}
                     {simpleIcloudAction.cta === "remote-guide" ? (
