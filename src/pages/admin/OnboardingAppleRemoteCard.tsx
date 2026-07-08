@@ -468,6 +468,10 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const syncReadiness = icloud?.syncReadiness;
   const syncUserStepTitleKey = safeIcloudSyncUserStepKey(syncReadiness?.userStep?.titleKey, "onboarding.appleRemoteIcloudNextStepReviewTitle");
   const syncUserStepBodyKey = safeIcloudSyncUserStepKey(syncReadiness?.userStep?.bodyKey, "onboarding.appleRemoteIcloudNextStepReviewBody");
+  const icloudSyncStuckMinutes = Math.max(1, Math.round((icloudAvailability?.syncStuckAfterMs || 0) / 60000));
+  const syncReadinessActionText = syncReadiness
+    ? t(icloudSyncActionKeys[syncReadiness.action], { count: syncReadiness.pendingCount, minutes: icloudSyncStuckMinutes })
+    : "";
   const phoneConfirmation = icloud?.phoneConfirmation;
   const pairingSession = icloud?.pairingSession;
   const icloudAcceptance = icloud?.acceptance;
@@ -495,7 +499,6 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const syncReadinessTone = syncReadiness?.severity === "ok" ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-50" : syncReadiness?.severity === "danger" ? "border-red-400/20 bg-red-500/10 text-red-50" : "border-amber-400/20 bg-amber-500/10 text-amber-50";
   const phoneConfirmationTone = phoneConfirmation?.severity === "ok" ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-50" : phoneConfirmation?.severity === "danger" ? "border-red-400/20 bg-red-500/10 text-red-50" : "border-amber-400/20 bg-amber-500/10 text-amber-50";
   const pairingSessionTone = pairingSession?.severity === "ok" ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-50" : pairingSession?.severity === "danger" ? "border-red-400/20 bg-red-500/10 text-red-50" : "border-amber-400/20 bg-amber-500/10 text-amber-50";
-  const icloudSyncStuckMinutes = Math.max(1, Math.round((icloudAvailability?.syncStuckAfterMs || 0) / 60000));
   const lastExportedAt = formatHandoffTime(handoffHealth?.lastExportedAt);
   const refreshAfter = formatHandoffTime(handoffHealth?.refreshAfter);
   const icloudMonitorStartedAt = formatHandoffTime(icloudMonitor?.startedAt || undefined);
@@ -848,8 +851,11 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                   <div className="mt-1 text-[11px] leading-relaxed opacity-80">
                     <div className="font-bold">{t(syncUserStepTitleKey)}</div>
                     <div className="mt-0.5">{t(syncUserStepBodyKey, { count: syncReadiness.userStep.pendingCount, minutes: icloudSyncStuckMinutes })}</div>
-                    <div className="mt-1 opacity-60">
-                      {t(icloudSyncActionKeys[syncReadiness.action], { count: syncReadiness.pendingCount, minutes: icloudSyncStuckMinutes })}
+                    <div className="mt-2 flex items-start gap-2 rounded-lg border border-current/10 bg-black/15 p-2 font-bold">
+                      <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <span>
+                        {t("onboarding.appleRemoteIcloudOneNextAction", { action: syncReadinessActionText })}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1081,9 +1087,9 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                     {icloudAvailability.syncService.processNames.length ? ` (${icloudAvailability.syncService.processNames.join(", ")})` : ""}
                   </div>
                 ) : null}
-                <div className="mt-3 rounded-xl border border-white/[0.06] bg-black/10 p-2">
-                  <div className="mb-2 font-bold text-zinc-200">{t("onboarding.appleRemoteIcloudFileTitle")}</div>
-                  <div className="grid gap-1.5">
+                <details className="mt-3 rounded-xl border border-white/[0.06] bg-black/10 p-2">
+                  <summary className="cursor-pointer font-bold text-zinc-200">{t("onboarding.appleRemoteIcloudFileTitle")}</summary>
+                  <div className="mt-2 grid gap-1.5">
                     {icloudTrackedFiles.map(({ id, file }) => (
                       <div key={id} className={`rounded-lg border px-2 py-1.5 text-[10px] leading-relaxed ${icloudFileTone(file)}`}>
                         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1113,7 +1119,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                       {t("onboarding.appleRemoteIcloudFilePlaceholderSamples", { names: icloudAvailability.placeholderSamples.join(", ") })}
                     </div>
                   ) : null}
-                </div>
+                </details>
               </div>
             ) : null}
             {handoffHealth ? (

@@ -1510,6 +1510,9 @@ function checkAssets() {
     networkDiagnosticsSource.includes("buildIcloudSyncUserStep") &&
     networkDiagnosticsSource.includes("waiting-for-icloud-sync") &&
     onboardingAppleRemoteSource.includes("safeIcloudSyncUserStepKey") &&
+    onboardingAppleRemoteSource.includes("syncReadinessActionText") &&
+    onboardingAppleRemoteSource.includes("action: syncReadinessActionText") &&
+    onboardingAppleRemoteSource.includes('<details className="mt-3 rounded-xl border border-white/[0.06] bg-black/10 p-2">') &&
     networkDiagnosticsTestSource.includes("iCloud availability blocks export when Apple ID or iCloud Drive is disabled") &&
     networkDiagnosticsTestSource.includes("syncReadiness.userStep.id") &&
     networkDiagnosticsTestSource.includes('pendingFiles.includes("html")') &&

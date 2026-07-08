@@ -683,6 +683,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /syncReadiness/);
   assert.match(onboardingAppleRemoteSource, /syncReadiness\?\.userStep/);
   assert.match(onboardingAppleRemoteSource, /safeIcloudSyncUserStepKey/);
+  assert.match(onboardingAppleRemoteSource, /syncReadinessActionText/);
+  assert.match(onboardingAppleRemoteSource, /action: syncReadinessActionText/);
+  assert.match(onboardingAppleRemoteSource, /<details className="mt-3 rounded-xl border border-white\/\[0\.06\] bg-black\/10 p-2">/);
   assert.match(onboardingAppleRemoteSource, /icloudSyncReadinessKeys/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSyncReady/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAdvancedDiagnostics/);
