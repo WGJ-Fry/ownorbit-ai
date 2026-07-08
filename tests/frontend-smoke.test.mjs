@@ -584,6 +584,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.appleRemoteIcloudOneNextAction/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudFilesPath/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudFilesActionTitle/);
+  assert.match(onboardingSource, /simpleIcloudCurrentEntry/);
+  assert.match(onboardingSource, /onboarding-icloud-current-entry/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudCurrentEntryTitle/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudCurrentEntryBody/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudQrActionTitle/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudOpenQr/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudRegenerate/);
@@ -696,6 +700,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Phone has the latest entry/);
   assert.match(translationsSource, /当前 Apple 入口只适合同一 Wi-Fi/);
   assert.match(translationsSource, /This Apple entry only works on the same Wi-Fi/);
+  assert.match(translationsSource, /当前手机入口/);
+  assert.match(translationsSource, /Current phone entry/);
   assert.match(translationsSource, /下一步：切换到异地入口/);
   assert.match(translationsSource, /Next step: switch to a remote entry/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleReadyTitle/);

@@ -1466,6 +1466,11 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding-icloud-quick-followup") &&
     adminOnboardingSource.includes("onboarding-icloud-quick-remote-guide") &&
     adminOnboardingSource.includes("onboarding-icloud-quick-open-folder") &&
+    adminOnboardingSource.includes("simpleIcloudCurrentEntry") &&
+    adminOnboardingSource.includes("onboarding-icloud-current-entry") &&
+    adminOnboardingSource.includes("simpleIcloudCurrentEntryTitle") &&
+    translationsSource.includes("当前手机入口") &&
+    translationsSource.includes("Current phone entry") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudSimpleOldEntryTitle") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudSimpleQrTitle") &&
     onboardingAppleRemoteSource.includes('simpleIcloudStatus.icon === "qr"') &&

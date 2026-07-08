@@ -84,6 +84,7 @@ export default function AdminOnboardingPage() {
   });
   const simpleIcloudActionFollowupKey = getIcloudActionFollowupKey(simpleIcloudAction.actionKey);
   const simpleIcloudEntryReady = simpleIcloudAction.icon === "phone" && Boolean(icloud?.syncReadiness?.canOpenOnPhone);
+  const simpleIcloudCurrentEntry = icloud?.recommendedBaseUrl || networkDiagnostics?.recommendedBaseUrl || "";
   const simpleIcloudNeedsSettings = desktopBridgeAvailable && !simpleIcloudBusy && (
     simpleIcloudAction.actionKey === "onboarding.appleRemoteIcloudActionEnableDrive" ||
     simpleIcloudAction.actionKey === "onboarding.appleRemoteIcloudActionFixSync"
@@ -619,7 +620,7 @@ export default function AdminOnboardingPage() {
                       </button>
                     ) : null}
                     {simpleIcloudEntryReady ? (
-                      <div data-testid="onboarding-icloud-ready-actions" className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <div data-testid="onboarding-icloud-ready-actions" className="mt-3 grid gap-2 lg:grid-cols-3">
                         <div className="rounded-xl border border-current/10 bg-[#060a10]/35 p-3 text-xs leading-relaxed opacity-90">
                           <div className="flex gap-2 font-bold">
                             <Smartphone className="mt-0.5 h-4 w-4 shrink-0" />
@@ -649,6 +650,16 @@ export default function AdminOnboardingPage() {
                             </button>
                           ) : null}
                         </div>
+                        {simpleIcloudCurrentEntry ? (
+                          <div data-testid="onboarding-icloud-current-entry" className="rounded-xl border border-current/10 bg-[#060a10]/35 p-3 text-xs leading-relaxed opacity-90">
+                            <div className="flex gap-2 font-bold">
+                              <Wifi className="mt-0.5 h-4 w-4 shrink-0" />
+                              <span>{t("onboarding.simpleIcloudCurrentEntryTitle")}</span>
+                            </div>
+                            <p className="mt-1 opacity-75">{t("onboarding.simpleIcloudCurrentEntryBody")}</p>
+                            <div className="mt-2 break-all rounded-lg bg-black/20 p-2 font-mono text-[11px] opacity-75">{simpleIcloudCurrentEntry}</div>
+                          </div>
+                        ) : null}
                         <a data-testid="onboarding-icloud-ready-qr" href="/admin/devices/pair" className="rounded-xl border border-cyan-200/20 bg-cyan-400 px-3 py-3 text-xs font-bold leading-relaxed text-[#061016] shadow-lg shadow-cyan-950/20 transition hover:bg-cyan-300">
                           <div className="flex gap-2">
                             <QrCode className="mt-0.5 h-4 w-4 shrink-0" />
