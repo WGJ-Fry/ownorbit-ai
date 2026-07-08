@@ -32,6 +32,7 @@ import { checkReleaseUpdate } from "../releaseUpdateCheck";
 import { buildNativeAutomationPlan, executeNativeAutomation } from "../nativeAutomationBridge";
 import { getIcloudDataSyncReadiness } from "../icloudDataSyncReadiness";
 import { runCloudKitNativeHelper, type CloudKitNativeHelperOperation } from "../cloudKitNativeHelper";
+import { buildCloudKitSyncBatchPreview } from "../cloudKitSyncBatch";
 
 const loginFailures = new Map<string, { count: number; lockedUntil: number }>();
 
@@ -61,6 +62,12 @@ function normalizeInternalRefreshReason(value: unknown) {
 
 function normalizeCloudKitHelperOperation(value: unknown): CloudKitNativeHelperOperation {
   return value === "roundtrip" ? "roundtrip" : "probe";
+}
+
+function normalizeCloudKitBatchLimit(value: unknown) {
+  const parsed = Number.parseInt(String(value || ""), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
+  return Math.min(500, Math.max(1, parsed));
 }
 
 const icloudAcceptanceRecordIds: Record<string, "cellular-mobile-chat" | "restart-restore" | "network-switch" | "network-interruption" | "stale-qr-repair"> = {
@@ -731,6 +738,30 @@ export function registerAdminRoutes(app: express.Express) {
         (req as any).actor?.id,
       );
       res.status(400).json({ error: error.message || "CloudKit helper failed", diagnostics: getAdminNetworkDiagnostics() });
+    }
+  });
+
+  app.get("/api/v1/admin/icloud-data-sync/batch-preview", requireAdmin, rateLimit({ keyPrefix: "admin-cloudkit-batch-preview", windowMs: 60_000, max: 20 }), (req, res) => {
+    try {
+      const diagnostics = getAdminNetworkDiagnostics();
+      const readiness = getIcloudDataSyncReadiness({ platformSupported: diagnostics.icloud.platformSupported });
+      const preview = buildCloudKitSyncBatchPreview(readiness, { limit: normalizeCloudKitBatchLimit(req.query.limit) });
+      insertAuditLog("icloud_cloudkit_batch_previewed", "network", "cloudkit-sync-batch", {
+        status: preview.status,
+        readinessStatus: preview.readinessStatus,
+        selectedDataTypes: preview.selectedDataTypes,
+        readyRecordCount: preview.readyRecordCount,
+        blockedRecordCount: preview.blockedRecordCount,
+        totalCandidateCount: preview.totalCandidateCount,
+        rawPayloadIncluded: preview.safety.rawPayloadIncluded,
+        nextHelperOperation: preview.helperPayloadPlan.nextHelperOperation,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.json({ preview, diagnostics });
+    } catch (error: any) {
+      insertAuditLog("icloud_cloudkit_batch_preview_failed", "network", "cloudkit-sync-batch", {
+        error: error?.message || "CloudKit sync batch preview failed",
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(400).json({ error: error.message || "CloudKit sync batch preview failed", diagnostics: getAdminNetworkDiagnostics() });
     }
   });
 

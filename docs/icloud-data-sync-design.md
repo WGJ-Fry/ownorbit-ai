@@ -126,6 +126,24 @@ export LIFEOS_CLOUDKIT_HELPER_BIN="$PWD/build/native/LifeOSCloudKitHelper"
 
 The scaffold protects `roundtrip` behind `LIFEOS_CLOUDKIT_TEST_WRITE_CONFIRM=DELETE_DISPOSABLE_RECORDS`, so a probe can remain read-only and a disposable write cannot happen by accident.
 
+## Sync Batch Preview
+
+The admin API now exposes a guarded preview endpoint:
+
+```text
+GET /api/v1/admin/icloud-data-sync/batch-preview
+```
+
+This endpoint reads local SQLite data for selected CloudKit classes and builds a safe batch summary before any export is allowed. It intentionally returns hashes, record types, field names, zones, counts, and blocked reasons only. It does not return raw chat text, memory content, task payloads, generated-app state, AI keys, device credentials, session cookies, local paths, or SQLite blobs.
+
+The preview can produce:
+
+- ready records for `LifeOSConversation`, `LifeOSMessage`, `LifeOSMemory`, `LifeOSTask`, and `LifeOSGeneratedAppState`;
+- blocked records for sensitive memories, malformed JSON, unsafe fields, and secret-like content;
+- a `lifeos-cloudkit-sync-batch-preview.v1` helper payload plan that remains preview-only until helper probe and disposable roundtrip evidence pass.
+
+This is still not real continuous sync. It is the safety gate that proves LifeOS can select syncable records from SQLite without leaking raw payloads into the admin response. A future export operation must use the same filtering, require backup evidence, call the native helper, and write only approved CloudKit record fields.
+
 Run the contract smoke with:
 
 ```bash
@@ -191,3 +209,5 @@ Do not claim real iCloud data sync until all of this is true:
 - README、Release、诊断和路线图都明确区分“入口文件同步”和“真实数据同步”。
 
 当前已经有第一版原生 helper 源码：`native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift`。它可以在 macOS 上通过 `npm run icloud:helper:build` 编译，输出到 `build/native/LifeOSCloudKitHelper`。这个 helper 只表示 CloudKit 原生桥开始具备落脚点；在完成真实容器、entitlement、一次性 roundtrip、数据类型同步、冲突处理和真实设备长测前，仍不能宣称聊天、记忆、任务或设备信任已经通过 iCloud 同步。
+
+当前还新增了受管理员认证保护的批次预览接口：`/api/v1/admin/icloud-data-sync/batch-preview`。它会从 SQLite 里挑选聊天、记忆、任务和生成程序状态的候选记录，但只返回 hash、字段名、record type、zone、数量和阻断原因，不返回原始正文或密钥。它可以帮助判断“哪些数据将来能通过 CloudKit 同步”，但它本身仍不是后台双向同步。

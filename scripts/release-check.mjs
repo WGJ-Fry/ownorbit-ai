@@ -1473,6 +1473,8 @@ function checkAssets() {
   const icloudDataSyncReadinessTestSource = exists("tests/icloud-data-sync-readiness.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/icloud-data-sync-readiness.test.mjs"), "utf8") : "";
   const cloudKitNativeHelperSource = exists("server/cloudKitNativeHelper.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitNativeHelper.ts"), "utf8") : "";
   const cloudKitNativeHelperTestSource = exists("tests/cloudkit-native-helper.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-native-helper.test.mjs"), "utf8") : "";
+  const cloudKitSyncBatchSource = exists("server/cloudKitSyncBatch.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitSyncBatch.ts"), "utf8") : "";
+  const cloudKitSyncBatchTestSource = exists("tests/cloudkit-sync-batch.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-sync-batch.test.mjs"), "utf8") : "";
   const cloudKitNativeHelperSmokeSource = exists("scripts/cloudkit-native-helper-smoke.mjs") ? fs.readFileSync(path.join(rootDir, "scripts/cloudkit-native-helper-smoke.mjs"), "utf8") : "";
   const cloudKitNativeSwiftHelperSource = exists("native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift") ? fs.readFileSync(path.join(rootDir, "native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift"), "utf8") : "";
   const cloudKitNativeHelperBuildSource = exists("scripts/build-cloudkit-helper.mjs") ? fs.readFileSync(path.join(rootDir, "scripts/build-cloudkit-helper.mjs"), "utf8") : "";
@@ -1877,20 +1879,29 @@ function checkAssets() {
     translationsSource.includes("Native acceptance gates") &&
     translationsSource.includes("原生 helper 验收") &&
     translationsSource.includes("Native helper acceptance") &&
+    translationsSource.includes("CloudKit 同步批次预览") &&
+    translationsSource.includes("CloudKit sync batch preview") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudDataBoundaryBody") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-readiness") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-record-plan") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-acceptance-gates") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-helper-run") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-helper-result") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-batch-preview") &&
+    onboardingAppleRemoteSource.includes("handleLoadCloudKitBatchPreview") &&
     onboardingAppleRemoteSource.includes("handleRunCloudKitHelper") &&
     onboardingAppleRemoteSource.includes("icloudDataSyncStatusKeys") &&
     networkDiagnosticsSource.includes("getIcloudDataSyncReadiness") &&
     adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/helper") &&
+    adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/batch-preview") &&
     adminRoutesSource.includes("runCloudKitNativeHelper") &&
+    adminRoutesSource.includes("buildCloudKitSyncBatchPreview") &&
     adminRoutesSource.includes("icloud_cloudkit_helper_probe") &&
+    adminRoutesSource.includes("icloud_cloudkit_batch_previewed") &&
     lifeosApiSource.includes("CloudKitNativeHelperResult") &&
     lifeosApiSource.includes("runCloudKitDataSyncHelper") &&
+    lifeosApiSource.includes("CloudKitSyncBatchPreview") &&
+    lifeosApiSource.includes("getCloudKitSyncBatchPreview") &&
     icloudDataSyncReadinessSource.includes("LIFEOS_CLOUDKIT_CONTAINER_ID") &&
     icloudDataSyncReadinessSource.includes("blockedCloudKitDataTypes") &&
     icloudDataSyncReadinessSource.includes("cloudKitRecordPlans") &&
@@ -1911,6 +1922,11 @@ function checkAssets() {
     cloudKitNativeHelperTestSource.includes("CloudKit helper roundtrip executes") &&
     cloudKitNativeHelperTestSource.includes("redacts helper stderr") &&
     cloudKitNativeHelperTestSource.includes("Apple CloudKit helper source implements the native JSON stdio contract") &&
+    cloudKitSyncBatchSource.includes("lifeos-cloudkit-sync-batch-preview.v1") &&
+    cloudKitSyncBatchSource.includes("rawPayloadIncluded: false") &&
+    cloudKitSyncBatchSource.includes("secretLikeContentBlocked") &&
+    cloudKitSyncBatchTestSource.includes("blocks sensitive payloads") &&
+    cloudKitSyncBatchTestSource.includes("sendsRawUserContent, false") &&
     cloudKitNativeHelperSmokeSource.includes("runCloudKitNativeHelper") &&
     cloudKitNativeSwiftHelperSource.includes("import CloudKit") &&
     cloudKitNativeSwiftHelperSource.includes("lifeos-cloudkit-helper-request.v1") &&
@@ -1927,6 +1943,7 @@ function checkAssets() {
     packageJson.scripts["icloud:helper:smoke"]?.includes("cloudkit-native-helper-smoke.mjs") &&
     packageJson.scripts.test.includes("tests/icloud-data-sync-readiness.test.mjs") &&
     packageJson.scripts.test.includes("tests/cloudkit-native-helper.test.mjs") &&
+    packageJson.scripts.test.includes("tests/cloudkit-sync-batch.test.mjs") &&
     diagnosticBundleSource.includes('dataSyncScope: "entry-file-only"') &&
     diagnosticBundleSource.includes("cloudKitReadiness") &&
     diagnosticBundleSource.includes("recordPlan: readiness.recordPlan") &&
@@ -1939,6 +1956,8 @@ function checkAssets() {
     diagnosticBundleSource.includes("nativeDataSyncOptions") &&
     apiAuthTestSource.includes("/api/v1/admin/icloud-data-sync/helper") &&
     apiAuthTestSource.includes("cloudKitHelperProbe.result.status") &&
+    apiAuthTestSource.includes("/api/v1/admin/icloud-data-sync/batch-preview") &&
+    apiAuthTestSource.includes("cloudKitBatchPreview.preview.status") &&
     apiAuthTestSource.includes("cloudKitReadiness.status") &&
     apiAuthTestSource.includes("cloudKitRequiredForDataSync") &&
     networkDiagnosticsSource.includes("cleanupIcloudHandoffEntries") &&

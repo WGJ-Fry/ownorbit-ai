@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { AlertTriangle, ArrowRight, CheckCircle2, ClipboardCheck, ClipboardPaste, Cloud, ExternalLink, Loader2, QrCode, RefreshCw, ShieldCheck, Smartphone, Wifi } from "lucide-react";
-import { analyzeIcloudHandoffRepairPacket, recordIcloudAcceptance, runCloudKitDataSyncHelper } from "../../services/lifeosApi";
-import type { CloudKitNativeHelperResult, IcloudAutoRefreshResult, IcloudHandoffRepairAnalysis, NetworkDiagnostics } from "../../services/lifeosApi";
+import { analyzeIcloudHandoffRepairPacket, getCloudKitSyncBatchPreview, recordIcloudAcceptance, runCloudKitDataSyncHelper } from "../../services/lifeosApi";
+import type { CloudKitNativeHelperResult, CloudKitSyncBatchPreview, IcloudAutoRefreshResult, IcloudHandoffRepairAnalysis, NetworkDiagnostics } from "../../services/lifeosApi";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { TranslationKey } from "../../i18n/translations";
 import { getIcloudActionFollowupKey, getPrimaryIcloudAction } from "./appleRemoteIcloudPrimaryAction";
@@ -533,6 +533,9 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const [cloudKitHelperBusy, setCloudKitHelperBusy] = useState<CloudKitNativeHelperResult["operation"] | null>(null);
   const [cloudKitHelperResult, setCloudKitHelperResult] = useState<CloudKitNativeHelperResult | null>(null);
   const [cloudKitHelperMessage, setCloudKitHelperMessage] = useState("");
+  const [cloudKitBatchBusy, setCloudKitBatchBusy] = useState(false);
+  const [cloudKitBatchPreview, setCloudKitBatchPreview] = useState<CloudKitSyncBatchPreview | null>(null);
+  const [cloudKitBatchMessage, setCloudKitBatchMessage] = useState("");
   const appleRuntime = isAppleRuntime();
   const candidate = getPreferredCandidate(diagnostics);
   const icloud = diagnostics?.icloud;
@@ -713,6 +716,21 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
       setCloudKitHelperMessage(error?.message || t("onboarding.appleRemoteIcloudDataSyncHelperFailed"));
     } finally {
       setCloudKitHelperBusy(null);
+    }
+  };
+
+  const handleLoadCloudKitBatchPreview = async () => {
+    setCloudKitBatchBusy(true);
+    setCloudKitBatchMessage("");
+    try {
+      const result = await getCloudKitSyncBatchPreview();
+      setCloudKitBatchPreview(result.preview);
+      onDiagnostics?.(result.diagnostics);
+      setCloudKitBatchMessage(t("onboarding.appleRemoteIcloudDataSyncBatchLoaded"));
+    } catch (error: any) {
+      setCloudKitBatchMessage(error?.message || t("onboarding.appleRemoteIcloudDataSyncBatchFailed"));
+    } finally {
+      setCloudKitBatchBusy(false);
     }
   };
 
@@ -1104,6 +1122,42 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                       })}</div>
                       <div>{t("onboarding.appleRemoteIcloudDataSyncHelperWarnings", { value: String(cloudKitHelperResult.warnings?.length || 0) })}</div>
                       <div>{t("onboarding.appleRemoteIcloudDataSyncHelperErrors", { value: String(cloudKitHelperResult.errors?.length || 0) })}</div>
+                    </div>
+                  ) : null}
+                </div>
+                <div data-testid="onboarding-icloud-data-sync-batch-preview" className="mt-2 rounded-lg border border-current/10 bg-black/10 p-2">
+                  <div className="font-bold">{t("onboarding.appleRemoteIcloudDataSyncBatchTitle")}</div>
+                  <div className="mt-1 opacity-80">{t("onboarding.appleRemoteIcloudDataSyncBatchBody")}</div>
+                  <button
+                    type="button"
+                    data-testid="onboarding-icloud-data-sync-batch-load"
+                    onClick={handleLoadCloudKitBatchPreview}
+                    disabled={cloudKitBatchBusy}
+                    className="mt-2 inline-flex items-center justify-center gap-2 rounded-lg border border-current/15 bg-black/15 px-3 py-2 text-[11px] font-bold disabled:opacity-50"
+                  >
+                    {cloudKitBatchBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ClipboardCheck className="h-3.5 w-3.5" />}
+                    {t("onboarding.appleRemoteIcloudDataSyncBatchLoad")}
+                  </button>
+                  {cloudKitBatchMessage ? (
+                    <div className="mt-2 rounded-lg border border-current/10 bg-black/10 px-2 py-1 font-bold">
+                      {cloudKitBatchMessage}
+                    </div>
+                  ) : null}
+                  {cloudKitBatchPreview ? (
+                    <div data-testid="onboarding-icloud-data-sync-batch-result" className="mt-2 grid gap-1 rounded-lg border border-current/10 bg-black/10 p-2 font-mono text-[10px] opacity-85">
+                      <div className="font-sans text-[11px] font-bold">{t("onboarding.appleRemoteIcloudDataSyncBatchResultTitle")}</div>
+                      <div>{t("onboarding.appleRemoteIcloudDataSyncBatchStatus", { value: cloudKitBatchPreview.status })}</div>
+                      <div>{t("onboarding.appleRemoteIcloudDataSyncBatchCounts", {
+                        ready: cloudKitBatchPreview.readyRecordCount,
+                        blocked: cloudKitBatchPreview.blockedRecordCount,
+                        total: cloudKitBatchPreview.totalCandidateCount,
+                      })}</div>
+                      <div>{t("onboarding.appleRemoteIcloudDataSyncBatchTypes", { value: cloudKitBatchPreview.selectedDataTypes.join(", ") || t("onboarding.appleRemoteIcloudDataSyncNotConfigured") })}</div>
+                      <div>{t("onboarding.appleRemoteIcloudDataSyncBatchPayload", { value: cloudKitBatchPreview.safety.rawPayloadIncluded ? t("onboarding.appleRemoteIcloudDataSyncBatchYes") : t("onboarding.appleRemoteIcloudDataSyncBatchNo") })}</div>
+                      <div>{t("onboarding.appleRemoteIcloudDataSyncBatchNext", { action: cloudKitBatchPreview.nextAction })}</div>
+                      {cloudKitBatchPreview.zones.length ? (
+                        <div>{t("onboarding.appleRemoteIcloudDataSyncBatchZones", { value: cloudKitBatchPreview.zones.map((item) => `${item.zone}:${item.records}`).join(", ") })}</div>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>

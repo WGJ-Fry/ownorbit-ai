@@ -1438,6 +1438,58 @@ export type CloudKitNativeHelperResult = {
   };
 };
 
+export type CloudKitSyncBatchPreview = {
+  ok: boolean;
+  status: "skipped" | "blocked" | "empty" | "needs-review" | "ready";
+  generatedAt: string;
+  readinessStatus: string;
+  dataSyncScope: NetworkDiagnostics["icloud"]["dataSync"]["dataSyncScope"];
+  selectedDataTypes: string[];
+  readyRecordCount: number;
+  blockedRecordCount: number;
+  totalCandidateCount: number;
+  truncated: boolean;
+  limit: number;
+  zones: Array<{ zone: string; records: number }>;
+  recordTypes: Array<{ recordType: string; records: number }>;
+  records: Array<{
+    id: string;
+    dataType: string;
+    zone: string;
+    recordType: string;
+    recordName: string;
+    mutationId: string;
+    logicalClock: number;
+    fieldNames: string[];
+    byteSize: number;
+    contentHash: string;
+    requiresUserReview: boolean;
+  }>;
+  blockedRecords: Array<{
+    id: string;
+    dataType: string;
+    recordType: string;
+    reason: "sensitive-memory" | "secret-like-content" | "unsafe-field" | "malformed-json" | "unsupported-record";
+    contentHash: string;
+  }>;
+  safety: {
+    forbiddenFieldNames: string[];
+    blockedDataTypes: string[];
+    notSyncedDataTypes: string[];
+    secretLikeContentBlocked: number;
+    sensitiveMemoryBlocked: number;
+    rawPayloadIncluded: false;
+  };
+  helperPayloadPlan: {
+    schema: "lifeos-cloudkit-sync-batch-preview.v1";
+    operation: "preview";
+    sendsRawUserContent: false;
+    nextHelperOperation: "probe" | "roundtrip" | "sync-export-blocked";
+    recordPlanHash: string;
+  };
+  nextAction: string;
+};
+
 export type ConnectionTestResult = {
   ok: boolean;
   httpsStatus?: {
@@ -2232,6 +2284,14 @@ export function runCloudKitDataSyncHelper(operation: CloudKitNativeHelperResult[
     timeoutMs: 30_000,
     body: JSON.stringify({ operation }),
   });
+}
+
+export function getCloudKitSyncBatchPreview(limit?: number) {
+  const query = limit ? `?limit=${encodeURIComponent(String(limit))}` : "";
+  return requestJson<{
+    preview: CloudKitSyncBatchPreview;
+    diagnostics: NetworkDiagnostics;
+  }>(`/api/v1/admin/icloud-data-sync/batch-preview${query}`);
 }
 
 export function importRemoteAcceptanceReport(report: unknown) {
