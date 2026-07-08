@@ -649,7 +649,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /getPrimaryIcloudAction/);
   assert.match(onboardingAppleRemoteSource, /primaryIcloudAction/);
   assert.match(onboardingAppleRemoteSource, /primaryIcloudAction\.actionKey/);
+  assert.match(onboardingAppleRemoteSource, /primaryIcloudActionFollowupKeys/);
+  assert.match(onboardingAppleRemoteSource, /primaryIcloudActionFollowupKey/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-one-step-guide/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudOneNextAction/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudThenLabel/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudNextStepOldEntryTitle/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudActionWaitSync/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudActionOpenFiles/);
@@ -665,7 +669,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(icloudPhonePickupStatusSource, /simpleIcloudPickupOldTitle/);
   assert.match(icloudPhonePickupStatusSource, /simpleIcloudPickupIssueTitle/);
   assert.match(translationsSource, /现在只做这一步/);
+  assert.match(translationsSource, /做完后：/);
   assert.match(translationsSource, /Only do this now/);
+  assert.match(translationsSource, /After that:/);
+  assert.match(translationsSource, /旧主屏幕图标或旧二维码先不要用/);
+  assert.match(translationsSource, /Do not use an old home-screen icon or old QR code yet/);
   assert.match(translationsSource, /手机已经拿到最新入口/);
   assert.match(translationsSource, /Phone has the latest entry/);
   assert.match(translationsSource, /当前 Apple 入口只适合同一 Wi-Fi/);
@@ -685,6 +693,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /safeIcloudSyncUserStepKey/);
   assert.match(onboardingAppleRemoteSource, /syncReadinessActionText/);
   assert.match(onboardingAppleRemoteSource, /action: syncReadinessActionText/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-sync-details/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSyncDetailsSummary/);
   assert.match(onboardingAppleRemoteSource, /<details className="mt-3 rounded-xl border border-white\/\[0\.06\] bg-black\/10 p-2">/);
   assert.match(onboardingAppleRemoteSource, /icloudSyncReadinessKeys/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSyncReady/);

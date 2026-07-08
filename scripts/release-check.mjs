@@ -1604,6 +1604,9 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("repairRecommendationHintKeys") &&
     onboardingAppleRemoteSource.includes("wrapAction") &&
     onboardingAppleRemoteSource.includes("onClick={onExportIcloud}") &&
+    onboardingAppleRemoteSource.includes("primaryIcloudActionFollowupKeys") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-one-step-guide") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-sync-details") &&
     onboardingAppleRemoteSource.includes("<details") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudRepairActions") &&
     translationsSource.includes("Export a fresh entry, then reopen the latest file on the phone") &&
@@ -1645,6 +1648,9 @@ function checkAssets() {
     translationsSource.includes("Do not keep using this entry") &&
     translationsSource.includes("Waiting for iCloud sync") &&
     translationsSource.includes("Do this one thing next") &&
+    translationsSource.includes("After that:") &&
+    translationsSource.includes("Do not use an old home-screen icon or old QR code yet") &&
+    translationsSource.includes("Show iCloud sync details") &&
     translationsSource.includes("Next step: wait for iCloud sync") &&
     translationsSource.includes("New mobile QR needed") &&
     translationsSource.includes("generate a fresh QR code") &&

@@ -123,6 +123,20 @@ const icloudSyncActionKeys: Record<NetworkDiagnostics["icloud"]["syncReadiness"]
   "open-files-app": "onboarding.appleRemoteIcloudSyncActionOpen",
 };
 
+const primaryIcloudActionFollowupKeys: Partial<Record<TranslationKey, TranslationKey>> = {
+  "onboarding.appleRemoteIcloudActionUseQrOrTunnel": "onboarding.appleRemoteIcloudFollowupUseQrOrTunnel",
+  "onboarding.appleRemoteIcloudActionEnableDrive": "onboarding.appleRemoteIcloudFollowupEnableDrive",
+  "onboarding.appleRemoteIcloudActionRefreshEntry": "onboarding.appleRemoteIcloudFollowupRefreshEntry",
+  "onboarding.appleRemoteIcloudActionRefreshAndQr": "onboarding.appleRemoteIcloudFollowupRefreshAndQr",
+  "onboarding.appleRemoteIcloudActionGenerateQr": "onboarding.appleRemoteIcloudFollowupGenerateQr",
+  "onboarding.appleRemoteIcloudActionCreateEntry": "onboarding.appleRemoteIcloudFollowupCreateEntry",
+  "onboarding.appleRemoteIcloudActionFixSync": "onboarding.appleRemoteIcloudFollowupFixSync",
+  "onboarding.appleRemoteIcloudActionWaitSync": "onboarding.appleRemoteIcloudFollowupWaitSync",
+  "onboarding.appleRemoteIcloudActionOpenFiles": "onboarding.appleRemoteIcloudFollowupOpenFiles",
+  "onboarding.appleRemoteIcloudActionChooseRemoteEntry": "onboarding.appleRemoteIcloudFollowupChooseRemoteEntry",
+  "onboarding.appleRemoteIcloudActionReview": "onboarding.appleRemoteIcloudFollowupReview",
+};
+
 function safeIcloudSyncUserStepKey(value: string | undefined, fallback: TranslationKey): TranslationKey {
   return value && value.startsWith("onboarding.appleRemoteIcloudNextStep") ? value as TranslationKey : fallback;
 }
@@ -528,6 +542,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
     : "";
   const simpleIcloudStatus = getSimpleIcloudStatus(icloud);
   const primaryIcloudAction = getPrimaryIcloudAction({ icloud, latestEntryRepair, pairingSession, syncReadiness, handoffHealth, canExportIcloud });
+  const primaryIcloudActionFollowupKey = primaryIcloudActionFollowupKeys[primaryIcloudAction.actionKey] || "onboarding.appleRemoteIcloudFollowupReview";
   const icloudTrackedFiles = icloudAvailability
     ? [
         { id: "html" as const, file: icloudAvailability.handoffFile },
@@ -813,13 +828,19 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
               <div className="min-w-0 flex-1">
                 <div className="font-bold">{t(primaryIcloudAction.titleKey)}</div>
                 <div className="mt-1 text-[11px] leading-relaxed opacity-80">{t(primaryIcloudAction.bodyKey)}</div>
-                <div className="mt-3 flex items-start gap-2 rounded-xl border border-current/10 bg-black/15 p-2 text-[11px] font-bold">
-                  <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  <span>
-                    {t("onboarding.appleRemoteIcloudOneNextAction", {
-                      action: t(primaryIcloudAction.actionKey),
-                    })}
-                  </span>
+                <div data-testid="onboarding-icloud-one-step-guide" className="mt-3 rounded-xl border border-current/10 bg-black/15 p-3 text-[11px] leading-relaxed">
+                  <div className="flex items-start gap-2 font-bold">
+                    <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span>
+                      {t("onboarding.appleRemoteIcloudOneNextAction", {
+                        action: t(primaryIcloudAction.actionKey),
+                      })}
+                    </span>
+                  </div>
+                  <div className="mt-2 border-t border-current/10 pt-2 opacity-85">
+                    <span className="font-bold">{t("onboarding.appleRemoteIcloudThenLabel")}</span>{" "}
+                    {t(primaryIcloudActionFollowupKey)}
+                  </div>
                 </div>
                 {primaryIcloudAction.cta === "export" ? (
                   <button
@@ -854,8 +875,9 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
             </div>
           </div>
           {syncReadiness ? (
-            <div className={`mt-3 rounded-xl border p-3 ${syncReadinessTone}`}>
-              <div className="flex gap-2">
+            <details data-testid="onboarding-icloud-sync-details" className={`mt-3 rounded-xl border p-3 ${syncReadinessTone}`}>
+              <summary className="cursor-pointer font-bold">{t("onboarding.appleRemoteIcloudSyncDetailsSummary")}</summary>
+              <div className="mt-3 flex gap-2">
                 {syncReadiness.canOpenOnPhone ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : syncReadiness.status === "syncing" ? <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />}
                 <div>
                   <div className="font-bold">{t(icloudSyncReadinessKeys[syncReadiness.status])}</div>
@@ -871,7 +893,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                   </div>
                 </div>
               </div>
-            </div>
+            </details>
           ) : null}
           {availableEntryCount > 1 ? (
             <div className="mt-3 rounded-xl border border-sky-400/15 bg-sky-500/10 p-3 text-[11px] leading-relaxed text-sky-50/80">
