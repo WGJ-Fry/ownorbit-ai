@@ -1542,6 +1542,8 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("appleRemoteIcloudEntryRefreshAfter") &&
     networkDiagnosticsTestSource.includes("entry.desktopName === packet.desktopName") &&
     networkDiagnosticsSource.includes("chooseIcloudRecommendedIndexEntry") &&
+    networkDiagnosticsSource.includes("const remoteEntry = rankEntries") &&
+    networkDiagnosticsSource.includes("!isIcloudEntrySameWifiOnly(entry)") &&
     networkDiagnosticsSource.includes("formatIcloudDesktopDisplayName") &&
     networkDiagnosticsSource.includes("data-lifeos-desktop-short-id") &&
     networkDiagnosticsSource.includes("data-lifeos-entry-same-wifi-only") &&
@@ -1550,6 +1552,8 @@ function checkAssets() {
     networkDiagnosticsSource.includes("lifeos-same-wifi-warning") &&
     networkDiagnosticsSource.includes("This entry only works on the same Wi-Fi") &&
     networkDiagnosticsSource.includes("If two desktops share a name") &&
+    networkDiagnosticsSource.includes("recommendedRemoteFromOtherDesktop") &&
+    networkDiagnosticsSource.includes("LifeOS picked an off-LAN HTTPS/VPN entry") &&
     networkDiagnosticsSource.includes("Open the Recommended Entry") &&
     networkDiagnosticsSource.includes("Other desktop entries") &&
     networkDiagnosticsSource.includes("lifeos-entry-index-recommended-html-file") &&
@@ -1558,6 +1562,9 @@ function checkAssets() {
     networkDiagnosticsSource.includes("Checking whether this entry is usable") &&
     networkDiagnosticsSource.includes("Create a fresh entry from the desktop") &&
     networkDiagnosticsTestSource.includes("class=\"entry primary\"") &&
+    networkDiagnosticsTestSource.includes("iCloud desktop chooser prefers off-LAN entries over same-Wi-Fi current entries") &&
+    networkDiagnosticsTestSource.includes("lifeos-entry-index-recommended-desktop-id\" content=\"remote-mac") &&
+    networkDiagnosticsTestSource.includes("LifeOS 优先推荐了可异地访问的 HTTPS\\/VPN 入口") &&
     networkDiagnosticsTestSource.includes("iCloud handoff entry page warns when the exported address only works on the same Wi-Fi") &&
     networkDiagnosticsTestSource.includes("packet.sameWifiOnly") &&
     networkDiagnosticsTestSource.includes("lifeos-same-wifi-warning") &&

@@ -948,17 +948,21 @@ function chooseIcloudRecommendedIndexEntry(input: {
   currentDesktopId: string;
   entries: ReturnType<typeof readIcloudEntrySummaries>;
 }) {
-  const currentFreshEntry = input.entries.find((entry) => (
+  const usableEntries = input.entries.filter((entry) => !entry.expiresAt || input.generatedAt < entry.expiresAt);
+  const rankEntries = (entries: typeof usableEntries) => [...entries].sort((left, right) => {
+    const scoreDelta = icloudEntryPhoneScore(right, input.generatedAt, input.currentDesktopId) - icloudEntryPhoneScore(left, input.generatedAt, input.currentDesktopId);
+    return scoreDelta || (right.generatedAt || 0) - (left.generatedAt || 0);
+  });
+  const currentFreshEntry = usableEntries.find((entry) => (
     entry.desktopId === input.currentDesktopId &&
-    (!entry.expiresAt || input.generatedAt < entry.expiresAt)
+    (!entry.refreshAfter || input.generatedAt < entry.refreshAfter)
   ));
+  if (currentFreshEntry && !isIcloudEntrySameWifiOnly(currentFreshEntry)) return currentFreshEntry;
+
+  const remoteEntry = rankEntries(usableEntries.filter((entry) => !isIcloudEntrySameWifiOnly(entry)))[0];
+  if (remoteEntry) return remoteEntry;
   if (currentFreshEntry) return currentFreshEntry;
-  return [...input.entries]
-    .sort((left, right) => {
-      const scoreDelta = icloudEntryPhoneScore(right, input.generatedAt, input.currentDesktopId) - icloudEntryPhoneScore(left, input.generatedAt, input.currentDesktopId);
-      return scoreDelta || (right.generatedAt || 0) - (left.generatedAt || 0);
-    })
-    .find((entry) => !entry.expiresAt || input.generatedAt < entry.expiresAt) || input.entries[0] || null;
+  return rankEntries(usableEntries)[0] || input.entries[0] || null;
 }
 
 function buildIcloudHandoffIndexHtml(input: {
@@ -975,6 +979,7 @@ function buildIcloudHandoffIndexHtml(input: {
     : input.entries;
   const duplicateDesktopNames = getDuplicateIcloudDesktopNames(input.entries);
   const recommendedSameWifiOnly = Boolean(recommendedEntry && isIcloudEntrySameWifiOnly(recommendedEntry));
+  const recommendedRemoteFromOtherDesktop = Boolean(recommendedEntry && !recommendedSameWifiOnly && recommendedEntry.desktopId !== input.currentDesktopId);
   const renderEntry = (entry: NonNullable<typeof recommendedEntry>, options: { primary?: boolean } = {}) => {
     const isCurrent = entry.desktopId === input.currentDesktopId;
     const shortId = getIcloudDesktopShortId(entry);
@@ -1039,6 +1044,7 @@ function buildIcloudHandoffIndexHtml(input: {
       <p>通常只点第一个入口即可。其他电脑入口已经放到高级区，避免误连旧电脑。</p>
       <p>Usually open the first entry only. Other desktop entries are tucked into Advanced so stale desktops are harder to pick by mistake.</p>
       ${duplicateDesktopNames.size ? `<div class="hint">如果两台电脑名字一样，请看短 ID 和更新时间。/ If two desktops share a name, use the short ID and update time.</div>` : ""}
+      ${recommendedRemoteFromOtherDesktop ? `<div class="hint">LifeOS 优先推荐了可异地访问的 HTTPS/VPN 入口，而不是当前电脑的同 Wi-Fi 地址。/ LifeOS picked an off-LAN HTTPS/VPN entry instead of this Mac's same-Wi-Fi address.</div>` : ""}
       ${recommendedSameWifiOnly ? `<div class="hint warning">这个入口只适合同一 Wi-Fi。离家使用请先在电脑端切换 Tailscale 或 Cloudflare。/ This entry only works on the same Wi-Fi. Away from home, switch to Tailscale or Cloudflare on the desktop first.</div>` : ""}
       ${rows}
       <div class="warn">iCloud 只同步入口文件，不是实时网络隧道；异地实时聊天仍需要 Tailscale、Cloudflare Tunnel 或可信 HTTPS 入口。</div>

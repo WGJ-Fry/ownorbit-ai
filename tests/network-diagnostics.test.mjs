@@ -525,6 +525,95 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.equal(fs.readdirSync(path.dirname(result.handoffFilePath)).some((name) => name.endsWith(".tmp")), false);
 });
 
+test("iCloud desktop chooser prefers off-LAN entries over same-Wi-Fi current entries", async (t) => {
+  const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-remote-entry-preferred-"));
+  const appDir = path.join(icloudDir, "LifeOS AI");
+  fs.mkdirSync(appDir, { recursive: true });
+  const oldPort = process.env.LIFEOS_PORT;
+  const oldPublicBaseUrl = process.env.PUBLIC_BASE_URL;
+  const oldAppUrl = process.env.APP_URL;
+  const oldCloudflaredBin = process.env.LIFEOS_CLOUDFLARED_BIN;
+  const oldTailscaleBin = process.env.LIFEOS_TAILSCALE_BIN;
+  const oldIcloudDriveDir = process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+  const oldForceIcloud = process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+  const oldDeviceName = process.env.LIFEOS_DEVICE_NAME;
+
+  t.after(async () => {
+    if (oldPort === undefined) delete process.env.LIFEOS_PORT;
+    else process.env.LIFEOS_PORT = oldPort;
+    if (oldPublicBaseUrl === undefined) delete process.env.PUBLIC_BASE_URL;
+    else process.env.PUBLIC_BASE_URL = oldPublicBaseUrl;
+    if (oldAppUrl === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = oldAppUrl;
+    if (oldCloudflaredBin === undefined) delete process.env.LIFEOS_CLOUDFLARED_BIN;
+    else process.env.LIFEOS_CLOUDFLARED_BIN = oldCloudflaredBin;
+    if (oldTailscaleBin === undefined) delete process.env.LIFEOS_TAILSCALE_BIN;
+    else process.env.LIFEOS_TAILSCALE_BIN = oldTailscaleBin;
+    if (oldIcloudDriveDir === undefined) delete process.env.LIFEOS_ICLOUD_DRIVE_DIR;
+    else process.env.LIFEOS_ICLOUD_DRIVE_DIR = oldIcloudDriveDir;
+    if (oldForceIcloud === undefined) delete process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+    else process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = oldForceIcloud;
+    if (oldDeviceName === undefined) delete process.env.LIFEOS_DEVICE_NAME;
+    else process.env.LIFEOS_DEVICE_NAME = oldDeviceName;
+    await rm(icloudDir, { recursive: true, force: true });
+  });
+
+  const remoteGeneratedAt = Date.now() - 60_000;
+  await writeFile(path.join(appDir, "lifeos-mobile-entry-remote-mac.json"), JSON.stringify({
+    kind: "lifeos-mobile-entry",
+    version: 3,
+    desktopId: "remote-mac",
+    desktopName: "Home Mac",
+    desktopSlug: "remote-mac",
+    htmlFileName: "lifeos-mobile-entry-remote-mac.html",
+    packetFileName: "lifeos-mobile-entry-remote-mac.json",
+    generatedAt: remoteGeneratedAt,
+    refreshAfter: remoteGeneratedAt + 24 * 60 * 60 * 1000,
+    expiresAt: remoteGeneratedAt + 7 * 24 * 60 * 60 * 1000,
+    candidateId: "tailscale-https",
+    label: "Tailscale HTTPS Serve",
+    baseUrl: "https://home-mac.tailnet.example.ts.net",
+    mobilePairUrl: "https://home-mac.tailnet.example.ts.net/mobile/pair",
+    mobileChatUrl: "https://home-mac.tailnet.example.ts.net/mobile/chat",
+    mode: "tailscale",
+    secure: true,
+    stability: "stable",
+    requiresRestart: false,
+    transport: "icloud-handoff",
+    realtimeTransport: false,
+    sameWifiOnly: false,
+    entryChecksumSha256: "2".repeat(64),
+  }, null, 2));
+  await writeFile(path.join(appDir, "lifeos-mobile-entry-remote-mac.html"), "<!doctype html><title>Home Mac</title>");
+
+  process.env.LIFEOS_PORT = "4567";
+  process.env.PUBLIC_BASE_URL = "http://192.168.0.50:4567";
+  delete process.env.APP_URL;
+  process.env.LIFEOS_CLOUDFLARED_BIN = "/definitely/missing/cloudflared";
+  process.env.LIFEOS_TAILSCALE_BIN = "/definitely/missing/tailscale";
+  process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = "1";
+  process.env.LIFEOS_ICLOUD_DRIVE_DIR = icloudDir;
+  process.env.LIFEOS_DEVICE_NAME = "Home Mac";
+
+  const { exportIcloudHandoff } = await import(`../server/networkDiagnostics.ts?icloud-remote-entry-preferred=${Date.now()}`);
+  const result = exportIcloudHandoff("remote-entry-preferred-test");
+  const packet = JSON.parse(await readFile(result.packetFilePath, "utf8"));
+  const indexHtml = await readFile(result.indexFilePath, "utf8");
+
+  assert.equal(result.ok, true);
+  assert.equal(packet.sameWifiOnly, true);
+  assert.match(indexHtml, /name="lifeos-entry-index-recommended-desktop-id" content="remote-mac"/);
+  assert.match(indexHtml, /name="lifeos-entry-index-recommended-html-file" content="lifeos-mobile-entry-remote-mac\.html"/);
+  assert.match(indexHtml, /class="entry primary" href="lifeos-mobile-entry-remote-mac\.html"/);
+  assert.match(indexHtml, /异地可用入口 \/ Off-LAN entry/);
+  assert.match(indexHtml, /LifeOS 优先推荐了可异地访问的 HTTPS\/VPN 入口/);
+  assert.match(indexHtml, /LifeOS picked an off-LAN HTTPS\/VPN entry/);
+  assert.match(indexHtml, /其他电脑入口 \/ Other desktop entries \(1\)/);
+  assert.match(indexHtml, /data-lifeos-entry-same-wifi-only="1"/);
+  assert.equal(indexHtml.includes("这个入口只适合同一 Wi-Fi。离家使用请先在电脑端切换 Tailscale 或 Cloudflare。"), false);
+  assert.equal(indexHtml.indexOf("lifeos-mobile-entry-remote-mac.html") < indexHtml.indexOf(packet.htmlFileName), true);
+});
+
 test("iCloud handoff entry page warns when the exported address only works on the same Wi-Fi", async (t) => {
   const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-lan-entry-"));
   const oldPort = process.env.LIFEOS_PORT;
