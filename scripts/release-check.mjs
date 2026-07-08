@@ -687,7 +687,11 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding-icloud-phone-pickup") &&
     adminOnboardingSource.includes("onboarding-icloud-same-wifi-notice") &&
     adminOnboardingSource.includes("onboarding-icloud-ready-actions") &&
-    adminOnboardingSource.includes("onboarding-icloud-ready-qr") &&
+    adminOnboardingSource.includes("onboarding-icloud-open-files-first") &&
+    adminOnboardingSource.includes("onboarding-icloud-qr-after-pickup") &&
+    adminOnboardingSource.includes("simpleIcloudPhoneConfirmed") &&
+    adminOnboardingSource.includes("showSimpleIcloudFilesFirst") &&
+    adminOnboardingSource.includes("showSimpleIcloudQrAfterPickup") &&
     adminOnboardingSource.includes("onboarding-icloud-phone-pickup-cta") &&
     adminOnboardingSource.includes("onboarding-device-advanced-icloud-tools") &&
     adminOnboardingSource.includes("onboarding.simpleDeviceAdvancedTitle") &&
@@ -706,6 +710,7 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding.appleRemoteIcloudOneNextAction") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudFilesPath") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudFilesActionTitle") &&
+    adminOnboardingSource.includes("onboarding.simpleIcloudFilesOneStepHint") &&
     adminOnboardingSource.includes("onboarding-icloud-copy-entry-path") &&
     adminOnboardingSource.includes("handleCopyIcloudEntryPath") &&
     adminOnboardingSource.includes("navigator.clipboard.writeText(entryPath)") &&

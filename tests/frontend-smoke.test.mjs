@@ -545,7 +545,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding-icloud-phone-pickup/);
   assert.match(onboardingSource, /onboarding-icloud-same-wifi-notice/);
   assert.match(onboardingSource, /onboarding-icloud-ready-actions/);
-  assert.match(onboardingSource, /onboarding-icloud-ready-qr/);
+  assert.match(onboardingSource, /onboarding-icloud-open-files-first/);
+  assert.match(onboardingSource, /onboarding-icloud-qr-after-pickup/);
+  assert.match(onboardingSource, /simpleIcloudPhoneConfirmed/);
+  assert.match(onboardingSource, /showSimpleIcloudFilesFirst/);
+  assert.match(onboardingSource, /showSimpleIcloudQrAfterPickup/);
   assert.match(onboardingSource, /onboarding-icloud-copy-entry-path/);
   assert.match(onboardingSource, /handleCopyIcloudEntryPath/);
   assert.match(onboardingSource, /navigator\.clipboard\.writeText\(entryPath\)/);
@@ -591,6 +595,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.appleRemoteIcloudOneNextAction/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudFilesPath/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudFilesActionTitle/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudFilesOneStepHint/);
   assert.match(onboardingSource, /simpleIcloudCurrentEntry/);
   assert.match(onboardingSource, /onboarding-icloud-current-entry/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudCurrentEntryTitle/);

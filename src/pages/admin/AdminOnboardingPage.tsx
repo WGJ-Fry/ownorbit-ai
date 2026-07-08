@@ -102,6 +102,9 @@ export default function AdminOnboardingPage() {
     latestEntryRepair: icloud?.latestEntryRepair || null,
   });
   const simpleIcloudPickupTime = simpleIcloudPickupStatus.confirmedAt ? new Date(simpleIcloudPickupStatus.confirmedAt).toLocaleString() : "-";
+  const simpleIcloudPhoneConfirmed = simpleIcloudPickupStatus.icon === "ready";
+  const showSimpleIcloudFilesFirst = simpleIcloudEntryReady && !simpleIcloudPhoneConfirmed;
+  const showSimpleIcloudQrAfterPickup = simpleIcloudEntryReady && simpleIcloudPhoneConfirmed;
   const simpleIcloudSameWifiOnly = isIcloudEntrySameWifiOnly(icloud);
   const simpleIcloudOffLanAction = networkDiagnostics?.tailscale.installed
     ? "tailscale"
@@ -194,7 +197,7 @@ export default function AdminOnboardingPage() {
   }, [primaryStep, busy, autoIcloudExportAttempted, networkDiagnostics?.icloud?.canExport, simpleIcloudAction.cta, t]);
 
   useEffect(() => {
-    if (primaryStep !== "device" || hasDevice || !simpleIcloudEntryReady || !simpleIcloudCurrentEntry || inlinePairingSession || inlinePairingBusy || inlinePairingError) return;
+    if (primaryStep !== "device" || hasDevice || !showSimpleIcloudQrAfterPickup || !simpleIcloudCurrentEntry || inlinePairingSession || inlinePairingBusy || inlinePairingError) return;
     let cancelled = false;
     setInlinePairingBusy(true);
     startBindingSession(simpleIcloudCurrentEntry)
@@ -213,7 +216,7 @@ export default function AdminOnboardingPage() {
     return () => {
       cancelled = true;
     };
-  }, [primaryStep, hasDevice, simpleIcloudEntryReady, simpleIcloudCurrentEntry, inlinePairingSession, inlinePairingBusy, inlinePairingError, t]);
+  }, [primaryStep, hasDevice, showSimpleIcloudQrAfterPickup, simpleIcloudCurrentEntry, inlinePairingSession, inlinePairingBusy, inlinePairingError, t]);
 
   useEffect(() => {
     if (!inlinePairingSession || hasDevice) return;
@@ -691,13 +694,15 @@ export default function AdminOnboardingPage() {
                       </button>
                     ) : null}
                     {simpleIcloudEntryReady ? (
-                      <div data-testid="onboarding-icloud-ready-actions" className="mt-3 grid gap-2 lg:grid-cols-3">
-                        <div className="rounded-xl border border-current/10 bg-[#060a10]/35 p-3 text-xs leading-relaxed opacity-90">
+                      <div data-testid="onboarding-icloud-ready-actions" className="mt-3 grid gap-2">
+                        {showSimpleIcloudFilesFirst ? (
+                        <div data-testid="onboarding-icloud-open-files-first" className="rounded-xl border border-current/10 bg-[#060a10]/35 p-3 text-xs leading-relaxed opacity-90">
                           <div className="flex gap-2 font-bold">
                             <Smartphone className="mt-0.5 h-4 w-4 shrink-0" />
                             <span>{t("onboarding.simpleIcloudFilesActionTitle")}</span>
                           </div>
                           <p className="mt-1 opacity-75">{t("onboarding.simpleIcloudFilesActionBody")}</p>
+                          <p className="mt-2 rounded-lg border border-current/10 bg-black/15 p-2 font-bold opacity-90">{t("onboarding.simpleIcloudFilesOneStepHint")}</p>
                           <div className="mt-2 break-all rounded-lg bg-black/20 p-2 font-mono text-[11px] opacity-75">{icloud?.handoffFilePath || t("onboarding.simpleIcloudFilesPath")}</div>
                           <button
                             type="button"
@@ -721,17 +726,9 @@ export default function AdminOnboardingPage() {
                             </button>
                           ) : null}
                         </div>
-                        {simpleIcloudCurrentEntry ? (
-                          <div data-testid="onboarding-icloud-current-entry" className="rounded-xl border border-current/10 bg-[#060a10]/35 p-3 text-xs leading-relaxed opacity-90">
-                            <div className="flex gap-2 font-bold">
-                              <Wifi className="mt-0.5 h-4 w-4 shrink-0" />
-                              <span>{t("onboarding.simpleIcloudCurrentEntryTitle")}</span>
-                            </div>
-                            <p className="mt-1 opacity-75">{t("onboarding.simpleIcloudCurrentEntryBody")}</p>
-                            <div className="mt-2 break-all rounded-lg bg-black/20 p-2 font-mono text-[11px] opacity-75">{simpleIcloudCurrentEntry}</div>
-                          </div>
                         ) : null}
-                        <div data-testid="onboarding-icloud-ready-qr" className="rounded-xl border border-cyan-200/20 bg-cyan-400 px-3 py-3 text-xs font-bold leading-relaxed text-[#061016] shadow-lg shadow-cyan-950/20">
+                        {showSimpleIcloudQrAfterPickup ? (
+                        <div data-testid="onboarding-icloud-qr-after-pickup" className="rounded-xl border border-cyan-200/20 bg-cyan-400 px-3 py-3 text-xs font-bold leading-relaxed text-[#061016] shadow-lg shadow-cyan-950/20">
                           <div className="flex gap-2">
                             <QrCode className="mt-0.5 h-4 w-4 shrink-0" />
                             <span>{t("onboarding.simpleIcloudQrActionTitle")}</span>
@@ -773,6 +770,19 @@ export default function AdminOnboardingPage() {
                             </a>
                           </div>
                         </div>
+                        ) : null}
+                        {showSimpleIcloudQrAfterPickup && simpleIcloudCurrentEntry ? (
+                          <details data-testid="onboarding-icloud-current-entry" className="rounded-xl border border-current/10 bg-[#060a10]/35 p-3 text-xs leading-relaxed opacity-90">
+                            <summary className="cursor-pointer font-bold">
+                              <span className="inline-flex items-center gap-2">
+                                <Wifi className="h-4 w-4 shrink-0" />
+                                {t("onboarding.simpleIcloudCurrentEntryTitle")}
+                              </span>
+                            </summary>
+                            <p className="mt-2 opacity-75">{t("onboarding.simpleIcloudCurrentEntryBody")}</p>
+                            <div className="mt-2 break-all rounded-lg bg-black/20 p-2 font-mono text-[11px] opacity-75">{simpleIcloudCurrentEntry}</div>
+                          </details>
+                        ) : null}
                       </div>
                     ) : null}
                     {simpleIcloudAction.cta === "remote-guide" ? (
