@@ -970,9 +970,17 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /CloudKit \/ iCloud Container/);
   assert.match(translationsSource, /CloudKit 原生数据同步准备度/);
   assert.match(translationsSource, /CloudKit Native Data Sync Readiness/);
+  assert.match(translationsSource, /CloudKit 记录计划/);
+  assert.match(translationsSource, /CloudKit record plan/);
+  assert.match(translationsSource, /原生验收闸门/);
+  assert.match(translationsSource, /Native acceptance gates/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudDataBoundaryBody/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-readiness/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-record-plan/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-acceptance-gates/);
   assert.match(onboardingAppleRemoteSource, /icloudDataSyncStatusKeys/);
+  assert.match(lifeosApiSource, /recordPlan: Array/);
+  assert.match(lifeosApiSource, /acceptanceGates: Array/);
   assert.match(lifeosApiSource, /dataSyncScope: "entry-file-only" \| "cloudkit-native-candidate"/);
   assert.match(translationsSource, /同步包状态/);
   assert.match(translationsSource, /Sync packet status/);

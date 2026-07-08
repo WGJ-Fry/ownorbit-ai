@@ -4,6 +4,9 @@ import path from "path";
 const safeCloudKitDataTypes = ["chat-history", "memory", "tasks", "generated-app-state"] as const;
 const blockedCloudKitDataTypes = ["ai-keys", "device-credentials", "session-cookies", "raw-tokens", "sqlite-database"] as const;
 
+type SafeCloudKitDataType = typeof safeCloudKitDataTypes[number];
+type AcceptanceGateStatus = "passed" | "blocked" | "manual-required";
+
 export type IcloudDataSyncStatus =
   | "not-enabled"
   | "missing-apple-platform"
@@ -13,6 +16,69 @@ export type IcloudDataSyncStatus =
   | "missing-entitlements"
   | "no-data-types"
   | "ready-to-test";
+
+const cloudKitRecordPlans: Record<SafeCloudKitDataType, {
+  dataType: SafeCloudKitDataType;
+  zone: string;
+  recordTypes: string[];
+  safeFields: string[];
+  forbiddenFields: string[];
+  mutationModel: string;
+  conflictPolicy: string;
+  requiresUserReview: boolean;
+}> = {
+  "chat-history": {
+    dataType: "chat-history",
+    zone: "LifeOSChatZone",
+    recordTypes: ["LifeOSConversation", "LifeOSMessage", "LifeOSSyncCheckpoint"],
+    safeFields: ["conversationId", "messageId", "role", "content", "createdAt", "mutationId", "logicalClock", "redactionFlags"],
+    forbiddenFields: ["aiKey", "providerApiKey", "rawToken", "sessionCookie", "deviceCredential", "sqliteBlob"],
+    mutationModel: "Append-only messages with stable mutation IDs and per-device checkpoints.",
+    conflictPolicy: "Message mutations are idempotent; conversation title and metadata conflicts require review.",
+    requiresUserReview: true,
+  },
+  memory: {
+    dataType: "memory",
+    zone: "LifeOSMemoryZone",
+    recordTypes: ["LifeOSMemory", "LifeOSMemoryTombstone", "LifeOSSyncCheckpoint"],
+    safeFields: ["memoryId", "text", "source", "tags", "createdAt", "updatedAt", "mutationId", "logicalClock"],
+    forbiddenFields: ["aiKey", "rawToken", "sessionCookie", "devicePrivateKey", "sqliteDatabase", "backupArchive"],
+    mutationModel: "Upserts and tombstones with logical clocks; deletes stay reversible until backup age-out.",
+    conflictPolicy: "Metadata can merge conservatively; memory text conflicts go to the review center.",
+    requiresUserReview: true,
+  },
+  tasks: {
+    dataType: "tasks",
+    zone: "LifeOSTaskZone",
+    recordTypes: ["LifeOSTask", "LifeOSTaskTombstone", "LifeOSSyncCheckpoint"],
+    safeFields: ["taskId", "title", "state", "dueAt", "originConnector", "externalRef", "mutationId", "logicalClock"],
+    forbiddenFields: ["calendarAccessToken", "reminderCredential", "rawOAuthRefreshToken", "sessionCookie", "deviceCredential"],
+    mutationModel: "Guarded task state transitions with stable mutation IDs and reversible tombstones.",
+    conflictPolicy: "Completion can move forward automatically; title, due date, and external refs require review.",
+    requiresUserReview: true,
+  },
+  "generated-app-state": {
+    dataType: "generated-app-state",
+    zone: "LifeOSGeneratedAppZone",
+    recordTypes: ["LifeOSGeneratedAppState", "LifeOSGeneratedAppMutation", "LifeOSSyncCheckpoint"],
+    safeFields: ["appId", "versionId", "stateJson", "schemaVersion", "mutationId", "createdAt", "updatedAt"],
+    forbiddenFields: ["secretEnv", "aiKey", "rawToken", "sessionCookie", "deviceCredential", "localFilePath"],
+    mutationModel: "Versioned snapshots plus ordered mutations; conflicting edits create a new candidate version.",
+    conflictPolicy: "Never overwrite generated app state silently; compare versions before merging.",
+    requiresUserReview: true,
+  },
+};
+
+const requiredNativeCapabilities = [
+  "private-database",
+  "custom-zones",
+  "change-token-fetch",
+  "account-status",
+  "quota-status",
+  "background-sync",
+  "delete-tombstones",
+  "subscription-push",
+] as const;
 
 function cleanText(value: unknown, limit = 160) {
   return String(value || "").replace(/\s+/g, " ").trim().slice(0, limit);
@@ -66,6 +132,10 @@ function readEntitlements(inputPath: string, containerId: string) {
   }
 }
 
+function acceptanceGate(id: string, status: AcceptanceGateStatus, detail: string) {
+  return { id, status, detail };
+}
+
 export function getIcloudDataSyncReadiness(options: { platformSupported?: boolean } = {}) {
   const enabled = process.env.LIFEOS_ICLOUD_DATA_SYNC === "1";
   const containerId = cleanIdentifier(process.env.LIFEOS_CLOUDKIT_CONTAINER_ID);
@@ -87,6 +157,7 @@ export function getIcloudDataSyncReadiness(options: { platformSupported?: boolea
     executable: helperExecutable,
     path: helperResolved,
   };
+  const selectedRecordPlan = enabled ? selectedDataTypes.map((dataType) => cloudKitRecordPlans[dataType]) : [];
 
   let status: IcloudDataSyncStatus = "not-enabled";
   if (enabled && options.platformSupported === false) status = "missing-apple-platform";
@@ -109,6 +180,7 @@ export function getIcloudDataSyncReadiness(options: { platformSupported?: boolea
     "ready-to-test": "Run the native helper acceptance test before claiming real iCloud data sync.",
   };
 
+  const entitlementReady = entitlements.detected && entitlements.mentionsCloudKit && entitlements.mentionsContainer;
   return {
     enabled,
     ready,
@@ -125,6 +197,21 @@ export function getIcloudDataSyncReadiness(options: { platformSupported?: boolea
     blockedDataTypes,
     blockedDataTypePolicy: "Never sync AI keys, raw device credentials, session cookies, raw tokens, or whole SQLite databases through CloudKit user records.",
     notSyncedDataTypes: ["ai-keys", "device-credentials", "session-cookies", "raw-tokens", "sqlite-database"],
+    recordPlan: selectedRecordPlan,
+    requiredNativeCapabilities: enabled ? [...requiredNativeCapabilities] : [],
+    acceptanceGates: [
+      acceptanceGate("explicit-opt-in", enabled ? "passed" : "blocked", enabled ? "CloudKit data sync is explicitly enabled." : "Set LIFEOS_ICLOUD_DATA_SYNC=1 only after the user opts in."),
+      acceptanceGate("apple-platform", options.platformSupported === false ? "blocked" : "passed", options.platformSupported === false ? "CloudKit sync requires macOS or iOS native runtime." : "Apple native runtime is available or not blocked by this check."),
+      acceptanceGate("cloudkit-container", containerId ? "passed" : "blocked", containerId ? "CloudKit container id is configured." : "Create an iCloud Container and set LIFEOS_CLOUDKIT_CONTAINER_ID."),
+      acceptanceGate("apple-identity", teamId && bundleId ? "passed" : "blocked", teamId && bundleId ? "Team and bundle identifiers are configured." : "Set LIFEOS_CLOUDKIT_TEAM_ID and LIFEOS_CLOUDKIT_BUNDLE_ID."),
+      acceptanceGate("native-helper", helperExecutable ? "passed" : "blocked", helperExecutable ? "Native helper is detected and executable." : "Build a signed CloudKit helper and set LIFEOS_CLOUDKIT_HELPER_BIN."),
+      acceptanceGate("entitlements", entitlementReady ? "passed" : "blocked", entitlementReady ? "Entitlements mention CloudKit and the selected container." : "Point LIFEOS_CLOUDKIT_ENTITLEMENTS_PATH at CloudKit entitlements for this container."),
+      acceptanceGate("safe-data-types", selectedDataTypes.length ? "passed" : "blocked", selectedDataTypes.length ? "At least one safe data class is selected." : "Choose safe data types such as chat-history, memory, tasks, or generated-app-state."),
+      acceptanceGate("blocked-types-filtered", blockedDataTypes.length ? "manual-required" : "passed", blockedDataTypes.length ? "Unsafe requested data types were filtered and must be removed before release." : "No unsafe data type was requested."),
+      acceptanceGate("backup-before-first-sync", ready ? "manual-required" : "blocked", ready ? "Create and verify a local SQLite backup before first CloudKit write." : "Backup gate opens only after native CloudKit readiness passes."),
+      acceptanceGate("helper-roundtrip", ready ? "manual-required" : "blocked", ready ? "Run a native helper create/fetch/delete roundtrip in the private CloudKit database." : "Roundtrip gate opens only after native CloudKit readiness passes."),
+      acceptanceGate("redaction-proof", selectedDataTypes.length ? "manual-required" : "blocked", selectedDataTypes.length ? "Prove selected records do not include keys, tokens, credentials, cookies, or SQLite blobs." : "Redaction proof requires at least one selected data class."),
+    ],
     requiresNativeAppleClient: true,
     requiresCloudKitContainer: true,
     requiresExplicitUserOptIn: true,

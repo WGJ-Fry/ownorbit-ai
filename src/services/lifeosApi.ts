@@ -933,6 +933,22 @@ export type NetworkDiagnostics = {
       blockedDataTypes: string[];
       blockedDataTypePolicy: string;
       notSyncedDataTypes: string[];
+      recordPlan: Array<{
+        dataType: string;
+        zone: string;
+        recordTypes: string[];
+        safeFields: string[];
+        forbiddenFields: string[];
+        mutationModel: string;
+        conflictPolicy: string;
+        requiresUserReview: boolean;
+      }>;
+      requiredNativeCapabilities: string[];
+      acceptanceGates: Array<{
+        id: string;
+        status: "passed" | "blocked" | "manual-required";
+        detail: string;
+      }>;
       requiresNativeAppleClient: boolean;
       requiresCloudKitContainer: boolean;
       requiresExplicitUserOptIn: boolean;

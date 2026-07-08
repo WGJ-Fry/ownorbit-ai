@@ -1841,17 +1841,31 @@ function checkAssets() {
     translationsSource.includes("True iCloud data sync would need CloudKit / iCloud Container plus native Apple clients") &&
     translationsSource.includes("CloudKit 原生数据同步准备度") &&
     translationsSource.includes("CloudKit Native Data Sync Readiness") &&
+    translationsSource.includes("CloudKit 记录计划") &&
+    translationsSource.includes("CloudKit record plan") &&
+    translationsSource.includes("原生验收闸门") &&
+    translationsSource.includes("Native acceptance gates") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudDataBoundaryBody") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-readiness") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-record-plan") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-acceptance-gates") &&
     onboardingAppleRemoteSource.includes("icloudDataSyncStatusKeys") &&
     networkDiagnosticsSource.includes("getIcloudDataSyncReadiness") &&
     icloudDataSyncReadinessSource.includes("LIFEOS_CLOUDKIT_CONTAINER_ID") &&
     icloudDataSyncReadinessSource.includes("blockedCloudKitDataTypes") &&
+    icloudDataSyncReadinessSource.includes("cloudKitRecordPlans") &&
+    icloudDataSyncReadinessSource.includes("LifeOSConversation") &&
+    icloudDataSyncReadinessSource.includes("LifeOSMemoryZone") &&
+    icloudDataSyncReadinessSource.includes("requiredNativeCapabilities") &&
+    icloudDataSyncReadinessSource.includes("acceptanceGates") &&
     icloudDataSyncReadinessSource.includes("ready-to-test") &&
     icloudDataSyncReadinessTestSource.includes("blocks unsafe types") &&
+    icloudDataSyncReadinessTestSource.includes("record plan never includes blocked data types") &&
     packageJson.scripts.test.includes("tests/icloud-data-sync-readiness.test.mjs") &&
     diagnosticBundleSource.includes('dataSyncScope: "entry-file-only"') &&
     diagnosticBundleSource.includes("cloudKitReadiness") &&
+    diagnosticBundleSource.includes("recordPlan: readiness.recordPlan") &&
+    diagnosticBundleSource.includes("acceptanceGates: readiness.acceptanceGates") &&
     diagnosticBundleSource.includes("repairImport.nextAction.id") &&
     diagnosticBundleSource.includes("syncReadiness") &&
     diagnosticBundleSource.includes("network.icloud?.syncReadiness?.userStep") &&

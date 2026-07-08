@@ -69,6 +69,35 @@ Use a private CloudKit database with scoped zones:
 - `LifeOSTask`: task title, state, due date, origin connector, external reference.
 - `LifeOSSyncCheckpoint`: per-device cursor and last applied mutation.
 
+## Implementation Record Plan
+
+The server readiness check publishes a concrete, non-secret record plan for the future native helper. This is still a readiness contract, not completed iCloud data sync.
+
+| Data type | Zone | Record types | Mutation model | Conflict policy |
+| --- | --- | --- | --- | --- |
+| `chat-history` | `LifeOSChatZone` | `LifeOSConversation`, `LifeOSMessage`, `LifeOSSyncCheckpoint` | Append-only messages with stable mutation IDs and per-device checkpoints. | Message replay is idempotent; conversation title and metadata conflicts require review. |
+| `memory` | `LifeOSMemoryZone` | `LifeOSMemory`, `LifeOSMemoryTombstone`, `LifeOSSyncCheckpoint` | Upserts and tombstones with logical clocks. | Metadata can merge conservatively; memory text conflicts require review. |
+| `tasks` | `LifeOSTaskZone` | `LifeOSTask`, `LifeOSTaskTombstone`, `LifeOSSyncCheckpoint` | Guarded task state transitions with reversible tombstones. | Completion can move forward automatically; title, due date, and external refs require review. |
+| `generated-app-state` | `LifeOSGeneratedAppZone` | `LifeOSGeneratedAppState`, `LifeOSGeneratedAppMutation`, `LifeOSSyncCheckpoint` | Versioned snapshots plus ordered mutations. | Conflicting edits create a candidate version and must be compared before merge. |
+
+Forbidden fields for every plan include provider API keys, raw tokens, session cookies, raw device credentials, whole SQLite databases, and local file paths. These fields must stay out of CloudKit records, diagnostics, logs, backups, and API responses.
+
+## Native Acceptance Gates
+
+The CloudKit readiness payload exposes release gates so the UI and diagnostic bundle can show why true data sync is or is not ready:
+
+- explicit user opt-in;
+- Apple native runtime;
+- CloudKit container;
+- Apple Team ID and bundle ID;
+- executable native CloudKit helper;
+- entitlements that mention CloudKit and the selected container;
+- at least one safe selected data type;
+- unsafe requested data types filtered and removed before release;
+- local SQLite backup before first sync;
+- native helper create/fetch/delete roundtrip;
+- redaction proof for selected record types.
+
 ## Conflict Model
 
 Start with conservative conflict handling:

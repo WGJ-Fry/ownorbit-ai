@@ -317,6 +317,19 @@ function publicCloudKitReadiness(readiness: CloudKitReadinessForDiagnostics) {
     entitlementsMentionContainer: readiness.entitlements.mentionsContainer,
     selectedDataTypes: readiness.selectedDataTypes,
     blockedDataTypes: readiness.blockedDataTypes,
+    recordPlan: readiness.recordPlan.map((item) => ({
+      dataType: item.dataType,
+      zone: item.zone,
+      recordTypes: item.recordTypes,
+      requiresUserReview: item.requiresUserReview,
+      conflictPolicy: item.conflictPolicy.slice(0, 180),
+    })),
+    requiredNativeCapabilities: readiness.requiredNativeCapabilities,
+    acceptanceGates: readiness.acceptanceGates.map((item) => ({
+      id: item.id,
+      status: item.status,
+      detail: item.detail.slice(0, 180),
+    })),
     requiresNativeAppleClient: readiness.requiresNativeAppleClient,
     requiresExplicitUserOptIn: readiness.requiresExplicitUserOptIn,
   };

@@ -557,6 +557,11 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
     : dataSync?.enabled
     ? "border-amber-300/20 bg-amber-500/10 text-amber-50"
     : "border-white/[0.06] bg-[#060a10]/45 text-zinc-300";
+  const dataSyncGateCounts = {
+    passed: dataSync?.acceptanceGates.filter((item) => item.status === "passed").length || 0,
+    blocked: dataSync?.acceptanceGates.filter((item) => item.status === "blocked").length || 0,
+    manual: dataSync?.acceptanceGates.filter((item) => item.status === "manual-required").length || 0,
+  };
   const icloudCleanupNeeded = Boolean(icloudLifecycle && (icloudLifecycle.prunableEntryCount > 0 || icloudLifecycle.orphanedFileCount > 0));
   const latestEntryRepair = icloud?.latestEntryRepair || null;
   const latestRepairImport = icloud?.latestRepairImport || null;
@@ -1002,6 +1007,32 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                   <div>{t("onboarding.appleRemoteIcloudDataSyncHelper", { value: dataSync.nativeHelper.executable ? t("onboarding.appleRemoteIcloudDataSyncReadyValue") : t("onboarding.appleRemoteIcloudDataSyncNotConfigured") })}</div>
                   <div>{t("onboarding.appleRemoteIcloudDataSyncTypes", { value: dataSync.selectedDataTypes.length ? dataSync.selectedDataTypes.join(", ") : t("onboarding.appleRemoteIcloudDataSyncNotConfigured") })}</div>
                 </div>
+                <div data-testid="onboarding-icloud-data-sync-acceptance-gates" className="mt-2 rounded-lg border border-current/10 bg-black/10 p-2">
+                  <div className="font-bold">{t("onboarding.appleRemoteIcloudDataSyncAcceptanceGates")}</div>
+                  <div className="mt-1 opacity-80">
+                    {t("onboarding.appleRemoteIcloudDataSyncAcceptanceGateCounts", {
+                      passed: dataSyncGateCounts.passed,
+                      blocked: dataSyncGateCounts.blocked,
+                      manual: dataSyncGateCounts.manual,
+                    })}
+                  </div>
+                </div>
+                {dataSync.recordPlan.length ? (
+                  <div data-testid="onboarding-icloud-data-sync-record-plan" className="mt-2 rounded-lg border border-current/10 bg-black/10 p-2">
+                    <div className="font-bold">{t("onboarding.appleRemoteIcloudDataSyncRecordPlan")}</div>
+                    <div className="mt-1 grid gap-1 opacity-80">
+                      {dataSync.recordPlan.slice(0, 3).map((item) => (
+                        <div key={item.dataType}>
+                          {t("onboarding.appleRemoteIcloudDataSyncRecordPlanItem", {
+                            type: item.dataType,
+                            zone: item.zone,
+                            records: item.recordTypes.slice(0, 2).join(", "),
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
