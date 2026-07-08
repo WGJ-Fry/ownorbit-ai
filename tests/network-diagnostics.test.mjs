@@ -507,6 +507,9 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.equal(result.syncReadiness.status, "ready");
   assert.equal(result.syncReadiness.canOpenOnPhone, true);
   assert.equal(result.syncReadiness.action, "open-files-app");
+  assert.equal(result.syncReadiness.userStep.humanRecovery.titleKey, "onboarding.appleRemoteIcloudHumanRecoveryOpenTitle");
+  assert.equal(result.syncReadiness.userStep.humanRecovery.phoneAction, "open-files-app");
+  assert.equal(result.syncReadiness.userStep.humanRecovery.showTechnicalDetails, false);
   const indexHtml = await readFile(result.indexFilePath, "utf8");
   const history = JSON.parse(await readFile(result.historyFilePath, "utf8"));
   assert.match(indexHtml, /打开推荐入口/);
@@ -902,6 +905,9 @@ test("iCloud handoff diagnostics detect stale desktop chooser index files", asyn
   assert.equal(diagnostics.icloud.syncReadiness.status, "needs-refresh");
   assert.equal(diagnostics.icloud.syncReadiness.canOpenOnPhone, false);
   assert.equal(diagnostics.icloud.syncReadiness.action, "refresh-entry");
+  assert.equal(diagnostics.icloud.syncReadiness.userStep.humanRecovery.titleKey, "onboarding.appleRemoteIcloudHumanRecoveryRefreshTitle");
+  assert.equal(diagnostics.icloud.syncReadiness.userStep.humanRecovery.phoneAction, "open-latest-entry");
+  assert.equal(diagnostics.icloud.syncReadiness.userStep.humanRecovery.showTechnicalDetails, false);
 });
 
 test("iCloud handoff auto refresh updates exported entry after address changes", async (t) => {
@@ -1693,6 +1699,10 @@ test("iCloud availability detects placeholder files that are still syncing", asy
   assert.equal(diagnostics.icloud.syncReadiness.status, "syncing");
   assert.equal(diagnostics.icloud.syncReadiness.canOpenOnPhone, false);
   assert.equal(diagnostics.icloud.syncReadiness.action, "wait-for-sync");
+  assert.equal(diagnostics.icloud.syncReadiness.userStep.humanRecovery.titleKey, "onboarding.appleRemoteIcloudHumanRecoveryWaitTitle");
+  assert.equal(diagnostics.icloud.syncReadiness.userStep.humanRecovery.primaryCtaKey, "onboarding.appleRemoteIcloudActionWaitSync");
+  assert.equal(diagnostics.icloud.syncReadiness.userStep.humanRecovery.phoneAction, "open-files-app-after-sync");
+  assert.equal(diagnostics.icloud.syncReadiness.userStep.humanRecovery.showTechnicalDetails, false);
   assert.equal(diagnostics.icloud.syncReadiness.userStep.id, "waiting-for-icloud-sync");
   assert.equal(diagnostics.icloud.syncReadiness.userStep.primaryAction, "wait");
   assert.equal(diagnostics.icloud.syncReadiness.userStep.titleKey, "onboarding.appleRemoteIcloudNextStepWaitTitle");

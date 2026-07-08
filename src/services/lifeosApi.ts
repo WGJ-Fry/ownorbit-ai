@@ -901,6 +901,16 @@ export type NetworkDiagnostics = {
         pendingCount: number;
         pendingFiles: Array<"html" | "packet" | "index">;
         missingFiles: Array<"html" | "packet" | "index">;
+        humanRecovery: {
+          titleKey: string;
+          bodyKey: string;
+          primaryCtaKey: string;
+          afterKey: string;
+          desktopAction: "use-qr-or-tunnel" | "open-icloud-settings" | "export-icloud-entry" | "refresh-icloud-entry" | "wait" | "none";
+          phoneAction: "none" | "open-files-app-after-sync" | "open-latest-entry" | "open-files-app";
+          showTechnicalDetails: boolean;
+          severity: "ok" | "warning" | "danger";
+        };
       };
       pendingCount: number;
       pendingFiles: Array<"html" | "packet" | "index">;

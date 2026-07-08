@@ -543,6 +543,11 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const syncReadinessActionText = syncReadiness
     ? t(icloudSyncActionKeys[syncReadiness.action], { count: syncReadiness.pendingCount, minutes: icloudSyncStuckMinutes })
     : "";
+  const syncHumanRecovery = syncReadiness?.userStep?.humanRecovery || null;
+  const syncHumanRecoveryTitleKey = (syncHumanRecovery?.titleKey || "") as TranslationKey;
+  const syncHumanRecoveryBodyKey = (syncHumanRecovery?.bodyKey || "") as TranslationKey;
+  const syncHumanRecoveryCtaKey = (syncHumanRecovery?.primaryCtaKey || "") as TranslationKey;
+  const syncHumanRecoveryAfterKey = (syncHumanRecovery?.afterKey || "") as TranslationKey;
   const syncUserStepPendingFiles = syncReadiness?.userStep?.pendingFiles || [];
   const syncUserStepMissingFiles = syncReadiness?.userStep?.missingFiles || [];
   const humanSyncStep = syncReadiness ? icloudHumanSyncStepKeys[syncReadiness.action] : null;
@@ -1098,15 +1103,21 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                 {syncReadiness.canOpenOnPhone ? <Smartphone className="mt-0.5 h-4 w-4 shrink-0" /> : syncReadiness.action === "wait-for-sync" ? <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" /> : syncReadiness.action === "fix-icloud-sync" || syncReadiness.severity === "danger" ? <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> : <Cloud className="mt-0.5 h-4 w-4 shrink-0" />}
                 <div className="min-w-0 flex-1">
                   <div className="text-[10px] font-bold uppercase tracking-normal opacity-70">{t("onboarding.appleRemoteIcloudHumanLabel")}</div>
-                  <div className="mt-1 font-bold">{humanSyncStep ? t(humanSyncStep.title) : t(syncUserStepTitleKey)}</div>
+                  <div className="mt-1 font-bold">{syncHumanRecovery ? t(syncHumanRecoveryTitleKey) : humanSyncStep ? t(humanSyncStep.title) : t(syncUserStepTitleKey)}</div>
                   <div className="mt-1 text-[11px] leading-relaxed opacity-80">
-                    {humanSyncStep ? t(humanSyncStep.body, { count: syncReadiness.pendingCount, minutes: icloudSyncStuckMinutes }) : t(syncUserStepBodyKey, { count: syncReadiness.userStep.pendingCount, minutes: icloudSyncStuckMinutes })}
+                    {syncHumanRecovery ? t(syncHumanRecoveryBodyKey, { count: syncReadiness.pendingCount, minutes: icloudSyncStuckMinutes }) : humanSyncStep ? t(humanSyncStep.body, { count: syncReadiness.pendingCount, minutes: icloudSyncStuckMinutes }) : t(syncUserStepBodyKey, { count: syncReadiness.userStep.pendingCount, minutes: icloudSyncStuckMinutes })}
                   </div>
                   <div className="mt-3 flex items-start gap-2 rounded-lg border border-current/10 bg-black/15 p-2 text-[11px] font-bold">
                     <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <span>{t("onboarding.appleRemoteIcloudOneNextAction", { action: syncReadinessActionText })}</span>
+                    <span>{t("onboarding.appleRemoteIcloudOneNextAction", { action: syncHumanRecovery ? t(syncHumanRecoveryCtaKey) : syncReadinessActionText })}</span>
                   </div>
-                  {syncUserStepPendingFiles.length || syncUserStepMissingFiles.length ? (
+                  {syncHumanRecovery ? (
+                    <div data-testid="onboarding-icloud-human-recovery-after" className="mt-2 rounded-lg border border-current/10 bg-black/15 p-2 text-[11px] leading-relaxed opacity-85">
+                      <span className="font-bold">{t("onboarding.appleRemoteIcloudThenLabel")}</span>{" "}
+                      {t(syncHumanRecoveryAfterKey, { count: syncReadiness.pendingCount, minutes: icloudSyncStuckMinutes })}
+                    </div>
+                  ) : null}
+                  {(syncHumanRecovery?.showTechnicalDetails || !syncHumanRecovery) && (syncUserStepPendingFiles.length || syncUserStepMissingFiles.length) ? (
                     <div data-testid="onboarding-icloud-human-sync-files" className="mt-2 rounded-lg border border-current/10 bg-black/15 p-2 text-[10px] leading-relaxed">
                       {syncUserStepPendingFiles.length ? (
                         <div>

@@ -1601,12 +1601,19 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMetadataState") &&
     onboardingAppleRemoteSource.includes("placeholderSamples") &&
     networkDiagnosticsSource.includes("buildIcloudSyncUserStep") &&
+    networkDiagnosticsSource.includes("buildIcloudHumanRecovery") &&
+    networkDiagnosticsSource.includes("onboarding.appleRemoteIcloudHumanRecoveryWaitTitle") &&
+    translationsSource.includes("这个入口旧了，点这里重新生成") &&
+    translationsSource.includes("请打开 iPhone 文件 App") &&
+    translationsSource.includes("手机刚打开的是旧入口，请用最新入口") &&
     networkDiagnosticsSource.includes("waiting-for-icloud-sync") &&
     onboardingAppleRemoteSource.includes("safeIcloudSyncUserStepKey") &&
     onboardingAppleRemoteSource.includes("syncReadinessActionText") &&
+    onboardingAppleRemoteSource.includes("syncHumanRecovery") &&
     onboardingAppleRemoteSource.includes("syncUserStepPendingFiles") &&
     onboardingAppleRemoteSource.includes("syncUserStepMissingFiles") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-human-sync-files") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-human-recovery-after") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudWaitingForFiles") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMissingFiles") &&
     onboardingAppleRemoteSource.includes("action: syncReadinessActionText") &&
@@ -1620,7 +1627,9 @@ function checkAssets() {
     networkDiagnosticsTestSource.includes("iCloud availability blocks export when Apple ID or iCloud Drive is disabled") &&
     networkDiagnosticsTestSource.includes("syncReadiness.userStep.id") &&
     networkDiagnosticsTestSource.includes("syncReadiness.userStep.pendingFiles") &&
+    networkDiagnosticsTestSource.includes("syncReadiness.userStep.humanRecovery") &&
     networkDiagnosticsTestSource.includes('pendingFiles.includes("html")') &&
+    lifeosApiSource.includes("humanRecovery") &&
     apiAuthTestSource.includes("networkDiagnosticsWithBinding.icloud.pairingSession.status") &&
     networkDiagnosticsTestSource.includes("iCloud pairing session status guides stale QR repair") &&
     networkDiagnosticsTestSource.includes("iCloud handoff monitor refreshes after the latest pairing QR expires") &&
@@ -1884,6 +1893,7 @@ function checkAssets() {
     diagnosticBundleSource.includes("repairImport.nextAction.id") &&
     diagnosticBundleSource.includes("syncReadiness") &&
     diagnosticBundleSource.includes("network.icloud?.syncReadiness?.userStep") &&
+    diagnosticBundleSource.includes("onboarding.appleRemoteIcloudHumanRecoveryUnsupportedTitle") &&
     diagnosticBundleSource.includes("cloudKitRequiredForDataSync") &&
     diagnosticBundleSource.includes("nativeDataSyncOptions") &&
     apiAuthTestSource.includes("cloudKitReadiness.status") &&

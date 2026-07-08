@@ -1619,6 +1619,99 @@ function buildIcloudSyncUserStep(input: {
     pendingCount: input.pendingCount,
     pendingFiles: input.pendingFiles,
     missingFiles: input.missingFiles,
+    humanRecovery: buildIcloudHumanRecovery(input.action, input.severity),
+  };
+}
+
+function buildIcloudHumanRecovery(
+  action:
+    | "use-apple-device"
+    | "enable-icloud-drive"
+    | "fix-permissions"
+    | "export-entry"
+    | "refresh-entry"
+    | "fix-icloud-sync"
+    | "wait-for-sync"
+    | "open-files-app",
+  severity: "ok" | "warning" | "danger",
+) {
+  const humanByAction = {
+    "use-apple-device": {
+      titleKey: "onboarding.appleRemoteIcloudHumanRecoveryUnsupportedTitle",
+      bodyKey: "onboarding.appleRemoteIcloudHumanRecoveryUnsupportedBody",
+      primaryCtaKey: "onboarding.appleRemoteIcloudActionUseQrOrTunnel",
+      afterKey: "onboarding.appleRemoteIcloudFollowupUseQrOrTunnel",
+      desktopAction: "use-qr-or-tunnel",
+      phoneAction: "none",
+      showTechnicalDetails: false,
+    },
+    "enable-icloud-drive": {
+      titleKey: "onboarding.appleRemoteIcloudHumanRecoveryEnableTitle",
+      bodyKey: "onboarding.appleRemoteIcloudHumanRecoveryEnableBody",
+      primaryCtaKey: "onboarding.appleRemoteIcloudActionEnableDrive",
+      afterKey: "onboarding.appleRemoteIcloudFollowupEnableDrive",
+      desktopAction: "open-icloud-settings",
+      phoneAction: "none",
+      showTechnicalDetails: false,
+    },
+    "fix-permissions": {
+      titleKey: "onboarding.appleRemoteIcloudHumanRecoveryPermissionsTitle",
+      bodyKey: "onboarding.appleRemoteIcloudHumanRecoveryPermissionsBody",
+      primaryCtaKey: "onboarding.appleRemoteIcloudActionEnableDrive",
+      afterKey: "onboarding.appleRemoteIcloudFollowupEnableDrive",
+      desktopAction: "open-icloud-settings",
+      phoneAction: "none",
+      showTechnicalDetails: true,
+    },
+    "export-entry": {
+      titleKey: "onboarding.appleRemoteIcloudHumanRecoveryExportTitle",
+      bodyKey: "onboarding.appleRemoteIcloudHumanRecoveryExportBody",
+      primaryCtaKey: "onboarding.appleRemoteIcloudActionCreateEntry",
+      afterKey: "onboarding.appleRemoteIcloudFollowupCreateEntry",
+      desktopAction: "export-icloud-entry",
+      phoneAction: "open-files-app-after-sync",
+      showTechnicalDetails: false,
+    },
+    "refresh-entry": {
+      titleKey: "onboarding.appleRemoteIcloudHumanRecoveryRefreshTitle",
+      bodyKey: "onboarding.appleRemoteIcloudHumanRecoveryRefreshBody",
+      primaryCtaKey: "onboarding.appleRemoteIcloudActionRefreshEntry",
+      afterKey: "onboarding.appleRemoteIcloudFollowupRefreshEntry",
+      desktopAction: "refresh-icloud-entry",
+      phoneAction: "open-latest-entry",
+      showTechnicalDetails: false,
+    },
+    "fix-icloud-sync": {
+      titleKey: "onboarding.appleRemoteIcloudHumanRecoveryFixSyncTitle",
+      bodyKey: "onboarding.appleRemoteIcloudHumanRecoveryFixSyncBody",
+      primaryCtaKey: "onboarding.appleRemoteIcloudActionFixSync",
+      afterKey: "onboarding.appleRemoteIcloudFollowupFixSync",
+      desktopAction: "open-icloud-settings",
+      phoneAction: "open-files-app-after-sync",
+      showTechnicalDetails: true,
+    },
+    "wait-for-sync": {
+      titleKey: "onboarding.appleRemoteIcloudHumanRecoveryWaitTitle",
+      bodyKey: "onboarding.appleRemoteIcloudHumanRecoveryWaitBody",
+      primaryCtaKey: "onboarding.appleRemoteIcloudActionWaitSync",
+      afterKey: "onboarding.appleRemoteIcloudFollowupWaitSync",
+      desktopAction: "wait",
+      phoneAction: "open-files-app-after-sync",
+      showTechnicalDetails: false,
+    },
+    "open-files-app": {
+      titleKey: "onboarding.appleRemoteIcloudHumanRecoveryOpenTitle",
+      bodyKey: "onboarding.appleRemoteIcloudHumanRecoveryOpenBody",
+      primaryCtaKey: "onboarding.appleRemoteIcloudActionOpenFiles",
+      afterKey: "onboarding.appleRemoteIcloudFollowupOpenFiles",
+      desktopAction: "none",
+      phoneAction: "open-files-app",
+      showTechnicalDetails: false,
+    },
+  } as const;
+  return {
+    ...humanByAction[action],
+    severity,
   };
 }
 
