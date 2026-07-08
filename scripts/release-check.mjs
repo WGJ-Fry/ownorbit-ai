@@ -1664,6 +1664,7 @@ function checkAssets() {
     translationsSource.includes("Clean Old iCloud Entries") &&
     translationsSource.includes("The iCloud mobile entry was refreshed automatically") &&
     translationsSource.includes("Automatically switched the default desktop") &&
+    translationsSource.includes("Reason: {{reason}}") &&
     translationsSource.includes("Off-LAN realtime entry") &&
     translationsSource.includes("iCloud 只负责把入口交给手机") &&
     translationsSource.includes("iCloud only hands the entry to the phone") &&
@@ -1703,6 +1704,8 @@ function checkAssets() {
     mobileRemoteEntryCardSource.includes("shouldSwitchDefaultIcloudEntry") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffOpenRecommendedAction") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffMakeRecommendedDefault") &&
+    mobileRemoteEntryCardSource.includes("autoSwitchedIcloudEntryReason") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffAutoSwitchedReason") &&
     translationsSource.includes("A better entry is available") &&
     translationsSource.includes("Default entry needs switching") &&
     mobileDeviceSource.includes("flushPendingMobileIcloudHandoffEvents") &&

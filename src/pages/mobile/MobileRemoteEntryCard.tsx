@@ -103,6 +103,7 @@ export default function MobileRemoteEntryCard({
   const [icloudEntries, setIcloudEntries] = useState(() => getStoredMobileIcloudHandoffEntries());
   const [preferredIcloudEntryKey, setPreferredIcloudEntryKey] = useState(() => getPreferredMobileIcloudHandoffEntryKey());
   const [autoSwitchedIcloudEntryName, setAutoSwitchedIcloudEntryName] = useState("");
+  const [autoSwitchedIcloudEntryReason, setAutoSwitchedIcloudEntryReason] = useState<MobileIcloudHandoffEntryRecommendation["preferredSwitchReason"]>("none");
   const queueWaiting = queueSummary.failed > 0 || queueSummary.pending > 0 || queueSummary.syncing > 0;
   const latestConnectivityOk = Boolean(lastConnectivityReport?.ok && !connectivityReportStale);
   const remoteReady = currentEntry.okForRemote && latestConnectivityOk && !queueWaiting;
@@ -215,6 +216,7 @@ export default function MobileRemoteEntryCard({
     setPreferredIcloudEntryKey(getPreferredMobileIcloudHandoffEntryKey());
     setIcloudEntries(getStoredMobileIcloudHandoffEntries());
     setAutoSwitchedIcloudEntryName(result.nextEntry.desktopName || result.nextEntry.label || "");
+    setAutoSwitchedIcloudEntryReason(result.recommendation.preferredSwitchReason);
   }, [icloudEntries, preferredIcloudEntryKey]);
 
   return (
@@ -269,6 +271,13 @@ export default function MobileRemoteEntryCard({
               {t("mobileDevice.icloudHandoffAutoSwitched", {
                 desktop: autoSwitchedIcloudEntryName || t("mobileDevice.icloudHandoffUnknownDesktop"),
               })}
+              {autoSwitchedIcloudEntryReason !== "none" ? (
+                <div className="mt-1 font-normal opacity-80">
+                  {t("mobileDevice.icloudHandoffAutoSwitchedReason", {
+                    reason: t(icloudPreferredSwitchReasonKeys[autoSwitchedIcloudEntryReason] as any),
+                  })}
+                </div>
+              ) : null}
             </div>
           ) : null}
           {shouldOpenRecommendedIcloudEntry && recommendedIcloudEntry ? (
