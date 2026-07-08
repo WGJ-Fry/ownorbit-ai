@@ -944,6 +944,15 @@ export type NetworkDiagnostics = {
         requiresUserReview: boolean;
       }>;
       requiredNativeCapabilities: string[];
+      nativeHelperContract: {
+        protocolVersion: number;
+        transport: string;
+        requestSchema: string;
+        responseSchema: string;
+        operations: string[];
+        commandArgs: string[];
+        timeoutMs: number;
+      };
       acceptanceGates: Array<{
         id: string;
         status: "passed" | "blocked" | "manual-required";

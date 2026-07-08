@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -8,6 +9,18 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
+
+async function getFreePort() {
+  return await new Promise((resolve, reject) => {
+    const server = createServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      const port = typeof address === "object" && address ? address.port : 0;
+      server.close(() => resolve(port));
+    });
+  });
+}
 
 function request(port, pathname) {
   return fetch(`http://127.0.0.1:${port}${pathname}`);
@@ -95,7 +108,7 @@ function createLegacyDatabase(dataDir) {
 }
 
 test("startup migrations upgrade a legacy SQLite schema", async (t) => {
-  const port = 7210 + Math.floor(Math.random() * 1000);
+  const port = await getFreePort();
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-migration-test-"));
   createLegacyDatabase(dataDir);
 
@@ -230,7 +243,7 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
 });
 
 test("bundled fallback migrations upgrade legacy schema without SQL files on cwd", async (t) => {
-  const port = 8210 + Math.floor(Math.random() * 1000);
+  const port = await getFreePort();
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-fallback-migration-test-"));
   createLegacyDatabase(dataDir);
 

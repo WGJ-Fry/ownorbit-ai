@@ -98,6 +98,27 @@ The CloudKit readiness payload exposes release gates so the UI and diagnostic bu
 - native helper create/fetch/delete roundtrip;
 - redaction proof for selected record types.
 
+## Native Helper Contract
+
+The native macOS/iOS CloudKit helper is invoked through a fixed JSON-over-stdio contract:
+
+- command argument: `--lifeos-cloudkit-json`;
+- request schema: `lifeos-cloudkit-helper-request.v1`;
+- response schema: `lifeos-cloudkit-helper-response.v1`;
+- operations: `probe` and `roundtrip`;
+- default timeout: 15 seconds.
+
+`probe` must check Apple account status, CloudKit container reachability, quota/status visibility, custom zone access, change-token fetch capability, and background subscription support without writing user data.
+
+`roundtrip` must create, fetch, and delete a disposable test record in the private CloudKit database using the selected record plan. It must return an evidence id, verified capabilities, and redacted warnings/errors. A failed or skipped helper smoke never counts as real iCloud data sync.
+
+Run the contract smoke with:
+
+```bash
+npm run icloud:helper:smoke -- --probe
+npm run icloud:helper:smoke -- --roundtrip --strict
+```
+
 ## Conflict Model
 
 Start with conservative conflict handling:

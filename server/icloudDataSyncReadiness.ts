@@ -1,5 +1,6 @@
 import { accessSync, constants, existsSync, readFileSync } from "fs";
 import path from "path";
+import { cloudKitNativeHelperContract } from "./cloudKitNativeHelper.ts";
 
 const safeCloudKitDataTypes = ["chat-history", "memory", "tasks", "generated-app-state"] as const;
 const blockedCloudKitDataTypes = ["ai-keys", "device-credentials", "session-cookies", "raw-tokens", "sqlite-database"] as const;
@@ -199,6 +200,7 @@ export function getIcloudDataSyncReadiness(options: { platformSupported?: boolea
     notSyncedDataTypes: ["ai-keys", "device-credentials", "session-cookies", "raw-tokens", "sqlite-database"],
     recordPlan: selectedRecordPlan,
     requiredNativeCapabilities: enabled ? [...requiredNativeCapabilities] : [],
+    nativeHelperContract: cloudKitNativeHelperContract(),
     acceptanceGates: [
       acceptanceGate("explicit-opt-in", enabled ? "passed" : "blocked", enabled ? "CloudKit data sync is explicitly enabled." : "Set LIFEOS_ICLOUD_DATA_SYNC=1 only after the user opts in."),
       acceptanceGate("apple-platform", options.platformSupported === false ? "blocked" : "passed", options.platformSupported === false ? "CloudKit sync requires macOS or iOS native runtime." : "Apple native runtime is available or not blocked by this check."),

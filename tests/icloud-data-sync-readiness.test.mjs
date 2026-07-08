@@ -86,6 +86,8 @@ test("CloudKit data sync readiness blocks unsafe types and requires native helpe
     assert.equal(readiness.recordPlan[0].forbiddenFields.some((item) => item.toLowerCase().includes("key")), true);
     assert.equal(readiness.recordPlan[1].zone, "LifeOSMemoryZone");
     assert.equal(readiness.requiredNativeCapabilities.includes("change-token-fetch"), true);
+    assert.equal(readiness.nativeHelperContract.transport, "json-stdio");
+    assert.equal(readiness.nativeHelperContract.operations.includes("roundtrip"), true);
     assert.equal(readiness.acceptanceGates.some((item) => item.id === "helper-roundtrip" && item.status === "manual-required"), true);
     assert.equal(readiness.acceptanceGates.some((item) => item.id === "blocked-types-filtered" && item.status === "manual-required"), true);
   } finally {

@@ -159,7 +159,7 @@ function checkSourceSizeBudgets() {
 }
 
 function checkScripts() {
-  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "mobile:simulator:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
+  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "icloud:helper:smoke", "mobile:simulator:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
     if (hasScript(script)) pass(`package script exists: ${script}`);
     else fail(`missing package script: ${script}`);
   }
@@ -1461,6 +1461,9 @@ function checkAssets() {
   const icloudRepairImportsSource = exists("server/icloudRepairImports.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudRepairImports.ts"), "utf8") : "";
   const icloudDataSyncReadinessSource = exists("server/icloudDataSyncReadiness.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudDataSyncReadiness.ts"), "utf8") : "";
   const icloudDataSyncReadinessTestSource = exists("tests/icloud-data-sync-readiness.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/icloud-data-sync-readiness.test.mjs"), "utf8") : "";
+  const cloudKitNativeHelperSource = exists("server/cloudKitNativeHelper.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitNativeHelper.ts"), "utf8") : "";
+  const cloudKitNativeHelperTestSource = exists("tests/cloudkit-native-helper.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-native-helper.test.mjs"), "utf8") : "";
+  const cloudKitNativeHelperSmokeSource = exists("scripts/cloudkit-native-helper-smoke.mjs") ? fs.readFileSync(path.join(rootDir, "scripts/cloudkit-native-helper-smoke.mjs"), "utf8") : "";
   const appleRemoteIcloudPrimaryActionSource = exists("src/pages/admin/appleRemoteIcloudPrimaryAction.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/appleRemoteIcloudPrimaryAction.ts"), "utf8") : "";
   const icloudPhonePickupStatusSource = exists("src/pages/admin/icloudPhonePickupStatus.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/icloudPhonePickupStatus.ts"), "utf8") : "";
   const icloudAutoRefreshStatusSource = exists("src/pages/admin/icloudAutoRefreshStatus.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/icloudAutoRefreshStatus.ts"), "utf8") : "";
@@ -1858,10 +1861,22 @@ function checkAssets() {
     icloudDataSyncReadinessSource.includes("LifeOSMemoryZone") &&
     icloudDataSyncReadinessSource.includes("requiredNativeCapabilities") &&
     icloudDataSyncReadinessSource.includes("acceptanceGates") &&
+    icloudDataSyncReadinessSource.includes("nativeHelperContract") &&
     icloudDataSyncReadinessSource.includes("ready-to-test") &&
     icloudDataSyncReadinessTestSource.includes("blocks unsafe types") &&
     icloudDataSyncReadinessTestSource.includes("record plan never includes blocked data types") &&
+    cloudKitNativeHelperSource.includes("lifeos-cloudkit-helper-request.v1") &&
+    cloudKitNativeHelperSource.includes("lifeos-cloudkit-helper-response.v1") &&
+    cloudKitNativeHelperSource.includes("--lifeos-cloudkit-json") &&
+    cloudKitNativeHelperSource.includes("buildCloudKitNativeHelperRequest") &&
+    cloudKitNativeHelperSource.includes("runCloudKitNativeHelper") &&
+    cloudKitNativeHelperSource.includes("redact") &&
+    cloudKitNativeHelperTestSource.includes("CloudKit helper roundtrip executes") &&
+    cloudKitNativeHelperTestSource.includes("redacts helper stderr") &&
+    cloudKitNativeHelperSmokeSource.includes("runCloudKitNativeHelper") &&
+    packageJson.scripts["icloud:helper:smoke"]?.includes("cloudkit-native-helper-smoke.mjs") &&
     packageJson.scripts.test.includes("tests/icloud-data-sync-readiness.test.mjs") &&
+    packageJson.scripts.test.includes("tests/cloudkit-native-helper.test.mjs") &&
     diagnosticBundleSource.includes('dataSyncScope: "entry-file-only"') &&
     diagnosticBundleSource.includes("cloudKitReadiness") &&
     diagnosticBundleSource.includes("recordPlan: readiness.recordPlan") &&
@@ -4069,6 +4084,8 @@ function checkReleaseDocs() {
       "Required Native Architecture",
       "CloudKit container owned by the app bundle",
       "No secret, token, AI key, session cookie, or raw device credential may be written to iCloud Drive or CloudKit user records",
+      "Native Helper Contract",
+      "lifeos-cloudkit-helper-request.v1",
       "Do not claim real iCloud data sync until all of this is true",
       "真正 iCloud 数据同步",
     ];

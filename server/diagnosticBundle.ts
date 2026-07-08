@@ -325,6 +325,7 @@ function publicCloudKitReadiness(readiness: CloudKitReadinessForDiagnostics) {
       conflictPolicy: item.conflictPolicy.slice(0, 180),
     })),
     requiredNativeCapabilities: readiness.requiredNativeCapabilities,
+    nativeHelperContract: readiness.nativeHelperContract,
     acceptanceGates: readiness.acceptanceGates.map((item) => ({
       id: item.id,
       status: item.status,
