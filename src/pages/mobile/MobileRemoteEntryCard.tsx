@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Copy, RefreshCw, Star, Trash2, Wifi } from "lucide-react";
 import type { DeviceConnectivityReport } from "../../services/lifeosApi";
 import type { MobileIcloudHandoffEntry, MobileIcloudHandoffEntryRecommendation, MobileIcloudHandoffServerRepairStatus, MobileIcloudHandoffStatus } from "../../services/mobileIcloudHandoff";
-import { autoSelectRecommendedMobileIcloudHandoffEntry, buildMobileIcloudHandoffRecoveryPacket, buildMobileIcloudHandoffUrl, forgetStoredMobileIcloudHandoffEntry, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffEntryFreshness, getMobileIcloudHandoffEntryKey, getMobileIcloudHandoffEntryRecommendation, getPreferredMobileIcloudHandoffEntryKey, getStoredMobileIcloudHandoffEntries, isMobileIcloudHandoffSameWifiOnly, setPreferredMobileIcloudHandoffEntry } from "../../services/mobileIcloudHandoff";
+import { autoSelectRecommendedMobileIcloudHandoffEntry, buildMobileIcloudHandoffRecoveryPacket, buildMobileIcloudHandoffUrl, forgetStoredMobileIcloudHandoffEntry, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffEntryFreshness, getMobileIcloudHandoffEntryKey, getMobileIcloudHandoffEntryRecommendation, getMobileIcloudHandoffOneNextAction, getPreferredMobileIcloudHandoffEntryKey, getStoredMobileIcloudHandoffEntries, isMobileIcloudHandoffSameWifiOnly, setPreferredMobileIcloudHandoffEntry } from "../../services/mobileIcloudHandoff";
 import type { OfflineMessageQueueSummary } from "../../services/offlineMessageQueue";
 import type { MobileConnectivityIssueKey, MobileConnectivityResult, MobileRecoveryHintKey, RemoteEntryStatus } from "../../services/pwaCapabilities";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -34,6 +34,13 @@ function icloudEntryFreshnessTone(freshness: keyof typeof icloudEntryFreshnessKe
   if (freshness === "fresh") return "bg-emerald-500/15 text-emerald-100";
   if (freshness === "expired") return "bg-red-500/15 text-red-100";
   return "bg-amber-500/15 text-amber-100";
+}
+
+function icloudOneNextTone(tone: "ok" | "warning" | "danger" | "info") {
+  if (tone === "ok") return "border-emerald-300/25 bg-emerald-500/10 text-emerald-50";
+  if (tone === "danger") return "border-red-300/25 bg-red-500/10 text-red-50";
+  if (tone === "warning") return "border-amber-300/25 bg-amber-500/10 text-amber-50";
+  return "border-cyan-300/25 bg-cyan-500/10 text-cyan-50";
 }
 
 function mobileIcloudDesktopNameKey(entry: MobileIcloudHandoffEntry) {
@@ -134,6 +141,12 @@ export default function MobileRemoteEntryCard({
     ? "mobileDevice.icloudHandoffOpenRecommendedAction"
     : "mobileDevice.icloudHandoffMakeRecommendedDefault";
   const currentIcloudSameWifiOnly = Boolean(icloudHandoffStatus && isMobileIcloudHandoffSameWifiOnly(icloudHandoffStatus.entry));
+  const icloudStatusOneNextAction = icloudHandoffStatus ? getMobileIcloudHandoffOneNextAction(icloudHandoffStatus, {
+    archivedEntryCount: archivedIcloudEntries.length,
+    currentSameWifiOnly: currentIcloudSameWifiOnly,
+    hasRecommendedRemoteEntry: Boolean(recommendedIcloudEntry && recommendedIcloudEntryKey !== currentIcloudEntryKey && !isMobileIcloudHandoffSameWifiOnly(recommendedIcloudEntry)),
+  }) : null;
+  const showIcloudStatusOneNextAction = Boolean(icloudStatusOneNextAction && !hasIcloudOneNextAction);
   const icloudRecommendedBodyKey = (icloudEntryRecommendation.preferredNeedsSwitch
     ? icloudPreferredSwitchReasonKeys[icloudEntryRecommendation.preferredSwitchReason]
     : "mobileDevice.icloudHandoffRecommendedBody") as any;
@@ -164,6 +177,22 @@ export default function MobileRemoteEntryCard({
     if (shouldOpenRecommendedIcloudEntry) {
       openIcloudEntry(recommendedIcloudEntry);
     }
+  };
+  const handleIcloudStatusOneNextAction = async () => {
+    if (!icloudStatusOneNextAction) return;
+    if (icloudStatusOneNextAction.id === "test-phone-connection") {
+      onConnectivityTest();
+      return;
+    }
+    if (icloudStatusOneNextAction.id === "cleanup-old-entry") {
+      setShowIcloudDesktopAdvanced(true);
+      return;
+    }
+    if (icloudStatusOneNextAction.id === "keep-using-entry") {
+      onRefreshServer();
+      return;
+    }
+    await copyIcloudRecoveryPacket();
   };
   const renderIcloudEntryRow = (entry: MobileIcloudHandoffEntry, options: { recommended?: boolean; archived?: boolean } = {}) => {
     const key = getMobileIcloudHandoffEntryKey(entry);
@@ -326,6 +355,30 @@ export default function MobileRemoteEntryCard({
                 className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-cyan-300 px-3 py-2 text-xs font-bold text-[#061016]"
               >
                 {t(icloudOneNextActionKey as any)}
+              </button>
+            </div>
+          ) : null}
+          {showIcloudStatusOneNextAction && icloudStatusOneNextAction ? (
+            <div
+              data-testid="mobile-icloud-status-one-next"
+              data-mobile-icloud-status-one-next={icloudStatusOneNextAction.id}
+              className={`mt-3 rounded-xl border p-3 text-xs leading-relaxed ${icloudOneNextTone(icloudStatusOneNextAction.tone)}`}
+            >
+              <div className="text-[11px] font-bold uppercase tracking-normal opacity-70">
+                {t("mobileDevice.icloudHandoffOneNextLabel")}
+              </div>
+              <div className="mt-1 font-bold">{t(icloudStatusOneNextAction.titleKey as any)}</div>
+              <div className="mt-1 opacity-80">{t(icloudStatusOneNextAction.bodyKey as any)}</div>
+              <button
+                type="button"
+                data-testid="mobile-icloud-status-one-next-action"
+                onClick={handleIcloudStatusOneNextAction}
+                disabled={connectivityBusy && icloudStatusOneNextAction.id === "test-phone-connection"}
+                className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-white/90 px-3 py-2 text-xs font-bold text-[#061016] disabled:opacity-60"
+              >
+                {connectivityBusy && icloudStatusOneNextAction.id === "test-phone-connection"
+                  ? t("mobileDevice.testingConnection")
+                  : t(icloudStatusOneNextAction.ctaKey as any)}
               </button>
             </div>
           ) : null}

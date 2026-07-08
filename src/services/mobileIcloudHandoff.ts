@@ -80,6 +80,23 @@ export type MobileIcloudHandoffActionKey =
   | "mobileDevice.icloudHandoffActionReopen"
   | "mobileDevice.icloudHandoffActionMismatch";
 
+export type MobileIcloudHandoffOneNextActionId =
+  | "test-phone-connection"
+  | "refresh-icloud-entry"
+  | "regenerate-qr"
+  | "open-latest-entry"
+  | "switch-remote-entry"
+  | "cleanup-old-entry"
+  | "keep-using-entry";
+
+export type MobileIcloudHandoffOneNextAction = {
+  id: MobileIcloudHandoffOneNextActionId;
+  titleKey: string;
+  bodyKey: string;
+  ctaKey: string;
+  tone: "ok" | "warning" | "danger" | "info";
+};
+
 export type MobileIcloudHandoffServerRepairStatus = {
   eventType: MobileIcloudHandoffEventReportInput["eventType"];
   entryBaseUrl: string;
@@ -1007,16 +1024,98 @@ export function getMobileIcloudHandoffActionKey(status: MobileIcloudHandoffStatu
   return "mobileDevice.icloudHandoffActionReady";
 }
 
+export function getMobileIcloudHandoffOneNextAction(
+  status: MobileIcloudHandoffStatus,
+  options: {
+    hasRecommendedRemoteEntry?: boolean;
+    currentSameWifiOnly?: boolean;
+    archivedEntryCount?: number;
+  } = {},
+): MobileIcloudHandoffOneNextAction {
+  if (options.currentSameWifiOnly && options.hasRecommendedRemoteEntry) {
+    return {
+      id: "switch-remote-entry",
+      titleKey: "mobileDevice.icloudHandoffOneNextSwitchRemoteTitle",
+      bodyKey: "mobileDevice.icloudHandoffOneNextSwitchRemoteBody",
+      ctaKey: "mobileDevice.icloudHandoffOneNextSwitchRemoteCta",
+      tone: "warning",
+    };
+  }
+  if (status.entry.lastConnectivityTestedAt && status.entry.lastConnectivityOk === false) {
+    return {
+      id: "test-phone-connection",
+      titleKey: "mobileDevice.icloudHandoffOneNextTestTitle",
+      bodyKey: "mobileDevice.icloudHandoffOneNextTestBody",
+      ctaKey: "mobileDevice.icloudHandoffOneNextTestCta",
+      tone: "danger",
+    };
+  }
+  if (!status.entry.lastConnectivityTestedAt && status.status === "fresh") {
+    return {
+      id: "test-phone-connection",
+      titleKey: "mobileDevice.icloudHandoffOneNextFirstTestTitle",
+      bodyKey: "mobileDevice.icloudHandoffOneNextFirstTestBody",
+      ctaKey: "mobileDevice.icloudHandoffOneNextTestCta",
+      tone: "info",
+    };
+  }
+  if (status.status === "address-mismatch") {
+    return {
+      id: "open-latest-entry",
+      titleKey: "mobileDevice.icloudHandoffOneNextOpenLatestTitle",
+      bodyKey: "mobileDevice.icloudHandoffOneNextOpenLatestBody",
+      ctaKey: "mobileDevice.icloudHandoffOneNextCopyRepairCta",
+      tone: "warning",
+    };
+  }
+  if (status.status === "expired") {
+    return {
+      id: "regenerate-qr",
+      titleKey: "mobileDevice.icloudHandoffOneNextQrTitle",
+      bodyKey: "mobileDevice.icloudHandoffOneNextQrBody",
+      ctaKey: "mobileDevice.icloudHandoffOneNextCopyRepairCta",
+      tone: "danger",
+    };
+  }
+  if (status.status === "stale" || status.status === "legacy") {
+    return {
+      id: "refresh-icloud-entry",
+      titleKey: "mobileDevice.icloudHandoffOneNextRefreshTitle",
+      bodyKey: "mobileDevice.icloudHandoffOneNextRefreshBody",
+      ctaKey: "mobileDevice.icloudHandoffOneNextCopyRepairCta",
+      tone: "warning",
+    };
+  }
+  if ((options.archivedEntryCount || 0) > 0) {
+    return {
+      id: "cleanup-old-entry",
+      titleKey: "mobileDevice.icloudHandoffOneNextCleanupTitle",
+      bodyKey: "mobileDevice.icloudHandoffOneNextCleanupBody",
+      ctaKey: "mobileDevice.icloudHandoffOneNextCleanupCta",
+      tone: "info",
+    };
+  }
+  return {
+    id: "keep-using-entry",
+    titleKey: "mobileDevice.icloudHandoffOneNextReadyTitle",
+    bodyKey: "mobileDevice.icloudHandoffOneNextReadyBody",
+    ctaKey: "mobileDevice.icloudHandoffOneNextReadyCta",
+    tone: "ok",
+  };
+}
+
 function isoTime(value?: number) {
   return value ? new Date(value).toISOString() : "-";
 }
 
 export function buildMobileIcloudHandoffRecoveryPacket(status: MobileIcloudHandoffStatus) {
   const actionKey = getMobileIcloudHandoffActionKey(status);
+  const oneNext = getMobileIcloudHandoffOneNextAction(status);
   return [
     "LifeOS iCloud Mobile Entry Recovery",
     `status=${status.status}`,
     `action=${actionKey}`,
+    `oneNextAction=${oneNext.id}`,
     `entryBaseUrl=${normalizeBaseUrl(status.entry.baseUrl)}`,
     `currentBaseUrl=${normalizeBaseUrl(status.currentBase) || "-"}`,
     `mode=${status.entry.mode || "-"}`,

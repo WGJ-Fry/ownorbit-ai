@@ -1270,6 +1270,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /这个 iCloud 入口只适合同一 Wi-Fi/);
   assert.match(translationsSource, /This iCloud entry only works on the same Wi-Fi/);
   assert.match(mobileRemoteEntryCardSource, /getMobileIcloudHandoffActionKey/);
+  assert.match(mobileRemoteEntryCardSource, /getMobileIcloudHandoffOneNextAction/);
+  assert.match(mobileRemoteEntryCardSource, /mobile-icloud-status-one-next/);
+  assert.match(mobileRemoteEntryCardSource, /data-mobile-icloud-status-one-next/);
+  assert.match(mobileRemoteEntryCardSource, /icloudStatusOneNextAction/);
   assert.match(mobileRemoteEntryCardSource, /buildMobileIcloudHandoffRecoveryPacket/);
   assert.match(mobileRemoteEntryCardSource, /navigator\.clipboard\.writeText/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.copyIcloudHandoffRepair/);
@@ -1282,6 +1286,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /This phone's remote entry is ready/);
   assert.match(translationsSource, /iCloud 入口仍然新鲜/);
   assert.match(translationsSource, /iCloud entry is fresh/);
+  assert.match(translationsSource, /先测一次手机连接/);
+  assert.match(translationsSource, /Test the phone connection once/);
+  assert.match(translationsSource, /重新生成二维码并重新绑定/);
+  assert.match(translationsSource, /Generate a new QR and re-pair/);
   assert.match(translationsSource, /已同步的电脑/);
   assert.match(translationsSource, /Synced desktops/);
   assert.match(translationsSource, /建议刷新/);

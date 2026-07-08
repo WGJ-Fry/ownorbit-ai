@@ -394,7 +394,7 @@ test("mobile iCloud handoff stores non-sensitive entry metadata and detects stal
   installLocalStorage();
   t.after(cleanupLocalStorage);
   const now = 1_800_000_000_000;
-  const { buildMobileIcloudHandoffRecoveryPacket, consumeMobileIcloudHandoffFromUrl, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffEntryFreshness, getMobileIcloudHandoffStatus, getStoredMobileIcloudHandoff, getStoredMobileIcloudHandoffEntries } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-handoff-${Date.now()}`);
+  const { buildMobileIcloudHandoffRecoveryPacket, consumeMobileIcloudHandoffFromUrl, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffEntryFreshness, getMobileIcloudHandoffOneNextAction, getMobileIcloudHandoffStatus, getStoredMobileIcloudHandoff, getStoredMobileIcloudHandoffEntries } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-handoff-${Date.now()}`);
   const checksum = "a".repeat(64);
   const href = [
     "https://lifeos.example.com/mobile/chat?lifeosEntry=icloud",
@@ -428,27 +428,37 @@ test("mobile iCloud handoff stores non-sensitive entry metadata and detects stal
   assert.equal(fresh.needsRefresh, false);
   assert.equal(getMobileIcloudHandoffEntryFreshness(consumed, now + 1_000), "fresh");
   assert.equal(getMobileIcloudHandoffActionKey(fresh), "mobileDevice.icloudHandoffActionReady");
+  assert.equal(getMobileIcloudHandoffOneNextAction(fresh).id, "test-phone-connection");
+  assert.equal(getMobileIcloudHandoffOneNextAction({ ...fresh, entry: { ...fresh.entry, lastConnectivityTestedAt: now + 1_500, lastConnectivityOk: true } }).id, "keep-using-entry");
 
   const stale = getMobileIcloudHandoffStatus(consumed, "https://lifeos.example.com/mobile/device", now + 70_000);
   assert.equal(stale.status, "stale");
   assert.equal(stale.needsRefresh, true);
   assert.equal(getMobileIcloudHandoffEntryFreshness(consumed, now + 70_000), "stale");
   assert.equal(getMobileIcloudHandoffActionKey(stale), "mobileDevice.icloudHandoffActionRefresh");
+  assert.equal(getMobileIcloudHandoffOneNextAction(stale).id, "refresh-icloud-entry");
 
   const expired = getMobileIcloudHandoffStatus(consumed, "https://lifeos.example.com/mobile/device", now + 130_000);
   assert.equal(expired.status, "expired");
   assert.equal(getMobileIcloudHandoffEntryFreshness(consumed, now + 130_000), "expired");
   assert.equal(getMobileIcloudHandoffActionKey(expired), "mobileDevice.icloudHandoffActionReopen");
+  assert.equal(getMobileIcloudHandoffOneNextAction(expired).id, "regenerate-qr");
 
   const mismatch = getMobileIcloudHandoffStatus(consumed, "https://new-lifeos.example.com/mobile/device", now + 1_000);
   assert.equal(mismatch.status, "address-mismatch");
   assert.equal(getMobileIcloudHandoffActionKey(mismatch), "mobileDevice.icloudHandoffActionMismatch");
+  assert.equal(getMobileIcloudHandoffOneNextAction(mismatch).id, "open-latest-entry");
   const legacy = getMobileIcloudHandoffStatus({ ...consumed, checksumSha256: "" }, "https://lifeos.example.com/mobile/device", now + 1_000);
   assert.equal(legacy.status, "legacy");
   assert.equal(legacy.needsRefresh, true);
   assert.equal(getMobileIcloudHandoffEntryFreshness({ ...consumed, checksumSha256: "" }, now + 1_000), "legacy");
   assert.equal(getMobileIcloudHandoffActionKey(legacy), "mobileDevice.icloudHandoffActionRefresh");
+  assert.equal(getMobileIcloudHandoffOneNextAction(legacy).id, "refresh-icloud-entry");
+  assert.equal(getMobileIcloudHandoffOneNextAction({ ...fresh, entry: { ...fresh.entry, lastConnectivityTestedAt: now + 1_500, lastConnectivityOk: false } }).id, "test-phone-connection");
+  assert.equal(getMobileIcloudHandoffOneNextAction(fresh, { currentSameWifiOnly: true, hasRecommendedRemoteEntry: true }).id, "switch-remote-entry");
+  assert.equal(getMobileIcloudHandoffOneNextAction({ ...fresh, entry: { ...fresh.entry, lastConnectivityTestedAt: now + 1_500, lastConnectivityOk: true } }, { archivedEntryCount: 2 }).id, "cleanup-old-entry");
   assert.match(buildMobileIcloudHandoffRecoveryPacket(legacy), /status=legacy/);
+  assert.match(buildMobileIcloudHandoffRecoveryPacket(legacy), /oneNextAction=refresh-icloud-entry/);
   const packet = buildMobileIcloudHandoffRecoveryPacket(mismatch);
   assert.match(packet, /LifeOS iCloud Mobile Entry Recovery/);
   assert.match(packet, /entryBaseUrl=https:\/\/lifeos\.example\.com/);
