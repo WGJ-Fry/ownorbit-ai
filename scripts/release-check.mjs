@@ -1795,6 +1795,8 @@ function checkAssets() {
     translationsSource.includes("Archived old entries") &&
     mobileDeviceSource.includes("flushPendingMobileIcloudHandoffEvents") &&
     mobileDeviceSource.includes("icloudServerRepair") &&
+    mobileDeviceSource.includes("nextNetwork.online") &&
+    mobileDeviceSource.includes('window.addEventListener("pageshow", refreshRecoverableState)') &&
     pwaCapabilitiesTestSource.includes("autoSelectRecommendedMobileIcloudHandoffEntry") &&
     pwaCapabilitiesTestSource.includes("queues failed desktop reports and flushes them later") &&
     pwaCapabilitiesTestSource.includes("getMobileIcloudHandoffServerRepairStatus") &&

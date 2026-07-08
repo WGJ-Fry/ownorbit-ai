@@ -116,9 +116,11 @@ export default function MobileDevicePage() {
 
   useEffect(() => {
     const refreshNetwork = () => {
-      setNetwork(getNetworkStatus());
+      const nextNetwork = getNetworkStatus();
+      setNetwork(nextNetwork);
       setPwaCapabilities(getPwaCapabilityStatus());
       refreshServiceWorkerLifecycle();
+      if (nextNetwork.online) void refreshServerState();
     };
     window.addEventListener("online", refreshNetwork);
     window.addEventListener("offline", refreshNetwork);
@@ -161,9 +163,11 @@ export default function MobileDevicePage() {
       if (document.visibilityState === "visible") refreshRecoverableState();
     };
     window.addEventListener("focus", refreshRecoverableState);
+    window.addEventListener("pageshow", refreshRecoverableState);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
       window.removeEventListener("focus", refreshRecoverableState);
+      window.removeEventListener("pageshow", refreshRecoverableState);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);

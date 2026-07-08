@@ -1114,6 +1114,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceSource, /getPwaCapabilityStatus/);
   assert.match(mobileDeviceSource, /flushPendingMobileIcloudHandoffEvents/);
   assert.match(mobileDeviceSource, /icloudServerRepair/);
+  assert.match(mobileDeviceSource, /nextNetwork\.online/);
+  assert.match(mobileDeviceSource, /window\.addEventListener\("pageshow", refreshRecoverableState\)/);
   assert.match(mobileDeviceSource, /getRemoteEntryStatus/);
   assert.match(mobileDeviceSource, /getRemoteEntryGuidance/);
   assert.match(mobileDeviceSource, /getMobileIcloudHandoffStatus/);
