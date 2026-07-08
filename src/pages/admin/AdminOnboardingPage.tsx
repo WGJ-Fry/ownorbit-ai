@@ -161,7 +161,7 @@ export default function AdminOnboardingPage() {
 
   useEffect(() => {
     const icloud = networkDiagnostics?.icloud;
-    if (primaryStep !== "device" || busy || autoIcloudExportAttempted || !icloud?.canExport || !icloud.handoffHealth?.needsRefresh) return;
+    if (primaryStep !== "device" || busy || autoIcloudExportAttempted || !icloud?.canExport || simpleIcloudAction.cta !== "export") return;
     let cancelled = false;
     setAutoIcloudExportAttempted(true);
     setBusy("icloud-handoff-auto");
@@ -183,7 +183,7 @@ export default function AdminOnboardingPage() {
     return () => {
       cancelled = true;
     };
-  }, [primaryStep, busy, autoIcloudExportAttempted, networkDiagnostics?.icloud?.canExport, networkDiagnostics?.icloud?.handoffHealth?.status, t]);
+  }, [primaryStep, busy, autoIcloudExportAttempted, networkDiagnostics?.icloud?.canExport, simpleIcloudAction.cta, t]);
 
   const handleSaveAiKey = async () => {
     if (!apiKey.trim()) {

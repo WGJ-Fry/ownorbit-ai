@@ -699,6 +699,7 @@ function checkAssets() {
     adminOnboardingSource.includes("getPrimaryIcloudAction") &&
     adminOnboardingSource.includes("simpleIcloudAction.cta === \"qr\"") &&
     adminOnboardingSource.includes("simpleIcloudAction.cta === \"export\"") &&
+    adminOnboardingSource.includes("simpleIcloudAction.cta !== \"export\"") &&
     adminOnboardingSource.includes("onboarding.appleRemoteIcloudOneNextAction") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudFilesPath") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudFilesActionTitle") &&

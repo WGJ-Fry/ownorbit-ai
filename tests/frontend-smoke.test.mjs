@@ -573,6 +573,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /getPrimaryIcloudAction/);
   assert.match(onboardingSource, /simpleIcloudAction\.cta === "qr"/);
   assert.match(onboardingSource, /simpleIcloudAction\.cta === "export"/);
+  assert.match(onboardingSource, /simpleIcloudAction\.cta !== "export"/);
   assert.match(onboardingSource, /onboarding\.appleRemoteIcloudOneNextAction/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudFilesPath/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudFilesActionTitle/);
