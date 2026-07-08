@@ -1557,6 +1557,13 @@ function checkAssets() {
     translationsSource.includes("Phone next step") &&
     translationsSource.includes("Waiting for iCloud sync") &&
     translationsSource.includes("iCloud sync is stuck") &&
+    networkDiagnosticsSource.includes("data-lifeos-expirable-action") &&
+    networkDiagnosticsSource.includes("data-lifeos-expired-entry-action") &&
+    networkDiagnosticsSource.includes("body.dataset.lifeosEntryExpired") &&
+    networkDiagnosticsSource.includes("aria-disabled") &&
+    networkDiagnosticsSource.includes("This old entry is no longer safe to use") &&
+    networkDiagnosticsTestSource.includes("data-lifeos-expirable-action") &&
+    networkDiagnosticsTestSource.includes("This old entry is no longer safe to use") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorPairingSession") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorIndexConsistency") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorStartupRun") &&

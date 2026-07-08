@@ -1922,6 +1922,7 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
       p { color: #a1a1aa; line-height: 1.65; }
       a, button { display: flex; align-items: center; justify-content: center; box-sizing: border-box; min-height: 48px; width: 100%; margin-top: 14px; border-radius: 16px; border: 0; background: #22d3ee; color: #061016; text-decoration: none; font: inherit; font-weight: 800; }
       .secondary { background: rgba(255,255,255,.06); color: #e4e4e7; border: 1px solid rgba(255,255,255,.1); }
+      a.disabled-link { pointer-events: none; cursor: not-allowed; opacity: .48; background: rgba(255,255,255,.05); color: #94a3b8; border: 1px solid rgba(255,255,255,.08); }
       .pill { display: inline-flex; align-items: center; margin-top: 14px; border-radius: 999px; padding: 6px 10px; font-size: 12px; font-weight: 800; background: ${remoteReady ? "rgba(16,185,129,.16)" : "rgba(245,158,11,.16)"}; color: ${remoteReady ? "#bbf7d0" : "#fde68a"}; }
       .meta, .panel { margin-top: 18px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,.04); color: #cbd5e1; font-size: 12px; line-height: 1.6; word-break: break-all; }
       .warn { margin-top: 14px; color: #fef3c7; font-size: 12px; line-height: 1.65; }
@@ -1935,6 +1936,10 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
       .next-action strong, .next-action span { display: block; }
       .next-action strong { font-size: 13px; }
       .next-action span { margin-top: 4px; color: #a5f3fc; font-size: 12px; }
+      .expired-entry-action { margin-top: 14px; border-radius: 18px; padding: 14px; background: rgba(239,68,68,.14); border: 1px solid rgba(239,68,68,.28); color: #fecaca; font-size: 12px; line-height: 1.65; }
+      .expired-entry-action[hidden] { display: none; }
+      .expired-entry-action strong, .expired-entry-action span { display: block; }
+      .expired-entry-action strong { margin-bottom: 4px; color: #fecaca; }
       .same-wifi-warning { margin-top: 14px; border-radius: 18px; padding: 14px; background: rgba(245,158,11,.14); border: 1px solid rgba(245,158,11,.26); color: #fef3c7; font-size: 12px; line-height: 1.65; }
       .same-wifi-warning strong { display: block; margin-bottom: 4px; color: #fde68a; }
       details.recovery { margin-top: 18px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,.04); color: #cbd5e1; font-size: 12px; line-height: 1.6; }
@@ -1955,13 +1960,18 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
         <strong>下一步只做这一步 / Do this one thing next</strong>
         <span id="lifeos-next-action-text">点“绑定这台设备”。已经绑定过就点“打开手机聊天”。 / Tap Pair This Device. If already paired, tap Open Mobile Chat.</span>
       </div>
+      <div class="expired-entry-action" id="lifeos-expired-entry-action" hidden data-lifeos-expired-entry-action="regenerate">
+        <strong>这个入口已经停止使用 / This old entry is no longer safe to use</strong>
+        <span>请回电脑端重新导出 iCloud 手机入口，再从 iPhone 文件 App 打开最新文件。</span>
+        <span class="en">Export a fresh iCloud mobile entry on the desktop, then open the newest file from the iPhone Files app.</span>
+      </div>
       ${sameWifiOnly ? `<div class="same-wifi-warning" id="lifeos-same-wifi-warning">
         <strong>这个入口只适合同一 Wi-Fi / This entry only works on the same Wi-Fi</strong>
         <span>如果手机和电脑在同一个 Wi-Fi，可以继续绑定。离家使用前，请回电脑端开启 Tailscale HTTPS Serve 或 Cloudflare Tunnel，然后重新导出 iCloud 入口。</span>
         <span class="en">If the phone and desktop are on the same Wi-Fi, continue pairing. Before using it away from home, enable Tailscale HTTPS Serve or Cloudflare Tunnel on the desktop, then export a fresh iCloud entry.</span>
       </div>` : ""}
-      <a href="${htmlEscape(mobilePairUrl)}">绑定这台设备 / Pair This Device</a>
-      <a class="secondary" href="${htmlEscape(mobileChatUrl)}">打开手机聊天 / Open Mobile Chat</a>
+      <a id="lifeos-pair-link" data-lifeos-expirable-action="pair" href="${htmlEscape(mobilePairUrl)}">绑定这台设备 / Pair This Device</a>
+      <a id="lifeos-chat-link" data-lifeos-expirable-action="chat" class="secondary" href="${htmlEscape(mobileChatUrl)}">打开手机聊天 / Open Mobile Chat</a>
       <div class="meta">
         <strong>${htmlEscape(input.candidate.label)}</strong><br />
         ${htmlEscape(input.candidate.baseUrl)}<br />
@@ -2002,6 +2012,14 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
               status.classList.add("age-danger");
               status.textContent = "这个入口旧了。请回电脑端重新生成入口。 / This entry is old. Create a fresh entry from the desktop.";
               if (nextAction) nextAction.textContent = "现在只做这一步：回电脑端点“重新导出 iCloud 手机入口”，再从 iPhone 文件 App 打开最新入口。 / Do this now: export a fresh iCloud mobile entry on the desktop, then open the latest entry from the iPhone Files app.";
+              document.body.dataset.lifeosEntryExpired = "1";
+              document.getElementById("lifeos-expired-entry-action")?.removeAttribute("hidden");
+              document.querySelectorAll("[data-lifeos-expirable-action]").forEach((link) => {
+                link.classList.add("disabled-link");
+                link.setAttribute("aria-disabled", "true");
+                link.setAttribute("tabindex", "-1");
+                link.addEventListener("click", (event) => event.preventDefault());
+              });
             } else if (refreshAfter && now >= refreshAfter) {
               status.classList.add("age-warn");
               status.textContent = "这个入口可能不是最新。能打开就继续，打不开就回电脑端重新生成。 / This entry may not be the latest. Continue if it opens; otherwise create a fresh one on the desktop.";

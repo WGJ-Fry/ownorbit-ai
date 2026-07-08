@@ -449,6 +449,14 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.match(html, /Checking whether this entry is usable/);
   assert.match(html, /下一步只做这一步/);
   assert.match(html, /Do this one thing next/);
+  assert.match(html, /data-lifeos-expirable-action="pair"/);
+  assert.match(html, /data-lifeos-expirable-action="chat"/);
+  assert.match(html, /data-lifeos-expired-entry-action="regenerate"/);
+  assert.match(html, /这个入口已经停止使用/);
+  assert.match(html, /This old entry is no longer safe to use/);
+  assert.match(html, /body\.dataset\.lifeosEntryExpired/);
+  assert.match(html, /aria-disabled/);
+  assert.match(html, /disabled-link/);
   assert.match(html, /这个入口旧了/);
   assert.match(html, /这个入口可能不是最新/);
   assert.match(html, /这个入口可用/);
