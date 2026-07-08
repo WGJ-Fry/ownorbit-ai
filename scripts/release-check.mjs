@@ -1604,6 +1604,9 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("repairRecommendationHintKeys") &&
     onboardingAppleRemoteSource.includes("wrapAction") &&
     onboardingAppleRemoteSource.includes("onClick={onExportIcloud}") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-latest-repair-primary-action") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-latest-repair-secondary-actions") &&
+    onboardingAppleRemoteSource.includes("renderRepairRecommendationAction(latestRepairImportNextAction)") &&
     onboardingAppleRemoteSource.includes("primaryIcloudActionFollowupKeys") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-one-step-guide") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-sync-details") &&
