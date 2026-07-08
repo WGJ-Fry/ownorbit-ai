@@ -1875,12 +1875,22 @@ function checkAssets() {
     translationsSource.includes("CloudKit record plan") &&
     translationsSource.includes("原生验收闸门") &&
     translationsSource.includes("Native acceptance gates") &&
+    translationsSource.includes("原生 helper 验收") &&
+    translationsSource.includes("Native helper acceptance") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudDataBoundaryBody") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-readiness") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-record-plan") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-acceptance-gates") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-helper-run") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-helper-result") &&
+    onboardingAppleRemoteSource.includes("handleRunCloudKitHelper") &&
     onboardingAppleRemoteSource.includes("icloudDataSyncStatusKeys") &&
     networkDiagnosticsSource.includes("getIcloudDataSyncReadiness") &&
+    adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/helper") &&
+    adminRoutesSource.includes("runCloudKitNativeHelper") &&
+    adminRoutesSource.includes("icloud_cloudkit_helper_probe") &&
+    lifeosApiSource.includes("CloudKitNativeHelperResult") &&
+    lifeosApiSource.includes("runCloudKitDataSyncHelper") &&
     icloudDataSyncReadinessSource.includes("LIFEOS_CLOUDKIT_CONTAINER_ID") &&
     icloudDataSyncReadinessSource.includes("blockedCloudKitDataTypes") &&
     icloudDataSyncReadinessSource.includes("cloudKitRecordPlans") &&
@@ -1927,6 +1937,8 @@ function checkAssets() {
     diagnosticBundleSource.includes("onboarding.appleRemoteIcloudHumanRecoveryUnsupportedTitle") &&
     diagnosticBundleSource.includes("cloudKitRequiredForDataSync") &&
     diagnosticBundleSource.includes("nativeDataSyncOptions") &&
+    apiAuthTestSource.includes("/api/v1/admin/icloud-data-sync/helper") &&
+    apiAuthTestSource.includes("cloudKitHelperProbe.result.status") &&
     apiAuthTestSource.includes("cloudKitReadiness.status") &&
     apiAuthTestSource.includes("cloudKitRequiredForDataSync") &&
     networkDiagnosticsSource.includes("cleanupIcloudHandoffEntries") &&

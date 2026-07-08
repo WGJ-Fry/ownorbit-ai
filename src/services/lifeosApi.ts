@@ -1400,6 +1400,44 @@ export type NetworkDiagnostics = {
   };
 };
 
+export type CloudKitNativeHelperResult = {
+  ok: boolean;
+  status: "passed" | "failed" | "skipped";
+  operation: "probe" | "roundtrip";
+  checkedAt: string;
+  readinessStatus: string;
+  reason?: string;
+  requestHash?: string;
+  helperProtocol?: {
+    protocolVersion: number;
+    transport: string;
+    requestSchema: string;
+    responseSchema: string;
+    operations: Array<"probe" | "roundtrip">;
+    commandArgs: string[];
+    timeoutMs: number;
+  };
+  evidenceId?: string;
+  accountStatus?: string;
+  containerReachable?: boolean;
+  capabilitiesVerified?: string[];
+  roundtrip?: {
+    created: boolean;
+    fetched: boolean;
+    deleted: boolean;
+    recordType: string;
+    zone: string;
+  };
+  warnings?: string[];
+  errors?: string[];
+  command?: {
+    exitCode: number | null;
+    timedOut: boolean;
+    stdoutBytes: number;
+    stderr: string;
+  };
+};
+
 export type ConnectionTestResult = {
   ok: boolean;
   httpsStatus?: {
@@ -2182,6 +2220,17 @@ export function recordIcloudAcceptance(
   }>("/api/v1/admin/icloud-handoff/acceptance", {
     method: "POST",
     body: JSON.stringify({ id, note, evidence }),
+  });
+}
+
+export function runCloudKitDataSyncHelper(operation: CloudKitNativeHelperResult["operation"]) {
+  return requestJson<{
+    result: CloudKitNativeHelperResult;
+    diagnostics: NetworkDiagnostics;
+  }>("/api/v1/admin/icloud-data-sync/helper", {
+    method: "POST",
+    timeoutMs: 30_000,
+    body: JSON.stringify({ operation }),
   });
 }
 

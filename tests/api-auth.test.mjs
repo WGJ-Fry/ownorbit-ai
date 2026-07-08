@@ -515,6 +515,22 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(networkDiagnostics.icloud.realtimeTransport, false);
   assert.match(networkDiagnostics.cloudflare.suggestedCommand, /cloudflared tunnel --url/);
   assert.equal(typeof networkDiagnostics.cloudflare.managed.running, "boolean");
+  const blockedCloudKitHelper = await request(port, "/api/v1/admin/icloud-data-sync/helper", {
+    method: "POST",
+    body: JSON.stringify({ operation: "probe" }),
+  });
+  assert.equal(blockedCloudKitHelper.status, 401);
+  const cloudKitHelperProbe = await request(port, "/api/v1/admin/icloud-data-sync/helper", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ operation: "probe" }),
+  }).then((res) => res.json());
+  assert.equal(cloudKitHelperProbe.result.status, "skipped");
+  assert.equal(cloudKitHelperProbe.result.operation, "probe");
+  assert.equal(cloudKitHelperProbe.result.readinessStatus, "not-enabled");
+  assert.match(cloudKitHelperProbe.result.reason, /not enabled/i);
+  assert.equal(cloudKitHelperProbe.diagnostics.icloud.dataSync.dataSyncScope, "entry-file-only");
+  assertPublicApiResponse("cloudKitHelperProbe", cloudKitHelperProbe);
   const blockedIcloudHandoffExport = await request(port, "/api/v1/admin/icloud-handoff/export", { method: "POST" });
   assert.equal(blockedIcloudHandoffExport.status, 401);
   const blockedIcloudHandoffCleanup = await request(port, "/api/v1/admin/icloud-handoff/cleanup", { method: "POST" });

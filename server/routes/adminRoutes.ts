@@ -30,6 +30,8 @@ import { buildLatestIcloudEntryRepairSummary } from "../icloudEntryRepair";
 import { saveIcloudRepairImportAnalysis } from "../icloudRepairImports";
 import { checkReleaseUpdate } from "../releaseUpdateCheck";
 import { buildNativeAutomationPlan, executeNativeAutomation } from "../nativeAutomationBridge";
+import { getIcloudDataSyncReadiness } from "../icloudDataSyncReadiness";
+import { runCloudKitNativeHelper, type CloudKitNativeHelperOperation } from "../cloudKitNativeHelper";
 
 const loginFailures = new Map<string, { count: number; lockedUntil: number }>();
 
@@ -55,6 +57,10 @@ function normalizeInternalRefreshReason(value: unknown) {
   const raw = String(value || "desktop-internal").trim();
   if (!raw) return "desktop-internal";
   return raw.replace(/[^a-z0-9_.:-]/gi, "-").slice(0, 80);
+}
+
+function normalizeCloudKitHelperOperation(value: unknown): CloudKitNativeHelperOperation {
+  return value === "roundtrip" ? "roundtrip" : "probe";
 }
 
 const icloudAcceptanceRecordIds: Record<string, "cellular-mobile-chat" | "restart-restore" | "network-switch" | "network-interruption" | "stale-qr-repair"> = {
@@ -679,6 +685,52 @@ export function registerAdminRoutes(app: express.Express) {
       res.json({ ...result, diagnostics: getAdminNetworkDiagnostics() });
     } catch (error: any) {
       res.status(400).json({ error: error.message || "Remote health check failed", diagnostics: getAdminNetworkDiagnostics() });
+    }
+  });
+
+  app.post("/api/v1/admin/icloud-data-sync/helper", requireAdmin, rateLimit({ keyPrefix: "admin-cloudkit-helper", windowMs: 60_000, max: 10 }), async (req, res) => {
+    const operation = normalizeCloudKitHelperOperation(req.body?.operation);
+    try {
+      const diagnostics = getAdminNetworkDiagnostics();
+      const readiness = getIcloudDataSyncReadiness({ platformSupported: diagnostics.icloud.platformSupported });
+      const result = await runCloudKitNativeHelper(readiness, { operation });
+      insertAuditLog(
+        operation === "roundtrip" ? "icloud_cloudkit_helper_roundtrip" : "icloud_cloudkit_helper_probe",
+        "network",
+        "cloudkit-helper",
+        {
+          operation,
+          status: result.status,
+          ok: result.ok,
+          readinessStatus: result.readinessStatus,
+          evidenceId: "evidenceId" in result ? result.evidenceId || null : null,
+          accountStatus: "accountStatus" in result ? result.accountStatus || null : null,
+          containerReachable: "containerReachable" in result ? Boolean(result.containerReachable) : false,
+          capabilitiesVerified: "capabilitiesVerified" in result && Array.isArray(result.capabilitiesVerified) ? result.capabilitiesVerified : [],
+          roundtrip: "roundtrip" in result ? result.roundtrip : null,
+          warningCount: "warnings" in result && Array.isArray(result.warnings) ? result.warnings.length : 0,
+          errorCount: "errors" in result && Array.isArray(result.errors) ? result.errors.length : 0,
+          commandExitCode: "command" in result ? result.command?.exitCode ?? null : null,
+          timedOut: "command" in result ? Boolean(result.command?.timedOut) : false,
+        },
+        (req as any).actor?.type,
+        (req as any).actor?.id,
+      );
+      const responseStatus = result.status === "failed" ? 400 : 200;
+      res.status(responseStatus).json({ result, diagnostics: getAdminNetworkDiagnostics() });
+    } catch (error: any) {
+      insertAuditLog(
+        "icloud_cloudkit_helper_failed",
+        "network",
+        "cloudkit-helper",
+        {
+          operation,
+          error: error?.message || "CloudKit helper failed",
+        },
+        (req as any).actor?.type,
+        (req as any).actor?.id,
+      );
+      res.status(400).json({ error: error.message || "CloudKit helper failed", diagnostics: getAdminNetworkDiagnostics() });
     }
   });
 
