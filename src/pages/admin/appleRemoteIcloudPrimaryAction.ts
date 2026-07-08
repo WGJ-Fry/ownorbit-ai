@@ -12,6 +12,24 @@ export type IcloudPrimaryAction = {
   cta: "export" | "qr" | "remote-guide" | "icloud-settings" | "icloud-folder" | "none";
 };
 
+export const primaryIcloudActionFollowupKeys: Partial<Record<TranslationKey, TranslationKey>> = {
+  "onboarding.appleRemoteIcloudActionUseQrOrTunnel": "onboarding.appleRemoteIcloudFollowupUseQrOrTunnel",
+  "onboarding.appleRemoteIcloudActionEnableDrive": "onboarding.appleRemoteIcloudFollowupEnableDrive",
+  "onboarding.appleRemoteIcloudActionRefreshEntry": "onboarding.appleRemoteIcloudFollowupRefreshEntry",
+  "onboarding.appleRemoteIcloudActionRefreshAndQr": "onboarding.appleRemoteIcloudFollowupRefreshAndQr",
+  "onboarding.appleRemoteIcloudActionGenerateQr": "onboarding.appleRemoteIcloudFollowupGenerateQr",
+  "onboarding.appleRemoteIcloudActionCreateEntry": "onboarding.appleRemoteIcloudFollowupCreateEntry",
+  "onboarding.appleRemoteIcloudActionFixSync": "onboarding.appleRemoteIcloudFollowupFixSync",
+  "onboarding.appleRemoteIcloudActionWaitSync": "onboarding.appleRemoteIcloudFollowupWaitSync",
+  "onboarding.appleRemoteIcloudActionOpenFiles": "onboarding.appleRemoteIcloudFollowupOpenFiles",
+  "onboarding.appleRemoteIcloudActionChooseRemoteEntry": "onboarding.appleRemoteIcloudFollowupChooseRemoteEntry",
+  "onboarding.appleRemoteIcloudActionReview": "onboarding.appleRemoteIcloudFollowupReview",
+};
+
+export function getIcloudActionFollowupKey(actionKey: TranslationKey): TranslationKey {
+  return primaryIcloudActionFollowupKeys[actionKey] || "onboarding.appleRemoteIcloudFollowupReview";
+}
+
 function isPrivateNetworkHost(hostname: string) {
   const host = String(hostname || "").trim().toLowerCase();
   if (!host || host === "localhost" || host.endsWith(".local")) return true;

@@ -1460,6 +1460,12 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("primaryIcloudAction") &&
     onboardingAppleRemoteSource.includes("primaryIcloudAction.actionKey") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudOneNextAction") &&
+    adminOnboardingSource.includes("getIcloudActionFollowupKey") &&
+    adminOnboardingSource.includes("simpleIcloudActionFollowupKey") &&
+    adminOnboardingSource.includes("onboarding-icloud-quick-one-step") &&
+    adminOnboardingSource.includes("onboarding-icloud-quick-followup") &&
+    adminOnboardingSource.includes("onboarding-icloud-quick-remote-guide") &&
+    adminOnboardingSource.includes("onboarding-icloud-quick-open-folder") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudSimpleOldEntryTitle") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudSimpleQrTitle") &&
     onboardingAppleRemoteSource.includes('simpleIcloudStatus.icon === "qr"') &&
@@ -1620,7 +1626,10 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("onboarding-icloud-latest-repair-primary-action") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-latest-repair-secondary-actions") &&
     onboardingAppleRemoteSource.includes("renderRepairRecommendationAction(latestRepairImportNextAction)") &&
-    onboardingAppleRemoteSource.includes("primaryIcloudActionFollowupKeys") &&
+    onboardingAppleRemoteSource.includes("getIcloudActionFollowupKey") &&
+    appleRemoteIcloudPrimaryActionSource.includes("primaryIcloudActionFollowupKeys") &&
+    appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudFollowupChooseRemoteEntry") &&
+    appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudFollowupWaitSync") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-one-step-guide") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-primary-open-settings") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-primary-open-folder") &&

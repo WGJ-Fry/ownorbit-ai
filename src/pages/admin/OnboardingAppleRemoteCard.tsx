@@ -4,7 +4,7 @@ import { analyzeIcloudHandoffRepairPacket, recordIcloudAcceptance } from "../../
 import type { IcloudAutoRefreshResult, IcloudHandoffRepairAnalysis, NetworkDiagnostics } from "../../services/lifeosApi";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { TranslationKey } from "../../i18n/translations";
-import { getPrimaryIcloudAction } from "./appleRemoteIcloudPrimaryAction";
+import { getIcloudActionFollowupKey, getPrimaryIcloudAction } from "./appleRemoteIcloudPrimaryAction";
 
 type ConnectionCandidate = NetworkDiagnostics["connectionCandidates"][number];
 type IcloudAvailability = NetworkDiagnostics["icloud"]["availability"];
@@ -124,20 +124,6 @@ const icloudSyncActionKeys: Record<NetworkDiagnostics["icloud"]["syncReadiness"]
   "fix-icloud-sync": "onboarding.appleRemoteIcloudSyncActionFixSync",
   "wait-for-sync": "onboarding.appleRemoteIcloudSyncActionWait",
   "open-files-app": "onboarding.appleRemoteIcloudSyncActionOpen",
-};
-
-const primaryIcloudActionFollowupKeys: Partial<Record<TranslationKey, TranslationKey>> = {
-  "onboarding.appleRemoteIcloudActionUseQrOrTunnel": "onboarding.appleRemoteIcloudFollowupUseQrOrTunnel",
-  "onboarding.appleRemoteIcloudActionEnableDrive": "onboarding.appleRemoteIcloudFollowupEnableDrive",
-  "onboarding.appleRemoteIcloudActionRefreshEntry": "onboarding.appleRemoteIcloudFollowupRefreshEntry",
-  "onboarding.appleRemoteIcloudActionRefreshAndQr": "onboarding.appleRemoteIcloudFollowupRefreshAndQr",
-  "onboarding.appleRemoteIcloudActionGenerateQr": "onboarding.appleRemoteIcloudFollowupGenerateQr",
-  "onboarding.appleRemoteIcloudActionCreateEntry": "onboarding.appleRemoteIcloudFollowupCreateEntry",
-  "onboarding.appleRemoteIcloudActionFixSync": "onboarding.appleRemoteIcloudFollowupFixSync",
-  "onboarding.appleRemoteIcloudActionWaitSync": "onboarding.appleRemoteIcloudFollowupWaitSync",
-  "onboarding.appleRemoteIcloudActionOpenFiles": "onboarding.appleRemoteIcloudFollowupOpenFiles",
-  "onboarding.appleRemoteIcloudActionChooseRemoteEntry": "onboarding.appleRemoteIcloudFollowupChooseRemoteEntry",
-  "onboarding.appleRemoteIcloudActionReview": "onboarding.appleRemoteIcloudFollowupReview",
 };
 
 function safeIcloudSyncUserStepKey(value: string | undefined, fallback: TranslationKey): TranslationKey {
@@ -556,7 +542,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
     : "";
   const simpleIcloudStatus = getSimpleIcloudStatus(icloud);
   const primaryIcloudAction = getPrimaryIcloudAction({ icloud, latestEntryRepair, pairingSession, syncReadiness, handoffHealth, canExportIcloud });
-  const primaryIcloudActionFollowupKey = primaryIcloudActionFollowupKeys[primaryIcloudAction.actionKey] || "onboarding.appleRemoteIcloudFollowupReview";
+  const primaryIcloudActionFollowupKey = getIcloudActionFollowupKey(primaryIcloudAction.actionKey);
   const icloudTrackedFiles = icloudAvailability
     ? [
         { id: "html" as const, file: icloudAvailability.handoffFile },

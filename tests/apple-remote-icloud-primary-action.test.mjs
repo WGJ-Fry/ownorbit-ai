@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getPrimaryIcloudAction, isIcloudEntrySameWifiOnly } from "../src/pages/admin/appleRemoteIcloudPrimaryAction.ts";
+import { getIcloudActionFollowupKey, getPrimaryIcloudAction, isIcloudEntrySameWifiOnly } from "../src/pages/admin/appleRemoteIcloudPrimaryAction.ts";
 
 function baseIcloud(overrides = {}) {
   return {
@@ -144,6 +144,21 @@ test("iCloud primary action does not present LAN-only iCloud entries as off-LAN 
   assert.equal(action.bodyKey, "onboarding.appleRemoteIcloudNextStepSameWifiBody");
   assert.equal(action.actionKey, "onboarding.appleRemoteIcloudActionChooseRemoteEntry");
   assert.equal(action.cta, "remote-guide");
+});
+
+test("iCloud primary action follow-up copy is shared by simple and advanced onboarding", () => {
+  assert.equal(
+    getIcloudActionFollowupKey("onboarding.appleRemoteIcloudActionChooseRemoteEntry"),
+    "onboarding.appleRemoteIcloudFollowupChooseRemoteEntry",
+  );
+  assert.equal(
+    getIcloudActionFollowupKey("onboarding.appleRemoteIcloudActionWaitSync"),
+    "onboarding.appleRemoteIcloudFollowupWaitSync",
+  );
+  assert.equal(
+    getIcloudActionFollowupKey("onboarding.unknownAction"),
+    "onboarding.appleRemoteIcloudFollowupReview",
+  );
 });
 
 test("iCloud helper identifies same-Wi-Fi entries that cannot carry off-LAN realtime chat", () => {

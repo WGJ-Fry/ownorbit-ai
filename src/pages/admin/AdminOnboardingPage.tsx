@@ -10,7 +10,7 @@ import OnboardingHandoffCard from "./OnboardingHandoffCard";
 import OnboardingRecoveryCard from "./OnboardingRecoveryCard";
 import { buildOnboardingHandoffSummary } from "../../services/onboardingHandoffSummary";
 import { appendIcloudAutoRefreshStatus } from "./icloudAutoRefreshStatus";
-import { getPrimaryIcloudAction, isIcloudEntrySameWifiOnly } from "./appleRemoteIcloudPrimaryAction";
+import { getIcloudActionFollowupKey, getPrimaryIcloudAction, isIcloudEntrySameWifiOnly } from "./appleRemoteIcloudPrimaryAction";
 import { getIcloudPhonePickupStatus } from "./icloudPhonePickupStatus";
 
 const providerLabels: Record<string, string> = {
@@ -82,6 +82,7 @@ export default function AdminOnboardingPage() {
     handoffHealth: icloud?.handoffHealth,
     canExportIcloud: simpleIcloudCanExport,
   });
+  const simpleIcloudActionFollowupKey = getIcloudActionFollowupKey(simpleIcloudAction.actionKey);
   const simpleIcloudEntryReady = simpleIcloudAction.icon === "phone" && Boolean(icloud?.syncReadiness?.canOpenOnPhone);
   const simpleIcloudNeedsSettings = desktopBridgeAvailable && !simpleIcloudBusy && (
     simpleIcloudAction.actionKey === "onboarding.appleRemoteIcloudActionEnableDrive" ||
@@ -590,13 +591,19 @@ export default function AdminOnboardingPage() {
                     <div className="font-bold">{t(simpleIcloudTitleKey as any)}</div>
                     <p className="mt-1 text-xs leading-relaxed opacity-80">{t(simpleIcloudBodyKey as any)}</p>
                     {!simpleIcloudBusy ? (
-                      <div className="mt-3 flex items-start gap-2 rounded-xl border border-current/10 bg-black/15 p-2 text-xs font-bold">
-                        <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                        <span>
-                          {t("onboarding.appleRemoteIcloudOneNextAction", {
-                            action: t(simpleIcloudAction.actionKey),
-                          })}
-                        </span>
+                      <div data-testid="onboarding-icloud-quick-one-step" className="mt-3 rounded-xl border border-current/10 bg-black/15 p-3 text-xs leading-relaxed">
+                        <div className="flex items-start gap-2 font-bold">
+                          <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                          <span>
+                            {t("onboarding.appleRemoteIcloudOneNextAction", {
+                              action: t(simpleIcloudAction.actionKey),
+                            })}
+                          </span>
+                        </div>
+                        <div data-testid="onboarding-icloud-quick-followup" className="mt-2 border-t border-current/10 pt-2 opacity-85">
+                          <span className="font-bold">{t("onboarding.appleRemoteIcloudThenLabel")}</span>{" "}
+                          {t(simpleIcloudActionFollowupKey as any)}
+                        </div>
                       </div>
                     ) : null}
                     {simpleIcloudNeedsSettings ? (
@@ -650,6 +657,28 @@ export default function AdminOnboardingPage() {
                           <p className="mt-1 font-semibold opacity-80">{t("onboarding.simpleIcloudQrActionBody")}</p>
                         </a>
                       </div>
+                    ) : null}
+                    {simpleIcloudAction.cta === "remote-guide" ? (
+                      <a
+                        data-testid="onboarding-icloud-quick-remote-guide"
+                        href="/admin/settings#mobile-connect"
+                        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-xs font-bold"
+                      >
+                        <SlidersHorizontal className="h-3.5 w-3.5" />
+                        {t("onboarding.simpleIcloudSameWifiOpenGuide")}
+                      </a>
+                    ) : null}
+                    {simpleIcloudAction.cta === "icloud-folder" && desktopBridgeAvailable ? (
+                      <button
+                        type="button"
+                        data-testid="onboarding-icloud-quick-open-folder"
+                        onClick={() => handleDesktopRecoveryAction("icloudFolder")}
+                        disabled={busy === "desktop-icloudFolder"}
+                        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-xs font-bold disabled:opacity-50"
+                      >
+                        {busy === "desktop-icloudFolder" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Cloud className="h-3.5 w-3.5" />}
+                        {t("onboarding.simpleIcloudOpenFolder")}
+                      </button>
                     ) : null}
                     <div data-testid="onboarding-icloud-phone-pickup" className={`mt-3 rounded-xl border p-3 text-xs leading-relaxed ${simpleIcloudPickupStatus.tone}`}>
                       <div className="flex gap-2">
