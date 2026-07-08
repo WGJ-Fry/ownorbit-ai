@@ -93,7 +93,11 @@ test("iCloud primary action gives one plain wait action while files sync", () =>
 
 test("iCloud primary action tells users when the entry is ready to open on phone", () => {
   const action = getPrimaryIcloudAction({
-    icloud: baseIcloud(),
+    icloud: baseIcloud({
+      recommendedMode: "tailscale",
+      recommendedStability: "stable",
+      recommendedBaseUrl: "https://lifeos-mac.tailnet.example.ts.net",
+    }),
     latestEntryRepair: null,
     pairingSession: { action: "none" },
     syncReadiness: baseSyncReadiness({ action: "open-files-app", canOpenOnPhone: true }),
@@ -105,6 +109,26 @@ test("iCloud primary action tells users when the entry is ready to open on phone
   assert.equal(action.icon, "phone");
   assert.equal(action.actionKey, "onboarding.appleRemoteIcloudActionOpenFiles");
   assert.equal(action.cta, "none");
+});
+
+test("iCloud primary action does not present LAN-only iCloud entries as off-LAN ready", () => {
+  const action = getPrimaryIcloudAction({
+    icloud: baseIcloud({
+      recommendedMode: "lan",
+      recommendedStability: "local",
+      recommendedBaseUrl: "http://192.168.0.17:3000",
+    }),
+    latestEntryRepair: null,
+    pairingSession: { action: "none" },
+    syncReadiness: baseSyncReadiness({ action: "open-files-app", canOpenOnPhone: true }),
+    handoffHealth: baseHandoffHealth({ status: "fresh", needsRefresh: false }),
+    canExportIcloud: true,
+  });
+
+  assert.equal(action.titleKey, "onboarding.appleRemoteIcloudNextStepSameWifiTitle");
+  assert.equal(action.bodyKey, "onboarding.appleRemoteIcloudNextStepSameWifiBody");
+  assert.equal(action.actionKey, "onboarding.appleRemoteIcloudActionChooseRemoteEntry");
+  assert.equal(action.cta, "remote-guide");
 });
 
 test("iCloud helper identifies same-Wi-Fi entries that cannot carry off-LAN realtime chat", () => {

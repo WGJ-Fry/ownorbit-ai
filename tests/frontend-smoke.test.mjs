@@ -654,6 +654,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudActionOpenFiles/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudNextStepExportTitle/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudNextStepPhoneTitle/);
+  assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudNextStepSameWifiTitle/);
+  assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudActionChooseRemoteEntry/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudActionOpenConnectionGuide/);
+  assert.match(onboardingAppleRemoteSource, /\/admin\/settings#mobile-connect/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /latestEntryRepair\.needsQr/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /isIcloudEntrySameWifiOnly/);
   assert.match(icloudPhonePickupStatusSource, /simpleIcloudPickupConfirmedTitle/);
@@ -665,6 +669,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Phone has the latest entry/);
   assert.match(translationsSource, /当前 Apple 入口只适合同一 Wi-Fi/);
   assert.match(translationsSource, /This Apple entry only works on the same Wi-Fi/);
+  assert.match(translationsSource, /下一步：切换到异地入口/);
+  assert.match(translationsSource, /Next step: switch to a remote entry/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleReadyTitle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleAccountTitle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleAccountBody/);

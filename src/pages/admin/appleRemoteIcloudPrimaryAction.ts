@@ -9,7 +9,7 @@ export type IcloudPrimaryAction = {
   titleKey: TranslationKey;
   bodyKey: TranslationKey;
   actionKey: TranslationKey;
-  cta: "export" | "qr" | "none";
+  cta: "export" | "qr" | "remote-guide" | "none";
 };
 
 function isPrivateNetworkHost(hostname: string) {
@@ -134,6 +134,17 @@ export function getPrimaryIcloudAction(input: {
       bodyKey: "onboarding.appleRemoteIcloudNextStepWaitBody",
       actionKey: "onboarding.appleRemoteIcloudActionWaitSync",
       cta: "none",
+    };
+  }
+
+  if (input.syncReadiness?.canOpenOnPhone && isIcloudEntrySameWifiOnly(input.icloud)) {
+    return {
+      tone: warningTone,
+      icon: "warning",
+      titleKey: "onboarding.appleRemoteIcloudNextStepSameWifiTitle",
+      bodyKey: "onboarding.appleRemoteIcloudNextStepSameWifiBody",
+      actionKey: "onboarding.appleRemoteIcloudActionChooseRemoteEntry",
+      cta: "remote-guide",
     };
   }
 

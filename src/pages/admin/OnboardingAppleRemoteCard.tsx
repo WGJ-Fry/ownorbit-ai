@@ -827,6 +827,15 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                     {t("onboarding.appleRemoteOpenQr")}
                   </a>
                 ) : null}
+                {primaryIcloudAction.cta === "remote-guide" ? (
+                  <a
+                    href="/admin/settings#mobile-connect"
+                    className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-xs font-bold"
+                  >
+                    <Wifi className="h-3.5 w-3.5" />
+                    {t("onboarding.appleRemoteIcloudActionOpenConnectionGuide")}
+                  </a>
+                ) : null}
               </div>
             </div>
           </div>

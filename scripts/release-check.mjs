@@ -1467,6 +1467,9 @@ function checkAssets() {
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudNextStepOldEntryTitle") &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudNextStepExportTitle") &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudNextStepPhoneTitle") &&
+    appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudNextStepSameWifiTitle") &&
+    appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudActionChooseRemoteEntry") &&
+    appleRemoteIcloudPrimaryActionSource.includes('cta: "remote-guide"') &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudActionWaitSync") &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudActionOpenFiles") &&
     appleRemoteIcloudPrimaryActionSource.includes("latestEntryRepair.needsQr") &&
@@ -1626,6 +1629,12 @@ function checkAssets() {
     translationsSource.includes("Next step: wait for iCloud sync") &&
     translationsSource.includes("New mobile QR needed") &&
     translationsSource.includes("generate a fresh QR code") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudActionOpenConnectionGuide") &&
+    onboardingAppleRemoteSource.includes("/admin/settings#mobile-connect") &&
+    onboardingAppleRemoteSource.includes('primaryIcloudAction.cta === "remote-guide"') &&
+    translationsSource.includes("下一步：切换到异地入口") &&
+    translationsSource.includes("Next step: switch to a remote entry") &&
+    translationsSource.includes("open the connection guide and choose a remote-ready entry") &&
     mobileIcloudHandoffSource.includes("default-same-wifi") &&
     mobileIcloudHandoffSource.includes("isLongTermRemoteMobileIcloudHandoffEntry") &&
     mobileIcloudHandoffSource.includes("bestLongTermEntry") &&
