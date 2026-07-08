@@ -1209,6 +1209,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffForgetDesktop/);
   assert.match(mobileRemoteEntryCardSource, /mobile-icloud-recommended-switch/);
   assert.match(mobileRemoteEntryCardSource, /shouldOpenRecommendedIcloudEntry/);
+  assert.match(mobileRemoteEntryCardSource, /mobile-icloud-one-next-action/);
+  assert.match(mobileRemoteEntryCardSource, /activateRecommendedIcloudEntry/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffOneNextLabel/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffActivateRecommendedAction/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffOpenRecommendedTitle/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffOpenRecommendedAction/);
   assert.match(mobileRemoteEntryCardSource, /mobile-icloud-default-switch/);

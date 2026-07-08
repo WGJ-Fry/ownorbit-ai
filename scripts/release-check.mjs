@@ -1755,6 +1755,10 @@ function checkAssets() {
     mobileRemoteEntryCardSource.includes("autoSelectRecommendedMobileIcloudHandoffEntry") &&
     mobileRemoteEntryCardSource.includes("mobile-icloud-recommended-switch") &&
     mobileRemoteEntryCardSource.includes("shouldOpenRecommendedIcloudEntry") &&
+    mobileRemoteEntryCardSource.includes("mobile-icloud-one-next-action") &&
+    mobileRemoteEntryCardSource.includes("activateRecommendedIcloudEntry") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffOneNextLabel") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffActivateRecommendedAction") &&
     mobileRemoteEntryCardSource.includes("mobile-icloud-default-switch") &&
     mobileRemoteEntryCardSource.includes("shouldSwitchDefaultIcloudEntry") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffOpenRecommendedAction") &&
@@ -1765,6 +1769,7 @@ function checkAssets() {
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffAutoSwitchedReason") &&
     translationsSource.includes("A better entry is available") &&
     translationsSource.includes("Default entry needs switching") &&
+    translationsSource.includes("Do this one thing next") &&
     translationsSource.includes("Archived old entries") &&
     mobileDeviceSource.includes("flushPendingMobileIcloudHandoffEvents") &&
     mobileDeviceSource.includes("icloudServerRepair") &&
@@ -2175,6 +2180,8 @@ function checkAssets() {
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffDefaultDesktop") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffMakeDefault") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffDefaultSwitchTitle") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffOneNextLabel") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffActivateRecommendedAction") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffMakeRecommendedDefault") &&
     pwaCapabilitiesTestSource.includes("getPreferredMobileIcloudHandoffEntryKey") &&
     pwaCapabilitiesTestSource.includes("setPreferredMobileIcloudHandoffEntry") &&
