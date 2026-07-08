@@ -1,4 +1,4 @@
-import { devices, expect, test } from "@playwright/test";
+import { devices, expect, test, type Route } from "@playwright/test";
 
 const password = "correct horse battery staple";
 const rotatedPassword = "LifeOS remote passphrase 2026!";
@@ -30,7 +30,471 @@ async function writeOfflineQueue(page: import("@playwright/test").Page, queue: A
   }, queue);
 }
 
+type IcloudOnboardingPhase = "missing-entry" | "entry-ready" | "phone-confirmed";
+
+function makeIcloudFileAvailability(exists: boolean) {
+  return {
+    exists,
+    readable: exists,
+    placeholder: false,
+    placeholderPath: "",
+    size: exists ? 4096 : 0,
+    metadata: {
+      available: true,
+      downloaded: exists,
+      downloading: false,
+      uploaded: exists,
+      uploading: false,
+      downloadingStatus: "",
+      uploadingStatus: "",
+      syncState: exists ? "synced" : "unknown",
+      error: "",
+    },
+    updatedAt: exists ? Date.now() : 0,
+    placeholderUpdatedAt: 0,
+    syncStuck: false,
+    state: exists ? "ready" : "missing",
+  };
+}
+
+function makeIcloudOnboardingDiagnostics(phase: IcloudOnboardingPhase) {
+  const now = Date.now();
+  const hasEntry = phase !== "missing-entry";
+  const phoneConfirmed = phase === "phone-confirmed";
+  const entryGeneratedAt = hasEntry ? now - 5_000 : 0;
+  const baseUrl = "https://lifeos-apple-e2e.example.test";
+  const handoffFilePath = "/Users/test/Library/Mobile Documents/com~apple~CloudDocs/LifeOS AI/lifeos-mobile-entry.html";
+  const packetFilePath = "/Users/test/Library/Mobile Documents/com~apple~CloudDocs/LifeOS AI/lifeos-mobile-entry.json";
+  const indexFilePath = "/Users/test/Library/Mobile Documents/com~apple~CloudDocs/LifeOS AI/lifeos-mobile-entry-index.html";
+  const entryChecksum = "a".repeat(64);
+  const icloudFile = makeIcloudFileAvailability(hasEntry);
+  const syncReadiness = hasEntry
+    ? {
+      status: "ready",
+      severity: "ok",
+      canOpenOnPhone: true,
+      action: "open-files-app",
+      userStep: {
+        id: "open-phone-files-app",
+        primaryAction: "open-files-app",
+        titleKey: "onboarding.appleRemoteIcloudNextStepPhoneTitle",
+        bodyKey: "onboarding.appleRemoteIcloudNextStepPhoneBody",
+        severity: "ok",
+        pendingCount: 0,
+        pendingFiles: [],
+        missingFiles: [],
+        humanRecovery: {
+          titleKey: "onboarding.appleRemoteIcloudHumanRecoveryOpenTitle",
+          bodyKey: "onboarding.appleRemoteIcloudHumanRecoveryOpenBody",
+          primaryCtaKey: "onboarding.appleRemoteIcloudActionOpenFiles",
+          afterKey: "onboarding.appleRemoteIcloudFollowupOpenFiles",
+          desktopAction: "none",
+          phoneAction: "open-files-app",
+          showTechnicalDetails: false,
+          severity: "ok",
+        },
+      },
+      pendingCount: 0,
+      pendingFiles: [],
+      missingFiles: [],
+      htmlFileState: "ready",
+      packetFileState: "ready",
+      indexFileState: "ready",
+    }
+    : {
+      status: "no-entry",
+      severity: "warning",
+      canOpenOnPhone: false,
+      action: "export-entry",
+      userStep: {
+        id: "create-phone-entry",
+        primaryAction: "export-icloud-entry",
+        titleKey: "onboarding.appleRemoteIcloudNextStepExportTitle",
+        bodyKey: "onboarding.appleRemoteIcloudNextStepExportBody",
+        severity: "warning",
+        pendingCount: 0,
+        pendingFiles: [],
+        missingFiles: ["html", "packet", "index"],
+        humanRecovery: {
+          titleKey: "onboarding.appleRemoteIcloudHumanRecoveryExportTitle",
+          bodyKey: "onboarding.appleRemoteIcloudHumanRecoveryExportBody",
+          primaryCtaKey: "onboarding.appleRemoteIcloudActionCreateEntry",
+          afterKey: "onboarding.appleRemoteIcloudFollowupCreateEntry",
+          desktopAction: "export-icloud-entry",
+          phoneAction: "open-files-app-after-sync",
+          showTechnicalDetails: false,
+          severity: "warning",
+        },
+      },
+      pendingCount: 0,
+      pendingFiles: [],
+      missingFiles: ["html", "packet", "index"],
+      htmlFileState: "missing",
+      packetFileState: "missing",
+      indexFileState: "missing",
+    };
+  const diagnostics = {
+    host: "127.0.0.1",
+    port: "3333",
+    publicBaseUrl: "",
+    publicAccessAllowed: false,
+    lanUrls: ["http://192.168.31.10:3333"],
+    lanEnvTemplate: "LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 npm run start",
+    recommendedBaseUrl: baseUrl,
+    remoteReadiness: {
+      status: "ready",
+      severity: "ok",
+      candidateId: "cloudflare-apple-e2e",
+      baseUrl,
+      blockers: [],
+      actions: [{ id: "ready", detail: "HTTPS entry is ready for mobile pairing." }],
+    },
+    connectionCandidates: [
+      {
+        id: "cloudflare-apple-e2e",
+        label: "Cloudflare Tunnel",
+        baseUrl,
+        mode: "cloudflare",
+        priority: 90,
+        requiresRestart: false,
+        stability: "stable",
+        secure: true,
+        envTemplate: `PUBLIC_BASE_URL=${baseUrl} npm run start`,
+        restartInstruction: "",
+        mobilePairUrl: `${baseUrl}/mobile/pair`,
+        mobileChatUrl: `${baseUrl}/mobile/chat`,
+        notes: ["Stable HTTPS entry for Apple onboarding."],
+      },
+    ],
+    desktopRuntimeConfig: {
+      mode: "cloudflare",
+      label: "Cloudflare Tunnel",
+      host: "127.0.0.1",
+      port: 3333,
+      publicBaseUrl: baseUrl,
+      allowPublic: false,
+      baseUrl,
+      updatedAt: now,
+    },
+    icloud: {
+      platform: "darwin",
+      platformSupported: true,
+      available: true,
+      canExport: true,
+      desktopId: "desktop-e2e",
+      desktopName: "Playwright Mac",
+      desktopSlug: "playwright-mac",
+      drivePath: "/Users/test/Library/Mobile Documents/com~apple~CloudDocs",
+      appFolderPath: "/Users/test/Library/Mobile Documents/com~apple~CloudDocs/LifeOS AI",
+      handoffFilePath: hasEntry ? handoffFilePath : "",
+      packetFilePath: hasEntry ? packetFilePath : "",
+      indexFilePath: hasEntry ? indexFilePath : "",
+      historyFilePath: "/Users/test/Library/Mobile Documents/com~apple~CloudDocs/LifeOS AI/lifeos-mobile-entry-history.json",
+      availableEntries: hasEntry ? [{
+        desktopId: "desktop-e2e",
+        desktopName: "Playwright Mac",
+        desktopSlug: "playwright-mac",
+        fileName: "lifeos-mobile-entry.html",
+        htmlFileName: "lifeos-mobile-entry.html",
+        packetFileName: "lifeos-mobile-entry.json",
+        label: "Playwright Mac",
+        baseUrl,
+        mode: "cloudflare",
+        stability: "stable",
+        secure: true,
+        generatedAt: entryGeneratedAt,
+        refreshAfter: now + 86_400_000,
+        expiresAt: now + 604_800_000,
+        entryChecksumSha256: entryChecksum,
+      }] : [],
+      entryHistory: [],
+      lifecycle: {
+        retentionLimit: 5,
+        expiredGraceMs: 604_800_000,
+        entryCount: hasEntry ? 1 : 0,
+        expiredEntryCount: 0,
+        prunableEntryCount: 0,
+        orphanedFileCount: 0,
+      },
+      recommendedBaseUrl: baseUrl,
+      recommendedLabel: "Cloudflare Tunnel",
+      recommendedMode: "cloudflare",
+      recommendedStability: "stable",
+      handoffHealth: {
+        status: hasEntry ? "fresh" : "missing",
+        needsRefresh: false,
+        lastExportedAt: entryGeneratedAt,
+        lastExportedBaseUrl: hasEntry ? baseUrl : "",
+        refreshAfter: hasEntry ? now + 86_400_000 : 0,
+        expiresAt: hasEntry ? now + 604_800_000 : 0,
+        refreshAfterMs: 86_400_000,
+        expiresAfterMs: 604_800_000,
+        checksumOk: hasEntry ? true : null,
+        entryChecksumSha256: hasEntry ? entryChecksum : "",
+        expectedChecksumSha256: hasEntry ? entryChecksum : "",
+        htmlConsistency: {
+          status: hasEntry ? "matching" : "missing",
+          ok: hasEntry,
+          exists: hasEntry,
+          checksumSha256: hasEntry ? entryChecksum : "",
+          generatedAt: entryGeneratedAt,
+          reason: hasEntry ? "matching" : "missing",
+        },
+        reason: hasEntry ? "fresh" : "missing",
+      },
+      indexConsistency: {
+        status: hasEntry ? "matching" : "missing",
+        ok: hasEntry,
+        exists: hasEntry,
+        checksumSha256: hasEntry ? entryChecksum : "",
+        expectedChecksumSha256: hasEntry ? entryChecksum : "",
+        generatedAt: entryGeneratedAt,
+        latestEntryGeneratedAt: entryGeneratedAt,
+        expectedLatestEntryGeneratedAt: entryGeneratedAt,
+        entryCount: hasEntry ? 1 : 0,
+        expectedEntryCount: hasEntry ? 1 : 0,
+        writerDesktopId: "desktop-e2e",
+        reason: hasEntry ? "matching" : "missing",
+      },
+      availability: {
+        status: "ready",
+        severity: "ok",
+        drivePathDetected: true,
+        appFolderExists: true,
+        driveWritable: true,
+        appFolderWritable: true,
+        placeholderCount: 0,
+        metadataPendingCount: 0,
+        pendingCount: 0,
+        placeholderStuckCount: 0,
+        metadataStuckCount: 0,
+        syncStuckCount: 0,
+        syncStuckAfterMs: 180_000,
+        placeholderSamples: [],
+        account: { checked: true, status: "ready", signedIn: true, driveEnabled: true, source: "override", error: "" },
+        syncService: { checked: true, running: true, processNames: ["bird"], error: "" },
+        handoffFile: icloudFile,
+        packetFile: icloudFile,
+        indexFile: icloudFile,
+      },
+      syncReadiness,
+      dataSync: {
+        enabled: false,
+        ready: false,
+        mode: "handoff-only",
+        status: "not-enabled",
+        severity: "warning",
+        dataSyncScope: "entry-file-only",
+        containerId: "",
+        teamIdConfigured: false,
+        bundleId: "ai.lifeos.desktop",
+        nativeHelper: { configured: false, detected: false, executable: false },
+        entitlements: { detected: false, mentionsCloudKit: false, mentionsContainer: false },
+        selectedDataTypes: [],
+        blockedDataTypes: ["chat", "memory", "tasks", "devices"],
+        blockedDataTypePolicy: "CloudKit native client required before syncing user data.",
+        notSyncedDataTypes: ["chat", "memory", "tasks", "devices"],
+        recordPlan: [],
+        requiredNativeCapabilities: ["CloudKit container", "native helper"],
+        nativeHelperContract: {
+          protocolVersion: 1,
+          transport: "json-stdio",
+          requestSchema: "lifeos-cloudkit-helper-request.v1",
+          responseSchema: "lifeos-cloudkit-helper-response.v1",
+          operations: ["probe", "roundtrip"],
+          commandArgs: ["--lifeos-cloudkit-json"],
+          timeoutMs: 5000,
+        },
+        acceptanceGates: [
+          { id: "native-helper", status: "blocked", detail: "Native helper is not configured." },
+        ],
+        requiresNativeAppleClient: true,
+        requiresCloudKitContainer: true,
+        requiresExplicitUserOptIn: true,
+        nextAction: "Configure CloudKit native sync when native clients ship.",
+      },
+      phoneConfirmation: {
+        status: phoneConfirmed ? "confirmed" : "missing",
+        severity: phoneConfirmed ? "ok" : "warning",
+        action: phoneConfirmed ? "none" : "open-on-phone",
+        confirmedAt: phoneConfirmed ? now : 0,
+        confirmedDeviceId: phoneConfirmed ? "iphone-e2e" : "",
+        confirmedDeviceName: phoneConfirmed ? "Playwright iPhone" : "",
+        confirmedDeviceType: phoneConfirmed ? "ios" : "",
+        confirmedEntryBaseUrl: phoneConfirmed ? baseUrl : "",
+        confirmedEntryGeneratedAt: phoneConfirmed ? entryGeneratedAt : 0,
+        expectedEntryGeneratedAt: entryGeneratedAt,
+        expectedBaseUrl: baseUrl,
+        latestProblemAt: 0,
+        latestProblemEventType: "",
+        latestProblemDeviceName: "",
+        reason: phoneConfirmed ? "phone-opened-current-entry" : "waiting-for-phone",
+      },
+      pairingSession: {
+        status: phoneConfirmed ? "missing" : "missing",
+        severity: phoneConfirmed ? "warning" : "warning",
+        action: phoneConfirmed ? "create-qr" : "none",
+        bindingId: "",
+        baseUrl,
+        expectedBaseUrl: baseUrl,
+        createdAt: 0,
+        expiresAt: 0,
+        confirmedAt: 0,
+        confirmedDeviceId: "",
+        expired: false,
+        secondsRemaining: 0,
+        reason: phoneConfirmed ? "phone-ready-for-qr" : "waiting-for-phone",
+      },
+      realtimeTransport: false,
+      transport: "handoff-only",
+      openInstruction: "Open iPhone Files app: iCloud Drive > LifeOS AI > lifeos-mobile-entry.html",
+      notes: ["E2E fixture for Apple first launch."],
+      latestEntryOpenEvent: phoneConfirmed ? {
+        id: "event-current-e2e",
+        eventType: "opened-current-entry",
+        deviceId: "iphone-e2e",
+        deviceName: "Playwright iPhone",
+        deviceType: "ios",
+        entryBaseUrl: baseUrl,
+        entryGeneratedAt,
+        occurredAt: now,
+      } : null,
+      latestIgnoredEntryEvent: null,
+      latestEntryIssueEvent: null,
+      latestEntryRepair: {
+        status: phoneConfirmed ? "current-entry-opened" : "none",
+        severity: "ok",
+        action: "none",
+        eventId: phoneConfirmed ? "event-current-e2e" : "",
+        eventType: phoneConfirmed ? "opened-current-entry" : "",
+        deviceId: phoneConfirmed ? "iphone-e2e" : "",
+        deviceName: phoneConfirmed ? "Playwright iPhone" : "",
+        deviceType: phoneConfirmed ? "ios" : "",
+        eventAt: phoneConfirmed ? now : 0,
+        entryBaseUrl: phoneConfirmed ? baseUrl : "",
+        currentBaseUrl: baseUrl,
+        storedBaseUrl: baseUrl,
+        recommendedBaseUrl: baseUrl,
+        lastExportedBaseUrl: baseUrl,
+        entryGeneratedAt,
+        storedGeneratedAt: entryGeneratedAt,
+        checksumPresent: hasEntry,
+        needsRefresh: false,
+        needsQr: false,
+        reason: phoneConfirmed ? "current-entry-opened" : "none",
+      },
+      latestRepairImport: null,
+      acceptance: {
+        ready: false,
+        generatedAt: now,
+        passed: phoneConfirmed ? 2 : hasEntry ? 1 : 0,
+        total: 9,
+        needsAction: phoneConfirmed ? 1 : 2,
+        manualRequired: 5,
+        recommendedAction: phoneConfirmed ? "regenerate-qr" : hasEntry ? "open-on-phone" : "export-icloud-entry",
+        nextItemId: phoneConfirmed ? "pairing-qr-current" : hasEntry ? "phone-opened-current-entry" : "icloud-entry-synced",
+        nextManualItemId: "cellular-mobile-chat",
+        items: [
+          { id: "icloud-entry-synced", status: hasEntry ? "passed" : "needs-action", severity: hasEntry ? "ok" : "warning", evidence: hasEntry ? "entry synced" : "entry missing", action: hasEntry ? "ready" : "export-icloud-entry" },
+          { id: "phone-opened-current-entry", status: phoneConfirmed ? "passed" : "needs-action", severity: phoneConfirmed ? "ok" : "warning", evidence: phoneConfirmed ? "phone opened current entry" : "waiting", action: phoneConfirmed ? "ready" : "open-on-phone" },
+          { id: "pairing-qr-current", status: "needs-action", severity: "warning", evidence: "QR not confirmed yet", action: "regenerate-qr" },
+          { id: "cellular-mobile-chat", status: "manual-required", severity: "warning", evidence: "Real device evidence required", action: "record-real-world-check" },
+        ],
+      },
+    },
+    remoteValidationReport: {
+      id: "remote-e2e",
+      label: "Cloudflare Tunnel",
+      baseUrl,
+      url: baseUrl,
+      ok: true,
+      status: 200,
+      latencyMs: 12,
+      passed: 3,
+      total: 3,
+      createdAt: now,
+      httpsStatus: { ok: true, protocol: "https:", requiredForLongTerm: true, trustedByRuntime: true },
+      steps: [],
+      recommendations: [],
+    },
+    remoteHealthMonitor: {
+      enabled: true,
+      status: "healthy",
+      lastRunAt: now,
+      nextRunAt: now + 60_000,
+      intervalMs: 60_000,
+      lastError: "",
+      report: null,
+    },
+    cloudflare: {
+      installed: true,
+      running: true,
+      managed: { running: false, starting: false, url: "", pid: null, startedAt: null, command: "", lastOutput: "", lastError: "" },
+      version: "cloudflared version 2026.6.0",
+      detectedUrls: [baseUrl],
+      suggestedCommand: "cloudflared tunnel --url http://127.0.0.1:3333",
+      installCommand: "brew install cloudflared",
+      envTemplate: `PUBLIC_BASE_URL=${baseUrl} npm run start`,
+      notes: ["Cloudflare Tunnel is ready."],
+    },
+    tailscale: {
+      installed: false,
+      online: false,
+      version: "",
+      deviceName: "",
+      tailnetName: "",
+      urls: [],
+      magicDnsUrls: [],
+      mobileUrls: [],
+      installCommand: "brew install --cask tailscale-app",
+      installUrl: "https://tailscale.com/download",
+      envTemplate: "LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 npm run start",
+      notes: ["Tailscale CLI is unavailable in this fixture."],
+    },
+    safety: {
+      publicModeRequired: false,
+      requiresHttpsForInternet: false,
+      notes: ["HTTPS tunnel is used for Apple onboarding."],
+    },
+  };
+  return diagnostics;
+}
+
 test("admin setup, mobile binding, chat shell, and device revoke flow", async ({ browser, page }) => {
+  let icloudPhase: IcloudOnboardingPhase = "missing-entry";
+  let icloudExportAttempts = 0;
+  let inlinePairingStartAttempts = 0;
+  await page.route("**/api/v1/admin/network-diagnostics", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(makeIcloudOnboardingDiagnostics(icloudPhase)),
+    });
+  });
+  await page.route("**/api/v1/admin/icloud-handoff/export", async (route) => {
+    icloudExportAttempts += 1;
+    icloudPhase = "entry-ready";
+    const diagnostics = makeIcloudOnboardingDiagnostics(icloudPhase);
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        handoff: {
+          ...diagnostics.icloud,
+          ok: true,
+          generatedAt: Date.now(),
+          cleanup: {
+            removedEntryCount: 0,
+            removedOrphanedFileCount: 0,
+            removedFiles: [],
+            errorCount: 0,
+            errors: [],
+            expiredGraceMs: 604_800_000,
+          },
+        },
+        diagnostics,
+        message: "LifeOS mobile entry was exported to iCloud Drive.",
+      }),
+    });
+  });
   await page.context().addInitScript(() => {
     localStorage.setItem("lifeos_locale", "zh-CN");
   });
@@ -75,12 +539,55 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await page.getByLabel("OpenAI 模型").fill("gpt-4o");
   await page.getByPlaceholder("输入 API Key").fill("sk-playwright-onboarding-secret-value");
   await page.getByRole("button", { name: "保存并继续" }).click();
-  await expect(page.getByText("OpenAI 配置检查通过，当前模型：gpt-4o。")).toBeVisible();
-  await expect(page.getByText("这一步不会向外部模型发起真实请求；第一次聊天会使用该配置。")).toBeVisible();
-  await expect(page.getByText("已是默认聊天 Provider").first()).toBeVisible();
-  await expect(page.getByRole("link", { name: "生成手机二维码" }).last()).toBeVisible();
   await expect(page.getByText("第二步：用手机扫码")).toBeVisible();
+  await expect(page.getByText("Apple 设备会先走最省心的默认流程")).toBeVisible();
+  await expect(page.getByTestId("onboarding-icloud-quick-entry")).toBeVisible();
+  await expect(page.getByTestId("onboarding-icloud-default-flow")).toBeVisible();
+  await expect(page.getByTestId("onboarding-device-backup-qr")).toBeVisible();
   await expect(page.getByTestId("onboarding-progress-count")).toHaveText("1 / 3");
+  await expect.poll(() => icloudExportAttempts).toBe(1);
+  await page.reload();
+  await expect(page.getByText("第二步：用手机扫码")).toBeVisible();
+  await expect(page.getByTestId("onboarding-icloud-open-files-first")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("1. 在 iPhone 文件 App 打开")).toBeVisible();
+  await expect(page.getByTestId("onboarding-icloud-open-files-first").getByText(/iPhone 文件 App.*LifeOS AI/)).toBeVisible();
+  let inlinePairingBaseUrl: string | undefined;
+  const inlinePairingStartHandler = async (route: Route) => {
+    const posted = route.request().postDataJSON() as { baseUrl?: string };
+    inlinePairingBaseUrl = posted.baseUrl;
+    const baseUrl = inlinePairingBaseUrl || "https://lifeos-apple-e2e.example.test";
+    inlinePairingStartAttempts += 1;
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: "icloud-inline-e2e",
+        token: "bind_icloud_inline_e2e",
+        expiresAt: Date.now() + 120_000,
+        baseUrl,
+        pairingUrl: `${baseUrl}/mobile/install/bind_icloud_inline_e2e`,
+        localName: "LifeOS Test",
+      }),
+    });
+  };
+  await page.route("**/api/v1/devices/bind/start", inlinePairingStartHandler);
+  await page.route("**/api/v1/devices/bind/icloud-inline-e2e", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: "icloud-inline-e2e",
+        expiresAt: Date.now() + 120_000,
+        device: null,
+      }),
+    });
+  });
+  icloudPhase = "phone-confirmed";
+  await page.reload();
+  await expect(page.getByText("手机已经拿到最新入口")).toBeVisible();
+  await expect(page.getByTestId("onboarding-icloud-qr-after-pickup")).toBeVisible();
+  await expect.poll(() => inlinePairingStartAttempts, { timeout: 15_000 }).toBe(1);
+  expect(inlinePairingBaseUrl).toBe("https://lifeos-apple-e2e.example.test");
+  await expect(page.getByTestId("onboarding-icloud-inline-qr")).toBeVisible({ timeout: 15_000 });
+  await page.unroute("**/api/v1/devices/bind/start", inlinePairingStartHandler);
   await page.unroute("**/api/v1/admin/ai-providers/openai/test");
   await page.getByText("高级功能、备份和诊断").click();
   await expect(page.getByText("首次启动检查表")).toBeVisible();
@@ -227,7 +734,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   });
   await page.goto("/admin/devices/pair");
   await expect(page.getByText("检测到地址，但二维码还没生成")).toBeVisible();
-  await expect(page.getByText("sqlite busy while preparing pairing QR")).toBeVisible();
+  await expect(page.getByText(/二维码没有生成。下一步：重启 LifeOS AI/)).toBeVisible();
   await expect(page.getByText("当前检测到的地址")).toBeVisible();
   await page.getByRole("button", { name: "测试这个地址" }).click();
   await expect(page.getByText("连接测试通过：3/3 项通过，18ms，手机可访问 https://pair.example.test")).toBeVisible();

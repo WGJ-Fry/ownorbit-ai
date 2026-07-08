@@ -281,7 +281,7 @@ export default function AdminOnboardingPage() {
     return () => {
       cancelled = true;
     };
-  }, [primaryStep, busy, autoIcloudExportAttempted, networkDiagnostics?.icloud?.canExport, simpleIcloudAction.cta, t]);
+  }, [primaryStep, networkDiagnostics?.icloud?.canExport, simpleIcloudAction.cta, t]);
 
   useEffect(() => {
     if (primaryStep !== "device" || hasDevice || !showSimpleIcloudQrAfterPickup || !simpleIcloudCurrentEntry || inlinePairingSession || inlinePairingBusy || inlinePairingError) return;
@@ -303,7 +303,7 @@ export default function AdminOnboardingPage() {
     return () => {
       cancelled = true;
     };
-  }, [primaryStep, hasDevice, showSimpleIcloudQrAfterPickup, simpleIcloudCurrentEntry, inlinePairingSession, inlinePairingBusy, inlinePairingError, t]);
+  }, [primaryStep, hasDevice, showSimpleIcloudQrAfterPickup, simpleIcloudCurrentEntry, inlinePairingSession, inlinePairingError, t]);
 
   useEffect(() => {
     if (!inlinePairingSession || hasDevice) return;

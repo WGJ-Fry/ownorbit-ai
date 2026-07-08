@@ -1463,6 +1463,7 @@ function checkAssets() {
   else warn("mobile device page rebinding flow can still open a tokenless pair page");
   const lifeosApiSource = exists("src/services/lifeosApi.ts") ? fs.readFileSync(path.join(rootDir, "src/services/lifeosApi.ts"), "utf8") : "";
   const apiAuthTestSource = exists("tests/api-auth.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/api-auth.test.mjs"), "utf8") : "";
+  const adminMobileBindingE2eSource = exists("tests/e2e/admin-mobile-binding.spec.ts") ? fs.readFileSync(path.join(rootDir, "tests/e2e/admin-mobile-binding.spec.ts"), "utf8") : "";
   const onboardingAppleRemoteSource = exists("src/pages/admin/OnboardingAppleRemoteCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/OnboardingAppleRemoteCard.tsx"), "utf8") : "";
   const icloudAcceptanceSource = exists("server/icloudAcceptance.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudAcceptance.ts"), "utf8") : "";
   const icloudPairingSessionSource = exists("server/icloudPairingSession.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudPairingSession.ts"), "utf8") : "";
@@ -1541,6 +1542,12 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding-icloud-inline-qr") &&
     adminOnboardingSource.includes("simpleIcloudInlineQrReady") &&
     adminOnboardingSource.includes("simpleIcloudInlineQrFullPage") &&
+    adminMobileBindingE2eSource.includes("makeIcloudOnboardingDiagnostics") &&
+    adminMobileBindingE2eSource.includes("lifeos-apple-e2e.example.test") &&
+    adminMobileBindingE2eSource.includes("onboarding-icloud-open-files-first") &&
+    adminMobileBindingE2eSource.includes("onboarding-icloud-qr-after-pickup") &&
+    adminMobileBindingE2eSource.includes("onboarding-icloud-inline-qr") &&
+    adminMobileBindingE2eSource.includes("inlinePairingBaseUrl") &&
     translationsSource.includes("当前手机入口") &&
     translationsSource.includes("Current phone entry") &&
     translationsSource.includes("手机绑定二维码已准备好") &&
