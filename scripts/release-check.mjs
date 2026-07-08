@@ -690,8 +690,13 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding-icloud-open-files-first") &&
     adminOnboardingSource.includes("onboarding-icloud-qr-after-pickup") &&
     adminOnboardingSource.includes("simpleIcloudPhoneConfirmed") &&
+    adminOnboardingSource.includes("simpleIcloudPairingConfirmed") &&
+    adminOnboardingSource.includes("simpleIcloudOneStepActionText") &&
+    adminOnboardingSource.includes("simpleIcloudOneStepFollowupText") &&
+    adminOnboardingSource.includes("simpleIcloudLongTestActionKey") &&
     adminOnboardingSource.includes("showSimpleIcloudFilesFirst") &&
     adminOnboardingSource.includes("showSimpleIcloudQrAfterPickup") &&
+    adminOnboardingSource.includes("showSimpleIcloudLongTest") &&
     adminOnboardingSource.includes("onboarding-icloud-phone-pickup-cta") &&
     adminOnboardingSource.includes("onboarding-device-advanced-icloud-tools") &&
     adminOnboardingSource.includes("onboarding.simpleDeviceAdvancedTitle") &&
@@ -724,6 +729,9 @@ function checkAssets() {
     adminOnboardingSource.includes("onOpenIcloudSettings={() => handleDesktopRecoveryAction(\"icloudSettings\")}") &&
     adminOnboardingSource.includes("onOpenIcloudFolder={() => handleDesktopRecoveryAction(\"icloudFolder\")}") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudQrActionTitle") &&
+    adminOnboardingSource.includes("onboarding.simpleIcloudScanQrAction") &&
+    adminOnboardingSource.includes("onboarding-icloud-quick-long-test") &&
+    adminOnboardingSource.includes("onboarding.simpleIcloudLongTestTitle") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudOpenQr") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudRegenerate") &&
     adminOnboardingSource.includes("onboarding.simpleStartChat") &&
@@ -759,6 +767,8 @@ function checkAssets() {
     translationsSource.includes("onboarding.simpleIcloudReadyTitle") &&
     translationsSource.includes("onboarding.simpleIcloudFilesActionTitle") &&
     translationsSource.includes("onboarding.simpleIcloudQrActionTitle") &&
+    translationsSource.includes("onboarding.simpleIcloudScanQrAction") &&
+    translationsSource.includes("onboarding.simpleIcloudLongTestTitle") &&
     translationsSource.includes("onboarding.simpleIcloudPickupConfirmedTitle") &&
     translationsSource.includes("手机已经拿到最新入口") &&
     translationsSource.includes("Phone has the latest entry") &&

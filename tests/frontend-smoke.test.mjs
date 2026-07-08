@@ -581,8 +581,13 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /inlinePairingBusy/);
   assert.match(onboardingSource, /handleCreateInlinePairing/);
   assert.match(onboardingSource, /simpleIcloudActionFollowupKey/);
+  assert.match(onboardingSource, /simpleIcloudOneStepActionText/);
+  assert.match(onboardingSource, /simpleIcloudOneStepFollowupText/);
+  assert.match(onboardingSource, /simpleIcloudPairingConfirmed/);
+  assert.match(onboardingSource, /simpleIcloudLongTestActionKey/);
   assert.match(onboardingSource, /onboarding-icloud-quick-one-step/);
   assert.match(onboardingSource, /onboarding-icloud-quick-followup/);
+  assert.match(onboardingSource, /onboarding-icloud-quick-long-test/);
   assert.match(onboardingSource, /onboarding-icloud-quick-remote-guide/);
   assert.match(onboardingSource, /onboarding-icloud-quick-open-folder/);
   assert.match(onboardingSource, /simpleIcloudPickupStatus\.actionKey/);
@@ -601,6 +606,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.simpleIcloudCurrentEntryTitle/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudCurrentEntryBody/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudQrActionTitle/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudScanQrAction/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudLongTestTitle/);
   assert.match(onboardingSource, /onboarding-icloud-inline-qr/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudInlineQrReady/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudInlineQrFullPage/);
