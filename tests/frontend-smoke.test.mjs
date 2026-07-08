@@ -735,6 +735,13 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /打开手机文件 App/);
   assert.match(translationsSource, /open the phone Files app/);
   assert.match(onboardingAppleRemoteSource, /renderRepairRecommendationAction/);
+  assert.match(onboardingAppleRemoteSource, /repairRecommendationHintKeys/);
+  assert.match(onboardingAppleRemoteSource, /wrapAction/);
+  assert.match(onboardingAppleRemoteSource, /onClick=\{onExportIcloud\}/);
+  assert.match(translationsSource, /重新导出入口，然后在手机打开最新文件/);
+  assert.match(translationsSource, /Export a fresh entry, then reopen the latest file on the phone/);
+  assert.match(translationsSource, /先让电脑重新写入最新入口/);
+  assert.match(translationsSource, /First write the latest entry from the desktop/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudRepairActions/);
   assert.match(onboardingAppleRemoteSource, /<details[^>]*>[\s\S]*appleRemoteIcloudRepairActions/);
   assert.match(translationsSource, /高级：其他可选动作/);

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { AlertTriangle, ArrowRight, CheckCircle2, ClipboardCheck, ClipboardPaste, Cloud, ExternalLink, Loader2, QrCode, RefreshCw, ShieldCheck, Smartphone, Wifi } from "lucide-react";
 import { analyzeIcloudHandoffRepairPacket } from "../../services/lifeosApi";
 import type { IcloudAutoRefreshResult, IcloudHandoffRepairAnalysis, NetworkDiagnostics } from "../../services/lifeosApi";
@@ -178,6 +178,17 @@ const repairRecommendationKeys: Record<IcloudHandoffRepairAnalysis["recommendati
   "save-stable-entry": "onboarding.appleRemoteIcloudRepairRecStable",
   "test-phone-entry": "onboarding.appleRemoteIcloudRepairRecTest",
   ready: "onboarding.appleRemoteIcloudRepairRecReady",
+};
+
+const repairRecommendationHintKeys: Record<IcloudHandoffRepairAnalysis["recommendations"][number]["id"], TranslationKey> = {
+  "refresh-icloud": "onboarding.appleRemoteIcloudRepairHintRefresh",
+  "open-latest-entry": "onboarding.appleRemoteIcloudRepairHintOpenLatest",
+  "regenerate-qr": "onboarding.appleRemoteIcloudRepairHintQr",
+  "start-tailscale": "onboarding.appleRemoteIcloudRepairHintTailscale",
+  "start-cloudflare": "onboarding.appleRemoteIcloudRepairHintCloudflare",
+  "save-stable-entry": "onboarding.appleRemoteIcloudRepairHintStable",
+  "test-phone-entry": "onboarding.appleRemoteIcloudRepairHintTest",
+  ready: "onboarding.appleRemoteIcloudRepairHintReady",
 };
 
 const icloudAcceptanceItemKeys: Record<NonNullable<NetworkDiagnostics["icloud"]["acceptance"]>["items"][number]["id"], TranslationKey> = {
@@ -615,12 +626,18 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
 
   const renderRepairRecommendationAction = (item: IcloudHandoffRepairAnalysis["recommendations"][number]) => {
     const label = t(repairRecommendationKeys[item.id]);
+    const hint = t(repairRecommendationHintKeys[item.id]);
     const actionClass = "inline-flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-left text-[11px] font-bold disabled:opacity-50";
+    const wrapAction = (action: ReactNode) => (
+      <div key={item.id} className="rounded-xl border border-current/10 bg-black/10 p-2">
+        {action}
+        <div className="mt-2 text-[10px] leading-relaxed opacity-75">{hint}</div>
+      </div>
+    );
 
     if (item.id === "refresh-icloud" || item.id === "open-latest-entry") {
-      return (
+      return wrapAction(
         <button
-          key={item.id}
           type="button"
           onClick={onExportIcloud}
           disabled={!canExportIcloud || isBusy}
@@ -633,9 +650,8 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
     }
 
     if (item.id === "regenerate-qr") {
-      return (
+      return wrapAction(
         <a
-          key={item.id}
           href="/admin/devices/pair"
           className={`${actionClass} border-amber-200/20 bg-black/15 text-amber-50`}
         >
@@ -646,9 +662,8 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
     }
 
     if (item.id === "start-tailscale") {
-      return tailscaleInstalled ? (
+      return wrapAction(tailscaleInstalled ? (
         <button
-          key={item.id}
           type="button"
           onClick={onStartTailscale}
           disabled={isBusy}
@@ -659,7 +674,6 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
         </button>
       ) : (
         <a
-          key={item.id}
           href={tailscaleInstallUrl}
           target="_blank"
           rel="noreferrer"
@@ -668,13 +682,12 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
           <ExternalLink className="h-3.5 w-3.5 shrink-0" />
           <span>{label}</span>
         </a>
-      );
+      ));
     }
 
     if (item.id === "start-cloudflare") {
-      return (
+      return wrapAction(
         <button
-          key={item.id}
           type="button"
           onClick={onStartCloudflare}
           disabled={isBusy}
@@ -687,9 +700,8 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
     }
 
     if (item.id === "save-stable-entry") {
-      return (
+      return wrapAction(
         <button
-          key={item.id}
           type="button"
           onClick={() => candidate && onSaveCandidate(candidate)}
           disabled={isBusy || !candidateReady}
@@ -702,9 +714,8 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
     }
 
     if (item.id === "test-phone-entry") {
-      return (
+      return wrapAction(
         <button
-          key={item.id}
           type="button"
           onClick={() => candidate && onTestCandidate(candidate)}
           disabled={isBusy || !candidateReady}
@@ -716,8 +727,8 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
       );
     }
 
-    return (
-      <div key={item.id} className="flex items-center gap-2 rounded-xl bg-black/15 p-2 text-[11px] font-bold">
+    return wrapAction(
+      <div className="flex items-center gap-2 rounded-xl bg-black/15 p-2 text-[11px] font-bold">
         <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
         <span>{label}</span>
       </div>

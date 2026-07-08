@@ -1601,8 +1601,13 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("latestEntryRepairActionKeys") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudRepairImportTitle") &&
     onboardingAppleRemoteSource.includes("repairAnalysis.nextAction") &&
+    onboardingAppleRemoteSource.includes("repairRecommendationHintKeys") &&
+    onboardingAppleRemoteSource.includes("wrapAction") &&
+    onboardingAppleRemoteSource.includes("onClick={onExportIcloud}") &&
     onboardingAppleRemoteSource.includes("<details") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudRepairActions") &&
+    translationsSource.includes("Export a fresh entry, then reopen the latest file on the phone") &&
+    translationsSource.includes("First write the latest entry from the desktop") &&
     translationsSource.includes("Advanced: other optional actions") &&
     adminRoutesSource.includes("buildLatestIcloudEntryRepairSummary") &&
     adminRoutesSource.includes("saveIcloudRepairImportAnalysis") &&
