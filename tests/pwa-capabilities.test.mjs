@@ -1078,6 +1078,61 @@ test("mobile iCloud handoff launch stores a failed result when connectivity prob
   assert.equal(getMobileIcloudHandoffActionKey(getMobileIcloudHandoffStatus(launch.entry, href, now)), "mobileDevice.icloudHandoffActionRefresh");
 });
 
+test("mobile iCloud handoff launch records server repair from failed connectivity reports", async (t) => {
+  installLocalStorage();
+  t.after(cleanupLocalStorage);
+  const now = 1_800_000_130_000;
+  const { getMobileIcloudHandoffServerRepairStatus, handleMobileIcloudHandoffLaunch } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-connectivity-repair-${Date.now()}`);
+  const href = [
+    "https://lifeos.example.com/mobile/chat?lifeosEntry=icloud",
+    `entryGeneratedAt=${now}`,
+    `entryRefreshAfter=${now + 60_000}`,
+    `entryExpiresAt=${now + 120_000}`,
+    "entryBaseUrl=https%3A%2F%2Flifeos.example.com",
+    "entryMode=tailscale",
+    "entryStability=stable",
+    "entryLabel=Tailscale%20HTTPS%20Serve",
+    `entryChecksumSha256=${"8".repeat(64)}`,
+  ].join("&");
+
+  const launch = await handleMobileIcloudHandoffLaunch({
+    href,
+    cleanupUrl: false,
+    now,
+    testConnectivity: async () => ({
+      ok: false,
+      currentBase: "https://lifeos.example.com",
+      latencyMs: 0,
+      testedAt: now + 4,
+      error: "websocket failed",
+      steps: [
+        { id: "health", ok: true, url: "https://lifeos.example.com/api/v1/health", latencyMs: 4 },
+        { id: "mobile-shell", ok: true, url: "https://lifeos.example.com/mobile/chat", latencyMs: 4 },
+        { id: "websocket", ok: false, url: "wss://lifeos.example.com/api/v1/ws", latencyMs: 0, error: "websocket failed" },
+      ],
+    }),
+    reportConnectivity: async () => ({
+      ok: true,
+      icloudRefresh: {
+        refreshed: true,
+        reason: "refreshed",
+        requestedReason: "device-connectivity-failed",
+      },
+    }),
+    reportIcloudHandoffEvent: async () => ({ ok: true }),
+  });
+
+  assert.equal(launch.reportSaved, true);
+  assert.equal(launch.result.ok, false);
+  const repair = getMobileIcloudHandoffServerRepairStatus();
+  assert.equal(repair.reported, true);
+  assert.equal(repair.pending, false);
+  assert.equal(repair.refreshed, true);
+  assert.equal(repair.refreshReason, "refreshed");
+  assert.equal(repair.requestedReason, "device-connectivity-failed");
+  assert.equal(repair.entryBaseUrl, "https://lifeos.example.com");
+});
+
 test("remote entry guidance is visible before manual connectivity tests", async () => {
   const { getRemoteEntryGuidance } = await import(`../src/services/pwaCapabilities.ts?case=remote-entry-guidance-${Date.now()}`);
 

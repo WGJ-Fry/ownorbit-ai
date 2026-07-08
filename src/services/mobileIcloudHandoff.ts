@@ -762,8 +762,20 @@ export async function handleMobileIcloudHandoffLaunch(options: HandoffLaunchOpti
   let reportSaved = false;
   try {
     const reportConnectivity = options.reportConnectivity || (await import("./lifeosApi")).reportMobileConnectivity;
-    await reportConnectivity(result);
+    const response = await reportConnectivity(result) as { icloudRefresh?: IcloudAutoRefreshResult | null } | undefined;
     reportSaved = true;
+    if (!result.ok && response?.icloudRefresh) {
+      writeServerRepairStatus({
+        eventType: icloudOpenEventType || "opened-current-entry",
+        entryBaseUrl: entry.baseUrl,
+        currentBaseUrl: result.currentBase || currentBaseFromHref(href) || entry.baseUrl,
+        storedBaseUrl: entry.baseUrl,
+        entryGeneratedAt: entry.generatedAt,
+        storedGeneratedAt: entry.generatedAt,
+        checksumSha256: entry.checksumSha256,
+        ignoredAt: testedAt,
+      }, { reported: true, pending: false, pendingCount: getPendingMobileIcloudHandoffEventCount(), icloudRefresh: response.icloudRefresh }, testedAt);
+    }
   } catch {
     reportSaved = false;
   }

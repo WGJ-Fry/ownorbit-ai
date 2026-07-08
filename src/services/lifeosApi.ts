@@ -2375,7 +2375,7 @@ export async function revokeCurrentDeviceBinding() {
 }
 
 export function reportMobileConnectivity(result: MobileConnectivityReportInput) {
-  return requestJson<{ ok: true; report: DeviceConnectivityReport }>("/api/v1/devices/me/connectivity-report", {
+  return requestJson<{ ok: true; report: DeviceConnectivityReport; icloudRefresh?: IcloudAutoRefreshResult | null }>("/api/v1/devices/me/connectivity-report", {
     method: "POST",
     body: JSON.stringify({
       ok: result.ok,

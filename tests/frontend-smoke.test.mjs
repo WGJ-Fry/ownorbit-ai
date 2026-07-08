@@ -1040,6 +1040,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileIcloudHandoffSource, /handleMobileIcloudHandoffLaunch/);
   assert.match(mobileIcloudHandoffSource, /testMobileRemoteConnectivity/);
   assert.match(mobileIcloudHandoffSource, /reportMobileConnectivity/);
+  assert.match(mobileIcloudHandoffSource, /!result\.ok && response\?\.icloudRefresh/);
   assert.match(mobileIcloudHandoffSource, /reportIcloudHandoffIssueEvent/);
   assert.match(mobileIcloudHandoffSource, /PENDING_EVENTS_STORAGE_KEY/);
   assert.match(mobileIcloudHandoffSource, /SERVER_REPAIR_STORAGE_KEY/);

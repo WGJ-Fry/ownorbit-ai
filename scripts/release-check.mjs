@@ -1774,6 +1774,9 @@ function checkAssets() {
     mobileIcloudHandoffSource.includes("flushPendingMobileIcloudHandoffEvents") &&
     mobileIcloudHandoffSource.includes("getMobileIcloudHandoffServerRepairStatus") &&
     mobileIcloudHandoffSource.includes("reportOrQueueIcloudHandoffEvent") &&
+    mobileIcloudHandoffSource.includes("!result.ok && response?.icloudRefresh") &&
+    deviceRoutesSource.includes("device-connectivity-failed") &&
+    deviceRoutesSource.includes("icloudRefresh,") &&
     mobileRemoteEntryCardSource.includes("autoSelectRecommendedMobileIcloudHandoffEntry") &&
     mobileRemoteEntryCardSource.includes("mobile-icloud-recommended-switch") &&
     mobileRemoteEntryCardSource.includes("shouldOpenRecommendedIcloudEntry") &&
@@ -1799,6 +1802,7 @@ function checkAssets() {
     mobileDeviceSource.includes('window.addEventListener("pageshow", refreshRecoverableState)') &&
     pwaCapabilitiesTestSource.includes("autoSelectRecommendedMobileIcloudHandoffEntry") &&
     pwaCapabilitiesTestSource.includes("queues failed desktop reports and flushes them later") &&
+    pwaCapabilitiesTestSource.includes("records server repair from failed connectivity reports") &&
     pwaCapabilitiesTestSource.includes("getMobileIcloudHandoffServerRepairStatus") &&
     pwaCapabilitiesTestSource.includes("flushes queued reports even without a new entry URL") &&
     apiAuthTestSource.includes("/api/v1/internal/icloud-handoff/refresh") &&

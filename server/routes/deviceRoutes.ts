@@ -376,6 +376,7 @@ export function registerDeviceRoutes(app: express.Express) {
       createdAt: Date.now(),
       ...normalized,
     });
+    const icloudRefresh = report?.ok ? null : safeRefreshIcloudForBinding("device-connectivity-failed");
     insertAuditLog("device_connectivity_reported", "device", device.id, {
       ok: report?.ok || false,
       currentBaseUrl: report?.currentBaseUrl || normalized.currentBaseUrl,
@@ -384,14 +385,16 @@ export function registerDeviceRoutes(app: express.Express) {
       websocketOk: report?.websocketOk || false,
       latencyMs: report?.latencyMs || normalized.latencyMs,
       error: report?.error || null,
+      icloudRefresh,
     }, "device", device.id);
     broadcastRealtime({
       type: "device.connectivity_reported",
       deviceId: device.id,
       report,
+      icloudRefresh,
       timestamp: Date.now(),
     });
-    res.json({ ok: true, report });
+    res.json({ ok: true, report, icloudRefresh });
   });
 
   app.get("/api/v1/devices/me/connectivity-report", (req, res) => {
