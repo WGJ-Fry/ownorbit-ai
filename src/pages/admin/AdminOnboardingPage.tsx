@@ -149,6 +149,55 @@ export default function AdminOnboardingPage() {
     : networkDiagnostics?.cloudflare.installed
     ? "cloudflare"
     : "guide";
+  const simpleIcloudFlowStage: "entry" | "files" | "qr" | "settings" | "remote" | "longTest" = simpleIcloudNeedsSettings
+    ? "settings"
+    : showSimpleIcloudLongTest
+    ? "longTest"
+    : showSimpleIcloudQrAfterPickup || inlinePairingBusy || Boolean(inlinePairingSession)
+    ? "qr"
+    : simpleIcloudEntryReady
+    ? "files"
+    : simpleIcloudAction.cta === "remote-guide"
+    ? "remote"
+    : "entry";
+  const simpleIcloudFlowStatusKey: TranslationKey = simpleIcloudNeedsSettings
+    ? "onboarding.simpleIcloudFlowStatusSettings"
+    : simpleIcloudBusy
+    ? "onboarding.simpleIcloudFlowStatusEntryWaiting"
+    : showSimpleIcloudQrAfterPickup
+    ? "onboarding.simpleIcloudFlowStatusQrNext"
+    : showSimpleIcloudLongTest
+    ? "onboarding.simpleIcloudFlowStatusLongTest"
+    : simpleIcloudEntryReady
+    ? "onboarding.simpleIcloudFlowStatusFilesNext"
+    : simpleIcloudAction.cta === "remote-guide"
+    ? "onboarding.simpleIcloudFlowStatusRemoteNeeded"
+    : "onboarding.simpleIcloudFlowStatusEntryWaiting";
+  const simpleIcloudFlowSteps: Array<{
+    id: "entry" | "files" | "qr";
+    labelKey: TranslationKey;
+    done: boolean;
+    active: boolean;
+  }> = [
+    {
+      id: "entry",
+      labelKey: "onboarding.simpleIcloudFlowStepEntry",
+      done: simpleIcloudEntryReady,
+      active: simpleIcloudFlowStage === "entry" || simpleIcloudFlowStage === "settings" || simpleIcloudFlowStage === "remote",
+    },
+    {
+      id: "files",
+      labelKey: "onboarding.simpleIcloudFlowStepFiles",
+      done: simpleIcloudPhoneConfirmed,
+      active: simpleIcloudFlowStage === "files" || simpleIcloudFlowStage === "longTest",
+    },
+    {
+      id: "qr",
+      labelKey: "onboarding.simpleIcloudFlowStepQr",
+      done: simpleIcloudPairingConfirmed || hasDevice,
+      active: simpleIcloudFlowStage === "qr",
+    },
+  ];
   const localizedStepMeta = (stepId: OnboardingStatus["steps"][number]["id"], done: boolean) => {
     switch (stepId) {
       case "ai":
@@ -682,6 +731,43 @@ export default function AdminOnboardingPage() {
             </a>
             {showSimpleIcloudEntry ? (
               <div data-testid="onboarding-icloud-quick-entry" className={`mt-5 rounded-2xl border p-4 ${simpleIcloudAction.tone}`}>
+                <div data-testid="onboarding-icloud-default-flow" className="mb-4 rounded-2xl border border-cyan-200/15 bg-cyan-400/10 p-4 text-cyan-50">
+                  <div className="flex gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-cyan-100/15 bg-[#060a10]/40">
+                      <Smartphone className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-bold">{t("onboarding.simpleIcloudDefaultFlowTitle")}</div>
+                      <p className="mt-1 text-xs leading-relaxed text-cyan-50/75">{t("onboarding.simpleIcloudDefaultFlowBody")}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                    {simpleIcloudFlowSteps.map((step) => (
+                      <div
+                        key={step.id}
+                        data-onboarding-icloud-flow-step={step.id}
+                        className={`rounded-xl border p-3 text-xs leading-relaxed ${
+                          step.done
+                            ? "border-emerald-200/20 bg-emerald-400/10 text-emerald-50"
+                            : step.active
+                            ? "border-cyan-100/25 bg-cyan-300/10 text-cyan-50"
+                            : "border-white/10 bg-black/15 text-zinc-400"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 font-bold">
+                          {step.done ? <CheckCircle2 className="h-3.5 w-3.5" /> : <span className="h-2 w-2 rounded-full bg-current opacity-70" />}
+                          <span>{t(step.labelKey)}</span>
+                        </div>
+                        <div className="mt-1 opacity-75">
+                          {t(step.done ? "onboarding.simpleIcloudFlowDone" : step.active ? "onboarding.simpleIcloudFlowNow" : "onboarding.simpleIcloudFlowNext")}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div data-testid="onboarding-icloud-default-flow-status" className="mt-3 rounded-xl border border-cyan-100/10 bg-black/15 p-3 text-xs font-bold leading-relaxed text-cyan-50/90">
+                    {t(simpleIcloudFlowStatusKey)}
+                  </div>
+                </div>
                 <div className="flex gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-current/15 bg-[#060a10]/40">
                     {simpleIcloudBusy ? (

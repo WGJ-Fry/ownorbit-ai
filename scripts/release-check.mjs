@@ -684,6 +684,11 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding-simple-phone-qr") &&
     adminOnboardingSource.includes("onboarding.simpleOpenQr") &&
     adminOnboardingSource.includes("onboarding-icloud-quick-entry") &&
+    adminOnboardingSource.includes("onboarding-icloud-default-flow") &&
+    adminOnboardingSource.includes("data-onboarding-icloud-flow-step") &&
+    adminOnboardingSource.includes("simpleIcloudFlowStage") &&
+    adminOnboardingSource.includes("simpleIcloudFlowStatusKey") &&
+    adminOnboardingSource.includes("simpleIcloudFlowSteps") &&
     adminOnboardingSource.includes("onboarding-icloud-phone-pickup") &&
     adminOnboardingSource.includes("onboarding-icloud-same-wifi-notice") &&
     adminOnboardingSource.includes("onboarding-icloud-ready-actions") &&
@@ -772,6 +777,8 @@ function checkAssets() {
     translationsSource.includes("onboarding.simpleDeviceAdvancedTitle") &&
     translationsSource.includes("onboarding.simpleDeviceAdvancedBody") &&
     translationsSource.includes("onboarding.simpleIcloudReadyTitle") &&
+    translationsSource.includes("onboarding.simpleIcloudDefaultFlowTitle") &&
+    translationsSource.includes("onboarding.simpleIcloudFlowStatusFilesNext") &&
     translationsSource.includes("onboarding.simpleIcloudFilesActionTitle") &&
     translationsSource.includes("onboarding.simpleIcloudQrActionTitle") &&
     translationsSource.includes("onboarding.simpleIcloudScanQrAction") &&
@@ -779,6 +786,10 @@ function checkAssets() {
     translationsSource.includes("onboarding.simpleIcloudPickupConfirmedTitle") &&
     translationsSource.includes("手机已经拿到最新入口") &&
     translationsSource.includes("Phone has the latest entry") &&
+    translationsSource.includes("Apple 默认手机连接") &&
+    translationsSource.includes("Apple default phone connection") &&
+    translationsSource.includes("当前只做这一步") &&
+    translationsSource.includes("Do only this now") &&
     translationsSource.includes("当前 Apple 入口只适合同一 Wi-Fi") &&
     translationsSource.includes("This Apple entry only works on the same Wi-Fi") &&
     translationsSource.includes("Apple 手机入口已准备好（同一 Wi-Fi）") &&
