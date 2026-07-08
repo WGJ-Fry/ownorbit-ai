@@ -572,6 +572,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /QRCodeSVG/);
   assert.match(onboardingSource, /startBindingSession/);
   assert.match(onboardingSource, /getBindingSession/);
+  assert.match(onboardingSource, /formatDevicePairingCreateError/);
   assert.match(onboardingSource, /inlinePairingSession/);
   assert.match(onboardingSource, /inlinePairingBusy/);
   assert.match(onboardingSource, /handleCreateInlinePairing/);
@@ -2039,7 +2040,15 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(devicePairSource, /devicePair\.restartTitle/);
   assert.match(devicePairSource, /devicePair\.temporaryTitle/);
   assert.match(devicePairSource, /devicePair\.temporaryBody/);
+  assert.match(devicePairSource, /formatDevicePairingCreateError/);
   assert.match(devicePairSource, /DevicePairConnectionTestResult/);
+  const devicePairingErrorsSource = await readFile(path.join(rootDir, "src", "services", "devicePairingErrors.ts"), "utf8");
+  assert.match(devicePairingErrorsSource, /binding_session_create_failed/);
+  assert.match(devicePairingErrorsSource, /devicePair\.createFailedRestart/);
+  const devicePairingErrorsTestSource = await readFile(path.join(rootDir, "tests", "device-pairing-errors.test.mjs"), "utf8");
+  assert.match(devicePairingErrorsTestSource, /device pairing QR creation errors become actionable copy/);
+  assert.match(translationsSource, /devicePair\.createFailedRestart/);
+  assert.match(translationsSource, /The QR code was not created/);
   const devicePairConnectionTestSource = await readFile(path.join(rootDir, "src", "pages", "admin", "DevicePairConnectionTestResult.tsx"), "utf8");
   assert.match(devicePairConnectionTestSource, /devicePair\.testStep\.health/);
   assert.match(devicePairConnectionTestSource, /devicePair\.testStep\.mobileShell/);

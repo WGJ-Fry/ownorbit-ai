@@ -5,6 +5,7 @@ import { BindingSession, BoundDevice, getBindingSession, getNetworkDiagnostics, 
 import type { ConnectionTestResult } from "../../services/lifeosApi";
 import DevicePairConnectionTestResult from "./DevicePairConnectionTestResult";
 import { useI18n } from "../../i18n/I18nProvider";
+import { formatDevicePairingCreateError } from "../../services/devicePairingErrors";
 
 export default function DevicePairPage() {
   const { t } = useI18n();
@@ -49,7 +50,7 @@ export default function DevicePairPage() {
       setPairingBaseUrl(data.baseUrl || recommendedBaseUrl);
       setSession(data);
     } catch (err: any) {
-      const detail = err.message || t("devicePair.createFailed");
+      const detail = formatDevicePairingCreateError(err, t);
       setError(detail);
       setCreateErrorDetail(detail);
     }

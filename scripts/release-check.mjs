@@ -790,6 +790,8 @@ function checkAssets() {
   const customRemoteEntrySource = exists("src/pages/admin/CustomRemoteEntryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/CustomRemoteEntryCard.tsx"), "utf8") : "";
   const devicePairSource = exists("src/pages/admin/DevicePairPage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/DevicePairPage.tsx"), "utf8") : "";
   const devicePairConnectionTestSource = exists("src/pages/admin/DevicePairConnectionTestResult.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/DevicePairConnectionTestResult.tsx"), "utf8") : "";
+  const devicePairingErrorsSource = exists("src/services/devicePairingErrors.ts") ? fs.readFileSync(path.join(rootDir, "src/services/devicePairingErrors.ts"), "utf8") : "";
+  const devicePairingErrorsTestSource = exists("tests/device-pairing-errors.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/device-pairing-errors.test.mjs"), "utf8") : "";
   const mobileChatPageSource = exists("src/pages/mobile/MobileChatPage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileChatPage.tsx"), "utf8") : "";
   const devicesSource = exists("server/devices.ts") ? fs.readFileSync(path.join(rootDir, "server/devices.ts"), "utf8") : "";
   const deviceRoutesSource = exists("server/routes/deviceRoutes.ts") ? fs.readFileSync(path.join(rootDir, "server/routes/deviceRoutes.ts"), "utf8") : "";
@@ -1187,10 +1189,18 @@ function checkAssets() {
     devicePairConnectionTestSource.includes("devicePair.repair.title") &&
     devicePairConnectionTestSource.includes("devicePair.repair.websocketUpgradeBlocked") &&
     devicePairConnectionTestSource.includes("devicePair.repair.localhostPhoneUnreachable") &&
+    devicePairSource.includes("formatDevicePairingCreateError") &&
+    adminOnboardingSource.includes("formatDevicePairingCreateError") &&
+    devicePairingErrorsSource.includes("binding_session_create_failed") &&
+    devicePairingErrorsSource.includes("devicePair.createFailedRestart") &&
+    devicePairingErrorsTestSource.includes("device pairing QR creation errors become actionable copy") &&
+    packageJson.scripts.test.includes("tests/device-pairing-errors.test.mjs") &&
     translationsSource.includes("devicePair.testCurrent") &&
     translationsSource.includes("connection.secureRecommended") &&
     translationsSource.includes("connection.trustedNetworkOnly") &&
     translationsSource.includes("devicePair.copyEnv") &&
+    translationsSource.includes("devicePair.createFailedRestart") &&
+    translationsSource.includes("The QR code was not created") &&
     translationsSource.includes("devicePair.copyRepairPacket") &&
     translationsSource.includes("Copy Connection Repair Packet") &&
     translationsSource.includes("devicePair.repair.desktopServiceUnreachable") &&

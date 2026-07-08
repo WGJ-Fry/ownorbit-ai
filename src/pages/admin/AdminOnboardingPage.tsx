@@ -13,6 +13,7 @@ import { buildOnboardingHandoffSummary } from "../../services/onboardingHandoffS
 import { appendIcloudAutoRefreshStatus } from "./icloudAutoRefreshStatus";
 import { getIcloudActionFollowupKey, getPrimaryIcloudAction, isIcloudEntrySameWifiOnly } from "./appleRemoteIcloudPrimaryAction";
 import { getIcloudPhonePickupStatus } from "./icloudPhonePickupStatus";
+import { formatDevicePairingCreateError } from "../../services/devicePairingErrors";
 
 const providerLabels: Record<string, string> = {
   gemini: "Google Gemini",
@@ -204,7 +205,7 @@ export default function AdminOnboardingPage() {
       })
       .catch((error: any) => {
         if (cancelled) return;
-        setInlinePairingError(error.message || t("onboarding.simpleIcloudInlineQrError"));
+        setInlinePairingError(formatDevicePairingCreateError(error, t));
       })
       .finally(() => {
         if (!cancelled) setInlinePairingBusy(false);
@@ -353,7 +354,7 @@ export default function AdminOnboardingPage() {
       setInlinePairingSession(session);
       setStatus(appendIcloudAutoRefreshStatus(t("onboarding.simpleIcloudInlineQrReady"), session.icloudRefresh, t));
     } catch (error: any) {
-      setInlinePairingError(error.message || t("onboarding.simpleIcloudInlineQrError"));
+      setInlinePairingError(formatDevicePairingCreateError(error, t));
     } finally {
       setInlinePairingBusy(false);
     }
