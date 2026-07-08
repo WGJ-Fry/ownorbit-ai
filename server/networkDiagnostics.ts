@@ -1433,16 +1433,21 @@ function buildIcloudSyncReadiness(input: {
   indexConsistency: ReturnType<typeof buildIcloudIndexConsistency>;
 }) {
   const { availability, handoffHealth, indexConsistency } = input;
+  type IcloudSyncFileId = "html" | "packet" | "index";
   const trackedFiles = [
-    { id: "html" as const, state: availability.handoffFile },
-    { id: "packet" as const, state: availability.packetFile },
-    { id: "index" as const, state: availability.indexFile },
+    { id: "html" as IcloudSyncFileId, state: availability.handoffFile },
+    { id: "packet" as IcloudSyncFileId, state: availability.packetFile },
+    { id: "index" as IcloudSyncFileId, state: availability.indexFile },
   ];
-  const pendingFiles = trackedFiles
+  const pendingFileSet = new Set<IcloudSyncFileId>(trackedFiles
     .filter((file) => file.state.placeholder || ["syncing", "not-downloaded", "not-uploaded"].includes(file.state.metadata.syncState))
-    .map((file) => file.id);
+    .map((file) => file.id));
+  for (const fileId of inferIcloudPlaceholderFileIds(availability.placeholderSamples)) {
+    pendingFileSet.add(fileId);
+  }
+  const pendingFiles = [...pendingFileSet];
   const missingFiles = trackedFiles
-    .filter((file) => !file.state.exists && file.id !== "index")
+    .filter((file) => !file.state.exists && file.id !== "index" && !pendingFileSet.has(file.id))
     .map((file) => file.id);
   let status:
     | "unsupported"
@@ -1502,7 +1507,14 @@ function buildIcloudSyncReadiness(input: {
     action = "refresh-entry";
   }
 
-  const userStep = buildIcloudSyncUserStep({ action, severity, pendingCount: availability.pendingCount });
+  const userStepMissingFiles = ["wait-for-sync", "fix-icloud-sync"].includes(action) ? [] : missingFiles;
+  const userStep = buildIcloudSyncUserStep({
+    action,
+    severity,
+    pendingCount: availability.pendingCount,
+    pendingFiles,
+    missingFiles: userStepMissingFiles,
+  });
   return {
     status,
     severity,
@@ -1518,6 +1530,24 @@ function buildIcloudSyncReadiness(input: {
   };
 }
 
+function inferIcloudPlaceholderFileIds(samples: string[]): Array<"html" | "packet" | "index"> {
+  const fileIds = new Set<"html" | "packet" | "index">();
+  for (const sample of samples) {
+    const normalized = sample
+      .replace(/^\.*/, "")
+      .replace(/\.icloud$/i, "")
+      .toLowerCase();
+    if (normalized === "lifeos-mobile-entry.html") {
+      fileIds.add("index");
+    } else if (normalized.endsWith(".json")) {
+      fileIds.add("packet");
+    } else if (normalized.endsWith(".html")) {
+      fileIds.add("html");
+    }
+  }
+  return [...fileIds];
+}
+
 function buildIcloudSyncUserStep(input: {
   action:
     | "use-apple-device"
@@ -1530,6 +1560,8 @@ function buildIcloudSyncUserStep(input: {
     | "open-files-app";
   severity: "ok" | "warning" | "danger";
   pendingCount: number;
+  pendingFiles: Array<"html" | "packet" | "index">;
+  missingFiles: Array<"html" | "packet" | "index">;
 }) {
   const stepByAction = {
     "use-apple-device": {
@@ -1585,6 +1617,8 @@ function buildIcloudSyncUserStep(input: {
     ...stepByAction[input.action],
     severity: input.severity,
     pendingCount: input.pendingCount,
+    pendingFiles: input.pendingFiles,
+    missingFiles: input.missingFiles,
   };
 }
 

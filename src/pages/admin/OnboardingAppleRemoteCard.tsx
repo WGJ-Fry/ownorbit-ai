@@ -543,6 +543,8 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const syncReadinessActionText = syncReadiness
     ? t(icloudSyncActionKeys[syncReadiness.action], { count: syncReadiness.pendingCount, minutes: icloudSyncStuckMinutes })
     : "";
+  const syncUserStepPendingFiles = syncReadiness?.userStep?.pendingFiles || [];
+  const syncUserStepMissingFiles = syncReadiness?.userStep?.missingFiles || [];
   const humanSyncStep = syncReadiness ? icloudHumanSyncStepKeys[syncReadiness.action] : null;
   const phoneConfirmation = icloud?.phoneConfirmation;
   const pairingSession = icloud?.pairingSession;
@@ -1023,6 +1025,22 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                     <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                     <span>{t("onboarding.appleRemoteIcloudOneNextAction", { action: syncReadinessActionText })}</span>
                   </div>
+                  {syncUserStepPendingFiles.length || syncUserStepMissingFiles.length ? (
+                    <div data-testid="onboarding-icloud-human-sync-files" className="mt-2 rounded-lg border border-current/10 bg-black/15 p-2 text-[10px] leading-relaxed">
+                      {syncUserStepPendingFiles.length ? (
+                        <div>
+                          <span className="font-bold">{t("onboarding.appleRemoteIcloudWaitingForFiles")}</span>{" "}
+                          {syncUserStepPendingFiles.map((file) => t(icloudFileLabelKeys[file])).join(t("onboarding.appleRemoteIcloudFileListSeparator"))}
+                        </div>
+                      ) : null}
+                      {syncUserStepMissingFiles.length ? (
+                        <div className={syncUserStepPendingFiles.length ? "mt-1" : ""}>
+                          <span className="font-bold">{t("onboarding.appleRemoteIcloudMissingFiles")}</span>{" "}
+                          {syncUserStepMissingFiles.map((file) => t(icloudFileLabelKeys[file])).join(t("onboarding.appleRemoteIcloudFileListSeparator"))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                   {["export-entry", "refresh-entry"].includes(syncReadiness.action) ? (
                     <button
                       type="button"

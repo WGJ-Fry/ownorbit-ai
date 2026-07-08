@@ -746,6 +746,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /syncReadiness\?\.userStep/);
   assert.match(onboardingAppleRemoteSource, /safeIcloudSyncUserStepKey/);
   assert.match(onboardingAppleRemoteSource, /syncReadinessActionText/);
+  assert.match(onboardingAppleRemoteSource, /syncUserStepPendingFiles/);
+  assert.match(onboardingAppleRemoteSource, /syncUserStepMissingFiles/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-human-sync-files/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudWaitingForFiles/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudMissingFiles/);
   assert.match(onboardingAppleRemoteSource, /action: syncReadinessActionText/);
   assert.match(onboardingAppleRemoteSource, /icloudHumanSyncStepKeys/);
   assert.match(onboardingAppleRemoteSource, /humanSyncStep/);

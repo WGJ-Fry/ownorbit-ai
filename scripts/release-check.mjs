@@ -1572,6 +1572,11 @@ function checkAssets() {
     networkDiagnosticsSource.includes("waiting-for-icloud-sync") &&
     onboardingAppleRemoteSource.includes("safeIcloudSyncUserStepKey") &&
     onboardingAppleRemoteSource.includes("syncReadinessActionText") &&
+    onboardingAppleRemoteSource.includes("syncUserStepPendingFiles") &&
+    onboardingAppleRemoteSource.includes("syncUserStepMissingFiles") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-human-sync-files") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudWaitingForFiles") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudMissingFiles") &&
     onboardingAppleRemoteSource.includes("action: syncReadinessActionText") &&
     onboardingAppleRemoteSource.includes("icloudHumanSyncStepKeys") &&
     onboardingAppleRemoteSource.includes("humanSyncStep") &&
@@ -1582,6 +1587,7 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes('<details className="mt-3 rounded-xl border border-white/[0.06] bg-black/10 p-2">') &&
     networkDiagnosticsTestSource.includes("iCloud availability blocks export when Apple ID or iCloud Drive is disabled") &&
     networkDiagnosticsTestSource.includes("syncReadiness.userStep.id") &&
+    networkDiagnosticsTestSource.includes("syncReadiness.userStep.pendingFiles") &&
     networkDiagnosticsTestSource.includes('pendingFiles.includes("html")') &&
     apiAuthTestSource.includes("networkDiagnosticsWithBinding.icloud.pairingSession.status") &&
     networkDiagnosticsTestSource.includes("iCloud pairing session status guides stale QR repair") &&

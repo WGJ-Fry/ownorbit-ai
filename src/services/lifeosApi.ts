@@ -899,6 +899,8 @@ export type NetworkDiagnostics = {
         bodyKey: string;
         severity: "ok" | "warning" | "danger";
         pendingCount: number;
+        pendingFiles: Array<"html" | "packet" | "index">;
+        missingFiles: Array<"html" | "packet" | "index">;
       };
       pendingCount: number;
       pendingFiles: Array<"html" | "packet" | "index">;
