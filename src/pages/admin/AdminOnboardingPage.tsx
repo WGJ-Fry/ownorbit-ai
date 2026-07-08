@@ -793,6 +793,8 @@ export default function AdminOnboardingPage() {
                   onStartCloudflare={handleStartCloudflareRemote}
                   onSaveCandidate={handleSaveRemoteCandidate}
                   onTestCandidate={handleTestRemoteCandidate}
+                  onOpenIcloudSettings={() => handleDesktopRecoveryAction("icloudSettings")}
+                  onOpenIcloudFolder={() => handleDesktopRecoveryAction("icloudFolder")}
                 />
               </div>
             </details>
@@ -855,6 +857,8 @@ export default function AdminOnboardingPage() {
                 onStartCloudflare={handleStartCloudflareRemote}
                 onSaveCandidate={handleSaveRemoteCandidate}
                 onTestCandidate={handleTestRemoteCandidate}
+                onOpenIcloudSettings={() => handleDesktopRecoveryAction("icloudSettings")}
+                onOpenIcloudFolder={() => handleDesktopRecoveryAction("icloudFolder")}
               />
             ) : null}
 

@@ -9,7 +9,7 @@ export type IcloudPrimaryAction = {
   titleKey: TranslationKey;
   bodyKey: TranslationKey;
   actionKey: TranslationKey;
-  cta: "export" | "qr" | "remote-guide" | "none";
+  cta: "export" | "qr" | "remote-guide" | "icloud-settings" | "icloud-folder" | "none";
 };
 
 function isPrivateNetworkHost(hostname: string) {
@@ -67,7 +67,7 @@ export function getPrimaryIcloudAction(input: {
       titleKey: "onboarding.appleRemoteIcloudNextStepEnableTitle",
       bodyKey: "onboarding.appleRemoteIcloudNextStepEnableBody",
       actionKey: "onboarding.appleRemoteIcloudActionEnableDrive",
-      cta: "none",
+      cta: "icloud-settings",
     };
   }
 
@@ -122,7 +122,7 @@ export function getPrimaryIcloudAction(input: {
       titleKey: "onboarding.appleRemoteIcloudNextStepFixSyncTitle",
       bodyKey: "onboarding.appleRemoteIcloudNextStepFixSyncBody",
       actionKey: "onboarding.appleRemoteIcloudActionFixSync",
-      cta: "none",
+      cta: "icloud-settings",
     };
   }
 
@@ -133,7 +133,7 @@ export function getPrimaryIcloudAction(input: {
       titleKey: "onboarding.appleRemoteIcloudNextStepWaitTitle",
       bodyKey: "onboarding.appleRemoteIcloudNextStepWaitBody",
       actionKey: "onboarding.appleRemoteIcloudActionWaitSync",
-      cta: "none",
+      cta: "icloud-folder",
     };
   }
 

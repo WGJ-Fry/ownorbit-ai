@@ -592,6 +592,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /appendIcloudAutoRefreshStatus/);
   assert.match(onboardingSource, /testConnectionUrl/);
   assert.match(onboardingSource, /OnboardingAppleRemoteCard/);
+  assert.match(onboardingSource, /onOpenIcloudSettings=\{\(\) => handleDesktopRecoveryAction\("icloudSettings"\)\}/);
+  assert.match(onboardingSource, /onOpenIcloudFolder=\{\(\) => handleDesktopRecoveryAction\("icloudFolder"\)\}/);
   assert.match(onboardingSource, /OnboardingRecoveryCard/);
   assert.match(onboardingSource, /OnboardingHandoffCard/);
   assert.match(onboardingSource, /lifeosDesktop/);
@@ -663,6 +665,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudActionChooseRemoteEntry/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudActionOpenConnectionGuide/);
   assert.match(onboardingAppleRemoteSource, /\/admin\/settings#mobile-connect/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-primary-open-settings/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-primary-open-folder/);
+  assert.match(onboardingAppleRemoteSource, /onOpenIcloudSettings/);
+  assert.match(onboardingAppleRemoteSource, /onOpenIcloudFolder/);
+  assert.match(appleRemoteIcloudPrimaryActionSource, /"icloud-settings"/);
+  assert.match(appleRemoteIcloudPrimaryActionSource, /"icloud-folder"/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /latestEntryRepair\.needsQr/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /isIcloudEntrySameWifiOnly/);
   assert.match(icloudPhonePickupStatusSource, /simpleIcloudPickupConfirmedTitle/);

@@ -713,6 +713,8 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding-icloud-open-settings") &&
     adminOnboardingSource.includes("desktop.openIcloudSettings") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudOpenSettings") &&
+    adminOnboardingSource.includes("onOpenIcloudSettings={() => handleDesktopRecoveryAction(\"icloudSettings\")}") &&
+    adminOnboardingSource.includes("onOpenIcloudFolder={() => handleDesktopRecoveryAction(\"icloudFolder\")}") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudQrActionTitle") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudOpenQr") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudRegenerate") &&
@@ -1471,6 +1473,8 @@ function checkAssets() {
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudNextStepSameWifiTitle") &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudActionChooseRemoteEntry") &&
     appleRemoteIcloudPrimaryActionSource.includes('cta: "remote-guide"') &&
+    appleRemoteIcloudPrimaryActionSource.includes('cta: "icloud-settings"') &&
+    appleRemoteIcloudPrimaryActionSource.includes('cta: "icloud-folder"') &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudActionWaitSync") &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudActionOpenFiles") &&
     appleRemoteIcloudPrimaryActionSource.includes("latestEntryRepair.needsQr") &&
@@ -1609,6 +1613,10 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("renderRepairRecommendationAction(latestRepairImportNextAction)") &&
     onboardingAppleRemoteSource.includes("primaryIcloudActionFollowupKeys") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-one-step-guide") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-primary-open-settings") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-primary-open-folder") &&
+    onboardingAppleRemoteSource.includes("onOpenIcloudSettings") &&
+    onboardingAppleRemoteSource.includes("onOpenIcloudFolder") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-sync-details") &&
     onboardingAppleRemoteSource.includes("<details") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudRepairActions") &&

@@ -21,6 +21,8 @@ type Props = {
   onStartCloudflare: () => void;
   onSaveCandidate: (candidate: ConnectionCandidate) => void;
   onTestCandidate: (candidate: ConnectionCandidate) => void;
+  onOpenIcloudSettings?: () => void;
+  onOpenIcloudFolder?: () => void;
 };
 
 const readinessStatusKeys: Record<NetworkDiagnostics["remoteReadiness"]["status"], TranslationKey> = {
@@ -477,7 +479,7 @@ function icloudAcceptanceStatusTone(status: NonNullable<NetworkDiagnostics["iclo
   return "border-sky-300/20 bg-sky-400/10 text-sky-50";
 }
 
-export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportIcloud, onCleanupIcloud, onStartTailscale, onStartCloudflare, onSaveCandidate, onTestCandidate }: Props) {
+export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportIcloud, onCleanupIcloud, onStartTailscale, onStartCloudflare, onSaveCandidate, onTestCandidate, onOpenIcloudSettings, onOpenIcloudFolder }: Props) {
   const { t } = useI18n();
   const [repairText, setRepairText] = useState("");
   const [repairBusy, setRepairBusy] = useState(false);
@@ -870,6 +872,30 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                     <Wifi className="h-3.5 w-3.5" />
                     {t("onboarding.appleRemoteIcloudActionOpenConnectionGuide")}
                   </a>
+                ) : null}
+                {primaryIcloudAction.cta === "icloud-settings" && onOpenIcloudSettings ? (
+                  <button
+                    type="button"
+                    data-testid="onboarding-icloud-primary-open-settings"
+                    onClick={onOpenIcloudSettings}
+                    disabled={busy === "desktop-icloudSettings"}
+                    className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-xs font-bold disabled:opacity-50"
+                  >
+                    {busy === "desktop-icloudSettings" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Cloud className="h-3.5 w-3.5" />}
+                    {t("onboarding.simpleIcloudOpenSettings")}
+                  </button>
+                ) : null}
+                {primaryIcloudAction.cta === "icloud-folder" && onOpenIcloudFolder ? (
+                  <button
+                    type="button"
+                    data-testid="onboarding-icloud-primary-open-folder"
+                    onClick={onOpenIcloudFolder}
+                    disabled={busy === "desktop-icloudFolder"}
+                    className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-xs font-bold disabled:opacity-50"
+                  >
+                    {busy === "desktop-icloudFolder" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Cloud className="h-3.5 w-3.5" />}
+                    {t("onboarding.simpleIcloudOpenFolder")}
+                  </button>
                 ) : null}
               </div>
             </div>
