@@ -86,6 +86,7 @@ export type MobileIcloudHandoffOneNextActionId =
   | "regenerate-qr"
   | "open-latest-entry"
   | "switch-remote-entry"
+  | "setup-remote-entry"
   | "cleanup-old-entry"
   | "keep-using-entry";
 
@@ -1038,6 +1039,15 @@ export function getMobileIcloudHandoffOneNextAction(
       titleKey: "mobileDevice.icloudHandoffOneNextSwitchRemoteTitle",
       bodyKey: "mobileDevice.icloudHandoffOneNextSwitchRemoteBody",
       ctaKey: "mobileDevice.icloudHandoffOneNextSwitchRemoteCta",
+      tone: "warning",
+    };
+  }
+  if (options.currentSameWifiOnly) {
+    return {
+      id: "setup-remote-entry",
+      titleKey: "mobileDevice.icloudHandoffOneNextSetupRemoteTitle",
+      bodyKey: "mobileDevice.icloudHandoffOneNextSetupRemoteBody",
+      ctaKey: "mobileDevice.icloudHandoffOneNextCopyRepairCta",
       tone: "warning",
     };
   }

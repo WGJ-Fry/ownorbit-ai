@@ -1738,6 +1738,7 @@ function checkAssets() {
     mobileIcloudHandoffSource.includes("getMobileIcloudHandoffOneNextAction") &&
     mobileIcloudHandoffSource.includes("oneNextAction=") &&
     mobileIcloudHandoffSource.includes("test-phone-connection") &&
+    mobileIcloudHandoffSource.includes("setup-remote-entry") &&
     mobileIcloudHandoffSource.includes("regenerate-qr") &&
     mobileRemoteEntryCardSource.includes("mobile-icloud-status-one-next") &&
     mobileRemoteEntryCardSource.includes("data-mobile-icloud-status-one-next") &&
@@ -1746,7 +1747,9 @@ function checkAssets() {
     translationsSource.includes("默认电脑入口只能同 Wi-Fi 使用") &&
     translationsSource.includes("Your default desktop entry only works on the same Wi-Fi") &&
     translationsSource.includes("先测一次手机连接") &&
+    translationsSource.includes("先在电脑端开启异地入口") &&
     translationsSource.includes("Generate a new QR and re-pair") &&
+    translationsSource.includes("Set up a remote entry on the desktop first") &&
     translationsSource.includes("Old iCloud entries can be cleaned") &&
     translationsSource.includes("Clean Old iCloud Entries") &&
     translationsSource.includes("The iCloud mobile entry was refreshed automatically") &&

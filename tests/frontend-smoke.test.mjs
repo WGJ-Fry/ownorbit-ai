@@ -1269,6 +1269,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /only works on the same Wi-Fi/);
   assert.match(translationsSource, /这个 iCloud 入口只适合同一 Wi-Fi/);
   assert.match(translationsSource, /This iCloud entry only works on the same Wi-Fi/);
+  assert.match(translationsSource, /先在电脑端开启异地入口/);
+  assert.match(translationsSource, /Set up a remote entry on the desktop first/);
   assert.match(mobileRemoteEntryCardSource, /getMobileIcloudHandoffActionKey/);
   assert.match(mobileRemoteEntryCardSource, /getMobileIcloudHandoffOneNextAction/);
   assert.match(mobileRemoteEntryCardSource, /mobile-icloud-status-one-next/);

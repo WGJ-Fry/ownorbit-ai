@@ -456,6 +456,7 @@ test("mobile iCloud handoff stores non-sensitive entry metadata and detects stal
   assert.equal(getMobileIcloudHandoffOneNextAction(legacy).id, "refresh-icloud-entry");
   assert.equal(getMobileIcloudHandoffOneNextAction({ ...fresh, entry: { ...fresh.entry, lastConnectivityTestedAt: now + 1_500, lastConnectivityOk: false } }).id, "test-phone-connection");
   assert.equal(getMobileIcloudHandoffOneNextAction(fresh, { currentSameWifiOnly: true, hasRecommendedRemoteEntry: true }).id, "switch-remote-entry");
+  assert.equal(getMobileIcloudHandoffOneNextAction(fresh, { currentSameWifiOnly: true, hasRecommendedRemoteEntry: false }).id, "setup-remote-entry");
   assert.equal(getMobileIcloudHandoffOneNextAction({ ...fresh, entry: { ...fresh.entry, lastConnectivityTestedAt: now + 1_500, lastConnectivityOk: true } }, { archivedEntryCount: 2 }).id, "cleanup-old-entry");
   assert.match(buildMobileIcloudHandoffRecoveryPacket(legacy), /status=legacy/);
   assert.match(buildMobileIcloudHandoffRecoveryPacket(legacy), /oneNextAction=refresh-icloud-entry/);
