@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Copy, RefreshCw, Star, Trash2, Wifi } from "lucide-react";
 import type { DeviceConnectivityReport } from "../../services/lifeosApi";
 import type { MobileIcloudHandoffEntry, MobileIcloudHandoffEntryRecommendation, MobileIcloudHandoffServerRepairStatus, MobileIcloudHandoffStatus } from "../../services/mobileIcloudHandoff";
-import { autoSelectRecommendedMobileIcloudHandoffEntry, buildMobileIcloudHandoffRecoveryPacket, buildMobileIcloudHandoffUrl, forgetStoredMobileIcloudHandoffEntry, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffEntryFreshness, getMobileIcloudHandoffEntryKey, getMobileIcloudHandoffEntryRecommendation, getMobileIcloudHandoffOneNextAction, getPreferredMobileIcloudHandoffEntryKey, getStoredMobileIcloudHandoffEntries, isMobileIcloudHandoffSameWifiOnly, setPreferredMobileIcloudHandoffEntry } from "../../services/mobileIcloudHandoff";
+import { autoSelectRecommendedMobileIcloudHandoffEntry, buildMobileIcloudHandoffRecoveryPacket, buildMobileIcloudHandoffUrl, forgetArchivedMobileIcloudHandoffEntries, forgetStoredMobileIcloudHandoffEntry, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffEntryFreshness, getMobileIcloudHandoffEntryKey, getMobileIcloudHandoffEntryRecommendation, getMobileIcloudHandoffOneNextAction, getPreferredMobileIcloudHandoffEntryKey, getStoredMobileIcloudHandoffEntries, isMobileIcloudHandoffSameWifiOnly, setPreferredMobileIcloudHandoffEntry } from "../../services/mobileIcloudHandoff";
 import type { OfflineMessageQueueSummary } from "../../services/offlineMessageQueue";
 import type { MobileConnectivityIssueKey, MobileConnectivityResult, MobileRecoveryHintKey, RemoteEntryStatus } from "../../services/pwaCapabilities";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -111,6 +111,7 @@ export default function MobileRemoteEntryCard({
   const [preferredIcloudEntryKey, setPreferredIcloudEntryKey] = useState(() => getPreferredMobileIcloudHandoffEntryKey());
   const [autoSwitchedIcloudEntryName, setAutoSwitchedIcloudEntryName] = useState("");
   const [autoSwitchedIcloudEntryReason, setAutoSwitchedIcloudEntryReason] = useState<MobileIcloudHandoffEntryRecommendation["preferredSwitchReason"]>("none");
+  const [cleanedIcloudEntryCount, setCleanedIcloudEntryCount] = useState(0);
   const queueWaiting = queueSummary.failed > 0 || queueSummary.pending > 0 || queueSummary.syncing > 0;
   const latestConnectivityOk = Boolean(lastConnectivityReport?.ok && !connectivityReportStale);
   const remoteReady = currentEntry.okForRemote && latestConnectivityOk && !queueWaiting;
@@ -164,6 +165,18 @@ export default function MobileRemoteEntryCard({
     setPreferredIcloudEntryKey(getPreferredMobileIcloudHandoffEntryKey());
     setIcloudEntries(getStoredMobileIcloudHandoffEntries());
   };
+  const cleanupArchivedIcloudEntries = () => {
+    const result = forgetArchivedMobileIcloudHandoffEntries(icloudEntries, { preferredKey: preferredIcloudEntryKey });
+    setPreferredIcloudEntryKey(getPreferredMobileIcloudHandoffEntryKey());
+    setIcloudEntries(getStoredMobileIcloudHandoffEntries());
+    if (!result.removedCount) {
+      setShowIcloudDesktopAdvanced(true);
+      return;
+    }
+    setShowIcloudDesktopAdvanced(false);
+    setCleanedIcloudEntryCount(result.removedCount);
+    window.setTimeout(() => setCleanedIcloudEntryCount(0), 2200);
+  };
   const preferIcloudEntry = (entry: MobileIcloudHandoffEntry) => {
     if (!setPreferredMobileIcloudHandoffEntry(entry)) return;
     setPreferredIcloudEntryKey(getPreferredMobileIcloudHandoffEntryKey());
@@ -185,7 +198,7 @@ export default function MobileRemoteEntryCard({
       return;
     }
     if (icloudStatusOneNextAction.id === "cleanup-old-entry") {
-      setShowIcloudDesktopAdvanced(true);
+      cleanupArchivedIcloudEntries();
       return;
     }
     if (icloudStatusOneNextAction.id === "keep-using-entry") {
@@ -329,6 +342,11 @@ export default function MobileRemoteEntryCard({
               ) : null}
             </div>
           ) : null}
+          {cleanedIcloudEntryCount ? (
+            <div data-testid="mobile-icloud-cleanup-done" className="mt-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-2 text-xs font-bold text-emerald-100">
+              {t("mobileDevice.icloudHandoffCleanupDone", { count: cleanedIcloudEntryCount })}
+            </div>
+          ) : null}
           {hasIcloudOneNextAction && recommendedIcloudEntry ? (
             <div
               data-testid={icloudOneNextTestId}
@@ -437,6 +455,15 @@ export default function MobileRemoteEntryCard({
                             <div className="font-bold text-amber-100">{t("mobileDevice.icloudHandoffArchivedDesktops")}</div>
                             <div className="mt-1 text-[11px] leading-relaxed text-amber-50/75">{t("mobileDevice.icloudHandoffArchivedHint")}</div>
                           </div>
+                          <button
+                            type="button"
+                            data-testid="mobile-icloud-cleanup-archived"
+                            onClick={cleanupArchivedIcloudEntries}
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-xs font-bold text-amber-50"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            {t("mobileDevice.icloudHandoffCleanupArchived")}
+                          </button>
                           {archivedIcloudEntries.map((entry) => renderIcloudEntryRow(entry, { archived: true }))}
                         </div>
                       ) : null}

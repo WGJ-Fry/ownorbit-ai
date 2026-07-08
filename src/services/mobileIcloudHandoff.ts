@@ -73,6 +73,12 @@ export type MobileIcloudHandoffAutoSwitchResult = {
   nextEntry: MobileIcloudHandoffEntry | null;
 };
 
+export type MobileIcloudHandoffArchivedCleanupResult = {
+  removedCount: number;
+  entries: MobileIcloudHandoffEntry[];
+  recommendation: MobileIcloudHandoffEntryRecommendation;
+};
+
 export type MobileIcloudHandoffActionKey =
   | "mobileDevice.icloudHandoffActionReady"
   | "mobileDevice.icloudHandoffActionRetest"
@@ -580,6 +586,51 @@ export function forgetStoredMobileIcloudHandoffEntry(entryToForget: MobileIcloud
     return true;
   } catch {
     return false;
+  }
+}
+
+export function forgetArchivedMobileIcloudHandoffEntries(
+  entries = getStoredMobileIcloudHandoffEntries(),
+  options: { now?: number; preferredKey?: string } = {},
+): MobileIcloudHandoffArchivedCleanupResult {
+  const storage = safeStorage();
+  const recommendation = getMobileIcloudHandoffEntryRecommendation(entries, options);
+  if (!storage || !recommendation.archivedEntries.length) {
+    return { removedCount: 0, entries, recommendation };
+  }
+  const current = getStoredMobileIcloudHandoff();
+  const currentKey = current ? mobileIcloudHandoffEntryKey(current) : "";
+  const archivedKeys = new Set(
+    recommendation.archivedEntries
+      .map(mobileIcloudHandoffEntryKey)
+      .filter((key) => key && key !== currentKey),
+  );
+  if (!archivedKeys.size) return { removedCount: 0, entries, recommendation };
+  const storedEntries = readMobileIcloudHandoffEntries(storage);
+  const nextEntries = storedEntries.filter((entry) => !archivedKeys.has(mobileIcloudHandoffEntryKey(entry)));
+  const removedCount = storedEntries.length - nextEntries.length;
+  if (!removedCount) return { removedCount: 0, entries, recommendation };
+  try {
+    storage.setItem(ENTRIES_STORAGE_KEY, JSON.stringify(nextEntries));
+    const preferredKey = getPreferredMobileIcloudHandoffEntryKey();
+    if (preferredKey && archivedKeys.has(preferredKey)) {
+      if (recommendation.recommendedKey && !archivedKeys.has(recommendation.recommendedKey)) {
+        storage.setItem(PREFERRED_ENTRY_STORAGE_KEY, recommendation.recommendedKey);
+      } else {
+        storage.removeItem(PREFERRED_ENTRY_STORAGE_KEY);
+      }
+    }
+    const refreshedEntries = getStoredMobileIcloudHandoffEntries();
+    return {
+      removedCount,
+      entries: refreshedEntries,
+      recommendation: getMobileIcloudHandoffEntryRecommendation(refreshedEntries, {
+        ...options,
+        preferredKey: getPreferredMobileIcloudHandoffEntryKey(),
+      }),
+    };
+  } catch {
+    return { removedCount: 0, entries, recommendation };
   }
 }
 

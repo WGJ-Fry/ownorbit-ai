@@ -478,10 +478,13 @@ test("mobile iCloud handoff recommends a usable desktop when the default entry f
   const now = 1_800_000_000_000;
   const {
     autoSelectRecommendedMobileIcloudHandoffEntry,
+    forgetArchivedMobileIcloudHandoffEntries,
     getMobileIcloudHandoffEntryKey,
     getMobileIcloudHandoffEntryRecommendation,
     getPreferredMobileIcloudHandoffEntryKey,
     isMobileIcloudHandoffSameWifiOnly,
+    saveMobileIcloudHandoff,
+    setPreferredMobileIcloudHandoffEntry,
   } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-recommendation-${Date.now()}`);
   const staleDefault = {
     source: "icloud",
@@ -612,6 +615,19 @@ test("mobile iCloud handoff recommends a usable desktop when the default entry f
     preferredKey: getMobileIcloudHandoffEntryKey(staleDefault),
   });
   assert.equal(unsafeSwitch.switched, false);
+
+  saveMobileIcloudHandoff(staleDefault);
+  saveMobileIcloudHandoff(freshStable);
+  setPreferredMobileIcloudHandoffEntry(staleDefault);
+  const cleanupResult = forgetArchivedMobileIcloudHandoffEntries([staleDefault, freshStable], {
+    now,
+    preferredKey: getMobileIcloudHandoffEntryKey(staleDefault),
+  });
+  assert.equal(cleanupResult.removedCount, 1);
+  assert.equal(cleanupResult.entries.some((entry) => entry.desktopId === "old-mac"), false);
+  assert.equal(cleanupResult.entries.some((entry) => entry.desktopId === "new-mac"), true);
+  assert.equal(cleanupResult.recommendation.archivedEntries.length, 0);
+  assert.equal(getPreferredMobileIcloudHandoffEntryKey(), getMobileIcloudHandoffEntryKey(freshStable));
 });
 
 test("mobile iCloud handoff launch runs connectivity check and stores the result", async (t) => {

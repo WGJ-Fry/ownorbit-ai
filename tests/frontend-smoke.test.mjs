@@ -1237,6 +1237,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.remoteReadinessConnectivity/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.remoteReadinessQueue/);
   assert.match(mobileRemoteEntryCardSource, /getStoredMobileIcloudHandoffEntries/);
+  assert.match(mobileRemoteEntryCardSource, /forgetArchivedMobileIcloudHandoffEntries/);
   assert.match(mobileRemoteEntryCardSource, /forgetStoredMobileIcloudHandoffEntry/);
   assert.match(mobileRemoteEntryCardSource, /getPreferredMobileIcloudHandoffEntryKey/);
   assert.match(mobileRemoteEntryCardSource, /setPreferredMobileIcloudHandoffEntry/);
@@ -1257,8 +1258,13 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffShowOtherDesktops/);
   assert.match(mobileRemoteEntryCardSource, /archivedIcloudEntries/);
   assert.match(mobileRemoteEntryCardSource, /mobile-icloud-archived-entries/);
+  assert.match(mobileRemoteEntryCardSource, /mobile-icloud-cleanup-archived/);
+  assert.match(mobileRemoteEntryCardSource, /mobile-icloud-cleanup-done/);
+  assert.match(mobileRemoteEntryCardSource, /cleanupArchivedIcloudEntries/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffArchivedDesktops/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffArchivedBadge/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffCleanupArchived/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffCleanupDone/);
   assert.match(mobileRemoteEntryCardSource, /showIcloudDesktopAdvanced/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffDefaultDesktop/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffMakeDefault/);
@@ -1293,7 +1299,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /推荐入口/);
   assert.match(translationsSource, /Recommended entry/);
   assert.match(translationsSource, /已归档旧入口/);
+  assert.match(translationsSource, /清理这些旧入口/);
+  assert.match(translationsSource, /已清理 \{\{count\}\} 个旧入口/);
   assert.match(translationsSource, /Archived old entries/);
+  assert.match(translationsSource, /Clean up these old entries/);
+  assert.match(translationsSource, /Removed \{\{count\}\} old entries/);
   assert.match(translationsSource, /发现更适合的入口/);
   assert.match(translationsSource, /默认入口需要切换/);
   assert.match(translationsSource, /Default entry needs switching/);

@@ -1849,6 +1849,7 @@ function checkAssets() {
     mobileIcloudHandoffSource.includes("autoSelectRecommendedMobileIcloudHandoffEntry") &&
     mobileIcloudHandoffSource.includes("archivedEntries") &&
     mobileIcloudHandoffSource.includes("isArchivedMobileIcloudHandoffEntry") &&
+    mobileIcloudHandoffSource.includes("forgetArchivedMobileIcloudHandoffEntries") &&
     mobileIcloudHandoffSource.includes("flushPendingMobileIcloudHandoffEvents") &&
     mobileIcloudHandoffSource.includes("getMobileIcloudHandoffServerRepairStatus") &&
     mobileIcloudHandoffSource.includes("reportOrQueueIcloudHandoffEvent") &&
@@ -1867,18 +1868,27 @@ function checkAssets() {
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffOpenRecommendedAction") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffMakeRecommendedDefault") &&
     mobileRemoteEntryCardSource.includes("mobile-icloud-archived-entries") &&
+    mobileRemoteEntryCardSource.includes("mobile-icloud-cleanup-archived") &&
+    mobileRemoteEntryCardSource.includes("mobile-icloud-cleanup-done") &&
+    mobileRemoteEntryCardSource.includes("cleanupArchivedIcloudEntries") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffArchivedDesktops") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffCleanupArchived") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffCleanupDone") &&
     mobileRemoteEntryCardSource.includes("autoSwitchedIcloudEntryReason") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffAutoSwitchedReason") &&
     translationsSource.includes("A better entry is available") &&
     translationsSource.includes("Default entry needs switching") &&
     translationsSource.includes("Do this one thing next") &&
     translationsSource.includes("Archived old entries") &&
+    translationsSource.includes("Clean up these old entries") &&
+    translationsSource.includes("Removed {{count}} old entries") &&
+    translationsSource.includes("清理这些旧入口") &&
     mobileDeviceSource.includes("flushPendingMobileIcloudHandoffEvents") &&
     mobileDeviceSource.includes("icloudServerRepair") &&
     mobileDeviceSource.includes("nextNetwork.online") &&
     mobileDeviceSource.includes('window.addEventListener("pageshow", refreshRecoverableState)') &&
     pwaCapabilitiesTestSource.includes("autoSelectRecommendedMobileIcloudHandoffEntry") &&
+    pwaCapabilitiesTestSource.includes("forgetArchivedMobileIcloudHandoffEntries") &&
     pwaCapabilitiesTestSource.includes("queues failed desktop reports and flushes them later") &&
     pwaCapabilitiesTestSource.includes("records server repair from failed connectivity reports") &&
     pwaCapabilitiesTestSource.includes("getMobileIcloudHandoffServerRepairStatus") &&
