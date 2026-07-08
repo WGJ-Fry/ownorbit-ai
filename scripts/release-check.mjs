@@ -159,7 +159,7 @@ function checkSourceSizeBudgets() {
 }
 
 function checkScripts() {
-  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "icloud:helper:smoke", "mobile:simulator:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
+  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "icloud:helper:build", "icloud:helper:smoke", "mobile:simulator:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
     if (hasScript(script)) pass(`package script exists: ${script}`);
     else fail(`missing package script: ${script}`);
   }
@@ -1474,6 +1474,8 @@ function checkAssets() {
   const cloudKitNativeHelperSource = exists("server/cloudKitNativeHelper.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitNativeHelper.ts"), "utf8") : "";
   const cloudKitNativeHelperTestSource = exists("tests/cloudkit-native-helper.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-native-helper.test.mjs"), "utf8") : "";
   const cloudKitNativeHelperSmokeSource = exists("scripts/cloudkit-native-helper-smoke.mjs") ? fs.readFileSync(path.join(rootDir, "scripts/cloudkit-native-helper-smoke.mjs"), "utf8") : "";
+  const cloudKitNativeSwiftHelperSource = exists("native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift") ? fs.readFileSync(path.join(rootDir, "native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift"), "utf8") : "";
+  const cloudKitNativeHelperBuildSource = exists("scripts/build-cloudkit-helper.mjs") ? fs.readFileSync(path.join(rootDir, "scripts/build-cloudkit-helper.mjs"), "utf8") : "";
   const appleRemoteIcloudPrimaryActionSource = exists("src/pages/admin/appleRemoteIcloudPrimaryAction.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/appleRemoteIcloudPrimaryAction.ts"), "utf8") : "";
   const icloudPhonePickupStatusSource = exists("src/pages/admin/icloudPhonePickupStatus.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/icloudPhonePickupStatus.ts"), "utf8") : "";
   const icloudAutoRefreshStatusSource = exists("src/pages/admin/icloudAutoRefreshStatus.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/icloudAutoRefreshStatus.ts"), "utf8") : "";
@@ -1898,7 +1900,20 @@ function checkAssets() {
     cloudKitNativeHelperSource.includes("redact") &&
     cloudKitNativeHelperTestSource.includes("CloudKit helper roundtrip executes") &&
     cloudKitNativeHelperTestSource.includes("redacts helper stderr") &&
+    cloudKitNativeHelperTestSource.includes("Apple CloudKit helper source implements the native JSON stdio contract") &&
     cloudKitNativeHelperSmokeSource.includes("runCloudKitNativeHelper") &&
+    cloudKitNativeSwiftHelperSource.includes("import CloudKit") &&
+    cloudKitNativeSwiftHelperSource.includes("lifeos-cloudkit-helper-request.v1") &&
+    cloudKitNativeSwiftHelperSource.includes("lifeos-cloudkit-helper-response.v1") &&
+    cloudKitNativeSwiftHelperSource.includes("--lifeos-cloudkit-json") &&
+    cloudKitNativeSwiftHelperSource.includes("CKContainer(identifier: containerId)") &&
+    cloudKitNativeSwiftHelperSource.includes("DELETE_DISPOSABLE_RECORDS") &&
+    cloudKitNativeSwiftHelperSource.includes("database.save(record)") &&
+    cloudKitNativeSwiftHelperSource.includes("database.record(for: recordId)") &&
+    cloudKitNativeSwiftHelperSource.includes("database.deleteRecord(withID: recordId)") &&
+    cloudKitNativeHelperBuildSource.includes("CloudKit") &&
+    cloudKitNativeHelperBuildSource.includes("build/native/LifeOSCloudKitHelper") &&
+    packageJson.scripts["icloud:helper:build"]?.includes("build-cloudkit-helper.mjs") &&
     packageJson.scripts["icloud:helper:smoke"]?.includes("cloudkit-native-helper-smoke.mjs") &&
     packageJson.scripts.test.includes("tests/icloud-data-sync-readiness.test.mjs") &&
     packageJson.scripts.test.includes("tests/cloudkit-native-helper.test.mjs") &&

@@ -108,14 +108,34 @@ The native macOS/iOS CloudKit helper is invoked through a fixed JSON-over-stdio 
 - operations: `probe` and `roundtrip`;
 - default timeout: 15 seconds.
 
+The first native helper scaffold lives at `native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift`. It links `CloudKit.framework`, reads the LifeOS JSON request from stdin, and writes the JSON response to stdout. Build it on macOS with:
+
+```bash
+npm run icloud:helper:build
+```
+
+The build output is intentionally local (`build/native/LifeOSCloudKitHelper`) and should not be committed. Configure it with:
+
+```bash
+export LIFEOS_CLOUDKIT_HELPER_BIN="$PWD/build/native/LifeOSCloudKitHelper"
+```
+
 `probe` must check Apple account status, CloudKit container reachability, quota/status visibility, custom zone access, change-token fetch capability, and background subscription support without writing user data.
 
 `roundtrip` must create, fetch, and delete a disposable test record in the private CloudKit database using the selected record plan. It must return an evidence id, verified capabilities, and redacted warnings/errors. A failed or skipped helper smoke never counts as real iCloud data sync.
 
+The scaffold protects `roundtrip` behind `LIFEOS_CLOUDKIT_TEST_WRITE_CONFIRM=DELETE_DISPOSABLE_RECORDS`, so a probe can remain read-only and a disposable write cannot happen by accident.
+
 Run the contract smoke with:
 
 ```bash
+export LIFEOS_ICLOUD_DATA_SYNC=1
+export LIFEOS_CLOUDKIT_CONTAINER_ID=iCloud.your.container
+export LIFEOS_CLOUDKIT_TEAM_ID=YOURTEAMID
+export LIFEOS_CLOUDKIT_BUNDLE_ID=your.bundle.id
+export LIFEOS_CLOUDKIT_ENTITLEMENTS_PATH=/path/to/Your.entitlements
 npm run icloud:helper:smoke -- --probe
+LIFEOS_CLOUDKIT_TEST_WRITE_CONFIRM=DELETE_DISPOSABLE_RECORDS \
 npm run icloud:helper:smoke -- --roundtrip --strict
 ```
 
@@ -169,3 +189,5 @@ Do not claim real iCloud data sync until all of this is true:
 - 证明密钥、token、设备凭证不会进入 iCloud、日志、诊断包、备份和 API 响应；
 - 能处理 iCloud 退出登录、同步延迟、离线编辑、应用重启和多设备冲突；
 - README、Release、诊断和路线图都明确区分“入口文件同步”和“真实数据同步”。
+
+当前已经有第一版原生 helper 源码：`native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift`。它可以在 macOS 上通过 `npm run icloud:helper:build` 编译，输出到 `build/native/LifeOSCloudKitHelper`。这个 helper 只表示 CloudKit 原生桥开始具备落脚点；在完成真实容器、entitlement、一次性 roundtrip、数据类型同步、冲突处理和真实设备长测前，仍不能宣称聊天、记忆、任务或设备信任已经通过 iCloud 同步。

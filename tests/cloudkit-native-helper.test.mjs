@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -21,6 +21,8 @@ const envKeys = [
   "LIFEOS_CLOUDKIT_ENTITLEMENTS_PATH",
   "LIFEOS_CLOUDKIT_SYNC_TYPES",
 ];
+
+const rootDir = path.resolve(new URL("..", import.meta.url).pathname);
 
 function snapshotEnv() {
   return Object.fromEntries(envKeys.map((key) => [key, process.env[key]]));
@@ -81,6 +83,27 @@ test("CloudKit helper request is a safe JSON contract without local helper paths
     restoreEnv(env);
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+test("Apple CloudKit helper source implements the native JSON stdio contract", async () => {
+  const swiftSource = await readFile(path.join(rootDir, "native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift"), "utf8");
+  const buildScript = await readFile(path.join(rootDir, "scripts/build-cloudkit-helper.mjs"), "utf8");
+  const packageJson = JSON.parse(await readFile(path.join(rootDir, "package.json"), "utf8"));
+  assert.match(swiftSource, /import CloudKit/);
+  assert.match(swiftSource, /lifeos-cloudkit-helper-request\.v1/);
+  assert.match(swiftSource, /lifeos-cloudkit-helper-response\.v1/);
+  assert.match(swiftSource, /--lifeos-cloudkit-json/);
+  assert.match(swiftSource, /CKContainer\(identifier: containerId\)/);
+  assert.match(swiftSource, /accountStatus\(\)/);
+  assert.match(swiftSource, /privateCloudDatabase/);
+  assert.match(swiftSource, /DELETE_DISPOSABLE_RECORDS/);
+  assert.match(swiftSource, /database\.save\(record\)/);
+  assert.match(swiftSource, /database\.record\(for: recordId\)/);
+  assert.match(swiftSource, /database\.deleteRecord\(withID: recordId\)/);
+  assert.doesNotMatch(swiftSource, /deviceCredential|sessionCookie|providerApiKey|sqliteBlob/);
+  assert.match(buildScript, /CloudKit\.framework/);
+  assert.match(buildScript, /build\/native\/LifeOSCloudKitHelper/);
+  assert.match(packageJson.scripts["icloud:helper:build"], /build-cloudkit-helper\.mjs/);
 });
 
 test("CloudKit helper roundtrip executes the configured native helper contract", async () => {
