@@ -60,6 +60,7 @@ export type MobileIcloudHandoffEntryRecommendation = {
   recommendedEntry: MobileIcloudHandoffEntry | null;
   recommendedKey: string;
   otherEntries: MobileIcloudHandoffEntry[];
+  archivedEntries: MobileIcloudHandoffEntry[];
   preferredEntry: MobileIcloudHandoffEntry | null;
   preferredNeedsSwitch: boolean;
   preferredSwitchReason: "none" | "default-stale" | "default-expired" | "default-legacy" | "default-failed" | "default-same-wifi";
@@ -847,6 +848,14 @@ function isLongTermRemoteMobileIcloudHandoffEntry(entry: MobileIcloudHandoffEntr
   return !isMobileIcloudHandoffSameWifiOnly(entry);
 }
 
+function isArchivedMobileIcloudHandoffEntry(entry: MobileIcloudHandoffEntry, options: { now?: number; hasRecommendedEntry?: boolean } = {}) {
+  const now = options.now || Date.now();
+  const freshness = getMobileIcloudHandoffEntryFreshness(entry, now);
+  if (entry.lastConnectivityOk === false) return true;
+  if (freshness === "expired" || freshness === "legacy") return true;
+  return Boolean(options.hasRecommendedEntry && freshness === "stale");
+}
+
 function mobileIcloudEntryScore(entry: MobileIcloudHandoffEntry, now = Date.now()) {
   const freshness = getMobileIcloudHandoffEntryFreshness(entry, now);
   const freshnessScore = freshness === "fresh" ? 40 : freshness === "stale" ? 20 : freshness === "legacy" ? 10 : 0;
@@ -890,7 +899,14 @@ export function getMobileIcloudHandoffEntryRecommendation(
   return {
     recommendedEntry,
     recommendedKey,
-    otherEntries: recommendedKey ? uniqueEntries.filter((entry) => mobileIcloudHandoffEntryKey(entry) !== recommendedKey) : uniqueEntries,
+    otherEntries: sortedEntries.filter((entry) => (
+      mobileIcloudHandoffEntryKey(entry) !== recommendedKey &&
+      !isArchivedMobileIcloudHandoffEntry(entry, { now, hasRecommendedEntry: Boolean(recommendedEntry) })
+    )),
+    archivedEntries: sortedEntries.filter((entry) => (
+      mobileIcloudHandoffEntryKey(entry) !== recommendedKey &&
+      isArchivedMobileIcloudHandoffEntry(entry, { now, hasRecommendedEntry: Boolean(recommendedEntry) })
+    )),
     preferredEntry,
     preferredNeedsSwitch: preferredSwitchReason !== "none",
     preferredSwitchReason,

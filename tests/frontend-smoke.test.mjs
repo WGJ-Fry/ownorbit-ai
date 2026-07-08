@@ -1154,6 +1154,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffSameWifiWarning/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffRecommendedDesktop/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffShowOtherDesktops/);
+  assert.match(mobileRemoteEntryCardSource, /archivedIcloudEntries/);
+  assert.match(mobileRemoteEntryCardSource, /mobile-icloud-archived-entries/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffArchivedDesktops/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffArchivedBadge/);
   assert.match(mobileRemoteEntryCardSource, /showIcloudDesktopAdvanced/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffDefaultDesktop/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffMakeDefault/);
@@ -1183,6 +1187,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /lastConnectivityTestedAt/);
   assert.match(translationsSource, /推荐入口/);
   assert.match(translationsSource, /Recommended entry/);
+  assert.match(translationsSource, /已归档旧入口/);
+  assert.match(translationsSource, /Archived old entries/);
   assert.match(translationsSource, /发现更适合的入口/);
   assert.match(translationsSource, /默认入口需要切换/);
   assert.match(translationsSource, /Default entry needs switching/);

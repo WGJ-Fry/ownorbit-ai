@@ -117,6 +117,7 @@ export default function MobileRemoteEntryCard({
   const icloudEntryRecommendation = getMobileIcloudHandoffEntryRecommendation(icloudEntries, { preferredKey: preferredIcloudEntryKey });
   const recommendedIcloudEntry = icloudEntryRecommendation.recommendedEntry;
   const otherIcloudEntries = icloudEntryRecommendation.otherEntries;
+  const archivedIcloudEntries = icloudEntryRecommendation.archivedEntries;
   const duplicateIcloudDesktopNames = getDuplicateMobileIcloudDesktopNames(icloudEntries);
   const currentIcloudEntryKey = icloudHandoffStatus ? getMobileIcloudHandoffEntryKey(icloudHandoffStatus.entry) : "";
   const recommendedIcloudEntryKey = recommendedIcloudEntry ? getMobileIcloudHandoffEntryKey(recommendedIcloudEntry) : "";
@@ -146,7 +147,7 @@ export default function MobileRemoteEntryCard({
     setPreferredIcloudEntryKey(getPreferredMobileIcloudHandoffEntryKey());
     setIcloudEntries(getStoredMobileIcloudHandoffEntries());
   };
-  const renderIcloudEntryRow = (entry: MobileIcloudHandoffEntry, options: { recommended?: boolean } = {}) => {
+  const renderIcloudEntryRow = (entry: MobileIcloudHandoffEntry, options: { recommended?: boolean; archived?: boolean } = {}) => {
     const key = getMobileIcloudHandoffEntryKey(entry);
     const active = icloudHandoffStatus ? key === getMobileIcloudHandoffEntryKey(icloudHandoffStatus.entry) : false;
     const preferred = preferredIcloudEntryKey === key;
@@ -157,7 +158,7 @@ export default function MobileRemoteEntryCard({
     return (
       <div
         key={key}
-        className={`flex items-center gap-2 rounded-xl border ${options.recommended ? "border-sky-300/25 bg-sky-500/10" : "border-white/[0.08] bg-white/[0.04]"}`}
+        className={`flex items-center gap-2 rounded-xl border ${options.recommended ? "border-sky-300/25 bg-sky-500/10" : options.archived ? "border-amber-300/20 bg-amber-500/10" : "border-white/[0.08] bg-white/[0.04]"}`}
       >
         <button
           type="button"
@@ -176,11 +177,12 @@ export default function MobileRemoteEntryCard({
             </span>
             {preferred ? <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-bold text-sky-100">{t("mobileDevice.icloudHandoffDefaultDesktop")}</span> : null}
             {options.recommended ? <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-100">{t("mobileDevice.icloudHandoffRecommendedBadge")}</span> : null}
+            {options.archived ? <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-100">{t("mobileDevice.icloudHandoffArchivedBadge")}</span> : null}
             {sameWifiOnly ? <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-100">{t("mobileDevice.icloudHandoffSameWifiBadge")}</span> : null}
             <span className="font-bold">{active ? t("mobileDevice.icloudHandoffCurrentDesktop") : t("mobileDevice.icloudHandoffOpenDesktop")}</span>
           </span>
         </button>
-        {!preferred ? (
+        {!preferred && !options.archived ? (
           <button
             type="button"
             aria-label={t("mobileDevice.icloudHandoffMakeDefault")}
@@ -357,19 +359,32 @@ export default function MobileRemoteEntryCard({
                   {renderIcloudEntryRow(recommendedIcloudEntry, { recommended: true })}
                 </div>
               ) : null}
-              {otherIcloudEntries.length ? (
+              {otherIcloudEntries.length || archivedIcloudEntries.length ? (
                 <div className="mt-2">
                   <button
                     type="button"
                     onClick={() => setShowIcloudDesktopAdvanced((value) => !value)}
                     className="inline-flex w-full items-center justify-center rounded-xl border border-white/[0.08] bg-black/10 px-3 py-2 text-xs font-bold"
                   >
-                    {showIcloudDesktopAdvanced ? t("mobileDevice.icloudHandoffHideOtherDesktops") : t("mobileDevice.icloudHandoffShowOtherDesktops", { count: otherIcloudEntries.length })}
+                    {showIcloudDesktopAdvanced ? t("mobileDevice.icloudHandoffHideOtherDesktops") : t("mobileDevice.icloudHandoffShowOtherDesktops", { count: otherIcloudEntries.length + archivedIcloudEntries.length })}
                   </button>
                   {showIcloudDesktopAdvanced ? (
                     <div className="mt-2 grid gap-2">
-                      <div className="font-bold">{t("mobileDevice.icloudHandoffOtherDesktops")}</div>
-                      {otherIcloudEntries.map((entry) => renderIcloudEntryRow(entry))}
+                      {otherIcloudEntries.length ? (
+                        <>
+                          <div className="font-bold">{t("mobileDevice.icloudHandoffOtherDesktops")}</div>
+                          {otherIcloudEntries.map((entry) => renderIcloudEntryRow(entry))}
+                        </>
+                      ) : null}
+                      {archivedIcloudEntries.length ? (
+                        <div data-testid="mobile-icloud-archived-entries" className="mt-1 grid gap-2 rounded-xl border border-amber-300/15 bg-amber-500/5 p-2">
+                          <div>
+                            <div className="font-bold text-amber-100">{t("mobileDevice.icloudHandoffArchivedDesktops")}</div>
+                            <div className="mt-1 text-[11px] leading-relaxed text-amber-50/75">{t("mobileDevice.icloudHandoffArchivedHint")}</div>
+                          </div>
+                          {archivedIcloudEntries.map((entry) => renderIcloudEntryRow(entry, { archived: true }))}
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>

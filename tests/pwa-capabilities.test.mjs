@@ -515,8 +515,9 @@ test("mobile iCloud handoff recommends a usable desktop when the default entry f
   assert.equal(recommendation.recommendedKey, getMobileIcloudHandoffEntryKey(freshStable));
   assert.equal(recommendation.preferredNeedsSwitch, true);
   assert.equal(recommendation.preferredSwitchReason, "default-failed");
-  assert.equal(recommendation.otherEntries.length, 1);
-  assert.equal(recommendation.otherEntries[0].desktopId, "old-mac");
+  assert.equal(recommendation.otherEntries.length, 0);
+  assert.equal(recommendation.archivedEntries.length, 1);
+  assert.equal(recommendation.archivedEntries[0].desktopId, "old-mac");
   assert.equal(isMobileIcloudHandoffSameWifiOnly({ ...freshStable, mode: "lan", baseUrl: "http://192.168.0.17:3000" }), true);
   assert.equal(isMobileIcloudHandoffSameWifiOnly({ ...freshStable, mode: "cloudflare", baseUrl: "https://lifeos.example.com" }), false);
 
@@ -561,6 +562,8 @@ test("mobile iCloud handoff recommends a usable desktop when the default entry f
   assert.equal(sameWifiRecommendation.recommendedEntry.desktopId, "home-tailnet-mac");
   assert.equal(sameWifiRecommendation.preferredNeedsSwitch, true);
   assert.equal(sameWifiRecommendation.preferredSwitchReason, "default-same-wifi");
+  assert.equal(sameWifiRecommendation.otherEntries[0].desktopId, "home-lan-mac");
+  assert.equal(sameWifiRecommendation.archivedEntries.length, 0);
 
   const sameWifiOnlyRecommendation = getMobileIcloudHandoffEntryRecommendation([sameWifiDefault], {
     now,

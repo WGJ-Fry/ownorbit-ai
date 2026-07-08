@@ -1703,6 +1703,8 @@ function checkAssets() {
     mobileIcloudHandoffSource.includes("PENDING_EVENTS_STORAGE_KEY") &&
     mobileIcloudHandoffSource.includes("SERVER_REPAIR_STORAGE_KEY") &&
     mobileIcloudHandoffSource.includes("autoSelectRecommendedMobileIcloudHandoffEntry") &&
+    mobileIcloudHandoffSource.includes("archivedEntries") &&
+    mobileIcloudHandoffSource.includes("isArchivedMobileIcloudHandoffEntry") &&
     mobileIcloudHandoffSource.includes("flushPendingMobileIcloudHandoffEvents") &&
     mobileIcloudHandoffSource.includes("getMobileIcloudHandoffServerRepairStatus") &&
     mobileIcloudHandoffSource.includes("reportOrQueueIcloudHandoffEvent") &&
@@ -1713,10 +1715,13 @@ function checkAssets() {
     mobileRemoteEntryCardSource.includes("shouldSwitchDefaultIcloudEntry") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffOpenRecommendedAction") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffMakeRecommendedDefault") &&
+    mobileRemoteEntryCardSource.includes("mobile-icloud-archived-entries") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffArchivedDesktops") &&
     mobileRemoteEntryCardSource.includes("autoSwitchedIcloudEntryReason") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffAutoSwitchedReason") &&
     translationsSource.includes("A better entry is available") &&
     translationsSource.includes("Default entry needs switching") &&
+    translationsSource.includes("Archived old entries") &&
     mobileDeviceSource.includes("flushPendingMobileIcloudHandoffEvents") &&
     mobileDeviceSource.includes("icloudServerRepair") &&
     pwaCapabilitiesTestSource.includes("autoSelectRecommendedMobileIcloudHandoffEntry") &&
