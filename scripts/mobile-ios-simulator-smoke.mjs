@@ -150,6 +150,7 @@ async function main() {
   const outDir = path.resolve(process.env.LIFEOS_SIMULATOR_SMOKE_OUT_DIR || DEFAULT_OUT_DIR);
   const handoffWaitMs = Number.parseInt(process.env.LIFEOS_SIMULATOR_HANDOFF_WAIT_MS || String(DEFAULT_HANDOFF_WAIT_MS), 10);
   const chatWaitMs = Number.parseInt(process.env.LIFEOS_SIMULATOR_CHAT_WAIT_MS || String(DEFAULT_CHAT_WAIT_MS), 10);
+  const requireLongTerm = process.env.LIFEOS_SIMULATOR_REQUIRE_LONG_TERM === "1";
   fs.mkdirSync(outDir, { recursive: true });
 
   log(`Checking desktop/mobile endpoint first: ${baseUrl}`);
@@ -176,11 +177,26 @@ async function main() {
   await xcrun(["simctl", "openurl", device.udid, chatUrl], { timeoutMs: 60_000 });
   await new Promise((resolve) => setTimeout(resolve, chatWaitMs));
   const chatScreenshot = await screenshot(device, outDir, "mobile-chat");
+  const longTermReady = remoteSmoke.longTermCandidate && remoteSmoke.httpsStatus.ok;
+  const simulatorEvidenceStatus = longTermReady ? "simulator-opened-long-term-entry" : "simulator-opened-local-or-test-entry";
+  const requiredRealDeviceScenarios = [
+    "real-phone-cellular-open",
+    "phone-wifi-to-cellular-switch",
+    "desktop-restart-same-entry",
+    "tunnel-interruption-recovery",
+    "stale-qr-repair",
+  ];
 
   const evidence = {
     ok: true,
     generatedAt: new Date().toISOString(),
     baseUrl,
+    simulatorEvidenceStatus,
+    longTermReady,
+    longTermReason: remoteSmoke.longTermReason,
+    realDeviceAcceptanceRequired: true,
+    requiredRealDeviceScenarios,
+    requireLongTerm,
     simulator: {
       name: device.name,
       udid: device.udid,
@@ -198,12 +214,18 @@ async function main() {
     },
     limits: [
       "This proves the mobile shell opens in iOS Simulator through the selected entry.",
+      "Localhost and LAN entries are not proof that a real phone can connect away from home.",
       "This does not replace real cellular, Wi-Fi switching, restart, stale QR, or tunnel interruption acceptance.",
     ],
   };
   const evidencePath = path.join(outDir, "latest.json");
   fs.writeFileSync(evidencePath, JSON.stringify(evidence, null, 2));
-  log(`PASS. Evidence written to ${evidencePath}`);
+  if (requireLongTerm && !longTermReady) {
+    console.error(`[FAIL] Simulator opened the entry, but it is not a long-term HTTPS remote entry: ${remoteSmoke.longTermReason}`);
+    process.exitCode = 1;
+  } else {
+    log(`PASS. Evidence written to ${evidencePath}`);
+  }
   log(`Screenshots: ${handoffScreenshot}, ${chatScreenshot}`);
 }
 

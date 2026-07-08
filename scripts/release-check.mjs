@@ -332,6 +332,9 @@ function checkScripts() {
       simulatorSmoke.includes("runRemoteConnectionSmoke") &&
       simulatorSmoke.includes("lifeosEntry") &&
       simulatorSmoke.includes("entryChecksumSha256") &&
+      simulatorSmoke.includes("simulatorEvidenceStatus") &&
+      simulatorSmoke.includes("LIFEOS_SIMULATOR_REQUIRE_LONG_TERM") &&
+      simulatorSmoke.includes("requiredRealDeviceScenarios") &&
       simulatorSmoke.includes("iOS Simulator") &&
       simulatorSmoke.includes("does not replace real cellular")
     ) pass("iOS Simulator smoke can open the mobile handoff/chat shell and records evidence without replacing real-device acceptance");

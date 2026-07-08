@@ -623,6 +623,7 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /release artifact version checker can block and explicitly clean stale installers/);
   assert.match(result.stdout, /quality gate script runs lint, tests, e2e, desktop, and release checks/);
   assert.match(result.stdout, /GitHub Actions quality gate runs Playwright E2E, desktop smoke, SQLite-enabled tests, and remote smoke/);
+  assert.match(result.stdout, /iOS Simulator smoke can open the mobile handoff\/chat shell and records evidence without replacing real-device acceptance/);
   assert.match(result.stdout, /desktop release smoke builds unsigned macOS zip/);
   assert.match(result.stdout, /desktop release smoke builds unsigned Windows NSIS artifact/);
   assert.match(result.stdout, /desktop release smoke builds Linux AppImage artifact/);
