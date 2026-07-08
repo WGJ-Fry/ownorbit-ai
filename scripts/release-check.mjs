@@ -1532,10 +1532,19 @@ function checkAssets() {
     icloudAcceptanceSource.includes("old-entry-repair") &&
     adminRoutesSource.includes("buildIcloudAcceptanceSummary") &&
     adminRoutesSource.includes("acceptance: buildIcloudAcceptanceSummary") &&
+    adminRoutesSource.includes("/api/v1/admin/icloud-handoff/acceptance") &&
+    adminRoutesSource.includes("icloud_acceptance_recorded") &&
+    adminRoutesSource.includes("admin-icloud-acceptance-checklist") &&
     lifeosApiSource.includes("acceptance?:") &&
+    lifeosApiSource.includes("recordIcloudAcceptance") &&
+    lifeosApiSource.includes("/api/v1/admin/icloud-handoff/acceptance") &&
     lifeosApiSource.includes("realtime-entry-ready") &&
     onboardingAppleRemoteSource.includes("icloudAcceptanceItemKeys") &&
     onboardingAppleRemoteSource.includes("icloudAcceptanceEvidenceKeys") &&
+    onboardingAppleRemoteSource.includes("recordIcloudAcceptance") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-acceptance-manual") &&
+    onboardingAppleRemoteSource.includes("icloudManualAcceptanceRequirementKeys") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceRecord") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceItemRealtime") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceItemRestart") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceItemInterruption") &&
@@ -1648,6 +1657,7 @@ function checkAssets() {
     apiAuthTestSource.includes("icloudRepairPacket.icloudRefresh.requestedReason") &&
     apiAuthTestSource.includes("desktopConnectionConfig.diagnostics.desktopRuntimeConfig.publicBaseUrl") &&
     apiAuthTestSource.includes("/api/v1/admin/icloud-handoff/cleanup") &&
+    apiAuthTestSource.includes("blockedIcloudAcceptance") &&
     translationsSource.includes("PUBLIC_BASE_URL changed") &&
     translationsSource.includes("Cloudflare address changed") &&
     translationsSource.includes("Tailscale address changed") &&
@@ -1685,6 +1695,8 @@ function checkAssets() {
     translationsSource.includes("Off-LAN realtime entry") &&
     translationsSource.includes("iCloud 只负责把入口交给手机") &&
     translationsSource.includes("iCloud only hands the entry to the phone") &&
+    translationsSource.includes("记录这项真实设备测试") &&
+    translationsSource.includes("Record this real-device check") &&
     translationsSource.includes("Technical evidence") &&
     translationsSource.includes("iCloud syncs the entry file but does not carry realtime traffic") &&
     translationsSource.includes("True iCloud data sync would need CloudKit / iCloud Container plus native Apple clients") &&

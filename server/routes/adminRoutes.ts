@@ -57,6 +57,37 @@ function normalizeInternalRefreshReason(value: unknown) {
   return raw.replace(/[^a-z0-9_.:-]/gi, "-").slice(0, 80);
 }
 
+const icloudAcceptanceRecordIds: Record<string, "cellular-mobile-chat" | "restart-restore" | "network-switch" | "network-interruption" | "stale-qr-repair"> = {
+  "cellular-mobile-chat": "cellular-mobile-chat",
+  "restart-restore": "restart-restore",
+  "network-switch": "network-switch",
+  "network-interruption": "network-interruption",
+  "old-entry-repair": "stale-qr-repair",
+};
+
+const icloudAcceptanceRequirements: Record<keyof typeof icloudAcceptanceRecordIds, string[]> = {
+  "cellular-mobile-chat": [
+    "Phone Wi-Fi disabled and /mobile/chat verified over cellular data.",
+    "The iCloud entry stayed on the current HTTPS/VPN address.",
+  ],
+  "restart-restore": [
+    "Desktop app restarted or reopened.",
+    "Remote health check passed after restart on the same HTTPS entry.",
+  ],
+  "network-switch": [
+    "Phone switched between Wi-Fi and cellular.",
+    "Realtime chat or offline queue recovered after switching networks.",
+  ],
+  "network-interruption": [
+    "VPN or HTTPS tunnel disconnect/interruption was tested.",
+    "Tunnel restored and the phone reconnected with clear recovery guidance.",
+  ],
+  "old-entry-repair": [
+    "Old QR or old home-screen entry was confirmed stale.",
+    "Fresh QR re-pair restored /mobile/chat.",
+  ],
+};
+
 function getProviderId(value: string): AiProviderId | null {
   return aiProviders.some((provider) => provider.id === value) ? value as AiProviderId : null;
 }
@@ -787,6 +818,48 @@ export function registerAdminRoutes(app: express.Express) {
       res.json({ record, diagnostics: getAdminNetworkDiagnostics() });
     } catch (error: any) {
       res.status(400).json({ error: error.message || "Remote acceptance could not be recorded", diagnostics: getAdminNetworkDiagnostics() });
+    }
+  });
+
+  app.post("/api/v1/admin/icloud-handoff/acceptance", requireAdmin, (req, res) => {
+    try {
+      const diagnostics = getAdminNetworkDiagnostics();
+      const icloudId = String(req.body?.id || "");
+      const remoteId = icloudAcceptanceRecordIds[icloudId];
+      if (!remoteId) throw new Error("Unknown iCloud acceptance item.");
+      const baseUrl = diagnostics.icloud.recommendedBaseUrl
+        || diagnostics.icloud.handoffHealth?.lastExportedBaseUrl
+        || diagnostics.desktopRuntimeConfig?.publicBaseUrl
+        || diagnostics.remoteHealthSummary.baseUrl;
+      if (!baseUrl) throw new Error("Choose a Tailscale, Cloudflare, or trusted HTTPS entry before recording iCloud real-device evidence.");
+      const suppliedRequirements = Array.isArray(req.body?.evidence?.requirements)
+        ? req.body.evidence.requirements.map((item: unknown) => String(item || "")).filter(Boolean)
+        : [];
+      const record = saveRemoteAcceptanceRecord({
+        id: remoteId,
+        baseUrl,
+        note: req.body?.note,
+        evidence: {
+          source: "admin-icloud-acceptance-checklist",
+          requirements: [
+            `iCloud acceptance item: ${icloudId}`,
+            `Current iCloud entry: ${baseUrl}`,
+            ...(icloudAcceptanceRequirements[icloudId] || []),
+            ...suppliedRequirements,
+          ],
+        },
+      }, (req as any).actor || { type: "admin", id: "owner" });
+      insertAuditLog("icloud_acceptance_recorded", "network", icloudId, {
+        id: icloudId,
+        remoteAcceptanceId: remoteId,
+        baseUrl: record.baseUrl,
+        noteLength: record.note.length,
+        requirements: record.evidence.requirements.length,
+        createdAt: record.createdAt,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.json({ record, diagnostics: getAdminNetworkDiagnostics() });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || "iCloud acceptance evidence could not be recorded", diagnostics: getAdminNetworkDiagnostics() });
     }
   });
 

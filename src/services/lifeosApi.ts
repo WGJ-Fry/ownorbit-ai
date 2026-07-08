@@ -2092,6 +2092,31 @@ export function recordRemoteAcceptance(
   });
 }
 
+export function recordIcloudAcceptance(
+  id: NonNullable<NetworkDiagnostics["icloud"]["acceptance"]>["items"][number]["id"],
+  note = "",
+  evidence?: { source?: string; requirements?: string[] },
+) {
+  return requestJson<{
+    record: {
+      id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"];
+      baseUrl: string;
+      note: string;
+      evidence: {
+        entryKind: string;
+        verifiedUrl: string;
+        source: string;
+        requirements: string[];
+      };
+      createdAt: number;
+    };
+    diagnostics: NetworkDiagnostics;
+  }>("/api/v1/admin/icloud-handoff/acceptance", {
+    method: "POST",
+    body: JSON.stringify({ id, note, evidence }),
+  });
+}
+
 export function importRemoteAcceptanceReport(report: unknown) {
   return requestJson<{
     record: {

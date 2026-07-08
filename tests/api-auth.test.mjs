@@ -519,6 +519,11 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(blockedIcloudHandoffExport.status, 401);
   const blockedIcloudHandoffCleanup = await request(port, "/api/v1/admin/icloud-handoff/cleanup", { method: "POST" });
   assert.equal(blockedIcloudHandoffCleanup.status, 401);
+  const blockedIcloudAcceptance = await request(port, "/api/v1/admin/icloud-handoff/acceptance", {
+    method: "POST",
+    body: JSON.stringify({ id: "cellular-mobile-chat", note: "iPhone cellular test completed over the current HTTPS entry." }),
+  });
+  assert.equal(blockedIcloudAcceptance.status, 401);
   const blockedIcloudRepairPacket = await request(port, "/api/v1/admin/icloud-handoff/repair-packet", {
     method: "POST",
     body: JSON.stringify({ packet: "LifeOS iCloud Mobile Entry Recovery\nentryBaseUrl=https://old.example.test" }),

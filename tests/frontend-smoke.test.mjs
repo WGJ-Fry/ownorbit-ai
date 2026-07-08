@@ -245,6 +245,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(serverSource, /refreshIcloudHandoffAfterStartup\("cloudflare-autostart"\)/);
   assert.match(serverSource, /refreshIcloudHandoffAfterStartup\("tailscale-autostart"\)/);
   const adminRoutesSource = await readFile(path.join(rootDir, "server", "routes", "adminRoutes.ts"), "utf8");
+  const apiAuthTestSource = await readFile(path.join(rootDir, "tests", "api-auth.test.mjs"), "utf8");
   const deviceRoutesSource = await readFile(path.join(rootDir, "server", "routes", "deviceRoutes.ts"), "utf8");
   assert.match(adminRoutesSource, /getIcloudHandoffMonitorStatus/);
   assert.match(adminRoutesSource, /icloudMonitor: getIcloudHandoffMonitorStatus\(\)/);
@@ -784,6 +785,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudPairingExpired/);
   assert.match(onboardingAppleRemoteSource, /icloudAcceptance/);
   assert.match(onboardingAppleRemoteSource, /icloudAcceptanceItemKeys/);
+  assert.match(onboardingAppleRemoteSource, /recordIcloudAcceptance/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-acceptance-manual/);
+  assert.match(onboardingAppleRemoteSource, /icloudManualAcceptanceRequirementKeys/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAcceptanceRecord/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAcceptanceTitle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAcceptanceItemRealtime/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAcceptanceItemCellular/);
@@ -831,6 +836,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingTailscaleSetupSource, /tailscale:\/\//);
   assert.match(lifeosApiSource, /\/api\/v1\/admin\/tailscale\/install/);
   assert.match(lifeosApiSource, /\/api\/v1\/admin\/icloud-handoff\/repair-packet/);
+  assert.match(lifeosApiSource, /\/api\/v1\/admin\/icloud-handoff\/acceptance/);
   assert.match(lifeosApiSource, /cleanupIcloudHandoffEntries/);
   assert.match(lifeosApiSource, /\/api\/v1\/admin\/icloud-handoff\/cleanup/);
   assert.match(lifeosApiSource, /IcloudHandoffRepairAnalysis/);
@@ -885,6 +891,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Cellular mobile chat/);
   assert.match(onboardingAppleRemoteSource, /icloudAcceptanceEvidenceKeys/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAcceptanceEvidenceDetail/);
+  assert.match(adminRoutesSource, /icloud_acceptance_recorded/);
+  assert.match(adminRoutesSource, /admin-icloud-acceptance-checklist/);
+  assert.match(apiAuthTestSource, /blockedIcloudAcceptance/);
+  assert.match(translationsSource, /记录这项真实设备测试/);
+  assert.match(translationsSource, /Record this real-device check/);
   assert.match(translationsSource, /iCloud 只负责把入口交给手机/);
   assert.match(translationsSource, /iCloud only hands the entry to the phone/);
   assert.match(translationsSource, /技术证据/);

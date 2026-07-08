@@ -130,6 +130,21 @@ test("iCloud acceptance summary separates synced entry from real-device evidence
   assert.equal(complete.passed, complete.total);
   assert.equal(complete.recommendedAction, "ready");
   assert.equal(complete.items.find((item) => item.id === "old-entry-repair")?.status, "passed");
+
+  const staleQrEvidence = buildIcloudAcceptanceSummary({
+    icloud,
+    remoteAcceptanceRecords: [
+      {
+        id: "stale-qr-repair",
+        baseUrl,
+        note: "Old home-screen entry was stale; generated a fresh QR and re-paired the phone successfully.",
+        createdAt: now - 100,
+      },
+    ],
+    now,
+  });
+  assert.equal(staleQrEvidence.items.find((item) => item.id === "old-entry-repair")?.status, "passed");
+  assert.equal(staleQrEvidence.items.find((item) => item.id === "old-entry-repair")?.acceptedAt, now - 100);
 });
 
 test("network diagnostics filters non-LAN interface addresses from LAN candidates", async (t) => {

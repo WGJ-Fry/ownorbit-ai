@@ -795,6 +795,7 @@ export default function AdminOnboardingPage() {
                   onTestCandidate={handleTestRemoteCandidate}
                   onOpenIcloudSettings={() => handleDesktopRecoveryAction("icloudSettings")}
                   onOpenIcloudFolder={() => handleDesktopRecoveryAction("icloudFolder")}
+                  onDiagnostics={setNetworkDiagnostics}
                 />
               </div>
             </details>
@@ -859,6 +860,7 @@ export default function AdminOnboardingPage() {
                 onTestCandidate={handleTestRemoteCandidate}
                 onOpenIcloudSettings={() => handleDesktopRecoveryAction("icloudSettings")}
                 onOpenIcloudFolder={() => handleDesktopRecoveryAction("icloudFolder")}
+                onDiagnostics={setNetworkDiagnostics}
               />
             ) : null}
 

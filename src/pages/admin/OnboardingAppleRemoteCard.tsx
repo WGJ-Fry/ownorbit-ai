@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { AlertTriangle, ArrowRight, CheckCircle2, ClipboardCheck, ClipboardPaste, Cloud, ExternalLink, Loader2, QrCode, RefreshCw, ShieldCheck, Smartphone, Wifi } from "lucide-react";
-import { analyzeIcloudHandoffRepairPacket } from "../../services/lifeosApi";
+import { analyzeIcloudHandoffRepairPacket, recordIcloudAcceptance } from "../../services/lifeosApi";
 import type { IcloudAutoRefreshResult, IcloudHandoffRepairAnalysis, NetworkDiagnostics } from "../../services/lifeosApi";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { TranslationKey } from "../../i18n/translations";
@@ -23,6 +23,7 @@ type Props = {
   onTestCandidate: (candidate: ConnectionCandidate) => void;
   onOpenIcloudSettings?: () => void;
   onOpenIcloudFolder?: () => void;
+  onDiagnostics?: (diagnostics: NetworkDiagnostics) => void;
 };
 
 const readinessStatusKeys: Record<NetworkDiagnostics["remoteReadiness"]["status"], TranslationKey> = {
@@ -238,6 +239,14 @@ const icloudAcceptanceEvidenceKeys: Record<NonNullable<NetworkDiagnostics["iclou
   "network-switch": "onboarding.appleRemoteIcloudAcceptanceEvidenceSwitch",
   "network-interruption": "onboarding.appleRemoteIcloudAcceptanceEvidenceInterruption",
   "old-entry-repair": "onboarding.appleRemoteIcloudAcceptanceEvidenceOldEntry",
+};
+
+const icloudManualAcceptanceRequirementKeys: Partial<Record<NonNullable<NetworkDiagnostics["icloud"]["acceptance"]>["items"][number]["id"], TranslationKey>> = {
+  "cellular-mobile-chat": "onboarding.appleRemoteIcloudAcceptanceRequirementCellular",
+  "restart-restore": "onboarding.appleRemoteIcloudAcceptanceRequirementRestart",
+  "network-switch": "onboarding.appleRemoteIcloudAcceptanceRequirementSwitch",
+  "network-interruption": "onboarding.appleRemoteIcloudAcceptanceRequirementInterruption",
+  "old-entry-repair": "onboarding.appleRemoteIcloudAcceptanceRequirementOldEntry",
 };
 
 const issueEventKindKeys: Record<NonNullable<NetworkDiagnostics["icloud"]["latestEntryIssueEvent"]>["eventType"], TranslationKey> = {
@@ -479,13 +488,16 @@ function icloudAcceptanceStatusTone(status: NonNullable<NetworkDiagnostics["iclo
   return "border-sky-300/20 bg-sky-400/10 text-sky-50";
 }
 
-export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportIcloud, onCleanupIcloud, onStartTailscale, onStartCloudflare, onSaveCandidate, onTestCandidate, onOpenIcloudSettings, onOpenIcloudFolder }: Props) {
+export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportIcloud, onCleanupIcloud, onStartTailscale, onStartCloudflare, onSaveCandidate, onTestCandidate, onOpenIcloudSettings, onOpenIcloudFolder, onDiagnostics }: Props) {
   const { t } = useI18n();
   const [repairText, setRepairText] = useState("");
   const [repairBusy, setRepairBusy] = useState(false);
   const [repairError, setRepairError] = useState("");
   const [repairAnalysis, setRepairAnalysis] = useState<IcloudHandoffRepairAnalysis | null>(null);
   const [repairRefresh, setRepairRefresh] = useState<IcloudAutoRefreshResult | null>(null);
+  const [acceptingIcloudItem, setAcceptingIcloudItem] = useState<string | null>(null);
+  const [icloudAcceptanceNotes, setIcloudAcceptanceNotes] = useState<Record<string, string>>({});
+  const [icloudAcceptanceMessage, setIcloudAcceptanceMessage] = useState("");
   const appleRuntime = isAppleRuntime();
   const candidate = getPreferredCandidate(diagnostics);
   const icloud = diagnostics?.icloud;
@@ -595,6 +607,30 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
     } catch {
       setRepairAnalysis(null);
       setRepairError(t("onboarding.appleRemoteIcloudRepairClipboardFailed"));
+    }
+  };
+
+  const handleRecordIcloudAcceptance = async (item: NonNullable<NetworkDiagnostics["icloud"]["acceptance"]>["items"][number]) => {
+    const note = (icloudAcceptanceNotes[item.id] || "").trim();
+    const requirementKey = icloudManualAcceptanceRequirementKeys[item.id];
+    setAcceptingIcloudItem(item.id);
+    setIcloudAcceptanceMessage("");
+    try {
+      const result = await recordIcloudAcceptance(item.id, note, {
+        source: "admin-icloud-acceptance-card",
+        requirements: [
+          item.evidence,
+          item.action,
+          requirementKey ? t(requirementKey) : "",
+        ].filter(Boolean),
+      });
+      setIcloudAcceptanceNotes((current) => ({ ...current, [item.id]: "" }));
+      onDiagnostics?.(result.diagnostics);
+      setIcloudAcceptanceMessage(t("onboarding.appleRemoteIcloudAcceptanceRecorded"));
+    } catch (error: any) {
+      setIcloudAcceptanceMessage(error.message || t("onboarding.appleRemoteIcloudAcceptanceRecordFailed"));
+    } finally {
+      setAcceptingIcloudItem(null);
     }
   };
 
@@ -996,20 +1032,53 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                     {icloudAcceptance.items
                       .filter((item) => item.status !== "passed")
                       .slice(0, 4)
-                      .map((item) => (
-                        <div key={item.id} className={`rounded-lg border px-2 py-1.5 text-[11px] ${icloudAcceptanceStatusTone(item.status)}`}>
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <span className="font-bold">{t(icloudAcceptanceItemKeys[item.id])}</span>
-                            <span className="text-[10px] font-bold opacity-75">{t(`onboarding.appleRemoteIcloudAcceptanceStatus.${item.status}` as any)}</span>
+                      .map((item) => {
+                        const manualRequirementKey = icloudManualAcceptanceRequirementKeys[item.id];
+                        const note = icloudAcceptanceNotes[item.id] || "";
+                        const canRecord = item.status === "manual-required" && Boolean(manualRequirementKey);
+                        return (
+                          <div key={item.id} className={`rounded-lg border px-2 py-1.5 text-[11px] ${icloudAcceptanceStatusTone(item.status)}`}>
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="font-bold">{t(icloudAcceptanceItemKeys[item.id])}</span>
+                              <span className="text-[10px] font-bold opacity-75">{t(`onboarding.appleRemoteIcloudAcceptanceStatus.${item.status}` as any)}</span>
+                            </div>
+                            <div className="mt-1 opacity-80">{t(icloudAcceptanceEvidenceKeys[item.id])}</div>
+                            <details className="mt-1 text-[10px] opacity-60">
+                              <summary className="cursor-pointer font-bold">{t("onboarding.appleRemoteIcloudAcceptanceEvidenceDetail")}</summary>
+                              <div className="mt-1 break-words">{item.evidence}</div>
+                            </details>
+                            {canRecord ? (
+                              <div data-testid="onboarding-icloud-acceptance-manual" className="mt-2 rounded-lg border border-current/10 bg-black/15 p-2">
+                                <div className="font-bold">{t("onboarding.appleRemoteIcloudAcceptanceManualTitle")}</div>
+                                <div className="mt-1 opacity-80">{t(manualRequirementKey as TranslationKey)}</div>
+                                <label className="mt-2 block font-bold">{t("onboarding.appleRemoteIcloudAcceptanceNoteLabel")}</label>
+                                <textarea
+                                  value={note}
+                                  onChange={(event) => setIcloudAcceptanceNotes((current) => ({ ...current, [item.id]: event.target.value }))}
+                                  placeholder={t(`onboarding.appleRemoteIcloudAcceptancePlaceholder.${item.id}` as any)}
+                                  className="mt-1 min-h-16 w-full resize-y rounded-lg border border-current/10 bg-black/20 px-2 py-2 text-[11px] outline-none placeholder:opacity-45"
+                                />
+                                <div className="mt-1 text-[10px] opacity-70">{t("onboarding.appleRemoteIcloudAcceptanceNoteHint", { count: note.trim().length })}</div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRecordIcloudAcceptance(item)}
+                                  disabled={acceptingIcloudItem === item.id || note.trim().length < 24}
+                                  className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-current/15 bg-black/20 px-2.5 py-2 text-[11px] font-bold disabled:opacity-50"
+                                >
+                                  {acceptingIcloudItem === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ClipboardCheck className="h-3.5 w-3.5" />}
+                                  {acceptingIcloudItem === item.id ? t("onboarding.appleRemoteIcloudAcceptanceRecording") : t("onboarding.appleRemoteIcloudAcceptanceRecord")}
+                                </button>
+                              </div>
+                            ) : null}
                           </div>
-                          <div className="mt-1 opacity-80">{t(icloudAcceptanceEvidenceKeys[item.id])}</div>
-                          <details className="mt-1 text-[10px] opacity-60">
-                            <summary className="cursor-pointer font-bold">{t("onboarding.appleRemoteIcloudAcceptanceEvidenceDetail")}</summary>
-                            <div className="mt-1 break-words">{item.evidence}</div>
-                          </details>
-                        </div>
-                      ))}
+                        );
+                      })}
                   </div>
+                  {icloudAcceptanceMessage ? (
+                    <div className="mt-2 rounded-lg border border-current/10 bg-black/10 p-2 text-[11px] font-bold opacity-90">
+                      {icloudAcceptanceMessage}
+                    </div>
+                  ) : null}
                   {icloudAcceptance.nextReviewAt ? (
                     <div className="mt-2 text-[10px] opacity-70">
                       {t("onboarding.appleRemoteIcloudAcceptanceNextReview", { time: formatHandoffTime(icloudAcceptance.nextReviewAt) })}
