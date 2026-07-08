@@ -702,6 +702,13 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding.simpleDeviceAdvancedTitle") &&
     adminOnboardingSource.includes("onboarding.simpleDeviceAdvancedBody") &&
     adminOnboardingSource.includes("isIcloudEntrySameWifiOnly") &&
+    adminOnboardingSource.includes("simpleIcloudEntryOpenable") &&
+    adminOnboardingSource.includes("simpleIcloudEntryOpenable && simpleIcloudSameWifiOnly") &&
+    adminOnboardingSource.includes("onboarding.simpleIcloudSameWifiReadyTitle") &&
+    adminOnboardingSource.includes("onboarding.simpleIcloudSameWifiReadyBody") &&
+    adminOnboardingSource.includes("onboarding.simpleIcloudSameWifiOpenFilesAction") &&
+    adminOnboardingSource.includes("onboarding.simpleIcloudSameWifiReadyFollowup") &&
+    adminOnboardingSource.includes('simpleIcloudAction.cta === "remote-guide" && !simpleIcloudEntryReady') &&
     adminOnboardingSource.includes("simpleIcloudSameWifiActionTailscale") &&
     adminOnboardingSource.includes("simpleIcloudSameWifiActionCloudflare") &&
     adminOnboardingSource.includes("getIcloudPhonePickupStatus") &&
@@ -774,6 +781,10 @@ function checkAssets() {
     translationsSource.includes("Phone has the latest entry") &&
     translationsSource.includes("当前 Apple 入口只适合同一 Wi-Fi") &&
     translationsSource.includes("This Apple entry only works on the same Wi-Fi") &&
+    translationsSource.includes("Apple 手机入口已准备好（同一 Wi-Fi）") &&
+    translationsSource.includes("Apple phone entry is ready (same Wi-Fi)") &&
+    translationsSource.includes("同一 Wi-Fi 可以继续绑定") &&
+    translationsSource.includes("Same Wi-Fi can continue pairing") &&
     translationsSource.includes("iPhone 文件 App：iCloud Drive > LifeOS AI > lifeos-mobile-entry.html") &&
     translationsSource.includes("iPhone Files app: iCloud Drive > LifeOS AI > lifeos-mobile-entry.html") &&
     translationsSource.includes("onboarding.simpleAdvancedSummary") &&

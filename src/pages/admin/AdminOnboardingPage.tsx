@@ -97,22 +97,31 @@ export default function AdminOnboardingPage() {
     canExportIcloud: simpleIcloudCanExport,
   });
   const simpleIcloudActionFollowupKey = getIcloudActionFollowupKey(simpleIcloudAction.actionKey);
-  const simpleIcloudEntryReady = simpleIcloudAction.icon === "phone" && Boolean(icloud?.syncReadiness?.canOpenOnPhone);
+  const simpleIcloudSameWifiOnly = isIcloudEntrySameWifiOnly(icloud);
+  const simpleIcloudEntryOpenable = Boolean(icloud?.syncReadiness?.canOpenOnPhone);
+  const simpleIcloudEntryReady = simpleIcloudEntryOpenable;
   const simpleIcloudCurrentEntry = icloud?.recommendedBaseUrl || networkDiagnostics?.recommendedBaseUrl || "";
   const inlinePairingExpiresIn = inlinePairingSession ? Math.max(0, Math.ceil((inlinePairingSession.expiresAt - Date.now()) / 1000)) : 0;
   const simpleIcloudNeedsSettings = desktopBridgeAvailable && !simpleIcloudBusy && (
     simpleIcloudAction.actionKey === "onboarding.appleRemoteIcloudActionEnableDrive" ||
     simpleIcloudAction.actionKey === "onboarding.appleRemoteIcloudActionFixSync"
   );
-  const simpleIcloudTitleKey = simpleIcloudBusy ? "onboarding.simpleIcloudAutoTitle" : simpleIcloudAction.titleKey;
-  const simpleIcloudBodyKey = simpleIcloudBusy ? "onboarding.simpleIcloudAutoBody" : simpleIcloudAction.bodyKey;
+  const simpleIcloudTitleKey = simpleIcloudBusy
+    ? "onboarding.simpleIcloudAutoTitle"
+    : simpleIcloudEntryOpenable && simpleIcloudSameWifiOnly
+      ? "onboarding.simpleIcloudSameWifiReadyTitle"
+      : simpleIcloudAction.titleKey;
+  const simpleIcloudBodyKey = simpleIcloudBusy
+    ? "onboarding.simpleIcloudAutoBody"
+    : simpleIcloudEntryOpenable && simpleIcloudSameWifiOnly
+      ? "onboarding.simpleIcloudSameWifiReadyBody"
+      : simpleIcloudAction.bodyKey;
   const simpleIcloudPickupStatus = getIcloudPhonePickupStatus({
     phoneConfirmation: icloud?.phoneConfirmation,
     latestEntryRepair: icloud?.latestEntryRepair || null,
   });
   const simpleIcloudPickupTime = simpleIcloudPickupStatus.confirmedAt ? new Date(simpleIcloudPickupStatus.confirmedAt).toLocaleString() : "-";
   const simpleIcloudPhoneConfirmed = simpleIcloudPickupStatus.icon === "ready";
-  const simpleIcloudSameWifiOnly = isIcloudEntrySameWifiOnly(icloud);
   const simpleIcloudPairingConfirmed = icloud?.pairingSession?.status === "confirmed";
   const simpleIcloudNextManualItemId = icloud?.acceptance?.nextManualItemId;
   const simpleIcloudLongTestActionKey = simpleIcloudPairingConfirmed && !simpleIcloudSameWifiOnly && simpleIcloudNextManualItemId
@@ -125,11 +134,15 @@ export default function AdminOnboardingPage() {
     ? t(simpleIcloudLongTestActionKey)
     : showSimpleIcloudQrAfterPickup
     ? t("onboarding.simpleIcloudScanQrAction")
+    : simpleIcloudEntryOpenable && simpleIcloudSameWifiOnly
+    ? t("onboarding.simpleIcloudSameWifiOpenFilesAction")
     : t(simpleIcloudAction.actionKey);
   const simpleIcloudOneStepFollowupText = simpleIcloudLongTestActionKey
     ? t("onboarding.simpleIcloudLongTestFollowup")
     : showSimpleIcloudQrAfterPickup
     ? t("onboarding.simpleIcloudScanQrFollowup")
+    : simpleIcloudEntryOpenable && simpleIcloudSameWifiOnly
+    ? t("onboarding.simpleIcloudSameWifiReadyFollowup")
     : t(simpleIcloudActionFollowupKey as any);
   const simpleIcloudOffLanAction = networkDiagnostics?.tailscale.installed
     ? "tailscale"
@@ -822,7 +835,7 @@ export default function AdminOnboardingPage() {
                         ) : null}
                       </div>
                     ) : null}
-                    {simpleIcloudAction.cta === "remote-guide" ? (
+                    {simpleIcloudAction.cta === "remote-guide" && !simpleIcloudEntryReady ? (
                       <a
                         data-testid="onboarding-icloud-quick-remote-guide"
                         href="/admin/settings#mobile-connect"

@@ -569,6 +569,13 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.simpleDeviceAdvancedTitle/);
   assert.match(onboardingSource, /onboarding\.simpleDeviceAdvancedBody/);
   assert.match(onboardingSource, /isIcloudEntrySameWifiOnly/);
+  assert.match(onboardingSource, /simpleIcloudEntryOpenable/);
+  assert.match(onboardingSource, /simpleIcloudEntryOpenable && simpleIcloudSameWifiOnly/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudSameWifiReadyTitle/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudSameWifiReadyBody/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudSameWifiOpenFilesAction/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudSameWifiReadyFollowup/);
+  assert.match(onboardingSource, /simpleIcloudAction\.cta === "remote-guide" && !simpleIcloudEntryReady/);
   assert.match(onboardingSource, /simpleIcloudSameWifiActionTailscale/);
   assert.match(onboardingSource, /simpleIcloudSameWifiActionCloudflare/);
   assert.match(onboardingSource, /getIcloudPhonePickupStatus/);
@@ -722,6 +729,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Phone has the latest entry/);
   assert.match(translationsSource, /当前 Apple 入口只适合同一 Wi-Fi/);
   assert.match(translationsSource, /This Apple entry only works on the same Wi-Fi/);
+  assert.match(translationsSource, /Apple 手机入口已准备好（同一 Wi-Fi）/);
+  assert.match(translationsSource, /Apple phone entry is ready \(same Wi-Fi\)/);
+  assert.match(translationsSource, /同一 Wi-Fi 可以继续绑定/);
+  assert.match(translationsSource, /Same Wi-Fi can continue pairing/);
   assert.match(translationsSource, /当前手机入口/);
   assert.match(translationsSource, /Current phone entry/);
   assert.match(translationsSource, /手机绑定二维码已准备好/);
