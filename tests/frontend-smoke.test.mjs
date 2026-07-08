@@ -716,6 +716,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /The phone pairing QR is ready/);
   assert.match(translationsSource, /下一步：切换到异地入口/);
   assert.match(translationsSource, /Next step: switch to a remote entry/);
+  assert.match(translationsSource, /手机下一步/);
+  assert.match(translationsSource, /正在等 iCloud 同步/);
+  assert.match(translationsSource, /iCloud 同步卡住了/);
+  assert.match(translationsSource, /Phone next step/);
+  assert.match(translationsSource, /Waiting for iCloud sync/);
+  assert.match(translationsSource, /iCloud sync is stuck/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleReadyTitle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleAccountTitle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleAccountBody/);
@@ -729,6 +735,13 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /safeIcloudSyncUserStepKey/);
   assert.match(onboardingAppleRemoteSource, /syncReadinessActionText/);
   assert.match(onboardingAppleRemoteSource, /action: syncReadinessActionText/);
+  assert.match(onboardingAppleRemoteSource, /icloudHumanSyncStepKeys/);
+  assert.match(onboardingAppleRemoteSource, /humanSyncStep/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-human-sync-step/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-human-sync-settings/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-human-sync-folder/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-human-sync-export/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudHumanLabel/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-sync-details/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSyncDetailsSummary/);
   assert.match(onboardingAppleRemoteSource, /<details className="mt-3 rounded-xl border border-white\/\[0\.06\] bg-black\/10 p-2">/);

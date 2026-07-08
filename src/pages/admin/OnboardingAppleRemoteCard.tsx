@@ -126,6 +126,41 @@ const icloudSyncActionKeys: Record<NetworkDiagnostics["icloud"]["syncReadiness"]
   "open-files-app": "onboarding.appleRemoteIcloudSyncActionOpen",
 };
 
+const icloudHumanSyncStepKeys: Record<NetworkDiagnostics["icloud"]["syncReadiness"]["action"], { title: TranslationKey; body: TranslationKey }> = {
+  "use-apple-device": {
+    title: "onboarding.appleRemoteIcloudHumanUseAppleTitle",
+    body: "onboarding.appleRemoteIcloudHumanUseAppleBody",
+  },
+  "enable-icloud-drive": {
+    title: "onboarding.appleRemoteIcloudHumanEnableTitle",
+    body: "onboarding.appleRemoteIcloudHumanEnableBody",
+  },
+  "fix-permissions": {
+    title: "onboarding.appleRemoteIcloudHumanPermissionsTitle",
+    body: "onboarding.appleRemoteIcloudHumanPermissionsBody",
+  },
+  "export-entry": {
+    title: "onboarding.appleRemoteIcloudHumanExportTitle",
+    body: "onboarding.appleRemoteIcloudHumanExportBody",
+  },
+  "refresh-entry": {
+    title: "onboarding.appleRemoteIcloudHumanRefreshTitle",
+    body: "onboarding.appleRemoteIcloudHumanRefreshBody",
+  },
+  "fix-icloud-sync": {
+    title: "onboarding.appleRemoteIcloudHumanFixSyncTitle",
+    body: "onboarding.appleRemoteIcloudHumanFixSyncBody",
+  },
+  "wait-for-sync": {
+    title: "onboarding.appleRemoteIcloudHumanWaitTitle",
+    body: "onboarding.appleRemoteIcloudHumanWaitBody",
+  },
+  "open-files-app": {
+    title: "onboarding.appleRemoteIcloudHumanOpenTitle",
+    body: "onboarding.appleRemoteIcloudHumanOpenBody",
+  },
+};
+
 function safeIcloudSyncUserStepKey(value: string | undefined, fallback: TranslationKey): TranslationKey {
   return value && value.startsWith("onboarding.appleRemoteIcloudNextStep") ? value as TranslationKey : fallback;
 }
@@ -497,6 +532,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const syncReadinessActionText = syncReadiness
     ? t(icloudSyncActionKeys[syncReadiness.action], { count: syncReadiness.pendingCount, minutes: icloudSyncStuckMinutes })
     : "";
+  const humanSyncStep = syncReadiness ? icloudHumanSyncStepKeys[syncReadiness.action] : null;
   const phoneConfirmation = icloud?.phoneConfirmation;
   const pairingSession = icloud?.pairingSession;
   const icloudAcceptance = icloud?.acceptance;
@@ -922,6 +958,60 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
               </div>
             </div>
           </div>
+          {syncReadiness ? (
+            <div data-testid="onboarding-icloud-human-sync-step" className={`mt-3 rounded-xl border p-3 ${syncReadinessTone}`}>
+              <div className="flex gap-2">
+                {syncReadiness.canOpenOnPhone ? <Smartphone className="mt-0.5 h-4 w-4 shrink-0" /> : syncReadiness.action === "wait-for-sync" ? <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" /> : syncReadiness.action === "fix-icloud-sync" || syncReadiness.severity === "danger" ? <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> : <Cloud className="mt-0.5 h-4 w-4 shrink-0" />}
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] font-bold uppercase tracking-normal opacity-70">{t("onboarding.appleRemoteIcloudHumanLabel")}</div>
+                  <div className="mt-1 font-bold">{humanSyncStep ? t(humanSyncStep.title) : t(syncUserStepTitleKey)}</div>
+                  <div className="mt-1 text-[11px] leading-relaxed opacity-80">
+                    {humanSyncStep ? t(humanSyncStep.body, { count: syncReadiness.pendingCount, minutes: icloudSyncStuckMinutes }) : t(syncUserStepBodyKey, { count: syncReadiness.userStep.pendingCount, minutes: icloudSyncStuckMinutes })}
+                  </div>
+                  <div className="mt-3 flex items-start gap-2 rounded-lg border border-current/10 bg-black/15 p-2 text-[11px] font-bold">
+                    <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span>{t("onboarding.appleRemoteIcloudOneNextAction", { action: syncReadinessActionText })}</span>
+                  </div>
+                  {["export-entry", "refresh-entry"].includes(syncReadiness.action) ? (
+                    <button
+                      type="button"
+                      data-testid="onboarding-icloud-human-sync-export"
+                      onClick={onExportIcloud}
+                      disabled={!canExportIcloud || isBusy}
+                      className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-xs font-bold disabled:opacity-50"
+                    >
+                      {isIcloudBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                      {t("onboarding.appleRemoteRefreshIcloud")}
+                    </button>
+                  ) : null}
+                  {["enable-icloud-drive", "fix-permissions", "fix-icloud-sync"].includes(syncReadiness.action) && onOpenIcloudSettings ? (
+                    <button
+                      type="button"
+                      data-testid="onboarding-icloud-human-sync-settings"
+                      onClick={onOpenIcloudSettings}
+                      disabled={busy === "desktop-icloudSettings"}
+                      className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-xs font-bold disabled:opacity-50"
+                    >
+                      {busy === "desktop-icloudSettings" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Cloud className="h-3.5 w-3.5" />}
+                      {t("onboarding.simpleIcloudOpenSettings")}
+                    </button>
+                  ) : null}
+                  {["wait-for-sync", "open-files-app"].includes(syncReadiness.action) && onOpenIcloudFolder ? (
+                    <button
+                      type="button"
+                      data-testid="onboarding-icloud-human-sync-folder"
+                      onClick={onOpenIcloudFolder}
+                      disabled={busy === "desktop-icloudFolder"}
+                      className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-xs font-bold disabled:opacity-50"
+                    >
+                      {busy === "desktop-icloudFolder" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Cloud className="h-3.5 w-3.5" />}
+                      {t("onboarding.simpleIcloudOpenFolder")}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : null}
           {syncReadiness ? (
             <details data-testid="onboarding-icloud-sync-details" className={`mt-3 rounded-xl border p-3 ${syncReadinessTone}`}>
               <summary className="cursor-pointer font-bold">{t("onboarding.appleRemoteIcloudSyncDetailsSummary")}</summary>

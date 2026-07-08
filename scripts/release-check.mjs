@@ -1520,6 +1520,12 @@ function checkAssets() {
     translationsSource.includes("Only do this now") &&
     translationsSource.includes("现在只做这一步") &&
     translationsSource.includes("open the phone Files app") &&
+    translationsSource.includes("手机下一步") &&
+    translationsSource.includes("正在等 iCloud 同步") &&
+    translationsSource.includes("iCloud 同步卡住了") &&
+    translationsSource.includes("Phone next step") &&
+    translationsSource.includes("Waiting for iCloud sync") &&
+    translationsSource.includes("iCloud sync is stuck") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorPairingSession") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorIndexConsistency") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMonitorStartupRun") &&
@@ -1547,6 +1553,12 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("safeIcloudSyncUserStepKey") &&
     onboardingAppleRemoteSource.includes("syncReadinessActionText") &&
     onboardingAppleRemoteSource.includes("action: syncReadinessActionText") &&
+    onboardingAppleRemoteSource.includes("icloudHumanSyncStepKeys") &&
+    onboardingAppleRemoteSource.includes("humanSyncStep") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-human-sync-step") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-human-sync-settings") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-human-sync-folder") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-human-sync-export") &&
     onboardingAppleRemoteSource.includes('<details className="mt-3 rounded-xl border border-white/[0.06] bg-black/10 p-2">') &&
     networkDiagnosticsTestSource.includes("iCloud availability blocks export when Apple ID or iCloud Drive is disabled") &&
     networkDiagnosticsTestSource.includes("syncReadiness.userStep.id") &&
