@@ -700,6 +700,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /primaryIcloudAction\.actionKey/);
   assert.match(onboardingAppleRemoteSource, /getIcloudActionFollowupKey/);
   assert.match(onboardingAppleRemoteSource, /primaryIcloudActionFollowupKey/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-desktop-one-next/);
+  assert.match(onboardingAppleRemoteSource, /renderDesktopIcloudOneNextAction/);
+  assert.match(onboardingAppleRemoteSource, /renderPrimaryIcloudActionButton/);
+  assert.match(onboardingAppleRemoteSource, /desktopIcloudOneNextTitleKey/);
+  assert.match(onboardingAppleRemoteSource, /desktopIcloudOneNextBodyKey/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-one-step-guide/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudOneNextAction/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudThenLabel/);
@@ -837,6 +842,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /renderRepairRecommendationAction\(latestRepairImportNextAction\)/);
   assert.match(translationsSource, /重新导出入口，然后在手机打开最新文件/);
   assert.match(translationsSource, /Export a fresh entry, then reopen the latest file on the phone/);
+  assert.match(translationsSource, /按手机刚发来的修复信息处理/);
+  assert.match(translationsSource, /Use the repair info from the phone/);
+  assert.match(translationsSource, /先修手机刚打开的入口/);
+  assert.match(translationsSource, /Fix the entry the phone just opened/);
   assert.match(translationsSource, /先让电脑重新写入最新入口/);
   assert.match(translationsSource, /First write the latest entry from the desktop/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudRepairActions/);

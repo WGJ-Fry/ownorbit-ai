@@ -728,6 +728,76 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
     return null;
   };
 
+  const renderPrimaryIcloudActionButton = (testId?: string) => {
+    if (primaryIcloudAction.cta === "export") {
+      return (
+        <button
+          type="button"
+          data-testid={testId}
+          onClick={onExportIcloud}
+          disabled={!canExportIcloud || isBusy}
+          className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-xs font-bold disabled:opacity-50"
+        >
+          {isIcloudBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+          {t("onboarding.appleRemoteRefreshIcloud")}
+        </button>
+      );
+    }
+    if (primaryIcloudAction.cta === "qr") {
+      return (
+        <a
+          data-testid={testId}
+          href="/admin/devices/pair"
+          className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-xs font-bold"
+        >
+          <QrCode className="h-3.5 w-3.5" />
+          {t("onboarding.appleRemoteOpenQr")}
+        </a>
+      );
+    }
+    if (primaryIcloudAction.cta === "remote-guide") {
+      return (
+        <a
+          data-testid={testId}
+          href="/admin/settings#mobile-connect"
+          className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-xs font-bold"
+        >
+          <Wifi className="h-3.5 w-3.5" />
+          {t("onboarding.appleRemoteIcloudActionOpenConnectionGuide")}
+        </a>
+      );
+    }
+    if (primaryIcloudAction.cta === "icloud-settings" && onOpenIcloudSettings) {
+      return (
+        <button
+          type="button"
+          data-testid={testId || "onboarding-icloud-primary-open-settings"}
+          onClick={onOpenIcloudSettings}
+          disabled={busy === "desktop-icloudSettings"}
+          className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-xs font-bold disabled:opacity-50"
+        >
+          {busy === "desktop-icloudSettings" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Cloud className="h-3.5 w-3.5" />}
+          {t("onboarding.simpleIcloudOpenSettings")}
+        </button>
+      );
+    }
+    if (primaryIcloudAction.cta === "icloud-folder" && onOpenIcloudFolder) {
+      return (
+        <button
+          type="button"
+          data-testid={testId || "onboarding-icloud-primary-open-folder"}
+          onClick={onOpenIcloudFolder}
+          disabled={busy === "desktop-icloudFolder"}
+          className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-xs font-bold disabled:opacity-50"
+        >
+          {busy === "desktop-icloudFolder" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Cloud className="h-3.5 w-3.5" />}
+          {t("onboarding.simpleIcloudOpenFolder")}
+        </button>
+      );
+    }
+    return null;
+  };
+
   const renderRepairRecommendationAction = (item: IcloudHandoffRepairAnalysis["recommendations"][number]) => {
     const label = t(repairRecommendationKeys[item.id]);
     const hint = t(repairRecommendationHintKeys[item.id]);
@@ -839,6 +909,23 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
     );
   };
 
+  const renderDesktopIcloudOneNextAction = () => {
+    if (latestRepairImportNextAction) return renderRepairRecommendationAction(latestRepairImportNextAction);
+    if (latestEntryRepair && latestEntryRepair.status !== "none" && latestEntryRepair.action !== "none") return renderLatestEntryRepairPrimaryAction(latestEntryRepair);
+    return renderPrimaryIcloudActionButton("onboarding-icloud-desktop-one-next-primary-action");
+  };
+
+  const desktopIcloudOneNextTitleKey: TranslationKey = latestRepairImportNextAction
+    ? "onboarding.appleRemoteIcloudDesktopOneNextRepairImportTitle"
+    : latestEntryRepair && latestEntryRepair.status !== "none" && latestEntryRepair.action !== "none"
+    ? "onboarding.appleRemoteIcloudDesktopOneNextPhoneIssueTitle"
+    : primaryIcloudAction.titleKey;
+  const desktopIcloudOneNextBodyKey: TranslationKey = latestRepairImportNextAction
+    ? "onboarding.appleRemoteIcloudDesktopOneNextRepairImportBody"
+    : latestEntryRepair && latestEntryRepair.status !== "none" && latestEntryRepair.action !== "none"
+    ? "onboarding.appleRemoteIcloudDesktopOneNextPhoneIssueBody"
+    : primaryIcloudAction.bodyKey;
+
   return (
     <section className="rounded-[28px] border border-sky-400/15 bg-[#101722] p-5">
       <div className="flex items-start justify-between gap-3">
@@ -926,6 +1013,21 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
               {canExportIcloud ? t("onboarding.appleRemoteIcloudReady") : t("onboarding.appleRemoteIcloudUnavailable")}
             </span>
           </div>
+          <div data-testid="onboarding-icloud-desktop-one-next" className="mt-3 rounded-xl border border-cyan-300/20 bg-cyan-500/10 p-3 text-cyan-50">
+            <div className="text-[10px] font-bold uppercase tracking-normal text-cyan-100/70">
+              {t("onboarding.appleRemoteIcloudRepairNextActionLabel")}
+            </div>
+            <div className="mt-1 font-bold">{t(desktopIcloudOneNextTitleKey)}</div>
+            <div className="mt-1 text-[11px] leading-relaxed text-cyan-50/80">{t(desktopIcloudOneNextBodyKey)}</div>
+            <div className="mt-2 rounded-lg border border-cyan-100/10 bg-black/15 p-2 text-[11px] font-bold">
+              {t("onboarding.appleRemoteIcloudOneNextAction", {
+                action: latestRepairImportNextActionLabel || t(primaryIcloudAction.actionKey),
+              })}
+            </div>
+            <div data-testid="onboarding-icloud-desktop-one-next-action">
+              {renderDesktopIcloudOneNextAction()}
+            </div>
+          </div>
           <div className={`mt-3 rounded-xl border p-3 ${simpleIcloudStatus.tone}`}>
             <div className="flex gap-2">
               {simpleIcloudStatus.icon === "ready" ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : simpleIcloudStatus.icon === "qr" ? <QrCode className="mt-0.5 h-4 w-4 shrink-0" /> : simpleIcloudStatus.icon === "refresh" ? <RefreshCw className="mt-0.5 h-4 w-4 shrink-0" /> : simpleIcloudStatus.icon === "warning" ? <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> : <Cloud className="mt-0.5 h-4 w-4 shrink-0" />}
@@ -955,59 +1057,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                     {t(primaryIcloudActionFollowupKey)}
                   </div>
                 </div>
-                {primaryIcloudAction.cta === "export" ? (
-                  <button
-                    type="button"
-                    onClick={onExportIcloud}
-                    disabled={!canExportIcloud || isBusy}
-                    className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-xs font-bold disabled:opacity-50"
-                  >
-                    {isIcloudBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                    {t("onboarding.appleRemoteRefreshIcloud")}
-                  </button>
-                ) : null}
-                {primaryIcloudAction.cta === "qr" ? (
-                  <a
-                    href="/admin/devices/pair"
-                    className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-xs font-bold"
-                  >
-                    <QrCode className="h-3.5 w-3.5" />
-                    {t("onboarding.appleRemoteOpenQr")}
-                  </a>
-                ) : null}
-                {primaryIcloudAction.cta === "remote-guide" ? (
-                  <a
-                    href="/admin/settings#mobile-connect"
-                    className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-xs font-bold"
-                  >
-                    <Wifi className="h-3.5 w-3.5" />
-                    {t("onboarding.appleRemoteIcloudActionOpenConnectionGuide")}
-                  </a>
-                ) : null}
-                {primaryIcloudAction.cta === "icloud-settings" && onOpenIcloudSettings ? (
-                  <button
-                    type="button"
-                    data-testid="onboarding-icloud-primary-open-settings"
-                    onClick={onOpenIcloudSettings}
-                    disabled={busy === "desktop-icloudSettings"}
-                    className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-xs font-bold disabled:opacity-50"
-                  >
-                    {busy === "desktop-icloudSettings" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Cloud className="h-3.5 w-3.5" />}
-                    {t("onboarding.simpleIcloudOpenSettings")}
-                  </button>
-                ) : null}
-                {primaryIcloudAction.cta === "icloud-folder" && onOpenIcloudFolder ? (
-                  <button
-                    type="button"
-                    data-testid="onboarding-icloud-primary-open-folder"
-                    onClick={onOpenIcloudFolder}
-                    disabled={busy === "desktop-icloudFolder"}
-                    className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-xs font-bold disabled:opacity-50"
-                  >
-                    {busy === "desktop-icloudFolder" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Cloud className="h-3.5 w-3.5" />}
-                    {t("onboarding.simpleIcloudOpenFolder")}
-                  </button>
-                ) : null}
+                {renderPrimaryIcloudActionButton()}
               </div>
             </div>
           </div>

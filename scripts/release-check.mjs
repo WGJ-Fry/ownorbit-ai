@@ -1736,6 +1736,11 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("onboarding-icloud-latest-repair-secondary-actions") &&
     onboardingAppleRemoteSource.includes("renderRepairRecommendationAction(latestRepairImportNextAction)") &&
     onboardingAppleRemoteSource.includes("getIcloudActionFollowupKey") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-desktop-one-next") &&
+    onboardingAppleRemoteSource.includes("renderDesktopIcloudOneNextAction") &&
+    onboardingAppleRemoteSource.includes("renderPrimaryIcloudActionButton") &&
+    onboardingAppleRemoteSource.includes("desktopIcloudOneNextTitleKey") &&
+    onboardingAppleRemoteSource.includes("desktopIcloudOneNextBodyKey") &&
     appleRemoteIcloudPrimaryActionSource.includes("primaryIcloudActionFollowupKeys") &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudFollowupChooseRemoteEntry") &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudFollowupWaitSync") &&
@@ -1750,6 +1755,10 @@ function checkAssets() {
     translationsSource.includes("Export a fresh entry, then reopen the latest file on the phone") &&
     translationsSource.includes("First write the latest entry from the desktop") &&
     translationsSource.includes("Advanced: other optional actions") &&
+    translationsSource.includes("按手机刚发来的修复信息处理") &&
+    translationsSource.includes("Use the repair info from the phone") &&
+    translationsSource.includes("先修手机刚打开的入口") &&
+    translationsSource.includes("Fix the entry the phone just opened") &&
     adminRoutesSource.includes("buildLatestIcloudEntryRepairSummary") &&
     adminRoutesSource.includes("saveIcloudRepairImportAnalysis") &&
     adminRoutesSource.includes("admin-repair-packet-import") &&
