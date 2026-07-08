@@ -6,6 +6,7 @@ import { buildCalendarSyncPreview } from "./calendarSyncPreview";
 import { db, getPendingRestore, listBackups } from "./db";
 import { getDevices, getLatestBindingSession, getLatestIcloudHandoffEventByTypes, type DeviceIcloudHandoffEvent } from "./devices";
 import { buildIcloudAcceptanceSummary, type IcloudAcceptanceSummary } from "./icloudAcceptance";
+import { getIcloudDataSyncReadiness } from "./icloudDataSyncReadiness";
 import { buildLatestIcloudEntryRepairSummary } from "./icloudEntryRepair";
 import { getIcloudHandoffMonitorStatus } from "./icloudHandoffMonitor";
 import { buildIcloudPairingSessionStatus } from "./icloudPairingSession";
@@ -286,6 +287,41 @@ function publicIcloudRepairImport(repairImport: ReturnType<typeof getNetworkDiag
   };
 }
 
+type CloudKitReadinessForDiagnostics = Omit<ReturnType<typeof getIcloudDataSyncReadiness>, "nativeHelper" | "entitlements"> & {
+  nativeHelper: {
+    configured: boolean;
+    detected: boolean;
+    executable: boolean;
+  };
+  entitlements: {
+    detected: boolean;
+    mentionsCloudKit: boolean;
+    mentionsContainer: boolean;
+  };
+};
+
+function publicCloudKitReadiness(readiness: CloudKitReadinessForDiagnostics) {
+  return {
+    enabled: readiness.enabled,
+    ready: readiness.ready,
+    status: readiness.status,
+    dataSyncScope: readiness.dataSyncScope,
+    containerConfigured: Boolean(readiness.containerId),
+    teamIdConfigured: readiness.teamIdConfigured,
+    bundleIdConfigured: Boolean(readiness.bundleId),
+    nativeHelperConfigured: readiness.nativeHelper.configured,
+    nativeHelperDetected: readiness.nativeHelper.detected,
+    nativeHelperExecutable: readiness.nativeHelper.executable,
+    entitlementsDetected: readiness.entitlements.detected,
+    entitlementsMentionCloudKit: readiness.entitlements.mentionsCloudKit,
+    entitlementsMentionContainer: readiness.entitlements.mentionsContainer,
+    selectedDataTypes: readiness.selectedDataTypes,
+    blockedDataTypes: readiness.blockedDataTypes,
+    requiresNativeAppleClient: readiness.requiresNativeAppleClient,
+    requiresExplicitUserOptIn: readiness.requiresExplicitUserOptIn,
+  };
+}
+
 function publicIcloudFileState(file: any) {
   return {
     exists: Boolean(file?.exists),
@@ -494,6 +530,9 @@ function buildIcloudDiagnosticSnapshot(network: ReturnType<typeof getNetworkDiag
       handoffOnly: true,
       realtimeRequiresTrustedNetwork: true,
       dataSyncScope: "entry-file-only",
+      cloudKitReadiness: publicCloudKitReadiness(
+        network.icloud?.dataSync || getIcloudDataSyncReadiness({ platformSupported: network.icloud?.platformSupported }),
+      ),
       chatMemoryTaskSync: false,
       pwaIcloudDataSyncUnsupported: true,
       cloudKitRequiredForDataSync: true,

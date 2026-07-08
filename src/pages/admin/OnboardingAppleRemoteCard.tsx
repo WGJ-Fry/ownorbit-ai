@@ -126,6 +126,17 @@ const icloudSyncActionKeys: Record<NetworkDiagnostics["icloud"]["syncReadiness"]
   "open-files-app": "onboarding.appleRemoteIcloudSyncActionOpen",
 };
 
+const icloudDataSyncStatusKeys: Record<NetworkDiagnostics["icloud"]["dataSync"]["status"], TranslationKey> = {
+  "not-enabled": "onboarding.appleRemoteIcloudDataSyncNotEnabled",
+  "missing-apple-platform": "onboarding.appleRemoteIcloudDataSyncMissingApple",
+  "missing-container": "onboarding.appleRemoteIcloudDataSyncMissingContainer",
+  "missing-apple-identity": "onboarding.appleRemoteIcloudDataSyncMissingIdentity",
+  "missing-native-helper": "onboarding.appleRemoteIcloudDataSyncMissingHelper",
+  "missing-entitlements": "onboarding.appleRemoteIcloudDataSyncMissingEntitlements",
+  "no-data-types": "onboarding.appleRemoteIcloudDataSyncNoDataTypes",
+  "ready-to-test": "onboarding.appleRemoteIcloudDataSyncReadyToTest",
+};
+
 const icloudHumanSyncStepKeys: Record<NetworkDiagnostics["icloud"]["syncReadiness"]["action"], { title: TranslationKey; body: TranslationKey }> = {
   "use-apple-device": {
     title: "onboarding.appleRemoteIcloudHumanUseAppleTitle",
@@ -538,6 +549,12 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const icloudAcceptance = icloud?.acceptance;
   const icloudMonitor = diagnostics?.icloudMonitor;
   const icloudLifecycle = icloud?.lifecycle;
+  const dataSync = icloud?.dataSync;
+  const dataSyncTone = dataSync?.ready
+    ? "border-emerald-300/20 bg-emerald-500/10 text-emerald-50"
+    : dataSync?.enabled
+    ? "border-amber-300/20 bg-amber-500/10 text-amber-50"
+    : "border-white/[0.06] bg-[#060a10]/45 text-zinc-300";
   const icloudCleanupNeeded = Boolean(icloudLifecycle && (icloudLifecycle.prunableEntryCount > 0 || icloudLifecycle.orphanedFileCount > 0));
   const latestEntryRepair = icloud?.latestEntryRepair || null;
   const latestRepairImport = icloud?.latestRepairImport || null;
@@ -866,6 +883,30 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
             </div>
           </div>
         </div>
+        {dataSync ? (
+          <div data-testid="onboarding-icloud-data-sync-readiness" className={`mt-3 rounded-xl border p-3 text-[11px] leading-relaxed ${dataSyncTone}`}>
+            <div className="flex gap-2">
+              {dataSync.ready ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />}
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-bold">{t("onboarding.appleRemoteIcloudDataSyncTitle")}</span>
+                  <span className="rounded-full border border-current/15 bg-black/15 px-2 py-0.5 text-[10px] font-bold">
+                    {t(icloudDataSyncStatusKeys[dataSync.status])}
+                  </span>
+                </div>
+                <div className="mt-1 opacity-85">{t("onboarding.appleRemoteIcloudDataSyncBody")}</div>
+                <div className="mt-2 rounded-lg border border-current/10 bg-black/15 p-2 font-bold">
+                  {t("onboarding.appleRemoteIcloudDataSyncNext", { action: dataSync.nextAction })}
+                </div>
+                <div className="mt-2 grid gap-1 opacity-80">
+                  <div>{t("onboarding.appleRemoteIcloudDataSyncContainer", { value: dataSync.containerId || t("onboarding.appleRemoteIcloudDataSyncNotConfigured") })}</div>
+                  <div>{t("onboarding.appleRemoteIcloudDataSyncHelper", { value: dataSync.nativeHelper.executable ? t("onboarding.appleRemoteIcloudDataSyncReadyValue") : t("onboarding.appleRemoteIcloudDataSyncNotConfigured") })}</div>
+                  <div>{t("onboarding.appleRemoteIcloudDataSyncTypes", { value: dataSync.selectedDataTypes.length ? dataSync.selectedDataTypes.join(", ") : t("onboarding.appleRemoteIcloudDataSyncNotConfigured") })}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
         <div className="mt-3 rounded-xl border border-white/[0.06] bg-[#060a10]/45 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="font-bold text-zinc-100">{t("onboarding.appleRemoteIcloudStatus")}</span>

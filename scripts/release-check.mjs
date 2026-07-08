@@ -1419,6 +1419,8 @@ function checkAssets() {
   const icloudPairingSessionSource = exists("server/icloudPairingSession.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudPairingSession.ts"), "utf8") : "";
   const icloudHandoffMonitorSource = exists("server/icloudHandoffMonitor.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudHandoffMonitor.ts"), "utf8") : "";
   const icloudRepairImportsSource = exists("server/icloudRepairImports.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudRepairImports.ts"), "utf8") : "";
+  const icloudDataSyncReadinessSource = exists("server/icloudDataSyncReadiness.ts") ? fs.readFileSync(path.join(rootDir, "server/icloudDataSyncReadiness.ts"), "utf8") : "";
+  const icloudDataSyncReadinessTestSource = exists("tests/icloud-data-sync-readiness.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/icloud-data-sync-readiness.test.mjs"), "utf8") : "";
   const appleRemoteIcloudPrimaryActionSource = exists("src/pages/admin/appleRemoteIcloudPrimaryAction.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/appleRemoteIcloudPrimaryAction.ts"), "utf8") : "";
   const icloudPhonePickupStatusSource = exists("src/pages/admin/icloudPhonePickupStatus.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/icloudPhonePickupStatus.ts"), "utf8") : "";
   const icloudAutoRefreshStatusSource = exists("src/pages/admin/icloudAutoRefreshStatus.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/icloudAutoRefreshStatus.ts"), "utf8") : "";
@@ -1746,13 +1748,25 @@ function checkAssets() {
     translationsSource.includes("Technical evidence") &&
     translationsSource.includes("iCloud syncs the entry file but does not carry realtime traffic") &&
     translationsSource.includes("True iCloud data sync would need CloudKit / iCloud Container plus native Apple clients") &&
+    translationsSource.includes("CloudKit 原生数据同步准备度") &&
+    translationsSource.includes("CloudKit Native Data Sync Readiness") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudDataBoundaryBody") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-readiness") &&
+    onboardingAppleRemoteSource.includes("icloudDataSyncStatusKeys") &&
+    networkDiagnosticsSource.includes("getIcloudDataSyncReadiness") &&
+    icloudDataSyncReadinessSource.includes("LIFEOS_CLOUDKIT_CONTAINER_ID") &&
+    icloudDataSyncReadinessSource.includes("blockedCloudKitDataTypes") &&
+    icloudDataSyncReadinessSource.includes("ready-to-test") &&
+    icloudDataSyncReadinessTestSource.includes("blocks unsafe types") &&
+    packageJson.scripts.test.includes("tests/icloud-data-sync-readiness.test.mjs") &&
     diagnosticBundleSource.includes('dataSyncScope: "entry-file-only"') &&
+    diagnosticBundleSource.includes("cloudKitReadiness") &&
     diagnosticBundleSource.includes("repairImport.nextAction.id") &&
     diagnosticBundleSource.includes("syncReadiness") &&
     diagnosticBundleSource.includes("network.icloud?.syncReadiness?.userStep") &&
     diagnosticBundleSource.includes("cloudKitRequiredForDataSync") &&
     diagnosticBundleSource.includes("nativeDataSyncOptions") &&
+    apiAuthTestSource.includes("cloudKitReadiness.status") &&
     apiAuthTestSource.includes("cloudKitRequiredForDataSync") &&
     networkDiagnosticsSource.includes("cleanupIcloudHandoffEntries") &&
     networkDiagnosticsSource.includes("removedOrphanedFileCount") &&

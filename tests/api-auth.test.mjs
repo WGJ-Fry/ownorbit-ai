@@ -1131,6 +1131,10 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(diagnosticBundle.icloudHandoff.boundary.handoffOnly, true);
   assert.equal(diagnosticBundle.icloudHandoff.boundary.realtimeRequiresTrustedNetwork, true);
   assert.equal(diagnosticBundle.icloudHandoff.boundary.dataSyncScope, "entry-file-only");
+  assert.equal(diagnosticBundle.icloudHandoff.boundary.cloudKitReadiness.status, "not-enabled");
+  assert.equal(diagnosticBundle.icloudHandoff.boundary.cloudKitReadiness.requiresNativeAppleClient, true);
+  assert.equal(diagnosticBundle.icloudHandoff.boundary.cloudKitReadiness.requiresExplicitUserOptIn, true);
+  assert.equal(diagnosticBundle.icloudHandoff.boundary.cloudKitReadiness.containerConfigured, false);
   assert.equal(diagnosticBundle.icloudHandoff.boundary.chatMemoryTaskSync, false);
   assert.equal(diagnosticBundle.icloudHandoff.boundary.cloudKitRequiredForDataSync, true);
   assert.deepEqual(diagnosticBundle.icloudHandoff.boundary.syncedDataTypes, ["mobile-entry-file"]);

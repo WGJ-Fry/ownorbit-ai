@@ -918,7 +918,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /生成手机二维码/);
   assert.match(translationsSource, /Generate the phone QR/);
   assert.match(translationsSource, /CloudKit \/ iCloud Container/);
+  assert.match(translationsSource, /CloudKit 原生数据同步准备度/);
+  assert.match(translationsSource, /CloudKit Native Data Sync Readiness/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudDataBoundaryBody/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-readiness/);
+  assert.match(onboardingAppleRemoteSource, /icloudDataSyncStatusKeys/);
+  assert.match(lifeosApiSource, /dataSyncScope: "entry-file-only" \| "cloudkit-native-candidate"/);
   assert.match(translationsSource, /同步包状态/);
   assert.match(translationsSource, /Sync packet status/);
   assert.match(translationsSource, /二维码已过期/);

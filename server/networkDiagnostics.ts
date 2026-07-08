@@ -7,6 +7,7 @@ import { WebSocket } from "ws";
 import { extractCloudflareTunnelUrls, getManagedCloudflareTunnelStatus } from "./cloudflareTunnel.ts";
 import { DesktopRuntimeConfig, getDesktopRuntimeConfig, saveDesktopRuntimeConfig } from "./desktopRuntimeConfig.ts";
 import { getLatestBindingSession, getLatestIcloudHandoffEventByTypes } from "./devices.ts";
+import { getIcloudDataSyncReadiness } from "./icloudDataSyncReadiness.ts";
 import { buildIcloudPhoneConfirmationStatus } from "./icloudPhoneConfirmation.ts";
 import { buildIcloudPairingSessionStatus } from "./icloudPairingSession.ts";
 import { getLatestIcloudRepairImportRecord } from "./icloudRepairImports.ts";
@@ -1765,6 +1766,7 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
   const indexConsistency = buildIcloudIndexConsistency({ indexFilePath, entries: availableEntries });
   const syncReadiness = buildIcloudSyncReadiness({ availability, handoffHealth, indexConsistency });
   const latestRepairImport = getLatestIcloudRepairImportRecord();
+  const dataSync = publicIcloudDataSyncReadiness(getIcloudDataSyncReadiness({ platformSupported }));
   const canExport = available && hasPhoneEntry && availability.status !== "account-unavailable" && availability.status !== "read-only";
   return {
     platform: process.platform,
@@ -1791,6 +1793,7 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
     indexConsistency,
     availability,
     syncReadiness,
+    dataSync,
     latestRepairImport,
     realtimeTransport: false,
     transport: "handoff-only" as const,
@@ -1806,6 +1809,22 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
         : "No phone-reachable entry is available yet; use same Wi-Fi or configure an HTTPS remote entry first.",
       handoffHealth.reason,
     ],
+  };
+}
+
+function publicIcloudDataSyncReadiness(readiness: ReturnType<typeof getIcloudDataSyncReadiness>) {
+  return {
+    ...readiness,
+    nativeHelper: {
+      configured: readiness.nativeHelper.configured,
+      detected: readiness.nativeHelper.detected,
+      executable: readiness.nativeHelper.executable,
+    },
+    entitlements: {
+      detected: readiness.entitlements.detected,
+      mentionsCloudKit: readiness.entitlements.mentionsCloudKit,
+      mentionsContainer: readiness.entitlements.mentionsContainer,
+    },
   };
 }
 

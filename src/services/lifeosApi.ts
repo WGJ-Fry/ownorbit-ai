@@ -907,6 +907,35 @@ export type NetworkDiagnostics = {
       packetFileState: IcloudFileAvailability["state"];
       indexFileState: IcloudFileAvailability["state"];
     };
+    dataSync: {
+      enabled: boolean;
+      ready: boolean;
+      mode: "handoff-only" | "cloudkit-native";
+      status: "not-enabled" | "missing-apple-platform" | "missing-container" | "missing-apple-identity" | "missing-native-helper" | "missing-entitlements" | "no-data-types" | "ready-to-test";
+      severity: "ok" | "warning" | "danger";
+      dataSyncScope: "entry-file-only" | "cloudkit-native-candidate";
+      containerId: string;
+      teamIdConfigured: boolean;
+      bundleId: string;
+      nativeHelper: {
+        configured: boolean;
+        detected: boolean;
+        executable: boolean;
+      };
+      entitlements: {
+        detected: boolean;
+        mentionsCloudKit: boolean;
+        mentionsContainer: boolean;
+      };
+      selectedDataTypes: string[];
+      blockedDataTypes: string[];
+      blockedDataTypePolicy: string;
+      notSyncedDataTypes: string[];
+      requiresNativeAppleClient: boolean;
+      requiresCloudKitContainer: boolean;
+      requiresExplicitUserOptIn: boolean;
+      nextAction: string;
+    };
     phoneConfirmation: {
       status: "missing" | "confirmed" | "stale" | "issue-after-confirm";
       severity: "ok" | "warning" | "danger";
