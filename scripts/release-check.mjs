@@ -159,7 +159,7 @@ function checkSourceSizeBudgets() {
 }
 
 function checkScripts() {
-  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
+  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "mobile:simulator:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
     if (hasScript(script)) pass(`package script exists: ${script}`);
     else fail(`missing package script: ${script}`);
   }
@@ -321,6 +321,23 @@ function checkScripts() {
     else fail("Linux CI desktop smoke must run under Xvfb and disable the Electron sandbox or configure chrome-sandbox/display permissions");
   } else {
     fail("missing remote mock smoke script: scripts/remote-connection-mock-smoke.mjs");
+  }
+
+  if (exists("scripts/mobile-ios-simulator-smoke.mjs")) {
+    const simulatorSmoke = fs.readFileSync(path.join(rootDir, "scripts/mobile-ios-simulator-smoke.mjs"), "utf8");
+    if (
+      packageJson.scripts?.["mobile:simulator:smoke"]?.includes("mobile-ios-simulator-smoke.mjs") &&
+      simulatorSmoke.includes("xcrun") &&
+      simulatorSmoke.includes("simctl") &&
+      simulatorSmoke.includes("runRemoteConnectionSmoke") &&
+      simulatorSmoke.includes("lifeosEntry") &&
+      simulatorSmoke.includes("entryChecksumSha256") &&
+      simulatorSmoke.includes("iOS Simulator") &&
+      simulatorSmoke.includes("does not replace real cellular")
+    ) pass("iOS Simulator smoke can open the mobile handoff/chat shell and records evidence without replacing real-device acceptance");
+    else fail("iOS Simulator smoke must boot/open Mobile Safari through simctl, validate mobile endpoints, write evidence, and state that real-device acceptance is still required");
+  } else {
+    fail("missing iOS Simulator smoke script: scripts/mobile-ios-simulator-smoke.mjs");
   }
 
   if (exists("scripts/remote-acceptance-runbook.mjs")) {
