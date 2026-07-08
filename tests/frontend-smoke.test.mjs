@@ -732,6 +732,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /open the phone Files app/);
   assert.match(onboardingAppleRemoteSource, /renderRepairRecommendationAction/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudRepairActions/);
+  assert.match(onboardingAppleRemoteSource, /<details[^>]*>[\s\S]*appleRemoteIcloudRepairActions/);
+  assert.match(translationsSource, /高级：其他可选动作/);
+  assert.match(translationsSource, /Advanced: other optional actions/);
   assert.match(onboardingAppleRemoteSource, /onStartTailscale/);
   assert.match(onboardingAppleRemoteSource, /onStartCloudflare/);
   assert.match(onboardingAppleRemoteSource, /onSaveCandidate/);
@@ -860,8 +863,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Mobile entry is synced/);
   assert.match(translationsSource, /入口文件正在同步/);
   assert.match(translationsSource, /Entry files are still syncing/);
-  assert.match(translationsSource, /可直接执行的修复动作/);
-  assert.match(translationsSource, /Actionable repair steps/);
+  assert.match(translationsSource, /高级：其他可选动作/);
+  assert.match(translationsSource, /Advanced: other optional actions/);
   assert.match(translationsSource, /下一步只做这个/);
   assert.match(translationsSource, /Do this one thing next/);
   assert.match(translationsSource, /当前推荐入口和上次导出的地址不同/);

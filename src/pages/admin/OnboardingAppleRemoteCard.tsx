@@ -1411,14 +1411,14 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                   {renderRepairRecommendationAction(repairAnalysis.nextAction)}
                 </div>
                 {repairAnalysis.recommendations.some((item) => item.id !== repairAnalysis.nextAction.id) ? (
-                  <>
-                    <div className="mt-3 text-[11px] font-bold opacity-80">{t("onboarding.appleRemoteIcloudRepairActions")}</div>
+                  <details className="mt-3 rounded-xl border border-current/10 bg-black/10 p-3 text-[11px]">
+                    <summary className="cursor-pointer font-bold opacity-80">{t("onboarding.appleRemoteIcloudRepairActions")}</summary>
                     <div className="mt-2 grid gap-2 sm:grid-cols-2">
                       {repairAnalysis.recommendations.filter((item) => item.id !== repairAnalysis.nextAction.id).map((item) => (
                         renderRepairRecommendationAction(item)
                       ))}
                     </div>
-                  </>
+                  </details>
                 ) : null}
               </div>
             ) : null}

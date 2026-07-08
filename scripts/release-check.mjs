@@ -1590,6 +1590,9 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("latestEntryRepairActionKeys") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudRepairImportTitle") &&
     onboardingAppleRemoteSource.includes("repairAnalysis.nextAction") &&
+    onboardingAppleRemoteSource.includes("<details") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudRepairActions") &&
+    translationsSource.includes("Advanced: other optional actions") &&
     adminRoutesSource.includes("buildLatestIcloudEntryRepairSummary") &&
     adminRoutesSource.includes("saveIcloudRepairImportAnalysis") &&
     adminRoutesSource.includes("admin-repair-packet-import") &&
