@@ -987,22 +987,33 @@ function buildIcloudHandoffIndexHtml(input: {
     const displayName = formatIcloudDesktopDisplayName(entry, duplicateDesktopNames);
     const sameWifiOnly = isIcloudEntrySameWifiOnly(entry);
     const reachability = sameWifiOnly ? "同一 Wi-Fi / Same Wi-Fi only" : "异地可用入口 / Off-LAN entry";
-    const status = entry.expiresAt && input.generatedAt >= entry.expiresAt
-      ? "已过期 / Expired"
+    const entryStatus = entry.expiresAt && input.generatedAt >= entry.expiresAt
+      ? "expired"
       : entry.refreshAfter && input.generatedAt >= entry.refreshAfter
+      ? "refresh-suggested"
+      : "usable";
+    const status = entryStatus === "expired"
+      ? "已过期 / Expired"
+      : entryStatus === "refresh-suggested"
       ? "建议刷新 / Refresh suggested"
       : "可用 / Usable";
-    return `<a class="entry${options.primary ? " primary" : ""}${sameWifiOnly ? " same-wifi" : ""}" href="${htmlEscape(entry.htmlFileName)}" data-lifeos-desktop-short-id="${htmlEscape(shortId)}" data-lifeos-desktop-display-name="${htmlEscape(displayName)}" data-lifeos-entry-same-wifi-only="${sameWifiOnly ? "1" : "0"}">
+    const reason = options.primary
+      ? sameWifiOnly
+        ? "推荐原因：当前没有更好的异地入口。/ Why recommended: no better off-LAN entry is available."
+        : "推荐原因：这是当前最适合手机使用的异地入口。/ Why recommended: this is the best phone-ready off-LAN entry."
+      : "";
+    return `<a class="entry${options.primary ? " primary" : ""}${sameWifiOnly ? " same-wifi" : ""}${entryStatus !== "usable" ? " stale" : ""}" href="${htmlEscape(entry.htmlFileName)}" data-lifeos-desktop-short-id="${htmlEscape(shortId)}" data-lifeos-desktop-display-name="${htmlEscape(displayName)}" data-lifeos-entry-same-wifi-only="${sameWifiOnly ? "1" : "0"}" data-lifeos-entry-status="${htmlEscape(entryStatus)}">
       <strong>${htmlEscape(displayName)}${isCurrent ? " · 当前电脑 / This Mac" : ""}</strong>
       <span>${htmlEscape(entry.baseUrl)}</span>
       <small>${htmlEscape(status)} · ${htmlEscape(reachability)} · ID ${htmlEscape(shortId)} · ${htmlEscape(new Date(entry.generatedAt).toLocaleString())}</small>
-      ${options.primary ? `<em>打开这个入口 / Open this entry</em>` : ""}
+      ${reason ? `<small class="reason">${htmlEscape(reason)}</small>` : ""}
+      ${options.primary ? `<em>打开推荐入口 / Open recommended entry</em>` : ""}
     </a>`;
   };
   const rows = recommendedEntry
     ? `${renderEntry(recommendedEntry, { primary: true })}
       ${otherEntries.length ? `<details class="advanced">
-        <summary>其他电脑入口 / Other desktop entries (${otherEntries.length})</summary>
+        <summary>高级：其他电脑或旧入口 / Advanced: other or older entries (${otherEntries.length})</summary>
         ${otherEntries.map((entry) => renderEntry(entry)).join("\n")}
       </details>` : ""}`
     : `<div class="empty">还没有可用入口 / No entries yet</div>`;
@@ -1029,9 +1040,11 @@ function buildIcloudHandoffIndexHtml(input: {
       .entry { display: block; margin-top: 12px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09); color: #f4f4f5; text-decoration: none; }
       .entry.primary { border-color: rgba(34,211,238,.45); background: rgba(8,145,178,.18); box-shadow: 0 16px 48px rgba(8,145,178,.2); }
       .entry.same-wifi { border-color: rgba(245,158,11,.35); }
+      .entry.stale { opacity: .78; }
       .entry strong, .entry span, .entry small { display: block; }
       .entry span { margin-top: 6px; color: #a5b4fc; word-break: break-all; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
       .entry small { margin-top: 8px; color: #94a3b8; }
+      .entry .reason { color: #bae6fd; }
       .entry em { display: inline-block; margin-top: 12px; border-radius: 999px; background: #22d3ee; color: #031018; padding: 8px 12px; font-style: normal; font-weight: 800; }
       details.advanced { margin-top: 14px; border-top: 1px solid rgba(255,255,255,.08); padding-top: 12px; }
       details.advanced summary { cursor: pointer; color: #cbd5e1; font-weight: 800; }

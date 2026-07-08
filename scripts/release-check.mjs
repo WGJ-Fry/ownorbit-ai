@@ -1637,6 +1637,10 @@ function checkAssets() {
     networkDiagnosticsSource.includes("formatIcloudDesktopDisplayName") &&
     networkDiagnosticsSource.includes("data-lifeos-desktop-short-id") &&
     networkDiagnosticsSource.includes("data-lifeos-entry-same-wifi-only") &&
+    networkDiagnosticsSource.includes("data-lifeos-entry-status") &&
+    networkDiagnosticsSource.includes("Advanced: other or older entries") &&
+    networkDiagnosticsSource.includes("Open recommended entry") &&
+    networkDiagnosticsSource.includes("Why recommended") &&
     networkDiagnosticsSource.includes("Same Wi-Fi only") &&
     networkDiagnosticsSource.includes("sameWifiOnly") &&
     networkDiagnosticsSource.includes("lifeos-same-wifi-warning") &&
@@ -1652,6 +1656,8 @@ function checkAssets() {
     networkDiagnosticsSource.includes("Checking whether this entry is usable") &&
     networkDiagnosticsSource.includes("Create a fresh entry from the desktop") &&
     networkDiagnosticsTestSource.includes("class=\"entry primary\"") &&
+    networkDiagnosticsTestSource.includes("data-lifeos-entry-status=\"usable\"") &&
+    networkDiagnosticsTestSource.includes("Advanced: other or older entries") &&
     networkDiagnosticsTestSource.includes("iCloud desktop chooser prefers off-LAN entries over same-Wi-Fi current entries") &&
     networkDiagnosticsTestSource.includes("lifeos-entry-index-recommended-desktop-id\" content=\"remote-mac") &&
     networkDiagnosticsTestSource.includes("LifeOS 优先推荐了可异地访问的 HTTPS\\/VPN 入口") &&
