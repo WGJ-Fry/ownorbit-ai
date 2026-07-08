@@ -1006,6 +1006,8 @@ export type NetworkDiagnostics = {
       needsAction: number;
       manualRequired: number;
       recommendedAction: "export-icloud-entry" | "open-on-phone" | "regenerate-qr" | "choose-live-network-entry" | "record-real-world-check" | "ready";
+      nextItemId?: "icloud-entry-synced" | "phone-opened-current-entry" | "pairing-qr-current" | "realtime-entry-ready" | "cellular-mobile-chat" | "restart-restore" | "network-switch" | "network-interruption" | "old-entry-repair";
+      nextManualItemId?: "icloud-entry-synced" | "phone-opened-current-entry" | "pairing-qr-current" | "realtime-entry-ready" | "cellular-mobile-chat" | "restart-restore" | "network-switch" | "network-interruption" | "old-entry-repair";
       nextReviewAt?: number;
       items: Array<{
         id: "icloud-entry-synced" | "phone-opened-current-entry" | "pairing-qr-current" | "realtime-entry-ready" | "cellular-mobile-chat" | "restart-restore" | "network-switch" | "network-interruption" | "old-entry-repair";

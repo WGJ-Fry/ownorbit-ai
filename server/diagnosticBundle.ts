@@ -350,6 +350,8 @@ function publicIcloudAcceptance(acceptance: IcloudAcceptanceSummary) {
     needsAction: acceptance.needsAction,
     manualRequired: acceptance.manualRequired,
     recommendedAction: acceptance.recommendedAction,
+    nextItemId: acceptance.nextItemId || null,
+    nextManualItemId: acceptance.nextManualItemId || null,
     nextReviewAt: acceptance.nextReviewAt || null,
     items: acceptance.items.map((item) => ({
       id: item.id,

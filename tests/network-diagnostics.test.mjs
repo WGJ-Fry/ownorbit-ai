@@ -63,6 +63,8 @@ test("iCloud acceptance summary separates synced entry from real-device evidence
   assert.equal(missingRealDeviceEvidence.passed, 4);
   assert.equal(missingRealDeviceEvidence.manualRequired, 5);
   assert.equal(missingRealDeviceEvidence.recommendedAction, "record-real-world-check");
+  assert.equal(missingRealDeviceEvidence.nextItemId, "cellular-mobile-chat");
+  assert.equal(missingRealDeviceEvidence.nextManualItemId, "cellular-mobile-chat");
   assert.equal(missingRealDeviceEvidence.items.find((item) => item.id === "icloud-entry-synced")?.status, "passed");
   assert.equal(missingRealDeviceEvidence.items.find((item) => item.id === "realtime-entry-ready")?.status, "passed");
   assert.equal(missingRealDeviceEvidence.items.find((item) => item.id === "cellular-mobile-chat")?.status, "manual-required");
@@ -87,6 +89,8 @@ test("iCloud acceptance summary separates synced entry from real-device evidence
   assert.equal(realtimeItem?.action, "choose-live-network-entry");
   assert.match(realtimeItem?.evidence || "", /not a stable HTTPS\/VPN entry/);
   assert.equal(lanOnlyEntry.recommendedAction, "choose-live-network-entry");
+  assert.equal(lanOnlyEntry.nextItemId, "realtime-entry-ready");
+  assert.equal(lanOnlyEntry.nextManualItemId, "cellular-mobile-chat");
 
   const complete = buildIcloudAcceptanceSummary({
     icloud: {
@@ -129,6 +133,8 @@ test("iCloud acceptance summary separates synced entry from real-device evidence
   assert.equal(complete.ready, true);
   assert.equal(complete.passed, complete.total);
   assert.equal(complete.recommendedAction, "ready");
+  assert.equal(complete.nextItemId, undefined);
+  assert.equal(complete.nextManualItemId, undefined);
   assert.equal(complete.items.find((item) => item.id === "old-entry-repair")?.status, "passed");
 
   const staleQrEvidence = buildIcloudAcceptanceSummary({

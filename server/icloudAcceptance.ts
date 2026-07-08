@@ -31,6 +31,8 @@ export type IcloudAcceptanceSummary = {
   needsAction: number;
   manualRequired: number;
   recommendedAction: IcloudAcceptanceItem["action"];
+  nextItemId?: IcloudAcceptanceItemId;
+  nextManualItemId?: IcloudAcceptanceItemId;
   nextReviewAt?: number;
   items: IcloudAcceptanceItem[];
 };
@@ -303,7 +305,9 @@ export function buildIcloudAcceptanceSummary(input: {
   const passed = items.filter((item) => item.status === "passed").length;
   const needsAction = items.filter((item) => item.status === "needs-action").length;
   const manualRequired = items.filter((item) => item.status === "manual-required").length;
-  const firstOpenAction = items.find((item) => item.status !== "passed")?.action || "ready";
+  const nextItem = items.find((item) => item.status !== "passed");
+  const nextManualItem = items.find((item) => item.status === "manual-required");
+  const firstOpenAction = nextItem?.action || "ready";
   const nextReviewAt = Math.min(
     ...items
       .map((item) => item.expiresAt || 0)
@@ -317,6 +321,8 @@ export function buildIcloudAcceptanceSummary(input: {
     needsAction,
     manualRequired,
     recommendedAction: firstOpenAction,
+    nextItemId: nextItem?.id,
+    nextManualItemId: nextManualItem?.id,
     nextReviewAt: Number.isFinite(nextReviewAt) ? nextReviewAt : undefined,
     items,
   };

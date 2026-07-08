@@ -597,6 +597,10 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const primaryIcloudAction = getPrimaryIcloudAction({ icloud, latestEntryRepair, pairingSession, syncReadiness, handoffHealth, canExportIcloud });
   const primaryIcloudActionFollowupKey = getIcloudActionFollowupKey(primaryIcloudAction.actionKey);
   const focusedIcloudAcceptanceItem = icloudAcceptance?.items.find((item) => (
+    item.id === icloudAcceptance.nextManualItemId &&
+    item.status === "manual-required" &&
+    Boolean(icloudManualAcceptanceRequirementKeys[item.id])
+  )) || icloudAcceptance?.items.find((item) => (
     item.status === "manual-required" && Boolean(icloudManualAcceptanceRequirementKeys[item.id])
   )) || null;
   const visibleIcloudAcceptanceItems = icloudAcceptance?.items

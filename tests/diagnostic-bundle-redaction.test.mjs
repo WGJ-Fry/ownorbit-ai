@@ -329,6 +329,8 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(bundle.icloudHandoff.availability.account.signedIn, true);
   assert.equal(bundle.icloudHandoff.availability.account.driveEnabled, false);
   assert.equal(typeof bundle.icloudHandoff.acceptance.ready, "boolean");
+  assert.equal(bundle.icloudHandoff.acceptance.nextItemId, "icloud-entry-synced");
+  assert.equal(bundle.icloudHandoff.acceptance.nextManualItemId, "restart-restore");
   assert.equal(Array.isArray(bundle.icloudHandoff.acceptance.items), true);
   assert.equal(bundle.icloudHandoff.acceptance.items.some((item) => item.id === "cellular-mobile-chat"), true);
   assert.equal(bundle.icloudHandoff.acceptance.items.some((item) => item.id === "old-entry-repair"), true);

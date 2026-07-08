@@ -1579,6 +1579,8 @@ function checkAssets() {
     icloudAcceptanceSource.includes("buildIcloudAcceptanceSummary") &&
     icloudAcceptanceSource.includes("realtime-entry-ready") &&
     icloudAcceptanceSource.includes("choose-live-network-entry") &&
+    icloudAcceptanceSource.includes("nextItemId") &&
+    icloudAcceptanceSource.includes("nextManualItemId") &&
     icloudAcceptanceSource.includes("cellular-mobile-chat") &&
     icloudAcceptanceSource.includes("restart-restore") &&
     icloudAcceptanceSource.includes("network-interruption") &&
@@ -1591,6 +1593,8 @@ function checkAssets() {
     lifeosApiSource.includes("acceptance?:") &&
     lifeosApiSource.includes("recordIcloudAcceptance") &&
     lifeosApiSource.includes("/api/v1/admin/icloud-handoff/acceptance") &&
+    lifeosApiSource.includes("nextItemId?:") &&
+    lifeosApiSource.includes("nextManualItemId?:") &&
     lifeosApiSource.includes("realtime-entry-ready") &&
     onboardingAppleRemoteSource.includes("icloudAcceptanceItemKeys") &&
     onboardingAppleRemoteSource.includes("icloudAcceptanceEvidenceKeys") &&
@@ -1599,6 +1603,7 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("icloudManualAcceptanceRequirementKeys") &&
     onboardingAppleRemoteSource.includes("focusedIcloudAcceptanceItem") &&
     onboardingAppleRemoteSource.includes("visibleIcloudAcceptanceItems") &&
+    onboardingAppleRemoteSource.includes("nextManualItemId") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-acceptance-focused-real-device") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-acceptance-focused-record") &&
     translationsSource.includes("下一项真实手机长测") &&
@@ -2769,6 +2774,8 @@ function checkAssets() {
     diagnosticBundleSource.includes("acceptanceChecklist") &&
     diagnosticBundleSource.includes("acceptanceSummary") &&
     diagnosticBundleSource.includes("acceptanceEvidencePack") &&
+    diagnosticBundleSource.includes("nextItemId: acceptance.nextItemId") &&
+    diagnosticBundleSource.includes("nextManualItemId: acceptance.nextManualItemId") &&
     diagnosticBundleSource.includes("buildRemoteAcceptanceEvidencePack") &&
     diagnosticBundleSource.includes("summarizeRemoteAcceptanceChecklist") &&
     diagnosticBundleSource.includes("acceptanceRecords") &&
@@ -2795,6 +2802,7 @@ function checkAssets() {
     diagnosticBundleTestSource.includes("bundle.icloudHandoff.latestRepairImport.reason") &&
     diagnosticBundleTestSource.includes("private-icloud-token-should-not-leak") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceSummary.ready") &&
+    diagnosticBundleTestSource.includes("bundle.icloudHandoff.acceptance.nextManualItemId") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceEvidencePack.ready") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceEvidencePack.recommendedAction") &&
     diagnosticBundleTestSource.includes("bundle.systemActions.topSource") &&
