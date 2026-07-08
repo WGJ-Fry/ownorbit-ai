@@ -1597,6 +1597,12 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("recordIcloudAcceptance") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-acceptance-manual") &&
     onboardingAppleRemoteSource.includes("icloudManualAcceptanceRequirementKeys") &&
+    onboardingAppleRemoteSource.includes("focusedIcloudAcceptanceItem") &&
+    onboardingAppleRemoteSource.includes("visibleIcloudAcceptanceItems") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-acceptance-focused-real-device") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-acceptance-focused-record") &&
+    translationsSource.includes("下一项真实手机长测") &&
+    translationsSource.includes("Next Real-Phone Long Test") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceRecord") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceItemRealtime") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudAcceptanceItemRestart") &&

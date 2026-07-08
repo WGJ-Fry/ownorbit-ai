@@ -596,6 +596,12 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const simpleIcloudStatus = getSimpleIcloudStatus(icloud);
   const primaryIcloudAction = getPrimaryIcloudAction({ icloud, latestEntryRepair, pairingSession, syncReadiness, handoffHealth, canExportIcloud });
   const primaryIcloudActionFollowupKey = getIcloudActionFollowupKey(primaryIcloudAction.actionKey);
+  const focusedIcloudAcceptanceItem = icloudAcceptance?.items.find((item) => (
+    item.status === "manual-required" && Boolean(icloudManualAcceptanceRequirementKeys[item.id])
+  )) || null;
+  const visibleIcloudAcceptanceItems = icloudAcceptance?.items
+    .filter((item) => item.status !== "passed" && item.id !== focusedIcloudAcceptanceItem?.id)
+    .slice(0, 4) || [];
   const icloudTrackedFiles = icloudAvailability
     ? [
         { id: "html" as const, file: icloudAvailability.handoffFile },
@@ -1145,10 +1151,43 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                   <div className="mt-2 rounded-lg border border-current/10 bg-black/10 p-2 text-[11px] leading-relaxed">
                     {t(icloudAcceptanceActionKeys[icloudAcceptance.recommendedAction])}
                   </div>
+                  {focusedIcloudAcceptanceItem ? (
+                    <div data-testid="onboarding-icloud-acceptance-focused-real-device" className="mt-3 rounded-xl border border-cyan-200/20 bg-cyan-400/10 p-3 text-[11px] leading-relaxed">
+                      <div className="flex items-start gap-2">
+                        <Smartphone className="mt-0.5 h-4 w-4 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[10px] font-bold uppercase tracking-normal opacity-70">{t("onboarding.appleRemoteIcloudAcceptanceFocusTitle")}</div>
+                          <div className="mt-1 font-bold">{t(icloudAcceptanceItemKeys[focusedIcloudAcceptanceItem.id])}</div>
+                          <div className="mt-1 opacity-85">{t(icloudAcceptanceEvidenceKeys[focusedIcloudAcceptanceItem.id])}</div>
+                          <div className="mt-2 rounded-lg border border-current/10 bg-black/15 p-2 font-bold">
+                            {t(icloudManualAcceptanceRequirementKeys[focusedIcloudAcceptanceItem.id] as TranslationKey)}
+                          </div>
+                          <label className="mt-3 block font-bold">{t("onboarding.appleRemoteIcloudAcceptanceNoteLabel")}</label>
+                          <textarea
+                            value={icloudAcceptanceNotes[focusedIcloudAcceptanceItem.id] || ""}
+                            onChange={(event) => setIcloudAcceptanceNotes((current) => ({ ...current, [focusedIcloudAcceptanceItem.id]: event.target.value }))}
+                            placeholder={t(`onboarding.appleRemoteIcloudAcceptancePlaceholder.${focusedIcloudAcceptanceItem.id}` as any)}
+                            className="mt-1 min-h-20 w-full resize-y rounded-lg border border-current/10 bg-black/20 px-2 py-2 text-[11px] outline-none placeholder:opacity-45"
+                          />
+                          <div className="mt-1 text-[10px] opacity-70">
+                            {t("onboarding.appleRemoteIcloudAcceptanceNoteHint", { count: (icloudAcceptanceNotes[focusedIcloudAcceptanceItem.id] || "").trim().length })}
+                          </div>
+                          <button
+                            type="button"
+                            data-testid="onboarding-icloud-acceptance-focused-record"
+                            onClick={() => handleRecordIcloudAcceptance(focusedIcloudAcceptanceItem)}
+                            disabled={acceptingIcloudItem === focusedIcloudAcceptanceItem.id || (icloudAcceptanceNotes[focusedIcloudAcceptanceItem.id] || "").trim().length < 24}
+                            className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-current/15 bg-black/20 px-2.5 py-2 text-[11px] font-bold disabled:opacity-50"
+                          >
+                            {acceptingIcloudItem === focusedIcloudAcceptanceItem.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ClipboardCheck className="h-3.5 w-3.5" />}
+                            {acceptingIcloudItem === focusedIcloudAcceptanceItem.id ? t("onboarding.appleRemoteIcloudAcceptanceRecording") : t("onboarding.appleRemoteIcloudAcceptanceRecord")}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="mt-2 grid gap-1.5">
-                    {icloudAcceptance.items
-                      .filter((item) => item.status !== "passed")
-                      .slice(0, 4)
+                    {visibleIcloudAcceptanceItems
                       .map((item) => {
                         const manualRequirementKey = icloudManualAcceptanceRequirementKeys[item.id];
                         const note = icloudAcceptanceNotes[item.id] || "";

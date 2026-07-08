@@ -833,6 +833,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /recordIcloudAcceptance/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-acceptance-manual/);
   assert.match(onboardingAppleRemoteSource, /icloudManualAcceptanceRequirementKeys/);
+  assert.match(onboardingAppleRemoteSource, /focusedIcloudAcceptanceItem/);
+  assert.match(onboardingAppleRemoteSource, /visibleIcloudAcceptanceItems/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-acceptance-focused-real-device/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-acceptance-focused-record/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAcceptanceFocusTitle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAcceptanceRecord/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAcceptanceTitle/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAcceptanceItemRealtime/);
