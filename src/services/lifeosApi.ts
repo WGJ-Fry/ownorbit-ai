@@ -1642,6 +1642,29 @@ export type CloudKitSyncUploadNowResult = {
   };
 };
 
+export type CloudKitSyncCycleResult = {
+  ok: boolean;
+  status: "needs-setup" | "remote-failed" | "remote-conflicts" | "upload-blocked" | "upload-failed" | "local-empty" | "completed";
+  nextAction: "configure-cloudkit" | "review-conflicts" | "review-blocked-records" | "retry" | "use-lifeos" | "done";
+  startedAt: number;
+  finishedAt: number;
+  limit: number;
+  pull: Omit<CloudKitSyncNowResult, "safety"> & {
+    safety: {
+      rawPayloadReturnedToAdmin: false;
+      cloudKitChangeTokenReturnedToAdmin: false;
+      appliesOnlyConflictFreeRecords: true;
+    };
+  };
+  upload?: CloudKitSyncUploadNowResult;
+  safety: {
+    rawPayloadReturnedToAdmin: false;
+    cloudKitChangeTokenReturnedToAdmin: false;
+    localBackupPathReturnedToAdmin: false;
+    uploadRunsOnlyAfterConflictFreePull: true;
+  };
+};
+
 export type CloudKitSyncBatchPreview = {
   ok: boolean;
   status: "skipped" | "blocked" | "empty" | "needs-review" | "ready";
@@ -2605,6 +2628,17 @@ export function runCloudKitSyncUploadNow(input: { confirmation: string; limit?: 
   }>("/api/v1/admin/icloud-data-sync/upload-now", {
     method: "POST",
     timeoutMs: 90_000,
+    body: JSON.stringify(input),
+  });
+}
+
+export function runCloudKitSyncCycle(input: { confirmation: string; limit?: number }) {
+  return requestJson<{
+    cycle: CloudKitSyncCycleResult;
+    diagnostics: NetworkDiagnostics;
+  }>("/api/v1/admin/icloud-data-sync/cycle", {
+    method: "POST",
+    timeoutMs: 120_000,
     body: JSON.stringify(input),
   });
 }

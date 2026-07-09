@@ -37,6 +37,7 @@ import { CLOUDKIT_SYNC_IMPORT_CONFIRMATION, getCloudKitSyncQuarantineSummary, ge
 import { applyCloudKitSyncQuarantine, CLOUDKIT_SYNC_APPLY_CONFIRMATION, listCloudKitSyncQuarantineItems } from "../cloudKitSyncApply";
 import { CLOUDKIT_SYNC_NOW_CONFIRMATION, runCloudKitSyncNow } from "../cloudKitSyncNow";
 import { CLOUDKIT_SYNC_UPLOAD_NOW_CONFIRMATION, runCloudKitSyncUploadNow } from "../cloudKitSyncUploadNow";
+import { CLOUDKIT_SYNC_CYCLE_CONFIRMATION, runCloudKitSyncCycle } from "../cloudKitSyncCycle";
 
 const loginFailures = new Map<string, { count: number; lockedUntil: number }>();
 
@@ -91,6 +92,10 @@ function normalizeCloudKitSyncNowConfirmation(value: unknown) {
 }
 
 function normalizeCloudKitSyncUploadNowConfirmation(value: unknown) {
+  return String(value || "").trim();
+}
+
+function normalizeCloudKitSyncCycleConfirmation(value: unknown) {
   return String(value || "").trim();
 }
 
@@ -1048,6 +1053,57 @@ export function registerAdminRoutes(app: express.Express) {
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.status(400).json({
         error: error.message || "CloudKit safe upload failed",
+        diagnostics: getAdminNetworkDiagnostics(),
+      });
+    }
+  });
+
+  app.post("/api/v1/admin/icloud-data-sync/cycle", requireAdmin, rateLimit({ keyPrefix: "admin-cloudkit-sync-cycle", windowMs: 60_000, max: 2 }), async (req, res) => {
+    const confirmation = normalizeCloudKitSyncCycleConfirmation(req.body?.confirmation);
+    const diagnostics = getAdminNetworkDiagnostics();
+    if (confirmation !== CLOUDKIT_SYNC_CYCLE_CONFIRMATION) {
+      insertAuditLog("icloud_cloudkit_sync_cycle_blocked", "network", "cloudkit-sync-cycle", {
+        confirmationProvided: false,
+        rawPayloadReturnedToAdmin: false,
+        serverChangeTokenReturnedToAdmin: false,
+        localBackupPathReturnedToAdmin: false,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      return res.status(400).json({
+        error: "CloudKit safe sync cycle requires explicit confirmation.",
+        expectedConfirmation: CLOUDKIT_SYNC_CYCLE_CONFIRMATION,
+        diagnostics,
+      });
+    }
+    try {
+      const readiness = getIcloudDataSyncReadiness({ platformSupported: diagnostics.icloud.platformSupported });
+      const cycle = await runCloudKitSyncCycle(readiness, { limit: normalizeCloudKitBatchLimit(req.body?.limit) || 100 });
+      insertAuditLog("icloud_cloudkit_sync_cycle", "network", "cloudkit-sync-cycle", {
+        ok: cycle.ok,
+        status: cycle.status,
+        nextAction: cycle.nextAction,
+        pullStatus: cycle.pull.status,
+        pullApplied: cycle.pull.apply.applied,
+        pullConflicts: cycle.pull.apply.conflicts,
+        uploadStatus: cycle.upload?.status || null,
+        uploadExportRecordCount: cycle.upload?.export.exportRecordCount || 0,
+        uploadSaved: cycle.upload?.result?.syncExport?.saved || 0,
+        rawPayloadReturnedToAdmin: false,
+        serverChangeTokenReturnedToAdmin: false,
+        localBackupPathReturnedToAdmin: false,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(cycle.status === "remote-failed" || cycle.status === "remote-conflicts" || cycle.status === "upload-blocked" || cycle.status === "upload-failed" ? 400 : 200).json({
+        cycle,
+        diagnostics: getAdminNetworkDiagnostics(),
+      });
+    } catch (error: any) {
+      insertAuditLog("icloud_cloudkit_sync_cycle_failed", "network", "cloudkit-sync-cycle", {
+        error: error?.message || "CloudKit safe sync cycle failed",
+        rawPayloadReturnedToAdmin: false,
+        serverChangeTokenReturnedToAdmin: false,
+        localBackupPathReturnedToAdmin: false,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(400).json({
+        error: error.message || "CloudKit safe sync cycle failed",
         diagnostics: getAdminNetworkDiagnostics(),
       });
     }

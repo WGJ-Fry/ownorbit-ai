@@ -172,6 +172,14 @@ POST /api/v1/admin/icloud-data-sync/upload-now
 
 It requires explicit `UPLOAD_CLOUDKIT_NOW` confirmation, creates a SQLite backup, sends filtered records only to the native helper through local stdin, and returns only status/counts/evidence. Unlike the lower-level export endpoint, this one-step upload response never returns a local backup path. It is designed for first-launch Apple users who need a clear "put this Mac into iCloud" action before later syncing another device.
 
+The safest product-facing loop is:
+
+```text
+POST /api/v1/admin/icloud-data-sync/cycle
+```
+
+It requires explicit `SYNC_CLOUDKIT_CYCLE` confirmation and always pulls first. The backend runs `sync-now` to read CloudKit changes, import them into quarantine, and apply only conflict-free records. If the pull fails or leaves conflicts, the cycle stops and does not upload local records. Only after the pull is clean does LifeOS run the guarded upload path. This gives users one default "sync this computer and iCloud" button while keeping conflict review and sensitive-record blocking intact.
+
 Run the contract smoke with:
 
 ```bash
@@ -371,6 +379,8 @@ Do not claim real iCloud data sync until all of this is true:
 当前还新增了受控写入接口：`/api/v1/admin/icloud-data-sync/export`。它只在 CloudKit 准备度通过、批次预览为 ready、没有敏感阻断记录、请求显式确认 `SYNC_APPROVED_RECORDS` 时运行，并且会先创建本地 SQLite 备份。API 响应仍只返回摘要和证据，不返回正文；经过过滤的 payload 只会通过本机 stdin 发给原生 helper。这个能力代表“已具备第一条受控 CloudKit 写入路径”，但仍不是完整后台双向同步。
 
 当前还新增了面向普通用户的一键安全上传接口：`POST /api/v1/admin/icloud-data-sync/upload-now`。它要求显式确认 `UPLOAD_CLOUDKIT_NOW`，复用批次预览和敏感内容阻断逻辑，先创建 SQLite 备份，再把允许同步的本机记录交给原生 helper 写入私有 CloudKit。API 只返回状态、数量、安全摘要和 helper 证据，不返回原始正文、helper stdin 或本地备份路径。这个接口适合首次启动时的“把这台电脑的数据放进 iCloud”动作，但仍不是无人值守后台双向同步。
+
+当前还新增了面向默认 UI 的安全同步循环接口：`POST /api/v1/admin/icloud-data-sync/cycle`。它要求显式确认 `SYNC_CLOUDKIT_CYCLE`，并且永远先执行“读取远端变化 → 导入隔离区 → 应用无冲突记录”。如果远端读取失败或出现冲突，循环会停止，不会继续上传本机记录；只有远端拉取干净后，才会调用一键安全上传。这个接口让普通用户只需要点“同步这台电脑和 iCloud”，但仍保留冲突审核、敏感内容阻断和本地备份边界。
 
 当前还新增了安全读取预览接口：`/api/v1/admin/icloud-data-sync/import-preview`。它只从私有 CloudKit 读取 LifeOS 记录的摘要字段，例如 zone、record type、hash、logical clock、payload 大小和更新时间；不会请求 `payloadJson`，也不会导入 SQLite。这个能力代表“已具备第一条受控 CloudKit 读取摘要路径”，但仍不是完整双向同步。
 

@@ -590,6 +590,39 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(JSON.stringify(cloudKitUploadNow).includes("payloadJson"), false);
   assert.equal(JSON.stringify(cloudKitUploadNow).includes("/Users/"), false);
   assertPublicApiResponse("cloudKitSyncUploadNowNeedsSetup", cloudKitUploadNow);
+  const blockedCloudKitCycleAuth = await request(port, "/api/v1/admin/icloud-data-sync/cycle", {
+    method: "POST",
+    body: JSON.stringify({ confirmation: "SYNC_CLOUDKIT_CYCLE" }),
+  });
+  assert.equal(blockedCloudKitCycleAuth.status, 401);
+  const blockedCloudKitCycle = await request(port, "/api/v1/admin/icloud-data-sync/cycle", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ confirmation: "wrong-confirmation" }),
+  });
+  assert.equal(blockedCloudKitCycle.status, 400);
+  const blockedCloudKitCycleJson = await blockedCloudKitCycle.json();
+  assert.equal(blockedCloudKitCycleJson.expectedConfirmation, "SYNC_CLOUDKIT_CYCLE");
+  assert.equal(JSON.stringify(blockedCloudKitCycleJson).includes("payloadJson"), false);
+  assert.equal(JSON.stringify(blockedCloudKitCycleJson).includes("serverChangeToken"), false);
+  assert.equal(JSON.stringify(blockedCloudKitCycleJson).includes("/Users/"), false);
+  assertPublicApiResponse("cloudKitSyncCycleBlocked", blockedCloudKitCycleJson);
+  const cloudKitCycle = await request(port, "/api/v1/admin/icloud-data-sync/cycle", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ confirmation: "SYNC_CLOUDKIT_CYCLE" }),
+  }).then((res) => res.json());
+  assert.equal(cloudKitCycle.cycle.status, "needs-setup");
+  assert.equal(cloudKitCycle.cycle.nextAction, "configure-cloudkit");
+  assert.equal(cloudKitCycle.cycle.pull.status, "needs-setup");
+  assert.equal(cloudKitCycle.cycle.upload, undefined);
+  assert.equal(cloudKitCycle.cycle.safety.rawPayloadReturnedToAdmin, false);
+  assert.equal(cloudKitCycle.cycle.safety.cloudKitChangeTokenReturnedToAdmin, false);
+  assert.equal(cloudKitCycle.cycle.safety.localBackupPathReturnedToAdmin, false);
+  assert.equal(JSON.stringify(cloudKitCycle).includes("payloadJson"), false);
+  assert.equal(JSON.stringify(cloudKitCycle).includes("serverChangeToken"), false);
+  assert.equal(JSON.stringify(cloudKitCycle).includes("/Users/"), false);
+  assertPublicApiResponse("cloudKitSyncCycleNeedsSetup", cloudKitCycle);
   const blockedCloudKitImportPreviewAuth = await request(port, "/api/v1/admin/icloud-data-sync/import-preview", {
     method: "POST",
     body: JSON.stringify({}),

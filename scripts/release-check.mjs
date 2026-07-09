@@ -1481,6 +1481,8 @@ function checkAssets() {
   const cloudKitSyncNowTestSource = exists("tests/cloudkit-sync-now.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-sync-now.test.mjs"), "utf8") : "";
   const cloudKitSyncUploadNowSource = exists("server/cloudKitSyncUploadNow.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitSyncUploadNow.ts"), "utf8") : "";
   const cloudKitSyncUploadNowTestSource = exists("tests/cloudkit-sync-upload-now.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-sync-upload-now.test.mjs"), "utf8") : "";
+  const cloudKitSyncCycleSource = exists("server/cloudKitSyncCycle.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitSyncCycle.ts"), "utf8") : "";
+  const cloudKitSyncCycleTestSource = exists("tests/cloudkit-sync-cycle.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-sync-cycle.test.mjs"), "utf8") : "";
   const cloudKitNativeHelperSmokeSource = exists("scripts/cloudkit-native-helper-smoke.mjs") ? fs.readFileSync(path.join(rootDir, "scripts/cloudkit-native-helper-smoke.mjs"), "utf8") : "";
   const cloudKitNativeSwiftHelperSource = exists("native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift") ? fs.readFileSync(path.join(rootDir, "native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift"), "utf8") : "";
   const cloudKitNativeHelperBuildSource = exists("scripts/build-cloudkit-helper.mjs") ? fs.readFileSync(path.join(rootDir, "scripts/build-cloudkit-helper.mjs"), "utf8") : "";
@@ -1901,6 +1903,8 @@ function checkAssets() {
     translationsSource.includes("Safely sync iCloud data") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudDataBoundaryBody") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-readiness") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-cycle") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-cycle-result") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-upload-now") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-upload-now-result") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-one-step") &&
@@ -1922,6 +1926,7 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("handleRunCloudKitSyncImportQuarantine") &&
     onboardingAppleRemoteSource.includes("handleLoadCloudKitSyncQuarantine") &&
     onboardingAppleRemoteSource.includes("handleApplyCloudKitSyncQuarantine") &&
+    onboardingAppleRemoteSource.includes("handleRunCloudKitSyncCycle") &&
     onboardingAppleRemoteSource.includes("handleRunCloudKitSyncUploadNow") &&
     onboardingAppleRemoteSource.includes("handleRunCloudKitSyncNow") &&
     onboardingAppleRemoteSource.includes("handleRunCloudKitHelper") &&
@@ -1934,6 +1939,7 @@ function checkAssets() {
     adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/changes-preview") &&
     adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/import-quarantine") &&
     adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/upload-now") &&
+    adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/cycle") &&
     adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/sync-now") &&
     adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/quarantine") &&
     adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/apply-quarantine") &&
@@ -1947,6 +1953,7 @@ function checkAssets() {
     adminRoutesSource.includes("icloud_cloudkit_sync_changes_preview") &&
     adminRoutesSource.includes("icloud_cloudkit_sync_import_quarantine") &&
     adminRoutesSource.includes("icloud_cloudkit_sync_upload_now") &&
+    adminRoutesSource.includes("icloud_cloudkit_sync_cycle") &&
     adminRoutesSource.includes("icloud_cloudkit_sync_now") &&
     adminRoutesSource.includes("icloud_cloudkit_sync_apply_quarantine") &&
     lifeosApiSource.includes("CloudKitNativeHelperResult") &&
@@ -1966,6 +1973,8 @@ function checkAssets() {
     lifeosApiSource.includes("applyCloudKitSyncQuarantine") &&
     lifeosApiSource.includes("CloudKitSyncNowResult") &&
     lifeosApiSource.includes("CloudKitSyncUploadNowResult") &&
+    lifeosApiSource.includes("CloudKitSyncCycleResult") &&
+    lifeosApiSource.includes("runCloudKitSyncCycle") &&
     lifeosApiSource.includes("runCloudKitSyncUploadNow") &&
     lifeosApiSource.includes("runCloudKitSyncNow") &&
     icloudDataSyncReadinessSource.includes("LIFEOS_CLOUDKIT_CONTAINER_ID") &&
@@ -2027,6 +2036,11 @@ function checkAssets() {
     cloudKitSyncUploadNowSource.includes("localBackupPathReturnedToAdmin: false") &&
     cloudKitSyncUploadNowTestSource.includes("CloudKit safe upload now writes approved local records") &&
     cloudKitSyncUploadNowTestSource.includes("returns only safe summaries") &&
+    cloudKitSyncCycleSource.includes("SYNC_CLOUDKIT_CYCLE") &&
+    cloudKitSyncCycleSource.includes("runCloudKitSyncCycle") &&
+    cloudKitSyncCycleSource.includes("uploadRunsOnlyAfterConflictFreePull: true") &&
+    cloudKitSyncCycleTestSource.includes("CloudKit safe sync cycle pulls first") &&
+    cloudKitSyncCycleTestSource.includes("stops before upload when the remote pull fails") &&
     cloudKitNativeHelperSmokeSource.includes("runCloudKitNativeHelper") &&
     cloudKitNativeSwiftHelperSource.includes("import CloudKit") &&
     cloudKitNativeSwiftHelperSource.includes("lifeos-cloudkit-helper-request.v1") &&
@@ -2057,6 +2071,7 @@ function checkAssets() {
     packageJson.scripts.test.includes("tests/cloudkit-sync-apply.test.mjs") &&
     packageJson.scripts.test.includes("tests/cloudkit-sync-now.test.mjs") &&
     packageJson.scripts.test.includes("tests/cloudkit-sync-upload-now.test.mjs") &&
+    packageJson.scripts.test.includes("tests/cloudkit-sync-cycle.test.mjs") &&
     diagnosticBundleSource.includes('dataSyncScope: "entry-file-only"') &&
     diagnosticBundleSource.includes("cloudKitReadiness") &&
     diagnosticBundleSource.includes("recordPlan: readiness.recordPlan") &&
@@ -2084,6 +2099,8 @@ function checkAssets() {
     apiAuthTestSource.includes("cloudKitSyncApplyQuarantineEmpty") &&
     apiAuthTestSource.includes("/api/v1/admin/icloud-data-sync/upload-now") &&
     apiAuthTestSource.includes("cloudKitSyncUploadNowNeedsSetup") &&
+    apiAuthTestSource.includes("/api/v1/admin/icloud-data-sync/cycle") &&
+    apiAuthTestSource.includes("cloudKitSyncCycleNeedsSetup") &&
     apiAuthTestSource.includes("/api/v1/admin/icloud-data-sync/sync-now") &&
     apiAuthTestSource.includes("cloudKitSyncNowNeedsSetup") &&
     apiAuthTestSource.includes("cloudKitReadiness.status") &&
