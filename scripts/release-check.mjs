@@ -2791,7 +2791,8 @@ function checkAssets() {
     mobileRemoteEntryCardSource.includes("getPreferredMobileIcloudHandoffEntryKey") &&
     mobileRemoteEntryCardSource.includes("setPreferredMobileIcloudHandoffEntry") &&
     mobileRemoteEntryCardSource.includes("getMobileIcloudHandoffEntryFreshness") &&
-    mobileRemoteEntryCardSource.includes("getMobileIcloudHandoffEntryRecommendation") &&
+    mobileRemoteEntryCardSource.includes("getMobileIcloudHandoffEntryDisplayPlan") &&
+    mobileRemoteEntryCardSource.includes("icloudEntryDisplayPlan") &&
     mobileRemoteEntryCardSource.includes("icloudEntryFreshnessKeys") &&
     mobileRemoteEntryCardSource.includes("forgetStoredMobileIcloudHandoffEntry") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffRecommendedEntryTitle") &&

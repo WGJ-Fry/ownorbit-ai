@@ -69,6 +69,20 @@ export type MobileIcloudHandoffEntryRecommendation = {
   preferredSwitchReason: "none" | "default-stale" | "default-expired" | "default-legacy" | "default-failed" | "default-same-wifi";
 };
 
+export type MobileIcloudHandoffEntryDisplayPlan = {
+  recommendation: MobileIcloudHandoffEntryRecommendation;
+  recommendedEntry: MobileIcloudHandoffEntry | null;
+  recommendedKey: string;
+  primaryEntries: MobileIcloudHandoffEntry[];
+  advancedEntries: MobileIcloudHandoffEntry[];
+  archivedEntries: MobileIcloudHandoffEntry[];
+  advancedEntryCount: number;
+  hasUsableRemoteEntry: boolean;
+  recommendedEntrySameWifiOnly: boolean;
+  recommendedEntryNeedsRemoteSetup: boolean;
+  shouldCollapseAdvancedEntries: boolean;
+};
+
 export type MobileIcloudHandoffAutoSwitchResult = {
   switched: boolean;
   recommendation: MobileIcloudHandoffEntryRecommendation;
@@ -1113,6 +1127,38 @@ export function getMobileIcloudHandoffEntryRecommendation(
     preferredEntry,
     preferredNeedsSwitch: preferredSwitchReason !== "none",
     preferredSwitchReason,
+  };
+}
+
+export function getMobileIcloudHandoffEntryDisplayPlan(
+  entries = getStoredMobileIcloudHandoffEntries(),
+  options: { now?: number; preferredKey?: string } = {},
+): MobileIcloudHandoffEntryDisplayPlan {
+  const now = options.now || Date.now();
+  const recommendation = getMobileIcloudHandoffEntryRecommendation(entries, { ...options, now });
+  const recommendedEntry = recommendation.recommendedEntry;
+  const advancedEntries = recommendation.otherEntries;
+  const archivedEntries = recommendation.archivedEntries;
+  const hasUsableRemoteEntry = [recommendedEntry, ...advancedEntries]
+    .filter(Boolean)
+    .some((entry) => (
+      !isMobileIcloudHandoffSameWifiOnly(entry as MobileIcloudHandoffEntry) &&
+      isRecommendedMobileIcloudHandoffEntry(entry as MobileIcloudHandoffEntry, now)
+    ));
+  const recommendedEntrySameWifiOnly = Boolean(recommendedEntry && isMobileIcloudHandoffSameWifiOnly(recommendedEntry));
+
+  return {
+    recommendation,
+    recommendedEntry,
+    recommendedKey: recommendation.recommendedKey,
+    primaryEntries: recommendedEntry ? [recommendedEntry] : [],
+    advancedEntries,
+    archivedEntries,
+    advancedEntryCount: advancedEntries.length + archivedEntries.length,
+    hasUsableRemoteEntry,
+    recommendedEntrySameWifiOnly,
+    recommendedEntryNeedsRemoteSetup: recommendedEntrySameWifiOnly && !hasUsableRemoteEntry,
+    shouldCollapseAdvancedEntries: Boolean(recommendedEntry && (advancedEntries.length || archivedEntries.length)),
   };
 }
 

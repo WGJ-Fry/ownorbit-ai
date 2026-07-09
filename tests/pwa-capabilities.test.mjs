@@ -495,6 +495,7 @@ test("mobile iCloud handoff recommends a usable desktop when the default entry f
   const {
     autoSelectRecommendedMobileIcloudHandoffEntry,
     forgetArchivedMobileIcloudHandoffEntries,
+    getMobileIcloudHandoffEntryDisplayPlan,
     getMobileIcloudHandoffEntryKey,
     getMobileIcloudHandoffEntryRecommendation,
     getPreferredMobileIcloudHandoffEntryKey,
@@ -606,6 +607,30 @@ test("mobile iCloud handoff recommends a usable desktop when the default entry f
   assert.equal(sameWifiOnlyRecommendation.recommendedReason, "saved-default");
   assert.equal(sameWifiOnlyRecommendation.preferredNeedsSwitch, false);
 
+  const sameWifiOnlyDisplay = getMobileIcloudHandoffEntryDisplayPlan([sameWifiDefault], {
+    now,
+    preferredKey: getMobileIcloudHandoffEntryKey(sameWifiDefault),
+  });
+  assert.equal(sameWifiOnlyDisplay.primaryEntries.length, 1);
+  assert.equal(sameWifiOnlyDisplay.recommendedEntry.desktopId, "home-lan-mac");
+  assert.equal(sameWifiOnlyDisplay.recommendedEntrySameWifiOnly, true);
+  assert.equal(sameWifiOnlyDisplay.hasUsableRemoteEntry, false);
+  assert.equal(sameWifiOnlyDisplay.recommendedEntryNeedsRemoteSetup, true);
+  assert.equal(sameWifiOnlyDisplay.advancedEntryCount, 0);
+
+  const remotePreferredDisplay = getMobileIcloudHandoffEntryDisplayPlan([sameWifiDefault, longTermRemote], {
+    now,
+    preferredKey: getMobileIcloudHandoffEntryKey(sameWifiDefault),
+  });
+  assert.equal(remotePreferredDisplay.primaryEntries.length, 1);
+  assert.equal(remotePreferredDisplay.recommendedEntry.desktopId, "home-tailnet-mac");
+  assert.equal(remotePreferredDisplay.hasUsableRemoteEntry, true);
+  assert.equal(remotePreferredDisplay.recommendedEntrySameWifiOnly, false);
+  assert.equal(remotePreferredDisplay.recommendedEntryNeedsRemoteSetup, false);
+  assert.equal(remotePreferredDisplay.advancedEntries[0].desktopId, "home-lan-mac");
+  assert.equal(remotePreferredDisplay.advancedEntryCount, 1);
+  assert.equal(remotePreferredDisplay.shouldCollapseAdvancedEntries, true);
+
   const staleSameWifiNewer = {
     ...sameWifiDefault,
     generatedAt: now + 5_000,
@@ -633,6 +658,15 @@ test("mobile iCloud handoff recommends a usable desktop when the default entry f
   assert.equal(staleFallbackRecommendation.preferredNeedsSwitch, true);
   assert.equal(staleFallbackRecommendation.preferredSwitchReason, "default-same-wifi");
   assert.equal(staleFallbackRecommendation.archivedEntries.some((entry) => entry.desktopId === "stale-lan-mac"), true);
+
+  const staleFallbackDisplay = getMobileIcloudHandoffEntryDisplayPlan([staleSameWifiNewer, staleStableRemoteOlder], {
+    now,
+    preferredKey: getMobileIcloudHandoffEntryKey(staleSameWifiNewer),
+  });
+  assert.equal(staleFallbackDisplay.recommendedEntry.desktopId, "stale-tailnet-mac");
+  assert.equal(staleFallbackDisplay.advancedEntries.length, 0);
+  assert.equal(staleFallbackDisplay.archivedEntries.some((entry) => entry.desktopId === "stale-lan-mac"), true);
+  assert.equal(staleFallbackDisplay.advancedEntryCount, 1);
 
   const autoSwitch = autoSelectRecommendedMobileIcloudHandoffEntry([staleDefault, freshStable], {
     now,

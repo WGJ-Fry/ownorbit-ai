@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Copy, RefreshCw, Star, Trash2, Wifi } from "lucide-react";
 import type { DeviceConnectivityReport } from "../../services/lifeosApi";
 import type { MobileIcloudHandoffEntry, MobileIcloudHandoffEntryRecommendation, MobileIcloudHandoffServerRepairStatus, MobileIcloudHandoffStatus } from "../../services/mobileIcloudHandoff";
-import { autoSelectRecommendedMobileIcloudHandoffEntry, buildMobileIcloudHandoffEntryFromServerRepair, buildMobileIcloudHandoffRecoveryPacket, buildMobileIcloudHandoffUrl, forgetArchivedMobileIcloudHandoffEntries, forgetStoredMobileIcloudHandoffEntry, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffEntryFreshness, getMobileIcloudHandoffEntryKey, getMobileIcloudHandoffEntryRecommendation, getMobileIcloudHandoffOneNextAction, getMobileIcloudHandoffServerRepairOneNextAction, getPreferredMobileIcloudHandoffEntryKey, getStoredMobileIcloudHandoffEntries, isMobileIcloudHandoffSameWifiOnly, rememberMobileIcloudHandoffServerRepairEntry, setPreferredMobileIcloudHandoffEntry } from "../../services/mobileIcloudHandoff";
+import { autoSelectRecommendedMobileIcloudHandoffEntry, buildMobileIcloudHandoffEntryFromServerRepair, buildMobileIcloudHandoffRecoveryPacket, buildMobileIcloudHandoffUrl, forgetArchivedMobileIcloudHandoffEntries, forgetStoredMobileIcloudHandoffEntry, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffEntryDisplayPlan, getMobileIcloudHandoffEntryFreshness, getMobileIcloudHandoffEntryKey, getMobileIcloudHandoffOneNextAction, getMobileIcloudHandoffServerRepairOneNextAction, getPreferredMobileIcloudHandoffEntryKey, getStoredMobileIcloudHandoffEntries, isMobileIcloudHandoffSameWifiOnly, rememberMobileIcloudHandoffServerRepairEntry, setPreferredMobileIcloudHandoffEntry } from "../../services/mobileIcloudHandoff";
 import type { OfflineMessageQueueSummary } from "../../services/offlineMessageQueue";
 import type { MobileConnectivityIssueKey, MobileConnectivityResult, MobileRecoveryHintKey, RemoteEntryStatus } from "../../services/pwaCapabilities";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -141,10 +141,12 @@ export default function MobileRemoteEntryCard({
     ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100"
     : "border-sky-400/20 bg-sky-500/10 text-sky-100";
   const icloudActionKey = icloudHandoffStatus ? getMobileIcloudHandoffActionKey(icloudHandoffStatus) : null;
-  const icloudEntryRecommendation = getMobileIcloudHandoffEntryRecommendation(icloudEntries, { preferredKey: preferredIcloudEntryKey });
-  const recommendedIcloudEntry = icloudEntryRecommendation.recommendedEntry;
-  const otherIcloudEntries = icloudEntryRecommendation.otherEntries;
-  const archivedIcloudEntries = icloudEntryRecommendation.archivedEntries;
+  const icloudEntryDisplayPlan = getMobileIcloudHandoffEntryDisplayPlan(icloudEntries, { preferredKey: preferredIcloudEntryKey });
+  const icloudEntryRecommendation = icloudEntryDisplayPlan.recommendation;
+  const recommendedIcloudEntry = icloudEntryDisplayPlan.recommendedEntry;
+  const otherIcloudEntries = icloudEntryDisplayPlan.advancedEntries;
+  const archivedIcloudEntries = icloudEntryDisplayPlan.archivedEntries;
+  const advancedIcloudEntryCount = icloudEntryDisplayPlan.advancedEntryCount;
   const duplicateIcloudDesktopNames = getDuplicateMobileIcloudDesktopNames(icloudEntries);
   const currentIcloudEntryKey = icloudHandoffStatus ? getMobileIcloudHandoffEntryKey(icloudHandoffStatus.entry) : "";
   const recommendedIcloudEntryKey = recommendedIcloudEntry ? getMobileIcloudHandoffEntryKey(recommendedIcloudEntry) : "";
@@ -168,7 +170,7 @@ export default function MobileRemoteEntryCard({
     ? "mobileDevice.icloudHandoffOpenRecommendedAction"
     : "mobileDevice.icloudHandoffMakeRecommendedDefault";
   const currentIcloudSameWifiOnly = Boolean(icloudHandoffStatus && isMobileIcloudHandoffSameWifiOnly(icloudHandoffStatus.entry));
-  const hasRecommendedRemoteIcloudEntry = Boolean(recommendedIcloudEntry && recommendedIcloudEntryKey !== currentIcloudEntryKey && !isMobileIcloudHandoffSameWifiOnly(recommendedIcloudEntry));
+  const hasRecommendedRemoteIcloudEntry = icloudEntryDisplayPlan.hasUsableRemoteEntry && Boolean(recommendedIcloudEntryKey !== currentIcloudEntryKey);
   const icloudStatusOneNextAction = icloudHandoffStatus ? getMobileIcloudHandoffOneNextAction(icloudHandoffStatus, {
     archivedEntryCount: archivedIcloudEntries.length,
     currentSameWifiOnly: currentIcloudSameWifiOnly,
@@ -533,6 +535,12 @@ export default function MobileRemoteEntryCard({
                     : "mobileDevice.icloudHandoffEntryUseRemote")}
                 />
               </div>
+              {icloudEntryDisplayPlan.recommendedEntryNeedsRemoteSetup ? (
+                <div data-testid="mobile-icloud-recommended-needs-remote" className="mt-2 rounded-lg border border-amber-300/25 bg-amber-500/10 p-2 text-[11px] leading-relaxed text-amber-50">
+                  <div className="font-bold">{t("mobileDevice.icloudHandoffRecommendedNeedsRemoteTitle")}</div>
+                  <div className="mt-1 text-amber-50/80">{t("mobileDevice.icloudHandoffRecommendedNeedsRemoteBody")}</div>
+                </div>
+              ) : null}
               {shouldOpenRecommendedIcloudEntry ? (
                 <div data-testid="mobile-icloud-current-recommended-comparison" className="mt-2 rounded-lg border border-cyan-300/20 bg-cyan-500/10 p-2 text-[11px] leading-relaxed text-cyan-50">
                   <div className="font-bold">{t("mobileDevice.icloudHandoffCurrentRecommendedComparisonTitle")}</div>
@@ -558,14 +566,14 @@ export default function MobileRemoteEntryCard({
                   {renderIcloudEntryRow(recommendedIcloudEntry, { recommended: true })}
                 </div>
               ) : null}
-              {otherIcloudEntries.length || archivedIcloudEntries.length ? (
+              {advancedIcloudEntryCount ? (
                 <div className="mt-2">
                   <button
                     type="button"
                     onClick={() => setShowIcloudDesktopAdvanced((value) => !value)}
                     className="inline-flex w-full items-center justify-center rounded-xl border border-white/[0.08] bg-black/10 px-3 py-2 text-xs font-bold"
                   >
-                    {showIcloudDesktopAdvanced ? t("mobileDevice.icloudHandoffHideAdvancedEntries") : t("mobileDevice.icloudHandoffShowAdvancedEntries", { count: otherIcloudEntries.length + archivedIcloudEntries.length })}
+                    {showIcloudDesktopAdvanced ? t("mobileDevice.icloudHandoffHideAdvancedEntries") : t("mobileDevice.icloudHandoffShowAdvancedEntries", { count: advancedIcloudEntryCount })}
                   </button>
                   {showIcloudDesktopAdvanced ? (
                     <div data-testid="mobile-icloud-advanced-entries" className="mt-2 grid gap-2 rounded-xl border border-white/[0.08] bg-black/10 p-2">

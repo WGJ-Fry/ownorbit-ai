@@ -1433,7 +1433,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /getPreferredMobileIcloudHandoffEntryKey/);
   assert.match(mobileRemoteEntryCardSource, /setPreferredMobileIcloudHandoffEntry/);
   assert.match(mobileRemoteEntryCardSource, /getMobileIcloudHandoffEntryFreshness/);
-  assert.match(mobileRemoteEntryCardSource, /getMobileIcloudHandoffEntryRecommendation/);
+  assert.match(mobileRemoteEntryCardSource, /getMobileIcloudHandoffEntryDisplayPlan/);
+  assert.match(mobileRemoteEntryCardSource, /icloudEntryDisplayPlan/);
   assert.match(mobileRemoteEntryCardSource, /icloudEntryFreshnessKeys/);
   assert.match(mobileRemoteEntryCardSource, /Trash2/);
   assert.match(mobileRemoteEntryCardSource, /Star/);
@@ -1455,6 +1456,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /getMobileIcloudEntryModeKey/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffEntryMode/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffEntryUse/);
+  assert.match(mobileRemoteEntryCardSource, /mobile-icloud-recommended-needs-remote/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffRecommendedNeedsRemoteTitle/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffRecommendedNeedsRemoteBody/);
   assert.match(mobileRemoteEntryCardSource, /mobile-icloud-current-recommended-comparison/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffCurrentRecommendedComparisonTitle/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffCurrentOpenedEntry/);
@@ -1487,6 +1491,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /best stable HTTPS entry for off-LAN use/);
   assert.match(translationsSource, /连接方式/);
   assert.match(translationsSource, /Connection type/);
+  assert.match(translationsSource, /这个推荐入口还不能离家使用/);
+  assert.match(translationsSource, /not ready away from home/);
   assert.match(translationsSource, /当前打开的不是推荐入口/);
   assert.match(translationsSource, /Current page is not the recommended entry/);
   assert.match(translationsSource, /Same-Wi-Fi LAN entry/);
