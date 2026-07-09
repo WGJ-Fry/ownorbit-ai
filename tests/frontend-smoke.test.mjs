@@ -1025,6 +1025,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /CloudKit record plan/);
   assert.match(translationsSource, /原生验收闸门/);
   assert.match(translationsSource, /Native acceptance gates/);
+  assert.match(translationsSource, /先应用无冲突记录/);
+  assert.match(translationsSource, /Apply conflict-free records first/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudDataBoundaryBody/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-readiness/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-record-plan/);
@@ -1043,6 +1045,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /recordPlan: Array/);
   assert.match(lifeosApiSource, /acceptanceGates: Array/);
   assert.match(lifeosApiSource, /dataSyncScope: "entry-file-only" \| "cloudkit-native-candidate"/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-quarantine-next/);
+  assert.match(onboardingAppleRemoteSource, /data-cloudkit-quarantine-next/);
+  assert.match(onboardingAppleRemoteSource, /cloudKitQuarantineNextAction/);
+  assert.match(onboardingAppleRemoteSource, /handleCloudKitQuarantineNextAction/);
   assert.match(translationsSource, /同步包状态/);
   assert.match(translationsSource, /Sync packet status/);
   assert.match(translationsSource, /二维码已过期/);

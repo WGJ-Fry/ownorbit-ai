@@ -1940,6 +1940,8 @@ function checkAssets() {
     translationsSource.includes("Import to quarantine") &&
     translationsSource.includes("审核并应用隔离区") &&
     translationsSource.includes("Review and apply quarantine") &&
+    translationsSource.includes("先应用无冲突记录") &&
+    translationsSource.includes("Apply conflict-free records first") &&
     translationsSource.includes("安全同步 iCloud 数据") &&
     translationsSource.includes("Safely sync iCloud data") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudDataBoundaryBody") &&
@@ -1960,6 +1962,10 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-changes-preview") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-import-quarantine") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-apply-quarantine") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-quarantine-next") &&
+    onboardingAppleRemoteSource.includes("data-cloudkit-quarantine-next") &&
+    onboardingAppleRemoteSource.includes("cloudKitQuarantineNextAction") &&
+    onboardingAppleRemoteSource.includes("handleCloudKitQuarantineNextAction") &&
     onboardingAppleRemoteSource.includes("handleLoadCloudKitBatchPreview") &&
     onboardingAppleRemoteSource.includes("handleRunCloudKitSyncExport") &&
     onboardingAppleRemoteSource.includes("handleRunCloudKitSyncImportPreview") &&

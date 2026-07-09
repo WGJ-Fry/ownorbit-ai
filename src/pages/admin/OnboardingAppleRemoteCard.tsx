@@ -11,6 +11,7 @@ type IcloudAvailability = NetworkDiagnostics["icloud"]["availability"];
 type IcloudFileState = IcloudAvailability["handoffFile"];
 type IcloudFileId = "html" | "packet" | "index";
 type IcloudAvailableEntry = NetworkDiagnostics["icloud"]["availableEntries"][number];
+type CloudKitQuarantineNextAction = "apply" | "load" | "sync-now";
 
 type Props = {
   diagnostics: NetworkDiagnostics | null;
@@ -1028,6 +1029,42 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
     }
   };
 
+  const cloudKitQuarantineAutoReady = cloudKitQuarantineSummary?.autoReady || 0;
+  const cloudKitQuarantineReviewCount = (cloudKitQuarantineSummary?.pendingReview || 0) + (cloudKitQuarantineSummary?.conflicts || 0) + (cloudKitQuarantineSummary?.failed || 0);
+  const cloudKitQuarantineAppliedCount = cloudKitQuarantineSummary?.applied || 0;
+  let cloudKitQuarantineNextAction: CloudKitQuarantineNextAction = "sync-now";
+  let cloudKitQuarantineNextTitleKey: TranslationKey = "onboarding.appleRemoteIcloudDataSyncQuarantineNextSyncTitle";
+  let cloudKitQuarantineNextBodyKey: TranslationKey = "onboarding.appleRemoteIcloudDataSyncQuarantineNextSyncBody";
+  let cloudKitQuarantineNextCtaKey: TranslationKey = "onboarding.appleRemoteIcloudDataSyncQuarantineNextSyncCta";
+  if (cloudKitQuarantineAutoReady > 0) {
+    cloudKitQuarantineNextAction = "apply";
+    cloudKitQuarantineNextTitleKey = "onboarding.appleRemoteIcloudDataSyncQuarantineNextApplyTitle";
+    cloudKitQuarantineNextBodyKey = "onboarding.appleRemoteIcloudDataSyncQuarantineNextApplyBody";
+    cloudKitQuarantineNextCtaKey = "onboarding.appleRemoteIcloudDataSyncQuarantineNextApplyCta";
+  } else if (cloudKitQuarantineReviewCount > 0) {
+    cloudKitQuarantineNextAction = "load";
+    cloudKitQuarantineNextTitleKey = "onboarding.appleRemoteIcloudDataSyncQuarantineNextReviewTitle";
+    cloudKitQuarantineNextBodyKey = "onboarding.appleRemoteIcloudDataSyncQuarantineNextReviewBody";
+    cloudKitQuarantineNextCtaKey = "onboarding.appleRemoteIcloudDataSyncQuarantineNextReviewCta";
+  } else if (cloudKitQuarantineAppliedCount > 0) {
+    cloudKitQuarantineNextTitleKey = "onboarding.appleRemoteIcloudDataSyncQuarantineNextDoneTitle";
+    cloudKitQuarantineNextBodyKey = "onboarding.appleRemoteIcloudDataSyncQuarantineNextDoneBody";
+    cloudKitQuarantineNextCtaKey = "onboarding.appleRemoteIcloudDataSyncQuarantineNextDoneCta";
+  }
+  const cloudKitQuarantineNextBusy =
+    (cloudKitQuarantineNextAction === "apply" && cloudKitApplyBusy) ||
+    (cloudKitQuarantineNextAction === "sync-now" && cloudKitSyncNowBusy);
+  const cloudKitQuarantineNextDisabled =
+    cloudKitQuarantineNextBusy ||
+    (cloudKitQuarantineNextAction === "apply" && cloudKitQuarantineAutoReady <= 0) ||
+    (cloudKitQuarantineNextAction === "sync-now" && !dataSync?.ready);
+  const handleCloudKitQuarantineNextAction =
+    cloudKitQuarantineNextAction === "apply"
+      ? handleApplyCloudKitSyncQuarantine
+      : cloudKitQuarantineNextAction === "load"
+      ? handleLoadCloudKitSyncQuarantine
+      : handleRunCloudKitSyncNow;
+
   const renderLatestEntryRepairUrls = (repair: IcloudLatestEntryRepair) => {
     const urls = compactLatestEntryRepairUrls(repair);
     if (!urls.length) return null;
@@ -1798,6 +1835,43 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                     <div data-testid="onboarding-icloud-data-sync-apply-quarantine" className="mt-2 rounded-lg border border-current/10 bg-black/10 p-2">
                       <div className="font-bold">{t("onboarding.appleRemoteIcloudDataSyncApplyQuarantineTitle")}</div>
                       <div className="mt-1 opacity-80">{t("onboarding.appleRemoteIcloudDataSyncApplyQuarantineBody")}</div>
+                      <div
+                        data-testid="onboarding-icloud-data-sync-quarantine-next"
+                        data-cloudkit-quarantine-next={cloudKitQuarantineNextAction}
+                        className="mt-2 rounded-lg border border-cyan-300/20 bg-cyan-500/10 p-2 text-cyan-50"
+                      >
+                        <div className="text-[10px] font-bold uppercase tracking-normal text-cyan-100/70">
+                          {t("onboarding.appleRemoteIcloudDataSyncQuarantineNextLabel")}
+                        </div>
+                        <div className="mt-1 font-bold">{t(cloudKitQuarantineNextTitleKey)}</div>
+                        <div className="mt-1 text-[11px] leading-relaxed text-cyan-50/80">
+                          {t(cloudKitQuarantineNextBodyKey, {
+                            count: cloudKitQuarantineAutoReady || cloudKitQuarantineAppliedCount,
+                            review: cloudKitQuarantineReviewCount,
+                          })}
+                        </div>
+                        <button
+                          type="button"
+                          data-testid="onboarding-icloud-data-sync-quarantine-next-action"
+                          onClick={handleCloudKitQuarantineNextAction}
+                          disabled={cloudKitQuarantineNextDisabled}
+                          className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-300 px-3 py-2 text-[11px] font-bold text-[#061016] disabled:opacity-50"
+                        >
+                          {cloudKitQuarantineNextBusy ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : cloudKitQuarantineNextAction === "apply" ? (
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                          ) : cloudKitQuarantineNextAction === "load" ? (
+                            <ClipboardCheck className="h-3.5 w-3.5" />
+                          ) : (
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          )}
+                          {t(cloudKitQuarantineNextCtaKey, {
+                            count: cloudKitQuarantineAutoReady || cloudKitQuarantineAppliedCount,
+                            review: cloudKitQuarantineReviewCount,
+                          })}
+                        </button>
+                      </div>
                       <div className="mt-2 flex flex-wrap gap-2">
                         <button
                           type="button"
