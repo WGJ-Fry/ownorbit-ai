@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Copy, RefreshCw, Star, Trash2, Wifi } from "lucide-react";
 import type { DeviceConnectivityReport } from "../../services/lifeosApi";
 import type { MobileIcloudHandoffEntry, MobileIcloudHandoffEntryRecommendation, MobileIcloudHandoffServerRepairStatus, MobileIcloudHandoffStatus } from "../../services/mobileIcloudHandoff";
-import { autoSelectRecommendedMobileIcloudHandoffEntry, buildMobileIcloudHandoffRecoveryPacket, buildMobileIcloudHandoffUrl, forgetArchivedMobileIcloudHandoffEntries, forgetStoredMobileIcloudHandoffEntry, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffEntryFreshness, getMobileIcloudHandoffEntryKey, getMobileIcloudHandoffEntryRecommendation, getMobileIcloudHandoffOneNextAction, getPreferredMobileIcloudHandoffEntryKey, getStoredMobileIcloudHandoffEntries, isMobileIcloudHandoffSameWifiOnly, setPreferredMobileIcloudHandoffEntry } from "../../services/mobileIcloudHandoff";
+import { autoSelectRecommendedMobileIcloudHandoffEntry, buildMobileIcloudHandoffRecoveryPacket, buildMobileIcloudHandoffUrl, forgetArchivedMobileIcloudHandoffEntries, forgetStoredMobileIcloudHandoffEntry, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffEntryFreshness, getMobileIcloudHandoffEntryKey, getMobileIcloudHandoffEntryRecommendation, getMobileIcloudHandoffOneNextAction, getMobileIcloudHandoffServerRepairOneNextAction, getPreferredMobileIcloudHandoffEntryKey, getStoredMobileIcloudHandoffEntries, isMobileIcloudHandoffSameWifiOnly, setPreferredMobileIcloudHandoffEntry } from "../../services/mobileIcloudHandoff";
 import type { OfflineMessageQueueSummary } from "../../services/offlineMessageQueue";
 import type { MobileConnectivityIssueKey, MobileConnectivityResult, MobileRecoveryHintKey, RemoteEntryStatus } from "../../services/pwaCapabilities";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -156,6 +156,7 @@ export default function MobileRemoteEntryCard({
     currentSameWifiOnly: currentIcloudSameWifiOnly,
     hasRecommendedRemoteEntry: Boolean(recommendedIcloudEntry && recommendedIcloudEntryKey !== currentIcloudEntryKey && !isMobileIcloudHandoffSameWifiOnly(recommendedIcloudEntry)),
   }) : null;
+  const icloudServerRepairOneNextAction = icloudServerRepair ? getMobileIcloudHandoffServerRepairOneNextAction(icloudServerRepair) : null;
   const showIcloudStatusOneNextAction = Boolean(icloudStatusOneNextAction && !hasIcloudOneNextAction);
   const icloudRecommendedBodyKey = (icloudEntryRecommendation.preferredNeedsSwitch
     ? icloudPreferredSwitchReasonKeys[icloudEntryRecommendation.preferredSwitchReason]
@@ -212,6 +213,18 @@ export default function MobileRemoteEntryCard({
     }
     if (icloudStatusOneNextAction.id === "keep-using-entry") {
       onRefreshServer();
+      return;
+    }
+    await copyIcloudRecoveryPacket();
+  };
+  const handleIcloudServerRepairOneNextAction = async () => {
+    if (!icloudServerRepairOneNextAction) return;
+    if (icloudServerRepairOneNextAction.id === "wait-for-desktop-repair") {
+      onRefreshServer();
+      return;
+    }
+    if (icloudServerRepairOneNextAction.id === "open-latest-entry" || icloudServerRepairOneNextAction.id === "test-phone-connection") {
+      onConnectivityTest();
       return;
     }
     await copyIcloudRecoveryPacket();
@@ -424,6 +437,35 @@ export default function MobileRemoteEntryCard({
                   time: new Date(icloudServerRepair.reportedAt).toLocaleString(),
                 })}
               </div>
+              {icloudServerRepairOneNextAction ? (
+                <div
+                  data-testid="mobile-icloud-server-repair-one-next"
+                  data-mobile-icloud-server-repair-one-next={icloudServerRepairOneNextAction.id}
+                  className={`mt-3 rounded-xl border p-3 ${icloudOneNextTone(icloudServerRepairOneNextAction.tone)}`}
+                >
+                  <div className="text-[11px] font-bold uppercase tracking-normal opacity-70">
+                    {t("mobileDevice.icloudHandoffOneNextLabel")}
+                  </div>
+                  <div className="mt-1 font-bold">{t(icloudServerRepairOneNextAction.titleKey as any)}</div>
+                  <div className="mt-1 opacity-80">{t(icloudServerRepairOneNextAction.bodyKey as any)}</div>
+                  <button
+                    type="button"
+                    data-testid="mobile-icloud-server-repair-one-next-action"
+                    onClick={handleIcloudServerRepairOneNextAction}
+                    disabled={
+                      (serverRefreshBusy && icloudServerRepairOneNextAction.id === "wait-for-desktop-repair") ||
+                      (connectivityBusy && ["open-latest-entry", "test-phone-connection"].includes(icloudServerRepairOneNextAction.id))
+                    }
+                    className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-white/90 px-3 py-2 text-xs font-bold text-[#061016] disabled:opacity-60"
+                  >
+                    {serverRefreshBusy && icloudServerRepairOneNextAction.id === "wait-for-desktop-repair"
+                      ? t("mobileDevice.refreshingServerState")
+                      : connectivityBusy && ["open-latest-entry", "test-phone-connection"].includes(icloudServerRepairOneNextAction.id)
+                      ? t("mobileDevice.testingConnection")
+                      : t(icloudServerRepairOneNextAction.ctaKey as any)}
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : null}
           {recommendedIcloudEntry ? (

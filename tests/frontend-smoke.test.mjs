@@ -1328,6 +1328,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /mobile-icloud-one-next-action/);
   assert.match(mobileRemoteEntryCardSource, /activateRecommendedIcloudEntry/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffOneNextLabel/);
+  assert.match(mobileRemoteEntryCardSource, /getMobileIcloudHandoffServerRepairOneNextAction/);
+  assert.match(mobileRemoteEntryCardSource, /mobile-icloud-server-repair-one-next/);
+  assert.match(mobileRemoteEntryCardSource, /handleIcloudServerRepairOneNextAction/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffActivateRecommendedAction/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffOpenRecommendedTitle/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffOpenRecommendedAction/);
@@ -1364,6 +1367,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /A better entry is available/);
   assert.match(translationsSource, /Open Recommended Entry/);
   assert.match(translationsSource, /Reason: \{\{reason\}\}/);
+  assert.match(translationsSource, /电脑端已经重新生成入口/);
+  assert.match(translationsSource, /The desktop regenerated the entry/);
   assert.match(translationsSource, /only works on the same Wi-Fi/);
   assert.match(translationsSource, /这个 iCloud 入口只适合同一 Wi-Fi/);
   assert.match(translationsSource, /This iCloud entry only works on the same Wi-Fi/);

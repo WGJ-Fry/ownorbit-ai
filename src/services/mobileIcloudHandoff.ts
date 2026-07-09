@@ -117,6 +117,20 @@ export type MobileIcloudHandoffServerRepairStatus = {
   requestedReason?: string;
 };
 
+export type MobileIcloudHandoffServerRepairOneNextActionId =
+  | "wait-for-desktop-repair"
+  | "open-latest-entry"
+  | "test-phone-connection"
+  | "copy-repair-info";
+
+export type MobileIcloudHandoffServerRepairOneNextAction = {
+  id: MobileIcloudHandoffServerRepairOneNextActionId;
+  titleKey: string;
+  bodyKey: string;
+  ctaKey: string;
+  tone: "ok" | "warning" | "danger" | "info";
+};
+
 type MobileConnectivityLike = {
   ok: boolean;
   currentBase: string;
@@ -366,6 +380,45 @@ export function getMobileIcloudHandoffServerRepairStatus() {
   } catch {
     return null;
   }
+}
+
+export function getMobileIcloudHandoffServerRepairOneNextAction(
+  status: MobileIcloudHandoffServerRepairStatus,
+): MobileIcloudHandoffServerRepairOneNextAction {
+  if (status.pending) {
+    return {
+      id: "wait-for-desktop-repair",
+      titleKey: "mobileDevice.icloudHandoffServerRepairOneNextPendingTitle",
+      bodyKey: "mobileDevice.icloudHandoffServerRepairOneNextPendingBody",
+      ctaKey: "mobileDevice.icloudHandoffServerRepairOneNextRefreshCta",
+      tone: "warning",
+    };
+  }
+  if (status.refreshed) {
+    return {
+      id: "open-latest-entry",
+      titleKey: "mobileDevice.icloudHandoffServerRepairOneNextRefreshedTitle",
+      bodyKey: "mobileDevice.icloudHandoffServerRepairOneNextRefreshedBody",
+      ctaKey: "mobileDevice.icloudHandoffServerRepairOneNextTestCta",
+      tone: "ok",
+    };
+  }
+  if (status.reported) {
+    return {
+      id: "test-phone-connection",
+      titleKey: "mobileDevice.icloudHandoffServerRepairOneNextReportedTitle",
+      bodyKey: "mobileDevice.icloudHandoffServerRepairOneNextReportedBody",
+      ctaKey: "mobileDevice.icloudHandoffServerRepairOneNextTestCta",
+      tone: "info",
+    };
+  }
+  return {
+    id: "copy-repair-info",
+    titleKey: "mobileDevice.icloudHandoffServerRepairOneNextCopyTitle",
+    bodyKey: "mobileDevice.icloudHandoffServerRepairOneNextCopyBody",
+    ctaKey: "mobileDevice.icloudHandoffOneNextCopyRepairCta",
+    tone: "danger",
+  };
 }
 
 export function getPendingMobileIcloudHandoffEventCount() {

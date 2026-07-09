@@ -394,7 +394,7 @@ test("mobile iCloud handoff stores non-sensitive entry metadata and detects stal
   installLocalStorage();
   t.after(cleanupLocalStorage);
   const now = 1_800_000_000_000;
-  const { buildMobileIcloudHandoffRecoveryPacket, consumeMobileIcloudHandoffFromUrl, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffEntryFreshness, getMobileIcloudHandoffOneNextAction, getMobileIcloudHandoffStatus, getStoredMobileIcloudHandoff, getStoredMobileIcloudHandoffEntries } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-handoff-${Date.now()}`);
+  const { buildMobileIcloudHandoffRecoveryPacket, consumeMobileIcloudHandoffFromUrl, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffEntryFreshness, getMobileIcloudHandoffOneNextAction, getMobileIcloudHandoffServerRepairOneNextAction, getMobileIcloudHandoffStatus, getStoredMobileIcloudHandoff, getStoredMobileIcloudHandoffEntries } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-handoff-${Date.now()}`);
   const checksum = "a".repeat(64);
   const href = [
     "https://lifeos.example.com/mobile/chat?lifeosEntry=icloud",
@@ -470,6 +470,20 @@ test("mobile iCloud handoff stores non-sensitive entry metadata and detects stal
   assert.match(packet, new RegExp(`entryChecksumSha256=${checksum}`));
   assert.doesNotMatch(packet, /lifeosEntry=icloud/);
   assert.doesNotMatch(packet, /entryGeneratedAt=/);
+  const baseServerRepair = {
+    eventType: "opened-stale-entry",
+    entryBaseUrl: "https://lifeos.example.com",
+    reportedAt: now,
+    reported: true,
+    pending: false,
+    pendingCount: 0,
+    refreshed: false,
+    refreshReason: "fresh",
+  };
+  assert.equal(getMobileIcloudHandoffServerRepairOneNextAction({ ...baseServerRepair, pending: true, reported: false, pendingCount: 1 }).id, "wait-for-desktop-repair");
+  assert.equal(getMobileIcloudHandoffServerRepairOneNextAction({ ...baseServerRepair, refreshed: true, refreshReason: "updated" }).id, "open-latest-entry");
+  assert.equal(getMobileIcloudHandoffServerRepairOneNextAction(baseServerRepair).id, "test-phone-connection");
+  assert.equal(getMobileIcloudHandoffServerRepairOneNextAction({ ...baseServerRepair, reported: false }).id, "copy-repair-info");
 });
 
 test("mobile iCloud handoff recommends a usable desktop when the default entry fails", async (t) => {

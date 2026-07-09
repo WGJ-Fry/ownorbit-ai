@@ -2138,6 +2138,8 @@ function checkAssets() {
     mobileIcloudHandoffSource.includes("forgetArchivedMobileIcloudHandoffEntries") &&
     mobileIcloudHandoffSource.includes("flushPendingMobileIcloudHandoffEvents") &&
     mobileIcloudHandoffSource.includes("getMobileIcloudHandoffServerRepairStatus") &&
+    mobileIcloudHandoffSource.includes("getMobileIcloudHandoffServerRepairOneNextAction") &&
+    mobileIcloudHandoffSource.includes("wait-for-desktop-repair") &&
     mobileIcloudHandoffSource.includes("reportOrQueueIcloudHandoffEvent") &&
     mobileIcloudHandoffSource.includes("!result.ok && response?.icloudRefresh") &&
     deviceRoutesSource.includes("device-connectivity-failed") &&
@@ -2149,6 +2151,8 @@ function checkAssets() {
     mobileRemoteEntryCardSource.includes("icloudEntryRecommendation.recommendedReason") &&
     mobileRemoteEntryCardSource.includes("shouldOpenRecommendedIcloudEntry") &&
     mobileRemoteEntryCardSource.includes("mobile-icloud-one-next-action") &&
+    mobileRemoteEntryCardSource.includes("mobile-icloud-server-repair-one-next") &&
+    mobileRemoteEntryCardSource.includes("handleIcloudServerRepairOneNextAction") &&
     mobileRemoteEntryCardSource.includes("activateRecommendedIcloudEntry") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffOneNextLabel") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffActivateRecommendedAction") &&
@@ -2171,6 +2175,8 @@ function checkAssets() {
     translationsSource.includes("Archived old entries") &&
     translationsSource.includes("Clean up these old entries") &&
     translationsSource.includes("Removed {{count}} old entries") &&
+    translationsSource.includes("The desktop regenerated the entry") &&
+    translationsSource.includes("电脑端已经重新生成入口") &&
     translationsSource.includes("清理这些旧入口") &&
     mobileDeviceSource.includes("flushPendingMobileIcloudHandoffEvents") &&
     mobileDeviceSource.includes("icloudServerRepair") &&
@@ -2181,6 +2187,7 @@ function checkAssets() {
     pwaCapabilitiesTestSource.includes("queues failed desktop reports and flushes them later") &&
     pwaCapabilitiesTestSource.includes("records server repair from failed connectivity reports") &&
     pwaCapabilitiesTestSource.includes("getMobileIcloudHandoffServerRepairStatus") &&
+    pwaCapabilitiesTestSource.includes("getMobileIcloudHandoffServerRepairOneNextAction") &&
     pwaCapabilitiesTestSource.includes("flushes queued reports even without a new entry URL") &&
     apiAuthTestSource.includes("/api/v1/internal/icloud-handoff/refresh") &&
     apiAuthTestSource.includes("desktopInternalToken")
