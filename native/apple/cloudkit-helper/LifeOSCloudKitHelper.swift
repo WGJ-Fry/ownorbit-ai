@@ -13,6 +13,11 @@ private func nowIso() -> String {
   ISO8601DateFormatter().string(from: Date())
 }
 
+private func iso(_ date: Date?) -> String {
+  guard let date else { return "" }
+  return ISO8601DateFormatter().string(from: date)
+}
+
 private func compact(_ value: Any?, limit: Int = 800) -> String {
   let text = String(describing: value ?? "")
     .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
@@ -359,6 +364,114 @@ private func runSyncExport(container: CKContainer, request: [String: Any]) async
   return response
 }
 
+private func runSyncImportPreview(container: CKContainer, request: [String: Any]) async -> [String: Any] {
+  let probe = await runProbe(container: container, operation: "sync-import-preview")
+  guard probe["ok"] as? Bool == true else { return probe }
+
+  let database = container.privateCloudDatabase
+  let recordPlan = dictList(request["recordPlan"], limit: 16)
+  let desiredKeys = [
+    "lifeosSchema",
+    "lifeosDataType",
+    "lifeosRecordType",
+    "lifeosRecordName",
+    "sourceIdHash",
+    "mutationId",
+    "logicalClock",
+    "contentHash",
+    "payloadByteSize",
+    "requiresUserReview",
+    "lifeosSyncedAt",
+  ]
+  var scannedZones = Set<String>()
+  var scannedRecordTypes = Set<String>()
+  var previewRecords: [[String: Any]] = []
+  var warnings: [String] = []
+  var errors: [String] = []
+  var fetched = 0
+  var failed = 0
+  var truncated = false
+
+  for plan in recordPlan {
+    let zone = compact(plan["zone"], limit: 80)
+    if zone.isEmpty { continue }
+    scannedZones.insert(zone)
+    let zoneId = CKRecordZone.ID(zoneName: zone, ownerName: CKCurrentUserDefaultName)
+    for recordType in stringList(plan["recordTypes"], limit: 16) {
+      if recordType.isEmpty { continue }
+      scannedRecordTypes.insert(recordType)
+      let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))
+      do {
+        let result = try await database.records(
+          matching: query,
+          inZoneWith: zoneId,
+          desiredKeys: desiredKeys,
+          resultsLimit: 50
+        )
+        if result.queryCursor != nil { truncated = true }
+        for (_, recordResult) in result.matchResults {
+          switch recordResult {
+          case .success(let record):
+            fetched += 1
+            if previewRecords.count < 200 {
+              previewRecords.append([
+                "zone": zone,
+                "recordType": record.recordType,
+                "recordName": record.recordID.recordName,
+                "mutationId": compact(record["mutationId"], limit: 80),
+                "contentHash": compact(record["contentHash"], limit: 120),
+                "logicalClock": (record["logicalClock"] as? NSNumber)?.doubleValue ?? 0,
+                "payloadByteSize": (record["payloadByteSize"] as? NSNumber)?.intValue ?? 0,
+                "requiresUserReview": (record["requiresUserReview"] as? NSNumber)?.boolValue ?? true,
+                "modifiedAt": iso(record.modificationDate),
+              ])
+            } else {
+              truncated = true
+            }
+          case .failure(let error):
+            failed += 1
+            errors.append("CloudKit import preview could not fetch one \(redact(recordType, limit: 80)) record: \(redact(error.localizedDescription, limit: 240))")
+          }
+        }
+      } catch {
+        failed += 1
+        errors.append("CloudKit import preview query failed for \(redact(recordType, limit: 80)): \(redact(error.localizedDescription, limit: 240))")
+      }
+    }
+  }
+
+  var response = responseBase(operation: "sync-import-preview", ok: failed == 0)
+  response["accountStatus"] = probe["accountStatus"] ?? "available"
+  response["containerReachable"] = probe["containerReachable"] ?? true
+  response["capabilitiesVerified"] = [
+    "account-status",
+    "private-database",
+    "container-reachability",
+    "custom-zones",
+    "sync-import-preview-query",
+  ]
+  response["warnings"] = warnings.map { redact($0, limit: 240) }
+  response["errors"] = errors.map { redact($0, limit: 240) }
+  response["syncImportPreview"] = [
+    "scannedZones": Array(scannedZones).sorted(),
+    "scannedRecordTypes": Array(scannedRecordTypes).sorted(),
+    "fetched": fetched,
+    "failed": failed,
+    "truncated": truncated,
+    "records": previewRecords,
+    "rawPayloadIncluded": false,
+  ]
+  response["roundtrip"] = [
+    "created": false,
+    "fetched": false,
+    "deleted": false,
+    "recordType": "",
+    "zone": "",
+  ]
+  response["evidenceId"] = "lifeos-cloudkit-sync-import-preview-\(UUID().uuidString)"
+  return response
+}
+
 @main
 struct LifeOSCloudKitHelper {
   static func main() async {
@@ -404,6 +517,8 @@ struct LifeOSCloudKitHelper {
       response = await runRoundtrip(container: container, request: request)
     } else if operation == "sync-export" {
       response = await runSyncExport(container: container, request: request)
+    } else if operation == "sync-import-preview" {
+      response = await runSyncImportPreview(container: container, request: request)
     } else {
       response = responseBase(operation: operation, ok: false).merging([
         "errors": ["Unsupported operation: \(redact(operation, limit: 80))"],

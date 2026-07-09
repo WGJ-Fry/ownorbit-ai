@@ -1403,7 +1403,7 @@ export type NetworkDiagnostics = {
 export type CloudKitNativeHelperResult = {
   ok: boolean;
   status: "passed" | "failed" | "skipped";
-  operation: "probe" | "roundtrip" | "sync-export";
+  operation: "probe" | "roundtrip" | "sync-export" | "sync-import-preview";
   checkedAt: string;
   readinessStatus: string;
   reason?: string;
@@ -1413,7 +1413,7 @@ export type CloudKitNativeHelperResult = {
     transport: string;
     requestSchema: string;
     responseSchema: string;
-    operations: Array<"probe" | "roundtrip" | "sync-export">;
+    operations: Array<"probe" | "roundtrip" | "sync-export" | "sync-import-preview">;
     commandArgs: string[];
     timeoutMs: number;
   };
@@ -1435,6 +1435,24 @@ export type CloudKitNativeHelperResult = {
     recordPlanHash: string;
     zones: string[];
     recordTypes: string[];
+  };
+  syncImportPreview?: {
+    scannedZones: string[];
+    scannedRecordTypes: string[];
+    fetched: number;
+    failed: number;
+    truncated: boolean;
+    records: Array<{
+      zone: string;
+      recordType: string;
+      recordName: string;
+      mutationId: string;
+      contentHash: string;
+      logicalClock: number;
+      payloadByteSize: number;
+      modifiedAt: string;
+      requiresUserReview: boolean;
+    }>;
   };
   warnings?: string[];
   errors?: string[];
@@ -2329,6 +2347,16 @@ export function runCloudKitSyncExport(input: { confirmation: string; limit?: num
     method: "POST",
     timeoutMs: 70_000,
     body: JSON.stringify(input),
+  });
+}
+
+export function runCloudKitSyncImportPreview() {
+  return requestJson<{
+    result: CloudKitNativeHelperResult;
+    diagnostics: NetworkDiagnostics;
+  }>("/api/v1/admin/icloud-data-sync/import-preview", {
+    method: "POST",
+    timeoutMs: 70_000,
   });
 }
 

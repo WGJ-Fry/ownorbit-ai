@@ -15,7 +15,7 @@ const MAX_TEXT_CHARS = 800;
 
 type IcloudDataSyncReadiness = ReturnType<typeof getIcloudDataSyncReadiness>;
 
-export type CloudKitNativeHelperOperation = "probe" | "roundtrip" | "sync-export";
+export type CloudKitNativeHelperOperation = "probe" | "roundtrip" | "sync-export" | "sync-import-preview";
 export type CloudKitNativeHelperRunStatus = "passed" | "failed" | "skipped";
 
 type CommandRunner = (
@@ -134,13 +134,40 @@ function normalizeSyncExport(value: unknown) {
   };
 }
 
+function normalizeImportPreviewRecord(value: unknown) {
+  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    zone: compact(input.zone, 80),
+    recordType: compact(input.recordType, 80),
+    recordName: compact(input.recordName, 160),
+    mutationId: compact(input.mutationId, 80),
+    contentHash: compact(input.contentHash, 120),
+    logicalClock: Number(input.logicalClock || 0),
+    payloadByteSize: Number(input.payloadByteSize || 0),
+    modifiedAt: compact(input.modifiedAt, 80),
+    requiresUserReview: Boolean(input.requiresUserReview),
+  };
+}
+
+function normalizeSyncImportPreview(value: unknown) {
+  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    scannedZones: normalizeStringList(input.scannedZones, 32),
+    scannedRecordTypes: normalizeStringList(input.scannedRecordTypes, 64),
+    fetched: Number(input.fetched || 0),
+    failed: Number(input.failed || 0),
+    truncated: Boolean(input.truncated),
+    records: Array.isArray(input.records) ? input.records.map(normalizeImportPreviewRecord).slice(0, 500) : [],
+  };
+}
+
 export function cloudKitNativeHelperContract() {
   return {
     protocolVersion: CLOUDKIT_NATIVE_HELPER_PROTOCOL_VERSION,
     transport: CLOUDKIT_NATIVE_HELPER_TRANSPORT,
     requestSchema: CLOUDKIT_NATIVE_HELPER_REQUEST_SCHEMA,
     responseSchema: CLOUDKIT_NATIVE_HELPER_RESPONSE_SCHEMA,
-    operations: ["probe", "roundtrip", "sync-export"] as CloudKitNativeHelperOperation[],
+    operations: ["probe", "roundtrip", "sync-export", "sync-import-preview"] as CloudKitNativeHelperOperation[],
     commandArgs: [...CLOUDKIT_NATIVE_HELPER_ARGS],
     timeoutMs: CLOUDKIT_NATIVE_HELPER_TIMEOUT_MS,
   };
@@ -194,6 +221,9 @@ function skippedResult(operation: CloudKitNativeHelperOperation, readinessStatus
     readinessStatus,
     reason,
     helperProtocol: cloudKitNativeHelperContract(),
+    roundtrip: normalizeRoundtrip(undefined),
+    syncExport: normalizeSyncExport(undefined),
+    syncImportPreview: normalizeSyncImportPreview(undefined),
   };
 }
 
@@ -222,6 +252,7 @@ export async function runCloudKitNativeHelper(
   const payload = parseHelperPayload(command.stdout);
   const roundtrip = normalizeRoundtrip(payload?.roundtrip);
   const syncExport = normalizeSyncExport(payload?.syncExport);
+  const syncImportPreview = normalizeSyncImportPreview(payload?.syncImportPreview);
   const operationMatches = payload?.operation === operation;
   const protocolMatches = payload?.protocolVersion === CLOUDKIT_NATIVE_HELPER_PROTOCOL_VERSION &&
     payload?.schema === CLOUDKIT_NATIVE_HELPER_RESPONSE_SCHEMA;
@@ -253,6 +284,7 @@ export async function runCloudKitNativeHelper(
     capabilitiesVerified: normalizeStringList(payload?.capabilitiesVerified || payload?.capabilities, 32),
     roundtrip,
     syncExport,
+    syncImportPreview,
     warnings: payloadWarnings,
     errors,
     command: {

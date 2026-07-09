@@ -144,9 +144,13 @@ test("Apple CloudKit helper source implements the native JSON stdio contract", a
   assert.match(swiftSource, /SYNC_APPROVED_RECORDS/);
   assert.match(swiftSource, /runSyncExport/);
   assert.match(swiftSource, /sync-export-save/);
+  assert.match(swiftSource, /runSyncImportPreview/);
+  assert.match(swiftSource, /sync-import-preview-query/);
   assert.match(swiftSource, /database\.save\(record\)/);
   assert.match(swiftSource, /database\.record\(for: recordId\)/);
+  assert.match(swiftSource, /database\.records\(/);
   assert.match(swiftSource, /database\.deleteRecord\(withID: recordId\)/);
+  assert.match(swiftSource, /rawPayloadIncluded/);
   assert.doesNotMatch(swiftSource, /deviceCredential|sessionCookie|providerApiKey|sqliteBlob/);
   assert.match(buildScript, /CloudKit\.framework/);
   assert.match(buildScript, /build\/native\/LifeOSCloudKitHelper/);
@@ -271,6 +275,72 @@ process.stdin.on("end", () => {
     assert.equal(result.syncExport.recordPlanHash, "sync-export-hash");
     assert.equal(result.capabilitiesVerified.includes("sync-export-save"), true);
     assert.equal(result.evidenceId, "fake-cloudkit-sync-export-evidence");
+  } finally {
+    restoreEnv(env);
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit helper sync import preview executes the configured native helper contract", async () => {
+  const env = snapshotEnv();
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-helper-sync-import-preview-"));
+  try {
+    await configureReadyCloudKitEnv(dir, `#!/usr/bin/env node
+let body = "";
+process.stdin.on("data", (chunk) => { body += chunk; });
+process.stdin.on("end", () => {
+  if (!process.argv.includes("--lifeos-cloudkit-json")) process.exit(7);
+  const request = JSON.parse(body);
+  const plans = request.recordPlan || [];
+  console.log(JSON.stringify({
+    protocolVersion: 1,
+    schema: "${CLOUDKIT_NATIVE_HELPER_RESPONSE_SCHEMA}",
+    operation: request.operation,
+    ok: true,
+    accountStatus: "available",
+    containerReachable: true,
+    capabilitiesVerified: [...request.requiredNativeCapabilities, "sync-import-preview-query"],
+    syncImportPreview: {
+      scannedZones: [...new Set(plans.map((plan) => plan.zone))],
+      scannedRecordTypes: [...new Set(plans.flatMap((plan) => plan.recordTypes || []))],
+      fetched: 1,
+      failed: 0,
+      truncated: false,
+      rawPayloadIncluded: false,
+      records: [{
+        zone: "LifeOSChatZone",
+        recordType: "LifeOSMessage",
+        recordName: "message:one",
+        mutationId: "mutation-one",
+        contentHash: "hash-one",
+        logicalClock: 1,
+        payloadByteSize: 123,
+        modifiedAt: "2026-01-02T03:04:05.000Z",
+        requiresUserReview: true
+      }]
+    },
+    evidenceId: "fake-cloudkit-sync-import-preview-evidence"
+  }));
+});
+`);
+    const readiness = getIcloudDataSyncReadiness({ platformSupported: true });
+    const result = await runCloudKitNativeHelper(readiness, {
+      operation: "sync-import-preview",
+      now: new Date("2026-01-02T03:04:05.000Z"),
+      timeoutMs: 5000,
+    });
+    const serialized = JSON.stringify(result);
+    assert.equal(result.status, "passed");
+    assert.equal(result.ok, true);
+    assert.equal(result.operation, "sync-import-preview");
+    assert.equal(result.syncImportPreview.fetched, 1);
+    assert.equal(result.syncImportPreview.failed, 0);
+    assert.equal(result.syncImportPreview.truncated, false);
+    assert.equal(result.syncImportPreview.records[0].contentHash, "hash-one");
+    assert.equal(result.syncImportPreview.records[0].requiresUserReview, true);
+    assert.equal(result.capabilitiesVerified.includes("sync-import-preview-query"), true);
+    assert.equal(result.evidenceId, "fake-cloudkit-sync-import-preview-evidence");
+    assert.equal(serialized.includes("payloadJson"), false);
   } finally {
     restoreEnv(env);
     await rm(dir, { recursive: true, force: true });

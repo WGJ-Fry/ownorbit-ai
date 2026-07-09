@@ -559,6 +559,22 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(blockedCloudKitExportJson.export.exportRecordCount, 0);
   assert.equal(blockedCloudKitExportJson.backup, undefined);
   assertPublicApiResponse("cloudKitSyncExportBlocked", blockedCloudKitExportJson);
+  const blockedCloudKitImportPreviewAuth = await request(port, "/api/v1/admin/icloud-data-sync/import-preview", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  assert.equal(blockedCloudKitImportPreviewAuth.status, 401);
+  const cloudKitImportPreview = await request(port, "/api/v1/admin/icloud-data-sync/import-preview", {
+    method: "POST",
+    headers: adminHeaders,
+  }).then((res) => res.json());
+  assert.equal(cloudKitImportPreview.result.status, "skipped");
+  assert.equal(cloudKitImportPreview.result.operation, "sync-import-preview");
+  assert.equal(cloudKitImportPreview.result.readinessStatus, "not-enabled");
+  assert.equal(cloudKitImportPreview.result.syncImportPreview.fetched, 0);
+  assert.equal(cloudKitImportPreview.result.syncImportPreview.records.length, 0);
+  assert.equal(cloudKitImportPreview.diagnostics.icloud.dataSync.dataSyncScope, "entry-file-only");
+  assertPublicApiResponse("cloudKitSyncImportPreviewSkipped", cloudKitImportPreview);
   const blockedIcloudHandoffExport = await request(port, "/api/v1/admin/icloud-handoff/export", { method: "POST" });
   assert.equal(blockedIcloudHandoffExport.status, 401);
   const blockedIcloudHandoffCleanup = await request(port, "/api/v1/admin/icloud-handoff/cleanup", { method: "POST" });

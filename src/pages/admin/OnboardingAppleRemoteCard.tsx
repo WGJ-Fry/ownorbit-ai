@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { AlertTriangle, ArrowRight, CheckCircle2, ClipboardCheck, ClipboardPaste, Cloud, ExternalLink, Loader2, QrCode, RefreshCw, ShieldCheck, Smartphone, Wifi } from "lucide-react";
-import { analyzeIcloudHandoffRepairPacket, getCloudKitSyncBatchPreview, recordIcloudAcceptance, runCloudKitDataSyncHelper, runCloudKitSyncExport } from "../../services/lifeosApi";
+import { analyzeIcloudHandoffRepairPacket, getCloudKitSyncBatchPreview, recordIcloudAcceptance, runCloudKitDataSyncHelper, runCloudKitSyncExport, runCloudKitSyncImportPreview } from "../../services/lifeosApi";
 import type { CloudKitNativeHelperResult, CloudKitSyncBatchPreview, CloudKitSyncExportSummary, IcloudAutoRefreshResult, IcloudHandoffRepairAnalysis, NetworkDiagnostics } from "../../services/lifeosApi";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { TranslationKey } from "../../i18n/translations";
@@ -539,6 +539,8 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const [cloudKitExportBusy, setCloudKitExportBusy] = useState(false);
   const [cloudKitExportSummary, setCloudKitExportSummary] = useState<CloudKitSyncExportSummary | null>(null);
   const [cloudKitExportMessage, setCloudKitExportMessage] = useState("");
+  const [cloudKitImportBusy, setCloudKitImportBusy] = useState(false);
+  const [cloudKitImportMessage, setCloudKitImportMessage] = useState("");
   const appleRuntime = isAppleRuntime();
   const candidate = getPreferredCandidate(diagnostics);
   const icloud = diagnostics?.icloud;
@@ -761,6 +763,26 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
       setCloudKitExportMessage(error?.message || t("onboarding.appleRemoteIcloudDataSyncExportFailed"));
     } finally {
       setCloudKitExportBusy(false);
+    }
+  };
+
+  const handleRunCloudKitSyncImportPreview = async () => {
+    setCloudKitImportBusy(true);
+    setCloudKitImportMessage("");
+    try {
+      const result = await runCloudKitSyncImportPreview();
+      setCloudKitHelperResult(result.result);
+      onDiagnostics?.(result.diagnostics);
+      setCloudKitImportMessage(t("onboarding.appleRemoteIcloudDataSyncImportPreviewCompleted", {
+        records: result.result.syncImportPreview?.fetched || 0,
+      }));
+    } catch (error: any) {
+      const payload = error?.payload as { result?: CloudKitNativeHelperResult; diagnostics?: NetworkDiagnostics } | undefined;
+      if (payload?.result) setCloudKitHelperResult(payload.result);
+      if (payload?.diagnostics) onDiagnostics?.(payload.diagnostics);
+      setCloudKitImportMessage(error?.message || t("onboarding.appleRemoteIcloudDataSyncImportPreviewFailed"));
+    } finally {
+      setCloudKitImportBusy(false);
     }
   };
 
@@ -1224,6 +1246,40 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                         ) : null}
                       </div>
                     ) : null}
+                    <div data-testid="onboarding-icloud-data-sync-import-preview" className="mt-2 rounded-lg border border-current/10 bg-black/10 p-2">
+                      <div className="font-bold">{t("onboarding.appleRemoteIcloudDataSyncImportPreviewTitle")}</div>
+                      <div className="mt-1 opacity-80">{t("onboarding.appleRemoteIcloudDataSyncImportPreviewBody")}</div>
+                      <button
+                        type="button"
+                        data-testid="onboarding-icloud-data-sync-import-preview-run"
+                        onClick={handleRunCloudKitSyncImportPreview}
+                        disabled={cloudKitImportBusy || !dataSync.ready}
+                        className="mt-2 inline-flex items-center justify-center gap-2 rounded-lg border border-current/15 bg-black/15 px-3 py-2 text-[11px] font-bold disabled:opacity-50"
+                      >
+                        {cloudKitImportBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                        {t("onboarding.appleRemoteIcloudDataSyncImportPreviewRun")}
+                      </button>
+                      {cloudKitImportMessage ? (
+                        <div className="mt-2 rounded-lg border border-current/10 bg-black/10 px-2 py-1 font-bold">
+                          {cloudKitImportMessage}
+                        </div>
+                      ) : null}
+                      {cloudKitHelperResult?.syncImportPreview ? (
+                        <div data-testid="onboarding-icloud-data-sync-import-preview-result" className="mt-2 grid gap-1 rounded-lg border border-current/10 bg-black/10 p-2 font-mono text-[10px] opacity-85">
+                          <div className="font-sans text-[11px] font-bold">{t("onboarding.appleRemoteIcloudDataSyncImportPreviewResultTitle")}</div>
+                          <div>{t("onboarding.appleRemoteIcloudDataSyncImportPreviewFetched", {
+                            fetched: cloudKitHelperResult.syncImportPreview.fetched,
+                            failed: cloudKitHelperResult.syncImportPreview.failed,
+                          })}</div>
+                          <div>{t("onboarding.appleRemoteIcloudDataSyncImportPreviewTypes", {
+                            value: cloudKitHelperResult.syncImportPreview.scannedRecordTypes.join(", ") || t("onboarding.appleRemoteIcloudDataSyncNotConfigured"),
+                          })}</div>
+                          <div>{t("onboarding.appleRemoteIcloudDataSyncImportPreviewTruncated", {
+                            value: cloudKitHelperResult.syncImportPreview.truncated ? t("onboarding.appleRemoteIcloudDataSyncBatchYes") : t("onboarding.appleRemoteIcloudDataSyncBatchNo"),
+                          })}</div>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               </div>

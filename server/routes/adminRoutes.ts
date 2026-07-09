@@ -829,6 +829,37 @@ export function registerAdminRoutes(app: express.Express) {
     }
   });
 
+  app.post("/api/v1/admin/icloud-data-sync/import-preview", requireAdmin, rateLimit({ keyPrefix: "admin-cloudkit-sync-import-preview", windowMs: 60_000, max: 8 }), async (req, res) => {
+    try {
+      const diagnostics = getAdminNetworkDiagnostics();
+      const readiness = getIcloudDataSyncReadiness({ platformSupported: diagnostics.icloud.platformSupported });
+      const result = await runCloudKitNativeHelper(readiness, {
+        operation: "sync-import-preview",
+        timeoutMs: 60_000,
+      });
+      insertAuditLog("icloud_cloudkit_sync_import_preview", "network", "cloudkit-sync-import-preview", {
+        status: result.status,
+        ok: result.ok,
+        readinessStatus: "readinessStatus" in result ? result.readinessStatus : readiness.status,
+        evidenceId: "evidenceId" in result ? result.evidenceId || null : null,
+        syncImportPreview: "syncImportPreview" in result ? {
+          fetched: result.syncImportPreview.fetched,
+          failed: result.syncImportPreview.failed,
+          truncated: result.syncImportPreview.truncated,
+          scannedZones: result.syncImportPreview.scannedZones,
+          scannedRecordTypes: result.syncImportPreview.scannedRecordTypes,
+          recordCount: result.syncImportPreview.records.length,
+        } : null,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(result.status === "failed" ? 400 : 200).json({ result, diagnostics: getAdminNetworkDiagnostics() });
+    } catch (error: any) {
+      insertAuditLog("icloud_cloudkit_sync_import_preview_failed", "network", "cloudkit-sync-import-preview", {
+        error: error?.message || "CloudKit sync import preview failed",
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(400).json({ error: error.message || "CloudKit sync import preview failed", diagnostics: getAdminNetworkDiagnostics() });
+    }
+  });
+
   app.post("/api/v1/admin/icloud-handoff/export", requireAdmin, (req, res) => {
     try {
       const handoff = exportIcloudHandoff();

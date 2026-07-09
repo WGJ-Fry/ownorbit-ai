@@ -177,6 +177,29 @@ LIFEOS_CLOUDKIT_TEST_WRITE_CONFIRM=DELETE_DISPOSABLE_RECORDS \
 npm run icloud:helper:smoke -- --roundtrip --strict
 ```
 
+## Controlled Import Preview
+
+The next read-side guard is a summary-only CloudKit query:
+
+```text
+POST /api/v1/admin/icloud-data-sync/import-preview
+```
+
+This endpoint invokes the native helper with `sync-import-preview`. It queries the private CloudKit database for LifeOS record summaries using the configured record plan and returns only safe metadata:
+
+- zone and record type;
+- record name;
+- mutation id;
+- content hash;
+- logical clock;
+- payload byte size;
+- modified timestamp;
+- review flag.
+
+The helper intentionally excludes `payloadJson` from the requested CloudKit keys, and the admin API does not write anything into SQLite. This proves the desktop can read LifeOS CloudKit records without importing raw user content or merging remote state too early.
+
+This is still not background two-way sync. The next steps are change-token persistence, raw helper-to-backend import under a redacted local-only channel, conflict review UI, tombstone/delete handling, retries, and two-device Apple testing.
+
 ## Conflict Model
 
 Start with conservative conflict handling:
@@ -233,3 +256,5 @@ Do not claim real iCloud data sync until all of this is true:
 当前还新增了受管理员认证保护的批次预览接口：`/api/v1/admin/icloud-data-sync/batch-preview`。它会从 SQLite 里挑选聊天、记忆、任务和生成程序状态的候选记录，但只返回 hash、字段名、record type、zone、数量和阻断原因，不返回原始正文或密钥。它可以帮助判断“哪些数据将来能通过 CloudKit 同步”，但它本身仍不是后台双向同步。
 
 当前还新增了受控写入接口：`/api/v1/admin/icloud-data-sync/export`。它只在 CloudKit 准备度通过、批次预览为 ready、没有敏感阻断记录、请求显式确认 `SYNC_APPROVED_RECORDS` 时运行，并且会先创建本地 SQLite 备份。API 响应仍只返回摘要和证据，不返回正文；经过过滤的 payload 只会通过本机 stdin 发给原生 helper。这个能力代表“已具备第一条受控 CloudKit 写入路径”，但仍不是完整后台双向同步。
+
+当前还新增了安全读取预览接口：`/api/v1/admin/icloud-data-sync/import-preview`。它只从私有 CloudKit 读取 LifeOS 记录的摘要字段，例如 zone、record type、hash、logical clock、payload 大小和更新时间；不会请求 `payloadJson`，也不会导入 SQLite。这个能力代表“已具备第一条受控 CloudKit 读取摘要路径”，但仍不是完整双向同步。
