@@ -550,6 +550,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.simpleDeviceFallbackQrTitle/);
   assert.match(onboardingSource, /onboarding-icloud-quick-entry/);
   assert.match(onboardingSource, /onboarding-icloud-default-flow/);
+  assert.match(onboardingSource, /onboarding-icloud-flow-details/);
   assert.match(onboardingSource, /data-onboarding-icloud-flow-step/);
   assert.match(onboardingSource, /simpleIcloudFlowStage/);
   assert.match(onboardingSource, /simpleIcloudFlowStatusKey/);
@@ -564,6 +565,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /showSimpleIcloudQrAfterPickup/);
   assert.match(onboardingSource, /simpleIcloudShouldPollPickup/);
   assert.match(onboardingSource, /onboarding-icloud-auto-watch/);
+  assert.match(onboardingSource, /onboarding-icloud-files-details/);
   assert.match(onboardingSource, /onboarding-icloud-copy-entry-path/);
   assert.match(onboardingSource, /handleCopyIcloudEntryPath/);
   assert.match(onboardingSource, /navigator\.clipboard\.writeText\(entryPath\)/);
@@ -630,6 +632,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.simpleIcloudFilesActionTitle/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudFilesOneStepHint/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudFilesAutoWatch/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudFilesDetailsTitle/);
   assert.match(onboardingSource, /simpleIcloudCurrentEntry/);
   assert.match(onboardingSource, /onboarding-icloud-current-entry/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudCurrentEntryTitle/);
@@ -638,6 +641,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.simpleIcloudScanQrAction/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudLongTestTitle/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudDefaultFlowTitle/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudFlowDetailsTitle/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudFlowStatusFilesNext/);
   assert.match(onboardingSource, /getCloudKitDeviceTrustMetadata\(10\)/);
   assert.match(onboardingSource, /onboarding-icloud-device-trust-rebind/);

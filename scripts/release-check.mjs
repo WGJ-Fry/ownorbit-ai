@@ -720,6 +720,7 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding.simpleDeviceFallbackQrTitle") &&
     adminOnboardingSource.includes("onboarding-icloud-quick-entry") &&
     adminOnboardingSource.includes("onboarding-icloud-default-flow") &&
+    adminOnboardingSource.includes("onboarding-icloud-flow-details") &&
     adminOnboardingSource.includes("data-onboarding-icloud-flow-step") &&
     adminOnboardingSource.includes("simpleIcloudFlowStage") &&
     adminOnboardingSource.includes("simpleIcloudFlowStatusKey") &&
@@ -774,6 +775,8 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding.simpleIcloudFilesActionTitle") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudFilesOneStepHint") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudFilesAutoWatch") &&
+    adminOnboardingSource.includes("onboarding-icloud-files-details") &&
+    adminOnboardingSource.includes("onboarding.simpleIcloudFilesDetailsTitle") &&
     adminOnboardingSource.includes("onboarding-icloud-copy-entry-path") &&
     adminOnboardingSource.includes("handleCopyIcloudEntryPath") &&
     adminOnboardingSource.includes("navigator.clipboard.writeText(entryPath)") &&
@@ -831,10 +834,12 @@ function checkAssets() {
     translationsSource.includes("onboarding.simpleIcloudReadyTitle") &&
     translationsSource.includes("onboarding.simpleIcloudDefaultFlowTitle") &&
     translationsSource.includes("onboarding.simpleIcloudOnlyStepKicker") &&
+    translationsSource.includes("onboarding.simpleIcloudFlowDetailsTitle") &&
     translationsSource.includes("第 {{step}} 步：现在只做这个") &&
     translationsSource.includes("Step {{step}}: do only this now") &&
     translationsSource.includes("onboarding.simpleIcloudFlowStatusFilesNext") &&
     translationsSource.includes("onboarding.simpleIcloudFilesActionTitle") &&
+    translationsSource.includes("onboarding.simpleIcloudFilesDetailsTitle") &&
     translationsSource.includes("onboarding.simpleIcloudQrActionTitle") &&
     translationsSource.includes("onboarding.simpleIcloudScanQrAction") &&
     translationsSource.includes("onboarding.simpleIcloudLongTestTitle") &&

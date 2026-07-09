@@ -790,55 +790,9 @@ export default function AdminOnboardingPage() {
                       <p className="mt-1 text-xs leading-relaxed text-cyan-50/75">{t("onboarding.simpleIcloudDefaultFlowBody")}</p>
                     </div>
                   </div>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                    {simpleIcloudFlowSteps.map((step) => (
-                      <div
-                        key={step.id}
-                        data-onboarding-icloud-flow-step={step.id}
-                        className={`rounded-xl border p-3 text-xs leading-relaxed ${
-                          step.done
-                            ? "border-emerald-200/20 bg-emerald-400/10 text-emerald-50"
-                            : step.active
-                            ? "border-cyan-100/25 bg-cyan-300/10 text-cyan-50"
-                            : "border-white/10 bg-black/15 text-zinc-400"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 font-bold">
-                          {step.done ? <CheckCircle2 className="h-3.5 w-3.5" /> : <span className="h-2 w-2 rounded-full bg-current opacity-70" />}
-                          <span>{t(step.labelKey)}</span>
-                        </div>
-                        <div className="mt-1 opacity-75">
-                          {t(step.done ? "onboarding.simpleIcloudFlowDone" : step.active ? "onboarding.simpleIcloudFlowNow" : "onboarding.simpleIcloudFlowNext")}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
                   <div data-testid="onboarding-icloud-default-flow-status" className="mt-3 rounded-xl border border-cyan-100/10 bg-black/15 p-3 text-xs font-bold leading-relaxed text-cyan-50/90">
                     {t(simpleIcloudFlowStatusKey)}
                   </div>
-                  {simpleIcloudNeedsDeviceRebind ? (
-                    <div data-testid="onboarding-icloud-device-trust-rebind" className="mt-3 rounded-2xl border border-amber-200/20 bg-amber-400/10 p-4 text-sm leading-relaxed text-amber-50">
-                      <div className="flex gap-3">
-                        <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <div className="font-bold">{t("onboarding.simpleIcloudDeviceTrustTitle", { count: cloudKitDeviceTrustSummary?.needsRebind || 0 })}</div>
-                          <p className="mt-1 text-xs text-amber-50/80">{t("onboarding.simpleIcloudDeviceTrustBody")}</p>
-                          <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-100/15 bg-black/15 p-3 text-xs font-bold">
-                            <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                            <span>
-                              {t("onboarding.appleRemoteIcloudOneNextAction", {
-                                action: t("onboarding.simpleIcloudDeviceTrustAction"),
-                              })}
-                            </span>
-                          </div>
-                          <a href="/admin/devices/pair" className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-200 px-3 py-2 text-xs font-bold text-[#1d1304] shadow-lg shadow-amber-950/20 transition hover:bg-amber-100">
-                            <QrCode className="h-3.5 w-3.5" />
-                            {t("onboarding.simpleIcloudDeviceTrustCta")}
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
                   {!simpleIcloudBusy ? (
                     <div
                       data-testid="onboarding-icloud-quick-one-step"
@@ -865,6 +819,57 @@ export default function AdminOnboardingPage() {
                           {simpleIcloudHumanRecoveryTipText}
                         </div>
                       ) : null}
+                    </div>
+                  ) : null}
+                  <details data-testid="onboarding-icloud-flow-details" className="mt-3 rounded-xl border border-cyan-100/10 bg-black/10 p-3">
+                    <summary className="cursor-pointer text-xs font-bold text-cyan-50/80">
+                      {t("onboarding.simpleIcloudFlowDetailsTitle")}
+                    </summary>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                      {simpleIcloudFlowSteps.map((step) => (
+                        <div
+                          key={step.id}
+                          data-onboarding-icloud-flow-step={step.id}
+                          className={`rounded-xl border p-3 text-xs leading-relaxed ${
+                            step.done
+                              ? "border-emerald-200/20 bg-emerald-400/10 text-emerald-50"
+                              : step.active
+                              ? "border-cyan-100/25 bg-cyan-300/10 text-cyan-50"
+                              : "border-white/10 bg-black/15 text-zinc-400"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 font-bold">
+                            {step.done ? <CheckCircle2 className="h-3.5 w-3.5" /> : <span className="h-2 w-2 rounded-full bg-current opacity-70" />}
+                            <span>{t(step.labelKey)}</span>
+                          </div>
+                          <div className="mt-1 opacity-75">
+                            {t(step.done ? "onboarding.simpleIcloudFlowDone" : step.active ? "onboarding.simpleIcloudFlowNow" : "onboarding.simpleIcloudFlowNext")}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                  {simpleIcloudNeedsDeviceRebind ? (
+                    <div data-testid="onboarding-icloud-device-trust-rebind" className="mt-3 rounded-2xl border border-amber-200/20 bg-amber-400/10 p-4 text-sm leading-relaxed text-amber-50">
+                      <div className="flex gap-3">
+                        <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold">{t("onboarding.simpleIcloudDeviceTrustTitle", { count: cloudKitDeviceTrustSummary?.needsRebind || 0 })}</div>
+                          <p className="mt-1 text-xs text-amber-50/80">{t("onboarding.simpleIcloudDeviceTrustBody")}</p>
+                          <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-100/15 bg-black/15 p-3 text-xs font-bold">
+                            <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                            <span>
+                              {t("onboarding.appleRemoteIcloudOneNextAction", {
+                                action: t("onboarding.simpleIcloudDeviceTrustAction"),
+                              })}
+                            </span>
+                          </div>
+                          <a href="/admin/devices/pair" className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-200 px-3 py-2 text-xs font-bold text-[#1d1304] shadow-lg shadow-amber-950/20 transition hover:bg-amber-100">
+                            <QrCode className="h-3.5 w-3.5" />
+                            {t("onboarding.simpleIcloudDeviceTrustCta")}
+                          </a>
+                        </div>
+                      </div>
                     </div>
                   ) : null}
                 </div>
@@ -916,28 +921,33 @@ export default function AdminOnboardingPage() {
                           <p data-testid="onboarding-icloud-auto-watch" className="mt-2 rounded-lg border border-emerald-300/15 bg-emerald-400/10 p-2 font-bold text-emerald-50">
                             {t("onboarding.simpleIcloudFilesAutoWatch")}
                           </p>
-                          <div className="mt-2 break-all rounded-lg bg-black/20 p-2 font-mono text-[11px] opacity-75">{icloud?.handoffFilePath || t("onboarding.simpleIcloudFilesPath")}</div>
-                          <button
-                            type="button"
-                            data-testid="onboarding-icloud-copy-entry-path"
-                            onClick={handleCopyIcloudEntryPath}
-                            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 font-bold"
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                            {t("onboarding.simpleIcloudCopyPath")}
-                          </button>
-                          {desktopBridgeAvailable ? (
+                          <details data-testid="onboarding-icloud-files-details" className="mt-3 rounded-lg border border-current/10 bg-black/10 p-2">
+                            <summary className="cursor-pointer font-bold opacity-85">
+                              {t("onboarding.simpleIcloudFilesDetailsTitle")}
+                            </summary>
+                            <div className="mt-2 break-all rounded-lg bg-black/20 p-2 font-mono text-[11px] opacity-75">{icloud?.handoffFilePath || t("onboarding.simpleIcloudFilesPath")}</div>
                             <button
                               type="button"
-                              data-testid="onboarding-icloud-open-folder"
-                              onClick={() => handleDesktopRecoveryAction("icloudFolder")}
-                              disabled={busy === "desktop-icloudFolder"}
-                              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 font-bold disabled:opacity-50"
+                              data-testid="onboarding-icloud-copy-entry-path"
+                              onClick={handleCopyIcloudEntryPath}
+                              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 font-bold"
                             >
-                              {busy === "desktop-icloudFolder" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Cloud className="h-3.5 w-3.5" />}
-                              {t("onboarding.simpleIcloudOpenFolder")}
+                              <Copy className="h-3.5 w-3.5" />
+                              {t("onboarding.simpleIcloudCopyPath")}
                             </button>
-                          ) : null}
+                            {desktopBridgeAvailable ? (
+                              <button
+                                type="button"
+                                data-testid="onboarding-icloud-open-folder"
+                                onClick={() => handleDesktopRecoveryAction("icloudFolder")}
+                                disabled={busy === "desktop-icloudFolder"}
+                                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-current/15 bg-black/15 px-3 py-2 font-bold disabled:opacity-50"
+                              >
+                                {busy === "desktop-icloudFolder" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Cloud className="h-3.5 w-3.5" />}
+                                {t("onboarding.simpleIcloudOpenFolder")}
+                              </button>
+                            ) : null}
+                          </details>
                         </div>
                         ) : null}
                         {showSimpleIcloudQrAfterPickup ? (
