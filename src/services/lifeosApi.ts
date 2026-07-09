@@ -1684,6 +1684,35 @@ export type CloudKitSyncCycleResult = {
   };
 };
 
+export type CloudKitAutoSyncLastResult = {
+  ok: boolean;
+  status: CloudKitSyncCycleResult["status"] | "skipped" | "already-running" | "failed";
+  nextAction: CloudKitSyncCycleResult["nextAction"] | "wait" | "configure-cloudkit" | "retry";
+  reason: "scheduled" | "manual" | "not-ready" | "already-running" | "error";
+  startedAt: number;
+  finishedAt: number;
+  readinessStatus?: string;
+  dataSyncScope?: string;
+  pullStatus?: CloudKitSyncCycleResult["pull"]["status"];
+  pullApplied?: number;
+  pullConflicts?: number;
+  uploadStatus?: NonNullable<CloudKitSyncCycleResult["upload"]>["status"];
+  uploadSaved?: number;
+  error?: string;
+  rawPayloadReturnedToAdmin: false;
+  cloudKitChangeTokenReturnedToAdmin: false;
+  localBackupPathReturnedToAdmin: false;
+};
+
+export type CloudKitAutoSyncSchedule = {
+  enabled: boolean;
+  intervalMinutes: number;
+  lastRunAt?: number;
+  nextRunAt?: number;
+  updatedAt?: number;
+  lastResult?: CloudKitAutoSyncLastResult;
+};
+
 export type CloudKitSyncBatchPreview = {
   ok: boolean;
   status: "skipped" | "blocked" | "empty" | "needs-review" | "ready";
@@ -2699,6 +2728,37 @@ export function runCloudKitSyncCycle(input: { confirmation: string; limit?: numb
     method: "POST",
     timeoutMs: 120_000,
     body: JSON.stringify(input),
+  });
+}
+
+export function getCloudKitAutoSyncSchedule() {
+  return requestJson<{
+    schedule: CloudKitAutoSyncSchedule;
+    diagnostics: NetworkDiagnostics;
+  }>("/api/v1/admin/icloud-data-sync/auto-sync");
+}
+
+export function updateCloudKitAutoSyncSchedule(input: { enabled: boolean; intervalMinutes: number }) {
+  return requestJson<{
+    schedule: CloudKitAutoSyncSchedule;
+    diagnostics: NetworkDiagnostics;
+  }>("/api/v1/admin/icloud-data-sync/auto-sync", {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export function runCloudKitAutoSyncNow() {
+  return requestJson<{
+    skipped: boolean;
+    reason: "scheduled" | "manual" | "not-ready" | "already-running" | "error";
+    schedule: CloudKitAutoSyncSchedule;
+    lastResult: CloudKitAutoSyncLastResult;
+    cycle?: CloudKitSyncCycleResult;
+    diagnostics: NetworkDiagnostics;
+  }>("/api/v1/admin/icloud-data-sync/auto-sync/run-now", {
+    method: "POST",
+    timeoutMs: 120_000,
   });
 }
 

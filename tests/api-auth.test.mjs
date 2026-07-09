@@ -623,6 +623,45 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(JSON.stringify(cloudKitCycle).includes("serverChangeToken"), false);
   assert.equal(JSON.stringify(cloudKitCycle).includes("/Users/"), false);
   assertPublicApiResponse("cloudKitSyncCycleNeedsSetup", cloudKitCycle);
+  const blockedCloudKitAutoSync = await request(port, "/api/v1/admin/icloud-data-sync/auto-sync");
+  assert.equal(blockedCloudKitAutoSync.status, 401);
+  const blockedCloudKitAutoSyncUpdate = await request(port, "/api/v1/admin/icloud-data-sync/auto-sync", {
+    method: "PUT",
+    body: JSON.stringify({ enabled: true, intervalMinutes: 15 }),
+  });
+  assert.equal(blockedCloudKitAutoSyncUpdate.status, 401);
+  const blockedCloudKitAutoSyncRunNow = await request(port, "/api/v1/admin/icloud-data-sync/auto-sync/run-now", {
+    method: "POST",
+  });
+  assert.equal(blockedCloudKitAutoSyncRunNow.status, 401);
+  const cloudKitAutoSyncInitial = await request(port, "/api/v1/admin/icloud-data-sync/auto-sync", { headers: adminHeaders }).then((res) => res.json());
+  assert.equal(cloudKitAutoSyncInitial.schedule.enabled, false);
+  assert.equal(cloudKitAutoSyncInitial.schedule.intervalMinutes >= 15, true);
+  assertPublicApiResponse("cloudKitAutoSyncInitial", cloudKitAutoSyncInitial);
+  const cloudKitAutoSyncSaved = await request(port, "/api/v1/admin/icloud-data-sync/auto-sync", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({ enabled: true, intervalMinutes: 15 }),
+  }).then((res) => res.json());
+  assert.equal(cloudKitAutoSyncSaved.schedule.enabled, true);
+  assert.equal(cloudKitAutoSyncSaved.schedule.intervalMinutes, 15);
+  assert.equal(typeof cloudKitAutoSyncSaved.schedule.nextRunAt, "number");
+  assertPublicApiResponse("cloudKitAutoSyncSaved", cloudKitAutoSyncSaved);
+  const cloudKitAutoSyncRunNow = await request(port, "/api/v1/admin/icloud-data-sync/auto-sync/run-now", {
+    method: "POST",
+    headers: adminHeaders,
+  }).then((res) => res.json());
+  assert.equal(cloudKitAutoSyncRunNow.skipped, true);
+  assert.equal(cloudKitAutoSyncRunNow.reason, "not-ready");
+  assert.equal(cloudKitAutoSyncRunNow.lastResult.status, "skipped");
+  assert.equal(cloudKitAutoSyncRunNow.lastResult.nextAction, "configure-cloudkit");
+  assert.equal(cloudKitAutoSyncRunNow.lastResult.rawPayloadReturnedToAdmin, false);
+  assert.equal(cloudKitAutoSyncRunNow.lastResult.cloudKitChangeTokenReturnedToAdmin, false);
+  assert.equal(cloudKitAutoSyncRunNow.lastResult.localBackupPathReturnedToAdmin, false);
+  assert.equal(JSON.stringify(cloudKitAutoSyncRunNow).includes("payloadJson"), false);
+  assert.equal(JSON.stringify(cloudKitAutoSyncRunNow).includes("serverChangeToken"), false);
+  assert.equal(JSON.stringify(cloudKitAutoSyncRunNow).includes("/Users/"), false);
+  assertPublicApiResponse("cloudKitAutoSyncRunNow", cloudKitAutoSyncRunNow);
   const blockedCloudKitImportPreviewAuth = await request(port, "/api/v1/admin/icloud-data-sync/import-preview", {
     method: "POST",
     body: JSON.stringify({}),
@@ -1426,7 +1465,11 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(diagnosticBundle.icloudHandoff.boundary.cloudKitReadiness.requiresNativeAppleClient, true);
   assert.equal(diagnosticBundle.icloudHandoff.boundary.cloudKitReadiness.requiresExplicitUserOptIn, true);
   assert.equal(diagnosticBundle.icloudHandoff.boundary.cloudKitReadiness.containerConfigured, false);
+  assert.equal(diagnosticBundle.icloudHandoff.boundary.cloudKitAutoSync.enabled, true);
+  assert.equal(diagnosticBundle.icloudHandoff.boundary.cloudKitAutoSync.lastResult.status, "skipped");
   assert.equal(diagnosticBundle.icloudHandoff.boundary.chatMemoryTaskSync, false);
+  assert.equal(diagnosticBundle.icloudHandoff.boundary.chatMemoryTaskSyncMode, "not-enabled");
+  assert.equal(diagnosticBundle.icloudHandoff.boundary.fullyAutomaticBackgroundSync, true);
   assert.equal(diagnosticBundle.icloudHandoff.boundary.cloudKitRequiredForDataSync, true);
   assert.deepEqual(diagnosticBundle.icloudHandoff.boundary.syncedDataTypes, ["mobile-entry-file"]);
   assert.equal(diagnosticBundle.icloudHandoff.boundary.notSyncedDataTypes.includes("chat-history"), true);

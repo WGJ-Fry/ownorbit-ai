@@ -39,6 +39,7 @@ import { listCloudKitDeviceTrustMetadata } from "../cloudKitDeviceTrustMetadata"
 import { CLOUDKIT_SYNC_NOW_CONFIRMATION, runCloudKitSyncNow } from "../cloudKitSyncNow";
 import { CLOUDKIT_SYNC_UPLOAD_NOW_CONFIRMATION, runCloudKitSyncUploadNow } from "../cloudKitSyncUploadNow";
 import { CLOUDKIT_SYNC_CYCLE_CONFIRMATION, runCloudKitSyncCycle } from "../cloudKitSyncCycle";
+import { getCloudKitAutoSyncSchedule, runCloudKitAutoSyncNow, updateCloudKitAutoSyncSchedule } from "../cloudKitAutoSyncSchedule";
 
 const loginFailures = new Map<string, { count: number; lockedUntil: number }>();
 
@@ -1114,6 +1115,48 @@ export function registerAdminRoutes(app: express.Express) {
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.status(400).json({
         error: error.message || "CloudKit safe sync cycle failed",
+        diagnostics: getAdminNetworkDiagnostics(),
+      });
+    }
+  });
+
+  app.get("/api/v1/admin/icloud-data-sync/auto-sync", requireAdmin, rateLimit({ keyPrefix: "admin-cloudkit-auto-sync", windowMs: 60_000, max: 20 }), (_req, res) => {
+    res.json({
+      schedule: getCloudKitAutoSyncSchedule(),
+      diagnostics: getAdminNetworkDiagnostics(),
+    });
+  });
+
+  app.put("/api/v1/admin/icloud-data-sync/auto-sync", requireAdmin, rateLimit({ keyPrefix: "admin-cloudkit-auto-sync-update", windowMs: 60_000, max: 8 }), (req, res) => {
+    try {
+      const schedule = updateCloudKitAutoSyncSchedule({
+        enabled: Boolean(req.body?.enabled),
+        intervalMinutes: Number.parseInt(String(req.body?.intervalMinutes || ""), 10),
+      }, { type: (req as any).actor?.type || "admin", id: (req as any).actor?.id || "admin" });
+      res.json({
+        schedule,
+        diagnostics: getAdminNetworkDiagnostics(),
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        error: error.message || "CloudKit auto sync schedule could not be updated",
+        schedule: getCloudKitAutoSyncSchedule(),
+        diagnostics: getAdminNetworkDiagnostics(),
+      });
+    }
+  });
+
+  app.post("/api/v1/admin/icloud-data-sync/auto-sync/run-now", requireAdmin, rateLimit({ keyPrefix: "admin-cloudkit-auto-sync-run-now", windowMs: 60_000, max: 3 }), async (req, res) => {
+    try {
+      const result = await runCloudKitAutoSyncNow("manual", { type: (req as any).actor?.type || "admin", id: (req as any).actor?.id || "admin" });
+      res.status(result.lastResult.status === "failed" ? 400 : 200).json({
+        ...result,
+        diagnostics: getAdminNetworkDiagnostics(),
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        error: error.message || "CloudKit auto sync could not run",
+        schedule: getCloudKitAutoSyncSchedule(),
         diagnostics: getAdminNetworkDiagnostics(),
       });
     }

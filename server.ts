@@ -21,6 +21,7 @@ import { attachRealtimeServer } from "./server/realtime";
 import { runMigrations } from "./server/migrations";
 import { redactApiErrorResponses, requireCsrf, securityHeaders } from "./server/httpSecurity";
 import { startBackupScheduler } from "./server/backupSchedule";
+import { startCloudKitAutoSyncScheduler } from "./server/cloudKitAutoSyncSchedule";
 import { maybeStartConfiguredCloudflareTunnel } from "./server/cloudflareTunnel";
 import { runIcloudHandoffStartupRefresh, startIcloudHandoffMonitor } from "./server/icloudHandoffMonitor";
 import { maybeStartConfiguredTailscaleServe } from "./server/networkDiagnostics";
@@ -72,6 +73,7 @@ runMigrations();
 migrateLegacyJsonStore();
 migrateLegacyCustomAppsFromClientState();
 startBackupScheduler();
+startCloudKitAutoSyncScheduler();
 startRemoteHealthMonitor();
 startIcloudHandoffMonitor();
 

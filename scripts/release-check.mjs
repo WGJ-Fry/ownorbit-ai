@@ -1537,6 +1537,8 @@ function checkAssets() {
   const cloudKitSyncUploadNowTestSource = exists("tests/cloudkit-sync-upload-now.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-sync-upload-now.test.mjs"), "utf8") : "";
   const cloudKitSyncCycleSource = exists("server/cloudKitSyncCycle.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitSyncCycle.ts"), "utf8") : "";
   const cloudKitSyncCycleTestSource = exists("tests/cloudkit-sync-cycle.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-sync-cycle.test.mjs"), "utf8") : "";
+  const cloudKitAutoSyncScheduleSource = exists("server/cloudKitAutoSyncSchedule.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitAutoSyncSchedule.ts"), "utf8") : "";
+  const cloudKitAutoSyncScheduleTestSource = exists("tests/cloudkit-auto-sync-schedule.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-auto-sync-schedule.test.mjs"), "utf8") : "";
   const cloudKitNativeHelperSmokeSource = exists("scripts/cloudkit-native-helper-smoke.mjs") ? fs.readFileSync(path.join(rootDir, "scripts/cloudkit-native-helper-smoke.mjs"), "utf8") : "";
   const cloudKitNativeSwiftHelperSource = exists("native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift") ? fs.readFileSync(path.join(rootDir, "native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift"), "utf8") : "";
   const cloudKitNativeHelperBuildSource = exists("scripts/build-cloudkit-helper.mjs") ? fs.readFileSync(path.join(rootDir, "scripts/build-cloudkit-helper.mjs"), "utf8") : "";
@@ -2213,6 +2215,28 @@ function checkAssets() {
     cloudKitSyncCycleSource.includes("uploadRunsOnlyAfterConflictFreePull: true") &&
     cloudKitSyncCycleTestSource.includes("CloudKit safe sync cycle pulls first") &&
     cloudKitSyncCycleTestSource.includes("stops before upload when the remote pull fails") &&
+    cloudKitAutoSyncScheduleSource.includes("lifeos_cloudkit_auto_sync_schedule") &&
+    cloudKitAutoSyncScheduleSource.includes("startCloudKitAutoSyncScheduler") &&
+    cloudKitAutoSyncScheduleSource.includes("runDueCloudKitAutoSync") &&
+    cloudKitAutoSyncScheduleSource.includes("runCloudKitAutoSyncNow") &&
+    cloudKitAutoSyncScheduleSource.includes("rawPayloadReturnedToAdmin: false") &&
+    cloudKitAutoSyncScheduleSource.includes("cloudKitChangeTokenReturnedToAdmin: false") &&
+    cloudKitAutoSyncScheduleSource.includes("localBackupPathReturnedToAdmin: false") &&
+    cloudKitAutoSyncScheduleTestSource.includes("CloudKit auto sync stays off by default") &&
+    cloudKitAutoSyncScheduleTestSource.includes("records safe scheduled cycle summaries") &&
+    cloudKitAutoSyncScheduleTestSource.includes("single setup action when native data sync is not ready") &&
+    serverSource.includes("startCloudKitAutoSyncScheduler") &&
+    adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/auto-sync") &&
+    adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/auto-sync/run-now") &&
+    cloudKitAutoSyncScheduleSource.includes("icloud_cloudkit_auto_sync_schedule_updated") &&
+    apiAuthTestSource.includes("/api/v1/admin/icloud-data-sync/auto-sync") &&
+    apiAuthTestSource.includes("/api/v1/admin/icloud-data-sync/auto-sync/run-now") &&
+    apiAuthTestSource.includes("cloudKitAutoSyncRunNow.lastResult.rawPayloadReturnedToAdmin, false") &&
+    lifeosApiSource.includes("CloudKitAutoSyncSchedule") &&
+    lifeosApiSource.includes("getCloudKitAutoSyncSchedule") &&
+    lifeosApiSource.includes("updateCloudKitAutoSyncSchedule") &&
+    lifeosApiSource.includes("runCloudKitAutoSyncNow") &&
+    packageJson.scripts.test.includes("tests/cloudkit-auto-sync-schedule.test.mjs") &&
     cloudKitNativeHelperSmokeSource.includes("runCloudKitNativeHelper") &&
     cloudKitNativeHelperSmokeSource.includes("--subscription-probe") &&
     cloudKitNativeHelperSmokeSource.includes("subscription-probe") &&
@@ -2259,6 +2283,9 @@ function checkAssets() {
     packageJson.scripts.test.includes("tests/cloudkit-sync-cycle.test.mjs") &&
     diagnosticBundleSource.includes('dataSyncScope: "entry-file-only"') &&
     diagnosticBundleSource.includes("cloudKitReadiness") &&
+    diagnosticBundleSource.includes("cloudKitAutoSync") &&
+    diagnosticBundleSource.includes("fullyAutomaticBackgroundSync") &&
+    diagnosticBundleSource.includes("cloudkit-safe-cycle-candidate") &&
     diagnosticBundleSource.includes("recordPlan: readiness.recordPlan") &&
     diagnosticBundleSource.includes("acceptanceGates: readiness.acceptanceGates") &&
     diagnosticBundleSource.includes("repairImport.nextAction.id") &&
@@ -3318,7 +3345,13 @@ function checkAssets() {
     diagnosticBundleSource.includes("publicIcloudRepairImport") &&
     diagnosticBundleSource.includes('dataSyncScope: "entry-file-only"') &&
     diagnosticBundleSource.includes("chatMemoryTaskSync") &&
+    diagnosticBundleSource.includes("chatMemoryTaskSyncMode") &&
+    diagnosticBundleSource.includes("fullyAutomaticBackgroundSync") &&
+    diagnosticBundleSource.includes("cloudKitAutoSync") &&
     diagnosticBundleSource.includes("cloudKitRequiredForDataSync") &&
+    diagnosticBundleTestSource.includes("cloudKitAutoSync.enabled") &&
+    diagnosticBundleTestSource.includes("chatMemoryTaskSyncMode") &&
+    diagnosticBundleTestSource.includes("fullyAutomaticBackgroundSync") &&
     diagnosticBundleTestSource.includes("pwaIcloudDataSyncUnsupported") &&
     diagnosticBundleTestSource.includes("nativeDataSyncOptions") &&
     diagnosticBundleTestSource.includes("bundle.release.manifestAvailable") &&

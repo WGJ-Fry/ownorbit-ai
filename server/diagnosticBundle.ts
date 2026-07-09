@@ -6,6 +6,7 @@ import { buildCalendarSyncPreview } from "./calendarSyncPreview";
 import { db, getPendingRestore, listBackups } from "./db";
 import { getDevices, getLatestBindingSession, getLatestIcloudHandoffEventByTypes, type DeviceIcloudHandoffEvent } from "./devices";
 import { buildIcloudAcceptanceSummary, type IcloudAcceptanceSummary } from "./icloudAcceptance";
+import { getCloudKitAutoSyncSchedule, type CloudKitAutoSyncSchedule } from "./cloudKitAutoSyncSchedule";
 import { getIcloudDataSyncReadiness } from "./icloudDataSyncReadiness";
 import { buildLatestIcloudEntryRepairSummary } from "./icloudEntryRepair";
 import { getIcloudHandoffMonitorStatus } from "./icloudHandoffMonitor";
@@ -380,6 +381,37 @@ function publicIcloudAcceptance(acceptance: IcloudAcceptanceSummary) {
   };
 }
 
+function publicCloudKitAutoSyncSchedule(schedule: CloudKitAutoSyncSchedule) {
+  return {
+    enabled: schedule.enabled,
+    intervalMinutes: schedule.intervalMinutes,
+    lastRunAt: schedule.lastRunAt || null,
+    nextRunAt: schedule.nextRunAt || null,
+    updatedAt: schedule.updatedAt || null,
+    lastResult: schedule.lastResult
+      ? {
+          ok: schedule.lastResult.ok,
+          status: schedule.lastResult.status,
+          nextAction: schedule.lastResult.nextAction,
+          reason: schedule.lastResult.reason,
+          startedAt: schedule.lastResult.startedAt,
+          finishedAt: schedule.lastResult.finishedAt,
+          readinessStatus: schedule.lastResult.readinessStatus || "",
+          dataSyncScope: schedule.lastResult.dataSyncScope || "",
+          pullStatus: schedule.lastResult.pullStatus || "",
+          pullApplied: schedule.lastResult.pullApplied || 0,
+          pullConflicts: schedule.lastResult.pullConflicts || 0,
+          uploadStatus: schedule.lastResult.uploadStatus || "",
+          uploadSaved: schedule.lastResult.uploadSaved || 0,
+          error: schedule.lastResult.error ? redactDiagnosticActionText(schedule.lastResult.error, "CloudKit auto sync").slice(0, 180) : "",
+          rawPayloadReturnedToAdmin: false,
+          cloudKitChangeTokenReturnedToAdmin: false,
+          localBackupPathReturnedToAdmin: false,
+        }
+      : null,
+  };
+}
+
 function buildIcloudDiagnosticSnapshot(network: ReturnType<typeof getNetworkDiagnostics>, remoteAcceptanceRecords: ReturnType<typeof getRemoteAcceptanceRecords> = []) {
   const rawLatestOpenEvent = getLatestIcloudHandoffEventByTypes(["opened-current-entry"]);
   const rawLatestIgnoredEvent = getLatestIcloudHandoffEventByTypes(["ignored-superseded-entry"]);
@@ -430,6 +462,8 @@ function buildIcloudDiagnosticSnapshot(network: ReturnType<typeof getNetworkDiag
     },
     remoteAcceptanceRecords,
   });
+  const cloudKitReadiness = network.icloud?.dataSync || getIcloudDataSyncReadiness({ platformSupported: network.icloud?.platformSupported });
+  const cloudKitAutoSync = getCloudKitAutoSyncSchedule();
   return {
     platformSupported: Boolean(network.icloud?.platformSupported),
     available: Boolean(network.icloud?.available),
@@ -557,10 +591,11 @@ function buildIcloudDiagnosticSnapshot(network: ReturnType<typeof getNetworkDiag
       handoffOnly: true,
       realtimeRequiresTrustedNetwork: true,
       dataSyncScope: "entry-file-only",
-      cloudKitReadiness: publicCloudKitReadiness(
-        network.icloud?.dataSync || getIcloudDataSyncReadiness({ platformSupported: network.icloud?.platformSupported }),
-      ),
-      chatMemoryTaskSync: false,
+      cloudKitReadiness: publicCloudKitReadiness(cloudKitReadiness),
+      cloudKitAutoSync: publicCloudKitAutoSyncSchedule(cloudKitAutoSync),
+      chatMemoryTaskSync: Boolean(cloudKitReadiness.enabled),
+      chatMemoryTaskSyncMode: cloudKitReadiness.enabled ? "cloudkit-safe-cycle-candidate" : "not-enabled",
+      fullyAutomaticBackgroundSync: Boolean(cloudKitAutoSync.enabled),
       pwaIcloudDataSyncUnsupported: true,
       cloudKitRequiredForDataSync: true,
       syncedDataTypes: ["mobile-entry-file"],
