@@ -631,6 +631,43 @@ test("CloudKit helper smoke redacts helper stderr and payload errors", async () 
   }
 });
 
+test("CloudKit helper reports missing native capabilities instead of overstating real sync readiness", async () => {
+  const env = snapshotEnv();
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-helper-missing-capabilities-"));
+  try {
+    await configureReadyCloudKitEnv(dir);
+    const readiness = getIcloudDataSyncReadiness({ platformSupported: true });
+    const result = await runCloudKitNativeHelper(readiness, {
+      operation: "probe",
+      runCommand: async () => ({
+        exitCode: 0,
+        timedOut: false,
+        stdout: JSON.stringify({
+          protocolVersion: 1,
+          schema: CLOUDKIT_NATIVE_HELPER_RESPONSE_SCHEMA,
+          operation: "probe",
+          ok: true,
+          accountStatus: "available",
+          containerReachable: true,
+          capabilitiesVerified: ["account-status", "private-database", "container-reachability"],
+          evidenceId: "partial-probe-evidence",
+        }),
+        stderr: "",
+      }),
+    });
+    assert.equal(result.status, "passed");
+    assert.equal(result.ok, true);
+    assert.equal(result.nativeCapabilityCoverageOk, false);
+    assert.equal(result.requiredNativeCapabilities.includes("subscription-push"), true);
+    assert.equal(result.missingNativeCapabilities.includes("subscription-push"), true);
+    assert.equal(result.missingNativeCapabilities.includes("change-token-fetch"), true);
+    assert.equal(result.capabilitiesVerified.includes("private-database"), true);
+  } finally {
+    restoreEnv(env);
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("CloudKit helper smoke skips instead of pretending real sync is ready", async () => {
   const env = snapshotEnv();
   try {

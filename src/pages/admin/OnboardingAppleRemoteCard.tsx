@@ -1634,6 +1634,16 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                       <div>{t("onboarding.appleRemoteIcloudDataSyncHelperAccount", { value: cloudKitHelperResult.accountStatus || cloudKitHelperResult.reason || t("onboarding.appleRemoteIcloudDataSyncNotConfigured") })}</div>
                       <div>{t("onboarding.appleRemoteIcloudDataSyncHelperEvidence", { value: cloudKitHelperResult.evidenceId || cloudKitHelperResult.requestHash || t("onboarding.appleRemoteIcloudDataSyncNotConfigured") })}</div>
                       <div>{t("onboarding.appleRemoteIcloudDataSyncHelperCapabilities", { value: String(cloudKitHelperResult.capabilitiesVerified?.length || 0) })}</div>
+                      <div>{t("onboarding.appleRemoteIcloudDataSyncHelperCapabilityCoverage", {
+                        value: `${cloudKitHelperResult.capabilitiesVerified?.length || 0}/${cloudKitHelperResult.requiredNativeCapabilities?.length || 0}`,
+                      })}</div>
+                      {cloudKitHelperResult.missingNativeCapabilities?.length ? (
+                        <div className="font-sans text-amber-100">
+                          {t("onboarding.appleRemoteIcloudDataSyncHelperMissingCapabilities", {
+                            value: cloudKitHelperResult.missingNativeCapabilities.join(", "),
+                          })}
+                        </div>
+                      ) : null}
                       <div>{t("onboarding.appleRemoteIcloudDataSyncHelperRoundtripResult", {
                         value: cloudKitHelperResult.roundtrip
                           ? `${cloudKitHelperResult.roundtrip.created}/${cloudKitHelperResult.roundtrip.fetched}/${cloudKitHelperResult.roundtrip.deleted}`

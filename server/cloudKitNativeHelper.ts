@@ -260,6 +260,16 @@ function normalizeSyncImportQuarantine(value: unknown) {
   };
 }
 
+function nativeCapabilityCoverage(required: string[], verified: string[]) {
+  const verifiedSet = new Set(verified);
+  const missing = required.filter((capability) => !verifiedSet.has(capability));
+  return {
+    required: [...required],
+    missing,
+    complete: missing.length === 0,
+  };
+}
+
 export function cloudKitNativeHelperContract() {
   return {
     protocolVersion: CLOUDKIT_NATIVE_HELPER_PROTOCOL_VERSION,
@@ -379,6 +389,8 @@ export async function runCloudKitNativeHelper(
   const syncImportPreview = normalizeSyncImportPreview(payload?.syncImportPreview);
   const syncChangesPreview = normalizeSyncChangesPreview(payload?.syncChangesPreview);
   const syncImportQuarantine = normalizeSyncImportQuarantine(payload?.syncImportQuarantine);
+  const capabilitiesVerified = normalizeStringList(payload?.capabilitiesVerified || payload?.capabilities, 32);
+  const capabilityCoverage = nativeCapabilityCoverage(readiness.requiredNativeCapabilities, capabilitiesVerified);
   const operationMatches = payload?.operation === operation;
   const protocolMatches = payload?.protocolVersion === CLOUDKIT_NATIVE_HELPER_PROTOCOL_VERSION &&
     payload?.schema === CLOUDKIT_NATIVE_HELPER_RESPONSE_SCHEMA;
@@ -408,7 +420,10 @@ export async function runCloudKitNativeHelper(
     evidenceId: compact(payload?.evidenceId, 120),
     accountStatus: compact(payload?.accountStatus, 80),
     containerReachable: Boolean(payload?.containerReachable),
-    capabilitiesVerified: normalizeStringList(payload?.capabilitiesVerified || payload?.capabilities, 32),
+    capabilitiesVerified,
+    requiredNativeCapabilities: capabilityCoverage.required,
+    missingNativeCapabilities: capabilityCoverage.missing,
+    nativeCapabilityCoverageOk: capabilityCoverage.complete,
     roundtrip,
     syncExport,
     syncImportPreview,

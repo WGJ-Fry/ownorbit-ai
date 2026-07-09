@@ -1423,6 +1423,9 @@ export type CloudKitNativeHelperResult = {
   accountStatus?: string;
   containerReachable?: boolean;
   capabilitiesVerified?: string[];
+  requiredNativeCapabilities?: string[];
+  missingNativeCapabilities?: string[];
+  nativeCapabilityCoverageOk?: boolean;
   roundtrip?: {
     created: boolean;
     fetched: boolean;

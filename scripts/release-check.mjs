@@ -2027,6 +2027,9 @@ function checkAssets() {
     lifeosApiSource.includes("runCloudKitSyncCycle") &&
     lifeosApiSource.includes("runCloudKitSyncUploadNow") &&
     lifeosApiSource.includes("runCloudKitSyncNow") &&
+    lifeosApiSource.includes("missingNativeCapabilities") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudDataSyncHelperCapabilityCoverage") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudDataSyncHelperMissingCapabilities") &&
     icloudDataSyncReadinessSource.includes("LIFEOS_CLOUDKIT_CONTAINER_ID") &&
     icloudDataSyncReadinessSource.includes("blockedCloudKitDataTypes") &&
     icloudDataSyncReadinessSource.includes("cloudKitRecordPlans") &&
@@ -2056,12 +2059,15 @@ function checkAssets() {
     cloudKitNativeHelperSource.includes("sync-import-quarantine") &&
     cloudKitNativeHelperSource.includes("syncImportQuarantine") &&
     cloudKitNativeHelperSource.includes("syncExportPackage") &&
+    cloudKitNativeHelperSource.includes("nativeCapabilityCoverage") &&
+    cloudKitNativeHelperSource.includes("missingNativeCapabilities") &&
     cloudKitNativeHelperSource.includes("redact") &&
     cloudKitNativeHelperTestSource.includes("CloudKit helper roundtrip executes") &&
     cloudKitNativeHelperTestSource.includes("CloudKit helper sync export executes") &&
     cloudKitNativeHelperTestSource.includes("CloudKit helper sync import preview executes") &&
     cloudKitNativeHelperTestSource.includes("CloudKit helper sync changes preview executes") &&
     cloudKitNativeHelperTestSource.includes("CloudKit helper sync import quarantine keeps payloads off public admin responses") &&
+    cloudKitNativeHelperTestSource.includes("missing native capabilities instead of overstating real sync readiness") &&
     cloudKitNativeHelperTestSource.includes("redacts helper stderr") &&
     cloudKitNativeHelperTestSource.includes("Apple CloudKit helper source implements the native JSON stdio contract") &&
     cloudKitSyncBatchSource.includes("lifeos-cloudkit-sync-batch-preview.v1") &&

@@ -122,7 +122,7 @@ The build output is intentionally local (`build/native/LifeOSCloudKitHelper`) an
 export LIFEOS_CLOUDKIT_HELPER_BIN="$PWD/build/native/LifeOSCloudKitHelper"
 ```
 
-`probe` must check Apple account status, CloudKit container reachability, quota/status visibility, custom zone access, change-token fetch capability, and background subscription support without writing user data.
+`probe` must check Apple account status and CloudKit container reachability without writing user data. It must also report which required native capabilities are still unverified. Readiness is not allowed to imply full sync until custom zone access, change-token fetch, background subscription/push, and disposable write evidence have been proven by the helper result.
 
 `roundtrip` must create, fetch, and delete a disposable test record in the private CloudKit database using the selected record plan. It must return an evidence id, verified capabilities, and redacted warnings/errors. A failed or skipped helper smoke never counts as real iCloud data sync.
 
@@ -385,6 +385,8 @@ Do not claim end-user-ready, fully automatic iCloud data sync until all of this 
 - README、Release、诊断和路线图都明确区分“入口文件同步”和“真实数据同步”。
 
 当前已经有第一版原生 helper 源码：`native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift`。它可以在 macOS 上通过 `npm run icloud:helper:build` 编译，输出到 `build/native/LifeOSCloudKitHelper`。这个 helper 表示 CloudKit 原生桥已经有受控落脚点；当前只应宣称“受控 alpha 候选同步”，不能宣称完整后台 macOS/iOS 原生同步。
+
+helper 探测通过不等于真实同步完成。API 会返回已验证能力、必需能力和未验证能力；如果 `subscription-push`、`change-token-fetch`、自定义 zone、写入 roundtrip 等证据缺失，UI 必须继续显示为候选/待验证，而不能写成已完成的 iCloud 数据同步。
 
 当前还新增了受管理员认证保护的批次预览接口：`/api/v1/admin/icloud-data-sync/batch-preview`。它会从 SQLite 里挑选聊天、记忆、任务、生成程序状态和设备信任元数据的候选记录，但只返回 hash、字段名、record type、zone、数量和阻断原因，不返回原始正文、access token、token hash、私钥或密钥。它可以帮助判断“哪些数据将来能通过 CloudKit 同步”，但它本身仍不是后台双向同步。
 
