@@ -406,6 +406,7 @@ function collectTaskRecords(limit: number) {
       recordName: `task:${task.id}`,
       payload,
       logicalClock: Number(task.finishedAt || task.startedAt || task.createdAt || 0),
+      requiresUserReview: task.status === "deleted",
     }), limit);
   }
   return { records, blockedRecords, counts };

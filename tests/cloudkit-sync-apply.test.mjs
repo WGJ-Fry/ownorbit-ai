@@ -81,6 +81,25 @@ function runIsolatedCloudKitApply(env, scenario) {
       const payloadJson = JSON.stringify(memoryPayload);
       db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'changed', 'auto-ready', ?, ?, ?, ?, ?, 0, ?, ?, NULL, ?, ?, NULL, NULL)")
         .run("q-memory-new", "LifeOSMemoryZone", "LifeOSMemory", "memory:remote-memory", "memory-mut", stableHash(memoryPayload), stableHash(payloadJson), now + 2000, Buffer.byteLength(payloadJson), payloadJson, new Date(now + 2000).toISOString(), "evidence-memory", now + 3000);
+    } else if (${JSON.stringify(scenario)} === "task-new" || ${JSON.stringify(scenario)} === "task-existing") {
+      db.prepare("INSERT INTO cloudkit_sync_checkpoints (zone, applied_server_change_token, pending_server_change_token, token_state, last_evidence_id, last_preview_at, last_applied_at, changed_count, deleted_count, failed_count, more_coming, updated_at) VALUES (?, NULL, ?, 'pending-preview', ?, ?, NULL, ?, ?, 0, 0, ?)")
+        .run("LifeOSTaskZone", "opaque-task-token", "evidence-task", now, 1, 0, now);
+      if (${JSON.stringify(scenario)} === "task-existing") {
+        db.prepare("INSERT INTO tasks (id, type, status, input_json, result_json, error, created_by_device_id, created_at, started_at, finished_at) VALUES (?, ?, ?, ?, ?, NULL, 'local-device', ?, ?, NULL)")
+          .run("remote-task", "planning", "local-ready", JSON.stringify({ title: "Local task should stay" }), JSON.stringify({ local: true }), now - 5000, now + 1500);
+      }
+      const taskPayload = {
+        taskId: "remote-task",
+        type: "planning",
+        state: "ready",
+        input: { title: "Review CloudKit task" },
+        result: { ok: true },
+        createdAt: now + 1000,
+        startedAt: now + 2000,
+      };
+      const payloadJson = JSON.stringify(taskPayload);
+      db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'changed', 'auto-ready', ?, ?, ?, ?, ?, 0, ?, ?, NULL, ?, ?, NULL, NULL)")
+        .run("q-task-new", "LifeOSTaskZone", "LifeOSTask", "task:remote-task", "task-mut", stableHash(taskPayload), stableHash(payloadJson), now + 2000, Buffer.byteLength(payloadJson), payloadJson, new Date(now + 2000).toISOString(), "evidence-task", now + 3000);
     } else {
       db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'deleted', 'pending-review', ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, NULL, NULL)")
         .run("q-delete", "LifeOSChatZone", "LifeOSMessage", "message:remote-message", "remote-mut", "delete-hash", "delete-payload-hash", now + 2000, 0, null, new Date(now + 2000).toISOString(), new Date(now + 2000).toISOString(), "evidence-chat", now + 3000);
@@ -95,9 +114,11 @@ function runIsolatedCloudKitApply(env, scenario) {
     const sessions = db.prepare("SELECT id, title, updated_at as updatedAt FROM chat_sessions ORDER BY id").all();
     const messages = db.prepare("SELECT id, session_id as sessionId, content_json as contentJson, source_device_id as sourceDeviceId, offline_mutation_id as mutationId FROM messages ORDER BY id").all();
     const memories = db.prepare("SELECT id, title, content, sensitivity, updated_at as updatedAt FROM memories ORDER BY id").all();
+    const tasks = db.prepare("SELECT id, type, status, input_json as inputJson, result_json as resultJson, created_by_device_id as createdByDeviceId, started_at as startedAt FROM tasks ORDER BY id").all();
     const checkpoint = db.prepare("SELECT token_state as tokenState, applied_server_change_token as appliedToken, pending_server_change_token as pendingToken, last_applied_at as lastAppliedAt FROM cloudkit_sync_checkpoints WHERE zone = 'LifeOSChatZone'").get();
     const memoryCheckpoint = db.prepare("SELECT token_state as tokenState, applied_server_change_token as appliedToken, pending_server_change_token as pendingToken, last_applied_at as lastAppliedAt FROM cloudkit_sync_checkpoints WHERE zone = 'LifeOSMemoryZone'").get();
-    process.stdout.write(JSON.stringify({ listed, apply, sessions, messages, memories, checkpoint, memoryCheckpoint }));
+    const taskCheckpoint = db.prepare("SELECT token_state as tokenState, applied_server_change_token as appliedToken, pending_server_change_token as pendingToken, last_applied_at as lastAppliedAt FROM cloudkit_sync_checkpoints WHERE zone = 'LifeOSTaskZone'").get();
+    process.stdout.write(JSON.stringify({ listed, apply, sessions, messages, memories, tasks, checkpoint, memoryCheckpoint, taskCheckpoint }));
   `;
   const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
     cwd: rootDir,
@@ -205,6 +226,60 @@ test("CloudKit auto memory apply refuses to overwrite an existing memory", async
     assert.equal(result.memoryCheckpoint.tokenState, "pending-preview");
     assert.equal(result.memoryCheckpoint.appliedToken, null);
     assert.equal(result.memoryCheckpoint.pendingToken, "opaque-memory-token");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit auto task apply writes a new task without touching existing local tasks", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-task-new-"));
+  try {
+    const result = runIsolatedCloudKitApply({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "task-new");
+
+    assert.equal(result.apply.attempted, 1);
+    assert.equal(result.apply.applied, 1);
+    assert.equal(result.apply.manualReviewRequired, 0);
+    assert.equal(result.apply.conflicts, 0);
+    assert.deepEqual(result.apply.promotedZones, ["LifeOSTaskZone"]);
+    assert.equal(result.tasks[0].id, "remote-task");
+    assert.equal(result.tasks[0].type, "planning");
+    assert.equal(result.tasks[0].status, "ready");
+    assert.deepEqual(JSON.parse(result.tasks[0].inputJson), { title: "Review CloudKit task" });
+    assert.deepEqual(JSON.parse(result.tasks[0].resultJson), { ok: true });
+    assert.equal(result.tasks[0].createdByDeviceId, "cloudkit");
+    assert.equal(result.taskCheckpoint.tokenState, "applied");
+    assert.equal(result.taskCheckpoint.appliedToken, "opaque-task-token");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit auto task apply refuses to overwrite an existing task", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-task-existing-"));
+  try {
+    const result = runIsolatedCloudKitApply({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "task-existing");
+
+    assert.equal(result.apply.attempted, 1);
+    assert.equal(result.apply.applied, 0);
+    assert.equal(result.apply.manualReviewRequired, 0);
+    assert.equal(result.apply.conflicts, 1);
+    assert.deepEqual(result.apply.promotedZones, []);
+    assert.deepEqual(result.apply.blockedZones, ["LifeOSTaskZone"]);
+    assert.match(result.apply.records[0].error, /Existing task requires manual review/);
+    assert.equal(result.tasks[0].id, "remote-task");
+    assert.equal(result.tasks[0].status, "local-ready");
+    assert.deepEqual(JSON.parse(result.tasks[0].inputJson), { title: "Local task should stay" });
+    assert.deepEqual(JSON.parse(result.tasks[0].resultJson), { local: true });
+    assert.equal(result.tasks[0].createdByDeviceId, "local-device");
+    assert.equal(result.taskCheckpoint.tokenState, "pending-preview");
+    assert.equal(result.taskCheckpoint.appliedToken, null);
+    assert.equal(result.taskCheckpoint.pendingToken, "opaque-task-token");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

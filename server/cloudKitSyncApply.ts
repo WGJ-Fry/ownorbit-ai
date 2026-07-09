@@ -297,6 +297,8 @@ function applyTask(payload: Record<string, unknown>, row: QuarantineRow) {
   const remoteClock = finishedAt || startedAt || createdAt;
   const existing = db.prepare("SELECT created_at as createdAt, started_at as startedAt, finished_at as finishedAt FROM tasks WHERE id = ?").get(taskId) as any;
   const localClock = existing ? Number(existing.finishedAt || existing.startedAt || existing.createdAt || 0) : 0;
+  if (!row.requiresUserReview && row.recordType !== "LifeOSTask") throw new Error("Task delete requires manual review.");
+  if (!row.requiresUserReview && existing) throw new Error("Existing task requires manual review before CloudKit can update it.");
   if (localClock > remoteClock) throw new Error("Local task is newer; manual conflict review required.");
   db.prepare(`
     INSERT INTO tasks (id, type, status, input_json, result_json, error, created_by_device_id, created_at, started_at, finished_at)

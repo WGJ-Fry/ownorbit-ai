@@ -1,13 +1,13 @@
 # iCloud Data Sync Design Boundary
 
-This document is the engineering boundary for future real iCloud data sync. The current product only uses iCloud Drive to sync the mobile entry files:
+This document is the engineering boundary for iCloud handoff and the guarded CloudKit data-sync candidate. The default product flow only uses iCloud Drive to sync the mobile entry files:
 
 - `lifeos-mobile-entry.html`
 - `lifeos-mobile-entry-*.html`
 - `lifeos-mobile-entry-*.json`
 - `lifeos-mobile-entry-history.json`
 
-It does not sync chat history, memory, tasks, device credentials, SQLite databases, AI keys, audit logs, backups, or generated app state through iCloud.
+The default iCloud Drive handoff does not sync chat history, memory, tasks, device credentials, SQLite databases, AI keys, audit logs, backups, or generated app state. The opt-in CloudKit native candidate can mirror selected chat, memory, task, and generated-app-state records only after the native helper, CloudKit container, entitlements, explicit confirmation, quarantine preview, and local safety gates are ready.
 
 ## Why iCloud Drive Is Not Enough
 
@@ -21,7 +21,7 @@ iCloud Drive is useful for handing a small entry file from Mac to iPhone. It is 
 
 ## Required Native Architecture
 
-Real iCloud data sync must be built as a separate native capability, not by expanding the current iCloud Drive handoff file.
+Real iCloud data sync is built as a separate native capability, not by expanding the current iCloud Drive handoff file. The current desktop code contains the guarded CloudKit helper contract and server-side quarantine/apply pipeline; it is still not a complete background macOS/iOS native sync product.
 
 Minimum architecture:
 
@@ -254,7 +254,7 @@ IMPORT_CLOUDKIT_CHANGES
 
 With confirmation, the backend invokes the native helper operation `sync-import-quarantine`. The helper uses `recordZoneChanges(inZoneWith:since:desiredKeys:resultsLimit:)`, includes `payloadJson` in the native helper response, and sends that raw payload only through the local helper-to-backend stdio channel. The admin API writes changed and deleted records into SQLite table `cloudkit_sync_quarantine`, then removes `payloadJson` and raw CloudKit server change tokens from the browser response.
 
-This still does **not** modify chats, memories, tasks, generated apps, or device trust records. It also does not promote `pending_server_change_token` into `applied_server_change_token`. The token remains a candidate until a future review/apply step resolves conflicts, applies selected changes to local SQLite, records rollback evidence, and only then marks the checkpoint as applied.
+This step still does **not** directly modify chats, memories, tasks, generated apps, or device trust records. It also does not promote `pending_server_change_token` into `applied_server_change_token`. The token remains a candidate until the review/apply step resolves conflicts, applies selected safe changes to local SQLite, records rollback evidence, and only then marks the checkpoint as applied.
 
 Safety rules:
 
@@ -262,7 +262,7 @@ Safety rules:
 - a SQLite backup is created before a real helper-backed quarantine import;
 - API responses expose counts, evidence ids, and `payloadCaptured`, never raw `payloadJson`;
 - failed or partial helper runs do not advance the applied checkpoint;
-- quarantined records require user review by default.
+- quarantined records require user review by default, except explicitly safe append-only/new-record cases.
 
 ## Review And Apply
 
@@ -281,15 +281,15 @@ The apply endpoint requires explicit confirmation:
 APPLY_CLOUDKIT_QUARANTINE
 ```
 
-With confirmation, LifeOS creates a local SQLite backup when there are pending items, applies only recognized LifeOS record types, and leaves unsupported, dangerous, destructive, newer-local, malformed, sensitive, or secret-like records in quarantine as conflicts. Supported automatic apply targets are:
+With confirmation, LifeOS creates a local SQLite backup when there are pending items, applies only recognized LifeOS record types, and leaves unsupported, dangerous, destructive, newer-local, malformed, sensitive, overwriting, or secret-like records in quarantine as conflicts. Supported apply targets are:
 
 - `LifeOSConversation` into `chat_sessions`;
 - `LifeOSMessage` into `messages` with stable remote message ids and mutation ids;
-- non-sensitive `LifeOSMemory` and `LifeOSMemoryTombstone` into `memories`;
-- `LifeOSTask` and `LifeOSTaskTombstone` into `tasks`;
+- new non-sensitive `LifeOSMemory` records into `memories`; existing-memory edits and memory tombstones require review;
+- new `LifeOSTask` records into `tasks`; existing-task edits and task tombstones require review;
 - `LifeOSGeneratedAppState` into `custom_app_state` only when the generated app already exists locally.
 
-CloudKit hard deletes are not applied automatically. They become conflicts so the user can review the local impact before any destructive local write.
+CloudKit hard deletes and tombstones are not applied automatically. They become conflicts so the user can review the local impact before any destructive local write.
 
 Checkpoint promotion is conservative. A zone's `pending_server_change_token` is promoted to `applied_server_change_token` only after all quarantine rows for that zone have no unresolved `pending-review`, `conflict`, or `failed` status. If any row remains unresolved, that zone stays blocked and the next import can safely continue from the previous applied token.
 
@@ -326,8 +326,8 @@ The one-step UI is the default path for normal users. The older preview/import/a
 Start with conservative conflict handling:
 
 1. Append-only chat messages use mutation IDs and timestamps.
-2. Memory edits use last-writer-wins only for non-destructive metadata; text conflicts require review.
-3. Task completion can auto-merge when state moves forward; title/date conflicts require review.
+2. New normal memories may auto-apply only when the local memory id does not exist; edits, sensitive memories, and tombstones require review.
+3. New tasks may auto-apply only when the local task id does not exist; edits, deletes, and tombstones require review.
 4. Deleted records become tombstones first, then age out after backup.
 5. Cross-device schema migrations must stop sync until all required migrations run.
 
@@ -347,7 +347,7 @@ The future user flow should be:
 
 ## Acceptance Gate
 
-Do not claim real iCloud data sync until all of this is true:
+Do not claim end-user-ready, fully automatic iCloud data sync until all of this is true:
 
 - macOS/iOS native client or helper exists.
 - CloudKit container and entitlements are configured.
@@ -359,9 +359,9 @@ Do not claim real iCloud data sync until all of this is true:
 
 ## 中文说明
 
-这份文档定义未来真正 iCloud 数据同步的边界。当前 LifeOS 只用 iCloud Drive 同步手机入口文件，不同步聊天记录、记忆、任务、设备凭证、SQLite 数据库、AI Key、审计日志、备份或生成程序状态。
+这份文档定义 iCloud 入口同步和受控 CloudKit 数据同步候选能力的边界。默认 LifeOS 只用 iCloud Drive 同步手机入口文件，不同步聊天记录、记忆、任务、设备凭证、SQLite 数据库、AI Key、审计日志、备份或生成程序状态。显式开启的 CloudKit 原生候选路径可以在 helper、Container、entitlement、确认短语、隔离区预览和本地安全闸门都通过后，同步部分聊天、记忆、任务和生成程序状态记录。
 
-真正的数据同步不能靠继续往 `mobile-entry.html/json` 文件里塞数据来完成。它需要 Apple Developer iCloud entitlement、CloudKit Container、macOS/iOS 原生客户端或原生桥，以及明确的数据权限、冲突处理、备份、审计和回滚。
+真正可长期使用的数据同步不能靠继续往 `mobile-entry.html/json` 文件里塞数据来完成。它需要 Apple Developer iCloud entitlement、CloudKit Container、macOS/iOS 原生客户端或原生桥，以及明确的数据权限、冲突处理、备份、审计和回滚。
 
 发布前必须满足：
 
@@ -372,7 +372,7 @@ Do not claim real iCloud data sync until all of this is true:
 - 能处理 iCloud 退出登录、同步延迟、离线编辑、应用重启和多设备冲突；
 - README、Release、诊断和路线图都明确区分“入口文件同步”和“真实数据同步”。
 
-当前已经有第一版原生 helper 源码：`native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift`。它可以在 macOS 上通过 `npm run icloud:helper:build` 编译，输出到 `build/native/LifeOSCloudKitHelper`。这个 helper 只表示 CloudKit 原生桥开始具备落脚点；在完成真实容器、entitlement、一次性 roundtrip、数据类型同步、冲突处理和真实设备长测前，仍不能宣称聊天、记忆、任务或设备信任已经通过 iCloud 同步。
+当前已经有第一版原生 helper 源码：`native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift`。它可以在 macOS 上通过 `npm run icloud:helper:build` 编译，输出到 `build/native/LifeOSCloudKitHelper`。这个 helper 表示 CloudKit 原生桥已经有受控落脚点；当前只应宣称“受控 alpha 候选同步”，不能宣称完整后台 macOS/iOS 原生同步。
 
 当前还新增了受管理员认证保护的批次预览接口：`/api/v1/admin/icloud-data-sync/batch-preview`。它会从 SQLite 里挑选聊天、记忆、任务和生成程序状态的候选记录，但只返回 hash、字段名、record type、zone、数量和阻断原因，不返回原始正文或密钥。它可以帮助判断“哪些数据将来能通过 CloudKit 同步”，但它本身仍不是后台双向同步。
 
@@ -387,6 +387,8 @@ Do not claim real iCloud data sync until all of this is true:
 当前还新增了增量变更预览接口：`/api/v1/admin/icloud-data-sync/changes-preview`。它会把本地已应用的 CloudKit server change token 传给原生 helper，helper 使用 `recordZoneChanges` 读取每个 zone 的变更摘要和删除摘要，并把新的 token 作为候选 checkpoint 存在 `cloudkit_sync_checkpoints`。注意：候选 token 不会直接变成已应用 token，因为还没有把远端变更真正导入并合并到 SQLite；这样可以避免“预览一次就丢掉未导入变更”的风险。
 
 当前还新增了隔离导入接口：`/api/v1/admin/icloud-data-sync/import-quarantine`。它要求显式确认 `IMPORT_CLOUDKIT_CHANGES`，由原生 helper 读取 CloudKit 变更正文，然后只写入本机 `cloudkit_sync_quarantine` 表等待冲突审核。API 响应不会返回 `payloadJson` 或原始 server change token，也不会直接改聊天、记忆、任务或生成程序状态。候选 token 仍不会升级为 applied token，直到后续“审核并应用”步骤真正写入 SQLite 并完成回滚证据。
+
+当前 apply 阶段可以自动落库追加型聊天消息、新普通记忆和新任务；已有本地记录、敏感记忆、删除/tombstone、未知记录和 secret-like payload 都会留在隔离区等待人工复核。
 
 当前还新增了审核应用接口：`GET /api/v1/admin/icloud-data-sync/quarantine` 只返回隔离区摘要，`POST /api/v1/admin/icloud-data-sync/apply-quarantine` 需要显式确认 `APPLY_CLOUDKIT_QUARANTINE`。应用前会创建 SQLite 备份，只自动写入已识别且无冲突的聊天、消息、普通记忆、任务和已存在生成程序状态；硬删除、敏感记忆、未知记录、疑似密钥或本地更新较新的记录会继续留在隔离区。只有某个 zone 没有未解决隔离项时，才会把 pending CloudKit checkpoint 推进为 applied checkpoint。
 

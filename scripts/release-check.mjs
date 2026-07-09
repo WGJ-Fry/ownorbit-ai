@@ -2063,6 +2063,7 @@ function checkAssets() {
     cloudKitSyncBatchTestSource.includes("recordType === \"LifeOSMessage\" && record.requiresUserReview === false") &&
     cloudKitSyncBatchTestSource.includes("recordType === \"LifeOSConversation\" && record.requiresUserReview === true") &&
     cloudKitSyncBatchTestSource.includes("recordType === \"LifeOSMemory\" && record.requiresUserReview === false") &&
+    cloudKitSyncBatchTestSource.includes("recordType === \"LifeOSTask\" && record.requiresUserReview === false") &&
     cloudKitSyncBatchTestSource.includes("sendsRawUserContent, false") &&
     cloudKitSyncBatchTestSource.includes("keeps admin summary payload-free") &&
     cloudKitSyncApplySource.includes("APPLY_CLOUDKIT_QUARANTINE") &&
@@ -2072,9 +2073,12 @@ function checkAssets() {
     cloudKitSyncApplySource.includes("promoteReadyZones") &&
     cloudKitSyncApplySource.includes("payloadJson") &&
     cloudKitSyncApplySource.includes("Existing memory requires manual review before CloudKit can update it") &&
+    cloudKitSyncApplySource.includes("Existing task requires manual review before CloudKit can update it") &&
     cloudKitSyncApplyTestSource.includes("promotes pending checkpoint only after applying") &&
     cloudKitSyncApplyTestSource.includes("auto memory apply writes a new normal memory") &&
     cloudKitSyncApplyTestSource.includes("auto memory apply refuses to overwrite an existing memory") &&
+    cloudKitSyncApplyTestSource.includes("auto task apply writes a new task") &&
+    cloudKitSyncApplyTestSource.includes("auto task apply refuses to overwrite an existing task") &&
     cloudKitSyncApplyTestSource.includes("blocks checkpoint promotion") &&
     cloudKitSyncNowSource.includes("SYNC_CLOUDKIT_NOW") &&
     cloudKitSyncNowSource.includes("runCloudKitSyncNow") &&
@@ -4370,24 +4374,25 @@ function checkReleaseDocs() {
     const roadmap = exists("docs/version-roadmap.md") ? fs.readFileSync(path.join(rootDir, "docs/version-roadmap.md"), "utf8") : "";
     const requiredIcloudDataSyncMarkers = [
       "iCloud Drive to sync the mobile entry files",
-      "It does not sync chat history, memory, tasks, device credentials, SQLite databases, AI keys",
+      "The default iCloud Drive handoff does not sync chat history, memory, tasks, device credentials, SQLite databases, AI keys",
+      "The opt-in CloudKit native candidate can mirror selected chat, memory, task, and generated-app-state records",
       "Required Native Architecture",
       "CloudKit container owned by the app bundle",
       "No secret, token, AI key, session cookie, or raw device credential may be written to iCloud Drive or CloudKit user records",
       "Native Helper Contract",
       "lifeos-cloudkit-helper-request.v1",
-      "Do not claim real iCloud data sync until all of this is true",
-      "真正 iCloud 数据同步",
+      "Do not claim end-user-ready, fully automatic iCloud data sync until all of this is true",
+      "受控 CloudKit 数据同步候选能力",
     ];
     const missingIcloudDataSyncMarkers = requiredIcloudDataSyncMarkers.filter((marker) => !icloudDataSyncDesign.includes(marker));
     if (
       missingIcloudDataSyncMarkers.length === 0 &&
       readmeEn.includes("docs/icloud-data-sync-design.md") &&
       readmeZh.includes("docs/icloud-data-sync-design.md") &&
-      roadmap.includes("iCloud Drive currently syncs only mobile entry files") &&
-      roadmap.includes("真正 iCloud 数据同步")
+      roadmap.includes("Default iCloud Drive still syncs only mobile entry files") &&
+      roadmap.includes("opt-in CloudKit 原生数据同步候选能力")
     ) {
-      pass("iCloud data sync design boundary separates current handoff files from future CloudKit/native sync");
+      pass("iCloud data sync design boundary separates iCloud Drive handoff from guarded CloudKit candidate sync");
     } else {
       warn(`iCloud data sync boundary is incomplete: ${missingIcloudDataSyncMarkers.join(", ") || "README/roadmap link missing"}`);
     }
