@@ -100,6 +100,27 @@ function runIsolatedCloudKitApply(env, scenario) {
       const payloadJson = JSON.stringify(taskPayload);
       db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'changed', 'auto-ready', ?, ?, ?, ?, ?, 0, ?, ?, NULL, ?, ?, NULL, NULL)")
         .run("q-task-new", "LifeOSTaskZone", "LifeOSTask", "task:remote-task", "task-mut", stableHash(taskPayload), stableHash(payloadJson), now + 2000, Buffer.byteLength(payloadJson), payloadJson, new Date(now + 2000).toISOString(), "evidence-task", now + 3000);
+    } else if (${JSON.stringify(scenario)} === "generated-app-state" || ${JSON.stringify(scenario)} === "generated-app-state-missing-app" || ${JSON.stringify(scenario)} === "generated-app-state-local-newer") {
+      db.prepare("INSERT INTO cloudkit_sync_checkpoints (zone, applied_server_change_token, pending_server_change_token, token_state, last_evidence_id, last_preview_at, last_applied_at, changed_count, deleted_count, failed_count, more_coming, updated_at) VALUES (?, NULL, ?, 'pending-preview', ?, ?, NULL, ?, ?, 0, 0, ?)")
+        .run("LifeOSGeneratedAppZone", "opaque-generated-app-token", "evidence-generated-app", now, 1, 0, now);
+      if (${JSON.stringify(scenario)} !== "generated-app-state-missing-app") {
+        db.prepare("INSERT INTO custom_apps (id, name, description, visibility, status, source, problem_blueprint_id, code, created_by_type, created_by_id, created_at, updated_at, deleted_at) VALUES (?, ?, ?, 'private', 'active', 'studio', NULL, ?, 'admin', 'admin', ?, ?, NULL)")
+          .run("budget-helper", "Budget Helper", "Tracks a monthly budget", "<div>Budget Helper</div>", now - 5000, now - 5000);
+      }
+      if (${JSON.stringify(scenario)} === "generated-app-state-local-newer") {
+        db.prepare("INSERT INTO custom_app_state (app_id, state_json, updated_by_type, updated_by_id, updated_at) VALUES (?, ?, 'local', 'admin', ?)")
+          .run("budget-helper", JSON.stringify({ entries: [{ label: "local", amount: 99 }] }), now + 5000);
+      }
+      const generatedPayload = {
+        appId: "budget-helper",
+        appName: "Budget Helper",
+        stateJson: { entries: [{ label: "rent", amount: 1200 }], currency: "USD" },
+        schemaVersion: 1,
+        updatedAt: now + 2000,
+      };
+      const payloadJson = JSON.stringify(generatedPayload);
+      db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'changed', 'auto-ready', ?, ?, ?, ?, ?, 0, ?, ?, NULL, ?, ?, NULL, NULL)")
+        .run("q-generated-app-state", "LifeOSGeneratedAppZone", "LifeOSGeneratedAppState", "generated-app-state:budget-helper", "generated-app-mut", stableHash(generatedPayload), stableHash(payloadJson), now + 2000, Buffer.byteLength(payloadJson), payloadJson, new Date(now + 2000).toISOString(), "evidence-generated-app", now + 3000);
     } else if (${JSON.stringify(scenario)} === "device-trust" || ${JSON.stringify(scenario)} === "device-trust-raw-public-key") {
       db.prepare("INSERT INTO cloudkit_sync_checkpoints (zone, applied_server_change_token, pending_server_change_token, token_state, last_evidence_id, last_preview_at, last_applied_at, changed_count, deleted_count, failed_count, more_coming, updated_at) VALUES (?, NULL, ?, 'pending-preview', ?, ?, NULL, ?, ?, 0, 0, ?)")
         .run("LifeOSDeviceTrustZone", "opaque-device-trust-token", "evidence-device-trust", now, 1, 0, now);
@@ -137,11 +158,13 @@ function runIsolatedCloudKitApply(env, scenario) {
     const tasks = db.prepare("SELECT id, type, status, input_json as inputJson, result_json as resultJson, created_by_device_id as createdByDeviceId, started_at as startedAt FROM tasks ORDER BY id").all();
     const devices = db.prepare("SELECT id, name, access_token_hash as accessTokenHash FROM devices ORDER BY id").all();
     const trustMetadata = db.prepare("SELECT device_id_hash as deviceIdHash, display_name as displayName, device_type as deviceType, trust_state as trustState, public_key_fingerprint as publicKeyFingerprint, access_expires_at as accessExpiresAt, review_status as reviewStatus, access_granted as accessGranted, source_record_name as sourceRecordName, source_evidence_id as sourceEvidenceId, logical_clock as logicalClock, applied_at as appliedAt FROM cloudkit_device_trust_metadata ORDER BY device_id_hash").all();
+    const customAppStates = db.prepare("SELECT app_id as appId, state_json as stateJson, updated_by_type as updatedByType, updated_at as updatedAt FROM custom_app_state ORDER BY app_id").all();
     const checkpoint = db.prepare("SELECT token_state as tokenState, applied_server_change_token as appliedToken, pending_server_change_token as pendingToken, last_applied_at as lastAppliedAt FROM cloudkit_sync_checkpoints WHERE zone = 'LifeOSChatZone'").get();
     const memoryCheckpoint = db.prepare("SELECT token_state as tokenState, applied_server_change_token as appliedToken, pending_server_change_token as pendingToken, last_applied_at as lastAppliedAt FROM cloudkit_sync_checkpoints WHERE zone = 'LifeOSMemoryZone'").get();
     const taskCheckpoint = db.prepare("SELECT token_state as tokenState, applied_server_change_token as appliedToken, pending_server_change_token as pendingToken, last_applied_at as lastAppliedAt FROM cloudkit_sync_checkpoints WHERE zone = 'LifeOSTaskZone'").get();
     const deviceTrustCheckpoint = db.prepare("SELECT token_state as tokenState, applied_server_change_token as appliedToken, pending_server_change_token as pendingToken, last_applied_at as lastAppliedAt FROM cloudkit_sync_checkpoints WHERE zone = 'LifeOSDeviceTrustZone'").get();
-    process.stdout.write(JSON.stringify({ listed, apply, sessions, messages, memories, tasks, devices, trustMetadata, checkpoint, memoryCheckpoint, taskCheckpoint, deviceTrustCheckpoint }));
+    const generatedAppCheckpoint = db.prepare("SELECT token_state as tokenState, applied_server_change_token as appliedToken, pending_server_change_token as pendingToken, last_applied_at as lastAppliedAt FROM cloudkit_sync_checkpoints WHERE zone = 'LifeOSGeneratedAppZone'").get();
+    process.stdout.write(JSON.stringify({ listed, apply, sessions, messages, memories, tasks, devices, trustMetadata, customAppStates, checkpoint, memoryCheckpoint, taskCheckpoint, deviceTrustCheckpoint, generatedAppCheckpoint }));
   `;
   const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
     cwd: rootDir,
@@ -303,6 +326,78 @@ test("CloudKit auto task apply refuses to overwrite an existing task", async () 
     assert.equal(result.taskCheckpoint.tokenState, "pending-preview");
     assert.equal(result.taskCheckpoint.appliedToken, null);
     assert.equal(result.taskCheckpoint.pendingToken, "opaque-task-token");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit auto generated app state apply updates an existing generated app only", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-generated-app-state-"));
+  try {
+    const result = runIsolatedCloudKitApply({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "generated-app-state");
+
+    assert.equal(result.apply.attempted, 1);
+    assert.equal(result.apply.applied, 1);
+    assert.equal(result.apply.manualReviewRequired, 0);
+    assert.equal(result.apply.conflicts, 0);
+    assert.deepEqual(result.apply.promotedZones, ["LifeOSGeneratedAppZone"]);
+    assert.equal(result.customAppStates[0].appId, "budget-helper");
+    assert.deepEqual(JSON.parse(result.customAppStates[0].stateJson), { entries: [{ label: "rent", amount: 1200 }], currency: "USD" });
+    assert.equal(result.customAppStates[0].updatedByType, "cloudkit");
+    assert.equal(result.customAppStates[0].updatedAt, 1700000002000);
+    assert.equal(result.generatedAppCheckpoint.tokenState, "applied");
+    assert.equal(result.generatedAppCheckpoint.appliedToken, "opaque-generated-app-token");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit generated app state apply refuses to create unknown generated apps", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-generated-app-missing-"));
+  try {
+    const result = runIsolatedCloudKitApply({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "generated-app-state-missing-app");
+
+    assert.equal(result.apply.attempted, 1);
+    assert.equal(result.apply.applied, 0);
+    assert.equal(result.apply.conflicts, 1);
+    assert.deepEqual(result.apply.promotedZones, []);
+    assert.deepEqual(result.apply.blockedZones, ["LifeOSGeneratedAppZone"]);
+    assert.match(result.apply.records[0].error, /Generated app must exist locally/);
+    assert.equal(result.customAppStates.length, 0);
+    assert.equal(result.generatedAppCheckpoint.tokenState, "pending-preview");
+    assert.equal(result.generatedAppCheckpoint.appliedToken, null);
+    assert.equal(result.generatedAppCheckpoint.pendingToken, "opaque-generated-app-token");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit generated app state apply refuses to overwrite newer local generated app state", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-generated-app-local-newer-"));
+  try {
+    const result = runIsolatedCloudKitApply({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "generated-app-state-local-newer");
+
+    assert.equal(result.apply.attempted, 1);
+    assert.equal(result.apply.applied, 0);
+    assert.equal(result.apply.conflicts, 1);
+    assert.deepEqual(result.apply.promotedZones, []);
+    assert.deepEqual(result.apply.blockedZones, ["LifeOSGeneratedAppZone"]);
+    assert.match(result.apply.records[0].error, /Local generated app state is newer/);
+    assert.equal(result.customAppStates[0].appId, "budget-helper");
+    assert.deepEqual(JSON.parse(result.customAppStates[0].stateJson), { entries: [{ label: "local", amount: 99 }] });
+    assert.equal(result.customAppStates[0].updatedByType, "local");
+    assert.equal(result.generatedAppCheckpoint.tokenState, "pending-preview");
+    assert.equal(result.generatedAppCheckpoint.appliedToken, null);
+    assert.equal(result.generatedAppCheckpoint.pendingToken, "opaque-generated-app-token");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

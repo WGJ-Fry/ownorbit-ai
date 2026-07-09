@@ -2089,11 +2089,16 @@ function checkAssets() {
     cloudKitSyncApplySource.includes("access_granted") &&
     cloudKitSyncApplySource.includes("Existing memory requires manual review before CloudKit can update it") &&
     cloudKitSyncApplySource.includes("Existing task requires manual review before CloudKit can update it") &&
+    cloudKitSyncApplySource.includes("Generated app must exist locally before state can be imported") &&
+    cloudKitSyncApplySource.includes("Local generated app state is newer; manual conflict review required") &&
     cloudKitSyncApplyTestSource.includes("promotes pending checkpoint only after applying") &&
     cloudKitSyncApplyTestSource.includes("auto memory apply writes a new normal memory") &&
     cloudKitSyncApplyTestSource.includes("auto memory apply refuses to overwrite an existing memory") &&
     cloudKitSyncApplyTestSource.includes("auto task apply writes a new task") &&
     cloudKitSyncApplyTestSource.includes("auto task apply refuses to overwrite an existing task") &&
+    cloudKitSyncApplyTestSource.includes("auto generated app state apply updates an existing generated app only") &&
+    cloudKitSyncApplyTestSource.includes("generated app state apply refuses to create unknown generated apps") &&
+    cloudKitSyncApplyTestSource.includes("generated app state apply refuses to overwrite newer local generated app state") &&
     cloudKitSyncApplyTestSource.includes("device trust apply stores metadata without granting device access") &&
     cloudKitSyncApplyTestSource.includes("device trust apply rejects raw public key payloads") &&
     cloudKitDeviceTrustMetadataSource.includes("listCloudKitDeviceTrustMetadata") &&
