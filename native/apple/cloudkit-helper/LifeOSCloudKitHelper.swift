@@ -76,6 +76,46 @@ private func safeRecordFieldName(_ value: String) -> String {
   return String(cleaned.prefix(64))
 }
 
+private func encodeChangeToken(_ token: CKServerChangeToken?) -> String {
+  guard let token else { return "" }
+  guard let data = try? NSKeyedArchiver.archivedData(withRootObject: token, requiringSecureCoding: true) else { return "" }
+  return data.base64EncodedString()
+}
+
+private func decodeChangeToken(_ value: String) -> CKServerChangeToken? {
+  let token = compact(value, limit: 16_384)
+  if token.isEmpty { return nil }
+  guard let data = Data(base64Encoded: token) else { return nil }
+  return try? NSKeyedUnarchiver.unarchivedObject(ofClass: CKServerChangeToken.self, from: data)
+}
+
+private func changeTokenByZone(_ request: [String: Any]) -> [String: String] {
+  guard let syncState = request["syncState"] as? [String: Any] else { return [:] }
+  var result: [String: String] = [:]
+  for item in dictList(syncState["zones"], limit: 64) {
+    let zone = compact(item["zone"], limit: 80)
+    let token = compact(item["serverChangeToken"], limit: 16_384)
+    if !zone.isEmpty && !token.isEmpty {
+      result[zone] = token
+    }
+  }
+  return result
+}
+
+private func cloudKitRecordSummary(record: CKRecord, zone: String) -> [String: Any] {
+  [
+    "zone": zone,
+    "recordType": record.recordType,
+    "recordName": record.recordID.recordName,
+    "mutationId": compact(record["mutationId"], limit: 80),
+    "contentHash": compact(record["contentHash"], limit: 120),
+    "logicalClock": (record["logicalClock"] as? NSNumber)?.doubleValue ?? 0,
+    "payloadByteSize": (record["payloadByteSize"] as? NSNumber)?.intValue ?? 0,
+    "requiresUserReview": (record["requiresUserReview"] as? NSNumber)?.boolValue ?? true,
+    "modifiedAt": iso(record.modificationDate),
+  ]
+}
+
 private func accountStatusName(_ status: CKAccountStatus) -> String {
   switch status {
   case .available: return "available"
@@ -472,6 +512,139 @@ private func runSyncImportPreview(container: CKContainer, request: [String: Any]
   return response
 }
 
+private func runSyncChangesPreview(container: CKContainer, request: [String: Any]) async -> [String: Any] {
+  let probe = await runProbe(container: container, operation: "sync-changes-preview")
+  guard probe["ok"] as? Bool == true else { return probe }
+
+  let database = container.privateCloudDatabase
+  let recordPlan = dictList(request["recordPlan"], limit: 16)
+  let previousTokens = changeTokenByZone(request)
+  let desiredKeys = [
+    "lifeosSchema",
+    "lifeosDataType",
+    "lifeosRecordType",
+    "lifeosRecordName",
+    "sourceIdHash",
+    "mutationId",
+    "logicalClock",
+    "contentHash",
+    "payloadByteSize",
+    "requiresUserReview",
+    "lifeosSyncedAt",
+  ]
+  var scannedZones = Set<String>()
+  var zones: [[String: Any]] = []
+  var changedRecords: [[String: Any]] = []
+  var deletedRecords: [[String: Any]] = []
+  var warnings: [String] = []
+  var errors: [String] = []
+  var changed = 0
+  var deleted = 0
+  var failed = 0
+  var anyMoreComing = false
+
+  for plan in recordPlan {
+    let zone = compact(plan["zone"], limit: 80)
+    if zone.isEmpty || scannedZones.contains(zone) { continue }
+    scannedZones.insert(zone)
+    let zoneId = CKRecordZone.ID(zoneName: zone, ownerName: CKCurrentUserDefaultName)
+    let previousToken = decodeChangeToken(previousTokens[zone] ?? "")
+    do {
+      let result = try await database.recordZoneChanges(
+        inZoneWith: zoneId,
+        since: previousToken,
+        desiredKeys: desiredKeys,
+        resultsLimit: 100
+      )
+      var zoneChanged = 0
+      var zoneDeleted = 0
+      var zoneFailed = 0
+      for (_, recordResult) in result.modificationResultsByID {
+        switch recordResult {
+        case .success(let modification):
+          changed += 1
+          zoneChanged += 1
+          if changedRecords.count < 300 {
+            changedRecords.append(cloudKitRecordSummary(record: modification.record, zone: zone))
+          }
+        case .failure(let error):
+          failed += 1
+          zoneFailed += 1
+          errors.append("CloudKit change preview could not read one changed record in \(redact(zone, limit: 80)): \(redact(error.localizedDescription, limit: 240))")
+        }
+      }
+      for deletion in result.deletions {
+        deleted += 1
+        zoneDeleted += 1
+        if deletedRecords.count < 300 {
+          deletedRecords.append([
+            "zone": zone,
+            "recordType": deletion.recordType,
+            "recordName": deletion.recordID.recordName,
+            "deletedAt": nowIso(),
+          ])
+        }
+      }
+      if result.moreComing { anyMoreComing = true }
+      zones.append([
+        "zone": zone,
+        "previousServerChangeTokenPresent": previousToken != nil,
+        "serverChangeToken": encodeChangeToken(result.changeToken),
+        "changed": zoneChanged,
+        "deleted": zoneDeleted,
+        "failed": zoneFailed,
+        "moreComing": result.moreComing,
+      ])
+    } catch {
+      failed += 1
+      errors.append("CloudKit change preview failed for \(redact(zone, limit: 80)): \(redact(error.localizedDescription, limit: 240))")
+      zones.append([
+        "zone": zone,
+        "previousServerChangeTokenPresent": previousToken != nil,
+        "serverChangeToken": "",
+        "changed": 0,
+        "deleted": 0,
+        "failed": 1,
+        "moreComing": false,
+      ])
+    }
+  }
+
+  var response = responseBase(operation: "sync-changes-preview", ok: failed == 0)
+  response["accountStatus"] = probe["accountStatus"] ?? "available"
+  response["containerReachable"] = probe["containerReachable"] ?? true
+  response["capabilitiesVerified"] = [
+    "account-status",
+    "private-database",
+    "container-reachability",
+    "custom-zones",
+    "change-token-fetch",
+    "sync-changes-preview",
+  ]
+  response["warnings"] = warnings.map { redact($0, limit: 240) }
+  response["errors"] = errors.map { redact($0, limit: 240) }
+  response["syncChangesPreview"] = [
+    "scannedZones": Array(scannedZones).sorted(),
+    "changed": changed,
+    "deleted": deleted,
+    "failed": failed,
+    "moreComing": anyMoreComing,
+    "zones": zones,
+    "changedRecords": changedRecords,
+    "deletedRecords": deletedRecords,
+    "rawPayloadIncluded": false,
+  ]
+  response["roundtrip"] = [
+    "created": false,
+    "fetched": false,
+    "deleted": false,
+    "recordType": "",
+    "zone": "",
+  ]
+  response["evidenceId"] = "lifeos-cloudkit-sync-changes-preview-\(UUID().uuidString)"
+  return response
+}
+
 @main
 struct LifeOSCloudKitHelper {
   static func main() async {
@@ -519,6 +692,8 @@ struct LifeOSCloudKitHelper {
       response = await runSyncExport(container: container, request: request)
     } else if operation == "sync-import-preview" {
       response = await runSyncImportPreview(container: container, request: request)
+    } else if operation == "sync-changes-preview" {
+      response = await runSyncChangesPreview(container: container, request: request)
     } else {
       response = responseBase(operation: operation, ok: false).merging([
         "errors": ["Unsupported operation: \(redact(operation, limit: 80))"],

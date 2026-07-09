@@ -200,6 +200,28 @@ The helper intentionally excludes `payloadJson` from the requested CloudKit keys
 
 This is still not background two-way sync. The next steps are change-token persistence, raw helper-to-backend import under a redacted local-only channel, conflict review UI, tombstone/delete handling, retries, and two-device Apple testing.
 
+## Incremental Changes Preview
+
+LifeOS now has the first change-token shaped read path:
+
+```text
+POST /api/v1/admin/icloud-data-sync/changes-preview
+```
+
+The backend passes only locally applied per-zone CloudKit server change tokens to the native helper. The helper calls `recordZoneChanges(inZoneWith:since:desiredKeys:resultsLimit:)` for each planned zone, requests only the safe summary fields, and returns:
+
+- changed record summaries;
+- deleted record summaries;
+- per-zone changed/deleted/failed counts;
+- `moreComing` state;
+- a new server change token for each zone.
+
+The backend stores the new token as a **candidate checkpoint** in SQLite (`cloudkit_sync_checkpoints.pending_server_change_token`) but does not mark it as applied. This avoids the dangerous failure mode where a preview advances the token before the remote changes have actually been imported and merged into local SQLite.
+
+The admin API response hides raw server change tokens and exposes only whether a checkpoint was captured. This means the current step can prove incremental CloudKit reads and local checkpoint storage without leaking opaque sync state to the browser.
+
+This is still not full sync. To become real background two-way sync, the next guarded step must import changed payloads into a quarantine table, run conflict/tombstone review, apply selected changes to SQLite, then promote the pending token to the applied token only after the local write succeeds.
+
 ## Conflict Model
 
 Start with conservative conflict handling:
@@ -258,3 +280,5 @@ Do not claim real iCloud data sync until all of this is true:
 当前还新增了受控写入接口：`/api/v1/admin/icloud-data-sync/export`。它只在 CloudKit 准备度通过、批次预览为 ready、没有敏感阻断记录、请求显式确认 `SYNC_APPROVED_RECORDS` 时运行，并且会先创建本地 SQLite 备份。API 响应仍只返回摘要和证据，不返回正文；经过过滤的 payload 只会通过本机 stdin 发给原生 helper。这个能力代表“已具备第一条受控 CloudKit 写入路径”，但仍不是完整后台双向同步。
 
 当前还新增了安全读取预览接口：`/api/v1/admin/icloud-data-sync/import-preview`。它只从私有 CloudKit 读取 LifeOS 记录的摘要字段，例如 zone、record type、hash、logical clock、payload 大小和更新时间；不会请求 `payloadJson`，也不会导入 SQLite。这个能力代表“已具备第一条受控 CloudKit 读取摘要路径”，但仍不是完整双向同步。
+
+当前还新增了增量变更预览接口：`/api/v1/admin/icloud-data-sync/changes-preview`。它会把本地已应用的 CloudKit server change token 传给原生 helper，helper 使用 `recordZoneChanges` 读取每个 zone 的变更摘要和删除摘要，并把新的 token 作为候选 checkpoint 存在 `cloudkit_sync_checkpoints`。注意：候选 token 不会直接变成已应用 token，因为还没有把远端变更真正导入并合并到 SQLite；这样可以避免“预览一次就丢掉未导入变更”的风险。

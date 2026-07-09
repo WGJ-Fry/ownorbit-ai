@@ -15,8 +15,18 @@ const MAX_TEXT_CHARS = 800;
 
 type IcloudDataSyncReadiness = ReturnType<typeof getIcloudDataSyncReadiness>;
 
-export type CloudKitNativeHelperOperation = "probe" | "roundtrip" | "sync-export" | "sync-import-preview";
+export type CloudKitNativeHelperOperation = "probe" | "roundtrip" | "sync-export" | "sync-import-preview" | "sync-changes-preview";
 export type CloudKitNativeHelperRunStatus = "passed" | "failed" | "skipped";
+
+export type CloudKitNativeHelperSyncState = {
+  generatedAt?: string;
+  zones?: Array<{
+    zone: string;
+    serverChangeToken?: string;
+    tokenState?: string;
+    updatedAt?: number;
+  }>;
+};
 
 type CommandRunner = (
   command: string,
@@ -30,6 +40,7 @@ type HelperRunOptions = {
   now?: Date;
   runCommand?: CommandRunner;
   syncExportPackage?: CloudKitSyncExportPackage;
+  syncState?: CloudKitNativeHelperSyncState;
 };
 
 function compact(value: unknown, limit = MAX_TEXT_CHARS) {
@@ -161,13 +172,67 @@ function normalizeSyncImportPreview(value: unknown) {
   };
 }
 
+function normalizeChangePreviewRecord(value: unknown) {
+  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    zone: compact(input.zone, 80),
+    recordType: compact(input.recordType, 80),
+    recordName: compact(input.recordName, 160),
+    mutationId: compact(input.mutationId, 80),
+    contentHash: compact(input.contentHash, 120),
+    logicalClock: Number(input.logicalClock || 0),
+    payloadByteSize: Number(input.payloadByteSize || 0),
+    modifiedAt: compact(input.modifiedAt, 80),
+    requiresUserReview: Boolean(input.requiresUserReview),
+  };
+}
+
+function normalizeChangePreviewDeletion(value: unknown) {
+  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    zone: compact(input.zone, 80),
+    recordType: compact(input.recordType, 80),
+    recordName: compact(input.recordName, 160),
+    deletedAt: compact(input.deletedAt, 80),
+  };
+}
+
+function normalizeChangePreviewZone(value: unknown) {
+  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    zone: compact(input.zone, 80),
+    previousServerChangeTokenPresent: Boolean(input.previousServerChangeTokenPresent),
+    serverChangeToken: compact(input.serverChangeToken, 16_384),
+    serverChangeTokenCaptured: Boolean(input.serverChangeToken || input.serverChangeTokenCaptured),
+    changed: Number(input.changed || 0),
+    deleted: Number(input.deleted || 0),
+    failed: Number(input.failed || 0),
+    moreComing: Boolean(input.moreComing),
+  };
+}
+
+function normalizeSyncChangesPreview(value: unknown) {
+  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    scannedZones: normalizeStringList(input.scannedZones, 32),
+    changed: Number(input.changed || 0),
+    deleted: Number(input.deleted || 0),
+    failed: Number(input.failed || 0),
+    moreComing: Boolean(input.moreComing),
+    rawPayloadIncluded: Boolean(input.rawPayloadIncluded),
+    zones: Array.isArray(input.zones) ? input.zones.map(normalizeChangePreviewZone).slice(0, 32) : [],
+    changedRecords: Array.isArray(input.changedRecords) ? input.changedRecords.map(normalizeChangePreviewRecord).slice(0, 500) : [],
+    deletedRecords: Array.isArray(input.deletedRecords) ? input.deletedRecords.map(normalizeChangePreviewDeletion).slice(0, 500) : [],
+  };
+}
+
 export function cloudKitNativeHelperContract() {
   return {
     protocolVersion: CLOUDKIT_NATIVE_HELPER_PROTOCOL_VERSION,
     transport: CLOUDKIT_NATIVE_HELPER_TRANSPORT,
     requestSchema: CLOUDKIT_NATIVE_HELPER_REQUEST_SCHEMA,
     responseSchema: CLOUDKIT_NATIVE_HELPER_RESPONSE_SCHEMA,
-    operations: ["probe", "roundtrip", "sync-export", "sync-import-preview"] as CloudKitNativeHelperOperation[],
+    operations: ["probe", "roundtrip", "sync-export", "sync-import-preview", "sync-changes-preview"] as CloudKitNativeHelperOperation[],
     commandArgs: [...CLOUDKIT_NATIVE_HELPER_ARGS],
     timeoutMs: CLOUDKIT_NATIVE_HELPER_TIMEOUT_MS,
   };
@@ -178,6 +243,7 @@ export function buildCloudKitNativeHelperRequest(
   operation: CloudKitNativeHelperOperation,
   now = new Date(),
   syncExportPackage?: CloudKitSyncExportPackage,
+  syncState?: CloudKitNativeHelperSyncState,
 ) {
   const forbiddenFieldNames = Array.from(new Set(readiness.recordPlan.flatMap((item) => item.forbiddenFields))).sort();
   const request: Record<string, unknown> = {
@@ -209,6 +275,17 @@ export function buildCloudKitNativeHelperRequest(
   if (operation === "sync-export" && syncExportPackage?.ok) {
     request.syncBatch = syncExportPackage.helperSyncBatch;
   }
+  if (operation === "sync-changes-preview") {
+    request.syncState = {
+      generatedAt: syncState?.generatedAt || now.toISOString(),
+      zones: (syncState?.zones || []).map((zone) => ({
+        zone: compact(zone.zone, 80),
+        serverChangeToken: compact(zone.serverChangeToken, 16_384),
+        tokenState: compact(zone.tokenState, 40),
+        updatedAt: Number(zone.updatedAt || 0),
+      })).filter((zone) => zone.zone && zone.serverChangeToken),
+    };
+  }
   return request;
 }
 
@@ -224,6 +301,7 @@ function skippedResult(operation: CloudKitNativeHelperOperation, readinessStatus
     roundtrip: normalizeRoundtrip(undefined),
     syncExport: normalizeSyncExport(undefined),
     syncImportPreview: normalizeSyncImportPreview(undefined),
+    syncChangesPreview: normalizeSyncChangesPreview(undefined),
   };
 }
 
@@ -241,7 +319,7 @@ export async function runCloudKitNativeHelper(
     return skippedResult(operation, readiness.status, "CloudKit sync export package is not ready or was not explicitly confirmed.");
   }
 
-  const request = buildCloudKitNativeHelperRequest(readiness, operation, options.now || new Date(), options.syncExportPackage);
+  const request = buildCloudKitNativeHelperRequest(readiness, operation, options.now || new Date(), options.syncExportPackage, options.syncState);
   const requestJson = JSON.stringify(request);
   const requestHash = `sha256:${crypto.createHash("sha256").update(requestJson).digest("hex").slice(0, 16)}`;
   const runCommand = options.runCommand || defaultCommandRunner;
@@ -253,6 +331,7 @@ export async function runCloudKitNativeHelper(
   const roundtrip = normalizeRoundtrip(payload?.roundtrip);
   const syncExport = normalizeSyncExport(payload?.syncExport);
   const syncImportPreview = normalizeSyncImportPreview(payload?.syncImportPreview);
+  const syncChangesPreview = normalizeSyncChangesPreview(payload?.syncChangesPreview);
   const operationMatches = payload?.operation === operation;
   const protocolMatches = payload?.protocolVersion === CLOUDKIT_NATIVE_HELPER_PROTOCOL_VERSION &&
     payload?.schema === CLOUDKIT_NATIVE_HELPER_RESPONSE_SCHEMA;
@@ -285,6 +364,7 @@ export async function runCloudKitNativeHelper(
     roundtrip,
     syncExport,
     syncImportPreview,
+    syncChangesPreview,
     warnings: payloadWarnings,
     errors,
     command: {
@@ -295,3 +375,5 @@ export async function runCloudKitNativeHelper(
     },
   };
 }
+
+export type CloudKitNativeHelperResult = Awaited<ReturnType<typeof runCloudKitNativeHelper>>;

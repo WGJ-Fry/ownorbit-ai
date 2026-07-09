@@ -1403,7 +1403,7 @@ export type NetworkDiagnostics = {
 export type CloudKitNativeHelperResult = {
   ok: boolean;
   status: "passed" | "failed" | "skipped";
-  operation: "probe" | "roundtrip" | "sync-export" | "sync-import-preview";
+  operation: "probe" | "roundtrip" | "sync-export" | "sync-import-preview" | "sync-changes-preview";
   checkedAt: string;
   readinessStatus: string;
   reason?: string;
@@ -1413,7 +1413,7 @@ export type CloudKitNativeHelperResult = {
     transport: string;
     requestSchema: string;
     responseSchema: string;
-    operations: Array<"probe" | "roundtrip" | "sync-export" | "sync-import-preview">;
+    operations: Array<"probe" | "roundtrip" | "sync-export" | "sync-import-preview" | "sync-changes-preview">;
     commandArgs: string[];
     timeoutMs: number;
   };
@@ -1454,6 +1454,40 @@ export type CloudKitNativeHelperResult = {
       requiresUserReview: boolean;
     }>;
   };
+  syncChangesPreview?: {
+    scannedZones: string[];
+    changed: number;
+    deleted: number;
+    failed: number;
+    moreComing: boolean;
+    rawPayloadIncluded: boolean;
+    zones: Array<{
+      zone: string;
+      previousServerChangeTokenPresent: boolean;
+      serverChangeTokenCaptured: boolean;
+      changed: number;
+      deleted: number;
+      failed: number;
+      moreComing: boolean;
+    }>;
+    changedRecords: Array<{
+      zone: string;
+      recordType: string;
+      recordName: string;
+      mutationId: string;
+      contentHash: string;
+      logicalClock: number;
+      payloadByteSize: number;
+      modifiedAt: string;
+      requiresUserReview: boolean;
+    }>;
+    deletedRecords: Array<{
+      zone: string;
+      recordType: string;
+      recordName: string;
+      deletedAt: string;
+    }>;
+  };
   warnings?: string[];
   errors?: string[];
   command?: {
@@ -1462,6 +1496,21 @@ export type CloudKitNativeHelperResult = {
     stdoutBytes: number;
     stderr: string;
   };
+};
+
+export type CloudKitSyncCheckpoint = {
+  zone: string;
+  tokenState: "none" | "pending-preview" | "applied";
+  appliedServerChangeTokenPresent: boolean;
+  pendingServerChangeTokenPresent: boolean;
+  lastEvidenceId?: string;
+  lastPreviewAt?: number;
+  lastAppliedAt?: number;
+  changedCount: number;
+  deletedCount: number;
+  failedCount: number;
+  moreComing: boolean;
+  updatedAt: number;
 };
 
 export type CloudKitSyncBatchPreview = {
@@ -2355,6 +2404,17 @@ export function runCloudKitSyncImportPreview() {
     result: CloudKitNativeHelperResult;
     diagnostics: NetworkDiagnostics;
   }>("/api/v1/admin/icloud-data-sync/import-preview", {
+    method: "POST",
+    timeoutMs: 70_000,
+  });
+}
+
+export function runCloudKitSyncChangesPreview() {
+  return requestJson<{
+    result: CloudKitNativeHelperResult;
+    checkpoints: CloudKitSyncCheckpoint[];
+    diagnostics: NetworkDiagnostics;
+  }>("/api/v1/admin/icloud-data-sync/changes-preview", {
     method: "POST",
     timeoutMs: 70_000,
   });

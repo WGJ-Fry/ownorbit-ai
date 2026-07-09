@@ -155,6 +155,7 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   const calendarSyncOperationsMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 16").get();
   const calendarSyncRunsMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 17").get();
   const icloudHandoffEventsMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 18").get();
+  const cloudKitSyncCheckpointsMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 19").get();
   const connectivityColumns = db.prepare("PRAGMA table_info(device_connectivity_reports)").all().map((column) => column.name);
   const icloudHandoffEventColumns = db.prepare("PRAGMA table_info(device_icloud_handoff_events)").all().map((column) => column.name);
   const messageColumns = db.prepare("PRAGMA table_info(messages)").all().map((column) => column.name);
@@ -170,6 +171,7 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   const customAppRuntimeEventColumns = db.prepare("PRAGMA table_info(custom_app_runtime_events)").all().map((column) => column.name);
   const calendarSyncOperationColumns = db.prepare("PRAGMA table_info(calendar_sync_operations)").all().map((column) => column.name);
   const calendarSyncRunColumns = db.prepare("PRAGMA table_info(calendar_sync_runs)").all().map((column) => column.name);
+  const cloudKitSyncCheckpointColumns = db.prepare("PRAGMA table_info(cloudkit_sync_checkpoints)").all().map((column) => column.name);
   const legacyDevice = db.prepare("SELECT id, access_token_expires_at as accessTokenExpiresAt FROM devices WHERE id = 'legacy-device'").get();
   const legacyCustomApp = db.prepare("SELECT id, name, description, code FROM custom_apps WHERE id = 'legacy-app-1'").get();
   const legacyCustomAppVersion = db.prepare("SELECT app_id as appId, version, code, note FROM custom_app_versions WHERE app_id = 'legacy-app-1'").get();
@@ -192,6 +194,7 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   assert.equal(calendarSyncOperationsMigration.name, "calendar_sync_operations");
   assert.equal(calendarSyncRunsMigration.name, "calendar_sync_runs");
   assert.equal(icloudHandoffEventsMigration.name, "device_icloud_handoff_events");
+  assert.equal(cloudKitSyncCheckpointsMigration.name, "cloudkit_sync_checkpoints");
   assert.ok(connectivityColumns.includes("current_base_url"));
   assert.ok(connectivityColumns.includes("mobile_shell_ok"));
   assert.ok(connectivityColumns.includes("websocket_ok"));
@@ -199,6 +202,10 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   assert.ok(icloudHandoffEventColumns.includes("stored_base_url"));
   assert.ok(icloudHandoffEventColumns.includes("checksum_sha256"));
   assert.ok(icloudHandoffEventColumns.includes("ignored_at"));
+  assert.ok(cloudKitSyncCheckpointColumns.includes("applied_server_change_token"));
+  assert.ok(cloudKitSyncCheckpointColumns.includes("pending_server_change_token"));
+  assert.ok(cloudKitSyncCheckpointColumns.includes("token_state"));
+  assert.ok(cloudKitSyncCheckpointColumns.includes("more_coming"));
   assert.ok(messageColumns.includes("offline_mutation_id"));
   assert.ok(messageColumns.includes("idempotency_key"));
   assert.ok(messageColumns.includes("client_sequence"));

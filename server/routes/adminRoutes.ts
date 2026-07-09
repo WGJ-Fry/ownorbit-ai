@@ -33,6 +33,7 @@ import { buildNativeAutomationPlan, executeNativeAutomation } from "../nativeAut
 import { getIcloudDataSyncReadiness } from "../icloudDataSyncReadiness";
 import { runCloudKitNativeHelper, type CloudKitNativeHelperOperation } from "../cloudKitNativeHelper";
 import { buildCloudKitSyncBatchPreview, buildCloudKitSyncExportPackage, CLOUDKIT_SYNC_EXPORT_CONFIRMATION, summarizeCloudKitSyncExportPackage } from "../cloudKitSyncBatch";
+import { getCloudKitSyncStateSnapshot, listCloudKitSyncCheckpoints, publicCloudKitHelperResult, saveCloudKitSyncChangesPreview } from "../cloudKitSyncState";
 
 const loginFailures = new Map<string, { count: number; lockedUntil: number }>();
 
@@ -857,6 +858,51 @@ export function registerAdminRoutes(app: express.Express) {
         error: error?.message || "CloudKit sync import preview failed",
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.status(400).json({ error: error.message || "CloudKit sync import preview failed", diagnostics: getAdminNetworkDiagnostics() });
+    }
+  });
+
+  app.post("/api/v1/admin/icloud-data-sync/changes-preview", requireAdmin, rateLimit({ keyPrefix: "admin-cloudkit-sync-changes-preview", windowMs: 60_000, max: 8 }), async (req, res) => {
+    try {
+      const diagnostics = getAdminNetworkDiagnostics();
+      const readiness = getIcloudDataSyncReadiness({ platformSupported: diagnostics.icloud.platformSupported });
+      const syncState = getCloudKitSyncStateSnapshot();
+      const result = await runCloudKitNativeHelper(readiness, {
+        operation: "sync-changes-preview",
+        syncState,
+        timeoutMs: 60_000,
+      });
+      const saved = saveCloudKitSyncChangesPreview(result);
+      const publicResult = publicCloudKitHelperResult(result);
+      insertAuditLog("icloud_cloudkit_sync_changes_preview", "network", "cloudkit-sync-changes-preview", {
+        status: result.status,
+        ok: result.ok,
+        readinessStatus: "readinessStatus" in result ? result.readinessStatus : readiness.status,
+        evidenceId: "evidenceId" in result ? result.evidenceId || null : null,
+        syncChangesPreview: "syncChangesPreview" in result ? {
+          scannedZones: result.syncChangesPreview.scannedZones,
+          changed: result.syncChangesPreview.changed,
+          deleted: result.syncChangesPreview.deleted,
+          failed: result.syncChangesPreview.failed,
+          moreComing: result.syncChangesPreview.moreComing,
+          zoneCount: result.syncChangesPreview.zones.length,
+          tokenSavedCount: saved.saved,
+          rawPayloadIncluded: result.syncChangesPreview.rawPayloadIncluded,
+        } : null,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(result.status === "failed" ? 400 : 200).json({
+        result: publicResult,
+        checkpoints: saved.checkpoints,
+        diagnostics: getAdminNetworkDiagnostics(),
+      });
+    } catch (error: any) {
+      insertAuditLog("icloud_cloudkit_sync_changes_preview_failed", "network", "cloudkit-sync-changes-preview", {
+        error: error?.message || "CloudKit sync changes preview failed",
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(400).json({
+        error: error.message || "CloudKit sync changes preview failed",
+        checkpoints: listCloudKitSyncCheckpoints(),
+        diagnostics: getAdminNetworkDiagnostics(),
+      });
     }
   });
 
