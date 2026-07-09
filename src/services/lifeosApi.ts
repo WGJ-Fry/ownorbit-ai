@@ -134,6 +134,9 @@ export type IcloudAutoRefreshResult = {
   syncReadinessAction?: string;
   generatedAt?: number;
   recommendedBaseUrl?: string;
+  recommendedMode?: string;
+  recommendedStability?: string;
+  recommendedLabel?: string;
   changeType?: string;
   previousBaseUrl?: string;
   error?: string;
@@ -2973,7 +2976,7 @@ export function reportMobileIcloudHandoffEvent(event: MobileIcloudHandoffEventRe
   return requestJson<{
     ok: true;
     event: DeviceIcloudHandoffEvent;
-    icloudRefresh: { refreshed: boolean; reason: string; requestedReason?: string; status?: string; error?: string };
+    icloudRefresh: IcloudAutoRefreshResult;
   }>("/api/v1/devices/me/icloud-handoff-event", {
     method: "POST",
     body: JSON.stringify(event),

@@ -5,6 +5,8 @@ const ENTRIES_STORAGE_KEY = "lifeos_mobile_icloud_handoff_entries";
 const PREFERRED_ENTRY_STORAGE_KEY = "lifeos_mobile_icloud_handoff_preferred_entry";
 const PENDING_EVENTS_STORAGE_KEY = "lifeos_mobile_icloud_handoff_pending_events";
 const SERVER_REPAIR_STORAGE_KEY = "lifeos_mobile_icloud_handoff_server_repair";
+const MOBILE_ICLOUD_REPAIR_REFRESH_AFTER_MS = 24 * 60 * 60 * 1000;
+const MOBILE_ICLOUD_REPAIR_EXPIRES_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_STORED_HANDOFF_ENTRIES = 8;
 const MAX_PENDING_HANDOFF_EVENTS = 12;
 
@@ -115,6 +117,11 @@ export type MobileIcloudHandoffServerRepairStatus = {
   refreshed: boolean;
   refreshReason: string;
   requestedReason?: string;
+  latestBaseUrl?: string;
+  latestMode?: string;
+  latestStability?: string;
+  latestLabel?: string;
+  latestGeneratedAt?: number;
 };
 
 export type MobileIcloudHandoffServerRepairOneNextActionId =
@@ -343,6 +350,11 @@ function normalizeServerRepairStatus(parsed: any): MobileIcloudHandoffServerRepa
     refreshed: Boolean(parsed.refreshed),
     refreshReason: normalizeEntryText(parsed.refreshReason || "unknown", 80) || "unknown",
     requestedReason: normalizeEntryText(parsed.requestedReason, 100) || undefined,
+    latestBaseUrl: normalizeBaseUrl(parsed.latestBaseUrl || ""),
+    latestMode: normalizeEntryText(parsed.latestMode, 40) || undefined,
+    latestStability: normalizeEntryText(parsed.latestStability, 40) || undefined,
+    latestLabel: normalizeEntryText(parsed.latestLabel, 120) || undefined,
+    latestGeneratedAt: safeNumber(parsed.latestGeneratedAt),
   };
 }
 
@@ -361,6 +373,11 @@ function writeServerRepairStatus(
     refreshed: Boolean(input.icloudRefresh?.refreshed),
     refreshReason: input.icloudRefresh?.reason || (input.pending ? "queued" : "reported"),
     requestedReason: input.icloudRefresh?.requestedReason,
+    latestBaseUrl: input.icloudRefresh?.recommendedBaseUrl,
+    latestMode: input.icloudRefresh?.recommendedMode,
+    latestStability: input.icloudRefresh?.recommendedStability,
+    latestLabel: input.icloudRefresh?.recommendedLabel,
+    latestGeneratedAt: input.icloudRefresh?.generatedAt,
   });
   const storage = safeStorage();
   if (!storage || !record) return record;
@@ -382,6 +399,31 @@ export function getMobileIcloudHandoffServerRepairStatus() {
   }
 }
 
+export function buildMobileIcloudHandoffEntryFromServerRepair(
+  status: MobileIcloudHandoffServerRepairStatus,
+  fallback?: MobileIcloudHandoffEntry | null,
+  now = Date.now(),
+): MobileIcloudHandoffEntry | null {
+  const latestBaseUrl = normalizeBaseUrl(status.latestBaseUrl || "");
+  if (!latestBaseUrl || !isHttpBaseUrl(latestBaseUrl)) return null;
+  const generatedAt = status.latestGeneratedAt || status.reportedAt || now;
+  return {
+    source: "icloud",
+    generatedAt,
+    refreshAfter: generatedAt + MOBILE_ICLOUD_REPAIR_REFRESH_AFTER_MS,
+    expiresAt: generatedAt + MOBILE_ICLOUD_REPAIR_EXPIRES_AFTER_MS,
+    baseUrl: latestBaseUrl,
+    mode: status.latestMode || fallback?.mode || "",
+    stability: status.latestStability || fallback?.stability || "",
+    label: status.latestLabel || fallback?.label || "LifeOS iCloud Mobile Entry",
+    desktopId: fallback?.desktopId,
+    desktopName: fallback?.desktopName,
+    desktopSlug: fallback?.desktopSlug,
+    checksumSha256: "",
+    savedAt: now,
+  };
+}
+
 export function getMobileIcloudHandoffServerRepairOneNextAction(
   status: MobileIcloudHandoffServerRepairStatus,
 ): MobileIcloudHandoffServerRepairOneNextAction {
@@ -399,7 +441,7 @@ export function getMobileIcloudHandoffServerRepairOneNextAction(
       id: "open-latest-entry",
       titleKey: "mobileDevice.icloudHandoffServerRepairOneNextRefreshedTitle",
       bodyKey: "mobileDevice.icloudHandoffServerRepairOneNextRefreshedBody",
-      ctaKey: "mobileDevice.icloudHandoffServerRepairOneNextTestCta",
+      ctaKey: status.latestBaseUrl ? "mobileDevice.icloudHandoffServerRepairOneNextOpenLatestCta" : "mobileDevice.icloudHandoffServerRepairOneNextTestCta",
       tone: "ok",
     };
   }

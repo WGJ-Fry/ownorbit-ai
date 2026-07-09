@@ -2246,6 +2246,9 @@ function checkAssets() {
     mobileIcloudHandoffSource.includes("flushPendingMobileIcloudHandoffEvents") &&
     mobileIcloudHandoffSource.includes("getMobileIcloudHandoffServerRepairStatus") &&
     mobileIcloudHandoffSource.includes("getMobileIcloudHandoffServerRepairOneNextAction") &&
+    mobileIcloudHandoffSource.includes("latestBaseUrl") &&
+    mobileIcloudHandoffSource.includes("buildMobileIcloudHandoffEntryFromServerRepair") &&
+    mobileIcloudHandoffSource.includes("icloudHandoffServerRepairOneNextOpenLatestCta") &&
     mobileIcloudHandoffSource.includes("wait-for-desktop-repair") &&
     mobileIcloudHandoffSource.includes("reportOrQueueIcloudHandoffEvent") &&
     mobileIcloudHandoffSource.includes("!result.ok && response?.icloudRefresh") &&
@@ -2260,6 +2263,7 @@ function checkAssets() {
     mobileRemoteEntryCardSource.includes("mobile-icloud-one-next-action") &&
     mobileRemoteEntryCardSource.includes("mobile-icloud-server-repair-one-next") &&
     mobileRemoteEntryCardSource.includes("handleIcloudServerRepairOneNextAction") &&
+    mobileRemoteEntryCardSource.includes("buildMobileIcloudHandoffEntryFromServerRepair") &&
     mobileRemoteEntryCardSource.includes("activateRecommendedIcloudEntry") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffOneNextLabel") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffActivateRecommendedAction") &&
@@ -2276,6 +2280,8 @@ function checkAssets() {
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffCleanupDone") &&
     mobileRemoteEntryCardSource.includes("autoSwitchedIcloudEntryReason") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffAutoSwitchedReason") &&
+    translationsSource.includes("打开最新入口") &&
+    translationsSource.includes("Open latest entry") &&
     translationsSource.includes("A better entry is available") &&
     translationsSource.includes("Default entry needs switching") &&
     translationsSource.includes("Do this one thing next") &&

@@ -2915,6 +2915,10 @@ export function maybeRefreshIcloudHandoff(reason = "auto") {
       phoneConfirmationAction: phoneConfirmation.action,
       pairingSessionStatus: pairingSession.status,
       pairingSessionAction: pairingSession.action,
+      recommendedBaseUrl: status.recommendedBaseUrl,
+      recommendedMode: status.recommendedMode,
+      recommendedStability: status.recommendedStability,
+      recommendedLabel: status.recommendedLabel,
     };
   }
   const handoff = exportIcloudHandoff(reason);
@@ -2940,6 +2944,9 @@ export function maybeRefreshIcloudHandoff(reason = "auto") {
     pairingSessionAction: pairingSession.action,
     generatedAt: handoff.generatedAt,
     recommendedBaseUrl: handoff.recommendedBaseUrl,
+    recommendedMode: handoff.recommendedMode,
+    recommendedStability: handoff.recommendedStability,
+    recommendedLabel: handoff.recommendedLabel,
     changeType: handoff.changeType,
     previousBaseUrl: handoff.previousBaseUrl,
     handoff,

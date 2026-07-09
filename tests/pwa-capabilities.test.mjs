@@ -1129,7 +1129,7 @@ test("mobile iCloud handoff launch records server repair from failed connectivit
   installLocalStorage();
   t.after(cleanupLocalStorage);
   const now = 1_800_000_130_000;
-  const { getMobileIcloudHandoffServerRepairStatus, handleMobileIcloudHandoffLaunch } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-connectivity-repair-${Date.now()}`);
+  const { buildMobileIcloudHandoffEntryFromServerRepair, buildMobileIcloudHandoffUrl, getMobileIcloudHandoffServerRepairOneNextAction, getMobileIcloudHandoffServerRepairStatus, handleMobileIcloudHandoffLaunch } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-connectivity-repair-${Date.now()}`);
   const href = [
     "https://lifeos.example.com/mobile/chat?lifeosEntry=icloud",
     `entryGeneratedAt=${now}`,
@@ -1164,6 +1164,11 @@ test("mobile iCloud handoff launch records server repair from failed connectivit
         refreshed: true,
         reason: "refreshed",
         requestedReason: "device-connectivity-failed",
+        generatedAt: now + 6,
+        recommendedBaseUrl: "https://new-lifeos.example.com",
+        recommendedMode: "tailscale",
+        recommendedStability: "stable",
+        recommendedLabel: "Tailscale HTTPS Serve",
       },
     }),
     reportIcloudHandoffEvent: async () => ({ ok: true }),
@@ -1178,6 +1183,20 @@ test("mobile iCloud handoff launch records server repair from failed connectivit
   assert.equal(repair.refreshReason, "refreshed");
   assert.equal(repair.requestedReason, "device-connectivity-failed");
   assert.equal(repair.entryBaseUrl, "https://lifeos.example.com");
+  assert.equal(repair.latestBaseUrl, "https://new-lifeos.example.com");
+  assert.equal(repair.latestMode, "tailscale");
+  assert.equal(repair.latestStability, "stable");
+  assert.equal(repair.latestLabel, "Tailscale HTTPS Serve");
+  assert.equal(repair.latestGeneratedAt, now + 6);
+
+  const action = getMobileIcloudHandoffServerRepairOneNextAction(repair);
+  assert.equal(action.id, "open-latest-entry");
+  assert.equal(action.ctaKey, "mobileDevice.icloudHandoffServerRepairOneNextOpenLatestCta");
+  const latestEntry = buildMobileIcloudHandoffEntryFromServerRepair(repair, launch.entry, now + 10);
+  assert.equal(latestEntry.baseUrl, "https://new-lifeos.example.com");
+  assert.equal(latestEntry.mode, "tailscale");
+  assert.equal(latestEntry.stability, "stable");
+  assert.match(buildMobileIcloudHandoffUrl(latestEntry), /entryBaseUrl=https%3A%2F%2Fnew-lifeos\.example\.com/);
 });
 
 test("remote entry guidance is visible before manual connectivity tests", async () => {

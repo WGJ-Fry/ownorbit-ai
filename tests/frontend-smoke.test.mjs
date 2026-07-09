@@ -251,6 +251,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(adminRoutesSource, /icloudMonitor: getIcloudHandoffMonitorStatus\(\)/);
   assert.match(deviceRoutesSource, /device-icloud-handoff-/);
   assert.match(deviceRoutesSource, /icloudRefresh/);
+  assert.match(deviceRoutesSource, /safeRefreshIcloudForBinding/);
 
   const appSource = await readFile(path.join(rootDir, "src", "App.tsx"), "utf8");
   assert.match(appSource, /useOfflineQueueSync\(flushOfflineMessages, \{/);
@@ -1188,6 +1189,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileIcloudHandoffSource, /reportIcloudHandoffIssueEvent/);
   assert.match(mobileIcloudHandoffSource, /PENDING_EVENTS_STORAGE_KEY/);
   assert.match(mobileIcloudHandoffSource, /SERVER_REPAIR_STORAGE_KEY/);
+  assert.match(mobileIcloudHandoffSource, /latestBaseUrl/);
+  assert.match(mobileIcloudHandoffSource, /buildMobileIcloudHandoffEntryFromServerRepair/);
+  assert.match(mobileIcloudHandoffSource, /icloudHandoffServerRepairOneNextOpenLatestCta/);
   assert.match(mobileIcloudHandoffSource, /flushPendingMobileIcloudHandoffEvents/);
   assert.match(mobileIcloudHandoffSource, /getPendingMobileIcloudHandoffEventCount/);
   assert.match(mobileIcloudHandoffSource, /getMobileIcloudHandoffServerRepairStatus/);
@@ -1397,8 +1401,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /activateRecommendedIcloudEntry/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffOneNextLabel/);
   assert.match(mobileRemoteEntryCardSource, /getMobileIcloudHandoffServerRepairOneNextAction/);
+  assert.match(mobileRemoteEntryCardSource, /buildMobileIcloudHandoffEntryFromServerRepair/);
   assert.match(mobileRemoteEntryCardSource, /mobile-icloud-server-repair-one-next/);
   assert.match(mobileRemoteEntryCardSource, /handleIcloudServerRepairOneNextAction/);
+  assert.match(translationsSource, /打开最新入口/);
+  assert.match(translationsSource, /Open latest entry/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffActivateRecommendedAction/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffOpenRecommendedTitle/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffOpenRecommendedAction/);
