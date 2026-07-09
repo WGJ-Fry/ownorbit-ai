@@ -63,24 +63,29 @@ function runIsolatedCloudKitApply(env, scenario) {
       const payloadJson = JSON.stringify(messagePayload);
       db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'changed', 'auto-ready', ?, ?, ?, ?, ?, 0, ?, ?, NULL, ?, ?, NULL, NULL)")
         .run("q-message-title", "LifeOSChatZone", "LifeOSMessage", "message:remote-title-message", "remote-title-mut", stableHash(messagePayload), stableHash(payloadJson), now + 2000, Buffer.byteLength(payloadJson), payloadJson, new Date(now + 2000).toISOString(), "evidence-chat", now + 3000);
-    } else if (${JSON.stringify(scenario)} === "memory-new" || ${JSON.stringify(scenario)} === "memory-existing") {
+    } else if (${JSON.stringify(scenario)} === "memory-new" || ${JSON.stringify(scenario)} === "memory-existing" || ${JSON.stringify(scenario)} === "memory-tombstone") {
       db.prepare("INSERT INTO cloudkit_sync_checkpoints (zone, applied_server_change_token, pending_server_change_token, token_state, last_evidence_id, last_preview_at, last_applied_at, changed_count, deleted_count, failed_count, more_coming, updated_at) VALUES (?, NULL, ?, 'pending-preview', ?, ?, NULL, ?, ?, 0, 0, ?)")
         .run("LifeOSMemoryZone", "opaque-memory-token", "evidence-memory", now, 1, 0, now);
       if (${JSON.stringify(scenario)} === "memory-existing") {
         db.prepare("INSERT INTO memories (id, title, content, sensitivity, created_at, updated_at, deleted_at) VALUES (?, ?, ?, 'normal', ?, ?, NULL)")
           .run("remote-memory", "Local memory", "Local memory should stay", now - 5000, now + 1500);
       }
+      if (${JSON.stringify(scenario)} === "memory-tombstone") {
+        db.prepare("INSERT INTO memories (id, title, content, sensitivity, created_at, updated_at, deleted_at) VALUES (?, ?, ?, 'normal', ?, ?, NULL)")
+          .run("remote-memory", "Local memory", "Local memory should be deleted", now - 5000, now + 1000);
+      }
       const memoryPayload = {
         memoryId: "remote-memory",
         title: "Remote memory",
-        text: "Remember safe thing",
+        text: ${JSON.stringify(scenario)} === "memory-tombstone" ? "" : "Remember safe thing",
         sensitivity: "normal",
         createdAt: now + 1000,
         updatedAt: now + 2000,
+        ...(${JSON.stringify(scenario)} === "memory-tombstone" ? { deletedAt: now + 2000 } : {}),
       };
       const payloadJson = JSON.stringify(memoryPayload);
-      db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'changed', 'auto-ready', ?, ?, ?, ?, ?, 0, ?, ?, NULL, ?, ?, NULL, NULL)")
-        .run("q-memory-new", "LifeOSMemoryZone", "LifeOSMemory", "memory:remote-memory", "memory-mut", stableHash(memoryPayload), stableHash(payloadJson), now + 2000, Buffer.byteLength(payloadJson), payloadJson, new Date(now + 2000).toISOString(), "evidence-memory", now + 3000);
+      db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'changed', ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, NULL, NULL)")
+        .run("q-memory-new", "LifeOSMemoryZone", ${JSON.stringify(scenario)} === "memory-tombstone" ? "LifeOSMemoryTombstone" : "LifeOSMemory", "memory:remote-memory", ${JSON.stringify(scenario)} === "memory-tombstone" ? "pending-review" : "auto-ready", "memory-mut", stableHash(memoryPayload), stableHash(payloadJson), now + 2000, Buffer.byteLength(payloadJson), ${JSON.stringify(scenario)} === "memory-tombstone" ? 1 : 0, payloadJson, new Date(now + 2000).toISOString(), "evidence-memory", now + 3000);
     } else if (${JSON.stringify(scenario)} === "task-new" || ${JSON.stringify(scenario)} === "task-existing") {
       db.prepare("INSERT INTO cloudkit_sync_checkpoints (zone, applied_server_change_token, pending_server_change_token, token_state, last_evidence_id, last_preview_at, last_applied_at, changed_count, deleted_count, failed_count, more_coming, updated_at) VALUES (?, NULL, ?, 'pending-preview', ?, ?, NULL, ?, ?, 0, 0, ?)")
         .run("LifeOSTaskZone", "opaque-task-token", "evidence-task", now, 1, 0, now);
@@ -168,11 +173,11 @@ function runIsolatedCloudKitApply(env, scenario) {
     const apply = applyCloudKitSyncQuarantine({
       limit: 10,
       now: now + 4000,
-      includeManualReview: ${JSON.stringify(scenario)} === "delete" || ${JSON.stringify(scenario)}.startsWith("device-trust"),
+      includeManualReview: ${JSON.stringify(scenario)} === "delete" || ${JSON.stringify(scenario)} === "memory-tombstone" || ${JSON.stringify(scenario)}.startsWith("device-trust"),
     });
     const sessions = db.prepare("SELECT id, title, updated_at as updatedAt FROM chat_sessions ORDER BY id").all();
     const messages = db.prepare("SELECT id, session_id as sessionId, content_json as contentJson, source_device_id as sourceDeviceId, offline_mutation_id as mutationId FROM messages ORDER BY id").all();
-    const memories = db.prepare("SELECT id, title, content, sensitivity, updated_at as updatedAt FROM memories ORDER BY id").all();
+    const memories = db.prepare("SELECT id, title, content, sensitivity, updated_at as updatedAt, deleted_at as deletedAt FROM memories ORDER BY id").all();
     const tasks = db.prepare("SELECT id, type, status, input_json as inputJson, result_json as resultJson, created_by_device_id as createdByDeviceId, started_at as startedAt FROM tasks ORDER BY id").all();
     const devices = db.prepare("SELECT id, name, access_token_hash as accessTokenHash FROM devices ORDER BY id").all();
     const trustMetadata = db.prepare("SELECT device_id_hash as deviceIdHash, display_name as displayName, device_type as deviceType, trust_state as trustState, public_key_fingerprint as publicKeyFingerprint, access_expires_at as accessExpiresAt, review_status as reviewStatus, access_granted as accessGranted, source_record_name as sourceRecordName, source_evidence_id as sourceEvidenceId, logical_clock as logicalClock, applied_at as appliedAt FROM cloudkit_device_trust_metadata ORDER BY device_id_hash").all();
@@ -291,6 +296,32 @@ test("CloudKit auto memory apply refuses to overwrite an existing memory", async
     assert.equal(result.memoryCheckpoint.tokenState, "pending-preview");
     assert.equal(result.memoryCheckpoint.appliedToken, null);
     assert.equal(result.memoryCheckpoint.pendingToken, "opaque-memory-token");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit memory tombstone apply records a reviewed soft delete", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-memory-tombstone-"));
+  try {
+    const result = runIsolatedCloudKitApply({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "memory-tombstone");
+
+    assert.equal(result.apply.attempted, 1);
+    assert.equal(result.apply.applied, 1);
+    assert.equal(result.apply.manualReviewRequired, 0);
+    assert.equal(result.apply.conflicts, 0);
+    assert.deepEqual(result.apply.promotedZones, ["LifeOSMemoryZone"]);
+    assert.equal(result.memories[0].id, "remote-memory");
+    assert.equal(result.memories[0].title, "Remote memory");
+    assert.equal(result.memories[0].content, "");
+    assert.equal(result.memories[0].sensitivity, "normal");
+    assert.equal(result.memories[0].updatedAt, 1700000002000);
+    assert.equal(result.memories[0].deletedAt, 1700000002000);
+    assert.equal(result.memoryCheckpoint.tokenState, "applied");
+    assert.equal(result.memoryCheckpoint.appliedToken, "opaque-memory-token");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

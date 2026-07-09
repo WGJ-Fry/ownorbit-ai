@@ -2278,7 +2278,8 @@ export function registerAdminRoutes(app: express.Express) {
     res.json({ ok: true });
   });
 
-  app.get("/api/v1/audit-logs", requireAdmin, (_req, res) => {
-    res.json({ logs: listAuditLogs() });
+  app.get("/api/v1/audit-logs", requireAdmin, (req, res) => {
+    const limit = Math.max(1, Math.min(1000, Number(req.query.limit) || 100));
+    res.json({ logs: listAuditLogs(limit) });
   });
 }

@@ -338,15 +338,29 @@ function collectMemoryRecords(limit: number) {
     LIMIT ?
   `).all(limit);
   for (const memory of memories as any[]) {
+    const deletedAt = Number(memory.deletedAt || 0) || undefined;
     const payload = {
       memoryId: memory.id,
-      text: String(memory.content || ""),
+      text: deletedAt ? "" : String(memory.content || ""),
       title: String(memory.title || "").slice(0, 120),
-      sensitivity: memory.sensitivity,
+      sensitivity: deletedAt ? "normal" : memory.sensitivity,
       createdAt: Number(memory.createdAt || 0),
       updatedAt: Number(memory.updatedAt || 0),
-      deletedAt: Number(memory.deletedAt || 0) || undefined,
+      deletedAt,
     };
+    if (deletedAt) {
+      pushReady(records, counts, buildRecord({
+        id: memory.id,
+        dataType: "memory",
+        zone: "LifeOSMemoryZone",
+        recordType: "LifeOSMemoryTombstone",
+        recordName: `memory:${memory.id}`,
+        payload,
+        logicalClock: payload.updatedAt,
+        requiresUserReview: true,
+      }), limit);
+      continue;
+    }
     if (memory.sensitivity === "sensitive") {
       pushBlocked(blockedRecords, { id: memory.id, dataType: "memory", recordType: "LifeOSMemory", reason: "sensitive-memory", payload }, limit);
       continue;
@@ -359,11 +373,11 @@ function collectMemoryRecords(limit: number) {
       id: memory.id,
       dataType: "memory",
       zone: "LifeOSMemoryZone",
-      recordType: memory.deletedAt ? "LifeOSMemoryTombstone" : "LifeOSMemory",
+      recordType: "LifeOSMemory",
       recordName: `memory:${memory.id}`,
       payload,
       logicalClock: payload.updatedAt,
-      requiresUserReview: Boolean(memory.deletedAt),
+      requiresUserReview: false,
     }), limit);
   }
   return { records, blockedRecords, counts };

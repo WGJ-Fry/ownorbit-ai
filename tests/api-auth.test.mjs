@@ -2282,8 +2282,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(deletedMemory.status, 200);
 
   const cloudKitAutoSyncAfterLocalChanges = await request(port, "/api/v1/admin/icloud-data-sync/auto-sync", { headers: adminHeaders }).then((res) => res.json());
-  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.total, 9);
-  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.byType["chat-history"], 1);
+  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.total, 10);
+  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.byType["chat-history"], 2);
   assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.byType.memory, 3);
   assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.byType["device-trust"], 5);
   assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.rawPayloadStored, false);
@@ -3206,7 +3206,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(JSON.stringify(cloudKitAutoSyncAfterDeviceTrustChanges).includes(adminRequestedRotation.accessToken), false);
   assertPublicApiResponse("cloudKitAutoSyncAfterDeviceTrustChanges", cloudKitAutoSyncAfterDeviceTrustChanges);
 
-  const finalAudit = await request(port, "/api/v1/audit-logs", { headers: adminHeaders }).then((res) => res.json());
+  const finalAudit = await request(port, "/api/v1/audit-logs?limit=500", { headers: adminHeaders }).then((res) => res.json());
   const findAudit = (action) => finalAudit.logs.find((log) => log.action === action && log.targetId === credential.device.id);
   const boundAudit = findAudit("device_bound");
   assert.equal(boundAudit.metadata.name, "Test Phone");

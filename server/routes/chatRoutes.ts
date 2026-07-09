@@ -12,6 +12,7 @@ export function registerChatRoutes(app: express.Express) {
 
   app.post("/api/v1/chat/sessions", requireActor, (req, res) => {
     const session = createChatSession(req.body?.title);
+    noteCloudKitLocalChange("chat-history", { type: (req as any).actor?.type || "actor", id: (req as any).actor?.id || "unknown" });
     insertAuditLog("chat_session_created", "chat_session", session.id);
     res.json({ session });
   });
