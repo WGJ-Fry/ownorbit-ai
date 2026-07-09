@@ -2057,7 +2057,14 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
               </div>
             </div>
           </div>
-          <div className={`mt-3 rounded-xl border p-3 ${primaryIcloudAction.tone}`}>
+          <div
+            data-testid="onboarding-icloud-primary-action-card"
+            data-onboarding-icloud-primary-step={primaryIcloudAction.stepId}
+            data-onboarding-icloud-desktop-action={primaryIcloudAction.desktopAction}
+            data-onboarding-icloud-phone-action={primaryIcloudAction.phoneAction}
+            data-onboarding-icloud-remote-required={String(primaryIcloudAction.remoteRequired)}
+            className={`mt-3 rounded-xl border p-3 ${primaryIcloudAction.tone}`}
+          >
             <div className="flex gap-2">
               {primaryIcloudAction.icon === "ready" ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : primaryIcloudAction.icon === "qr" ? <QrCode className="mt-0.5 h-4 w-4 shrink-0" /> : primaryIcloudAction.icon === "sync" ? <Cloud className="mt-0.5 h-4 w-4 shrink-0" /> : primaryIcloudAction.icon === "phone" ? <Smartphone className="mt-0.5 h-4 w-4 shrink-0" /> : primaryIcloudAction.icon === "warning" ? <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> : <RefreshCw className="mt-0.5 h-4 w-4 shrink-0" />}
               <div className="min-w-0 flex-1">

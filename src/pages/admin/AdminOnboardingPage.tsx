@@ -799,7 +799,14 @@ export default function AdminOnboardingPage() {
               </>
             ) : null}
             {showSimpleIcloudEntry ? (
-              <div data-testid="onboarding-icloud-quick-entry" className={`mt-5 rounded-2xl border p-4 ${simpleIcloudAction.tone}`}>
+              <div
+                data-testid="onboarding-icloud-quick-entry"
+                data-onboarding-icloud-primary-step={simpleIcloudAction.stepId}
+                data-onboarding-icloud-desktop-action={simpleIcloudAction.desktopAction}
+                data-onboarding-icloud-phone-action={simpleIcloudAction.phoneAction}
+                data-onboarding-icloud-remote-required={String(simpleIcloudAction.remoteRequired)}
+                className={`mt-5 rounded-2xl border p-4 ${simpleIcloudAction.tone}`}
+              >
                 <div data-testid="onboarding-icloud-default-flow" className="mb-4 rounded-2xl border border-cyan-200/15 bg-cyan-400/10 p-4 text-cyan-50">
                   <div className="flex gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-cyan-100/15 bg-[#060a10]/40">
@@ -834,6 +841,10 @@ export default function AdminOnboardingPage() {
                   {!simpleIcloudBusy ? (
                     <div
                       data-testid="onboarding-icloud-quick-one-step"
+                      data-onboarding-icloud-primary-step={simpleIcloudAction.stepId}
+                      data-onboarding-icloud-desktop-action={simpleIcloudAction.desktopAction}
+                      data-onboarding-icloud-phone-action={simpleIcloudAction.phoneAction}
+                      data-onboarding-icloud-remote-required={String(simpleIcloudAction.remoteRequired)}
                       data-onboarding-icloud-human-recovery={simpleIcloudHumanRecovery?.desktopAction || "none"}
                       className="mt-3 rounded-2xl border border-cyan-100/15 bg-[#060a10]/35 p-4 text-sm leading-relaxed text-cyan-50"
                     >

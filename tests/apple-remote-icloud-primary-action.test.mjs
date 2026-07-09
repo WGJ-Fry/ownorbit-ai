@@ -38,6 +38,11 @@ test("iCloud primary action asks Apple users to enable iCloud Drive before expor
   assert.equal(action.titleKey, "onboarding.appleRemoteIcloudNextStepEnableTitle");
   assert.equal(action.actionKey, "onboarding.appleRemoteIcloudActionEnableDrive");
   assert.equal(action.cta, "icloud-settings");
+  assert.equal(action.stepId, "enable-icloud-drive");
+  assert.equal(action.desktopAction, "open-icloud-settings");
+  assert.equal(action.phoneAction, "none");
+  assert.equal(action.remoteRequired, false);
+  assert.equal(action.showTechnicalDetails, false);
 });
 
 test("iCloud primary action prioritizes old phone entry repair over generic readiness", () => {
@@ -59,6 +64,10 @@ test("iCloud primary action prioritizes old phone entry repair over generic read
   assert.equal(action.bodyKey, "onboarding.appleRemoteIcloudNextStepOldEntryQrBody");
   assert.equal(action.actionKey, "onboarding.appleRemoteIcloudActionRefreshAndQr");
   assert.equal(action.cta, "qr");
+  assert.equal(action.stepId, "refresh-entry-and-qr");
+  assert.equal(action.desktopAction, "regenerate-qr");
+  assert.equal(action.phoneAction, "open-latest-entry");
+  assert.equal(action.remoteRequired, false);
 });
 
 test("iCloud primary action sends missing entries to export instead of diagnostics", () => {
@@ -74,6 +83,9 @@ test("iCloud primary action sends missing entries to export instead of diagnosti
   assert.equal(action.titleKey, "onboarding.appleRemoteIcloudNextStepExportTitle");
   assert.equal(action.actionKey, "onboarding.appleRemoteIcloudActionCreateEntry");
   assert.equal(action.cta, "export");
+  assert.equal(action.stepId, "create-entry");
+  assert.equal(action.desktopAction, "export-icloud-entry");
+  assert.equal(action.phoneAction, "open-files-app-after-sync");
 });
 
 test("iCloud primary action gives one plain wait action while files sync", () => {
@@ -89,6 +101,10 @@ test("iCloud primary action gives one plain wait action while files sync", () =>
   assert.equal(action.titleKey, "onboarding.appleRemoteIcloudNextStepWaitTitle");
   assert.equal(action.actionKey, "onboarding.appleRemoteIcloudActionWaitSync");
   assert.equal(action.cta, "icloud-folder");
+  assert.equal(action.stepId, "wait-for-icloud-sync");
+  assert.equal(action.desktopAction, "open-icloud-folder");
+  assert.equal(action.phoneAction, "open-files-app-after-sync");
+  assert.equal(action.showTechnicalDetails, false);
 });
 
 test("iCloud primary action opens iCloud settings when sync is stuck", () => {
@@ -104,6 +120,9 @@ test("iCloud primary action opens iCloud settings when sync is stuck", () => {
   assert.equal(action.titleKey, "onboarding.appleRemoteIcloudNextStepFixSyncTitle");
   assert.equal(action.actionKey, "onboarding.appleRemoteIcloudActionFixSync");
   assert.equal(action.cta, "icloud-settings");
+  assert.equal(action.stepId, "fix-icloud-sync");
+  assert.equal(action.desktopAction, "open-icloud-settings");
+  assert.equal(action.showTechnicalDetails, true);
 });
 
 test("iCloud primary action tells users when the entry is ready to open on phone", () => {
@@ -124,6 +143,10 @@ test("iCloud primary action tells users when the entry is ready to open on phone
   assert.equal(action.icon, "phone");
   assert.equal(action.actionKey, "onboarding.appleRemoteIcloudActionOpenFiles");
   assert.equal(action.cta, "none");
+  assert.equal(action.stepId, "open-files-app");
+  assert.equal(action.desktopAction, "none");
+  assert.equal(action.phoneAction, "open-files-app");
+  assert.equal(action.remoteRequired, false);
 });
 
 test("iCloud primary action lets LAN-only Apple entries continue same-Wi-Fi pairing without claiming off-LAN readiness", () => {
@@ -145,6 +168,27 @@ test("iCloud primary action lets LAN-only Apple entries continue same-Wi-Fi pair
   assert.equal(action.icon, "phone");
   assert.equal(action.actionKey, "onboarding.appleRemoteIcloudActionOpenFilesSameWifi");
   assert.equal(action.cta, "none");
+  assert.equal(action.stepId, "open-files-app-same-wifi");
+  assert.equal(action.desktopAction, "none");
+  assert.equal(action.phoneAction, "same-wifi-only");
+  assert.equal(action.remoteRequired, true);
+});
+
+test("iCloud primary action tells unsupported platforms to use QR or a trusted tunnel", () => {
+  const action = getPrimaryIcloudAction({
+    icloud: baseIcloud({ platformSupported: false }),
+    latestEntryRepair: null,
+    pairingSession: undefined,
+    syncReadiness: undefined,
+    handoffHealth: undefined,
+    canExportIcloud: false,
+  });
+
+  assert.equal(action.titleKey, "onboarding.appleRemoteIcloudNextStepUnsupportedTitle");
+  assert.equal(action.stepId, "use-qr-or-tunnel");
+  assert.equal(action.desktopAction, "open-connection-guide");
+  assert.equal(action.phoneAction, "none");
+  assert.equal(action.remoteRequired, true);
 });
 
 test("iCloud primary action follow-up copy is shared by simple and advanced onboarding", () => {

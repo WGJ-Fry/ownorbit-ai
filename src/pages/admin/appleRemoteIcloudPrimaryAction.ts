@@ -3,6 +3,35 @@ import type { NetworkDiagnostics } from "../../services/lifeosApi";
 
 type IcloudLatestEntryRepair = NonNullable<NetworkDiagnostics["icloud"]["latestEntryRepair"]>;
 
+export type IcloudPrimaryStepId =
+  | "use-qr-or-tunnel"
+  | "enable-icloud-drive"
+  | "refresh-entry"
+  | "refresh-entry-and-qr"
+  | "generate-qr"
+  | "create-entry"
+  | "fix-icloud-sync"
+  | "wait-for-icloud-sync"
+  | "open-files-app"
+  | "open-files-app-same-wifi"
+  | "review";
+
+export type IcloudPrimaryDesktopAction =
+  | "none"
+  | "open-connection-guide"
+  | "open-icloud-settings"
+  | "open-icloud-folder"
+  | "export-icloud-entry"
+  | "refresh-icloud-entry"
+  | "regenerate-qr";
+
+export type IcloudPrimaryPhoneAction =
+  | "none"
+  | "open-files-app"
+  | "open-files-app-after-sync"
+  | "open-latest-entry"
+  | "same-wifi-only";
+
 export type IcloudPrimaryAction = {
   tone: string;
   icon: "ready" | "refresh" | "qr" | "sync" | "warning" | "phone";
@@ -10,6 +39,11 @@ export type IcloudPrimaryAction = {
   bodyKey: TranslationKey;
   actionKey: TranslationKey;
   cta: "export" | "qr" | "remote-guide" | "icloud-settings" | "icloud-folder" | "none";
+  stepId: IcloudPrimaryStepId;
+  desktopAction: IcloudPrimaryDesktopAction;
+  phoneAction: IcloudPrimaryPhoneAction;
+  remoteRequired: boolean;
+  showTechnicalDetails: boolean;
 };
 
 export const primaryIcloudActionFollowupKeys: Partial<Record<TranslationKey, TranslationKey>> = {
@@ -76,6 +110,11 @@ export function getPrimaryIcloudAction(input: {
       bodyKey: "onboarding.appleRemoteIcloudNextStepUnsupportedBody",
       actionKey: "onboarding.appleRemoteIcloudActionUseQrOrTunnel",
       cta: "none",
+      stepId: "use-qr-or-tunnel",
+      desktopAction: "open-connection-guide",
+      phoneAction: "none",
+      remoteRequired: true,
+      showTechnicalDetails: false,
     };
   }
 
@@ -87,17 +126,28 @@ export function getPrimaryIcloudAction(input: {
       bodyKey: "onboarding.appleRemoteIcloudNextStepEnableBody",
       actionKey: "onboarding.appleRemoteIcloudActionEnableDrive",
       cta: "icloud-settings",
+      stepId: "enable-icloud-drive",
+      desktopAction: "open-icloud-settings",
+      phoneAction: "none",
+      remoteRequired: false,
+      showTechnicalDetails: false,
     };
   }
 
   if (input.latestEntryRepair && input.latestEntryRepair.status !== "none" && input.latestEntryRepair.action !== "none") {
+    const needsQr = input.latestEntryRepair.needsQr;
     return {
       tone: input.latestEntryRepair.severity === "danger" ? dangerTone : warningTone,
-      icon: input.latestEntryRepair.needsQr ? "qr" : "refresh",
+      icon: needsQr ? "qr" : "refresh",
       titleKey: "onboarding.appleRemoteIcloudNextStepOldEntryTitle",
-      bodyKey: input.latestEntryRepair.needsQr ? "onboarding.appleRemoteIcloudNextStepOldEntryQrBody" : "onboarding.appleRemoteIcloudNextStepOldEntryBody",
-      actionKey: input.latestEntryRepair.needsQr ? "onboarding.appleRemoteIcloudActionRefreshAndQr" : "onboarding.appleRemoteIcloudActionRefreshEntry",
-      cta: input.latestEntryRepair.needsQr ? "qr" : "export",
+      bodyKey: needsQr ? "onboarding.appleRemoteIcloudNextStepOldEntryQrBody" : "onboarding.appleRemoteIcloudNextStepOldEntryBody",
+      actionKey: needsQr ? "onboarding.appleRemoteIcloudActionRefreshAndQr" : "onboarding.appleRemoteIcloudActionRefreshEntry",
+      cta: needsQr ? "qr" : "export",
+      stepId: needsQr ? "refresh-entry-and-qr" : "refresh-entry",
+      desktopAction: needsQr ? "regenerate-qr" : "refresh-icloud-entry",
+      phoneAction: "open-latest-entry",
+      remoteRequired: false,
+      showTechnicalDetails: false,
     };
   }
 
@@ -109,6 +159,11 @@ export function getPrimaryIcloudAction(input: {
       bodyKey: "onboarding.appleRemoteIcloudNextStepQrBody",
       actionKey: "onboarding.appleRemoteIcloudActionGenerateQr",
       cta: "qr",
+      stepId: "generate-qr",
+      desktopAction: "regenerate-qr",
+      phoneAction: "none",
+      remoteRequired: false,
+      showTechnicalDetails: false,
     };
   }
 
@@ -120,6 +175,11 @@ export function getPrimaryIcloudAction(input: {
       bodyKey: "onboarding.appleRemoteIcloudNextStepExportBody",
       actionKey: "onboarding.appleRemoteIcloudActionCreateEntry",
       cta: "export",
+      stepId: "create-entry",
+      desktopAction: "export-icloud-entry",
+      phoneAction: "open-files-app-after-sync",
+      remoteRequired: false,
+      showTechnicalDetails: false,
     };
   }
 
@@ -131,6 +191,11 @@ export function getPrimaryIcloudAction(input: {
       bodyKey: "onboarding.appleRemoteIcloudNextStepRefreshBody",
       actionKey: "onboarding.appleRemoteIcloudActionRefreshEntry",
       cta: "export",
+      stepId: "refresh-entry",
+      desktopAction: "refresh-icloud-entry",
+      phoneAction: "open-latest-entry",
+      remoteRequired: false,
+      showTechnicalDetails: false,
     };
   }
 
@@ -142,6 +207,11 @@ export function getPrimaryIcloudAction(input: {
       bodyKey: "onboarding.appleRemoteIcloudNextStepFixSyncBody",
       actionKey: "onboarding.appleRemoteIcloudActionFixSync",
       cta: "icloud-settings",
+      stepId: "fix-icloud-sync",
+      desktopAction: "open-icloud-settings",
+      phoneAction: "open-files-app-after-sync",
+      remoteRequired: false,
+      showTechnicalDetails: true,
     };
   }
 
@@ -153,6 +223,11 @@ export function getPrimaryIcloudAction(input: {
       bodyKey: "onboarding.appleRemoteIcloudNextStepWaitBody",
       actionKey: "onboarding.appleRemoteIcloudActionWaitSync",
       cta: "icloud-folder",
+      stepId: "wait-for-icloud-sync",
+      desktopAction: "open-icloud-folder",
+      phoneAction: "open-files-app-after-sync",
+      remoteRequired: false,
+      showTechnicalDetails: false,
     };
   }
 
@@ -164,6 +239,11 @@ export function getPrimaryIcloudAction(input: {
       bodyKey: "onboarding.appleRemoteIcloudNextStepSameWifiOpenBody",
       actionKey: "onboarding.appleRemoteIcloudActionOpenFilesSameWifi",
       cta: "none",
+      stepId: "open-files-app-same-wifi",
+      desktopAction: "none",
+      phoneAction: "same-wifi-only",
+      remoteRequired: true,
+      showTechnicalDetails: false,
     };
   }
 
@@ -175,6 +255,11 @@ export function getPrimaryIcloudAction(input: {
       bodyKey: "onboarding.appleRemoteIcloudNextStepPhoneBody",
       actionKey: "onboarding.appleRemoteIcloudActionOpenFiles",
       cta: "none",
+      stepId: "open-files-app",
+      desktopAction: "none",
+      phoneAction: "open-files-app",
+      remoteRequired: false,
+      showTechnicalDetails: false,
     };
   }
 
@@ -185,5 +270,10 @@ export function getPrimaryIcloudAction(input: {
     bodyKey: "onboarding.appleRemoteIcloudNextStepReviewBody",
     actionKey: "onboarding.appleRemoteIcloudActionReview",
     cta: "export",
+    stepId: "review",
+    desktopAction: "refresh-icloud-entry",
+    phoneAction: "none",
+    remoteRequired: false,
+    showTechnicalDetails: true,
   };
 }
