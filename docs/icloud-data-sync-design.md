@@ -107,7 +107,7 @@ The native macOS/iOS CloudKit helper is invoked through a fixed JSON-over-stdio 
 - command argument: `--lifeos-cloudkit-json`;
 - request schema: `lifeos-cloudkit-helper-request.v1`;
 - response schema: `lifeos-cloudkit-helper-response.v1`;
-- operations: `probe` and `roundtrip`;
+- operations: `probe`, `roundtrip`, `subscription-probe`, `sync-export`, `sync-import-preview`, `sync-changes-preview`, and `sync-import-quarantine`;
 - default timeout: 15 seconds.
 
 The first native helper scaffold lives at `native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift`. It links `CloudKit.framework`, reads the LifeOS JSON request from stdin, and writes the JSON response to stdout. Build it on macOS with:
@@ -197,7 +197,10 @@ export LIFEOS_CLOUDKIT_ENTITLEMENTS_PATH=/path/to/Your.entitlements
 npm run icloud:helper:smoke -- --probe
 LIFEOS_CLOUDKIT_TEST_WRITE_CONFIRM=DELETE_DISPOSABLE_RECORDS \
 npm run icloud:helper:smoke -- --roundtrip --strict
+npm run icloud:helper:smoke -- --subscription-probe --strict
 ```
+
+Run the subscription probe after the disposable roundtrip when preparing real Apple-device evidence. It verifies that the private CloudKit database can save the background-push subscription prerequisite; it still does not replace the later iPhone/macOS background-delivery, restart, network-switch, and conflict tests.
 
 ## Controlled Import Preview
 
@@ -395,6 +398,8 @@ helper 探测通过不等于真实同步完成。API 会返回已验证能力、
 每个 helper 操作也必须通过自己的能力闸门。例如 `sync-changes-preview` 必须证明 `change-token-fetch`，`sync-export` 必须证明 `sync-export-save`，`roundtrip` 必须证明临时写入、读取和删除。即使 helper 返回 `ok=true`，缺少本次操作的能力证明也会被 LifeOS 判为失败。
 
 `subscription-probe` 只验证私有 CloudKit 数据库能创建或确认 content-available 后台推送订阅。它证明未来原生同步所需的推送订阅前置条件可用，但不证明 iOS/macOS 后台投递、应用唤醒、无冲突合并或完整无人值守同步已经完成。
+
+真实 Apple 设备验收时，应在临时写入 roundtrip 之后运行 `npm run icloud:helper:smoke -- --subscription-probe --strict`。这一步只能证明 CloudKit 私有库能保存后台推送订阅前置条件；后续仍要继续做 iPhone/macOS 后台投递、应用唤醒、重启、换网和冲突测试。
 
 当前还新增了受管理员认证保护的批次预览接口：`/api/v1/admin/icloud-data-sync/batch-preview`。它会从 SQLite 里挑选聊天、记忆、任务、生成程序状态和设备信任元数据的候选记录，但只返回 hash、字段名、record type、zone、数量和阻断原因，不返回原始正文、access token、token hash、私钥或密钥。它可以帮助判断“哪些数据将来能通过 CloudKit 同步”，但它本身仍不是后台双向同步。
 

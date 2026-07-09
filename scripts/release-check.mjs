@@ -2163,6 +2163,8 @@ function checkAssets() {
     cloudKitSyncCycleTestSource.includes("CloudKit safe sync cycle pulls first") &&
     cloudKitSyncCycleTestSource.includes("stops before upload when the remote pull fails") &&
     cloudKitNativeHelperSmokeSource.includes("runCloudKitNativeHelper") &&
+    cloudKitNativeHelperSmokeSource.includes("--subscription-probe") &&
+    cloudKitNativeHelperSmokeSource.includes("subscription-probe") &&
     cloudKitNativeSwiftHelperSource.includes("import CloudKit") &&
     cloudKitNativeSwiftHelperSource.includes("lifeos-cloudkit-helper-request.v1") &&
     cloudKitNativeSwiftHelperSource.includes("lifeos-cloudkit-helper-response.v1") &&
@@ -4475,8 +4477,11 @@ function checkReleaseDocs() {
       "access token、token hash、私钥",
       "Native Helper Contract",
       "lifeos-cloudkit-helper-request.v1",
+      "subscription-probe",
+      "background-push subscription prerequisite",
       "Do not claim end-user-ready, fully automatic iCloud data sync until all of this is true",
       "受控 CloudKit 数据同步候选能力",
+      "后台推送订阅前置条件",
     ];
     const missingIcloudDataSyncMarkers = requiredIcloudDataSyncMarkers.filter((marker) => !icloudDataSyncDesign.includes(marker));
     if (

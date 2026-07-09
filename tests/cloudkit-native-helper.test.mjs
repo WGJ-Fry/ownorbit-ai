@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -325,6 +326,57 @@ process.stdin.on("end", () => {
     assert.equal(result.operationCapabilityCoverageOk, true);
     assert.equal(result.capabilitiesVerified.includes("subscription-push"), true);
     assert.equal(result.evidenceId, "fake-cloudkit-subscription-probe-evidence");
+  } finally {
+    restoreEnv(env);
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit helper smoke CLI can run the subscription probe in strict mode", async () => {
+  const env = snapshotEnv();
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-helper-subscription-cli-"));
+  try {
+    await configureReadyCloudKitEnv(dir, `#!/usr/bin/env node
+let body = "";
+process.stdin.on("data", (chunk) => { body += chunk; });
+process.stdin.on("end", () => {
+  if (!process.argv.includes("--lifeos-cloudkit-json")) process.exit(7);
+  const request = JSON.parse(body);
+  if (request.operation !== "subscription-probe") process.exit(8);
+  console.log(JSON.stringify({
+    protocolVersion: 1,
+    schema: "${CLOUDKIT_NATIVE_HELPER_RESPONSE_SCHEMA}",
+    operation: request.operation,
+    ok: true,
+    accountStatus: "available",
+    containerReachable: true,
+    capabilitiesVerified: ["container-reachability", ...request.requiredNativeCapabilities, "subscription-push"],
+    subscriptionProbe: {
+      subscriptionId: "lifeos-private-database-changes-v1",
+      exists: true,
+      saved: true,
+      contentAvailable: true
+    },
+    evidenceId: "fake-cloudkit-subscription-cli-evidence"
+  }));
+});
+`);
+    const result = spawnSync(process.execPath, [
+      "--import",
+      "tsx",
+      path.join(rootDir, "scripts/cloudkit-native-helper-smoke.mjs"),
+      "--subscription-probe",
+      "--strict",
+    ], {
+      cwd: rootDir,
+      env: { ...process.env },
+      encoding: "utf8",
+      maxBuffer: 1024 * 1024,
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.match(result.stdout, /"operation": "subscription-probe"/);
+    assert.match(result.stdout, /"status": "passed"/);
+    assert.match(result.stdout, /fake-cloudkit-subscription-cli-evidence/);
   } finally {
     restoreEnv(env);
     await rm(dir, { recursive: true, force: true });

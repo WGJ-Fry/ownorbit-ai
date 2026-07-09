@@ -7,7 +7,9 @@ function parseArgs(argv) {
   for (let index = 0; index < argv.length; index += 1) {
     const item = argv[index];
     if (item === "--roundtrip") result.operation = "roundtrip";
+    else if (item === "--subscription-probe") result.operation = "subscription-probe";
     else if (item === "--probe") result.operation = "probe";
+    else if (item === "--operation") result.operation = argv[++index] || result.operation;
     else if (item === "--strict") result.strict = true;
   }
   return result;
