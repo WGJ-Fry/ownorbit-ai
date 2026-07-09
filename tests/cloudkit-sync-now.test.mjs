@@ -34,6 +34,7 @@ function runIsolatedCloudKitSyncNow(env, scenario) {
     const { runCloudKitSyncNow } = await import("./server/cloudKitSyncNow.ts");
     const now = 1700000000000;
     const readiness = getIcloudDataSyncReadiness({ platformSupported: true });
+    const requiresReview = ${JSON.stringify(scenario)} === "manual-review";
 
     const skippedResult = (operation, reason) => ({
       ok: false,
@@ -111,7 +112,7 @@ function runIsolatedCloudKitSyncNow(env, scenario) {
             logicalClock: now + 1,
             payloadByteSize: 100,
             modifiedAt: new Date(now + 1).toISOString(),
-            requiresUserReview: true,
+            requiresUserReview: requiresReview,
             payloadJson: JSON.stringify({ conversationId: "remote-convo", title: "Remote synced", createdAt: now, updatedAt: now + 1 })
           }, {
             zone: "LifeOSChatZone",
@@ -122,7 +123,7 @@ function runIsolatedCloudKitSyncNow(env, scenario) {
             logicalClock: now + 2,
             payloadByteSize: 120,
             modifiedAt: new Date(now + 2).toISOString(),
-            requiresUserReview: true,
+            requiresUserReview: requiresReview,
             payloadJson: JSON.stringify({ conversationId: "remote-convo", messageId: "remote-message", role: "user", contentJson: { parts: [{ text: "hello from cloudkit" }] }, createdAt: now + 2, mutationId: "mut-message", logicalClock: now + 2 })
           }],
           deletedRecords: []
@@ -158,9 +159,13 @@ test("CloudKit safe sync now imports, applies conflict-free records, and returns
     assert.equal(result.nextAction, "done");
     assert.equal(result.changes.savedCheckpointCount, 1);
     assert.equal(result.import.quarantine.importedChanged, 2);
+    assert.equal(result.import.quarantine.autoReady, 2);
     assert.equal(result.apply.attempted, 2);
     assert.equal(result.apply.applied, 2);
+    assert.equal(result.apply.manualReviewRequired, 0);
     assert.equal(result.apply.conflicts, 0);
+    assert.equal(result.quarantine.summary.autoReady, 0);
+    assert.equal(result.quarantine.summary.pendingReview, 0);
     assert.equal(result.safety.rawPayloadReturnedToAdmin, false);
     assert.equal(result.safety.serverChangeTokenReturnedToAdmin, false);
     assert.equal(result.backups.length, 2);
@@ -173,6 +178,33 @@ test("CloudKit safe sync now imports, applies conflict-free records, and returns
     assert.equal(serialized.includes("opaque-preview-token"), false);
     assert.equal(serialized.includes("opaque-import-token"), false);
     assert.equal(serialized.includes("/Users/example"), false);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit safe sync now leaves manual-review records in quarantine instead of auto-applying them", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-now-review-"));
+  try {
+    const { result, sessions, messages } = runIsolatedCloudKitSyncNow({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "manual-review");
+
+    assert.equal(result.status, "conflicts");
+    assert.equal(result.nextAction, "review-conflicts");
+    assert.equal(result.import.quarantine.importedChanged, 2);
+    assert.equal(result.import.quarantine.autoReady, 0);
+    assert.equal(result.import.quarantine.pendingReview, 2);
+    assert.equal(result.apply.attempted, 0);
+    assert.equal(result.apply.applied, 0);
+    assert.equal(result.apply.manualReviewRequired, 2);
+    assert.equal(result.quarantine.summary.pendingReview, 2);
+    assert.equal(result.backups.length, 1);
+    assert.deepEqual(sessions, []);
+    assert.deepEqual(messages, []);
+    assert.equal(JSON.stringify(result).includes("payloadJson"), false);
+    assert.equal(JSON.stringify(result).includes("hello from cloudkit"), false);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

@@ -979,6 +979,7 @@ export function registerAdminRoutes(app: express.Express) {
           importedChanged: saved.summary.importedChanged,
           importedDeleted: saved.summary.importedDeleted,
           skipped: saved.summary.skipped,
+          autoReady: saved.summary.autoReady,
           pendingReview: saved.summary.pendingReview,
           rawPayloadIncluded: result.syncImportQuarantine.rawPayloadIncluded,
           rawPayloadReturnedToAdmin: false,
@@ -1139,8 +1140,10 @@ export function registerAdminRoutes(app: express.Express) {
         importStatus: sync.import?.result.status || null,
         importedChanged: sync.import?.quarantine.importedChanged || 0,
         importedDeleted: sync.import?.quarantine.importedDeleted || 0,
+        autoReady: sync.import?.quarantine.autoReady || 0,
         attempted: sync.apply.attempted,
         applied: sync.apply.applied,
+        manualReviewRequired: sync.apply.manualReviewRequired,
         conflicts: sync.apply.conflicts,
         failed: sync.apply.failed,
         backupCount: sync.backups.length,
@@ -1171,6 +1174,7 @@ export function registerAdminRoutes(app: express.Express) {
       const quarantine = listCloudKitSyncQuarantineItems({ limit: normalizeCloudKitBatchLimit(req.query.limit) || 100 });
       insertAuditLog("icloud_cloudkit_sync_quarantine_viewed", "network", "cloudkit-sync-quarantine", {
         itemCount: quarantine.items.length,
+        autoReady: quarantine.summary.autoReady,
         pendingReview: quarantine.summary.pendingReview,
         conflicts: quarantine.summary.conflicts,
         rawPayloadReturnedToAdmin: false,
@@ -1205,11 +1209,12 @@ export function registerAdminRoutes(app: express.Express) {
     }
     try {
       const before = getCloudKitSyncQuarantineSummary();
-      const backup = before.pendingReview > 0 ? createDatabaseBackup({ prune: false }) : undefined;
-      const apply = applyCloudKitSyncQuarantine({ limit: normalizeCloudKitBatchLimit(req.body?.limit) || 100 });
+      const backup = before.autoReady > 0 || before.pendingReview > 0 ? createDatabaseBackup({ prune: false }) : undefined;
+      const apply = applyCloudKitSyncQuarantine({ limit: normalizeCloudKitBatchLimit(req.body?.limit) || 100, includeManualReview: true });
       insertAuditLog("icloud_cloudkit_sync_apply_quarantine", "network", "cloudkit-sync-apply-quarantine", {
         attempted: apply.attempted,
         applied: apply.applied,
+        manualReviewRequired: apply.manualReviewRequired,
         conflicts: apply.conflicts,
         failed: apply.failed,
         skipped: apply.skipped,

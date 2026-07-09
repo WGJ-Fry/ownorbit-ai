@@ -1554,6 +1554,7 @@ export type CloudKitSyncQuarantineSummary = {
   importedChanged: number;
   importedDeleted: number;
   skipped: number;
+  autoReady: number;
   pendingReview: number;
   applied: number;
   conflicts: number;
@@ -1585,6 +1586,7 @@ export type CloudKitSyncQuarantineItem = {
 export type CloudKitSyncApplyResult = {
   attempted: number;
   applied: number;
+  manualReviewRequired: number;
   conflicts: number;
   failed: number;
   skipped: number;

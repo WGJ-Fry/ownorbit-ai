@@ -1512,9 +1512,11 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                           <div>{t("onboarding.appleRemoteIcloudDataSyncNowApply", {
                             attempted: cloudKitSyncNowResult.apply.attempted,
                             applied: cloudKitSyncNowResult.apply.applied,
+                            review: cloudKitSyncNowResult.apply.manualReviewRequired,
                             conflicts: cloudKitSyncNowResult.apply.conflicts,
                           })}</div>
                           <div>{t("onboarding.appleRemoteIcloudDataSyncNowQuarantine", {
+                            auto: cloudKitSyncNowResult.quarantine.summary.autoReady,
                             pending: cloudKitSyncNowResult.quarantine.summary.pendingReview,
                             conflicts: cloudKitSyncNowResult.quarantine.summary.conflicts,
                           })}</div>
@@ -1782,6 +1784,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                                 skipped: cloudKitQuarantineSummary.skipped,
                               })}</div>
                               <div>{t("onboarding.appleRemoteIcloudDataSyncImportQuarantinePending", {
+                                auto: cloudKitQuarantineSummary.autoReady,
                                 count: cloudKitQuarantineSummary.pendingReview,
                               })}</div>
                               <div>{t("onboarding.appleRemoteIcloudDataSyncImportQuarantinePayload", {
@@ -1809,7 +1812,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                           type="button"
                           data-testid="onboarding-icloud-data-sync-apply-quarantine-run"
                           onClick={handleApplyCloudKitSyncQuarantine}
-                          disabled={cloudKitApplyBusy || !cloudKitQuarantineSummary?.pendingReview}
+                          disabled={cloudKitApplyBusy || !((cloudKitQuarantineSummary?.autoReady || 0) + (cloudKitQuarantineSummary?.pendingReview || 0))}
                           className="inline-flex items-center justify-center gap-2 rounded-lg border border-current/15 bg-black/15 px-3 py-2 text-[11px] font-bold disabled:opacity-50"
                         >
                           {cloudKitApplyBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
@@ -1825,6 +1828,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                         <div data-testid="onboarding-icloud-data-sync-apply-quarantine-summary" className="mt-2 grid gap-1 rounded-lg border border-current/10 bg-black/10 p-2 font-mono text-[10px] opacity-85">
                           <div className="font-sans text-[11px] font-bold">{t("onboarding.appleRemoteIcloudDataSyncApplyQuarantineResultTitle")}</div>
                           <div>{t("onboarding.appleRemoteIcloudDataSyncApplyQuarantineSummary", {
+                            auto: cloudKitQuarantineSummary.autoReady,
                             pending: cloudKitQuarantineSummary.pendingReview,
                             applied: cloudKitQuarantineSummary.applied,
                             conflicts: cloudKitQuarantineSummary.conflicts,
@@ -1838,6 +1842,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                               <div>{t("onboarding.appleRemoteIcloudDataSyncApplyQuarantineCounts", {
                                 attempted: cloudKitApplyResult.attempted,
                                 applied: cloudKitApplyResult.applied,
+                                review: cloudKitApplyResult.manualReviewRequired,
                                 conflicts: cloudKitApplyResult.conflicts,
                                 failed: cloudKitApplyResult.failed,
                               })}</div>

@@ -41,7 +41,7 @@ function runIsolatedCloudKitApply(env, scenario) {
         mutationId: "remote-mut",
         logicalClock: now + 2000,
       };
-      const insert = db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'changed', 'pending-review', ?, ?, ?, ?, ?, 1, ?, ?, NULL, ?, ?, NULL, NULL)");
+      const insert = db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'changed', 'auto-ready', ?, ?, ?, ?, ?, 0, ?, ?, NULL, ?, ?, NULL, NULL)");
       for (const item of [
         ["q-convo", "LifeOSConversation", "conversation:remote-convo", conversationPayload, "mut-convo", now + 1000],
         ["q-message", "LifeOSMessage", "message:remote-message", messagePayload, "remote-mut", now + 2000],
@@ -55,7 +55,11 @@ function runIsolatedCloudKitApply(env, scenario) {
     }
 
     const listed = listCloudKitSyncQuarantineItems({ limit: 10 });
-    const apply = applyCloudKitSyncQuarantine({ limit: 10, now: now + 4000 });
+    const apply = applyCloudKitSyncQuarantine({
+      limit: 10,
+      now: now + 4000,
+      includeManualReview: ${JSON.stringify(scenario)} === "delete",
+    });
     const sessions = db.prepare("SELECT id, title, updated_at as updatedAt FROM chat_sessions ORDER BY id").all();
     const messages = db.prepare("SELECT id, session_id as sessionId, content_json as contentJson, source_device_id as sourceDeviceId, offline_mutation_id as mutationId FROM messages ORDER BY id").all();
     const checkpoint = db.prepare("SELECT token_state as tokenState, applied_server_change_token as appliedToken, pending_server_change_token as pendingToken, last_applied_at as lastAppliedAt FROM cloudkit_sync_checkpoints WHERE zone = 'LifeOSChatZone'").get();
@@ -84,6 +88,7 @@ test("CloudKit quarantine apply writes conflict-free records and promotes pendin
     assert.equal(JSON.stringify(result.listed).includes("hello from cloudkit"), false);
     assert.equal(result.apply.attempted, 2);
     assert.equal(result.apply.applied, 2);
+    assert.equal(result.apply.manualReviewRequired, 0);
     assert.equal(result.apply.conflicts, 0);
     assert.deepEqual(result.apply.promotedZones, ["LifeOSChatZone"]);
     assert.deepEqual(result.apply.blockedZones, []);
@@ -111,6 +116,7 @@ test("CloudKit quarantine apply keeps hard deletes unresolved and blocks checkpo
 
     assert.equal(result.apply.attempted, 1);
     assert.equal(result.apply.applied, 0);
+    assert.equal(result.apply.manualReviewRequired, 0);
     assert.equal(result.apply.conflicts, 1);
     assert.deepEqual(result.apply.promotedZones, []);
     assert.deepEqual(result.apply.blockedZones, ["LifeOSChatZone"]);

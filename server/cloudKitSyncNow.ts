@@ -53,6 +53,7 @@ function emptyApply(): CloudKitSyncApplyResult {
   return {
     attempted: 0,
     applied: 0,
+    manualReviewRequired: getCloudKitSyncQuarantineSummary().pendingReview,
     conflicts: 0,
     failed: 0,
     skipped: 0,
@@ -136,10 +137,10 @@ export async function runCloudKitSyncNow(readiness: IcloudDataSyncReadiness, opt
 
   let apply = emptyApply();
   const beforeApply = getCloudKitSyncQuarantineSummary();
-  if (changes.status === "passed" && (!importResult || importResult.status === "passed") && beforeApply.pendingReview > 0) {
+  if (changes.status === "passed" && (!importResult || importResult.status === "passed") && beforeApply.autoReady > 0) {
     const backup = createBackup({ prune: false });
     backups.push(backupSummary("apply-quarantine", backup));
-    apply = applyCloudKitSyncQuarantine({ limit, now });
+    apply = applyCloudKitSyncQuarantine({ limit, now, includeManualReview: false });
   }
 
   const finalSummary = getCloudKitSyncQuarantineSummary();

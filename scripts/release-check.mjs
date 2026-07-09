@@ -2059,15 +2059,19 @@ function checkAssets() {
     cloudKitSyncBatchTestSource.includes("keeps admin summary payload-free") &&
     cloudKitSyncApplySource.includes("APPLY_CLOUDKIT_QUARANTINE") &&
     cloudKitSyncApplySource.includes("applyCloudKitSyncQuarantine") &&
+    cloudKitSyncApplySource.includes("includeManualReview") &&
+    cloudKitSyncApplySource.includes("manualReviewRequired") &&
     cloudKitSyncApplySource.includes("promoteReadyZones") &&
     cloudKitSyncApplySource.includes("payloadJson") &&
     cloudKitSyncApplyTestSource.includes("promotes pending checkpoint only after applying") &&
     cloudKitSyncApplyTestSource.includes("blocks checkpoint promotion") &&
     cloudKitSyncNowSource.includes("SYNC_CLOUDKIT_NOW") &&
     cloudKitSyncNowSource.includes("runCloudKitSyncNow") &&
+    cloudKitSyncNowSource.includes("beforeApply.autoReady") &&
     cloudKitSyncNowSource.includes("publicCloudKitHelperResult") &&
     cloudKitSyncNowSource.includes("serverChangeTokenReturnedToAdmin: false") &&
     cloudKitSyncNowTestSource.includes("CloudKit safe sync now imports") &&
+    cloudKitSyncNowTestSource.includes("manual-review records in quarantine") &&
     cloudKitSyncNowTestSource.includes("returns only safe summaries") &&
     cloudKitSyncUploadNowSource.includes("UPLOAD_CLOUDKIT_NOW") &&
     cloudKitSyncUploadNowSource.includes("runCloudKitSyncUploadNow") &&

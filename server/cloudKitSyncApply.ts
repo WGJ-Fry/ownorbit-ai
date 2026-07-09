@@ -31,6 +31,7 @@ export type CloudKitSyncQuarantineItem = {
 export type CloudKitSyncApplyResult = {
   attempted: number;
   applied: number;
+  manualReviewRequired: number;
   conflicts: number;
   failed: number;
   skipped: number;
@@ -153,10 +154,11 @@ function quarantineItem(row: QuarantineRow): CloudKitSyncQuarantineItem {
   };
 }
 
-function listRows(limit: number, status?: string) {
+function listRows(limit: number, status?: string | string[]) {
   const safeLimit = Math.max(1, Math.min(500, Math.floor(limit || 100)));
-  const where = status ? "WHERE status = ?" : "";
-  const params = status ? [status, safeLimit] : [safeLimit];
+  const statuses = Array.isArray(status) ? status.filter(Boolean) : status ? [status] : [];
+  const where = statuses.length ? `WHERE status IN (${statuses.map(() => "?").join(", ")})` : "";
+  const params = statuses.length ? [...statuses, safeLimit] : [safeLimit];
   return db.prepare(`
     SELECT
       id,
@@ -366,12 +368,14 @@ function promoteReadyZones(touchedZones: Set<string>, now: number) {
   return { promotedZones, blockedZones };
 }
 
-export function applyCloudKitSyncQuarantine(options: { limit?: number; now?: number } = {}): CloudKitSyncApplyResult {
+export function applyCloudKitSyncQuarantine(options: { limit?: number; now?: number; includeManualReview?: boolean } = {}): CloudKitSyncApplyResult {
   const now = options.now || Date.now();
-  const rows = listRows(options.limit || 100, "pending-review");
+  const statuses = options.includeManualReview ? ["auto-ready", "pending-review"] : ["auto-ready"];
+  const rows = listRows(options.limit || 100, statuses);
   const records: CloudKitSyncApplyResult["records"] = [];
   const touchedZones = new Set<string>();
   let applied = 0;
+  let manualReviewRequired = 0;
   let conflicts = 0;
   let failed = 0;
   let skipped = 0;
@@ -399,10 +403,12 @@ export function applyCloudKitSyncQuarantine(options: { limit?: number; now?: num
       }
     }
     const { promotedZones, blockedZones } = promoteReadyZones(touchedZones, now);
+    manualReviewRequired = getCloudKitSyncQuarantineSummary().pendingReview;
     db.exec("COMMIT");
     return {
       attempted: rows.length,
       applied,
+      manualReviewRequired,
       conflicts,
       failed,
       skipped,

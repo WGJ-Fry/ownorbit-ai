@@ -33,6 +33,7 @@ export type CloudKitSyncQuarantineSummary = {
   importedChanged: number;
   importedDeleted: number;
   skipped: number;
+  autoReady: number;
   pendingReview: number;
   applied: number;
   conflicts: number;
@@ -235,17 +236,19 @@ export function getCloudKitSyncQuarantineSummary(): CloudKitSyncQuarantineSummar
     SELECT
       SUM(CASE WHEN change_type = 'changed' THEN 1 ELSE 0 END) as importedChanged,
       SUM(CASE WHEN change_type = 'deleted' THEN 1 ELSE 0 END) as importedDeleted,
+      SUM(CASE WHEN status = 'auto-ready' THEN 1 ELSE 0 END) as autoReady,
       SUM(CASE WHEN status = 'pending-review' THEN 1 ELSE 0 END) as pendingReview,
       SUM(CASE WHEN status = 'applied' THEN 1 ELSE 0 END) as applied,
       SUM(CASE WHEN status = 'conflict' THEN 1 ELSE 0 END) as conflicts,
       SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
       SUM(CASE WHEN payload_json IS NOT NULL AND payload_json != '' THEN 1 ELSE 0 END) as payloadStored
     FROM cloudkit_sync_quarantine
-  `).get() as { importedChanged?: number; importedDeleted?: number; pendingReview?: number; applied?: number; conflicts?: number; failed?: number; payloadStored?: number } | undefined;
+  `).get() as { importedChanged?: number; importedDeleted?: number; autoReady?: number; pendingReview?: number; applied?: number; conflicts?: number; failed?: number; payloadStored?: number } | undefined;
   return {
     importedChanged: Number(row?.importedChanged || 0),
     importedDeleted: Number(row?.importedDeleted || 0),
     skipped: 0,
+    autoReady: Number(row?.autoReady || 0),
     pendingReview: Number(row?.pendingReview || 0),
     applied: Number(row?.applied || 0),
     conflicts: Number(row?.conflicts || 0),
@@ -280,7 +283,7 @@ export function saveCloudKitSyncImportQuarantine(result: CloudKitNativeHelperRes
       source_evidence_id,
       imported_at
     )
-    VALUES (?, ?, ?, ?, 'changed', 'pending-review', ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
+    VALUES (?, ?, ?, ?, 'changed', ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
   `);
   const deletedStatement = db.prepare(`
     INSERT OR IGNORE INTO cloudkit_sync_quarantine (
@@ -319,6 +322,7 @@ export function saveCloudKitSyncImportQuarantine(result: CloudKitNativeHelperRes
         record.zone,
         record.recordType,
         record.recordName,
+        record.requiresUserReview ? "pending-review" : "auto-ready",
         record.mutationId || null,
         record.contentHash || null,
         stableHash(record.payloadJson),
