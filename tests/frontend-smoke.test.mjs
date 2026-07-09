@@ -1062,6 +1062,13 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(cloudKitAutoSyncCardSource, /updateCloudKitAutoSyncSchedule/);
   assert.match(cloudKitAutoSyncCardSource, /runCloudKitAutoSyncNow/);
   assert.match(cloudKitAutoSyncCardSource, /disabled=\{!dataSyncReady/);
+  assert.match(cloudKitAutoSyncCardSource, /autoSyncNextActionKeys/);
+  assert.match(cloudKitAutoSyncCardSource, /onboarding-icloud-data-sync-auto-next-action/);
+  assert.match(cloudKitAutoSyncCardSource, /data-cloudkit-auto-sync-next-action/);
+  assert.match(cloudKitAutoSyncCardSource, /onboarding-icloud-data-sync-auto-next-action-button/);
+  assert.match(cloudKitAutoSyncCardSource, /handleLastResultNextAction/);
+  assert.match(cloudKitAutoSyncCardSource, /review-conflicts/);
+  assert.match(cloudKitAutoSyncCardSource, /review-blocked-records/);
   assert.match(onboardingAppleRemoteSource, /icloudDataSyncPrimaryNextKeys/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-advanced-actions/);
   assert.match(onboardingAppleRemoteSource, /disabled=\{cloudKitSyncCycleBusy \|\| !dataSync\.ready\}/);
@@ -1099,6 +1106,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Auto-sync chats, memories, and tasks/);
   assert.match(translationsSource, /不会静默覆盖本机数据/);
   assert.match(translationsSource, /instead of silently overwriting local data/);
+  assert.match(translationsSource, /先查看同步冲突/);
+  assert.match(translationsSource, /Review sync conflicts first/);
+  assert.match(translationsSource, /重新同步一次/);
+  assert.match(translationsSource, /Run sync again/);
+  assert.match(translationsSource, /继续使用 LifeOS/);
+  assert.match(translationsSource, /Keep using LifeOS/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-quarantine-next/);
   assert.match(onboardingAppleRemoteSource, /data-cloudkit-quarantine-next/);
   assert.match(onboardingAppleRemoteSource, /cloudKitQuarantineNextAction/);

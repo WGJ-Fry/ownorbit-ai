@@ -16,6 +16,54 @@ type Props = {
 
 const intervals = [15, 30, 60, 180];
 
+const autoSyncNextActionKeys: Record<string, { titleKey: string; bodyKey: string; ctaKey?: string; targetTestId?: string; retry?: boolean; tone: string }> = {
+  "configure-cloudkit": {
+    titleKey: "onboarding.appleRemoteIcloudDataSyncAutoNextConfigureTitle",
+    bodyKey: "onboarding.appleRemoteIcloudDataSyncAutoNextConfigureBody",
+    ctaKey: "onboarding.appleRemoteIcloudDataSyncAutoNextConfigureCta",
+    targetTestId: "onboarding-icloud-data-sync-readiness",
+    tone: "border-amber-300/25 bg-amber-500/10 text-amber-50",
+  },
+  "review-conflicts": {
+    titleKey: "onboarding.appleRemoteIcloudDataSyncAutoNextReviewTitle",
+    bodyKey: "onboarding.appleRemoteIcloudDataSyncAutoNextReviewBody",
+    ctaKey: "onboarding.appleRemoteIcloudDataSyncAutoNextReviewCta",
+    targetTestId: "onboarding-icloud-data-sync-quarantine-next",
+    tone: "border-amber-300/25 bg-amber-500/10 text-amber-50",
+  },
+  "review-blocked-records": {
+    titleKey: "onboarding.appleRemoteIcloudDataSyncAutoNextBlockedTitle",
+    bodyKey: "onboarding.appleRemoteIcloudDataSyncAutoNextBlockedBody",
+    ctaKey: "onboarding.appleRemoteIcloudDataSyncAutoNextBlockedCta",
+    targetTestId: "onboarding-icloud-data-sync-record-plan",
+    tone: "border-sky-300/25 bg-sky-500/10 text-sky-50",
+  },
+  retry: {
+    titleKey: "onboarding.appleRemoteIcloudDataSyncAutoNextRetryTitle",
+    bodyKey: "onboarding.appleRemoteIcloudDataSyncAutoNextRetryBody",
+    ctaKey: "onboarding.appleRemoteIcloudDataSyncAutoNextRetryCta",
+    retry: true,
+    tone: "border-red-300/25 bg-red-500/10 text-red-50",
+  },
+  wait: {
+    titleKey: "onboarding.appleRemoteIcloudDataSyncAutoNextWaitTitle",
+    bodyKey: "onboarding.appleRemoteIcloudDataSyncAutoNextWaitBody",
+    ctaKey: "onboarding.appleRemoteIcloudDataSyncAutoNextWaitCta",
+    targetTestId: "onboarding-icloud-data-sync-auto-last-result",
+    tone: "border-cyan-300/25 bg-cyan-500/10 text-cyan-50",
+  },
+  done: {
+    titleKey: "onboarding.appleRemoteIcloudDataSyncAutoNextDoneTitle",
+    bodyKey: "onboarding.appleRemoteIcloudDataSyncAutoNextDoneBody",
+    tone: "border-emerald-300/25 bg-emerald-500/10 text-emerald-50",
+  },
+  "use-lifeos": {
+    titleKey: "onboarding.appleRemoteIcloudDataSyncAutoNextDoneTitle",
+    bodyKey: "onboarding.appleRemoteIcloudDataSyncAutoNextDoneBody",
+    tone: "border-emerald-300/25 bg-emerald-500/10 text-emerald-50",
+  },
+};
+
 function formatTime(value?: number) {
   if (!value) return "";
   try {
@@ -53,6 +101,7 @@ export default function CloudKitAutoSyncCard({ dataSyncReady, onDiagnostics }: P
   const enabled = Boolean(schedule?.enabled);
   const intervalMinutes = schedule?.intervalMinutes || 30;
   const lastResult = schedule?.lastResult;
+  const lastResultNextAction = lastResult ? autoSyncNextActionKeys[lastResult.nextAction] || autoSyncNextActionKeys.retry : null;
   const nextRunAt = formatTime(schedule?.nextRunAt);
   const lastRunAt = formatTime(schedule?.lastRunAt);
   const statusTone = enabled
@@ -91,6 +140,18 @@ export default function CloudKitAutoSyncCard({ dataSyncReady, onDiagnostics }: P
       setMessage(error?.message || t("onboarding.appleRemoteIcloudDataSyncAutoRunFailed"));
     } finally {
       setBusy(null);
+    }
+  };
+
+  const handleLastResultNextAction = () => {
+    if (!lastResultNextAction) return;
+    if (lastResultNextAction.retry) {
+      runNow();
+      return;
+    }
+    if (lastResultNextAction.targetTestId) {
+      const target = document.querySelector(`[data-testid="${lastResultNextAction.targetTestId}"]`);
+      target?.scrollIntoView({ block: "center", behavior: "smooth" });
     }
   };
 
@@ -170,6 +231,31 @@ export default function CloudKitAutoSyncCard({ dataSyncReady, onDiagnostics }: P
                 uploaded: lastResult.uploadSaved || 0,
               })}</div>
               <div>{t("onboarding.appleRemoteIcloudDataSyncAutoLastRun", { time: lastRunAt || formatTime(lastResult.finishedAt) || "-" })}</div>
+            </div>
+          ) : null}
+          {lastResult && lastResultNextAction ? (
+            <div
+              data-testid="onboarding-icloud-data-sync-auto-next-action"
+              data-cloudkit-auto-sync-next-action={lastResult.nextAction}
+              className={`mt-2 rounded-lg border p-3 text-[11px] leading-relaxed ${lastResultNextAction.tone}`}
+            >
+              <div className="text-[10px] font-bold uppercase tracking-normal opacity-70">
+                {t("onboarding.appleRemoteIcloudDataSyncAutoNextLabel")}
+              </div>
+              <div className="mt-1 font-bold">{t(lastResultNextAction.titleKey as any)}</div>
+              <div className="mt-1 opacity-85">{t(lastResultNextAction.bodyKey as any)}</div>
+              {lastResultNextAction.ctaKey ? (
+                <button
+                  type="button"
+                  data-testid="onboarding-icloud-data-sync-auto-next-action-button"
+                  onClick={handleLastResultNextAction}
+                  disabled={busy === "run" || (lastResultNextAction.retry && !dataSyncReady)}
+                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white/90 px-3 py-2 text-[11px] font-bold text-slate-950 disabled:opacity-50 sm:w-auto"
+                >
+                  {busy === "run" && lastResultNextAction.retry ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                  {t(lastResultNextAction.ctaKey as any)}
+                </button>
+              ) : null}
             </div>
           ) : null}
         </div>
