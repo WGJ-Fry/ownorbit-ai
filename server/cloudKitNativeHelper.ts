@@ -15,7 +15,7 @@ const MAX_TEXT_CHARS = 800;
 
 type IcloudDataSyncReadiness = ReturnType<typeof getIcloudDataSyncReadiness>;
 
-export type CloudKitNativeHelperOperation = "probe" | "roundtrip" | "sync-export" | "sync-import-preview" | "sync-changes-preview";
+export type CloudKitNativeHelperOperation = "probe" | "roundtrip" | "sync-export" | "sync-import-preview" | "sync-changes-preview" | "sync-import-quarantine";
 export type CloudKitNativeHelperRunStatus = "passed" | "failed" | "skipped";
 
 export type CloudKitNativeHelperSyncState = {
@@ -41,6 +41,7 @@ type HelperRunOptions = {
   runCommand?: CommandRunner;
   syncExportPackage?: CloudKitSyncExportPackage;
   syncState?: CloudKitNativeHelperSyncState;
+  importConfirmation?: string;
 };
 
 function compact(value: unknown, limit = MAX_TEXT_CHARS) {
@@ -226,13 +227,46 @@ function normalizeSyncChangesPreview(value: unknown) {
   };
 }
 
+function normalizeImportQuarantineRecord(value: unknown) {
+  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const payloadJson = typeof input.payloadJson === "string" ? input.payloadJson : "";
+  return {
+    zone: compact(input.zone, 80),
+    recordType: compact(input.recordType, 80),
+    recordName: compact(input.recordName, 160),
+    mutationId: compact(input.mutationId, 80),
+    contentHash: compact(input.contentHash, 120),
+    logicalClock: Number(input.logicalClock || 0),
+    payloadByteSize: Number(input.payloadByteSize || Buffer.byteLength(payloadJson, "utf8")),
+    modifiedAt: compact(input.modifiedAt, 80),
+    requiresUserReview: Boolean(input.requiresUserReview),
+    payloadJson,
+    payloadCaptured: Boolean(payloadJson || input.payloadCaptured),
+  };
+}
+
+function normalizeSyncImportQuarantine(value: unknown) {
+  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    scannedZones: normalizeStringList(input.scannedZones, 32),
+    changed: Number(input.changed || 0),
+    deleted: Number(input.deleted || 0),
+    failed: Number(input.failed || 0),
+    moreComing: Boolean(input.moreComing),
+    rawPayloadIncluded: Boolean(input.rawPayloadIncluded),
+    zones: Array.isArray(input.zones) ? input.zones.map(normalizeChangePreviewZone).slice(0, 32) : [],
+    changedRecords: Array.isArray(input.changedRecords) ? input.changedRecords.map(normalizeImportQuarantineRecord).slice(0, 500) : [],
+    deletedRecords: Array.isArray(input.deletedRecords) ? input.deletedRecords.map(normalizeChangePreviewDeletion).slice(0, 500) : [],
+  };
+}
+
 export function cloudKitNativeHelperContract() {
   return {
     protocolVersion: CLOUDKIT_NATIVE_HELPER_PROTOCOL_VERSION,
     transport: CLOUDKIT_NATIVE_HELPER_TRANSPORT,
     requestSchema: CLOUDKIT_NATIVE_HELPER_REQUEST_SCHEMA,
     responseSchema: CLOUDKIT_NATIVE_HELPER_RESPONSE_SCHEMA,
-    operations: ["probe", "roundtrip", "sync-export", "sync-import-preview", "sync-changes-preview"] as CloudKitNativeHelperOperation[],
+    operations: ["probe", "roundtrip", "sync-export", "sync-import-preview", "sync-changes-preview", "sync-import-quarantine"] as CloudKitNativeHelperOperation[],
     commandArgs: [...CLOUDKIT_NATIVE_HELPER_ARGS],
     timeoutMs: CLOUDKIT_NATIVE_HELPER_TIMEOUT_MS,
   };
@@ -244,6 +278,7 @@ export function buildCloudKitNativeHelperRequest(
   now = new Date(),
   syncExportPackage?: CloudKitSyncExportPackage,
   syncState?: CloudKitNativeHelperSyncState,
+  importConfirmation?: string,
 ) {
   const forbiddenFieldNames = Array.from(new Set(readiness.recordPlan.flatMap((item) => item.forbiddenFields))).sort();
   const request: Record<string, unknown> = {
@@ -275,7 +310,7 @@ export function buildCloudKitNativeHelperRequest(
   if (operation === "sync-export" && syncExportPackage?.ok) {
     request.syncBatch = syncExportPackage.helperSyncBatch;
   }
-  if (operation === "sync-changes-preview") {
+  if (operation === "sync-changes-preview" || operation === "sync-import-quarantine") {
     request.syncState = {
       generatedAt: syncState?.generatedAt || now.toISOString(),
       zones: (syncState?.zones || []).map((zone) => ({
@@ -285,6 +320,9 @@ export function buildCloudKitNativeHelperRequest(
         updatedAt: Number(zone.updatedAt || 0),
       })).filter((zone) => zone.zone && zone.serverChangeToken),
     };
+  }
+  if (operation === "sync-import-quarantine") {
+    request.importConfirmation = compact(importConfirmation, 80);
   }
   return request;
 }
@@ -302,6 +340,7 @@ function skippedResult(operation: CloudKitNativeHelperOperation, readinessStatus
     syncExport: normalizeSyncExport(undefined),
     syncImportPreview: normalizeSyncImportPreview(undefined),
     syncChangesPreview: normalizeSyncChangesPreview(undefined),
+    syncImportQuarantine: normalizeSyncImportQuarantine(undefined),
   };
 }
 
@@ -319,7 +358,14 @@ export async function runCloudKitNativeHelper(
     return skippedResult(operation, readiness.status, "CloudKit sync export package is not ready or was not explicitly confirmed.");
   }
 
-  const request = buildCloudKitNativeHelperRequest(readiness, operation, options.now || new Date(), options.syncExportPackage, options.syncState);
+  const request = buildCloudKitNativeHelperRequest(
+    readiness,
+    operation,
+    options.now || new Date(),
+    options.syncExportPackage,
+    options.syncState,
+    options.importConfirmation,
+  );
   const requestJson = JSON.stringify(request);
   const requestHash = `sha256:${crypto.createHash("sha256").update(requestJson).digest("hex").slice(0, 16)}`;
   const runCommand = options.runCommand || defaultCommandRunner;
@@ -332,13 +378,15 @@ export async function runCloudKitNativeHelper(
   const syncExport = normalizeSyncExport(payload?.syncExport);
   const syncImportPreview = normalizeSyncImportPreview(payload?.syncImportPreview);
   const syncChangesPreview = normalizeSyncChangesPreview(payload?.syncChangesPreview);
+  const syncImportQuarantine = normalizeSyncImportQuarantine(payload?.syncImportQuarantine);
   const operationMatches = payload?.operation === operation;
   const protocolMatches = payload?.protocolVersion === CLOUDKIT_NATIVE_HELPER_PROTOCOL_VERSION &&
     payload?.schema === CLOUDKIT_NATIVE_HELPER_RESPONSE_SCHEMA;
   const responseOk = payload?.ok === true;
   const roundtripOk = operation !== "roundtrip" || (roundtrip.created && roundtrip.fetched && roundtrip.deleted);
   const syncExportOk = operation !== "sync-export" || (syncExport.attempted > 0 && syncExport.saved === syncExport.attempted && syncExport.failed === 0);
-  const passed = command.exitCode === 0 && !command.timedOut && responseOk && protocolMatches && operationMatches && roundtripOk && syncExportOk;
+  const syncImportQuarantineOk = operation !== "sync-import-quarantine" || syncImportQuarantine.failed === 0;
+  const passed = command.exitCode === 0 && !command.timedOut && responseOk && protocolMatches && operationMatches && roundtripOk && syncExportOk && syncImportQuarantineOk;
   const payloadWarnings = normalizeStringList(payload?.warnings).map((item) => redact(item, 240));
   const payloadErrors = normalizeStringList(payload?.errors).map((item) => redact(item, 240));
   const errors = [
@@ -365,6 +413,7 @@ export async function runCloudKitNativeHelper(
     syncExport,
     syncImportPreview,
     syncChangesPreview,
+    syncImportQuarantine,
     warnings: payloadWarnings,
     errors,
     command: {

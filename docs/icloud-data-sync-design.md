@@ -222,6 +222,32 @@ The admin API response hides raw server change tokens and exposes only whether a
 
 This is still not full sync. To become real background two-way sync, the next guarded step must import changed payloads into a quarantine table, run conflict/tombstone review, apply selected changes to SQLite, then promote the pending token to the applied token only after the local write succeeds.
 
+## Quarantine Import
+
+The next guarded read step is payload import into a local quarantine:
+
+```text
+POST /api/v1/admin/icloud-data-sync/import-quarantine
+```
+
+The endpoint requires explicit confirmation:
+
+```text
+IMPORT_CLOUDKIT_CHANGES
+```
+
+With confirmation, the backend invokes the native helper operation `sync-import-quarantine`. The helper uses `recordZoneChanges(inZoneWith:since:desiredKeys:resultsLimit:)`, includes `payloadJson` in the native helper response, and sends that raw payload only through the local helper-to-backend stdio channel. The admin API writes changed and deleted records into SQLite table `cloudkit_sync_quarantine`, then removes `payloadJson` and raw CloudKit server change tokens from the browser response.
+
+This still does **not** modify chats, memories, tasks, generated apps, or device trust records. It also does not promote `pending_server_change_token` into `applied_server_change_token`. The token remains a candidate until a future review/apply step resolves conflicts, applies selected changes to local SQLite, records rollback evidence, and only then marks the checkpoint as applied.
+
+Safety rules:
+
+- no import runs without `IMPORT_CLOUDKIT_CHANGES`;
+- a SQLite backup is created before a real helper-backed quarantine import;
+- API responses expose counts, evidence ids, and `payloadCaptured`, never raw `payloadJson`;
+- failed or partial helper runs do not advance the applied checkpoint;
+- quarantined records require user review by default.
+
 ## Conflict Model
 
 Start with conservative conflict handling:
@@ -282,3 +308,5 @@ Do not claim real iCloud data sync until all of this is true:
 当前还新增了安全读取预览接口：`/api/v1/admin/icloud-data-sync/import-preview`。它只从私有 CloudKit 读取 LifeOS 记录的摘要字段，例如 zone、record type、hash、logical clock、payload 大小和更新时间；不会请求 `payloadJson`，也不会导入 SQLite。这个能力代表“已具备第一条受控 CloudKit 读取摘要路径”，但仍不是完整双向同步。
 
 当前还新增了增量变更预览接口：`/api/v1/admin/icloud-data-sync/changes-preview`。它会把本地已应用的 CloudKit server change token 传给原生 helper，helper 使用 `recordZoneChanges` 读取每个 zone 的变更摘要和删除摘要，并把新的 token 作为候选 checkpoint 存在 `cloudkit_sync_checkpoints`。注意：候选 token 不会直接变成已应用 token，因为还没有把远端变更真正导入并合并到 SQLite；这样可以避免“预览一次就丢掉未导入变更”的风险。
+
+当前还新增了隔离导入接口：`/api/v1/admin/icloud-data-sync/import-quarantine`。它要求显式确认 `IMPORT_CLOUDKIT_CHANGES`，由原生 helper 读取 CloudKit 变更正文，然后只写入本机 `cloudkit_sync_quarantine` 表等待冲突审核。API 响应不会返回 `payloadJson` 或原始 server change token，也不会直接改聊天、记忆、任务或生成程序状态。候选 token 仍不会升级为 applied token，直到后续“审核并应用”步骤真正写入 SQLite 并完成回滚证据。

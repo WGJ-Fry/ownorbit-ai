@@ -9,7 +9,7 @@ import {
   runCloudKitNativeHelper,
 } from "../server/cloudKitNativeHelper.ts";
 import { CLOUDKIT_SYNC_EXPORT_CONFIRMATION, CLOUDKIT_SYNC_EXPORT_SCHEMA } from "../server/cloudKitSyncBatch.ts";
-import { publicCloudKitHelperResult } from "../server/cloudKitSyncState.ts";
+import { CLOUDKIT_SYNC_IMPORT_CONFIRMATION, publicCloudKitHelperResult } from "../server/cloudKitSyncState.ts";
 import { getIcloudDataSyncReadiness } from "../server/icloudDataSyncReadiness.ts";
 
 const envKeys = [
@@ -117,6 +117,36 @@ test("CloudKit helper request carries only applied change tokens for changes pre
   }
 });
 
+test("CloudKit helper request carries explicit confirmation for quarantine import", async () => {
+  const env = snapshotEnv();
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-helper-sync-import-quarantine-contract-"));
+  try {
+    const helper = await configureReadyCloudKitEnv(dir);
+    const readiness = getIcloudDataSyncReadiness({ platformSupported: true });
+    const request = buildCloudKitNativeHelperRequest(
+      readiness,
+      "sync-import-quarantine",
+      new Date("2026-01-02T03:04:05.000Z"),
+      undefined,
+      {
+        generatedAt: "2026-01-02T03:04:04.000Z",
+        zones: [{ zone: "LifeOSChatZone", serverChangeToken: "opaque-token", tokenState: "applied", updatedAt: 1 }],
+      },
+      CLOUDKIT_SYNC_IMPORT_CONFIRMATION,
+    );
+    const serialized = JSON.stringify(request);
+    assert.equal(readiness.ready, true);
+    assert.equal(request.operation, "sync-import-quarantine");
+    assert.equal(request.importConfirmation, CLOUDKIT_SYNC_IMPORT_CONFIRMATION);
+    assert.equal(request.syncState.zones[0].serverChangeToken, "opaque-token");
+    assert.equal(serialized.includes(helper), false);
+    assert.equal(serialized.includes(dir), false);
+  } finally {
+    restoreEnv(env);
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("CloudKit helper request carries an approved sync export batch only for native helper stdin", async () => {
   const env = snapshotEnv();
   const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-helper-sync-export-contract-"));
@@ -179,6 +209,10 @@ test("Apple CloudKit helper source implements the native JSON stdio contract", a
   assert.match(swiftSource, /sync-import-preview-query/);
   assert.match(swiftSource, /runSyncChangesPreview/);
   assert.match(swiftSource, /sync-changes-preview/);
+  assert.match(swiftSource, /IMPORT_CLOUDKIT_CHANGES/);
+  assert.match(swiftSource, /runSyncImportQuarantine/);
+  assert.match(swiftSource, /sync-import-quarantine/);
+  assert.match(swiftSource, /payloadJson/);
   assert.match(swiftSource, /recordZoneChanges/);
   assert.match(swiftSource, /CKServerChangeToken/);
   assert.match(swiftSource, /database\.save\(record\)/);
@@ -464,6 +498,100 @@ process.stdin.on("end", () => {
     const publicResult = publicCloudKitHelperResult(result);
     assert.equal(publicResult.syncChangesPreview.zones[0].serverChangeTokenCaptured, true);
     assert.equal(JSON.stringify(publicResult).includes("opaque-next-token"), false);
+  } finally {
+    restoreEnv(env);
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit helper sync import quarantine keeps payloads off public admin responses", async () => {
+  const env = snapshotEnv();
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-helper-sync-import-quarantine-"));
+  try {
+    await configureReadyCloudKitEnv(dir, `#!/usr/bin/env node
+let body = "";
+process.stdin.on("data", (chunk) => { body += chunk; });
+process.stdin.on("end", () => {
+  if (!process.argv.includes("--lifeos-cloudkit-json")) process.exit(7);
+  const request = JSON.parse(body);
+  if (request.importConfirmation !== "${CLOUDKIT_SYNC_IMPORT_CONFIRMATION}") process.exit(8);
+  const plans = request.recordPlan || [];
+  const zones = [...new Set(plans.map((plan) => plan.zone).filter(Boolean))];
+  console.log(JSON.stringify({
+    protocolVersion: 1,
+    schema: "${CLOUDKIT_NATIVE_HELPER_RESPONSE_SCHEMA}",
+    operation: request.operation,
+    ok: true,
+    accountStatus: "available",
+    containerReachable: true,
+    capabilitiesVerified: [...request.requiredNativeCapabilities, "sync-import-quarantine"],
+    syncImportQuarantine: {
+      scannedZones: zones,
+      changed: 1,
+      deleted: 1,
+      failed: 0,
+      moreComing: false,
+      rawPayloadIncluded: true,
+      zones: [{
+        zone: "LifeOSChatZone",
+        previousServerChangeTokenPresent: Boolean(request.syncState?.zones?.[0]?.serverChangeToken),
+        serverChangeToken: "opaque-import-token",
+        changed: 1,
+        deleted: 1,
+        failed: 0,
+        moreComing: false
+      }],
+      changedRecords: [{
+        zone: "LifeOSChatZone",
+        recordType: "LifeOSMessage",
+        recordName: "message:remote",
+        mutationId: "mutation-remote",
+        contentHash: "hash-remote",
+        logicalClock: 3,
+        payloadByteSize: 77,
+        modifiedAt: "2026-01-02T03:06:05.000Z",
+        requiresUserReview: true,
+        payloadJson: JSON.stringify({ messageId: "m1", text: "remote text" })
+      }],
+      deletedRecords: [{
+        zone: "LifeOSChatZone",
+        recordType: "LifeOSMessage",
+        recordName: "message:deleted",
+        deletedAt: "2026-01-02T03:06:06.000Z"
+      }]
+    },
+    evidenceId: "fake-cloudkit-sync-import-quarantine-evidence"
+  }));
+});
+`);
+    const readiness = getIcloudDataSyncReadiness({ platformSupported: true });
+    const result = await runCloudKitNativeHelper(readiness, {
+      operation: "sync-import-quarantine",
+      now: new Date("2026-01-02T03:04:05.000Z"),
+      timeoutMs: 5000,
+      importConfirmation: CLOUDKIT_SYNC_IMPORT_CONFIRMATION,
+      syncState: {
+        generatedAt: "2026-01-02T03:04:04.000Z",
+        zones: [{ zone: "LifeOSChatZone", serverChangeToken: "opaque-previous-token", tokenState: "applied", updatedAt: 1 }],
+      },
+    });
+    assert.equal(result.status, "passed");
+    assert.equal(result.ok, true);
+    assert.equal(result.operation, "sync-import-quarantine");
+    assert.equal(result.syncImportQuarantine.changed, 1);
+    assert.equal(result.syncImportQuarantine.deleted, 1);
+    assert.equal(result.syncImportQuarantine.rawPayloadIncluded, true);
+    assert.equal(result.syncImportQuarantine.changedRecords[0].payloadJson.includes("remote text"), true);
+    assert.equal(result.syncImportQuarantine.zones[0].serverChangeToken, "opaque-import-token");
+    assert.equal(result.capabilitiesVerified.includes("sync-import-quarantine"), true);
+    assert.equal(result.evidenceId, "fake-cloudkit-sync-import-quarantine-evidence");
+    const publicResult = publicCloudKitHelperResult(result);
+    const publicSerialized = JSON.stringify(publicResult);
+    assert.equal(publicResult.syncImportQuarantine.zones[0].serverChangeTokenCaptured, true);
+    assert.equal(publicResult.syncImportQuarantine.changedRecords[0].payloadCaptured, true);
+    assert.equal(publicSerialized.includes("payloadJson"), false);
+    assert.equal(publicSerialized.includes("remote text"), false);
+    assert.equal(publicSerialized.includes("opaque-import-token"), false);
   } finally {
     restoreEnv(env);
     await rm(dir, { recursive: true, force: true });

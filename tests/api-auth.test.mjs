@@ -592,6 +592,36 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(cloudKitChangesPreview.checkpoints.length, 0);
   assert.equal(JSON.stringify(cloudKitChangesPreview).includes("serverChangeToken"), false);
   assertPublicApiResponse("cloudKitSyncChangesPreviewSkipped", cloudKitChangesPreview);
+  const blockedCloudKitImportQuarantineAuth = await request(port, "/api/v1/admin/icloud-data-sync/import-quarantine", {
+    method: "POST",
+    body: JSON.stringify({ confirmation: "IMPORT_CLOUDKIT_CHANGES" }),
+  });
+  assert.equal(blockedCloudKitImportQuarantineAuth.status, 401);
+  const blockedCloudKitImportQuarantine = await request(port, "/api/v1/admin/icloud-data-sync/import-quarantine", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ confirmation: "wrong-confirmation" }),
+  });
+  assert.equal(blockedCloudKitImportQuarantine.status, 400);
+  const blockedCloudKitImportQuarantineJson = await blockedCloudKitImportQuarantine.json();
+  assert.equal(blockedCloudKitImportQuarantineJson.expectedConfirmation, "IMPORT_CLOUDKIT_CHANGES");
+  assert.equal(blockedCloudKitImportQuarantineJson.quarantine.pendingReview, 0);
+  assertPublicApiResponse("cloudKitSyncImportQuarantineBlocked", blockedCloudKitImportQuarantineJson);
+  const cloudKitImportQuarantine = await request(port, "/api/v1/admin/icloud-data-sync/import-quarantine", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ confirmation: "IMPORT_CLOUDKIT_CHANGES" }),
+  }).then((res) => res.json());
+  assert.equal(cloudKitImportQuarantine.result.status, "skipped");
+  assert.equal(cloudKitImportQuarantine.result.operation, "sync-import-quarantine");
+  assert.equal(cloudKitImportQuarantine.result.readinessStatus, "not-enabled");
+  assert.equal(cloudKitImportQuarantine.result.syncImportQuarantine.changed, 0);
+  assert.equal(cloudKitImportQuarantine.result.syncImportQuarantine.changedRecords.length, 0);
+  assert.equal(cloudKitImportQuarantine.quarantine.pendingReview, 0);
+  assert.equal(cloudKitImportQuarantine.backup, undefined);
+  assert.equal(JSON.stringify(cloudKitImportQuarantine).includes("payloadJson"), false);
+  assert.equal(JSON.stringify(cloudKitImportQuarantine).includes("serverChangeToken"), false);
+  assertPublicApiResponse("cloudKitSyncImportQuarantineSkipped", cloudKitImportQuarantine);
   const blockedIcloudHandoffExport = await request(port, "/api/v1/admin/icloud-handoff/export", { method: "POST" });
   assert.equal(blockedIcloudHandoffExport.status, 401);
   const blockedIcloudHandoffCleanup = await request(port, "/api/v1/admin/icloud-handoff/cleanup", { method: "POST" });

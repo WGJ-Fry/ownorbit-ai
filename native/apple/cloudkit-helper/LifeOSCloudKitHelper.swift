@@ -8,6 +8,7 @@ private let confirmationEnv = "LIFEOS_CLOUDKIT_TEST_WRITE_CONFIRM"
 private let confirmationPhrase = "DELETE_DISPOSABLE_RECORDS"
 private let syncExportSchema = "lifeos-cloudkit-sync-export.v1"
 private let syncExportConfirmation = "SYNC_APPROVED_RECORDS"
+private let syncImportConfirmation = "IMPORT_CLOUDKIT_CHANGES"
 
 private func nowIso() -> String {
   ISO8601DateFormatter().string(from: Date())
@@ -645,6 +646,167 @@ private func runSyncChangesPreview(container: CKContainer, request: [String: Any
   return response
 }
 
+private func runSyncImportQuarantine(container: CKContainer, request: [String: Any]) async -> [String: Any] {
+  guard compact(request["importConfirmation"], limit: 80) == syncImportConfirmation else {
+    var response = responseBase(operation: "sync-import-quarantine", ok: false)
+    response["warnings"] = []
+    response["errors"] = ["CloudKit import quarantine requires explicit confirmation: \(syncImportConfirmation)."]
+    response["syncImportQuarantine"] = [
+      "scannedZones": [],
+      "changed": 0,
+      "deleted": 0,
+      "failed": 0,
+      "moreComing": false,
+      "zones": [],
+      "changedRecords": [],
+      "deletedRecords": [],
+      "rawPayloadIncluded": false,
+    ]
+    response["roundtrip"] = [
+      "created": false,
+      "fetched": false,
+      "deleted": false,
+      "recordType": "",
+      "zone": "",
+    ]
+    return response
+  }
+
+  let probe = await runProbe(container: container, operation: "sync-import-quarantine")
+  guard probe["ok"] as? Bool == true else { return probe }
+
+  let database = container.privateCloudDatabase
+  let recordPlan = dictList(request["recordPlan"], limit: 16)
+  let previousTokens = changeTokenByZone(request)
+  let desiredKeys = [
+    "lifeosSchema",
+    "lifeosDataType",
+    "lifeosRecordType",
+    "lifeosRecordName",
+    "sourceIdHash",
+    "mutationId",
+    "logicalClock",
+    "contentHash",
+    "payloadByteSize",
+    "requiresUserReview",
+    "lifeosSyncedAt",
+    "payloadJson",
+  ]
+  var scannedZones = Set<String>()
+  var zones: [[String: Any]] = []
+  var changedRecords: [[String: Any]] = []
+  var deletedRecords: [[String: Any]] = []
+  var warnings: [String] = []
+  var errors: [String] = []
+  var changed = 0
+  var deleted = 0
+  var failed = 0
+  var anyMoreComing = false
+
+  for plan in recordPlan {
+    let zone = compact(plan["zone"], limit: 80)
+    if zone.isEmpty || scannedZones.contains(zone) { continue }
+    scannedZones.insert(zone)
+    let zoneId = CKRecordZone.ID(zoneName: zone, ownerName: CKCurrentUserDefaultName)
+    let previousToken = decodeChangeToken(previousTokens[zone] ?? "")
+    do {
+      let result = try await database.recordZoneChanges(
+        inZoneWith: zoneId,
+        since: previousToken,
+        desiredKeys: desiredKeys,
+        resultsLimit: 100
+      )
+      var zoneChanged = 0
+      var zoneDeleted = 0
+      var zoneFailed = 0
+      for (_, recordResult) in result.modificationResultsByID {
+        switch recordResult {
+        case .success(let modification):
+          changed += 1
+          zoneChanged += 1
+          if changedRecords.count < 300 {
+            var summary = cloudKitRecordSummary(record: modification.record, zone: zone)
+            summary["payloadJson"] = compact(modification.record["payloadJson"], limit: 64_000)
+            changedRecords.append(summary)
+          }
+        case .failure(let error):
+          failed += 1
+          zoneFailed += 1
+          errors.append("CloudKit import quarantine could not read one changed record in \(redact(zone, limit: 80)): \(redact(error.localizedDescription, limit: 240))")
+        }
+      }
+      for deletion in result.deletions {
+        deleted += 1
+        zoneDeleted += 1
+        if deletedRecords.count < 300 {
+          deletedRecords.append([
+            "zone": zone,
+            "recordType": deletion.recordType,
+            "recordName": deletion.recordID.recordName,
+            "deletedAt": nowIso(),
+          ])
+        }
+      }
+      if result.moreComing { anyMoreComing = true }
+      zones.append([
+        "zone": zone,
+        "previousServerChangeTokenPresent": previousToken != nil,
+        "serverChangeToken": encodeChangeToken(result.changeToken),
+        "changed": zoneChanged,
+        "deleted": zoneDeleted,
+        "failed": zoneFailed,
+        "moreComing": result.moreComing,
+      ])
+    } catch {
+      failed += 1
+      errors.append("CloudKit import quarantine failed for \(redact(zone, limit: 80)): \(redact(error.localizedDescription, limit: 240))")
+      zones.append([
+        "zone": zone,
+        "previousServerChangeTokenPresent": previousToken != nil,
+        "serverChangeToken": "",
+        "changed": 0,
+        "deleted": 0,
+        "failed": 1,
+        "moreComing": false,
+      ])
+    }
+  }
+
+  var response = responseBase(operation: "sync-import-quarantine", ok: failed == 0)
+  response["accountStatus"] = probe["accountStatus"] ?? "available"
+  response["containerReachable"] = probe["containerReachable"] ?? true
+  response["capabilitiesVerified"] = [
+    "account-status",
+    "private-database",
+    "container-reachability",
+    "custom-zones",
+    "change-token-fetch",
+    "sync-import-quarantine",
+  ]
+  response["warnings"] = warnings.map { redact($0, limit: 240) }
+  response["errors"] = errors.map { redact($0, limit: 240) }
+  response["syncImportQuarantine"] = [
+    "scannedZones": Array(scannedZones).sorted(),
+    "changed": changed,
+    "deleted": deleted,
+    "failed": failed,
+    "moreComing": anyMoreComing,
+    "zones": zones,
+    "changedRecords": changedRecords,
+    "deletedRecords": deletedRecords,
+    "rawPayloadIncluded": true,
+  ]
+  response["roundtrip"] = [
+    "created": false,
+    "fetched": false,
+    "deleted": false,
+    "recordType": "",
+    "zone": "",
+  ]
+  response["evidenceId"] = "lifeos-cloudkit-sync-import-quarantine-\(UUID().uuidString)"
+  return response
+}
+
 @main
 struct LifeOSCloudKitHelper {
   static func main() async {
@@ -694,6 +856,8 @@ struct LifeOSCloudKitHelper {
       response = await runSyncImportPreview(container: container, request: request)
     } else if operation == "sync-changes-preview" {
       response = await runSyncChangesPreview(container: container, request: request)
+    } else if operation == "sync-import-quarantine" {
+      response = await runSyncImportQuarantine(container: container, request: request)
     } else {
       response = responseBase(operation: operation, ok: false).merging([
         "errors": ["Unsupported operation: \(redact(operation, limit: 80))"],

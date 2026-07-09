@@ -33,7 +33,7 @@ import { buildNativeAutomationPlan, executeNativeAutomation } from "../nativeAut
 import { getIcloudDataSyncReadiness } from "../icloudDataSyncReadiness";
 import { runCloudKitNativeHelper, type CloudKitNativeHelperOperation } from "../cloudKitNativeHelper";
 import { buildCloudKitSyncBatchPreview, buildCloudKitSyncExportPackage, CLOUDKIT_SYNC_EXPORT_CONFIRMATION, summarizeCloudKitSyncExportPackage } from "../cloudKitSyncBatch";
-import { getCloudKitSyncStateSnapshot, listCloudKitSyncCheckpoints, publicCloudKitHelperResult, saveCloudKitSyncChangesPreview } from "../cloudKitSyncState";
+import { CLOUDKIT_SYNC_IMPORT_CONFIRMATION, getCloudKitSyncQuarantineSummary, getCloudKitSyncStateSnapshot, listCloudKitSyncCheckpoints, publicCloudKitHelperResult, saveCloudKitSyncChangesPreview, saveCloudKitSyncImportQuarantine } from "../cloudKitSyncState";
 
 const loginFailures = new Map<string, { count: number; lockedUntil: number }>();
 
@@ -72,6 +72,10 @@ function normalizeCloudKitBatchLimit(value: unknown) {
 }
 
 function normalizeCloudKitExportConfirmation(value: unknown) {
+  return String(value || "").trim();
+}
+
+function normalizeCloudKitImportConfirmation(value: unknown) {
   return String(value || "").trim();
 }
 
@@ -900,6 +904,83 @@ export function registerAdminRoutes(app: express.Express) {
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.status(400).json({
         error: error.message || "CloudKit sync changes preview failed",
+        checkpoints: listCloudKitSyncCheckpoints(),
+        diagnostics: getAdminNetworkDiagnostics(),
+      });
+    }
+  });
+
+  app.post("/api/v1/admin/icloud-data-sync/import-quarantine", requireAdmin, rateLimit({ keyPrefix: "admin-cloudkit-sync-import-quarantine", windowMs: 60_000, max: 4 }), async (req, res) => {
+    const confirmation = normalizeCloudKitImportConfirmation(req.body?.confirmation);
+    const diagnostics = getAdminNetworkDiagnostics();
+    if (confirmation !== CLOUDKIT_SYNC_IMPORT_CONFIRMATION) {
+      insertAuditLog("icloud_cloudkit_sync_import_quarantine_blocked", "network", "cloudkit-sync-import-quarantine", {
+        confirmationProvided: false,
+        importedChanged: 0,
+        importedDeleted: 0,
+        rawPayloadReturnedToAdmin: false,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      return res.status(400).json({
+        error: "CloudKit import quarantine requires explicit confirmation.",
+        expectedConfirmation: CLOUDKIT_SYNC_IMPORT_CONFIRMATION,
+        quarantine: getCloudKitSyncQuarantineSummary(),
+        checkpoints: listCloudKitSyncCheckpoints(),
+        diagnostics,
+      });
+    }
+
+    try {
+      const readiness = getIcloudDataSyncReadiness({ platformSupported: diagnostics.icloud.platformSupported });
+      const syncState = getCloudKitSyncStateSnapshot();
+      const shouldBackup = Boolean(readiness.enabled && readiness.ready && readiness.nativeHelper.executable && readiness.nativeHelper.path);
+      const backup = shouldBackup ? createDatabaseBackup({ prune: false }) : undefined;
+      const result = await runCloudKitNativeHelper(readiness, {
+        operation: "sync-import-quarantine",
+        syncState,
+        importConfirmation: confirmation,
+        timeoutMs: 60_000,
+      });
+      const saved = result.status === "passed"
+        ? saveCloudKitSyncImportQuarantine(result)
+        : { tokenSaved: 0, summary: getCloudKitSyncQuarantineSummary(), checkpoints: listCloudKitSyncCheckpoints() };
+      const publicResult = publicCloudKitHelperResult(result);
+      insertAuditLog("icloud_cloudkit_sync_import_quarantine", "network", "cloudkit-sync-import-quarantine", {
+        status: result.status,
+        ok: result.ok,
+        readinessStatus: "readinessStatus" in result ? result.readinessStatus : readiness.status,
+        evidenceId: "evidenceId" in result ? result.evidenceId || null : null,
+        syncImportQuarantine: "syncImportQuarantine" in result ? {
+          scannedZones: result.syncImportQuarantine.scannedZones,
+          changed: result.syncImportQuarantine.changed,
+          deleted: result.syncImportQuarantine.deleted,
+          failed: result.syncImportQuarantine.failed,
+          moreComing: result.syncImportQuarantine.moreComing,
+          tokenSavedCount: saved.tokenSaved,
+          importedChanged: saved.summary.importedChanged,
+          importedDeleted: saved.summary.importedDeleted,
+          skipped: saved.summary.skipped,
+          pendingReview: saved.summary.pendingReview,
+          rawPayloadIncluded: result.syncImportQuarantine.rawPayloadIncluded,
+          rawPayloadReturnedToAdmin: false,
+        } : null,
+        backupFile: backup?.file || null,
+        backupSize: backup?.size || null,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(result.status === "failed" ? 400 : 200).json({
+        result: publicResult,
+        quarantine: saved.summary,
+        checkpoints: saved.checkpoints,
+        backup: backup ? { file: backup.file, size: backup.size, createdAt: backup.createdAt, redaction: backup.redaction } : undefined,
+        diagnostics: getAdminNetworkDiagnostics(),
+      });
+    } catch (error: any) {
+      insertAuditLog("icloud_cloudkit_sync_import_quarantine_failed", "network", "cloudkit-sync-import-quarantine", {
+        error: error?.message || "CloudKit sync import quarantine failed",
+        rawPayloadReturnedToAdmin: false,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(400).json({
+        error: error.message || "CloudKit sync import quarantine failed",
+        quarantine: getCloudKitSyncQuarantineSummary(),
         checkpoints: listCloudKitSyncCheckpoints(),
         diagnostics: getAdminNetworkDiagnostics(),
       });
