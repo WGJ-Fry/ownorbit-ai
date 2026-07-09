@@ -39,6 +39,8 @@ function runIsolatedCloudKitBatch(env) {
     insertMemory("Sensitive memory", "passport token=secret", "sensitive");
     db.prepare("INSERT INTO tasks (id, type, status, input_json, result_json, error, created_by_device_id, created_at, started_at, finished_at) VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, NULL, ?)")
       .run("task-sync-1", "planning", "ready", JSON.stringify({ title: "Review tasks" }), JSON.stringify({ ok: true }), 1700000000000, 1700000001000);
+    db.prepare("INSERT INTO devices (id, name, type, status, public_key, access_token_hash, access_token_expires_at, created_at, last_seen_at, revoked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)")
+      .run("device-sync-1", "Alice iPhone", "mobile", "online", "RAW_PUBLIC_KEY_SHOULD_NOT_SYNC", "ACCESS_TOKEN_HASH_SHOULD_NOT_SYNC", 1700000099999, 1700000000000, 1700000003000);
     db.prepare("INSERT INTO custom_apps (id, name, description, visibility, status, source, code, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
       .run("app-sync-1", "Budget helper", "Generated helper", "private", "active", "studio", "<html></html>", 1700000000000, 1700000001000);
     db.prepare("INSERT INTO custom_app_state (app_id, state_json, updated_at) VALUES (?, ?, ?)")
@@ -77,6 +79,8 @@ function runIsolatedCloudKitExport(env) {
     insertMemory("Safe export memory", "Prepare the weekly plan", "normal");
     db.prepare("INSERT INTO tasks (id, type, status, input_json, result_json, error, created_by_device_id, created_at, started_at, finished_at) VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, NULL, ?)")
       .run("task-export-1", "planning", "ready", JSON.stringify({ title: "Review export" }), JSON.stringify({ ok: true }), 1700000000000, 1700000001000);
+    db.prepare("INSERT INTO devices (id, name, type, status, public_key, access_token_hash, access_token_expires_at, created_at, last_seen_at, revoked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)")
+      .run("device-export-1", "Bob iPhone", "mobile", "online", "RAW_EXPORT_PUBLIC_KEY_SHOULD_NOT_SYNC", "ACCESS_EXPORT_TOKEN_HASH_SHOULD_NOT_SYNC", 1700000099999, 1700000000000, 1700000003000);
 
     const readiness = getIcloudDataSyncReadiness({ platformSupported: true });
     const exportPackage = buildCloudKitSyncExportPackage(readiness, {
@@ -112,12 +116,12 @@ test("CloudKit sync batch preview builds safe records and blocks sensitive paylo
       LIFEOS_CLOUDKIT_BUNDLE_ID: "ai.lifeos.desktop",
       LIFEOS_CLOUDKIT_HELPER_BIN: helper,
       LIFEOS_CLOUDKIT_ENTITLEMENTS_PATH: entitlements,
-      LIFEOS_CLOUDKIT_SYNC_TYPES: "chat-history,memory,tasks,generated-app-state,raw-tokens",
+      LIFEOS_CLOUDKIT_SYNC_TYPES: "chat-history,memory,tasks,generated-app-state,device-trust,raw-tokens",
     });
 
     assert.equal(preview.status, "needs-review");
     assert.equal(preview.dataSyncScope, "cloudkit-native-candidate");
-    assert.equal(preview.readyRecordCount >= 5, true);
+    assert.equal(preview.readyRecordCount >= 6, true);
     assert.equal(preview.blockedRecordCount >= 2, true);
     assert.equal(preview.safety.rawPayloadIncluded, false);
     assert.equal(preview.safety.secretLikeContentBlocked >= 1, true);
@@ -126,10 +130,12 @@ test("CloudKit sync batch preview builds safe records and blocks sensitive paylo
     assert.ok(preview.recordTypes.some((item) => item.recordType === "LifeOSMemory"));
     assert.ok(preview.recordTypes.some((item) => item.recordType === "LifeOSTask"));
     assert.ok(preview.recordTypes.some((item) => item.recordType === "LifeOSGeneratedAppState"));
+    assert.ok(preview.recordTypes.some((item) => item.recordType === "LifeOSDeviceTrust"));
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSMessage" && record.requiresUserReview === false), true);
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSConversation" && record.requiresUserReview === true), true);
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSMemory" && record.requiresUserReview === false), true);
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSTask" && record.requiresUserReview === false), true);
+    assert.equal(preview.records.some((record) => record.recordType === "LifeOSDeviceTrust" && record.requiresUserReview === true), true);
     assert.equal(preview.helperPayloadPlan.sendsRawUserContent, false);
     assert.equal(preview.helperPayloadPlan.nextHelperOperation, "sync-export-blocked");
     const serialized = JSON.stringify(preview);
@@ -137,6 +143,8 @@ test("CloudKit sync batch preview builds safe records and blocks sensitive paylo
     assert.equal(serialized.includes("Buy milk and plan the week"), false);
     assert.equal(serialized.includes("sk-secret-value"), false);
     assert.equal(serialized.includes("passport token"), false);
+    assert.equal(serialized.includes("RAW_PUBLIC_KEY_SHOULD_NOT_SYNC"), false);
+    assert.equal(serialized.includes("ACCESS_TOKEN_HASH_SHOULD_NOT_SYNC"), false);
     assert.equal(serialized.includes(dir), false);
   } finally {
     await rm(dir, { recursive: true, force: true });
@@ -174,7 +182,7 @@ test("CloudKit sync export package is ready only after confirmation and keeps ad
       LIFEOS_CLOUDKIT_BUNDLE_ID: "ai.lifeos.desktop",
       LIFEOS_CLOUDKIT_HELPER_BIN: helper,
       LIFEOS_CLOUDKIT_ENTITLEMENTS_PATH: entitlements,
-      LIFEOS_CLOUDKIT_SYNC_TYPES: "chat-history,memory,tasks",
+      LIFEOS_CLOUDKIT_SYNC_TYPES: "chat-history,memory,tasks,device-trust",
     });
     assert.equal(exportPackage.ok, true);
     assert.equal(exportPackage.status, "ready");
@@ -188,10 +196,17 @@ test("CloudKit sync export package is ready only after confirmation and keeps ad
     assert.equal(exportPackage.helperSyncBatch.records.some((record) => record.recordType === "LifeOSMemory" && record.fields.requiresUserReview === false), true);
     assert.equal(exportPackage.helperSyncBatch.records.some((record) => record.recordType === "LifeOSTask" && record.fields.requiresUserReview === false), true);
     assert.equal(exportPackage.helperSyncBatch.records.some((record) => (
+      record.recordType === "LifeOSDeviceTrust" &&
+      record.fields.requiresUserReview === true &&
+      Boolean(JSON.parse(String(record.fields.payloadJson || "{}")).publicKeyFingerprint)
+    )), true);
+    assert.equal(exportPackage.helperSyncBatch.records.some((record) => (
       record.recordType === "LifeOSMessage" &&
       JSON.parse(String(record.fields.payloadJson || "{}")).conversationTitle === "Safe export conversation"
     )), true);
     assert.equal(JSON.stringify(exportPackage.helperSyncBatch).includes("Plan tomorrow without secrets"), true);
+    assert.equal(JSON.stringify(exportPackage.helperSyncBatch).includes("RAW_EXPORT_PUBLIC_KEY_SHOULD_NOT_SYNC"), false);
+    assert.equal(JSON.stringify(exportPackage.helperSyncBatch).includes("ACCESS_EXPORT_TOKEN_HASH_SHOULD_NOT_SYNC"), false);
     assert.equal(summary.ok, true);
     assert.equal(summary.exportRecordCount, exportPackage.helperSyncBatch.records.length);
     const serializedSummary = JSON.stringify(summary);

@@ -4,7 +4,7 @@ import type { getIcloudDataSyncReadiness } from "./icloudDataSyncReadiness.ts";
 
 type IcloudDataSyncReadiness = ReturnType<typeof getIcloudDataSyncReadiness>;
 type CloudKitSyncStatus = "skipped" | "blocked" | "empty" | "needs-review" | "ready";
-type CloudKitSyncDataType = "chat-history" | "memory" | "tasks" | "generated-app-state";
+type CloudKitSyncDataType = "chat-history" | "memory" | "tasks" | "generated-app-state" | "device-trust";
 
 const DEFAULT_LIMIT = 200;
 const MAX_LIMIT = 500;
@@ -125,6 +125,10 @@ function stableHash(value: unknown) {
 
 function recordId(prefix: string, id: string) {
   return `${prefix}:${crypto.createHash("sha256").update(id).digest("hex").slice(0, 16)}`;
+}
+
+function stableIdHash(value: unknown) {
+  return crypto.createHash("sha256").update(String(value || "")).digest("hex");
 }
 
 function collectFieldNames(value: unknown, prefix = "", output = new Set<string>()) {
@@ -457,6 +461,51 @@ function collectGeneratedAppStateRecords(limit: number) {
   return { records, blockedRecords, counts };
 }
 
+function collectDeviceTrustRecords(limit: number) {
+  const records: CloudKitSyncRecordCandidate[] = [];
+  const blockedRecords: CloudKitSyncBlockedRecord[] = [];
+  const counts = { zones: new Map<string, number>(), recordTypes: new Map<string, number>() };
+  const devices = db.prepare(`
+    SELECT id, name, type, status, public_key as publicKey,
+           access_token_expires_at as accessTokenExpiresAt,
+           created_at as createdAt, last_seen_at as lastSeenAt, revoked_at as revokedAt
+    FROM devices
+    ORDER BY last_seen_at DESC
+    LIMIT ?
+  `).all(limit);
+  for (const device of devices as any[]) {
+    const deviceIdHash = stableIdHash(device.id);
+    const publicKeyFingerprint = device.publicKey ? stableIdHash(device.publicKey).slice(0, 32) : undefined;
+    const logicalClock = Number(device.revokedAt || device.lastSeenAt || device.createdAt || 0);
+    const payload = {
+      deviceIdHash,
+      displayName: String(device.name || "Device").replace(/\s+/g, " ").trim().slice(0, 120),
+      deviceType: String(device.type || "unknown").replace(/[^A-Za-z0-9_.:-]/g, "").slice(0, 80) || "unknown",
+      trustState: device.revokedAt ? "revoked" : String(device.status || "unknown").replace(/[^A-Za-z0-9_.:-]/g, "").slice(0, 80) || "unknown",
+      publicKeyFingerprint,
+      accessExpiresAt: Number(device.accessTokenExpiresAt || 0) || undefined,
+      createdAt: Number(device.createdAt || 0),
+      lastSeenAt: Number(device.lastSeenAt || 0),
+      revokedAt: Number(device.revokedAt || 0) || undefined,
+    };
+    if (hasForbiddenValue(payload)) {
+      pushBlocked(blockedRecords, { id: device.id, dataType: "device-trust", recordType: "LifeOSDeviceTrust", reason: "secret-like-content", payload }, limit);
+      continue;
+    }
+    pushReady(records, counts, buildRecord({
+      id: device.id,
+      dataType: "device-trust",
+      zone: "LifeOSDeviceTrustZone",
+      recordType: "LifeOSDeviceTrust",
+      recordName: `device:${deviceIdHash.slice(0, 24)}`,
+      payload,
+      logicalClock,
+      requiresUserReview: true,
+    }), limit);
+  }
+  return { records, blockedRecords, counts };
+}
+
 function mergeCounts(target: Map<string, number>, source: Map<string, number>) {
   for (const [key, value] of source.entries()) target.set(key, (target.get(key) || 0) + value);
 }
@@ -495,6 +544,8 @@ export function buildCloudKitSyncBatchPreview(
         ? collectTaskRecords(limit)
         : dataType === "generated-app-state"
         ? collectGeneratedAppStateRecords(limit)
+        : dataType === "device-trust"
+        ? collectDeviceTrustRecords(limit)
         : { records: [], blockedRecords: [], counts: { zones: new Map<string, number>(), recordTypes: new Map<string, number>() } };
       records.push(...collected.records.slice(0, Math.max(0, limit - records.length)));
       blockedRecords.push(...collected.blockedRecords.slice(0, Math.max(0, limit - blockedRecords.length)));
@@ -577,6 +628,8 @@ export function buildCloudKitSyncExportPackage(
         ? collectTaskRecords(limit)
         : dataType === "generated-app-state"
         ? collectGeneratedAppStateRecords(limit)
+        : dataType === "device-trust"
+        ? collectDeviceTrustRecords(limit)
         : { records: [] };
       records.push(...collected.records.slice(0, Math.max(0, limit - records.length)));
     }

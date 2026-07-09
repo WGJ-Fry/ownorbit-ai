@@ -2020,11 +2020,16 @@ function checkAssets() {
     icloudDataSyncReadinessSource.includes("cloudKitRecordPlans") &&
     icloudDataSyncReadinessSource.includes("LifeOSConversation") &&
     icloudDataSyncReadinessSource.includes("LifeOSMemoryZone") &&
+    icloudDataSyncReadinessSource.includes("LifeOSDeviceTrustZone") &&
+    icloudDataSyncReadinessSource.includes("publicKeyFingerprint") &&
+    icloudDataSyncReadinessSource.includes("accessTokenHash") &&
     icloudDataSyncReadinessSource.includes("requiredNativeCapabilities") &&
     icloudDataSyncReadinessSource.includes("acceptanceGates") &&
     icloudDataSyncReadinessSource.includes("nativeHelperContract") &&
     icloudDataSyncReadinessSource.includes("ready-to-test") &&
     icloudDataSyncReadinessTestSource.includes("blocks unsafe types") &&
+    icloudDataSyncReadinessTestSource.includes("device-trust") &&
+    icloudDataSyncReadinessTestSource.includes("publicKeyFingerprint") &&
     icloudDataSyncReadinessTestSource.includes("record plan never includes blocked data types") &&
     cloudKitNativeHelperSource.includes("lifeos-cloudkit-helper-request.v1") &&
     cloudKitNativeHelperSource.includes("lifeos-cloudkit-helper-response.v1") &&
@@ -2064,6 +2069,9 @@ function checkAssets() {
     cloudKitSyncBatchTestSource.includes("recordType === \"LifeOSConversation\" && record.requiresUserReview === true") &&
     cloudKitSyncBatchTestSource.includes("recordType === \"LifeOSMemory\" && record.requiresUserReview === false") &&
     cloudKitSyncBatchTestSource.includes("recordType === \"LifeOSTask\" && record.requiresUserReview === false") &&
+    cloudKitSyncBatchTestSource.includes("recordType === \"LifeOSDeviceTrust\" && record.requiresUserReview === true") &&
+    cloudKitSyncBatchTestSource.includes("RAW_PUBLIC_KEY_SHOULD_NOT_SYNC") &&
+    cloudKitSyncBatchTestSource.includes("ACCESS_TOKEN_HASH_SHOULD_NOT_SYNC") &&
     cloudKitSyncBatchTestSource.includes("sendsRawUserContent, false") &&
     cloudKitSyncBatchTestSource.includes("keeps admin summary payload-free") &&
     cloudKitSyncApplySource.includes("APPLY_CLOUDKIT_QUARANTINE") &&
@@ -4375,10 +4383,12 @@ function checkReleaseDocs() {
     const requiredIcloudDataSyncMarkers = [
       "iCloud Drive to sync the mobile entry files",
       "The default iCloud Drive handoff does not sync chat history, memory, tasks, device credentials, SQLite databases, AI keys",
-      "The opt-in CloudKit native candidate can mirror selected chat, memory, task, and generated-app-state records",
+      "The opt-in CloudKit native candidate can mirror selected chat, memory, task, generated-app-state, and device-trust metadata records",
       "Required Native Architecture",
       "CloudKit container owned by the app bundle",
       "No secret, token, AI key, session cookie, or raw device credential may be written to iCloud Drive or CloudKit user records",
+      "LifeOSDeviceTrustZone",
+      "access token、token hash、私钥",
       "Native Helper Contract",
       "lifeos-cloudkit-helper-request.v1",
       "Do not claim end-user-ready, fully automatic iCloud data sync until all of this is true",
@@ -4390,7 +4400,7 @@ function checkReleaseDocs() {
       readmeEn.includes("docs/icloud-data-sync-design.md") &&
       readmeZh.includes("docs/icloud-data-sync-design.md") &&
       roadmap.includes("Default iCloud Drive still syncs only mobile entry files") &&
-      roadmap.includes("opt-in CloudKit 原生数据同步候选能力")
+      roadmap.includes("设备信任元数据记录")
     ) {
       pass("iCloud data sync design boundary separates iCloud Drive handoff from guarded CloudKit candidate sync");
     } else {

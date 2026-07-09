@@ -16,7 +16,7 @@ It includes:
 - LAN, Tailscale, Cloudflare Tunnel, and trusted HTTPS reverse-proxy diagnostics with public-exposure warnings.
 - Remote acceptance checklist and release evidence requirements covering cellular use, Wi-Fi/cellular switching, desktop restart recovery, stale QR repair, tunnel interruption recovery, diagnostic export, and redacted evidence review.
 - Remote health monitoring samples in diagnostics: pass/fail counts, recovery attempts, consecutive successes, observed duration, and latest samples.
-- Opt-in CloudKit native data-sync candidate: guarded helper contract, safe batch preview, explicit upload/sync confirmations, quarantine import, conservative apply, checkpoint promotion, and auto-apply only for append-only chat messages, new normal memories, and new tasks.
+- Opt-in CloudKit native data-sync candidate: guarded helper contract, safe batch preview, explicit upload/sync confirmations, quarantine import, conservative apply, checkpoint promotion, device-trust metadata records, and auto-apply only for append-only chat messages, new normal memories, and new tasks.
 - Studio generated programs with blueprint confirmation, expanded template variants, readiness scoring, quality scoring, acceptance criteria, permission boundaries, runtime logs, state storage, guarded repair boundaries, repair queue evidence, static smoke review, and version rollback.
 - Calendar/task safety gates with read-only `.ics` ingestion plus opt-in Apple Calendar, Google Calendar/Tasks, and system Reminders connector paths for external read previews and explicitly confirmed external writes, with audit logs, SQLite write history, rollback availability, guarded automatic rollback for safe reversals, and saved run evidence.
 - URL Scheme based local action permission center with dangerous-action confirmation, redacted logs, and narrow opt-in native automation bridge paths for clipboard, allowlisted Shortcuts, Finder reveal, and allowlisted macOS app bundle opening.
@@ -32,7 +32,7 @@ These are not bugs hidden from users; they are the honest alpha boundary.
 | Manual update | Automatic updates are not enabled for the public unsigned alpha. | Users update by downloading the next release manually and verifying SHA256. Signed distributions can use a safe HTTPS feed later. |
 | Real-device remote acceptance | Automated checks, diagnostics, and evidence records exist, but each user must still run real phone/cellular/Wi-Fi/restart/tunnel tests on their own network. | Remote diagnostics can say the setup is plausible; only real-device evidence proves long-term stability. |
 | Calendar and tasks | Local `.ics` ingestion is read-only. Apple Calendar, Google Calendar/Tasks, and system reminders use opt-in previews and narrow confirmed writes; broad unattended account sync is not shipped. | LifeOS can preview and perform narrowly gated writes with audit and rollback evidence, but it is not a full background account sync system yet. |
-| iCloud data sync | Default iCloud Drive still syncs only mobile entry files. The opt-in CloudKit candidate can mirror selected chat, memory, task, and generated-app-state records through a native helper, quarantine, explicit confirmations, and conservative local apply rules. It does not sync device credentials, AI keys, full SQLite databases, backups, or account-wide background pushes. | Apple users can open the phone entry from Files today. CloudKit data sync is now a guarded alpha candidate, but it is not a complete hands-off macOS/iOS native sync product yet. |
+| iCloud data sync | Default iCloud Drive still syncs only mobile entry files. The opt-in CloudKit candidate can mirror selected chat, memory, task, generated-app-state, and device-trust metadata records through a native helper, quarantine, explicit confirmations, and conservative local apply rules. It does not sync raw device credentials, AI keys, full SQLite databases, backups, or account-wide background pushes. | Apple users can open the phone entry from Files today. CloudKit data sync is now a guarded alpha candidate, but it is not a complete hands-off macOS/iOS native sync product yet. |
 | Studio generated programs | Blueprints, templates, readiness/quality scoring, repair queue, smoke evidence, and rollback exist, but product-grade unattended self-repair is not complete. | Users can generate and refine tools, but should review outputs and repair decisions manually. |
 | Mobile offline queue | Retry, clear, failure state, storage health, idempotent replay, recovery evidence, and manual-review conflict groups exist. Deep multi-device merge and extreme weak-network recovery are still improving. | Offline messages are protected from simple loss and duplicate replay, but complex conflicts still need visible user review. |
 | Native automation | Local actions are still mostly URL Scheme / browser / Shortcuts bridge flows, with only narrow opt-in native bridge paths. | It is safer and reviewable, but not a full native OS automation system yet. |
@@ -47,7 +47,7 @@ Scope:
 - Publish a new tag instead of moving `v0.1.5-alpha`.
 - Keep README, Chinese README, release notes, Docker image, desktop asset names, and current alpha limits strictly aligned.
 - Add stronger in-product prompts for missing real-device remote evidence, especially cellular, network switch, restart recovery, stale QR repair, tunnel interruption, and diagnostic export.
-- Keep iCloud handoff and CloudKit data sync separate: document that default iCloud Drive only carries entry files, while the guarded CloudKit native candidate covers selected chat/memory/task/generated-app-state records and never syncs device credentials or AI keys.
+- Keep iCloud handoff and CloudKit data sync separate: document that default iCloud Drive only carries entry files, while the guarded CloudKit native candidate covers selected chat/memory/task/generated-app-state/device-trust metadata records and never syncs raw device credentials or AI keys.
 - Improve mobile weak-network background recovery and multi-device conflict review after phone restart, browser storage pressure, and stale remote entries.
 - Productize the calendar/reminders connector permission review: clearer setup steps, narrower scopes, conflict preview, rollback plan, and acceptance evidence export.
 - Continue Studio generated-program reliability: richer visual diff, template-specific repair recipes, stricter smoke checks, and clearer recovery when a repair worker fails mid-run.
@@ -109,7 +109,7 @@ These capabilities should not be described as current release features until the
 - LAN、Tailscale、Cloudflare Tunnel、可信 HTTPS 反向代理诊断和公网暴露风险提示。
 - 异地验收清单和发布证据要求：蜂窝网络、Wi-Fi/蜂窝切换、电脑重启、旧二维码修复、隧道断开恢复、诊断包导出和脱敏证据复核。
 - 远程健康长测样本：通过/失败次数、恢复尝试、连续成功次数、观测时长和最近样本。
-- opt-in CloudKit 原生数据同步候选能力：受控 helper 合约、安全批次预览、显式上传/同步确认、隔离区导入、保守 apply、checkpoint 推进，并且只对追加型聊天消息、新普通记忆、新任务做自动落库。
+- opt-in CloudKit 原生数据同步候选能力：受控 helper 合约、安全批次预览、显式上传/同步确认、隔离区导入、保守 apply、checkpoint 推进、设备信任元数据记录，并且只对追加型聊天消息、新普通记忆、新任务做自动落库。
 - Studio 生成程序：蓝图确认、扩展模板、就绪评分、质量评分、验收标准、权限边界、运行日志、状态保存、带护栏的修复边界、修复队列证据、静态烟测复核和版本回滚。
 - 日历/任务同步安全闸门：本地 `.ics` 只读读取，以及显式开启的 Apple Calendar、Google Calendar/Tasks、系统提醒事项外部读取预览和确认写入连接器路径，包含审计日志、SQLite 写入历史、回滚可用性、安全反向操作和运行证据。
 - 基于 URL Scheme 的本地动作权限中心：危险动作确认、脱敏日志，以及剪贴板、白名单 Shortcuts、Finder reveal、白名单 macOS app 打开的窄范围 opt-in 原生桥。
@@ -123,7 +123,7 @@ These capabilities should not be described as current release features until the
 | 手动更新 | 公开 unsigned alpha 默认不启用自动更新。 | 用户需要手动下载新版并校验 SHA256。signed 分发以后可以使用安全 HTTPS feed。 |
 | 真实异地长测 | 自动诊断和证据记录已经有，但用户仍需在自己的网络里做手机蜂窝、换 Wi-Fi、电脑重启、隧道断开恢复等长测。 | 程序可以证明配置大体可用，但长期稳定仍要真实设备证据。 |
 | 日历和任务 | 本地 `.ics` 仍是只读读取。Apple Calendar、Google Calendar/Tasks、系统提醒事项使用显式开启的预览和窄范围确认写入；宽泛无人值守账号同步还没发布。 | 可以预览并在非常窄的授权路径里执行写入、审计和回滚，但还不是完整后台账号同步系统。 |
-| iCloud 数据同步 | 默认 iCloud Drive 仍只同步手机入口文件。opt-in CloudKit 候选能力可以通过原生 helper、隔离区、显式确认和保守本地 apply 规则同步部分聊天、记忆、任务和生成程序状态记录；不会同步设备凭证、AI Key、完整 SQLite、备份或账号级后台推送。 | Apple 用户今天可以从“文件”App 打开手机入口。CloudKit 数据同步已经是受控 alpha 候选能力，但还不是完整免维护的 macOS/iOS 原生同步产品。 |
+| iCloud 数据同步 | 默认 iCloud Drive 仍只同步手机入口文件。opt-in CloudKit 候选能力可以通过原生 helper、隔离区、显式确认和保守本地 apply 规则同步部分聊天、记忆、任务、生成程序状态和设备信任元数据记录；不会同步原始设备凭证、AI Key、完整 SQLite、备份或账号级后台推送。 | Apple 用户今天可以从“文件”App 打开手机入口。CloudKit 数据同步已经是受控 alpha 候选能力，但还不是完整免维护的 macOS/iOS 原生同步产品。 |
 | Studio 生成程序 | 已有蓝图、模板、就绪/质量评分、修复队列、烟测证据和回滚，但产品级无人值守自修复还没完成。 | 用户可以生成和继续调整工具，但仍应人工确认输出和修复决策。 |
 | 手机离线队列 | 已有重试、清空、失败状态、存储健康、幂等重放、恢复证据和人工复核冲突组，复杂多设备合并和极弱网后台恢复还在增强。 | 普通离线消息不容易丢，也能避免简单重复写入，但复杂冲突仍需要用户可见地处理。 |
 | 原生自动化 | 本地动作仍主要是 URL Scheme / 浏览器 / Shortcuts 桥，只开放很窄的 opt-in 原生桥路径。 | 更安全、更容易审计，但还不是完整系统级自动化。 |
@@ -138,7 +138,7 @@ These capabilities should not be described as current release features until the
 - 新打 tag，不移动旧的 `v0.1.5-alpha`。
 - README、中文 README、Release notes、Docker 镜像、桌面资产名和 alpha 限制必须严格一致。
 - 增强真实异地证据缺失提示，尤其是蜂窝网络、换网、重启恢复、旧二维码修复、隧道中断和诊断导出。
-- 继续区分 iCloud 入口同步和 CloudKit 数据同步：写清楚默认 iCloud Drive 只传入口文件，受控 CloudKit 原生候选能力只覆盖部分聊天/记忆/任务/生成程序状态记录，永远不同步设备凭证或 AI Key。
+- 继续区分 iCloud 入口同步和 CloudKit 数据同步：写清楚默认 iCloud Drive 只传入口文件，受控 CloudKit 原生候选能力只覆盖部分聊天/记忆/任务/生成程序状态/设备信任元数据记录，永远不同步原始设备凭证或 AI Key。
 - 增强手机弱网后台恢复和多端冲突复核，覆盖手机重启、浏览器存储压力和过期远程入口。
 - 产品化日历/提醒事项连接器权限复核：更清楚的设置步骤、更窄授权范围、冲突预览、回滚计划和验收证据导出。
 - 继续增强 Studio 生成程序可靠性：更清楚的视觉 diff、模板级修复策略、更严格烟测和修复失败恢复。

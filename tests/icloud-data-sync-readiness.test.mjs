@@ -68,23 +68,26 @@ test("CloudKit data sync readiness blocks unsafe types and requires native helpe
     process.env.LIFEOS_CLOUDKIT_BUNDLE_ID = "ai.lifeos.desktop";
     process.env.LIFEOS_CLOUDKIT_HELPER_BIN = helper;
     process.env.LIFEOS_CLOUDKIT_ENTITLEMENTS_PATH = entitlements;
-    process.env.LIFEOS_CLOUDKIT_SYNC_TYPES = "chat-history,memory,ai-keys,device-credentials";
+    process.env.LIFEOS_CLOUDKIT_SYNC_TYPES = "chat-history,memory,device-trust,ai-keys,device-credentials";
 
     const { getIcloudDataSyncReadiness } = await import(`../server/icloudDataSyncReadiness.ts?case=ready-${Date.now()}`);
     const readiness = getIcloudDataSyncReadiness({ platformSupported: true });
     assert.equal(readiness.enabled, true);
     assert.equal(readiness.status, "ready-to-test");
     assert.equal(readiness.ready, true);
-    assert.deepEqual(readiness.selectedDataTypes, ["chat-history", "memory"]);
+    assert.deepEqual(readiness.selectedDataTypes, ["chat-history", "memory", "device-trust"]);
     assert.deepEqual(readiness.blockedDataTypes, ["ai-keys", "device-credentials"]);
     assert.equal(readiness.nativeHelper.executable, true);
     assert.equal(readiness.entitlements.mentionsContainer, true);
     assert.equal(readiness.blockedDataTypePolicy.includes("Never sync AI keys"), true);
-    assert.equal(readiness.recordPlan.length, 2);
+    assert.equal(readiness.recordPlan.length, 3);
     assert.equal(readiness.recordPlan[0].zone, "LifeOSChatZone");
     assert.deepEqual(readiness.recordPlan[0].recordTypes.slice(0, 2), ["LifeOSConversation", "LifeOSMessage"]);
     assert.equal(readiness.recordPlan[0].forbiddenFields.some((item) => item.toLowerCase().includes("key")), true);
     assert.equal(readiness.recordPlan[1].zone, "LifeOSMemoryZone");
+    assert.equal(readiness.recordPlan[2].zone, "LifeOSDeviceTrustZone");
+    assert.equal(readiness.recordPlan[2].safeFields.includes("publicKeyFingerprint"), true);
+    assert.equal(readiness.recordPlan[2].forbiddenFields.includes("accessTokenHash"), true);
     assert.equal(readiness.requiredNativeCapabilities.includes("change-token-fetch"), true);
     assert.equal(readiness.nativeHelperContract.transport, "json-stdio");
     assert.equal(readiness.nativeHelperContract.operations.includes("roundtrip"), true);
@@ -137,14 +140,15 @@ test("CloudKit record plan never includes blocked data types", async () => {
     process.env.LIFEOS_CLOUDKIT_BUNDLE_ID = "ai.lifeos.desktop";
     process.env.LIFEOS_CLOUDKIT_HELPER_BIN = helper;
     process.env.LIFEOS_CLOUDKIT_ENTITLEMENTS_PATH = entitlements;
-    process.env.LIFEOS_CLOUDKIT_SYNC_TYPES = "tasks,generated-app-state,raw-tokens,sqlite-database,session-cookies";
+    process.env.LIFEOS_CLOUDKIT_SYNC_TYPES = "tasks,generated-app-state,device-trust,raw-tokens,sqlite-database,session-cookies,device-credentials";
 
     const { getIcloudDataSyncReadiness } = await import(`../server/icloudDataSyncReadiness.ts?case=record-plan-${Date.now()}`);
     const readiness = getIcloudDataSyncReadiness({ platformSupported: true });
-    assert.deepEqual(readiness.selectedDataTypes, ["tasks", "generated-app-state"]);
-    assert.deepEqual(readiness.recordPlan.map((item) => item.dataType), ["tasks", "generated-app-state"]);
-    assert.deepEqual(readiness.blockedDataTypes, ["raw-tokens", "sqlite-database", "session-cookies"]);
+    assert.deepEqual(readiness.selectedDataTypes, ["tasks", "generated-app-state", "device-trust"]);
+    assert.deepEqual(readiness.recordPlan.map((item) => item.dataType), ["tasks", "generated-app-state", "device-trust"]);
+    assert.deepEqual(readiness.blockedDataTypes, ["raw-tokens", "sqlite-database", "session-cookies", "device-credentials"]);
     assert.equal(readiness.recordPlan.some((item) => item.dataType === "raw-tokens" || item.dataType === "sqlite-database"), false);
+    assert.equal(readiness.recordPlan.some((item) => item.dataType === "device-trust"), true);
   } finally {
     restoreEnv(env);
     await rm(dir, { recursive: true, force: true });

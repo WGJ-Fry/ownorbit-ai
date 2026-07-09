@@ -2,7 +2,7 @@ import { accessSync, constants, existsSync, readFileSync } from "fs";
 import path from "path";
 import { cloudKitNativeHelperContract } from "./cloudKitNativeHelper.ts";
 
-const safeCloudKitDataTypes = ["chat-history", "memory", "tasks", "generated-app-state"] as const;
+const safeCloudKitDataTypes = ["chat-history", "memory", "tasks", "generated-app-state", "device-trust"] as const;
 const blockedCloudKitDataTypes = ["ai-keys", "device-credentials", "session-cookies", "raw-tokens", "sqlite-database"] as const;
 
 type SafeCloudKitDataType = typeof safeCloudKitDataTypes[number];
@@ -66,6 +66,16 @@ const cloudKitRecordPlans: Record<SafeCloudKitDataType, {
     forbiddenFields: ["secretEnv", "aiKey", "rawToken", "sessionCookie", "deviceCredential", "localFilePath"],
     mutationModel: "Versioned snapshots plus ordered mutations; conflicting edits create a new candidate version.",
     conflictPolicy: "Never overwrite generated app state silently; compare versions before merging.",
+    requiresUserReview: true,
+  },
+  "device-trust": {
+    dataType: "device-trust",
+    zone: "LifeOSDeviceTrustZone",
+    recordTypes: ["LifeOSDeviceTrust", "LifeOSSyncCheckpoint"],
+    safeFields: ["deviceIdHash", "displayName", "deviceType", "trustState", "publicKeyFingerprint", "accessExpiresAt", "createdAt", "lastSeenAt", "revokedAt", "mutationId", "logicalClock"],
+    forbiddenFields: ["accessToken", "accessTokenHash", "rawDeviceCredential", "devicePrivateKey", "sessionCookie", "privateKey", "sqliteDatabase"],
+    mutationModel: "Metadata-only device trust snapshots; raw credentials never leave the local device.",
+    conflictPolicy: "Imported devices require rebind or explicit trust review before local access is granted.",
     requiresUserReview: true,
   },
 };
@@ -177,7 +187,7 @@ export function getIcloudDataSyncReadiness(options: { platformSupported?: boolea
     "missing-apple-identity": "Set LIFEOS_CLOUDKIT_TEAM_ID and LIFEOS_CLOUDKIT_BUNDLE_ID for the signed Apple app.",
     "missing-native-helper": "Build or configure the native CloudKit helper and set LIFEOS_CLOUDKIT_HELPER_BIN.",
     "missing-entitlements": "Point LIFEOS_CLOUDKIT_ENTITLEMENTS_PATH at entitlements that include the CloudKit container.",
-    "no-data-types": "Set LIFEOS_CLOUDKIT_SYNC_TYPES to one or more safe types: chat-history, memory, tasks, generated-app-state.",
+    "no-data-types": "Set LIFEOS_CLOUDKIT_SYNC_TYPES to one or more safe types: chat-history, memory, tasks, generated-app-state, device-trust.",
     "ready-to-test": "Run the native helper acceptance test before claiming real iCloud data sync.",
   };
 
@@ -208,7 +218,7 @@ export function getIcloudDataSyncReadiness(options: { platformSupported?: boolea
       acceptanceGate("apple-identity", teamId && bundleId ? "passed" : "blocked", teamId && bundleId ? "Team and bundle identifiers are configured." : "Set LIFEOS_CLOUDKIT_TEAM_ID and LIFEOS_CLOUDKIT_BUNDLE_ID."),
       acceptanceGate("native-helper", helperExecutable ? "passed" : "blocked", helperExecutable ? "Native helper is detected and executable." : "Build a signed CloudKit helper and set LIFEOS_CLOUDKIT_HELPER_BIN."),
       acceptanceGate("entitlements", entitlementReady ? "passed" : "blocked", entitlementReady ? "Entitlements mention CloudKit and the selected container." : "Point LIFEOS_CLOUDKIT_ENTITLEMENTS_PATH at CloudKit entitlements for this container."),
-      acceptanceGate("safe-data-types", selectedDataTypes.length ? "passed" : "blocked", selectedDataTypes.length ? "At least one safe data class is selected." : "Choose safe data types such as chat-history, memory, tasks, or generated-app-state."),
+      acceptanceGate("safe-data-types", selectedDataTypes.length ? "passed" : "blocked", selectedDataTypes.length ? "At least one safe data class is selected." : "Choose safe data types such as chat-history, memory, tasks, generated-app-state, or device-trust."),
       acceptanceGate("blocked-types-filtered", blockedDataTypes.length ? "manual-required" : "passed", blockedDataTypes.length ? "Unsafe requested data types were filtered and must be removed before release." : "No unsafe data type was requested."),
       acceptanceGate("backup-before-first-sync", ready ? "manual-required" : "blocked", ready ? "Create and verify a local SQLite backup before first CloudKit write." : "Backup gate opens only after native CloudKit readiness passes."),
       acceptanceGate("helper-roundtrip", ready ? "manual-required" : "blocked", ready ? "Run a native helper create/fetch/delete roundtrip in the private CloudKit database." : "Roundtrip gate opens only after native CloudKit readiness passes."),
