@@ -244,7 +244,7 @@ process.stdin.on("end", () => {
     ok: true,
     accountStatus: "available",
     containerReachable: true,
-    capabilitiesVerified: request.requiredNativeCapabilities,
+    capabilitiesVerified: ["container-reachability", ...request.requiredNativeCapabilities, "create-fetch-delete-roundtrip"],
     roundtrip: {
       created: true,
       fetched: true,
@@ -294,7 +294,7 @@ process.stdin.on("end", () => {
     ok: true,
     accountStatus: "available",
     containerReachable: true,
-    capabilitiesVerified: [...request.requiredNativeCapabilities, "sync-export-save"],
+    capabilitiesVerified: ["container-reachability", ...request.requiredNativeCapabilities, "sync-export-save"],
     syncExport: {
       attempted: records.length,
       saved: records.length,
@@ -368,7 +368,7 @@ process.stdin.on("end", () => {
     ok: true,
     accountStatus: "available",
     containerReachable: true,
-    capabilitiesVerified: [...request.requiredNativeCapabilities, "sync-import-preview-query"],
+    capabilitiesVerified: ["container-reachability", ...request.requiredNativeCapabilities, "sync-import-preview-query"],
     syncImportPreview: {
       scannedZones: [...new Set(plans.map((plan) => plan.zone))],
       scannedRecordTypes: [...new Set(plans.flatMap((plan) => plan.recordTypes || []))],
@@ -435,7 +435,7 @@ process.stdin.on("end", () => {
     ok: true,
     accountStatus: "available",
     containerReachable: true,
-    capabilitiesVerified: [...request.requiredNativeCapabilities, "sync-changes-preview"],
+    capabilitiesVerified: ["container-reachability", ...request.requiredNativeCapabilities, "sync-changes-preview"],
     syncChangesPreview: {
       scannedZones: zones,
       changed: 1,
@@ -524,7 +524,7 @@ process.stdin.on("end", () => {
     ok: true,
     accountStatus: "available",
     containerReachable: true,
-    capabilitiesVerified: [...request.requiredNativeCapabilities, "sync-import-quarantine"],
+    capabilitiesVerified: ["container-reachability", ...request.requiredNativeCapabilities, "sync-import-quarantine"],
     syncImportQuarantine: {
       scannedZones: zones,
       changed: 1,
@@ -662,6 +662,57 @@ test("CloudKit helper reports missing native capabilities instead of overstating
     assert.equal(result.missingNativeCapabilities.includes("subscription-push"), true);
     assert.equal(result.missingNativeCapabilities.includes("change-token-fetch"), true);
     assert.equal(result.capabilitiesVerified.includes("private-database"), true);
+  } finally {
+    restoreEnv(env);
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit helper fails an operation when its required native capability proof is missing", async () => {
+  const env = snapshotEnv();
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-helper-operation-capability-"));
+  try {
+    await configureReadyCloudKitEnv(dir);
+    const readiness = getIcloudDataSyncReadiness({ platformSupported: true });
+    const result = await runCloudKitNativeHelper(readiness, {
+      operation: "sync-changes-preview",
+      syncState: {
+        generatedAt: "2026-01-02T03:04:04.000Z",
+        zones: [{ zone: "LifeOSChatZone", serverChangeToken: "opaque-previous-token", tokenState: "applied", updatedAt: 1 }],
+      },
+      runCommand: async () => ({
+        exitCode: 0,
+        timedOut: false,
+        stdout: JSON.stringify({
+          protocolVersion: 1,
+          schema: CLOUDKIT_NATIVE_HELPER_RESPONSE_SCHEMA,
+          operation: "sync-changes-preview",
+          ok: true,
+          accountStatus: "available",
+          containerReachable: true,
+          capabilitiesVerified: ["account-status", "private-database", "container-reachability", "custom-zones"],
+          syncChangesPreview: {
+            scannedZones: ["LifeOSChatZone"],
+            changed: 0,
+            deleted: 0,
+            failed: 0,
+            moreComing: false,
+            rawPayloadIncluded: false,
+            zones: [],
+            changedRecords: [],
+            deletedRecords: [],
+          },
+          evidenceId: "incomplete-changes-preview-evidence",
+        }),
+        stderr: "",
+      }),
+    });
+    assert.equal(result.status, "failed");
+    assert.equal(result.ok, false);
+    assert.equal(result.operationCapabilityCoverageOk, false);
+    assert.equal(result.requiredOperationCapabilities.includes("change-token-fetch"), true);
+    assert.equal(result.missingOperationCapabilities.includes("change-token-fetch"), true);
+    assert.match(result.errors.join("\n"), /required operation capabilities/);
   } finally {
     restoreEnv(env);
     await rm(dir, { recursive: true, force: true });

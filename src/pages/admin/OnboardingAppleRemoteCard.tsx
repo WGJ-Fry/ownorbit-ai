@@ -1644,6 +1644,16 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                           })}
                         </div>
                       ) : null}
+                      <div>{t("onboarding.appleRemoteIcloudDataSyncHelperOperationCoverage", {
+                        value: `${(cloudKitHelperResult.requiredOperationCapabilities?.length || 0) - (cloudKitHelperResult.missingOperationCapabilities?.length || 0)}/${cloudKitHelperResult.requiredOperationCapabilities?.length || 0}`,
+                      })}</div>
+                      {cloudKitHelperResult.missingOperationCapabilities?.length ? (
+                        <div className="font-sans text-red-100">
+                          {t("onboarding.appleRemoteIcloudDataSyncHelperMissingOperationCapabilities", {
+                            value: cloudKitHelperResult.missingOperationCapabilities.join(", "),
+                          })}
+                        </div>
+                      ) : null}
                       <div>{t("onboarding.appleRemoteIcloudDataSyncHelperRoundtripResult", {
                         value: cloudKitHelperResult.roundtrip
                           ? `${cloudKitHelperResult.roundtrip.created}/${cloudKitHelperResult.roundtrip.fetched}/${cloudKitHelperResult.roundtrip.deleted}`

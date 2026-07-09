@@ -18,6 +18,15 @@ type IcloudDataSyncReadiness = ReturnType<typeof getIcloudDataSyncReadiness>;
 export type CloudKitNativeHelperOperation = "probe" | "roundtrip" | "sync-export" | "sync-import-preview" | "sync-changes-preview" | "sync-import-quarantine";
 export type CloudKitNativeHelperRunStatus = "passed" | "failed" | "skipped";
 
+const operationRequiredNativeCapabilities: Record<CloudKitNativeHelperOperation, string[]> = {
+  probe: ["account-status", "private-database", "container-reachability"],
+  roundtrip: ["account-status", "private-database", "container-reachability", "custom-zones", "create-fetch-delete-roundtrip"],
+  "sync-export": ["account-status", "private-database", "container-reachability", "custom-zones", "sync-export-save"],
+  "sync-import-preview": ["account-status", "private-database", "container-reachability", "custom-zones", "sync-import-preview-query"],
+  "sync-changes-preview": ["account-status", "private-database", "container-reachability", "custom-zones", "change-token-fetch", "sync-changes-preview"],
+  "sync-import-quarantine": ["account-status", "private-database", "container-reachability", "custom-zones", "change-token-fetch", "sync-import-quarantine"],
+};
+
 export type CloudKitNativeHelperSyncState = {
   generatedAt?: string;
   zones?: Array<{
@@ -270,6 +279,10 @@ function nativeCapabilityCoverage(required: string[], verified: string[]) {
   };
 }
 
+function requiredCapabilitiesForOperation(operation: CloudKitNativeHelperOperation) {
+  return operationRequiredNativeCapabilities[operation] || [];
+}
+
 export function cloudKitNativeHelperContract() {
   return {
     protocolVersion: CLOUDKIT_NATIVE_HELPER_PROTOCOL_VERSION,
@@ -346,6 +359,9 @@ function skippedResult(operation: CloudKitNativeHelperOperation, readinessStatus
     readinessStatus,
     reason,
     helperProtocol: cloudKitNativeHelperContract(),
+    requiredOperationCapabilities: requiredCapabilitiesForOperation(operation),
+    missingOperationCapabilities: requiredCapabilitiesForOperation(operation),
+    operationCapabilityCoverageOk: false,
     roundtrip: normalizeRoundtrip(undefined),
     syncExport: normalizeSyncExport(undefined),
     syncImportPreview: normalizeSyncImportPreview(undefined),
@@ -391,6 +407,7 @@ export async function runCloudKitNativeHelper(
   const syncImportQuarantine = normalizeSyncImportQuarantine(payload?.syncImportQuarantine);
   const capabilitiesVerified = normalizeStringList(payload?.capabilitiesVerified || payload?.capabilities, 32);
   const capabilityCoverage = nativeCapabilityCoverage(readiness.requiredNativeCapabilities, capabilitiesVerified);
+  const operationCapabilityCoverage = nativeCapabilityCoverage(requiredCapabilitiesForOperation(operation), capabilitiesVerified);
   const operationMatches = payload?.operation === operation;
   const protocolMatches = payload?.protocolVersion === CLOUDKIT_NATIVE_HELPER_PROTOCOL_VERSION &&
     payload?.schema === CLOUDKIT_NATIVE_HELPER_RESPONSE_SCHEMA;
@@ -398,7 +415,7 @@ export async function runCloudKitNativeHelper(
   const roundtripOk = operation !== "roundtrip" || (roundtrip.created && roundtrip.fetched && roundtrip.deleted);
   const syncExportOk = operation !== "sync-export" || (syncExport.attempted > 0 && syncExport.saved === syncExport.attempted && syncExport.failed === 0);
   const syncImportQuarantineOk = operation !== "sync-import-quarantine" || syncImportQuarantine.failed === 0;
-  const passed = command.exitCode === 0 && !command.timedOut && responseOk && protocolMatches && operationMatches && roundtripOk && syncExportOk && syncImportQuarantineOk;
+  const passed = command.exitCode === 0 && !command.timedOut && responseOk && protocolMatches && operationMatches && operationCapabilityCoverage.complete && roundtripOk && syncExportOk && syncImportQuarantineOk;
   const payloadWarnings = normalizeStringList(payload?.warnings).map((item) => redact(item, 240));
   const payloadErrors = normalizeStringList(payload?.errors).map((item) => redact(item, 240));
   const errors = [
@@ -406,6 +423,7 @@ export async function runCloudKitNativeHelper(
     ...(payload ? [] : ["Helper stdout was not valid JSON."]),
     ...(protocolMatches ? [] : ["Helper protocol response did not match LifeOS CloudKit helper v1."]),
     ...(operationMatches ? [] : ["Helper operation did not match the request."]),
+    ...(operationCapabilityCoverage.complete ? [] : [`Helper did not verify required operation capabilities: ${operationCapabilityCoverage.missing.join(", ")}.`]),
     ...(command.timedOut ? ["Helper timed out."] : []),
   ];
 
@@ -424,6 +442,9 @@ export async function runCloudKitNativeHelper(
     requiredNativeCapabilities: capabilityCoverage.required,
     missingNativeCapabilities: capabilityCoverage.missing,
     nativeCapabilityCoverageOk: capabilityCoverage.complete,
+    requiredOperationCapabilities: operationCapabilityCoverage.required,
+    missingOperationCapabilities: operationCapabilityCoverage.missing,
+    operationCapabilityCoverageOk: operationCapabilityCoverage.complete,
     roundtrip,
     syncExport,
     syncImportPreview,

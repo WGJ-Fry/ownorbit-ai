@@ -1426,6 +1426,9 @@ export type CloudKitNativeHelperResult = {
   requiredNativeCapabilities?: string[];
   missingNativeCapabilities?: string[];
   nativeCapabilityCoverageOk?: boolean;
+  requiredOperationCapabilities?: string[];
+  missingOperationCapabilities?: string[];
+  operationCapabilityCoverageOk?: boolean;
   roundtrip?: {
     created: boolean;
     fetched: boolean;

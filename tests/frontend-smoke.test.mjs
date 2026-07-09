@@ -1046,8 +1046,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /acceptanceGates: Array/);
   assert.match(lifeosApiSource, /dataSyncScope: "entry-file-only" \| "cloudkit-native-candidate"/);
   assert.match(lifeosApiSource, /missingNativeCapabilities/);
+  assert.match(lifeosApiSource, /missingOperationCapabilities/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudDataSyncHelperCapabilityCoverage/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudDataSyncHelperMissingCapabilities/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudDataSyncHelperOperationCoverage/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudDataSyncHelperMissingOperationCapabilities/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-quarantine-next/);
   assert.match(onboardingAppleRemoteSource, /data-cloudkit-quarantine-next/);
   assert.match(onboardingAppleRemoteSource, /cloudKitQuarantineNextAction/);
@@ -1058,6 +1061,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Capability coverage/);
   assert.match(translationsSource, /未验证能力/);
   assert.match(translationsSource, /Unverified capabilities/);
+  assert.match(translationsSource, /本次操作覆盖/);
+  assert.match(translationsSource, /This operation/);
+  assert.match(translationsSource, /本次操作缺少证明/);
+  assert.match(translationsSource, /Missing proof for this operation/);
   assert.match(translationsSource, /二维码已过期/);
   assert.match(translationsSource, /QR has expired/);
   assert.match(translationsSource, /Apple 设备验收/);
