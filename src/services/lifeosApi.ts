@@ -83,6 +83,7 @@ export type IcloudHandoffRepairAnalysis = {
   parsed: {
     status: string;
     action: string;
+    oneNextAction: string;
     entryBaseUrl: string;
     currentBaseUrl: string;
     mode: string;
@@ -106,12 +107,12 @@ export type IcloudHandoffRepairAnalysis = {
     recommendedStability: string;
   };
   recommendations: Array<{
-    id: "refresh-icloud" | "open-latest-entry" | "regenerate-qr" | "start-tailscale" | "start-cloudflare" | "save-stable-entry" | "test-phone-entry" | "ready";
+    id: "refresh-icloud" | "open-latest-entry" | "regenerate-qr" | "start-tailscale" | "start-cloudflare" | "save-stable-entry" | "test-phone-entry" | "cleanup-old-entry" | "ready";
     severity: "ok" | "warning" | "danger";
     detail: string;
   }>;
   nextAction: {
-    id: "refresh-icloud" | "open-latest-entry" | "regenerate-qr" | "start-tailscale" | "start-cloudflare" | "save-stable-entry" | "test-phone-entry" | "ready";
+    id: "refresh-icloud" | "open-latest-entry" | "regenerate-qr" | "start-tailscale" | "start-cloudflare" | "save-stable-entry" | "test-phone-entry" | "cleanup-old-entry" | "ready";
     severity: "ok" | "warning" | "danger";
     detail: string;
   };

@@ -1627,6 +1627,7 @@ test("iCloud repair packet analysis compares phone entry with current desktop en
     "LifeOS iCloud Mobile Entry Recovery",
     "status=stale",
     "action=mobileDevice.icloudHandoffActionRefresh",
+    "oneNextAction=refresh-icloud-entry",
     "entryBaseUrl=https://old-lifeos.example.com",
     "currentBaseUrl=https://old-lifeos.example.com/mobile/chat?token=should-not-survive",
     "mode=cloudflare",
@@ -1639,6 +1640,7 @@ test("iCloud repair packet analysis compares phone entry with current desktop en
 
   assert.equal(analysis.reason, "desktop-entry-changed");
   assert.equal(analysis.severity, "danger");
+  assert.equal(analysis.parsed.oneNextAction, "refresh-icloud-entry");
   assert.equal(analysis.parsed.entryBaseUrl, "https://old-lifeos.example.com");
   assert.equal(analysis.parsed.currentBaseUrl, "https://old-lifeos.example.com/mobile/chat");
   assert.equal(analysis.desktop.recommendedBaseUrl, "https://new-lifeos.example.com");
@@ -1647,6 +1649,19 @@ test("iCloud repair packet analysis compares phone entry with current desktop en
   assert.equal(analysis.nextAction.id, "refresh-icloud");
   assert.equal(analysis.nextAction.severity, "danger");
   assert.equal(JSON.stringify(analysis).includes("should-not-survive"), false);
+
+  const cleanupAnalysis = analyzeIcloudHandoffRepairPacket([
+    "LifeOS iCloud Mobile Entry Recovery",
+    "status=fresh",
+    "action=mobileDevice.icloudHandoffActionReady",
+    "oneNextAction=cleanup-old-entry",
+    "entryBaseUrl=https://new-lifeos.example.com",
+    "currentBaseUrl=https://new-lifeos.example.com/mobile/chat",
+    "lastConnectivityOk=true",
+  ].join("\n"));
+  assert.equal(cleanupAnalysis.parsed.oneNextAction, "cleanup-old-entry");
+  assert.equal(cleanupAnalysis.recommendations.some((item) => item.id === "cleanup-old-entry"), true);
+  assert.equal(cleanupAnalysis.nextAction.id, "cleanup-old-entry");
 });
 
 test("iCloud availability detects placeholder files that are still syncing", async (t) => {

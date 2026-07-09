@@ -1723,6 +1723,7 @@ type IcloudRepairRecommendationId =
   | "start-cloudflare"
   | "save-stable-entry"
   | "test-phone-entry"
+  | "cleanup-old-entry"
   | "ready";
 
 type IcloudRepairRecommendation = {
@@ -1739,6 +1740,7 @@ const ICLOUD_REPAIR_NEXT_ACTION_PRIORITY: IcloudRepairRecommendationId[] = [
   "save-stable-entry",
   "open-latest-entry",
   "test-phone-entry",
+  "cleanup-old-entry",
   "ready",
 ];
 
@@ -1762,6 +1764,7 @@ export function analyzeIcloudHandoffRepairPacket(text: unknown) {
   const desktopExportedBaseUrl = diagnostics.icloud.handoffHealth.lastExportedBaseUrl || "";
   const phoneStatus = String(parsed.fields.status || "unknown").slice(0, 80);
   const phoneAction = String(parsed.fields.action || "").slice(0, 120);
+  const phoneOneNextAction = String(parsed.fields.oneNextAction || "").slice(0, 80);
   const lastConnectivityOk = parseRepairBool(parsed.fields.lastConnectivityOk);
   const generatedAt = parseRepairTime(parsed.fields.generatedAt);
   const expiresAt = parseRepairTime(parsed.fields.expiresAt);
@@ -1818,6 +1821,16 @@ export function analyzeIcloudHandoffRepairPacket(text: unknown) {
     addRecommendation("test-phone-entry", "warning", "The phone reported that the last connectivity check failed.");
   }
 
+  if (phoneOneNextAction === "setup-remote-entry") {
+    reason = reason === "ready" ? "desktop-local-or-lan" : reason;
+    addRecommendation("start-tailscale", "warning", "The phone says this iCloud entry only works on the same Wi-Fi. Start Tailscale HTTPS Serve for stable off-LAN access.");
+    addRecommendation("start-cloudflare", "warning", "Use Cloudflare Tunnel if you need a temporary HTTPS entry right now.");
+  } else if (phoneOneNextAction === "switch-remote-entry") {
+    addRecommendation("open-latest-entry", "warning", "The phone has a remote-ready entry available. Refresh iCloud or open the latest entry on the phone.");
+  } else if (phoneOneNextAction === "cleanup-old-entry") {
+    addRecommendation("cleanup-old-entry", "warning", "The phone reports old iCloud entries are still present. Clean them up on the desktop.");
+  }
+
   const entryMode = modeFromBaseUrl(desktopRecommendedBaseUrl);
   if (diagnostics.remoteReadiness.status === "local-only" || diagnostics.remoteReadiness.status === "lan-only" || entryMode === "local" || entryMode === "lan") {
     reason = reason === "ready" ? "desktop-local-or-lan" : reason;
@@ -1841,6 +1854,7 @@ export function analyzeIcloudHandoffRepairPacket(text: unknown) {
     parsed: {
       status: phoneStatus,
       action: phoneAction,
+      oneNextAction: phoneOneNextAction,
       entryBaseUrl: phoneEntryBaseUrl,
       currentBaseUrl: phoneCurrentBaseUrl,
       mode: String(parsed.fields.mode || ""),

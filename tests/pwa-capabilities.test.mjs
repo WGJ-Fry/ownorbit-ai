@@ -460,6 +460,8 @@ test("mobile iCloud handoff stores non-sensitive entry metadata and detects stal
   assert.equal(getMobileIcloudHandoffOneNextAction({ ...fresh, entry: { ...fresh.entry, lastConnectivityTestedAt: now + 1_500, lastConnectivityOk: true } }, { archivedEntryCount: 2 }).id, "cleanup-old-entry");
   assert.match(buildMobileIcloudHandoffRecoveryPacket(legacy), /status=legacy/);
   assert.match(buildMobileIcloudHandoffRecoveryPacket(legacy), /oneNextAction=refresh-icloud-entry/);
+  assert.match(buildMobileIcloudHandoffRecoveryPacket(fresh, { currentSameWifiOnly: true }), /oneNextAction=setup-remote-entry/);
+  assert.match(buildMobileIcloudHandoffRecoveryPacket({ ...fresh, entry: { ...fresh.entry, lastConnectivityTestedAt: now + 1_500, lastConnectivityOk: true } }, { archivedEntryCount: 2 }), /oneNextAction=cleanup-old-entry/);
   const packet = buildMobileIcloudHandoffRecoveryPacket(mismatch);
   assert.match(packet, /LifeOS iCloud Mobile Entry Recovery/);
   assert.match(packet, /entryBaseUrl=https:\/\/lifeos\.example\.com/);

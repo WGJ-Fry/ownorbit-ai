@@ -254,6 +254,7 @@ function publicIcloudRepairImport(repairImport: ReturnType<typeof getNetworkDiag
     parsed: {
       status: repairImport.parsed.status,
       action: repairImport.parsed.action,
+      oneNextAction: repairImport.parsed.oneNextAction,
       entryBaseUrl: redactDiagnosticActionUrl(repairImport.parsed.entryBaseUrl),
       currentBaseUrl: redactDiagnosticActionUrl(repairImport.parsed.currentBaseUrl),
       mode: repairImport.parsed.mode,

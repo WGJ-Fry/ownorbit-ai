@@ -158,10 +158,11 @@ export default function MobileRemoteEntryCard({
     ? "mobileDevice.icloudHandoffOpenRecommendedAction"
     : "mobileDevice.icloudHandoffMakeRecommendedDefault";
   const currentIcloudSameWifiOnly = Boolean(icloudHandoffStatus && isMobileIcloudHandoffSameWifiOnly(icloudHandoffStatus.entry));
+  const hasRecommendedRemoteIcloudEntry = Boolean(recommendedIcloudEntry && recommendedIcloudEntryKey !== currentIcloudEntryKey && !isMobileIcloudHandoffSameWifiOnly(recommendedIcloudEntry));
   const icloudStatusOneNextAction = icloudHandoffStatus ? getMobileIcloudHandoffOneNextAction(icloudHandoffStatus, {
     archivedEntryCount: archivedIcloudEntries.length,
     currentSameWifiOnly: currentIcloudSameWifiOnly,
-    hasRecommendedRemoteEntry: Boolean(recommendedIcloudEntry && recommendedIcloudEntryKey !== currentIcloudEntryKey && !isMobileIcloudHandoffSameWifiOnly(recommendedIcloudEntry)),
+    hasRecommendedRemoteEntry: hasRecommendedRemoteIcloudEntry,
   }) : null;
   const icloudServerRepairOneNextAction = icloudServerRepair ? getMobileIcloudHandoffServerRepairOneNextAction(icloudServerRepair) : null;
   const showIcloudStatusOneNextAction = Boolean(icloudStatusOneNextAction && !hasIcloudOneNextAction);
@@ -170,7 +171,11 @@ export default function MobileRemoteEntryCard({
     : "mobileDevice.icloudHandoffRecommendedBody") as any;
   const copyIcloudRecoveryPacket = async () => {
     if (!icloudHandoffStatus) return;
-    await navigator.clipboard.writeText(buildMobileIcloudHandoffRecoveryPacket(icloudHandoffStatus)).catch(() => null);
+    await navigator.clipboard.writeText(buildMobileIcloudHandoffRecoveryPacket(icloudHandoffStatus, {
+      archivedEntryCount: archivedIcloudEntries.length,
+      currentSameWifiOnly: currentIcloudSameWifiOnly,
+      hasRecommendedRemoteEntry: hasRecommendedRemoteIcloudEntry,
+    })).catch(() => null);
     setCopiedIcloudPacket(true);
     window.setTimeout(() => setCopiedIcloudPacket(false), 1400);
   };

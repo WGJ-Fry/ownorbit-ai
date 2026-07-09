@@ -1787,6 +1787,9 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("repairRecommendationHintKeys") &&
     onboardingAppleRemoteSource.includes("wrapAction") &&
     onboardingAppleRemoteSource.includes("onClick={onExportIcloud}") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-repair-cleanup-action") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudRepairRecCleanup") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudRepairHintCleanup") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-latest-repair-primary-action") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-latest-repair-secondary-actions") &&
     onboardingAppleRemoteSource.includes("renderRepairRecommendationAction(latestRepairImportNextAction)") &&
@@ -1878,10 +1881,14 @@ function checkAssets() {
     mobileIcloudHandoffSource.includes("oneNextAction=") &&
     mobileIcloudHandoffSource.includes("test-phone-connection") &&
     mobileIcloudHandoffSource.includes("setup-remote-entry") &&
+    mobileIcloudHandoffSource.includes("cleanup-old-entry") &&
     mobileIcloudHandoffSource.includes("regenerate-qr") &&
     mobileRemoteEntryCardSource.includes("mobile-icloud-status-one-next") &&
     mobileRemoteEntryCardSource.includes("data-mobile-icloud-status-one-next") &&
     mobileRemoteEntryCardSource.includes("icloudStatusOneNextAction") &&
+    mobileRemoteEntryCardSource.includes("hasRecommendedRemoteIcloudEntry") &&
+    mobileRemoteEntryCardSource.includes("archivedEntryCount") &&
+    mobileRemoteEntryCardSource.includes("currentSameWifiOnly") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffDefaultSwitchSameWifi") &&
     translationsSource.includes("默认电脑入口只能同 Wi-Fi 使用") &&
     translationsSource.includes("Your default desktop entry only works on the same Wi-Fi") &&

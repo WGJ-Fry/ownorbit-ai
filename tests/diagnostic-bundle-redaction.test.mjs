@@ -220,6 +220,7 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
     parsed: {
       status: "stale",
       action: "mobileDevice.icloudHandoffActionRefresh",
+      oneNextAction: "setup-remote-entry",
       entryBaseUrl: "https://user:password@old.example.com/lifeos?token=repair-import-secret#debug",
       currentBaseUrl: "https://user:password@old.example.com/lifeos/mobile/chat?token=repair-import-secret",
       mode: "cloudflare",

@@ -13,6 +13,7 @@ export type IcloudRepairImportRecord = {
   parsed: {
     status: string;
     action: string;
+    oneNextAction: string;
     entryBaseUrl: string;
     currentBaseUrl: string;
     mode: string;
@@ -85,6 +86,7 @@ const NEXT_ACTION_PRIORITY = [
   "save-stable-entry",
   "open-latest-entry",
   "test-phone-entry",
+  "cleanup-old-entry",
   "ready",
 ];
 
@@ -127,6 +129,7 @@ function normalizeRecord(value: unknown): IcloudRepairImportRecord | null {
     parsed: {
       status: safeText(parsed.status, 80),
       action: safeText(parsed.action, 140),
+      oneNextAction: safeText(parsed.oneNextAction, 80),
       entryBaseUrl: cleanUrl(parsed.entryBaseUrl),
       currentBaseUrl: cleanUrl(parsed.currentBaseUrl),
       mode: safeText(parsed.mode, 40),

@@ -1233,9 +1233,16 @@ function isoTime(value?: number) {
   return value ? new Date(value).toISOString() : "-";
 }
 
-export function buildMobileIcloudHandoffRecoveryPacket(status: MobileIcloudHandoffStatus) {
+export function buildMobileIcloudHandoffRecoveryPacket(
+  status: MobileIcloudHandoffStatus,
+  options: {
+    hasRecommendedRemoteEntry?: boolean;
+    currentSameWifiOnly?: boolean;
+    archivedEntryCount?: number;
+  } = {},
+) {
   const actionKey = getMobileIcloudHandoffActionKey(status);
-  const oneNext = getMobileIcloudHandoffOneNextAction(status);
+  const oneNext = getMobileIcloudHandoffOneNextAction(status, options);
   return [
     "LifeOS iCloud Mobile Entry Recovery",
     `status=${status.status}`,

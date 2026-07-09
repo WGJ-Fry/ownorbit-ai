@@ -868,6 +868,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /repairRecommendationHintKeys/);
   assert.match(onboardingAppleRemoteSource, /wrapAction/);
   assert.match(onboardingAppleRemoteSource, /onClick=\{onExportIcloud\}/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-repair-cleanup-action/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudRepairRecCleanup/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudRepairHintCleanup/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-latest-repair-primary-action/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-latest-repair-secondary-actions/);
   assert.match(onboardingAppleRemoteSource, /renderRepairRecommendationAction\(latestRepairImportNextAction\)/);
@@ -1392,6 +1395,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /data-mobile-icloud-status-one-next/);
   assert.match(mobileRemoteEntryCardSource, /icloudStatusOneNextAction/);
   assert.match(mobileRemoteEntryCardSource, /buildMobileIcloudHandoffRecoveryPacket/);
+  assert.match(mobileRemoteEntryCardSource, /hasRecommendedRemoteIcloudEntry/);
+  assert.match(mobileRemoteEntryCardSource, /archivedEntryCount/);
+  assert.match(mobileRemoteEntryCardSource, /currentSameWifiOnly/);
   assert.match(mobileRemoteEntryCardSource, /navigator\.clipboard\.writeText/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.copyIcloudHandoffRepair/);
   assert.match(mobileRemoteEntryCardSource, /icloudActionKey/);

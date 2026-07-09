@@ -252,6 +252,7 @@ const repairRecommendationKeys: Record<IcloudHandoffRepairAnalysis["recommendati
   "start-cloudflare": "onboarding.appleRemoteIcloudRepairRecCloudflare",
   "save-stable-entry": "onboarding.appleRemoteIcloudRepairRecStable",
   "test-phone-entry": "onboarding.appleRemoteIcloudRepairRecTest",
+  "cleanup-old-entry": "onboarding.appleRemoteIcloudRepairRecCleanup",
   ready: "onboarding.appleRemoteIcloudRepairRecReady",
 };
 
@@ -263,6 +264,7 @@ const repairRecommendationHintKeys: Record<IcloudHandoffRepairAnalysis["recommen
   "start-cloudflare": "onboarding.appleRemoteIcloudRepairHintCloudflare",
   "save-stable-entry": "onboarding.appleRemoteIcloudRepairHintStable",
   "test-phone-entry": "onboarding.appleRemoteIcloudRepairHintTest",
+  "cleanup-old-entry": "onboarding.appleRemoteIcloudRepairHintCleanup",
   ready: "onboarding.appleRemoteIcloudRepairHintReady",
 };
 
@@ -1237,6 +1239,21 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
         >
           {busy === "remote-test" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />}
           <span>{label}</span>
+        </button>
+      );
+    }
+
+    if (item.id === "cleanup-old-entry") {
+      return wrapAction(
+        <button
+          type="button"
+          data-testid="onboarding-icloud-repair-cleanup-action"
+          onClick={onCleanupIcloud}
+          disabled={isBusy}
+          className={`${actionClass} border-amber-300/20 bg-amber-500/10 text-amber-100`}
+        >
+          {isIcloudCleanupBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 shrink-0" />}
+          <span>{isIcloudCleanupBusy ? t("onboarding.appleRemoteIcloudCleanupCleaning") : label}</span>
         </button>
       );
     }
