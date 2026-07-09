@@ -413,6 +413,43 @@ function collectTaskRecords(limit: number) {
       requiresUserReview: task.status === "deleted",
     }), limit);
   }
+  const taskListState = db.prepare(`
+    SELECT key, value_json as valueJson, updated_at as updatedAt
+    FROM client_state
+    WHERE key = 'lifeos_tasks_pro'
+  `).get() as any;
+  if (taskListState) {
+    const value = safeJson(taskListState.valueJson, undefined);
+    const payload = {
+      taskListKey: "lifeos_tasks_pro",
+      items: Array.isArray(value)
+        ? value.map((item) => ({
+          id: typeof item?.id === "number" || typeof item?.id === "string" ? String(item.id).slice(0, 80) : stableIdHash(JSON.stringify(item)).slice(0, 16),
+          text: String(item?.text || "").replace(/\s+/g, " ").trim().slice(0, 500),
+          completed: Boolean(item?.completed),
+          priority: ["high", "medium", "low"].includes(String(item?.priority)) ? String(item.priority) : "medium",
+          createdAt: Number.isFinite(Number(item?.createdAt)) ? Number(item.createdAt) : 0,
+        }))
+        : undefined,
+      updatedAt: Number(taskListState.updatedAt || 0),
+    };
+    if (!Array.isArray(value)) {
+      pushBlocked(blockedRecords, { id: taskListState.key, dataType: "tasks", recordType: "LifeOSTaskListSnapshot", reason: "malformed-json", payload }, limit);
+    } else if (hasForbiddenField(value) || hasForbiddenValue(value) || hasForbiddenValue(payload)) {
+      pushBlocked(blockedRecords, { id: taskListState.key, dataType: "tasks", recordType: "LifeOSTaskListSnapshot", reason: hasForbiddenField(value) ? "unsafe-field" : "secret-like-content", payload }, limit);
+    } else {
+      pushReady(records, counts, buildRecord({
+        id: taskListState.key,
+        dataType: "tasks",
+        zone: "LifeOSTaskZone",
+        recordType: "LifeOSTaskListSnapshot",
+        recordName: `task-list:${taskListState.key}`,
+        payload,
+        logicalClock: payload.updatedAt,
+        requiresUserReview: false,
+      }), limit);
+    }
+  }
   return { records, blockedRecords, counts };
 }
 

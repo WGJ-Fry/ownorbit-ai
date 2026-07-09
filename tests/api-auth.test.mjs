@@ -3195,6 +3195,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const cloudKitAutoSyncAfterDeviceTrustChanges = await request(port, "/api/v1/admin/icloud-data-sync/auto-sync", { headers: adminHeaders }).then((res) => res.json());
   assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType["device-trust"], 7);
   assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType["generated-app-state"], 1);
+  assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType.tasks, 1);
   assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType["chat-history"] >= 1, true);
   assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType.memory, 3);
   assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.rawPayloadStored, false);

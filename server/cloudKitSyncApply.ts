@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { db } from "./db";
 import { getCloudKitSyncQuarantineSummary, listCloudKitSyncCheckpoints } from "./cloudKitSyncState";
+import { setClientState } from "./clientState";
 
 export const CLOUDKIT_SYNC_APPLY_CONFIRMATION = "APPLY_CLOUDKIT_QUARANTINE";
 
@@ -314,6 +315,34 @@ function applyTask(payload: Record<string, unknown>, row: QuarantineRow) {
   `).run(taskId, type, status, jsonValue(payload.input), payload.result === undefined ? null : jsonValue(payload.result), text(payload.error, 240) || null, createdAt, startedAt, finishedAt);
 }
 
+function normalizeTaskListSnapshotItems(value: unknown) {
+  if (!Array.isArray(value)) throw new Error("Task list snapshot items must be an array.");
+  return value.map((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) throw new Error("Task list snapshot item must be an object.");
+    const source = item as Record<string, unknown>;
+    const id = typeof source.id === "number" || typeof source.id === "string" ? source.id : text(source.text, 80, "synced-task");
+    const priority = ["high", "medium", "low"].includes(String(source.priority)) ? source.priority : "medium";
+    return {
+      id,
+      text: text(source.text, 500, "Synced task"),
+      completed: Boolean(source.completed),
+      priority,
+      createdAt: numberValue(source.createdAt, 0),
+    };
+  });
+}
+
+function applyTaskListSnapshot(payload: Record<string, unknown>, row: QuarantineRow) {
+  const taskListKey = idText(payload.taskListKey, 80);
+  if (taskListKey !== "lifeos_tasks_pro" || row.recordName !== `task-list:${taskListKey}`) {
+    throw new Error("Task list key does not match the CloudKit record name.");
+  }
+  const updatedAt = numberValue(payload.updatedAt, row.logicalClock || Date.now());
+  const existing = db.prepare("SELECT updated_at as updatedAt FROM client_state WHERE key = ?").get(taskListKey) as { updatedAt?: number } | undefined;
+  if (existing && Number(existing.updatedAt || 0) > updatedAt) throw new Error("Local task list is newer; manual conflict review required.");
+  setClientState(taskListKey, normalizeTaskListSnapshotItems(payload.items), { type: "cloudkit", id: "tasks" });
+}
+
 function applyGeneratedAppState(payload: Record<string, unknown>, row: QuarantineRow) {
   const appId = idText(payload.appId);
   if (!appId || row.recordName !== `generated-app-state:${appId}`) throw new Error("Generated app id does not match the CloudKit record name.");
@@ -430,6 +459,7 @@ function applyChangedRow(row: QuarantineRow, now: number) {
   if (row.recordType === "LifeOSMessage") return applyMessage(payload, row);
   if (row.recordType === "LifeOSMemory" || row.recordType === "LifeOSMemoryTombstone") return applyMemory(payload, row);
   if (row.recordType === "LifeOSTask" || row.recordType === "LifeOSTaskTombstone") return applyTask(payload, row);
+  if (row.recordType === "LifeOSTaskListSnapshot") return applyTaskListSnapshot(payload, row);
   if (row.recordType === "LifeOSGeneratedAppState") return applyGeneratedAppState(payload, row);
   if (row.recordType === "LifeOSDeviceTrust") return applyDeviceTrustMetadata(payload, row, now);
   throw new Error(`Unsupported CloudKit record type: ${row.recordType}`);

@@ -100,6 +100,24 @@ function runIsolatedCloudKitApply(env, scenario) {
       const payloadJson = JSON.stringify(taskPayload);
       db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'changed', 'auto-ready', ?, ?, ?, ?, ?, 0, ?, ?, NULL, ?, ?, NULL, NULL)")
         .run("q-task-new", "LifeOSTaskZone", "LifeOSTask", "task:remote-task", "task-mut", stableHash(taskPayload), stableHash(payloadJson), now + 2000, Buffer.byteLength(payloadJson), payloadJson, new Date(now + 2000).toISOString(), "evidence-task", now + 3000);
+    } else if (${JSON.stringify(scenario)} === "task-list-snapshot" || ${JSON.stringify(scenario)} === "task-list-local-newer") {
+      db.prepare("INSERT INTO cloudkit_sync_checkpoints (zone, applied_server_change_token, pending_server_change_token, token_state, last_evidence_id, last_preview_at, last_applied_at, changed_count, deleted_count, failed_count, more_coming, updated_at) VALUES (?, NULL, ?, 'pending-preview', ?, ?, NULL, ?, ?, 0, 0, ?)")
+        .run("LifeOSTaskZone", "opaque-task-list-token", "evidence-task-list", now, 1, 0, now);
+      if (${JSON.stringify(scenario)} === "task-list-local-newer") {
+        db.prepare("INSERT INTO client_state (key, value_json, updated_at, updated_by_type, updated_by_id) VALUES (?, ?, ?, 'device', 'local-phone')")
+          .run("lifeos_tasks_pro", JSON.stringify([{ id: "local-task", text: "Local task should stay", completed: false, priority: "high", createdAt: now + 1000 }]), now + 5000);
+      }
+      const taskListPayload = {
+        taskListKey: "lifeos_tasks_pro",
+        items: [
+          { id: "cloud-task-1", text: "Cloud task one", completed: false, priority: "high", createdAt: now + 1000 },
+          { id: "cloud-task-2", text: "Cloud task two", completed: true, priority: "low", createdAt: now + 1001 },
+        ],
+        updatedAt: now + 2000,
+      };
+      const payloadJson = JSON.stringify(taskListPayload);
+      db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'changed', 'auto-ready', ?, ?, ?, ?, ?, 0, ?, ?, NULL, ?, ?, NULL, NULL)")
+        .run("q-task-list", "LifeOSTaskZone", "LifeOSTaskListSnapshot", "task-list:lifeos_tasks_pro", "task-list-mut", stableHash(taskListPayload), stableHash(payloadJson), now + 2000, Buffer.byteLength(payloadJson), payloadJson, new Date(now + 2000).toISOString(), "evidence-task-list", now + 3000);
     } else if (${JSON.stringify(scenario)} === "generated-app-state" || ${JSON.stringify(scenario)} === "generated-app-state-missing-app" || ${JSON.stringify(scenario)} === "generated-app-state-local-newer") {
       db.prepare("INSERT INTO cloudkit_sync_checkpoints (zone, applied_server_change_token, pending_server_change_token, token_state, last_evidence_id, last_preview_at, last_applied_at, changed_count, deleted_count, failed_count, more_coming, updated_at) VALUES (?, NULL, ?, 'pending-preview', ?, ?, NULL, ?, ?, 0, 0, ?)")
         .run("LifeOSGeneratedAppZone", "opaque-generated-app-token", "evidence-generated-app", now, 1, 0, now);
@@ -159,12 +177,13 @@ function runIsolatedCloudKitApply(env, scenario) {
     const devices = db.prepare("SELECT id, name, access_token_hash as accessTokenHash FROM devices ORDER BY id").all();
     const trustMetadata = db.prepare("SELECT device_id_hash as deviceIdHash, display_name as displayName, device_type as deviceType, trust_state as trustState, public_key_fingerprint as publicKeyFingerprint, access_expires_at as accessExpiresAt, review_status as reviewStatus, access_granted as accessGranted, source_record_name as sourceRecordName, source_evidence_id as sourceEvidenceId, logical_clock as logicalClock, applied_at as appliedAt FROM cloudkit_device_trust_metadata ORDER BY device_id_hash").all();
     const customAppStates = db.prepare("SELECT app_id as appId, state_json as stateJson, updated_by_type as updatedByType, updated_at as updatedAt FROM custom_app_state ORDER BY app_id").all();
+    const taskClientState = db.prepare("SELECT value_json as valueJson, updated_at as updatedAt, updated_by_type as updatedByType, updated_by_id as updatedById FROM client_state WHERE key = 'lifeos_tasks_pro'").get();
     const checkpoint = db.prepare("SELECT token_state as tokenState, applied_server_change_token as appliedToken, pending_server_change_token as pendingToken, last_applied_at as lastAppliedAt FROM cloudkit_sync_checkpoints WHERE zone = 'LifeOSChatZone'").get();
     const memoryCheckpoint = db.prepare("SELECT token_state as tokenState, applied_server_change_token as appliedToken, pending_server_change_token as pendingToken, last_applied_at as lastAppliedAt FROM cloudkit_sync_checkpoints WHERE zone = 'LifeOSMemoryZone'").get();
     const taskCheckpoint = db.prepare("SELECT token_state as tokenState, applied_server_change_token as appliedToken, pending_server_change_token as pendingToken, last_applied_at as lastAppliedAt FROM cloudkit_sync_checkpoints WHERE zone = 'LifeOSTaskZone'").get();
     const deviceTrustCheckpoint = db.prepare("SELECT token_state as tokenState, applied_server_change_token as appliedToken, pending_server_change_token as pendingToken, last_applied_at as lastAppliedAt FROM cloudkit_sync_checkpoints WHERE zone = 'LifeOSDeviceTrustZone'").get();
     const generatedAppCheckpoint = db.prepare("SELECT token_state as tokenState, applied_server_change_token as appliedToken, pending_server_change_token as pendingToken, last_applied_at as lastAppliedAt FROM cloudkit_sync_checkpoints WHERE zone = 'LifeOSGeneratedAppZone'").get();
-    process.stdout.write(JSON.stringify({ listed, apply, sessions, messages, memories, tasks, devices, trustMetadata, customAppStates, checkpoint, memoryCheckpoint, taskCheckpoint, deviceTrustCheckpoint, generatedAppCheckpoint }));
+    process.stdout.write(JSON.stringify({ listed, apply, sessions, messages, memories, tasks, devices, trustMetadata, customAppStates, taskClientState, checkpoint, memoryCheckpoint, taskCheckpoint, deviceTrustCheckpoint, generatedAppCheckpoint }));
   `;
   const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
     cwd: rootDir,
@@ -326,6 +345,54 @@ test("CloudKit auto task apply refuses to overwrite an existing task", async () 
     assert.equal(result.taskCheckpoint.tokenState, "pending-preview");
     assert.equal(result.taskCheckpoint.appliedToken, null);
     assert.equal(result.taskCheckpoint.pendingToken, "opaque-task-token");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit task list snapshot apply writes synced client task state", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-task-list-"));
+  try {
+    const result = runIsolatedCloudKitApply({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "task-list-snapshot");
+
+    assert.equal(result.apply.attempted, 1);
+    assert.equal(result.apply.applied, 1);
+    assert.equal(result.apply.conflicts, 0);
+    assert.deepEqual(result.apply.promotedZones, ["LifeOSTaskZone"]);
+    const tasks = JSON.parse(result.taskClientState.valueJson);
+    assert.equal(tasks.length, 2);
+    assert.deepEqual(tasks[0], { id: "cloud-task-1", text: "Cloud task one", completed: false, priority: "high", createdAt: 1700000001000 });
+    assert.equal(result.taskClientState.updatedByType, "cloudkit");
+    assert.equal(result.taskClientState.updatedById, "tasks");
+    assert.equal(result.taskCheckpoint.tokenState, "applied");
+    assert.equal(result.taskCheckpoint.appliedToken, "opaque-task-list-token");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit task list snapshot apply refuses to overwrite newer local client state", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-task-list-local-newer-"));
+  try {
+    const result = runIsolatedCloudKitApply({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "task-list-local-newer");
+
+    assert.equal(result.apply.attempted, 1);
+    assert.equal(result.apply.applied, 0);
+    assert.equal(result.apply.conflicts, 1);
+    assert.deepEqual(result.apply.promotedZones, []);
+    assert.deepEqual(result.apply.blockedZones, ["LifeOSTaskZone"]);
+    assert.match(result.apply.records[0].error, /Local task list is newer/);
+    const tasks = JSON.parse(result.taskClientState.valueJson);
+    assert.deepEqual(tasks[0], { id: "local-task", text: "Local task should stay", completed: false, priority: "high", createdAt: 1700000001000 });
+    assert.equal(result.taskClientState.updatedByType, "device");
+    assert.equal(result.taskCheckpoint.tokenState, "pending-preview");
+    assert.equal(result.taskCheckpoint.pendingToken, "opaque-task-list-token");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

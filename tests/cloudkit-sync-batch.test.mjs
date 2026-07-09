@@ -39,6 +39,8 @@ function runIsolatedCloudKitBatch(env) {
     insertMemory("Sensitive memory", "passport token=secret", "sensitive");
     db.prepare("INSERT INTO tasks (id, type, status, input_json, result_json, error, created_by_device_id, created_at, started_at, finished_at) VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, NULL, ?)")
       .run("task-sync-1", "planning", "ready", JSON.stringify({ title: "Review tasks" }), JSON.stringify({ ok: true }), 1700000000000, 1700000001000);
+    db.prepare("INSERT INTO client_state (key, value_json, updated_at, updated_by_type, updated_by_id) VALUES (?, ?, ?, 'device', 'phone')")
+      .run("lifeos_tasks_pro", JSON.stringify([{ id: 1, text: "Finish the LifeOS task list", completed: false, priority: "high", createdAt: 1700000000000 }]), 1700000002000);
     db.prepare("INSERT INTO devices (id, name, type, status, public_key, access_token_hash, access_token_expires_at, created_at, last_seen_at, revoked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)")
       .run("device-sync-1", "Alice iPhone", "mobile", "online", "RAW_PUBLIC_KEY_SHOULD_NOT_SYNC", "ACCESS_TOKEN_HASH_SHOULD_NOT_SYNC", 1700000099999, 1700000000000, 1700000003000);
     db.prepare("INSERT INTO custom_apps (id, name, description, visibility, status, source, code, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
@@ -79,6 +81,8 @@ function runIsolatedCloudKitExport(env) {
     insertMemory("Safe export memory", "Prepare the weekly plan", "normal");
     db.prepare("INSERT INTO tasks (id, type, status, input_json, result_json, error, created_by_device_id, created_at, started_at, finished_at) VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, NULL, ?)")
       .run("task-export-1", "planning", "ready", JSON.stringify({ title: "Review export" }), JSON.stringify({ ok: true }), 1700000000000, 1700000001000);
+    db.prepare("INSERT INTO client_state (key, value_json, updated_at, updated_by_type, updated_by_id) VALUES (?, ?, ?, 'device', 'phone')")
+      .run("lifeos_tasks_pro", JSON.stringify([{ id: 2, text: "Ship the synced task list", completed: true, priority: "medium", createdAt: 1700000000000 }]), 1700000002000);
     db.prepare("INSERT INTO devices (id, name, type, status, public_key, access_token_hash, access_token_expires_at, created_at, last_seen_at, revoked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)")
       .run("device-export-1", "Bob iPhone", "mobile", "online", "RAW_EXPORT_PUBLIC_KEY_SHOULD_NOT_SYNC", "ACCESS_EXPORT_TOKEN_HASH_SHOULD_NOT_SYNC", 1700000099999, 1700000000000, 1700000003000);
 
@@ -129,18 +133,21 @@ test("CloudKit sync batch preview builds safe records and blocks sensitive paylo
     assert.ok(preview.recordTypes.some((item) => item.recordType === "LifeOSMessage"));
     assert.ok(preview.recordTypes.some((item) => item.recordType === "LifeOSMemory"));
     assert.ok(preview.recordTypes.some((item) => item.recordType === "LifeOSTask"));
+    assert.ok(preview.recordTypes.some((item) => item.recordType === "LifeOSTaskListSnapshot"));
     assert.ok(preview.recordTypes.some((item) => item.recordType === "LifeOSGeneratedAppState"));
     assert.ok(preview.recordTypes.some((item) => item.recordType === "LifeOSDeviceTrust"));
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSMessage" && record.requiresUserReview === false), true);
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSConversation" && record.requiresUserReview === true), true);
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSMemory" && record.requiresUserReview === false), true);
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSTask" && record.requiresUserReview === false), true);
+    assert.equal(preview.records.some((record) => record.recordType === "LifeOSTaskListSnapshot" && record.recordName === "task-list:lifeos_tasks_pro" && record.requiresUserReview === false), true);
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSDeviceTrust" && record.requiresUserReview === true), true);
     assert.equal(preview.helperPayloadPlan.sendsRawUserContent, false);
     assert.equal(preview.helperPayloadPlan.nextHelperOperation, "sync-export-blocked");
     const serialized = JSON.stringify(preview);
     assert.equal(serialized.includes("Plan the family budget safely"), false);
     assert.equal(serialized.includes("Buy milk and plan the week"), false);
+    assert.equal(serialized.includes("Finish the LifeOS task list"), false);
     assert.equal(serialized.includes("sk-secret-value"), false);
     assert.equal(serialized.includes("passport token"), false);
     assert.equal(serialized.includes("RAW_PUBLIC_KEY_SHOULD_NOT_SYNC"), false);
@@ -196,6 +203,11 @@ test("CloudKit sync export package is ready only after confirmation and keeps ad
     assert.equal(exportPackage.helperSyncBatch.records.some((record) => record.recordType === "LifeOSMemory" && record.fields.requiresUserReview === false), true);
     assert.equal(exportPackage.helperSyncBatch.records.some((record) => record.recordType === "LifeOSTask" && record.fields.requiresUserReview === false), true);
     assert.equal(exportPackage.helperSyncBatch.records.some((record) => (
+      record.recordType === "LifeOSTaskListSnapshot" &&
+      record.recordName === "task-list:lifeos_tasks_pro" &&
+      JSON.parse(String(record.fields.payloadJson || "{}")).items?.[0]?.text === "Ship the synced task list"
+    )), true);
+    assert.equal(exportPackage.helperSyncBatch.records.some((record) => (
       record.recordType === "LifeOSDeviceTrust" &&
       record.fields.requiresUserReview === true &&
       Boolean(JSON.parse(String(record.fields.payloadJson || "{}")).publicKeyFingerprint)
@@ -213,6 +225,7 @@ test("CloudKit sync export package is ready only after confirmation and keeps ad
     assert.equal(serializedSummary.includes("Safe export conversation"), false);
     assert.equal(serializedSummary.includes("Plan tomorrow without secrets"), false);
     assert.equal(serializedSummary.includes("Prepare the weekly plan"), false);
+    assert.equal(serializedSummary.includes("Ship the synced task list"), false);
     assert.equal(serializedSummary.includes(dir), false);
   } finally {
     await rm(dir, { recursive: true, force: true });
