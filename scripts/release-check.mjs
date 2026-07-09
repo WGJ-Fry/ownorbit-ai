@@ -694,6 +694,8 @@ function checkAssets() {
     adminOnboardingSource.includes("simpleIcloudFlowStage") &&
     adminOnboardingSource.includes("simpleIcloudFlowStatusKey") &&
     adminOnboardingSource.includes("simpleIcloudFlowSteps") &&
+    adminOnboardingSource.includes("simpleIcloudPrimaryStepIndex") &&
+    adminOnboardingSource.includes("showSimpleIcloudSameWifiUpgrade") &&
     adminOnboardingSource.includes("onboarding-icloud-phone-pickup") &&
     adminOnboardingSource.includes("onboarding-icloud-same-wifi-notice") &&
     adminOnboardingSource.includes("onboarding-icloud-ready-actions") &&
@@ -787,6 +789,9 @@ function checkAssets() {
     translationsSource.includes("onboarding.simpleDeviceAdvancedBody") &&
     translationsSource.includes("onboarding.simpleIcloudReadyTitle") &&
     translationsSource.includes("onboarding.simpleIcloudDefaultFlowTitle") &&
+    translationsSource.includes("onboarding.simpleIcloudOnlyStepKicker") &&
+    translationsSource.includes("第 {{step}} 步：现在只做这个") &&
+    translationsSource.includes("Step {{step}}: do only this now") &&
     translationsSource.includes("onboarding.simpleIcloudFlowStatusFilesNext") &&
     translationsSource.includes("onboarding.simpleIcloudFilesActionTitle") &&
     translationsSource.includes("onboarding.simpleIcloudQrActionTitle") &&

@@ -160,6 +160,12 @@ export default function AdminOnboardingPage() {
     : simpleIcloudAction.cta === "remote-guide"
     ? "remote"
     : "entry";
+  const simpleIcloudPrimaryStepIndex = simpleIcloudFlowStage === "qr"
+    ? 3
+    : simpleIcloudFlowStage === "files" || simpleIcloudFlowStage === "longTest"
+    ? 2
+    : 1;
+  const showSimpleIcloudSameWifiUpgrade = simpleIcloudSameWifiOnly && (simpleIcloudPairingConfirmed || hasDevice);
   const simpleIcloudFlowStatusKey: TranslationKey = simpleIcloudNeedsSettings
     ? "onboarding.simpleIcloudFlowStatusSettings"
     : simpleIcloudBusy
@@ -773,6 +779,25 @@ export default function AdminOnboardingPage() {
                   <div data-testid="onboarding-icloud-default-flow-status" className="mt-3 rounded-xl border border-cyan-100/10 bg-black/15 p-3 text-xs font-bold leading-relaxed text-cyan-50/90">
                     {t(simpleIcloudFlowStatusKey)}
                   </div>
+                  {!simpleIcloudBusy ? (
+                    <div data-testid="onboarding-icloud-quick-one-step" className="mt-3 rounded-2xl border border-cyan-100/15 bg-[#060a10]/35 p-4 text-sm leading-relaxed text-cyan-50">
+                      <div className="text-[11px] font-bold uppercase text-cyan-100/70">
+                        {t("onboarding.simpleIcloudOnlyStepKicker", { step: simpleIcloudPrimaryStepIndex })}
+                      </div>
+                      <div className="mt-2 flex items-start gap-2 font-bold">
+                        <ArrowRight className="mt-0.5 h-4 w-4 shrink-0" />
+                        <span>
+                          {t("onboarding.appleRemoteIcloudOneNextAction", {
+                            action: simpleIcloudOneStepActionText,
+                          })}
+                        </span>
+                      </div>
+                      <div data-testid="onboarding-icloud-quick-followup" className="mt-3 border-t border-cyan-100/10 pt-3 text-xs text-cyan-50/75">
+                        <span className="font-bold text-cyan-50">{t("onboarding.appleRemoteIcloudThenLabel")}</span>{" "}
+                        {simpleIcloudOneStepFollowupText}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-current/15 bg-[#060a10]/40">
@@ -795,22 +820,6 @@ export default function AdminOnboardingPage() {
                   <div className="min-w-0 flex-1">
                     <div className="font-bold">{t(simpleIcloudTitleKey as any)}</div>
                     <p className="mt-1 text-xs leading-relaxed opacity-80">{t(simpleIcloudBodyKey as any)}</p>
-                    {!simpleIcloudBusy ? (
-                      <div data-testid="onboarding-icloud-quick-one-step" className="mt-3 rounded-xl border border-current/10 bg-black/15 p-3 text-xs leading-relaxed">
-                        <div className="flex items-start gap-2 font-bold">
-                          <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                          <span>
-                            {t("onboarding.appleRemoteIcloudOneNextAction", {
-                              action: simpleIcloudOneStepActionText,
-                            })}
-                          </span>
-                        </div>
-                        <div data-testid="onboarding-icloud-quick-followup" className="mt-2 border-t border-current/10 pt-2 opacity-85">
-                          <span className="font-bold">{t("onboarding.appleRemoteIcloudThenLabel")}</span>{" "}
-                          {simpleIcloudOneStepFollowupText}
-                        </div>
-                      </div>
-                    ) : null}
                     {simpleIcloudNeedsSettings ? (
                       <button
                         type="button"
@@ -1001,7 +1010,7 @@ export default function AdminOnboardingPage() {
                         </div>
                       </div>
                     </div>
-                    {simpleIcloudSameWifiOnly ? (
+                    {showSimpleIcloudSameWifiUpgrade ? (
                       <div data-testid="onboarding-icloud-same-wifi-notice" className="mt-3 rounded-xl border border-amber-300/20 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-50">
                         <div className="flex gap-2">
                           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
