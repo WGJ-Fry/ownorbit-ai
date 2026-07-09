@@ -22,6 +22,7 @@ export const primaryIcloudActionFollowupKeys: Partial<Record<TranslationKey, Tra
   "onboarding.appleRemoteIcloudActionFixSync": "onboarding.appleRemoteIcloudFollowupFixSync",
   "onboarding.appleRemoteIcloudActionWaitSync": "onboarding.appleRemoteIcloudFollowupWaitSync",
   "onboarding.appleRemoteIcloudActionOpenFiles": "onboarding.appleRemoteIcloudFollowupOpenFiles",
+  "onboarding.appleRemoteIcloudActionOpenFilesSameWifi": "onboarding.appleRemoteIcloudFollowupOpenFilesSameWifi",
   "onboarding.appleRemoteIcloudActionChooseRemoteEntry": "onboarding.appleRemoteIcloudFollowupChooseRemoteEntry",
   "onboarding.appleRemoteIcloudActionReview": "onboarding.appleRemoteIcloudFollowupReview",
 };
@@ -158,11 +159,11 @@ export function getPrimaryIcloudAction(input: {
   if (input.syncReadiness?.canOpenOnPhone && isIcloudEntrySameWifiOnly(input.icloud)) {
     return {
       tone: warningTone,
-      icon: "warning",
-      titleKey: "onboarding.appleRemoteIcloudNextStepSameWifiTitle",
-      bodyKey: "onboarding.appleRemoteIcloudNextStepSameWifiBody",
-      actionKey: "onboarding.appleRemoteIcloudActionChooseRemoteEntry",
-      cta: "remote-guide",
+      icon: "phone",
+      titleKey: "onboarding.appleRemoteIcloudNextStepSameWifiOpenTitle",
+      bodyKey: "onboarding.appleRemoteIcloudNextStepSameWifiOpenBody",
+      actionKey: "onboarding.appleRemoteIcloudActionOpenFilesSameWifi",
+      cta: "none",
     };
   }
 

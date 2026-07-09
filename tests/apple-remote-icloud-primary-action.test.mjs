@@ -126,7 +126,7 @@ test("iCloud primary action tells users when the entry is ready to open on phone
   assert.equal(action.cta, "none");
 });
 
-test("iCloud primary action does not present LAN-only iCloud entries as off-LAN ready", () => {
+test("iCloud primary action lets LAN-only Apple entries continue same-Wi-Fi pairing without claiming off-LAN readiness", () => {
   const action = getPrimaryIcloudAction({
     icloud: baseIcloud({
       recommendedMode: "lan",
@@ -140,10 +140,11 @@ test("iCloud primary action does not present LAN-only iCloud entries as off-LAN 
     canExportIcloud: true,
   });
 
-  assert.equal(action.titleKey, "onboarding.appleRemoteIcloudNextStepSameWifiTitle");
-  assert.equal(action.bodyKey, "onboarding.appleRemoteIcloudNextStepSameWifiBody");
-  assert.equal(action.actionKey, "onboarding.appleRemoteIcloudActionChooseRemoteEntry");
-  assert.equal(action.cta, "remote-guide");
+  assert.equal(action.titleKey, "onboarding.appleRemoteIcloudNextStepSameWifiOpenTitle");
+  assert.equal(action.bodyKey, "onboarding.appleRemoteIcloudNextStepSameWifiOpenBody");
+  assert.equal(action.icon, "phone");
+  assert.equal(action.actionKey, "onboarding.appleRemoteIcloudActionOpenFilesSameWifi");
+  assert.equal(action.cta, "none");
 });
 
 test("iCloud primary action follow-up copy is shared by simple and advanced onboarding", () => {
@@ -154,6 +155,10 @@ test("iCloud primary action follow-up copy is shared by simple and advanced onbo
   assert.equal(
     getIcloudActionFollowupKey("onboarding.appleRemoteIcloudActionWaitSync"),
     "onboarding.appleRemoteIcloudFollowupWaitSync",
+  );
+  assert.equal(
+    getIcloudActionFollowupKey("onboarding.appleRemoteIcloudActionOpenFilesSameWifi"),
+    "onboarding.appleRemoteIcloudFollowupOpenFilesSameWifi",
   );
   assert.equal(
     getIcloudActionFollowupKey("onboarding.unknownAction"),

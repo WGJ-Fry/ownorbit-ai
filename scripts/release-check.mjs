@@ -1624,9 +1624,10 @@ function checkAssets() {
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudNextStepOldEntryTitle") &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudNextStepExportTitle") &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudNextStepPhoneTitle") &&
-    appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudNextStepSameWifiTitle") &&
+    appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudNextStepSameWifiOpenTitle") &&
+    appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudActionOpenFilesSameWifi") &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudActionChooseRemoteEntry") &&
-    appleRemoteIcloudPrimaryActionSource.includes('cta: "remote-guide"') &&
+    appleRemoteIcloudPrimaryActionSource.includes('cta: "none"') &&
     appleRemoteIcloudPrimaryActionSource.includes('cta: "icloud-settings"') &&
     appleRemoteIcloudPrimaryActionSource.includes('cta: "icloud-folder"') &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudActionWaitSync") &&
@@ -1849,6 +1850,7 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("desktopIcloudOneNextSource") &&
     appleRemoteIcloudPrimaryActionSource.includes("primaryIcloudActionFollowupKeys") &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudFollowupChooseRemoteEntry") &&
+    appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudFollowupOpenFilesSameWifi") &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudFollowupWaitSync") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-one-step-guide") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-primary-open-settings") &&

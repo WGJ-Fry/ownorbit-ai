@@ -742,11 +742,13 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudActionWaitSync/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /getIcloudActionFollowupKey/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudFollowupChooseRemoteEntry/);
+  assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudFollowupOpenFilesSameWifi/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudFollowupWaitSync/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudActionOpenFiles/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudNextStepExportTitle/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudNextStepPhoneTitle/);
-  assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudNextStepSameWifiTitle/);
+  assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudNextStepSameWifiOpenTitle/);
+  assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudActionOpenFilesSameWifi/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudActionChooseRemoteEntry/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudActionOpenConnectionGuide/);
   assert.match(onboardingAppleRemoteSource, /\/admin\/settings#mobile-connect/);
