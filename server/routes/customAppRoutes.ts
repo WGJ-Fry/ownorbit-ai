@@ -31,6 +31,7 @@ import {
   updateCustomAppCapabilityManifest,
   updateCustomAppState,
 } from "../customApps";
+import { noteCloudKitLocalChange } from "../cloudKitAutoSyncSchedule";
 import { broadcastRealtime } from "../realtime";
 
 function actor(req: express.Request) {
@@ -102,6 +103,7 @@ export function registerCustomAppRoutes(app: express.Express) {
       insertAuditLog("custom_app_state_saved", "custom_app", req.params.appId, {
         stateBytes: Buffer.byteLength(JSON.stringify(state.state), "utf8"),
       }, actor(req)?.type, actor(req)?.id);
+      noteCloudKitLocalChange("generated-app-state", actor(req));
       broadcastRealtime({ type: "custom_app.state_saved", appId: req.params.appId, timestamp: state.updatedAt });
       res.json({ state });
     } catch (error) {

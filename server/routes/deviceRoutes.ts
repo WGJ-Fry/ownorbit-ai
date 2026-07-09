@@ -3,6 +3,7 @@ import type express from "express";
 import { insertAuditLog, redactAuditString } from "../audit";
 import { requireAdmin } from "../auth";
 import { getRequestActor } from "../auth";
+import { noteCloudKitLocalChange } from "../cloudKitAutoSyncSchedule";
 import { BindingSession, DeviceRecord, confirmBindingSession, getBindingSessionById, getDevice, getDevices, getLatestDeviceConnectivityReport, getLatestDeviceIcloudHandoffEvent, getOpenBindingSessionByToken, insertBindingSession, insertDevice, insertDeviceConnectivityReport, insertDeviceIcloudHandoffEvent, pruneExpiredBindingSessions, revokeDeviceRecord, rotateDeviceToken } from "../devices";
 import { getDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { rateLimit } from "../httpSecurity";
@@ -188,6 +189,7 @@ function revokeDevice(device: DeviceRecord, actor: { type: string; id: string },
     realtimeConnectionClosed: wasOnline,
     revokedAt,
   }, actor.type, actor.id);
+  noteCloudKitLocalChange("device-trust", actor);
 
   broadcastRealtime({
     type: "device.revoked",
@@ -303,6 +305,7 @@ export function registerDeviceRoutes(app: express.Express) {
     const authMethod = device.publicKey ? "signature" : "token";
     insertDevice(device);
     confirmBindingSession(session.id, device.id, now);
+    noteCloudKitLocalChange("device-trust", { type: "device", id: device.id });
     insertAuditLog("device_bound", "device", device.id, {
       bindingSessionId: session.id,
       name: device.name,
@@ -344,6 +347,7 @@ export function registerDeviceRoutes(app: express.Express) {
       credentialExpiresAt: accessTokenExpiresAt,
       rotatedAt: Date.now(),
     }, "device", actor.id);
+    noteCloudKitLocalChange("device-trust", { type: "device", id: actor.id });
     res.json({ device: sanitizeDevice(device), accessToken, accessTokenExpiresAt });
   });
 

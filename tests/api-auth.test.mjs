@@ -2282,14 +2282,17 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(deletedMemory.status, 200);
 
   const cloudKitAutoSyncAfterLocalChanges = await request(port, "/api/v1/admin/icloud-data-sync/auto-sync", { headers: adminHeaders }).then((res) => res.json());
-  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.total, 4);
+  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.total, 9);
   assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.byType["chat-history"], 1);
   assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.byType.memory, 3);
+  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.byType["device-trust"], 5);
   assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.rawPayloadStored, false);
   assert.equal(typeof cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.nextSuggestedRunAt, "number");
   assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.nextRunAt <= cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.nextSuggestedRunAt, true);
   assert.equal(JSON.stringify(cloudKitAutoSyncAfterLocalChanges).includes("Hello from mobile"), false);
   assert.equal(JSON.stringify(cloudKitAutoSyncAfterLocalChanges).includes("Updated memory"), false);
+  assert.equal(JSON.stringify(cloudKitAutoSyncAfterLocalChanges).includes(credential.accessToken), false);
+  assert.equal(JSON.stringify(cloudKitAutoSyncAfterLocalChanges).includes(rotated.accessToken), false);
   assertPublicApiResponse("cloudKitAutoSyncAfterLocalChanges", cloudKitAutoSyncAfterLocalChanges);
 
   const unauthProblemBlueprints = await request(port, "/api/v1/problem-blueprints");
@@ -2382,6 +2385,12 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   }).then((res) => res.json());
   assert.equal(JSON.stringify(savedCustomAppState).includes("github_pat_customStateSecret"), false);
   assert.equal(JSON.stringify(savedCustomAppState).includes("/Users/example/private-state.csv"), false);
+  const cloudKitAutoSyncAfterCustomAppState = await request(port, "/api/v1/admin/icloud-data-sync/auto-sync", { headers: adminHeaders }).then((res) => res.json());
+  assert.equal(cloudKitAutoSyncAfterCustomAppState.schedule.pendingLocalChanges.byType["generated-app-state"], 1);
+  assert.equal(cloudKitAutoSyncAfterCustomAppState.schedule.pendingLocalChanges.rawPayloadStored, false);
+  assert.equal(JSON.stringify(cloudKitAutoSyncAfterCustomAppState).includes("github_pat_customStateSecret"), false);
+  assert.equal(JSON.stringify(cloudKitAutoSyncAfterCustomAppState).includes("/Users/example/private-state.csv"), false);
+  assertPublicApiResponse("cloudKitAutoSyncAfterCustomAppState", cloudKitAutoSyncAfterCustomAppState);
 
   const customAppRuntimeEvent = await request(port, "/api/v1/custom-apps/custom-ledger-1/runtime-events", {
     method: "POST",
@@ -3183,6 +3192,18 @@ test("admin auth protects APIs and device binding enables mobile access", async 
 
   const revokedStateAccess = await request(port, "/api/v1/state/lifeos_tasks_pro", { headers: deviceHeaders });
   assert.equal(revokedStateAccess.status, 401);
+  const cloudKitAutoSyncAfterDeviceTrustChanges = await request(port, "/api/v1/admin/icloud-data-sync/auto-sync", { headers: adminHeaders }).then((res) => res.json());
+  assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType["device-trust"], 7);
+  assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType["generated-app-state"], 1);
+  assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType["chat-history"] >= 1, true);
+  assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType.memory, 3);
+  assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.rawPayloadStored, false);
+  assert.equal(JSON.stringify(cloudKitAutoSyncAfterDeviceTrustChanges).includes("github_pat_customStateSecret"), false);
+  assert.equal(JSON.stringify(cloudKitAutoSyncAfterDeviceTrustChanges).includes("/Users/example/private-state.csv"), false);
+  assert.equal(JSON.stringify(cloudKitAutoSyncAfterDeviceTrustChanges).includes(credential.accessToken), false);
+  assert.equal(JSON.stringify(cloudKitAutoSyncAfterDeviceTrustChanges).includes(rotated.accessToken), false);
+  assert.equal(JSON.stringify(cloudKitAutoSyncAfterDeviceTrustChanges).includes(adminRequestedRotation.accessToken), false);
+  assertPublicApiResponse("cloudKitAutoSyncAfterDeviceTrustChanges", cloudKitAutoSyncAfterDeviceTrustChanges);
 
   const finalAudit = await request(port, "/api/v1/audit-logs", { headers: adminHeaders }).then((res) => res.json());
   const findAudit = (action) => finalAudit.logs.find((log) => log.action === action && log.targetId === credential.device.id);
