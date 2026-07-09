@@ -239,3 +239,59 @@ test("CloudKit auto sync tracks local changes without storing payloads and clear
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("CloudKit pending local changes can be cleared after a confirmed manual upload", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-auto-sync-clear-"));
+  try {
+    const script = `
+      const { runMigrations } = await import("./server/migrations.ts");
+      runMigrations();
+      const scheduleModule = await import("./server/cloudKitAutoSyncSchedule.ts");
+      const auditModule = await import("./server/audit.ts");
+      const now = 1700000000000;
+
+      const enabled = scheduleModule.updateCloudKitAutoSyncSchedule({
+        enabled: true,
+        intervalMinutes: 120,
+        lastRunAt: now,
+      }, { type: "admin", id: "owner" });
+      const pending = scheduleModule.noteCloudKitLocalChange("chat-history", { type: "admin", id: "owner" }, now + 1000);
+      scheduleModule.noteCloudKitLocalChange("memory", { type: "admin", id: "owner" }, now + 2000);
+      const cleared = scheduleModule.clearCloudKitLocalChanges("manual-upload", { type: "admin", id: "owner" }, now + 3000);
+      const secondClear = scheduleModule.clearCloudKitLocalChanges("manual-upload", { type: "admin", id: "owner" }, now + 4000);
+      const after = scheduleModule.getCloudKitAutoSyncSchedule();
+      const audits = auditModule.listAuditLogs(20).map((log) => ({ action: log.action, metadata: log.metadata }));
+      process.stdout.write(JSON.stringify({ enabled, pending, cleared, secondClear, after, audits }));
+    `;
+    const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
+      cwd: rootDir,
+      env: {
+        ...process.env,
+        LIFEOS_DATA_DIR: path.join(dir, "data"),
+      },
+      encoding: "utf8",
+      maxBuffer: 1024 * 1024,
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const data = JSON.parse(result.stdout);
+    assert.equal(data.pending.pendingLocalChanges.total, 1);
+    assert.equal(data.cleared.cleared, true);
+    assert.equal(data.cleared.clearedTotal, 2);
+    assert.equal(data.cleared.schedule.pendingLocalChanges, undefined);
+    assert.equal(data.cleared.schedule.nextRunAt, 1700000000000 + 120 * 60 * 1000);
+    assert.equal(data.secondClear.cleared, false);
+    assert.equal(data.secondClear.clearedTotal, 0);
+    assert.equal(data.after.pendingLocalChanges, undefined);
+    const serialized = JSON.stringify(data);
+    assert.equal(serialized.includes("payloadJson"), false);
+    assert.equal(serialized.includes("local text"), false);
+    assert.ok(data.audits.some((log) => (
+      log.action === "icloud_cloudkit_auto_sync_local_changes_cleared" &&
+      log.metadata.reason === "manual-upload" &&
+      log.metadata.clearedTotal === 2 &&
+      log.metadata.rawPayloadStored === false
+    )));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

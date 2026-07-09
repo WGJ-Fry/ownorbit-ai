@@ -39,7 +39,7 @@ import { listCloudKitDeviceTrustMetadata } from "../cloudKitDeviceTrustMetadata"
 import { CLOUDKIT_SYNC_NOW_CONFIRMATION, runCloudKitSyncNow } from "../cloudKitSyncNow";
 import { CLOUDKIT_SYNC_UPLOAD_NOW_CONFIRMATION, runCloudKitSyncUploadNow } from "../cloudKitSyncUploadNow";
 import { CLOUDKIT_SYNC_CYCLE_CONFIRMATION, runCloudKitSyncCycle } from "../cloudKitSyncCycle";
-import { getCloudKitAutoSyncSchedule, runCloudKitAutoSyncNow, updateCloudKitAutoSyncSchedule } from "../cloudKitAutoSyncSchedule";
+import { clearCloudKitLocalChanges, getCloudKitAutoSyncSchedule, runCloudKitAutoSyncNow, updateCloudKitAutoSyncSchedule } from "../cloudKitAutoSyncSchedule";
 
 const loginFailures = new Map<string, { count: number; lockedUntil: number }>();
 
@@ -996,6 +996,9 @@ export function registerAdminRoutes(app: express.Express) {
         syncExportPackage: exportPackage,
         timeoutMs: 60_000,
       });
+      const pendingClear = result.status === "passed"
+        ? clearCloudKitLocalChanges("manual-export", { type: (req as any).actor?.type || "admin", id: (req as any).actor?.id || "admin" })
+        : { schedule: getCloudKitAutoSyncSchedule(), cleared: false, clearedTotal: 0 };
       insertAuditLog("icloud_cloudkit_sync_export", "network", "cloudkit-sync-export", {
         status: result.status,
         ok: result.ok,
@@ -1006,11 +1009,14 @@ export function registerAdminRoutes(app: express.Express) {
         syncExport: "syncExport" in result ? result.syncExport : null,
         backupFile: backup.file,
         backupSize: backup.size,
+        pendingLocalChangesCleared: pendingClear.cleared,
+        pendingLocalChangesClearedTotal: pendingClear.clearedTotal,
         rawPayloadReturnedToAdmin: summary.safety.rawPayloadReturnedToAdmin,
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.status(result.status === "passed" ? 200 : 400).json({
         result,
         export: summary,
+        schedule: pendingClear.schedule,
         backup: { file: backup.file, size: backup.size, createdAt: backup.createdAt, redaction: backup.redaction },
         diagnostics: getAdminNetworkDiagnostics(),
       });
@@ -1194,6 +1200,9 @@ export function registerAdminRoutes(app: express.Express) {
     try {
       const readiness = getIcloudDataSyncReadiness({ platformSupported: diagnostics.icloud.platformSupported });
       const upload = await runCloudKitSyncUploadNow(readiness, { limit: normalizeCloudKitBatchLimit(req.body?.limit) || 100 });
+      const pendingClear = upload.ok
+        ? clearCloudKitLocalChanges("manual-upload", { type: (req as any).actor?.type || "admin", id: (req as any).actor?.id || "admin" })
+        : { schedule: getCloudKitAutoSyncSchedule(), cleared: false, clearedTotal: 0 };
       insertAuditLog("icloud_cloudkit_sync_upload_now", "network", "cloudkit-sync-upload-now", {
         ok: upload.ok,
         status: upload.status,
@@ -1207,11 +1216,14 @@ export function registerAdminRoutes(app: express.Express) {
         syncExport: upload.result?.syncExport || null,
         backupCreated: Boolean(upload.backup),
         backupSize: upload.backup?.size || null,
+        pendingLocalChangesCleared: pendingClear.cleared,
+        pendingLocalChangesClearedTotal: pendingClear.clearedTotal,
         rawPayloadReturnedToAdmin: false,
         localBackupPathReturnedToAdmin: false,
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.status(upload.status === "failed" || upload.status === "blocked" ? 400 : 200).json({
         upload,
+        schedule: pendingClear.schedule,
         diagnostics: getAdminNetworkDiagnostics(),
       });
     } catch (error: any) {
@@ -1246,6 +1258,9 @@ export function registerAdminRoutes(app: express.Express) {
     try {
       const readiness = getIcloudDataSyncReadiness({ platformSupported: diagnostics.icloud.platformSupported });
       const cycle = await runCloudKitSyncCycle(readiness, { limit: normalizeCloudKitBatchLimit(req.body?.limit) || 100 });
+      const pendingClear = cycle.ok
+        ? clearCloudKitLocalChanges("manual-cycle", { type: (req as any).actor?.type || "admin", id: (req as any).actor?.id || "admin" })
+        : { schedule: getCloudKitAutoSyncSchedule(), cleared: false, clearedTotal: 0 };
       insertAuditLog("icloud_cloudkit_sync_cycle", "network", "cloudkit-sync-cycle", {
         ok: cycle.ok,
         status: cycle.status,
@@ -1256,12 +1271,15 @@ export function registerAdminRoutes(app: express.Express) {
         uploadStatus: cycle.upload?.status || null,
         uploadExportRecordCount: cycle.upload?.export.exportRecordCount || 0,
         uploadSaved: cycle.upload?.result?.syncExport?.saved || 0,
+        pendingLocalChangesCleared: pendingClear.cleared,
+        pendingLocalChangesClearedTotal: pendingClear.clearedTotal,
         rawPayloadReturnedToAdmin: false,
         serverChangeTokenReturnedToAdmin: false,
         localBackupPathReturnedToAdmin: false,
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.status(cycle.status === "remote-failed" || cycle.status === "remote-conflicts" || cycle.status === "upload-blocked" || cycle.status === "upload-failed" ? 400 : 200).json({
         cycle,
+        schedule: pendingClear.schedule,
         diagnostics: getAdminNetworkDiagnostics(),
       });
     } catch (error: any) {

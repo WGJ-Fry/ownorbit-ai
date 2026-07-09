@@ -274,6 +274,30 @@ export function noteCloudKitLocalChange(
   return next;
 }
 
+export function clearCloudKitLocalChanges(
+  reason: "manual-export" | "manual-upload" | "manual-cycle" | "auto-cycle",
+  actor?: { type: string; id: string },
+  now = Date.now(),
+) {
+  const previous = getCloudKitAutoSyncSchedule();
+  if (!previous.pendingLocalChanges) return { schedule: previous, cleared: false, clearedTotal: 0 };
+  const clearedTotal = previous.pendingLocalChanges.total;
+  const next: CloudKitAutoSyncSchedule = {
+    ...previous,
+    pendingLocalChanges: undefined,
+    nextRunAt: previous.enabled ? computeNextRun(now, previous.intervalMinutes, previous.lastRunAt) : previous.nextRunAt,
+    updatedAt: now,
+  };
+  persistSchedule(next, actor);
+  insertAuditLog("icloud_cloudkit_auto_sync_local_changes_cleared", "network", "cloudkit-auto-sync", {
+    reason,
+    clearedTotal,
+    pendingLocalChangesPresent: false,
+    rawPayloadStored: false,
+  }, actor?.type || "system", actor?.id || "cloudkit-auto-sync");
+  return { schedule: next, cleared: true, clearedTotal };
+}
+
 export async function runCloudKitAutoSyncNow(
   reason: "scheduled" | "manual" = "manual",
   actor?: { type: string; id: string },
