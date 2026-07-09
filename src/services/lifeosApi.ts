@@ -1553,7 +1553,44 @@ export type CloudKitSyncQuarantineSummary = {
   importedDeleted: number;
   skipped: number;
   pendingReview: number;
+  applied: number;
+  conflicts: number;
+  failed: number;
   payloadStored: boolean;
+};
+
+export type CloudKitSyncQuarantineItem = {
+  id: string;
+  zone: string;
+  recordType: string;
+  recordName: string;
+  changeType: "changed" | "deleted";
+  status: string;
+  mutationId?: string;
+  contentHash?: string;
+  logicalClock: number;
+  payloadByteSize: number;
+  requiresUserReview: boolean;
+  serverModifiedAt?: string;
+  deletedAt?: string;
+  sourceEvidenceId?: string;
+  importedAt: number;
+  appliedAt?: number;
+  error?: string;
+  payloadCaptured: boolean;
+};
+
+export type CloudKitSyncApplyResult = {
+  attempted: number;
+  applied: number;
+  conflicts: number;
+  failed: number;
+  skipped: number;
+  promotedZones: string[];
+  blockedZones: string[];
+  records: Array<{ id: string; zone: string; recordType: string; status: "applied" | "conflict" | "failed" | "skipped"; error?: string }>;
+  summary: CloudKitSyncQuarantineSummary;
+  checkpoints: CloudKitSyncCheckpoint[];
 };
 
 export type CloudKitSyncBatchPreview = {
@@ -2471,6 +2508,30 @@ export function runCloudKitSyncImportQuarantine(input: { confirmation: string })
     backup?: BackupRecord;
     diagnostics: NetworkDiagnostics;
   }>("/api/v1/admin/icloud-data-sync/import-quarantine", {
+    method: "POST",
+    timeoutMs: 70_000,
+    body: JSON.stringify(input),
+  });
+}
+
+export function getCloudKitSyncQuarantine(limit?: number) {
+  const query = limit ? `?limit=${encodeURIComponent(String(limit))}` : "";
+  return requestJson<{
+    quarantine: {
+      items: CloudKitSyncQuarantineItem[];
+      summary: CloudKitSyncQuarantineSummary;
+      checkpoints: CloudKitSyncCheckpoint[];
+    };
+    diagnostics: NetworkDiagnostics;
+  }>(`/api/v1/admin/icloud-data-sync/quarantine${query}`);
+}
+
+export function applyCloudKitSyncQuarantine(input: { confirmation: string; limit?: number }) {
+  return requestJson<{
+    apply: CloudKitSyncApplyResult;
+    backup?: BackupRecord;
+    diagnostics: NetworkDiagnostics;
+  }>("/api/v1/admin/icloud-data-sync/apply-quarantine", {
     method: "POST",
     timeoutMs: 70_000,
     body: JSON.stringify(input),

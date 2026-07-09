@@ -34,6 +34,9 @@ export type CloudKitSyncQuarantineSummary = {
   importedDeleted: number;
   skipped: number;
   pendingReview: number;
+  applied: number;
+  conflicts: number;
+  failed: number;
   payloadStored: boolean;
 };
 
@@ -233,14 +236,20 @@ export function getCloudKitSyncQuarantineSummary(): CloudKitSyncQuarantineSummar
       SUM(CASE WHEN change_type = 'changed' THEN 1 ELSE 0 END) as importedChanged,
       SUM(CASE WHEN change_type = 'deleted' THEN 1 ELSE 0 END) as importedDeleted,
       SUM(CASE WHEN status = 'pending-review' THEN 1 ELSE 0 END) as pendingReview,
+      SUM(CASE WHEN status = 'applied' THEN 1 ELSE 0 END) as applied,
+      SUM(CASE WHEN status = 'conflict' THEN 1 ELSE 0 END) as conflicts,
+      SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
       SUM(CASE WHEN payload_json IS NOT NULL AND payload_json != '' THEN 1 ELSE 0 END) as payloadStored
     FROM cloudkit_sync_quarantine
-  `).get() as { importedChanged?: number; importedDeleted?: number; pendingReview?: number; payloadStored?: number } | undefined;
+  `).get() as { importedChanged?: number; importedDeleted?: number; pendingReview?: number; applied?: number; conflicts?: number; failed?: number; payloadStored?: number } | undefined;
   return {
     importedChanged: Number(row?.importedChanged || 0),
     importedDeleted: Number(row?.importedDeleted || 0),
     skipped: 0,
     pendingReview: Number(row?.pendingReview || 0),
+    applied: Number(row?.applied || 0),
+    conflicts: Number(row?.conflicts || 0),
+    failed: Number(row?.failed || 0),
     payloadStored: Number(row?.payloadStored || 0) > 0,
   };
 }

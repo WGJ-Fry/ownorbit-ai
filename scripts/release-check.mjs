@@ -1475,6 +1475,8 @@ function checkAssets() {
   const cloudKitNativeHelperTestSource = exists("tests/cloudkit-native-helper.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-native-helper.test.mjs"), "utf8") : "";
   const cloudKitSyncBatchSource = exists("server/cloudKitSyncBatch.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitSyncBatch.ts"), "utf8") : "";
   const cloudKitSyncBatchTestSource = exists("tests/cloudkit-sync-batch.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-sync-batch.test.mjs"), "utf8") : "";
+  const cloudKitSyncApplySource = exists("server/cloudKitSyncApply.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitSyncApply.ts"), "utf8") : "";
+  const cloudKitSyncApplyTestSource = exists("tests/cloudkit-sync-apply.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-sync-apply.test.mjs"), "utf8") : "";
   const cloudKitNativeHelperSmokeSource = exists("scripts/cloudkit-native-helper-smoke.mjs") ? fs.readFileSync(path.join(rootDir, "scripts/cloudkit-native-helper-smoke.mjs"), "utf8") : "";
   const cloudKitNativeSwiftHelperSource = exists("native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift") ? fs.readFileSync(path.join(rootDir, "native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift"), "utf8") : "";
   const cloudKitNativeHelperBuildSource = exists("scripts/build-cloudkit-helper.mjs") ? fs.readFileSync(path.join(rootDir, "scripts/build-cloudkit-helper.mjs"), "utf8") : "";
@@ -1889,6 +1891,8 @@ function checkAssets() {
     translationsSource.includes("Incremental changes preview") &&
     translationsSource.includes("导入到隔离区") &&
     translationsSource.includes("Import to quarantine") &&
+    translationsSource.includes("审核并应用隔离区") &&
+    translationsSource.includes("Review and apply quarantine") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudDataBoundaryBody") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-readiness") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-record-plan") &&
@@ -1900,11 +1904,14 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-import-preview") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-changes-preview") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-import-quarantine") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-apply-quarantine") &&
     onboardingAppleRemoteSource.includes("handleLoadCloudKitBatchPreview") &&
     onboardingAppleRemoteSource.includes("handleRunCloudKitSyncExport") &&
     onboardingAppleRemoteSource.includes("handleRunCloudKitSyncImportPreview") &&
     onboardingAppleRemoteSource.includes("handleRunCloudKitSyncChangesPreview") &&
     onboardingAppleRemoteSource.includes("handleRunCloudKitSyncImportQuarantine") &&
+    onboardingAppleRemoteSource.includes("handleLoadCloudKitSyncQuarantine") &&
+    onboardingAppleRemoteSource.includes("handleApplyCloudKitSyncQuarantine") &&
     onboardingAppleRemoteSource.includes("handleRunCloudKitHelper") &&
     onboardingAppleRemoteSource.includes("icloudDataSyncStatusKeys") &&
     networkDiagnosticsSource.includes("getIcloudDataSyncReadiness") &&
@@ -1914,6 +1921,8 @@ function checkAssets() {
     adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/import-preview") &&
     adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/changes-preview") &&
     adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/import-quarantine") &&
+    adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/quarantine") &&
+    adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/apply-quarantine") &&
     adminRoutesSource.includes("runCloudKitNativeHelper") &&
     adminRoutesSource.includes("buildCloudKitSyncBatchPreview") &&
     adminRoutesSource.includes("buildCloudKitSyncExportPackage") &&
@@ -1923,6 +1932,7 @@ function checkAssets() {
     adminRoutesSource.includes("icloud_cloudkit_sync_import_preview") &&
     adminRoutesSource.includes("icloud_cloudkit_sync_changes_preview") &&
     adminRoutesSource.includes("icloud_cloudkit_sync_import_quarantine") &&
+    adminRoutesSource.includes("icloud_cloudkit_sync_apply_quarantine") &&
     lifeosApiSource.includes("CloudKitNativeHelperResult") &&
     lifeosApiSource.includes("runCloudKitDataSyncHelper") &&
     lifeosApiSource.includes("CloudKitSyncBatchPreview") &&
@@ -1935,6 +1945,9 @@ function checkAssets() {
     lifeosApiSource.includes("syncChangesPreview") &&
     lifeosApiSource.includes("runCloudKitSyncImportQuarantine") &&
     lifeosApiSource.includes("syncImportQuarantine") &&
+    lifeosApiSource.includes("CloudKitSyncApplyResult") &&
+    lifeosApiSource.includes("getCloudKitSyncQuarantine") &&
+    lifeosApiSource.includes("applyCloudKitSyncQuarantine") &&
     icloudDataSyncReadinessSource.includes("LIFEOS_CLOUDKIT_CONTAINER_ID") &&
     icloudDataSyncReadinessSource.includes("blockedCloudKitDataTypes") &&
     icloudDataSyncReadinessSource.includes("cloudKitRecordPlans") &&
@@ -1977,6 +1990,12 @@ function checkAssets() {
     cloudKitSyncBatchTestSource.includes("blocks sensitive payloads") &&
     cloudKitSyncBatchTestSource.includes("sendsRawUserContent, false") &&
     cloudKitSyncBatchTestSource.includes("keeps admin summary payload-free") &&
+    cloudKitSyncApplySource.includes("APPLY_CLOUDKIT_QUARANTINE") &&
+    cloudKitSyncApplySource.includes("applyCloudKitSyncQuarantine") &&
+    cloudKitSyncApplySource.includes("promoteReadyZones") &&
+    cloudKitSyncApplySource.includes("payloadJson") &&
+    cloudKitSyncApplyTestSource.includes("promotes pending checkpoint only after applying") &&
+    cloudKitSyncApplyTestSource.includes("blocks checkpoint promotion") &&
     cloudKitNativeHelperSmokeSource.includes("runCloudKitNativeHelper") &&
     cloudKitNativeSwiftHelperSource.includes("import CloudKit") &&
     cloudKitNativeSwiftHelperSource.includes("lifeos-cloudkit-helper-request.v1") &&
@@ -2004,6 +2023,7 @@ function checkAssets() {
     packageJson.scripts.test.includes("tests/icloud-data-sync-readiness.test.mjs") &&
     packageJson.scripts.test.includes("tests/cloudkit-native-helper.test.mjs") &&
     packageJson.scripts.test.includes("tests/cloudkit-sync-batch.test.mjs") &&
+    packageJson.scripts.test.includes("tests/cloudkit-sync-apply.test.mjs") &&
     diagnosticBundleSource.includes('dataSyncScope: "entry-file-only"') &&
     diagnosticBundleSource.includes("cloudKitReadiness") &&
     diagnosticBundleSource.includes("recordPlan: readiness.recordPlan") &&
@@ -2026,6 +2046,9 @@ function checkAssets() {
     apiAuthTestSource.includes("cloudKitSyncChangesPreviewSkipped") &&
     apiAuthTestSource.includes("/api/v1/admin/icloud-data-sync/import-quarantine") &&
     apiAuthTestSource.includes("cloudKitSyncImportQuarantineSkipped") &&
+    apiAuthTestSource.includes("/api/v1/admin/icloud-data-sync/quarantine") &&
+    apiAuthTestSource.includes("/api/v1/admin/icloud-data-sync/apply-quarantine") &&
+    apiAuthTestSource.includes("cloudKitSyncApplyQuarantineEmpty") &&
     apiAuthTestSource.includes("cloudKitReadiness.status") &&
     apiAuthTestSource.includes("cloudKitRequiredForDataSync") &&
     networkDiagnosticsSource.includes("cleanupIcloudHandoffEntries") &&

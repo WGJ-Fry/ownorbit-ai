@@ -34,6 +34,7 @@ import { getIcloudDataSyncReadiness } from "../icloudDataSyncReadiness";
 import { runCloudKitNativeHelper, type CloudKitNativeHelperOperation } from "../cloudKitNativeHelper";
 import { buildCloudKitSyncBatchPreview, buildCloudKitSyncExportPackage, CLOUDKIT_SYNC_EXPORT_CONFIRMATION, summarizeCloudKitSyncExportPackage } from "../cloudKitSyncBatch";
 import { CLOUDKIT_SYNC_IMPORT_CONFIRMATION, getCloudKitSyncQuarantineSummary, getCloudKitSyncStateSnapshot, listCloudKitSyncCheckpoints, publicCloudKitHelperResult, saveCloudKitSyncChangesPreview, saveCloudKitSyncImportQuarantine } from "../cloudKitSyncState";
+import { applyCloudKitSyncQuarantine, CLOUDKIT_SYNC_APPLY_CONFIRMATION, listCloudKitSyncQuarantineItems } from "../cloudKitSyncApply";
 
 const loginFailures = new Map<string, { count: number; lockedUntil: number }>();
 
@@ -76,6 +77,10 @@ function normalizeCloudKitExportConfirmation(value: unknown) {
 }
 
 function normalizeCloudKitImportConfirmation(value: unknown) {
+  return String(value || "").trim();
+}
+
+function normalizeCloudKitApplyConfirmation(value: unknown) {
   return String(value || "").trim();
 }
 
@@ -982,6 +987,77 @@ export function registerAdminRoutes(app: express.Express) {
         error: error.message || "CloudKit sync import quarantine failed",
         quarantine: getCloudKitSyncQuarantineSummary(),
         checkpoints: listCloudKitSyncCheckpoints(),
+        diagnostics: getAdminNetworkDiagnostics(),
+      });
+    }
+  });
+
+  app.get("/api/v1/admin/icloud-data-sync/quarantine", requireAdmin, rateLimit({ keyPrefix: "admin-cloudkit-sync-quarantine", windowMs: 60_000, max: 20 }), (req, res) => {
+    try {
+      const quarantine = listCloudKitSyncQuarantineItems({ limit: normalizeCloudKitBatchLimit(req.query.limit) || 100 });
+      insertAuditLog("icloud_cloudkit_sync_quarantine_viewed", "network", "cloudkit-sync-quarantine", {
+        itemCount: quarantine.items.length,
+        pendingReview: quarantine.summary.pendingReview,
+        conflicts: quarantine.summary.conflicts,
+        rawPayloadReturnedToAdmin: false,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.json({ quarantine, diagnostics: getAdminNetworkDiagnostics() });
+    } catch (error: any) {
+      insertAuditLog("icloud_cloudkit_sync_quarantine_view_failed", "network", "cloudkit-sync-quarantine", {
+        error: error?.message || "CloudKit sync quarantine view failed",
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(400).json({
+        error: error.message || "CloudKit sync quarantine view failed",
+        quarantine: { items: [], summary: getCloudKitSyncQuarantineSummary(), checkpoints: listCloudKitSyncCheckpoints() },
+        diagnostics: getAdminNetworkDiagnostics(),
+      });
+    }
+  });
+
+  app.post("/api/v1/admin/icloud-data-sync/apply-quarantine", requireAdmin, rateLimit({ keyPrefix: "admin-cloudkit-sync-apply-quarantine", windowMs: 60_000, max: 3 }), (req, res) => {
+    const confirmation = normalizeCloudKitApplyConfirmation(req.body?.confirmation);
+    const diagnostics = getAdminNetworkDiagnostics();
+    if (confirmation !== CLOUDKIT_SYNC_APPLY_CONFIRMATION) {
+      insertAuditLog("icloud_cloudkit_sync_apply_quarantine_blocked", "network", "cloudkit-sync-apply-quarantine", {
+        confirmationProvided: false,
+        rawPayloadReturnedToAdmin: false,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      return res.status(400).json({
+        error: "CloudKit quarantine apply requires explicit confirmation.",
+        expectedConfirmation: CLOUDKIT_SYNC_APPLY_CONFIRMATION,
+        quarantine: listCloudKitSyncQuarantineItems({ limit: 100 }),
+        diagnostics,
+      });
+    }
+    try {
+      const before = getCloudKitSyncQuarantineSummary();
+      const backup = before.pendingReview > 0 ? createDatabaseBackup({ prune: false }) : undefined;
+      const apply = applyCloudKitSyncQuarantine({ limit: normalizeCloudKitBatchLimit(req.body?.limit) || 100 });
+      insertAuditLog("icloud_cloudkit_sync_apply_quarantine", "network", "cloudkit-sync-apply-quarantine", {
+        attempted: apply.attempted,
+        applied: apply.applied,
+        conflicts: apply.conflicts,
+        failed: apply.failed,
+        skipped: apply.skipped,
+        promotedZones: apply.promotedZones,
+        blockedZones: apply.blockedZones,
+        backupFile: backup?.file || null,
+        backupSize: backup?.size || null,
+        rawPayloadReturnedToAdmin: false,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.json({
+        apply,
+        backup: backup ? { file: backup.file, size: backup.size, createdAt: backup.createdAt, redaction: backup.redaction } : undefined,
+        diagnostics: getAdminNetworkDiagnostics(),
+      });
+    } catch (error: any) {
+      insertAuditLog("icloud_cloudkit_sync_apply_quarantine_failed", "network", "cloudkit-sync-apply-quarantine", {
+        error: error?.message || "CloudKit sync quarantine apply failed",
+        rawPayloadReturnedToAdmin: false,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(400).json({
+        error: error.message || "CloudKit sync quarantine apply failed",
+        quarantine: listCloudKitSyncQuarantineItems({ limit: 100 }),
         diagnostics: getAdminNetworkDiagnostics(),
       });
     }

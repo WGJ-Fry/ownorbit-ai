@@ -622,6 +622,45 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(JSON.stringify(cloudKitImportQuarantine).includes("payloadJson"), false);
   assert.equal(JSON.stringify(cloudKitImportQuarantine).includes("serverChangeToken"), false);
   assertPublicApiResponse("cloudKitSyncImportQuarantineSkipped", cloudKitImportQuarantine);
+  const blockedCloudKitQuarantineList = await request(port, "/api/v1/admin/icloud-data-sync/quarantine");
+  assert.equal(blockedCloudKitQuarantineList.status, 401);
+  const cloudKitQuarantineList = await request(port, "/api/v1/admin/icloud-data-sync/quarantine", { headers: adminHeaders }).then((res) => res.json());
+  assert.deepEqual(cloudKitQuarantineList.quarantine.items, []);
+  assert.equal(cloudKitQuarantineList.quarantine.summary.pendingReview, 0);
+  assert.equal(cloudKitQuarantineList.quarantine.summary.applied, 0);
+  assert.equal(cloudKitQuarantineList.quarantine.summary.conflicts, 0);
+  assert.equal(JSON.stringify(cloudKitQuarantineList).includes("payloadJson"), false);
+  assert.equal(JSON.stringify(cloudKitQuarantineList).includes("serverChangeToken"), false);
+  assertPublicApiResponse("cloudKitSyncQuarantineList", cloudKitQuarantineList);
+  const blockedCloudKitApplyQuarantineAuth = await request(port, "/api/v1/admin/icloud-data-sync/apply-quarantine", {
+    method: "POST",
+    body: JSON.stringify({ confirmation: "APPLY_CLOUDKIT_QUARANTINE" }),
+  });
+  assert.equal(blockedCloudKitApplyQuarantineAuth.status, 401);
+  const blockedCloudKitApplyQuarantine = await request(port, "/api/v1/admin/icloud-data-sync/apply-quarantine", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ confirmation: "wrong-confirmation" }),
+  });
+  assert.equal(blockedCloudKitApplyQuarantine.status, 400);
+  const blockedCloudKitApplyQuarantineJson = await blockedCloudKitApplyQuarantine.json();
+  assert.equal(blockedCloudKitApplyQuarantineJson.expectedConfirmation, "APPLY_CLOUDKIT_QUARANTINE");
+  assert.equal(blockedCloudKitApplyQuarantineJson.quarantine.summary.pendingReview, 0);
+  assert.equal(JSON.stringify(blockedCloudKitApplyQuarantineJson).includes("payloadJson"), false);
+  assertPublicApiResponse("cloudKitSyncApplyQuarantineBlocked", blockedCloudKitApplyQuarantineJson);
+  const cloudKitApplyQuarantine = await request(port, "/api/v1/admin/icloud-data-sync/apply-quarantine", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ confirmation: "APPLY_CLOUDKIT_QUARANTINE" }),
+  }).then((res) => res.json());
+  assert.equal(cloudKitApplyQuarantine.apply.attempted, 0);
+  assert.equal(cloudKitApplyQuarantine.apply.applied, 0);
+  assert.equal(cloudKitApplyQuarantine.apply.conflicts, 0);
+  assert.deepEqual(cloudKitApplyQuarantine.apply.promotedZones, []);
+  assert.equal(cloudKitApplyQuarantine.backup, undefined);
+  assert.equal(JSON.stringify(cloudKitApplyQuarantine).includes("payloadJson"), false);
+  assert.equal(JSON.stringify(cloudKitApplyQuarantine).includes("serverChangeToken"), false);
+  assertPublicApiResponse("cloudKitSyncApplyQuarantineEmpty", cloudKitApplyQuarantine);
   const blockedIcloudHandoffExport = await request(port, "/api/v1/admin/icloud-handoff/export", { method: "POST" });
   assert.equal(blockedIcloudHandoffExport.status, 401);
   const blockedIcloudHandoffCleanup = await request(port, "/api/v1/admin/icloud-handoff/cleanup", { method: "POST" });

@@ -248,6 +248,37 @@ Safety rules:
 - failed or partial helper runs do not advance the applied checkpoint;
 - quarantined records require user review by default.
 
+## Review And Apply
+
+The first guarded local-merge step is intentionally separate from quarantine import:
+
+```text
+GET /api/v1/admin/icloud-data-sync/quarantine
+POST /api/v1/admin/icloud-data-sync/apply-quarantine
+```
+
+The list endpoint returns only review metadata: zone, record type, record name, status, mutation id, content hash, byte size, timestamps, and whether a payload exists locally. It never returns `payloadJson`, raw CloudKit server change tokens, helper stdin, local file paths, device credentials, AI provider keys, or session material.
+
+The apply endpoint requires explicit confirmation:
+
+```text
+APPLY_CLOUDKIT_QUARANTINE
+```
+
+With confirmation, LifeOS creates a local SQLite backup when there are pending items, applies only recognized LifeOS record types, and leaves unsupported, dangerous, destructive, newer-local, malformed, sensitive, or secret-like records in quarantine as conflicts. Supported automatic apply targets are:
+
+- `LifeOSConversation` into `chat_sessions`;
+- `LifeOSMessage` into `messages` with stable remote message ids and mutation ids;
+- non-sensitive `LifeOSMemory` and `LifeOSMemoryTombstone` into `memories`;
+- `LifeOSTask` and `LifeOSTaskTombstone` into `tasks`;
+- `LifeOSGeneratedAppState` into `custom_app_state` only when the generated app already exists locally.
+
+CloudKit hard deletes are not applied automatically. They become conflicts so the user can review the local impact before any destructive local write.
+
+Checkpoint promotion is conservative. A zone's `pending_server_change_token` is promoted to `applied_server_change_token` only after all quarantine rows for that zone have no unresolved `pending-review`, `conflict`, or `failed` status. If any row remains unresolved, that zone stays blocked and the next import can safely continue from the previous applied token.
+
+This still is not unattended background two-way sync. It is the first safe SQLite merge path that proves LifeOS can import private CloudKit changes, review them locally, apply non-conflicting records, preserve rollback evidence, and avoid losing remote changes by advancing tokens too early.
+
 ## Conflict Model
 
 Start with conservative conflict handling:
@@ -310,3 +341,5 @@ Do not claim real iCloud data sync until all of this is true:
 当前还新增了增量变更预览接口：`/api/v1/admin/icloud-data-sync/changes-preview`。它会把本地已应用的 CloudKit server change token 传给原生 helper，helper 使用 `recordZoneChanges` 读取每个 zone 的变更摘要和删除摘要，并把新的 token 作为候选 checkpoint 存在 `cloudkit_sync_checkpoints`。注意：候选 token 不会直接变成已应用 token，因为还没有把远端变更真正导入并合并到 SQLite；这样可以避免“预览一次就丢掉未导入变更”的风险。
 
 当前还新增了隔离导入接口：`/api/v1/admin/icloud-data-sync/import-quarantine`。它要求显式确认 `IMPORT_CLOUDKIT_CHANGES`，由原生 helper 读取 CloudKit 变更正文，然后只写入本机 `cloudkit_sync_quarantine` 表等待冲突审核。API 响应不会返回 `payloadJson` 或原始 server change token，也不会直接改聊天、记忆、任务或生成程序状态。候选 token 仍不会升级为 applied token，直到后续“审核并应用”步骤真正写入 SQLite 并完成回滚证据。
+
+当前还新增了审核应用接口：`GET /api/v1/admin/icloud-data-sync/quarantine` 只返回隔离区摘要，`POST /api/v1/admin/icloud-data-sync/apply-quarantine` 需要显式确认 `APPLY_CLOUDKIT_QUARANTINE`。应用前会创建 SQLite 备份，只自动写入已识别且无冲突的聊天、消息、普通记忆、任务和已存在生成程序状态；硬删除、敏感记忆、未知记录、疑似密钥或本地更新较新的记录会继续留在隔离区。只有某个 zone 没有未解决隔离项时，才会把 pending CloudKit checkpoint 推进为 applied checkpoint。

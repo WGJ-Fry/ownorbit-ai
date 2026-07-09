@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { AlertTriangle, ArrowRight, CheckCircle2, ClipboardCheck, ClipboardPaste, Cloud, ExternalLink, Loader2, QrCode, RefreshCw, ShieldCheck, Smartphone, Wifi } from "lucide-react";
-import { analyzeIcloudHandoffRepairPacket, getCloudKitSyncBatchPreview, recordIcloudAcceptance, runCloudKitDataSyncHelper, runCloudKitSyncChangesPreview, runCloudKitSyncExport, runCloudKitSyncImportPreview, runCloudKitSyncImportQuarantine } from "../../services/lifeosApi";
-import type { CloudKitNativeHelperResult, CloudKitSyncBatchPreview, CloudKitSyncCheckpoint, CloudKitSyncExportSummary, CloudKitSyncQuarantineSummary, IcloudAutoRefreshResult, IcloudHandoffRepairAnalysis, NetworkDiagnostics } from "../../services/lifeosApi";
+import { analyzeIcloudHandoffRepairPacket, applyCloudKitSyncQuarantine, getCloudKitSyncBatchPreview, getCloudKitSyncQuarantine, recordIcloudAcceptance, runCloudKitDataSyncHelper, runCloudKitSyncChangesPreview, runCloudKitSyncExport, runCloudKitSyncImportPreview, runCloudKitSyncImportQuarantine } from "../../services/lifeosApi";
+import type { CloudKitNativeHelperResult, CloudKitSyncApplyResult, CloudKitSyncBatchPreview, CloudKitSyncCheckpoint, CloudKitSyncExportSummary, CloudKitSyncQuarantineItem, CloudKitSyncQuarantineSummary, IcloudAutoRefreshResult, IcloudHandoffRepairAnalysis, NetworkDiagnostics } from "../../services/lifeosApi";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { TranslationKey } from "../../i18n/translations";
 import { getIcloudActionFollowupKey, getPrimaryIcloudAction } from "./appleRemoteIcloudPrimaryAction";
@@ -547,6 +547,10 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const [cloudKitQuarantineBusy, setCloudKitQuarantineBusy] = useState(false);
   const [cloudKitQuarantineMessage, setCloudKitQuarantineMessage] = useState("");
   const [cloudKitQuarantineSummary, setCloudKitQuarantineSummary] = useState<CloudKitSyncQuarantineSummary | null>(null);
+  const [cloudKitQuarantineItems, setCloudKitQuarantineItems] = useState<CloudKitSyncQuarantineItem[]>([]);
+  const [cloudKitApplyBusy, setCloudKitApplyBusy] = useState(false);
+  const [cloudKitApplyMessage, setCloudKitApplyMessage] = useState("");
+  const [cloudKitApplyResult, setCloudKitApplyResult] = useState<CloudKitSyncApplyResult | null>(null);
   const appleRuntime = isAppleRuntime();
   const candidate = getPreferredCandidate(diagnostics);
   const icloud = diagnostics?.icloud;
@@ -823,6 +827,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
       setCloudKitHelperResult(result.result);
       setCloudKitCheckpoints(result.checkpoints || []);
       setCloudKitQuarantineSummary(result.quarantine);
+      await handleLoadCloudKitSyncQuarantine();
       onDiagnostics?.(result.diagnostics);
       setCloudKitQuarantineMessage(t("onboarding.appleRemoteIcloudDataSyncImportQuarantineCompleted", {
         changed: result.quarantine.importedChanged,
@@ -837,6 +842,46 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
       setCloudKitQuarantineMessage(error?.message || t("onboarding.appleRemoteIcloudDataSyncImportQuarantineFailed"));
     } finally {
       setCloudKitQuarantineBusy(false);
+    }
+  };
+
+  const handleLoadCloudKitSyncQuarantine = async () => {
+    setCloudKitApplyMessage("");
+    try {
+      const result = await getCloudKitSyncQuarantine(100);
+      setCloudKitQuarantineItems(result.quarantine.items);
+      setCloudKitQuarantineSummary(result.quarantine.summary);
+      setCloudKitCheckpoints(result.quarantine.checkpoints || []);
+      onDiagnostics?.(result.diagnostics);
+    } catch (error: any) {
+      setCloudKitApplyMessage(error?.message || t("onboarding.appleRemoteIcloudDataSyncApplyQuarantineLoadFailed"));
+    }
+  };
+
+  const handleApplyCloudKitSyncQuarantine = async () => {
+    setCloudKitApplyBusy(true);
+    setCloudKitApplyMessage("");
+    try {
+      const result = await applyCloudKitSyncQuarantine({ confirmation: "APPLY_CLOUDKIT_QUARANTINE" });
+      setCloudKitApplyResult(result.apply);
+      setCloudKitQuarantineSummary(result.apply.summary);
+      setCloudKitCheckpoints(result.apply.checkpoints || []);
+      await handleLoadCloudKitSyncQuarantine();
+      onDiagnostics?.(result.diagnostics);
+      setCloudKitApplyMessage(t("onboarding.appleRemoteIcloudDataSyncApplyQuarantineCompleted", {
+        applied: result.apply.applied,
+        conflicts: result.apply.conflicts,
+      }));
+    } catch (error: any) {
+      const payload = error?.payload as { apply?: CloudKitSyncApplyResult; quarantine?: { items?: CloudKitSyncQuarantineItem[]; summary?: CloudKitSyncQuarantineSummary; checkpoints?: CloudKitSyncCheckpoint[] }; diagnostics?: NetworkDiagnostics } | undefined;
+      if (payload?.apply) setCloudKitApplyResult(payload.apply);
+      if (payload?.quarantine?.items) setCloudKitQuarantineItems(payload.quarantine.items);
+      if (payload?.quarantine?.summary) setCloudKitQuarantineSummary(payload.quarantine.summary);
+      if (payload?.quarantine?.checkpoints) setCloudKitCheckpoints(payload.quarantine.checkpoints);
+      if (payload?.diagnostics) onDiagnostics?.(payload.diagnostics);
+      setCloudKitApplyMessage(error?.message || t("onboarding.appleRemoteIcloudDataSyncApplyQuarantineFailed"));
+    } finally {
+      setCloudKitApplyBusy(false);
     }
   };
 
@@ -1415,6 +1460,82 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                               })}</div>
                             </>
                           ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                    <div data-testid="onboarding-icloud-data-sync-apply-quarantine" className="mt-2 rounded-lg border border-current/10 bg-black/10 p-2">
+                      <div className="font-bold">{t("onboarding.appleRemoteIcloudDataSyncApplyQuarantineTitle")}</div>
+                      <div className="mt-1 opacity-80">{t("onboarding.appleRemoteIcloudDataSyncApplyQuarantineBody")}</div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          data-testid="onboarding-icloud-data-sync-quarantine-load"
+                          onClick={handleLoadCloudKitSyncQuarantine}
+                          className="inline-flex items-center justify-center gap-2 rounded-lg border border-current/15 bg-black/15 px-3 py-2 text-[11px] font-bold disabled:opacity-50"
+                        >
+                          <ClipboardCheck className="h-3.5 w-3.5" />
+                          {t("onboarding.appleRemoteIcloudDataSyncApplyQuarantineLoad")}
+                        </button>
+                        <button
+                          type="button"
+                          data-testid="onboarding-icloud-data-sync-apply-quarantine-run"
+                          onClick={handleApplyCloudKitSyncQuarantine}
+                          disabled={cloudKitApplyBusy || !cloudKitQuarantineSummary?.pendingReview}
+                          className="inline-flex items-center justify-center gap-2 rounded-lg border border-current/15 bg-black/15 px-3 py-2 text-[11px] font-bold disabled:opacity-50"
+                        >
+                          {cloudKitApplyBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+                          {t("onboarding.appleRemoteIcloudDataSyncApplyQuarantineRun")}
+                        </button>
+                      </div>
+                      {cloudKitApplyMessage ? (
+                        <div className="mt-2 rounded-lg border border-current/10 bg-black/10 px-2 py-1 font-bold">
+                          {cloudKitApplyMessage}
+                        </div>
+                      ) : null}
+                      {cloudKitQuarantineSummary ? (
+                        <div data-testid="onboarding-icloud-data-sync-apply-quarantine-summary" className="mt-2 grid gap-1 rounded-lg border border-current/10 bg-black/10 p-2 font-mono text-[10px] opacity-85">
+                          <div className="font-sans text-[11px] font-bold">{t("onboarding.appleRemoteIcloudDataSyncApplyQuarantineResultTitle")}</div>
+                          <div>{t("onboarding.appleRemoteIcloudDataSyncApplyQuarantineSummary", {
+                            pending: cloudKitQuarantineSummary.pendingReview,
+                            applied: cloudKitQuarantineSummary.applied,
+                            conflicts: cloudKitQuarantineSummary.conflicts,
+                          })}</div>
+                          <div>{t("onboarding.appleRemoteIcloudDataSyncApplyQuarantineFailedCount", {
+                            failed: cloudKitQuarantineSummary.failed,
+                            skipped: cloudKitQuarantineSummary.skipped,
+                          })}</div>
+                          {cloudKitApplyResult ? (
+                            <>
+                              <div>{t("onboarding.appleRemoteIcloudDataSyncApplyQuarantineCounts", {
+                                attempted: cloudKitApplyResult.attempted,
+                                applied: cloudKitApplyResult.applied,
+                                conflicts: cloudKitApplyResult.conflicts,
+                                failed: cloudKitApplyResult.failed,
+                              })}</div>
+                              <div>{t("onboarding.appleRemoteIcloudDataSyncApplyQuarantinePromotedZones", {
+                                value: cloudKitApplyResult.promotedZones.join(", ") || t("onboarding.appleRemoteIcloudDataSyncNotConfigured"),
+                              })}</div>
+                              <div>{t("onboarding.appleRemoteIcloudDataSyncApplyQuarantineBlockedZones", {
+                                value: cloudKitApplyResult.blockedZones.join(", ") || t("onboarding.appleRemoteIcloudDataSyncNotConfigured"),
+                              })}</div>
+                            </>
+                          ) : null}
+                          {cloudKitQuarantineItems.length ? (
+                            <div className="mt-1 grid gap-1">
+                              {cloudKitQuarantineItems.slice(0, 6).map((item) => (
+                                <div key={item.id} className="rounded-md bg-black/15 px-2 py-1">
+                                  {t("onboarding.appleRemoteIcloudDataSyncApplyQuarantineItem", {
+                                    recordType: item.recordType,
+                                    status: item.status,
+                                    recordName: item.recordName,
+                                  })}
+                                  {item.error ? <span className="ml-1 opacity-70">{item.error}</span> : null}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div>{t("onboarding.appleRemoteIcloudDataSyncApplyQuarantineEmpty")}</div>
+                          )}
                         </div>
                       ) : null}
                     </div>
