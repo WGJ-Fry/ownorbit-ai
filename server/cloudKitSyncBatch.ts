@@ -8,6 +8,8 @@ type CloudKitSyncDataType = "chat-history" | "memory" | "tasks" | "generated-app
 
 const DEFAULT_LIMIT = 200;
 const MAX_LIMIT = 500;
+export const CLOUDKIT_SYNC_EXPORT_SCHEMA = "lifeos-cloudkit-sync-export.v1";
+export const CLOUDKIT_SYNC_EXPORT_CONFIRMATION = "SYNC_APPROVED_RECORDS";
 const forbiddenValuePattern = /\b(?:github_pat_[A-Za-z0-9_]+|ghp_[A-Za-z0-9_]+|sk-[A-Za-z0-9_-]{12,}|sk-or-[A-Za-z0-9_-]{12,}|AIza[0-9A-Za-z_-]{20,}|Bearer\s+[A-Za-z0-9._~+/=-]+)\b|\/Users\/[^/\s]+|[A-Z]:\\Users\\[^\\\s]+/i;
 const forbiddenFieldPattern = /api[-_]?key|provider[-_]?key|token|password|passphrase|secret|authorization|cookie|private[-_]?key|credential|sqlite|local[-_]?path|file[-_]?path/i;
 
@@ -67,6 +69,41 @@ export type CloudKitSyncBatchPreview = {
   nextAction: string;
 };
 
+export type CloudKitSyncExportRecord = {
+  zone: string;
+  recordType: string;
+  recordName: string;
+  mutationId: string;
+  contentHash: string;
+  fields: Record<string, string | number | boolean>;
+};
+
+export type CloudKitSyncExportPackage = {
+  ok: boolean;
+  status: "blocked" | "ready";
+  generatedAt: string;
+  requestId: string;
+  preview: CloudKitSyncBatchPreview;
+  helperSyncBatch: {
+    schema: typeof CLOUDKIT_SYNC_EXPORT_SCHEMA;
+    confirmation: typeof CLOUDKIT_SYNC_EXPORT_CONFIRMATION;
+    recordPlanHash: string;
+    generatedAt: string;
+    records: CloudKitSyncExportRecord[];
+    zones: Array<{ zone: string; records: number }>;
+  };
+  safety: {
+    rawPayloadReturnedToAdmin: false;
+    rawPayloadSentToNativeHelper: boolean;
+    blockedBeforeExport: number;
+    requiresExplicitConfirmation: true;
+  };
+};
+
+type CloudKitSyncRecordCandidate = CloudKitSyncRecordPreview & {
+  syncFields: Record<string, string | number | boolean>;
+};
+
 function clampLimit(value: unknown) {
   const parsed = Number.parseInt(String(value || ""), 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_LIMIT;
@@ -116,19 +153,51 @@ function byteSize(value: unknown) {
   return Buffer.byteLength(JSON.stringify(value ?? null), "utf8");
 }
 
+function toPreview(record: CloudKitSyncRecordCandidate): CloudKitSyncRecordPreview {
+  const { syncFields: _syncFields, ...preview } = record;
+  return preview;
+}
+
 function addCount(counts: Map<string, number>, key: string) {
   counts.set(key, (counts.get(key) || 0) + 1);
 }
 
 function pushReady(
-  records: CloudKitSyncRecordPreview[],
+  records: CloudKitSyncRecordCandidate[],
   counts: { zones: Map<string, number>; recordTypes: Map<string, number> },
-  record: CloudKitSyncRecordPreview,
+  record: CloudKitSyncRecordCandidate,
   limit: number,
 ) {
   addCount(counts.zones, record.zone);
   addCount(counts.recordTypes, record.recordType);
   if (records.length < limit) records.push(record);
+}
+
+function buildSyncFields(input: {
+  id: string;
+  dataType: CloudKitSyncDataType;
+  zone: string;
+  recordType: string;
+  recordName: string;
+  payload: unknown;
+  logicalClock: number;
+  requiresUserReview?: boolean;
+}) {
+  const payloadJson = JSON.stringify(input.payload ?? null);
+  const contentHash = stableHash(input.payload);
+  return {
+    lifeosSchema: "lifeos-cloudkit-record.v1",
+    lifeosDataType: input.dataType,
+    lifeosRecordType: input.recordType,
+    lifeosRecordName: input.recordName,
+    sourceIdHash: recordId(input.dataType, input.id),
+    mutationId: stableHash({ id: input.id, dataType: input.dataType, recordType: input.recordType, logicalClock: input.logicalClock }).slice(0, 32),
+    logicalClock: input.logicalClock,
+    contentHash,
+    payloadJson,
+    payloadByteSize: byteSize(input.payload),
+    requiresUserReview: input.requiresUserReview ?? true,
+  };
 }
 
 function buildRecord(input: {
@@ -140,19 +209,21 @@ function buildRecord(input: {
   payload: unknown;
   logicalClock: number;
   requiresUserReview?: boolean;
-}): CloudKitSyncRecordPreview {
+}): CloudKitSyncRecordCandidate {
+  const syncFields = buildSyncFields(input);
   return {
     id: recordId(`${input.dataType}:${input.recordType}`, input.id),
     dataType: input.dataType,
     zone: input.zone,
     recordType: input.recordType,
     recordName: input.recordName,
-    mutationId: stableHash({ id: input.id, dataType: input.dataType, recordType: input.recordType, logicalClock: input.logicalClock }).slice(0, 32),
+    mutationId: syncFields.mutationId,
     logicalClock: input.logicalClock,
     fieldNames: Array.from(collectFieldNames(input.payload)).sort().slice(0, 32),
     byteSize: byteSize(input.payload),
-    contentHash: stableHash(input.payload),
+    contentHash: syncFields.contentHash,
     requiresUserReview: input.requiresUserReview ?? true,
+    syncFields,
   };
 }
 
@@ -172,7 +243,7 @@ function pushBlocked(
 }
 
 function collectChatRecords(limit: number) {
-  const records: CloudKitSyncRecordPreview[] = [];
+  const records: CloudKitSyncRecordCandidate[] = [];
   const blockedRecords: CloudKitSyncBlockedRecord[] = [];
   const counts = { zones: new Map<string, number>(), recordTypes: new Map<string, number>() };
   const sessions = db.prepare(`
@@ -243,7 +314,7 @@ function collectChatRecords(limit: number) {
 }
 
 function collectMemoryRecords(limit: number) {
-  const records: CloudKitSyncRecordPreview[] = [];
+  const records: CloudKitSyncRecordCandidate[] = [];
   const blockedRecords: CloudKitSyncBlockedRecord[] = [];
   const counts = { zones: new Map<string, number>(), recordTypes: new Map<string, number>() };
   const memories = db.prepare(`
@@ -284,7 +355,7 @@ function collectMemoryRecords(limit: number) {
 }
 
 function collectTaskRecords(limit: number) {
-  const records: CloudKitSyncRecordPreview[] = [];
+  const records: CloudKitSyncRecordCandidate[] = [];
   const blockedRecords: CloudKitSyncBlockedRecord[] = [];
   const counts = { zones: new Map<string, number>(), recordTypes: new Map<string, number>() };
   const tasks = db.prepare(`
@@ -330,7 +401,7 @@ function collectTaskRecords(limit: number) {
 }
 
 function collectGeneratedAppStateRecords(limit: number) {
-  const records: CloudKitSyncRecordPreview[] = [];
+  const records: CloudKitSyncRecordCandidate[] = [];
   const blockedRecords: CloudKitSyncBlockedRecord[] = [];
   const counts = { zones: new Map<string, number>(), recordTypes: new Map<string, number>() };
   const tableExists = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'custom_app_state'").get();
@@ -397,7 +468,7 @@ export function buildCloudKitSyncBatchPreview(
   options: { limit?: number } = {},
 ): CloudKitSyncBatchPreview {
   const limit = clampLimit(options.limit);
-  const records: CloudKitSyncRecordPreview[] = [];
+  const records: CloudKitSyncRecordCandidate[] = [];
   const blockedRecords: CloudKitSyncBlockedRecord[] = [];
   const zones = new Map<string, number>();
   const recordTypes = new Map<string, number>();
@@ -460,7 +531,7 @@ export function buildCloudKitSyncBatchPreview(
     limit,
     zones: sortedCounts(zones, "zone"),
     recordTypes: sortedCounts(recordTypes, "recordType"),
-    records,
+    records: records.map(toPreview),
     blockedRecords,
     safety: {
       forbiddenFieldNames,
@@ -472,5 +543,81 @@ export function buildCloudKitSyncBatchPreview(
     },
     helperPayloadPlan,
     nextAction: nextActionFor(status, readiness, blockedRecords.length),
+  };
+}
+
+export function buildCloudKitSyncExportPackage(
+  readiness: IcloudDataSyncReadiness,
+  options: { limit?: number; confirmation?: string; now?: Date } = {},
+): CloudKitSyncExportPackage {
+  const generatedAt = (options.now || new Date()).toISOString();
+  const preview = buildCloudKitSyncBatchPreview(readiness, { limit: options.limit });
+  const limit = clampLimit(options.limit);
+  const records: CloudKitSyncRecordCandidate[] = [];
+
+  if (preview.status === "ready" && options.confirmation === CLOUDKIT_SYNC_EXPORT_CONFIRMATION) {
+    for (const dataType of readiness.selectedDataTypes as CloudKitSyncDataType[]) {
+      const collected = dataType === "chat-history"
+        ? collectChatRecords(limit)
+        : dataType === "memory"
+        ? collectMemoryRecords(limit)
+        : dataType === "tasks"
+        ? collectTaskRecords(limit)
+        : dataType === "generated-app-state"
+        ? collectGeneratedAppStateRecords(limit)
+        : { records: [] };
+      records.push(...collected.records.slice(0, Math.max(0, limit - records.length)));
+    }
+  }
+
+  const exportRecords: CloudKitSyncExportRecord[] = records.map((record) => ({
+    zone: record.zone,
+    recordType: record.recordType,
+    recordName: record.recordName,
+    mutationId: record.mutationId,
+    contentHash: record.contentHash,
+    fields: record.syncFields,
+  }));
+  const recordPlanHash = stableHash({
+    selectedDataTypes: readiness.selectedDataTypes,
+    records: exportRecords.map((record) => [record.zone, record.recordType, record.recordName, record.contentHash]),
+  }).slice(0, 32);
+  const requestId = `lifeos-cloudkit-sync-${recordPlanHash}`;
+  const ready = preview.status === "ready" && options.confirmation === CLOUDKIT_SYNC_EXPORT_CONFIRMATION && exportRecords.length > 0;
+
+  return {
+    ok: ready,
+    status: ready ? "ready" : "blocked",
+    generatedAt,
+    requestId,
+    preview,
+    helperSyncBatch: {
+      schema: CLOUDKIT_SYNC_EXPORT_SCHEMA,
+      confirmation: CLOUDKIT_SYNC_EXPORT_CONFIRMATION,
+      recordPlanHash,
+      generatedAt,
+      records: exportRecords,
+      zones: preview.zones,
+    },
+    safety: {
+      rawPayloadReturnedToAdmin: false,
+      rawPayloadSentToNativeHelper: ready,
+      blockedBeforeExport: preview.blockedRecordCount,
+      requiresExplicitConfirmation: true,
+    },
+  };
+}
+
+export function summarizeCloudKitSyncExportPackage(exportPackage: CloudKitSyncExportPackage) {
+  return {
+    ok: exportPackage.ok,
+    status: exportPackage.status,
+    generatedAt: exportPackage.generatedAt,
+    requestId: exportPackage.requestId,
+    preview: exportPackage.preview,
+    exportRecordCount: exportPackage.helperSyncBatch.records.length,
+    recordPlanHash: exportPackage.helperSyncBatch.recordPlanHash,
+    zones: exportPackage.helperSyncBatch.zones,
+    safety: exportPackage.safety,
   };
 }

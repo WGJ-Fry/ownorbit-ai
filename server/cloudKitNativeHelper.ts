@@ -1,5 +1,6 @@
 import { spawn } from "child_process";
 import crypto from "crypto";
+import type { CloudKitSyncExportPackage } from "./cloudKitSyncBatch.ts";
 import type { getIcloudDataSyncReadiness } from "./icloudDataSyncReadiness.ts";
 
 export const CLOUDKIT_NATIVE_HELPER_PROTOCOL_VERSION = 1;
@@ -14,7 +15,7 @@ const MAX_TEXT_CHARS = 800;
 
 type IcloudDataSyncReadiness = ReturnType<typeof getIcloudDataSyncReadiness>;
 
-export type CloudKitNativeHelperOperation = "probe" | "roundtrip";
+export type CloudKitNativeHelperOperation = "probe" | "roundtrip" | "sync-export";
 export type CloudKitNativeHelperRunStatus = "passed" | "failed" | "skipped";
 
 type CommandRunner = (
@@ -28,6 +29,7 @@ type HelperRunOptions = {
   timeoutMs?: number;
   now?: Date;
   runCommand?: CommandRunner;
+  syncExportPackage?: CloudKitSyncExportPackage;
 };
 
 function compact(value: unknown, limit = MAX_TEXT_CHARS) {
@@ -120,13 +122,25 @@ function normalizeRoundtrip(value: unknown) {
   };
 }
 
+function normalizeSyncExport(value: unknown) {
+  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    attempted: Number(input.attempted || 0),
+    saved: Number(input.saved || 0),
+    failed: Number(input.failed || 0),
+    recordPlanHash: compact(input.recordPlanHash, 80),
+    zones: normalizeStringList(input.zones, 24),
+    recordTypes: normalizeStringList(input.recordTypes, 24),
+  };
+}
+
 export function cloudKitNativeHelperContract() {
   return {
     protocolVersion: CLOUDKIT_NATIVE_HELPER_PROTOCOL_VERSION,
     transport: CLOUDKIT_NATIVE_HELPER_TRANSPORT,
     requestSchema: CLOUDKIT_NATIVE_HELPER_REQUEST_SCHEMA,
     responseSchema: CLOUDKIT_NATIVE_HELPER_RESPONSE_SCHEMA,
-    operations: ["probe", "roundtrip"] as CloudKitNativeHelperOperation[],
+    operations: ["probe", "roundtrip", "sync-export"] as CloudKitNativeHelperOperation[],
     commandArgs: [...CLOUDKIT_NATIVE_HELPER_ARGS],
     timeoutMs: CLOUDKIT_NATIVE_HELPER_TIMEOUT_MS,
   };
@@ -136,9 +150,10 @@ export function buildCloudKitNativeHelperRequest(
   readiness: IcloudDataSyncReadiness,
   operation: CloudKitNativeHelperOperation,
   now = new Date(),
+  syncExportPackage?: CloudKitSyncExportPackage,
 ) {
   const forbiddenFieldNames = Array.from(new Set(readiness.recordPlan.flatMap((item) => item.forbiddenFields))).sort();
-  return {
+  const request: Record<string, unknown> = {
     protocolVersion: CLOUDKIT_NATIVE_HELPER_PROTOCOL_VERSION,
     schema: CLOUDKIT_NATIVE_HELPER_REQUEST_SCHEMA,
     operation,
@@ -164,6 +179,10 @@ export function buildCloudKitNativeHelperRequest(
       blockedDataTypePolicy: readiness.blockedDataTypePolicy,
     },
   };
+  if (operation === "sync-export" && syncExportPackage?.ok) {
+    request.syncBatch = syncExportPackage.helperSyncBatch;
+  }
+  return request;
 }
 
 function skippedResult(operation: CloudKitNativeHelperOperation, readinessStatus: string, reason: string) {
@@ -188,8 +207,11 @@ export async function runCloudKitNativeHelper(
   if (!readiness.nativeHelper.executable || !readiness.nativeHelper.path) {
     return skippedResult(operation, readiness.status, "Native CloudKit helper is not executable.");
   }
+  if (operation === "sync-export" && !options.syncExportPackage?.ok) {
+    return skippedResult(operation, readiness.status, "CloudKit sync export package is not ready or was not explicitly confirmed.");
+  }
 
-  const request = buildCloudKitNativeHelperRequest(readiness, operation, options.now || new Date());
+  const request = buildCloudKitNativeHelperRequest(readiness, operation, options.now || new Date(), options.syncExportPackage);
   const requestJson = JSON.stringify(request);
   const requestHash = `sha256:${crypto.createHash("sha256").update(requestJson).digest("hex").slice(0, 16)}`;
   const runCommand = options.runCommand || defaultCommandRunner;
@@ -199,12 +221,14 @@ export async function runCloudKitNativeHelper(
   });
   const payload = parseHelperPayload(command.stdout);
   const roundtrip = normalizeRoundtrip(payload?.roundtrip);
+  const syncExport = normalizeSyncExport(payload?.syncExport);
   const operationMatches = payload?.operation === operation;
   const protocolMatches = payload?.protocolVersion === CLOUDKIT_NATIVE_HELPER_PROTOCOL_VERSION &&
     payload?.schema === CLOUDKIT_NATIVE_HELPER_RESPONSE_SCHEMA;
   const responseOk = payload?.ok === true;
   const roundtripOk = operation !== "roundtrip" || (roundtrip.created && roundtrip.fetched && roundtrip.deleted);
-  const passed = command.exitCode === 0 && !command.timedOut && responseOk && protocolMatches && operationMatches && roundtripOk;
+  const syncExportOk = operation !== "sync-export" || (syncExport.attempted > 0 && syncExport.saved === syncExport.attempted && syncExport.failed === 0);
+  const passed = command.exitCode === 0 && !command.timedOut && responseOk && protocolMatches && operationMatches && roundtripOk && syncExportOk;
   const payloadWarnings = normalizeStringList(payload?.warnings).map((item) => redact(item, 240));
   const payloadErrors = normalizeStringList(payload?.errors).map((item) => redact(item, 240));
   const errors = [
@@ -228,6 +252,7 @@ export async function runCloudKitNativeHelper(
     containerReachable: Boolean(payload?.containerReachable),
     capabilitiesVerified: normalizeStringList(payload?.capabilitiesVerified || payload?.capabilities, 32),
     roundtrip,
+    syncExport,
     warnings: payloadWarnings,
     errors,
     command: {

@@ -1,6 +1,6 @@
 import type express from "express";
 import crypto from "crypto";
-import { db } from "../db";
+import { createDatabaseBackup, db } from "../db";
 import { insertAuditLog, listAuditLogs } from "../audit";
 import { aiProviders, deleteAiApiKey, getActiveAiProviderId, getAiApiKey, getAiConfigStatus, getAiProviderBaseUrl, getAiProviderDefinition, getAiProviderStatus, listAiProviderStatuses, saveActiveAiProvider, saveAiApiKey, saveDiscoveredAiModelCatalog, saveSelectedAiModel, supportsAiProviderModelDiscovery, type AiProviderId } from "../appSecrets";
 import { buildCalendarSyncPreview, buildCalendarSyncPreviewAsync, executeCalendarSyncOperationAsync } from "../calendarSyncPreview";
@@ -32,7 +32,7 @@ import { checkReleaseUpdate } from "../releaseUpdateCheck";
 import { buildNativeAutomationPlan, executeNativeAutomation } from "../nativeAutomationBridge";
 import { getIcloudDataSyncReadiness } from "../icloudDataSyncReadiness";
 import { runCloudKitNativeHelper, type CloudKitNativeHelperOperation } from "../cloudKitNativeHelper";
-import { buildCloudKitSyncBatchPreview } from "../cloudKitSyncBatch";
+import { buildCloudKitSyncBatchPreview, buildCloudKitSyncExportPackage, CLOUDKIT_SYNC_EXPORT_CONFIRMATION, summarizeCloudKitSyncExportPackage } from "../cloudKitSyncBatch";
 
 const loginFailures = new Map<string, { count: number; lockedUntil: number }>();
 
@@ -68,6 +68,10 @@ function normalizeCloudKitBatchLimit(value: unknown) {
   const parsed = Number.parseInt(String(value || ""), 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
   return Math.min(500, Math.max(1, parsed));
+}
+
+function normalizeCloudKitExportConfirmation(value: unknown) {
+  return String(value || "").trim();
 }
 
 const icloudAcceptanceRecordIds: Record<string, "cellular-mobile-chat" | "restart-restore" | "network-switch" | "network-interruption" | "stale-qr-repair"> = {
@@ -762,6 +766,66 @@ export function registerAdminRoutes(app: express.Express) {
         error: error?.message || "CloudKit sync batch preview failed",
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.status(400).json({ error: error.message || "CloudKit sync batch preview failed", diagnostics: getAdminNetworkDiagnostics() });
+    }
+  });
+
+  app.post("/api/v1/admin/icloud-data-sync/export", requireAdmin, rateLimit({ keyPrefix: "admin-cloudkit-sync-export", windowMs: 60_000, max: 4 }), async (req, res) => {
+    const confirmation = normalizeCloudKitExportConfirmation(req.body?.confirmation);
+    try {
+      const diagnostics = getAdminNetworkDiagnostics();
+      const readiness = getIcloudDataSyncReadiness({ platformSupported: diagnostics.icloud.platformSupported });
+      const exportPackage = buildCloudKitSyncExportPackage(readiness, {
+        limit: normalizeCloudKitBatchLimit(req.body?.limit),
+        confirmation,
+      });
+      const summary = summarizeCloudKitSyncExportPackage(exportPackage);
+      if (!exportPackage.ok) {
+        insertAuditLog("icloud_cloudkit_sync_export_blocked", "network", "cloudkit-sync-export", {
+          status: summary.status,
+          readinessStatus: summary.preview.readinessStatus,
+          previewStatus: summary.preview.status,
+          readyRecordCount: summary.preview.readyRecordCount,
+          blockedRecordCount: summary.preview.blockedRecordCount,
+          exportRecordCount: summary.exportRecordCount,
+          confirmationProvided: confirmation === CLOUDKIT_SYNC_EXPORT_CONFIRMATION,
+          rawPayloadReturnedToAdmin: summary.safety.rawPayloadReturnedToAdmin,
+        }, (req as any).actor?.type, (req as any).actor?.id);
+        return res.status(400).json({
+          export: summary,
+          diagnostics,
+          error: "CloudKit sync export is blocked until readiness, safe records, and explicit confirmation pass.",
+        });
+      }
+
+      const backup = createDatabaseBackup({ prune: false });
+      const result = await runCloudKitNativeHelper(readiness, {
+        operation: "sync-export",
+        syncExportPackage: exportPackage,
+        timeoutMs: 60_000,
+      });
+      insertAuditLog("icloud_cloudkit_sync_export", "network", "cloudkit-sync-export", {
+        status: result.status,
+        ok: result.ok,
+        readinessStatus: "readinessStatus" in result ? result.readinessStatus : readiness.status,
+        evidenceId: "evidenceId" in result ? result.evidenceId || null : null,
+        exportRecordCount: summary.exportRecordCount,
+        recordPlanHash: summary.recordPlanHash,
+        syncExport: "syncExport" in result ? result.syncExport : null,
+        backupFile: backup.file,
+        backupSize: backup.size,
+        rawPayloadReturnedToAdmin: summary.safety.rawPayloadReturnedToAdmin,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(result.status === "passed" ? 200 : 400).json({
+        result,
+        export: summary,
+        backup: { file: backup.file, size: backup.size, createdAt: backup.createdAt, redaction: backup.redaction },
+        diagnostics: getAdminNetworkDiagnostics(),
+      });
+    } catch (error: any) {
+      insertAuditLog("icloud_cloudkit_sync_export_failed", "network", "cloudkit-sync-export", {
+        error: error?.message || "CloudKit sync export failed",
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(400).json({ error: error.message || "CloudKit sync export failed", diagnostics: getAdminNetworkDiagnostics() });
     }
   });
 

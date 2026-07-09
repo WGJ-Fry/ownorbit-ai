@@ -1403,7 +1403,7 @@ export type NetworkDiagnostics = {
 export type CloudKitNativeHelperResult = {
   ok: boolean;
   status: "passed" | "failed" | "skipped";
-  operation: "probe" | "roundtrip";
+  operation: "probe" | "roundtrip" | "sync-export";
   checkedAt: string;
   readinessStatus: string;
   reason?: string;
@@ -1413,7 +1413,7 @@ export type CloudKitNativeHelperResult = {
     transport: string;
     requestSchema: string;
     responseSchema: string;
-    operations: Array<"probe" | "roundtrip">;
+    operations: Array<"probe" | "roundtrip" | "sync-export">;
     commandArgs: string[];
     timeoutMs: number;
   };
@@ -1427,6 +1427,14 @@ export type CloudKitNativeHelperResult = {
     deleted: boolean;
     recordType: string;
     zone: string;
+  };
+  syncExport?: {
+    attempted: number;
+    saved: number;
+    failed: number;
+    recordPlanHash: string;
+    zones: string[];
+    recordTypes: string[];
   };
   warnings?: string[];
   errors?: string[];
@@ -1488,6 +1496,23 @@ export type CloudKitSyncBatchPreview = {
     recordPlanHash: string;
   };
   nextAction: string;
+};
+
+export type CloudKitSyncExportSummary = {
+  ok: boolean;
+  status: "blocked" | "ready";
+  generatedAt: string;
+  requestId: string;
+  preview: CloudKitSyncBatchPreview;
+  exportRecordCount: number;
+  recordPlanHash: string;
+  zones: Array<{ zone: string; records: number }>;
+  safety: {
+    rawPayloadReturnedToAdmin: false;
+    rawPayloadSentToNativeHelper: boolean;
+    blockedBeforeExport: number;
+    requiresExplicitConfirmation: true;
+  };
 };
 
 export type ConnectionTestResult = {
@@ -2292,6 +2317,19 @@ export function getCloudKitSyncBatchPreview(limit?: number) {
     preview: CloudKitSyncBatchPreview;
     diagnostics: NetworkDiagnostics;
   }>(`/api/v1/admin/icloud-data-sync/batch-preview${query}`);
+}
+
+export function runCloudKitSyncExport(input: { confirmation: string; limit?: number }) {
+  return requestJson<{
+    result: CloudKitNativeHelperResult;
+    export: CloudKitSyncExportSummary;
+    backup: BackupRecord;
+    diagnostics: NetworkDiagnostics;
+  }>("/api/v1/admin/icloud-data-sync/export", {
+    method: "POST",
+    timeoutMs: 70_000,
+    body: JSON.stringify(input),
+  });
 }
 
 export function importRemoteAcceptanceReport(report: unknown) {

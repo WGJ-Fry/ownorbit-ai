@@ -8,6 +8,7 @@ import {
   CLOUDKIT_NATIVE_HELPER_RESPONSE_SCHEMA,
   runCloudKitNativeHelper,
 } from "../server/cloudKitNativeHelper.ts";
+import { CLOUDKIT_SYNC_EXPORT_CONFIRMATION, CLOUDKIT_SYNC_EXPORT_SCHEMA } from "../server/cloudKitSyncBatch.ts";
 import { getIcloudDataSyncReadiness } from "../server/icloudDataSyncReadiness.ts";
 
 const envKeys = [
@@ -85,6 +86,49 @@ test("CloudKit helper request is a safe JSON contract without local helper paths
   }
 });
 
+test("CloudKit helper request carries an approved sync export batch only for native helper stdin", async () => {
+  const env = snapshotEnv();
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-helper-sync-export-contract-"));
+  try {
+    const helper = await configureReadyCloudKitEnv(dir);
+    const readiness = getIcloudDataSyncReadiness({ platformSupported: true });
+    const syncExportPackage = {
+      ok: true,
+      helperSyncBatch: {
+        schema: CLOUDKIT_SYNC_EXPORT_SCHEMA,
+        confirmation: CLOUDKIT_SYNC_EXPORT_CONFIRMATION,
+        recordPlanHash: "abc123",
+        generatedAt: "2026-01-02T03:04:05.000Z",
+        zones: [{ zone: "LifeOSChatZone", records: 1 }],
+        records: [{
+          zone: "LifeOSChatZone",
+          recordType: "LifeOSMessage",
+          recordName: "message:one",
+          mutationId: "mutation-one",
+          contentHash: "hash-one",
+          fields: {
+            lifeosSchema: "lifeos-cloudkit-record.v1",
+            payloadJson: JSON.stringify({ text: "safe helper payload" }),
+            logicalClock: 1,
+          },
+        }],
+      },
+    };
+    const request = buildCloudKitNativeHelperRequest(readiness, "sync-export", new Date("2026-01-02T03:04:05.000Z"), syncExportPackage);
+    const serialized = JSON.stringify(request);
+    assert.equal(readiness.ready, true);
+    assert.equal(request.operation, "sync-export");
+    assert.equal(request.syncBatch.schema, CLOUDKIT_SYNC_EXPORT_SCHEMA);
+    assert.equal(request.syncBatch.confirmation, CLOUDKIT_SYNC_EXPORT_CONFIRMATION);
+    assert.equal(request.syncBatch.records[0].fields.payloadJson.includes("safe helper payload"), true);
+    assert.equal(serialized.includes(helper), false);
+    assert.equal(serialized.includes(dir), false);
+  } finally {
+    restoreEnv(env);
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("Apple CloudKit helper source implements the native JSON stdio contract", async () => {
   const swiftSource = await readFile(path.join(rootDir, "native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift"), "utf8");
   const buildScript = await readFile(path.join(rootDir, "scripts/build-cloudkit-helper.mjs"), "utf8");
@@ -97,6 +141,9 @@ test("Apple CloudKit helper source implements the native JSON stdio contract", a
   assert.match(swiftSource, /accountStatus\(\)/);
   assert.match(swiftSource, /privateCloudDatabase/);
   assert.match(swiftSource, /DELETE_DISPOSABLE_RECORDS/);
+  assert.match(swiftSource, /SYNC_APPROVED_RECORDS/);
+  assert.match(swiftSource, /runSyncExport/);
+  assert.match(swiftSource, /sync-export-save/);
   assert.match(swiftSource, /database\.save\(record\)/);
   assert.match(swiftSource, /database\.record\(for: recordId\)/);
   assert.match(swiftSource, /database\.deleteRecord\(withID: recordId\)/);
@@ -150,6 +197,80 @@ process.stdin.on("end", () => {
     assert.equal(result.roundtrip.deleted, true);
     assert.equal(result.capabilitiesVerified.includes("change-token-fetch"), true);
     assert.equal(result.evidenceId, "fake-cloudkit-evidence");
+  } finally {
+    restoreEnv(env);
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit helper sync export executes the configured native helper contract", async () => {
+  const env = snapshotEnv();
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-helper-sync-export-"));
+  try {
+    await configureReadyCloudKitEnv(dir, `#!/usr/bin/env node
+let body = "";
+process.stdin.on("data", (chunk) => { body += chunk; });
+process.stdin.on("end", () => {
+  if (!process.argv.includes("--lifeos-cloudkit-json")) process.exit(7);
+  const request = JSON.parse(body);
+  const records = request.syncBatch?.records || [];
+  console.log(JSON.stringify({
+    protocolVersion: 1,
+    schema: "${CLOUDKIT_NATIVE_HELPER_RESPONSE_SCHEMA}",
+    operation: request.operation,
+    ok: true,
+    accountStatus: "available",
+    containerReachable: true,
+    capabilitiesVerified: [...request.requiredNativeCapabilities, "sync-export-save"],
+    syncExport: {
+      attempted: records.length,
+      saved: records.length,
+      failed: 0,
+      recordPlanHash: request.syncBatch?.recordPlanHash || "",
+      zones: [...new Set(records.map((record) => record.zone))],
+      recordTypes: [...new Set(records.map((record) => record.recordType))]
+    },
+    evidenceId: "fake-cloudkit-sync-export-evidence"
+  }));
+});
+`);
+    const readiness = getIcloudDataSyncReadiness({ platformSupported: true });
+    const result = await runCloudKitNativeHelper(readiness, {
+      operation: "sync-export",
+      now: new Date("2026-01-02T03:04:05.000Z"),
+      timeoutMs: 5000,
+      syncExportPackage: {
+        ok: true,
+        helperSyncBatch: {
+          schema: CLOUDKIT_SYNC_EXPORT_SCHEMA,
+          confirmation: CLOUDKIT_SYNC_EXPORT_CONFIRMATION,
+          recordPlanHash: "sync-export-hash",
+          generatedAt: "2026-01-02T03:04:05.000Z",
+          zones: [{ zone: "LifeOSChatZone", records: 1 }],
+          records: [{
+            zone: "LifeOSChatZone",
+            recordType: "LifeOSMessage",
+            recordName: "message:one",
+            mutationId: "mutation-one",
+            contentHash: "hash-one",
+            fields: {
+              lifeosSchema: "lifeos-cloudkit-record.v1",
+              payloadJson: JSON.stringify({ text: "safe helper payload" }),
+              logicalClock: 1,
+            },
+          }],
+        },
+      },
+    });
+    assert.equal(result.status, "passed");
+    assert.equal(result.ok, true);
+    assert.equal(result.operation, "sync-export");
+    assert.equal(result.syncExport.attempted, 1);
+    assert.equal(result.syncExport.saved, 1);
+    assert.equal(result.syncExport.failed, 0);
+    assert.equal(result.syncExport.recordPlanHash, "sync-export-hash");
+    assert.equal(result.capabilitiesVerified.includes("sync-export-save"), true);
+    assert.equal(result.evidenceId, "fake-cloudkit-sync-export-evidence");
   } finally {
     restoreEnv(env);
     await rm(dir, { recursive: true, force: true });

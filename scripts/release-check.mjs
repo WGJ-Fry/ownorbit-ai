@@ -1881,6 +1881,8 @@ function checkAssets() {
     translationsSource.includes("Native helper acceptance") &&
     translationsSource.includes("CloudKit 同步批次预览") &&
     translationsSource.includes("CloudKit sync batch preview") &&
+    translationsSource.includes("受控写入 CloudKit") &&
+    translationsSource.includes("Controlled CloudKit write") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudDataBoundaryBody") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-readiness") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-record-plan") &&
@@ -1888,20 +1890,27 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-helper-run") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-helper-result") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-batch-preview") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-export") &&
     onboardingAppleRemoteSource.includes("handleLoadCloudKitBatchPreview") &&
+    onboardingAppleRemoteSource.includes("handleRunCloudKitSyncExport") &&
     onboardingAppleRemoteSource.includes("handleRunCloudKitHelper") &&
     onboardingAppleRemoteSource.includes("icloudDataSyncStatusKeys") &&
     networkDiagnosticsSource.includes("getIcloudDataSyncReadiness") &&
     adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/helper") &&
     adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/batch-preview") &&
+    adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/export") &&
     adminRoutesSource.includes("runCloudKitNativeHelper") &&
     adminRoutesSource.includes("buildCloudKitSyncBatchPreview") &&
+    adminRoutesSource.includes("buildCloudKitSyncExportPackage") &&
     adminRoutesSource.includes("icloud_cloudkit_helper_probe") &&
     adminRoutesSource.includes("icloud_cloudkit_batch_previewed") &&
+    adminRoutesSource.includes("icloud_cloudkit_sync_export") &&
     lifeosApiSource.includes("CloudKitNativeHelperResult") &&
     lifeosApiSource.includes("runCloudKitDataSyncHelper") &&
     lifeosApiSource.includes("CloudKitSyncBatchPreview") &&
     lifeosApiSource.includes("getCloudKitSyncBatchPreview") &&
+    lifeosApiSource.includes("CloudKitSyncExportSummary") &&
+    lifeosApiSource.includes("runCloudKitSyncExport") &&
     icloudDataSyncReadinessSource.includes("LIFEOS_CLOUDKIT_CONTAINER_ID") &&
     icloudDataSyncReadinessSource.includes("blockedCloudKitDataTypes") &&
     icloudDataSyncReadinessSource.includes("cloudKitRecordPlans") &&
@@ -1918,15 +1927,23 @@ function checkAssets() {
     cloudKitNativeHelperSource.includes("--lifeos-cloudkit-json") &&
     cloudKitNativeHelperSource.includes("buildCloudKitNativeHelperRequest") &&
     cloudKitNativeHelperSource.includes("runCloudKitNativeHelper") &&
+    cloudKitNativeHelperSource.includes("sync-export") &&
+    cloudKitNativeHelperSource.includes("syncExportPackage") &&
     cloudKitNativeHelperSource.includes("redact") &&
     cloudKitNativeHelperTestSource.includes("CloudKit helper roundtrip executes") &&
+    cloudKitNativeHelperTestSource.includes("CloudKit helper sync export executes") &&
     cloudKitNativeHelperTestSource.includes("redacts helper stderr") &&
     cloudKitNativeHelperTestSource.includes("Apple CloudKit helper source implements the native JSON stdio contract") &&
     cloudKitSyncBatchSource.includes("lifeos-cloudkit-sync-batch-preview.v1") &&
+    cloudKitSyncBatchSource.includes("lifeos-cloudkit-sync-export.v1") &&
+    cloudKitSyncBatchSource.includes("SYNC_APPROVED_RECORDS") &&
+    cloudKitSyncBatchSource.includes("summarizeCloudKitSyncExportPackage") &&
     cloudKitSyncBatchSource.includes("rawPayloadIncluded: false") &&
+    cloudKitSyncBatchSource.includes("rawPayloadReturnedToAdmin: false") &&
     cloudKitSyncBatchSource.includes("secretLikeContentBlocked") &&
     cloudKitSyncBatchTestSource.includes("blocks sensitive payloads") &&
     cloudKitSyncBatchTestSource.includes("sendsRawUserContent, false") &&
+    cloudKitSyncBatchTestSource.includes("keeps admin summary payload-free") &&
     cloudKitNativeHelperSmokeSource.includes("runCloudKitNativeHelper") &&
     cloudKitNativeSwiftHelperSource.includes("import CloudKit") &&
     cloudKitNativeSwiftHelperSource.includes("lifeos-cloudkit-helper-request.v1") &&
@@ -1934,6 +1951,8 @@ function checkAssets() {
     cloudKitNativeSwiftHelperSource.includes("--lifeos-cloudkit-json") &&
     cloudKitNativeSwiftHelperSource.includes("CKContainer(identifier: containerId)") &&
     cloudKitNativeSwiftHelperSource.includes("DELETE_DISPOSABLE_RECORDS") &&
+    cloudKitNativeSwiftHelperSource.includes("SYNC_APPROVED_RECORDS") &&
+    cloudKitNativeSwiftHelperSource.includes("runSyncExport") &&
     cloudKitNativeSwiftHelperSource.includes("database.save(record)") &&
     cloudKitNativeSwiftHelperSource.includes("database.record(for: recordId)") &&
     cloudKitNativeSwiftHelperSource.includes("database.deleteRecord(withID: recordId)") &&
@@ -1958,6 +1977,8 @@ function checkAssets() {
     apiAuthTestSource.includes("cloudKitHelperProbe.result.status") &&
     apiAuthTestSource.includes("/api/v1/admin/icloud-data-sync/batch-preview") &&
     apiAuthTestSource.includes("cloudKitBatchPreview.preview.status") &&
+    apiAuthTestSource.includes("/api/v1/admin/icloud-data-sync/export") &&
+    apiAuthTestSource.includes("cloudKitSyncExportBlocked") &&
     apiAuthTestSource.includes("cloudKitReadiness.status") &&
     apiAuthTestSource.includes("cloudKitRequiredForDataSync") &&
     networkDiagnosticsSource.includes("cleanupIcloudHandoffEntries") &&

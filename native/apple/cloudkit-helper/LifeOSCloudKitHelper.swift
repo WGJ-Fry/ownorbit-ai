@@ -6,6 +6,8 @@ private let requestSchema = "lifeos-cloudkit-helper-request.v1"
 private let responseSchema = "lifeos-cloudkit-helper-response.v1"
 private let confirmationEnv = "LIFEOS_CLOUDKIT_TEST_WRITE_CONFIRM"
 private let confirmationPhrase = "DELETE_DISPOSABLE_RECORDS"
+private let syncExportSchema = "lifeos-cloudkit-sync-export.v1"
+private let syncExportConfirmation = "SYNC_APPROVED_RECORDS"
 
 private func nowIso() -> String {
   ISO8601DateFormatter().string(from: Date())
@@ -62,6 +64,11 @@ private func stringList(_ value: Any?, limit: Int = 24) -> [String] {
 private func dictList(_ value: Any?, limit: Int = 16) -> [[String: Any]] {
   guard let list = value as? [Any] else { return [] }
   return Array(list.compactMap { $0 as? [String: Any] }.prefix(limit))
+}
+
+private func safeRecordFieldName(_ value: String) -> String {
+  let cleaned = value.replacingOccurrences(of: "[^A-Za-z0-9_]", with: "_", options: .regularExpression)
+  return String(cleaned.prefix(64))
 }
 
 private func accountStatusName(_ status: CKAccountStatus) -> String {
@@ -233,6 +240,125 @@ private func runRoundtrip(container: CKContainer, request: [String: Any]) async 
   return response
 }
 
+private func assignRecordField(_ record: CKRecord, key: String, value: Any) {
+  let field = safeRecordFieldName(key)
+  if field.isEmpty { return }
+  if let bool = value as? Bool {
+    record[field] = NSNumber(value: bool)
+  } else if let number = value as? NSNumber {
+    record[field] = number
+  } else if let string = value as? String {
+    record[field] = string as NSString
+  }
+}
+
+private func runSyncExport(container: CKContainer, request: [String: Any]) async -> [String: Any] {
+  guard let batch = request["syncBatch"] as? [String: Any] else {
+    var response = responseBase(operation: "sync-export", ok: false)
+    response["accountStatus"] = "not-checked"
+    response["containerReachable"] = false
+    response["capabilitiesVerified"] = ["account-status"]
+    response["warnings"] = []
+    response["errors"] = ["syncBatch is required for CloudKit sync export."]
+    response["syncExport"] = ["attempted": 0, "saved": 0, "failed": 0, "recordPlanHash": "", "zones": [], "recordTypes": []]
+    response["evidenceId"] = ""
+    return response
+  }
+  guard compact(batch["schema"], limit: 80) == syncExportSchema, compact(batch["confirmation"], limit: 80) == syncExportConfirmation else {
+    var response = responseBase(operation: "sync-export", ok: false)
+    response["accountStatus"] = "not-checked"
+    response["containerReachable"] = false
+    response["capabilitiesVerified"] = ["account-status"]
+    response["warnings"] = []
+    response["errors"] = ["CloudKit sync export requires an approved LifeOS batch schema and confirmation."]
+    response["syncExport"] = ["attempted": 0, "saved": 0, "failed": 0, "recordPlanHash": "", "zones": [], "recordTypes": []]
+    response["evidenceId"] = ""
+    return response
+  }
+
+  let probe = await runProbe(container: container, operation: "sync-export")
+  guard probe["ok"] as? Bool == true else { return probe }
+
+  let database = container.privateCloudDatabase
+  let records = dictList(batch["records"], limit: 500)
+  let recordPlanHash = compact(batch["recordPlanHash"], limit: 80)
+  var warnings: [String] = []
+  var errors: [String] = []
+  var saved = 0
+  var failed = 0
+  var zones = Set<String>()
+  var recordTypes = Set<String>()
+  var createdZones = Set<String>()
+
+  for item in records {
+    let zone = compact(item["zone"], limit: 80)
+    let recordType = compact(item["recordType"], limit: 80)
+    let recordName = compact(item["recordName"], limit: 160)
+    guard !zone.isEmpty, !recordType.isEmpty, !recordName.isEmpty else {
+      failed += 1
+      errors.append("CloudKit sync export skipped one invalid record descriptor.")
+      continue
+    }
+    zones.insert(zone)
+    recordTypes.insert(recordType)
+    let zoneId = CKRecordZone.ID(zoneName: zone, ownerName: CKCurrentUserDefaultName)
+    if !createdZones.contains(zone) {
+      do {
+        _ = try await database.save(CKRecordZone(zoneID: zoneId))
+      } catch {
+        warnings.append("CloudKit zone save did not complete cleanly for \(redact(zone, limit: 80)); continuing in case it already exists: \(redact(error.localizedDescription, limit: 240))")
+      }
+      createdZones.insert(zone)
+    }
+
+    let record = CKRecord(recordType: recordType, recordID: CKRecord.ID(recordName: recordName, zoneID: zoneId))
+    if let fields = item["fields"] as? [String: Any] {
+      for (key, value) in fields {
+        assignRecordField(record, key: key, value: value)
+      }
+    }
+    record["lifeosSyncedAt"] = Date() as NSDate
+
+    do {
+      _ = try await database.save(record)
+      saved += 1
+    } catch {
+      failed += 1
+      errors.append("CloudKit sync export failed for \(redact(recordType, limit: 80)): \(redact(error.localizedDescription, limit: 240))")
+    }
+  }
+
+  var response = responseBase(operation: "sync-export", ok: records.count > 0 && saved == records.count && failed == 0)
+  response["accountStatus"] = probe["accountStatus"] ?? "available"
+  response["containerReachable"] = probe["containerReachable"] ?? true
+  response["capabilitiesVerified"] = [
+    "account-status",
+    "private-database",
+    "container-reachability",
+    "custom-zones",
+    "sync-export-save",
+  ]
+  response["warnings"] = warnings.map { redact($0, limit: 240) }
+  response["errors"] = errors.map { redact($0, limit: 240) }
+  response["syncExport"] = [
+    "attempted": records.count,
+    "saved": saved,
+    "failed": failed,
+    "recordPlanHash": recordPlanHash,
+    "zones": Array(zones).sorted(),
+    "recordTypes": Array(recordTypes).sorted(),
+  ]
+  response["roundtrip"] = [
+    "created": false,
+    "fetched": false,
+    "deleted": false,
+    "recordType": "",
+    "zone": "",
+  ]
+  response["evidenceId"] = "lifeos-cloudkit-sync-export-\(UUID().uuidString)"
+  return response
+}
+
 @main
 struct LifeOSCloudKitHelper {
   static func main() async {
@@ -276,6 +402,8 @@ struct LifeOSCloudKitHelper {
       response = await runProbe(container: container, operation: operation)
     } else if operation == "roundtrip" {
       response = await runRoundtrip(container: container, request: request)
+    } else if operation == "sync-export" {
+      response = await runSyncExport(container: container, request: request)
     } else {
       response = responseBase(operation: operation, ok: false).merging([
         "errors": ["Unsupported operation: \(redact(operation, limit: 80))"],

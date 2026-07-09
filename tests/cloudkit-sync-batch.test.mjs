@@ -58,6 +58,47 @@ function runIsolatedCloudKitBatch(env) {
   return JSON.parse(result.stdout);
 }
 
+function runIsolatedCloudKitExport(env) {
+  const script = `
+    const { runMigrations } = await import("./server/migrations.ts");
+    const { db } = await import("./server/db.ts");
+    runMigrations();
+    const { createChatSession, insertMessage } = await import("./server/chat.ts");
+    const { insertMemory } = await import("./server/memories.ts");
+    const { getIcloudDataSyncReadiness } = await import("./server/icloudDataSyncReadiness.ts");
+    const {
+      buildCloudKitSyncExportPackage,
+      CLOUDKIT_SYNC_EXPORT_CONFIRMATION,
+      summarizeCloudKitSyncExportPackage,
+    } = await import("./server/cloudKitSyncBatch.ts");
+
+    const session = createChatSession("Safe export conversation");
+    insertMessage(session.id, "user", { parts: [{ text: "Plan tomorrow without secrets" }] });
+    insertMemory("Safe export memory", "Prepare the weekly plan", "normal");
+    db.prepare("INSERT INTO tasks (id, type, status, input_json, result_json, error, created_by_device_id, created_at, started_at, finished_at) VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, NULL, ?)")
+      .run("task-export-1", "planning", "ready", JSON.stringify({ title: "Review export" }), JSON.stringify({ ok: true }), 1700000000000, 1700000001000);
+
+    const readiness = getIcloudDataSyncReadiness({ platformSupported: true });
+    const exportPackage = buildCloudKitSyncExportPackage(readiness, {
+      limit: 100,
+      confirmation: CLOUDKIT_SYNC_EXPORT_CONFIRMATION,
+      now: new Date("2026-01-02T03:04:05.000Z"),
+    });
+    process.stdout.write(JSON.stringify({
+      exportPackage,
+      summary: summarizeCloudKitSyncExportPackage(exportPackage),
+    }));
+  `;
+  const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
+    cwd: rootDir,
+    env,
+    encoding: "utf8",
+    maxBuffer: 1024 * 1024,
+  });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  return JSON.parse(result.stdout);
+}
+
 test("CloudKit sync batch preview builds safe records and blocks sensitive payloads", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-batch-"));
   try {
@@ -111,6 +152,40 @@ test("CloudKit sync batch preview skips when data sync is not explicitly enabled
     assert.equal(preview.readyRecordCount, 0);
     assert.equal(preview.blockedRecordCount, 0);
     assert.equal(preview.helperPayloadPlan.nextHelperOperation, "sync-export-blocked");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit sync export package is ready only after confirmation and keeps admin summary payload-free", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-export-"));
+  try {
+    const { helper, entitlements } = await makeReadyCloudKitEnv(dir);
+    const { exportPackage, summary } = runIsolatedCloudKitExport({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+      LIFEOS_ICLOUD_DATA_SYNC: "1",
+      LIFEOS_CLOUDKIT_CONTAINER_ID: "iCloud.ai.lifeos.desktop",
+      LIFEOS_CLOUDKIT_TEAM_ID: "TEAM123456",
+      LIFEOS_CLOUDKIT_BUNDLE_ID: "ai.lifeos.desktop",
+      LIFEOS_CLOUDKIT_HELPER_BIN: helper,
+      LIFEOS_CLOUDKIT_ENTITLEMENTS_PATH: entitlements,
+      LIFEOS_CLOUDKIT_SYNC_TYPES: "chat-history,memory,tasks",
+    });
+    assert.equal(exportPackage.ok, true);
+    assert.equal(exportPackage.status, "ready");
+    assert.equal(exportPackage.safety.rawPayloadReturnedToAdmin, false);
+    assert.equal(exportPackage.safety.rawPayloadSentToNativeHelper, true);
+    assert.equal(exportPackage.helperSyncBatch.schema, "lifeos-cloudkit-sync-export.v1");
+    assert.equal(exportPackage.helperSyncBatch.confirmation, "SYNC_APPROVED_RECORDS");
+    assert.equal(exportPackage.helperSyncBatch.records.length >= 3, true);
+    assert.equal(JSON.stringify(exportPackage.helperSyncBatch).includes("Plan tomorrow without secrets"), true);
+    assert.equal(summary.ok, true);
+    assert.equal(summary.exportRecordCount, exportPackage.helperSyncBatch.records.length);
+    const serializedSummary = JSON.stringify(summary);
+    assert.equal(serializedSummary.includes("Plan tomorrow without secrets"), false);
+    assert.equal(serializedSummary.includes("Prepare the weekly plan"), false);
+    assert.equal(serializedSummary.includes(dir), false);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

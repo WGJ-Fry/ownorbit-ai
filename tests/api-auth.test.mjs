@@ -541,6 +541,24 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(cloudKitBatchPreview.preview.helperPayloadPlan.schema, "lifeos-cloudkit-sync-batch-preview.v1");
   assert.equal(cloudKitBatchPreview.diagnostics.icloud.dataSync.dataSyncScope, "entry-file-only");
   assertPublicApiResponse("cloudKitBatchPreview", cloudKitBatchPreview);
+  const blockedCloudKitExportAuth = await request(port, "/api/v1/admin/icloud-data-sync/export", {
+    method: "POST",
+    body: JSON.stringify({ confirmation: "SYNC_APPROVED_RECORDS" }),
+  });
+  assert.equal(blockedCloudKitExportAuth.status, 401);
+  const blockedCloudKitExport = await request(port, "/api/v1/admin/icloud-data-sync/export", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ confirmation: "SYNC_APPROVED_RECORDS" }),
+  });
+  assert.equal(blockedCloudKitExport.status, 400);
+  const blockedCloudKitExportJson = await blockedCloudKitExport.json();
+  assert.equal(blockedCloudKitExportJson.export.status, "blocked");
+  assert.equal(blockedCloudKitExportJson.export.preview.status, "skipped");
+  assert.equal(blockedCloudKitExportJson.export.safety.rawPayloadReturnedToAdmin, false);
+  assert.equal(blockedCloudKitExportJson.export.exportRecordCount, 0);
+  assert.equal(blockedCloudKitExportJson.backup, undefined);
+  assertPublicApiResponse("cloudKitSyncExportBlocked", blockedCloudKitExportJson);
   const blockedIcloudHandoffExport = await request(port, "/api/v1/admin/icloud-handoff/export", { method: "POST" });
   assert.equal(blockedIcloudHandoffExport.status, 401);
   const blockedIcloudHandoffCleanup = await request(port, "/api/v1/admin/icloud-handoff/cleanup", { method: "POST" });
