@@ -419,6 +419,7 @@ export function saveRemoteAcceptanceRecord(input: {
   id: RemoteAcceptanceItem["id"];
   baseUrl: string;
   note?: string;
+  proofSource?: "note" | "note-and-requirements";
   evidence?: {
     source?: string;
     requirements?: string[];
@@ -431,7 +432,8 @@ export function saveRemoteAcceptanceRecord(input: {
     throw new Error("Remote acceptance evidence note must describe the real check you completed.");
   }
   const requirements = safeRequirements(input.evidence?.requirements);
-  const missingProof = missingScenarioProofLabels(input.id as typeof realWorldAcceptanceIds[number], { note, requirements });
+  const proofRequirements = input.proofSource === "note" ? [] : requirements;
+  const missingProof = missingScenarioProofLabels(input.id as typeof realWorldAcceptanceIds[number], { note, requirements: proofRequirements });
   if (missingProof.length > 0) {
     throw new Error(`Remote acceptance evidence is missing scenario proof: ${missingProof.join(", ")}.`);
   }

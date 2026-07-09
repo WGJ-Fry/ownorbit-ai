@@ -1701,6 +1701,9 @@ function checkAssets() {
     adminRoutesSource.includes("/api/v1/admin/icloud-handoff/acceptance") &&
     adminRoutesSource.includes("icloud_acceptance_recorded") &&
     adminRoutesSource.includes("admin-icloud-acceptance-checklist") &&
+    adminRoutesSource.includes('proofSource: "note"') &&
+    remoteAcceptanceSource.includes('proofSource?: "note" | "note-and-requirements"') &&
+    remoteValidationReportTestSource.includes("accepted-icloud-system-requirement-only") &&
     lifeosApiSource.includes("acceptance?:") &&
     lifeosApiSource.includes("recordIcloudAcceptance") &&
     lifeosApiSource.includes("/api/v1/admin/icloud-handoff/acceptance") &&

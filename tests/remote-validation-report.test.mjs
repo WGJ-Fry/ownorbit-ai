@@ -785,6 +785,21 @@ test("remote acceptance records require a real evidence note", async (t) => {
     } catch (error) {
       results.push(error.message);
     }
+    try {
+      saveRemoteAcceptanceRecord({
+        id: "cellular-mobile-chat",
+        baseUrl: "https://lifeos.example.test",
+        note: "I completed this iCloud phone check today and everything looked okay.",
+        proofSource: "note",
+        evidence: {
+          source: "admin-icloud-acceptance-checklist",
+          requirements: ["Phone Wi-Fi disabled and /mobile/chat verified over cellular data."],
+        },
+      });
+      results.push("accepted-icloud-system-requirement-only");
+    } catch (error) {
+      results.push(error.message);
+    }
     saveRemoteAcceptanceRecord({
       id: "cellular-mobile-chat",
       baseUrl: "https://lifeos.example.test",
@@ -795,6 +810,17 @@ test("remote acceptance records require a real evidence note", async (t) => {
       },
     });
     results.push(getRemoteAcceptanceRecords()[0].note);
+    saveRemoteAcceptanceRecord({
+      id: "cellular-mobile-chat",
+      baseUrl: "https://icloud-lifeos.example.test",
+      note: "iPhone Wi-Fi off, cellular data active, opened /mobile/chat from the iCloud entry and sent a chat message.",
+      proofSource: "note",
+      evidence: {
+        source: "admin-icloud-acceptance-checklist",
+        requirements: ["Phone Wi-Fi disabled and /mobile/chat verified over cellular data."],
+      },
+    });
+    results.push(getRemoteAcceptanceRecords().some((record) => record.baseUrl === "https://icloud-lifeos.example.test" && record.evidence?.source === "admin-icloud-acceptance-checklist"));
     process.stdout.write(JSON.stringify(results));
   `], {
     cwd: process.cwd(),
@@ -808,7 +834,10 @@ test("remote acceptance records require a real evidence note", async (t) => {
   assert.match(results[1], /restore or reconnect/);
   assert.match(results[2], /missing scenario proof/);
   assert.match(results[2], /diagnostic redaction review/);
-  assert.match(results[3], /cellular chat message/);
+  assert.match(results[3], /missing scenario proof/);
+  assert.match(results[3], /cellular or mobile data/);
+  assert.match(results[4], /cellular chat message/);
+  assert.equal(results[5], true);
 });
 
 test("remote acceptance runbook import persists smoke evidence and rejects unsafe reports", async (t) => {

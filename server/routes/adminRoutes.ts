@@ -1436,6 +1436,7 @@ export function registerAdminRoutes(app: express.Express) {
         id: remoteId,
         baseUrl,
         note: req.body?.note,
+        proofSource: "note",
         evidence: {
           source: "admin-icloud-acceptance-checklist",
           requirements: [
