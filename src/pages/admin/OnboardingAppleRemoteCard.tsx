@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { AlertTriangle, ArrowRight, CheckCircle2, ClipboardCheck, ClipboardPaste, Cloud, ExternalLink, Loader2, QrCode, RefreshCw, ShieldCheck, Smartphone, Wifi } from "lucide-react";
-import { analyzeIcloudHandoffRepairPacket, applyCloudKitSyncQuarantine, getCloudKitSyncBatchPreview, getCloudKitSyncQuarantine, recordIcloudAcceptance, runCloudKitDataSyncHelper, runCloudKitSyncChangesPreview, runCloudKitSyncExport, runCloudKitSyncImportPreview, runCloudKitSyncImportQuarantine } from "../../services/lifeosApi";
-import type { CloudKitNativeHelperResult, CloudKitSyncApplyResult, CloudKitSyncBatchPreview, CloudKitSyncCheckpoint, CloudKitSyncExportSummary, CloudKitSyncQuarantineItem, CloudKitSyncQuarantineSummary, IcloudAutoRefreshResult, IcloudHandoffRepairAnalysis, NetworkDiagnostics } from "../../services/lifeosApi";
+import { analyzeIcloudHandoffRepairPacket, applyCloudKitSyncQuarantine, getCloudKitSyncBatchPreview, getCloudKitSyncQuarantine, recordIcloudAcceptance, runCloudKitDataSyncHelper, runCloudKitSyncChangesPreview, runCloudKitSyncExport, runCloudKitSyncImportPreview, runCloudKitSyncImportQuarantine, runCloudKitSyncNow } from "../../services/lifeosApi";
+import type { CloudKitNativeHelperResult, CloudKitSyncApplyResult, CloudKitSyncBatchPreview, CloudKitSyncCheckpoint, CloudKitSyncExportSummary, CloudKitSyncNowResult, CloudKitSyncQuarantineItem, CloudKitSyncQuarantineSummary, IcloudAutoRefreshResult, IcloudHandoffRepairAnalysis, NetworkDiagnostics } from "../../services/lifeosApi";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { TranslationKey } from "../../i18n/translations";
 import { getIcloudActionFollowupKey, getPrimaryIcloudAction } from "./appleRemoteIcloudPrimaryAction";
@@ -87,6 +87,15 @@ const icloudFileLabelKeys: Record<IcloudFileId, TranslationKey> = {
   html: "onboarding.appleRemoteIcloudFileHtml",
   packet: "onboarding.appleRemoteIcloudFilePacket",
   index: "onboarding.appleRemoteIcloudFileIndex",
+};
+
+const cloudKitSyncNowNextActionKeys: Record<CloudKitSyncNowResult["nextAction"], TranslationKey> = {
+  "configure-cloudkit": "onboarding.appleRemoteIcloudDataSyncNowNextConfigure",
+  "wait-for-icloud": "onboarding.appleRemoteIcloudDataSyncNowNextWait",
+  "review-conflicts": "onboarding.appleRemoteIcloudDataSyncNowNextReview",
+  "run-again": "onboarding.appleRemoteIcloudDataSyncNowNextRunAgain",
+  retry: "onboarding.appleRemoteIcloudDataSyncNowNextRetry",
+  done: "onboarding.appleRemoteIcloudDataSyncNowNextDone",
 };
 
 const icloudFileStateKeys: Record<IcloudFileState["state"], TranslationKey> = {
@@ -551,6 +560,9 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const [cloudKitApplyBusy, setCloudKitApplyBusy] = useState(false);
   const [cloudKitApplyMessage, setCloudKitApplyMessage] = useState("");
   const [cloudKitApplyResult, setCloudKitApplyResult] = useState<CloudKitSyncApplyResult | null>(null);
+  const [cloudKitSyncNowBusy, setCloudKitSyncNowBusy] = useState(false);
+  const [cloudKitSyncNowMessage, setCloudKitSyncNowMessage] = useState("");
+  const [cloudKitSyncNowResult, setCloudKitSyncNowResult] = useState<CloudKitSyncNowResult | null>(null);
   const appleRuntime = isAppleRuntime();
   const candidate = getPreferredCandidate(diagnostics);
   const icloud = diagnostics?.icloud;
@@ -885,6 +897,38 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
     }
   };
 
+  const handleRunCloudKitSyncNow = async () => {
+    setCloudKitSyncNowBusy(true);
+    setCloudKitSyncNowMessage("");
+    try {
+      const result = await runCloudKitSyncNow({ confirmation: "SYNC_CLOUDKIT_NOW" });
+      setCloudKitSyncNowResult(result.sync);
+      setCloudKitHelperResult(result.sync.import?.result || result.sync.changes.result);
+      setCloudKitApplyResult(result.sync.apply);
+      setCloudKitQuarantineSummary(result.sync.quarantine.summary);
+      setCloudKitCheckpoints(result.sync.quarantine.checkpoints || result.sync.changes.checkpoints || []);
+      await handleLoadCloudKitSyncQuarantine();
+      onDiagnostics?.(result.diagnostics);
+      setCloudKitSyncNowMessage(t("onboarding.appleRemoteIcloudDataSyncNowCompleted", {
+        applied: result.sync.apply.applied,
+        conflicts: result.sync.apply.conflicts,
+      }));
+    } catch (error: any) {
+      const payload = error?.payload as { sync?: CloudKitSyncNowResult; diagnostics?: NetworkDiagnostics } | undefined;
+      if (payload?.sync) {
+        setCloudKitSyncNowResult(payload.sync);
+        setCloudKitHelperResult(payload.sync.import?.result || payload.sync.changes.result);
+        setCloudKitApplyResult(payload.sync.apply);
+        setCloudKitQuarantineSummary(payload.sync.quarantine.summary);
+        setCloudKitCheckpoints(payload.sync.quarantine.checkpoints || payload.sync.changes.checkpoints || []);
+      }
+      if (payload?.diagnostics) onDiagnostics?.(payload.diagnostics);
+      setCloudKitSyncNowMessage(error?.message || t("onboarding.appleRemoteIcloudDataSyncNowFailed"));
+    } finally {
+      setCloudKitSyncNowBusy(false);
+    }
+  };
+
   const renderLatestEntryRepairUrls = (repair: IcloudLatestEntryRepair) => {
     const urls = compactLatestEntryRepairUrls(repair);
     if (!urls.length) return null;
@@ -1196,6 +1240,53 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                 <div className="mt-1 opacity-85">{t("onboarding.appleRemoteIcloudDataSyncBody")}</div>
                 <div className="mt-2 rounded-lg border border-current/10 bg-black/15 p-2 font-bold">
                   {t("onboarding.appleRemoteIcloudDataSyncNext", { action: dataSync.nextAction })}
+                </div>
+                <div data-testid="onboarding-icloud-data-sync-one-step" className="mt-2 rounded-lg border border-cyan-300/20 bg-cyan-500/10 p-3 text-cyan-50">
+                  <div className="flex items-start gap-2">
+                    <RefreshCw className="mt-0.5 h-4 w-4 shrink-0 text-cyan-200" />
+                    <div className="min-w-0 flex-1">
+                      <div className="font-bold">{t("onboarding.appleRemoteIcloudDataSyncNowTitle")}</div>
+                      <div className="mt-1 opacity-85">{t("onboarding.appleRemoteIcloudDataSyncNowBody")}</div>
+                      <button
+                        type="button"
+                        data-testid="onboarding-icloud-data-sync-one-step-run"
+                        onClick={handleRunCloudKitSyncNow}
+                        disabled={cloudKitSyncNowBusy}
+                        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-400 px-3 py-2 text-[11px] font-bold text-slate-950 disabled:opacity-50 sm:w-auto"
+                      >
+                        {cloudKitSyncNowBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
+                        {t("onboarding.appleRemoteIcloudDataSyncNowRun")}
+                      </button>
+                      {cloudKitSyncNowMessage ? (
+                        <div className="mt-2 rounded-lg border border-current/10 bg-black/10 px-2 py-1 font-bold">
+                          {cloudKitSyncNowMessage}
+                        </div>
+                      ) : null}
+                      {cloudKitSyncNowResult ? (
+                        <div data-testid="onboarding-icloud-data-sync-one-step-result" className="mt-2 grid gap-1 rounded-lg border border-current/10 bg-black/10 p-2 font-mono text-[10px] opacity-85">
+                          <div className="font-sans text-[11px] font-bold">{t("onboarding.appleRemoteIcloudDataSyncNowResultTitle")}</div>
+                          <div>{t("onboarding.appleRemoteIcloudDataSyncNowStatus", { value: cloudKitSyncNowResult.status })}</div>
+                          <div>{t("onboarding.appleRemoteIcloudDataSyncNowChanges", {
+                            changed: cloudKitSyncNowResult.changes.result.syncChangesPreview?.changed || 0,
+                            deleted: cloudKitSyncNowResult.changes.result.syncChangesPreview?.deleted || 0,
+                            saved: cloudKitSyncNowResult.changes.savedCheckpointCount,
+                          })}</div>
+                          <div>{t("onboarding.appleRemoteIcloudDataSyncNowApply", {
+                            attempted: cloudKitSyncNowResult.apply.attempted,
+                            applied: cloudKitSyncNowResult.apply.applied,
+                            conflicts: cloudKitSyncNowResult.apply.conflicts,
+                          })}</div>
+                          <div>{t("onboarding.appleRemoteIcloudDataSyncNowQuarantine", {
+                            pending: cloudKitSyncNowResult.quarantine.summary.pendingReview,
+                            conflicts: cloudKitSyncNowResult.quarantine.summary.conflicts,
+                          })}</div>
+                          <div>{t("onboarding.appleRemoteIcloudDataSyncNowNext", {
+                            action: t(cloudKitSyncNowNextActionKeys[cloudKitSyncNowResult.nextAction]),
+                          })}</div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
                 <div className="mt-2 grid gap-1 opacity-80">
                   <div>{t("onboarding.appleRemoteIcloudDataSyncContainer", { value: dataSync.containerId || t("onboarding.appleRemoteIcloudDataSyncNotConfigured") })}</div>

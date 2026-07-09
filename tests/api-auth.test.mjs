@@ -661,6 +661,39 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(JSON.stringify(cloudKitApplyQuarantine).includes("payloadJson"), false);
   assert.equal(JSON.stringify(cloudKitApplyQuarantine).includes("serverChangeToken"), false);
   assertPublicApiResponse("cloudKitSyncApplyQuarantineEmpty", cloudKitApplyQuarantine);
+  const blockedCloudKitSyncNowAuth = await request(port, "/api/v1/admin/icloud-data-sync/sync-now", {
+    method: "POST",
+    body: JSON.stringify({ confirmation: "SYNC_CLOUDKIT_NOW" }),
+  });
+  assert.equal(blockedCloudKitSyncNowAuth.status, 401);
+  const blockedCloudKitSyncNow = await request(port, "/api/v1/admin/icloud-data-sync/sync-now", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ confirmation: "wrong-confirmation" }),
+  });
+  assert.equal(blockedCloudKitSyncNow.status, 400);
+  const blockedCloudKitSyncNowJson = await blockedCloudKitSyncNow.json();
+  assert.equal(blockedCloudKitSyncNowJson.expectedConfirmation, "SYNC_CLOUDKIT_NOW");
+  assert.equal(blockedCloudKitSyncNowJson.quarantine.pendingReview, 0);
+  assert.equal(JSON.stringify(blockedCloudKitSyncNowJson).includes("payloadJson"), false);
+  assert.equal(JSON.stringify(blockedCloudKitSyncNowJson).includes("opaque-preview-token"), false);
+  assert.equal(JSON.stringify(blockedCloudKitSyncNowJson).includes("opaque-import-token"), false);
+  assertPublicApiResponse("cloudKitSyncNowBlocked", blockedCloudKitSyncNowJson);
+  const cloudKitSyncNow = await request(port, "/api/v1/admin/icloud-data-sync/sync-now", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ confirmation: "SYNC_CLOUDKIT_NOW" }),
+  }).then((res) => res.json());
+  assert.equal(cloudKitSyncNow.sync.status, "needs-setup");
+  assert.equal(cloudKitSyncNow.sync.nextAction, "configure-cloudkit");
+  assert.equal(cloudKitSyncNow.sync.apply.attempted, 0);
+  assert.equal(cloudKitSyncNow.sync.backups.length, 0);
+  assert.equal(cloudKitSyncNow.sync.safety.rawPayloadReturnedToAdmin, false);
+  assert.equal(cloudKitSyncNow.sync.safety.serverChangeTokenReturnedToAdmin, false);
+  assert.equal(JSON.stringify(cloudKitSyncNow).includes("payloadJson"), false);
+  assert.equal(JSON.stringify(cloudKitSyncNow).includes("opaque-preview-token"), false);
+  assert.equal(JSON.stringify(cloudKitSyncNow).includes("opaque-import-token"), false);
+  assertPublicApiResponse("cloudKitSyncNowNeedsSetup", cloudKitSyncNow);
   const blockedIcloudHandoffExport = await request(port, "/api/v1/admin/icloud-handoff/export", { method: "POST" });
   assert.equal(blockedIcloudHandoffExport.status, 401);
   const blockedIcloudHandoffCleanup = await request(port, "/api/v1/admin/icloud-handoff/cleanup", { method: "POST" });

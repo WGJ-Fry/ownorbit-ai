@@ -35,6 +35,7 @@ import { runCloudKitNativeHelper, type CloudKitNativeHelperOperation } from "../
 import { buildCloudKitSyncBatchPreview, buildCloudKitSyncExportPackage, CLOUDKIT_SYNC_EXPORT_CONFIRMATION, summarizeCloudKitSyncExportPackage } from "../cloudKitSyncBatch";
 import { CLOUDKIT_SYNC_IMPORT_CONFIRMATION, getCloudKitSyncQuarantineSummary, getCloudKitSyncStateSnapshot, listCloudKitSyncCheckpoints, publicCloudKitHelperResult, saveCloudKitSyncChangesPreview, saveCloudKitSyncImportQuarantine } from "../cloudKitSyncState";
 import { applyCloudKitSyncQuarantine, CLOUDKIT_SYNC_APPLY_CONFIRMATION, listCloudKitSyncQuarantineItems } from "../cloudKitSyncApply";
+import { CLOUDKIT_SYNC_NOW_CONFIRMATION, runCloudKitSyncNow } from "../cloudKitSyncNow";
 
 const loginFailures = new Map<string, { count: number; lockedUntil: number }>();
 
@@ -81,6 +82,10 @@ function normalizeCloudKitImportConfirmation(value: unknown) {
 }
 
 function normalizeCloudKitApplyConfirmation(value: unknown) {
+  return String(value || "").trim();
+}
+
+function normalizeCloudKitSyncNowConfirmation(value: unknown) {
   return String(value || "").trim();
 }
 
@@ -985,6 +990,63 @@ export function registerAdminRoutes(app: express.Express) {
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.status(400).json({
         error: error.message || "CloudKit sync import quarantine failed",
+        quarantine: getCloudKitSyncQuarantineSummary(),
+        checkpoints: listCloudKitSyncCheckpoints(),
+        diagnostics: getAdminNetworkDiagnostics(),
+      });
+    }
+  });
+
+  app.post("/api/v1/admin/icloud-data-sync/sync-now", requireAdmin, rateLimit({ keyPrefix: "admin-cloudkit-sync-now", windowMs: 60_000, max: 3 }), async (req, res) => {
+    const confirmation = normalizeCloudKitSyncNowConfirmation(req.body?.confirmation);
+    const diagnostics = getAdminNetworkDiagnostics();
+    if (confirmation !== CLOUDKIT_SYNC_NOW_CONFIRMATION) {
+      insertAuditLog("icloud_cloudkit_sync_now_blocked", "network", "cloudkit-sync-now", {
+        confirmationProvided: false,
+        rawPayloadReturnedToAdmin: false,
+        serverChangeTokenReturnedToAdmin: false,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      return res.status(400).json({
+        error: "CloudKit safe sync now requires explicit confirmation.",
+        expectedConfirmation: CLOUDKIT_SYNC_NOW_CONFIRMATION,
+        quarantine: getCloudKitSyncQuarantineSummary(),
+        checkpoints: listCloudKitSyncCheckpoints(),
+        diagnostics,
+      });
+    }
+    try {
+      const readiness = getIcloudDataSyncReadiness({ platformSupported: diagnostics.icloud.platformSupported });
+      const sync = await runCloudKitSyncNow(readiness, { limit: normalizeCloudKitBatchLimit(req.body?.limit) || 100 });
+      insertAuditLog("icloud_cloudkit_sync_now", "network", "cloudkit-sync-now", {
+        ok: sync.ok,
+        status: sync.status,
+        nextAction: sync.nextAction,
+        readinessStatus: sync.changes.result.readinessStatus,
+        changed: sync.changes.result.syncChangesPreview?.changed || 0,
+        deleted: sync.changes.result.syncChangesPreview?.deleted || 0,
+        importStatus: sync.import?.result.status || null,
+        importedChanged: sync.import?.quarantine.importedChanged || 0,
+        importedDeleted: sync.import?.quarantine.importedDeleted || 0,
+        attempted: sync.apply.attempted,
+        applied: sync.apply.applied,
+        conflicts: sync.apply.conflicts,
+        failed: sync.apply.failed,
+        backupCount: sync.backups.length,
+        rawPayloadReturnedToAdmin: false,
+        serverChangeTokenReturnedToAdmin: false,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(sync.status === "failed" ? 400 : 200).json({
+        sync,
+        diagnostics: getAdminNetworkDiagnostics(),
+      });
+    } catch (error: any) {
+      insertAuditLog("icloud_cloudkit_sync_now_failed", "network", "cloudkit-sync-now", {
+        error: error?.message || "CloudKit safe sync failed",
+        rawPayloadReturnedToAdmin: false,
+        serverChangeTokenReturnedToAdmin: false,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(400).json({
+        error: error.message || "CloudKit safe sync failed",
         quarantine: getCloudKitSyncQuarantineSummary(),
         checkpoints: listCloudKitSyncCheckpoints(),
         diagnostics: getAdminNetworkDiagnostics(),

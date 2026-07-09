@@ -1593,6 +1593,37 @@ export type CloudKitSyncApplyResult = {
   checkpoints: CloudKitSyncCheckpoint[];
 };
 
+export type CloudKitSyncNowResult = {
+  ok: boolean;
+  status: "needs-setup" | "no-changes" | "imported" | "applied" | "conflicts" | "more-coming" | "failed";
+  nextAction: "configure-cloudkit" | "wait-for-icloud" | "review-conflicts" | "run-again" | "retry" | "done";
+  startedAt: number;
+  finishedAt: number;
+  limit: number;
+  changes: {
+    result: CloudKitNativeHelperResult;
+    savedCheckpointCount: number;
+    checkpoints: CloudKitSyncCheckpoint[];
+  };
+  import?: {
+    result: CloudKitNativeHelperResult;
+    tokenSaved: number;
+    quarantine: CloudKitSyncQuarantineSummary;
+    checkpoints: CloudKitSyncCheckpoint[];
+  };
+  apply: CloudKitSyncApplyResult;
+  quarantine: {
+    summary: CloudKitSyncQuarantineSummary;
+    checkpoints: CloudKitSyncCheckpoint[];
+  };
+  backups: Array<{ stage: "import-quarantine" | "apply-quarantine"; created: true; size: number; createdAt: number; redaction?: BackupRecord["redaction"] }>;
+  safety: {
+    rawPayloadReturnedToAdmin: false;
+    serverChangeTokenReturnedToAdmin: false;
+    appliesOnlyConflictFreeRecords: true;
+  };
+};
+
 export type CloudKitSyncBatchPreview = {
   ok: boolean;
   status: "skipped" | "blocked" | "empty" | "needs-review" | "ready";
@@ -2534,6 +2565,17 @@ export function applyCloudKitSyncQuarantine(input: { confirmation: string; limit
   }>("/api/v1/admin/icloud-data-sync/apply-quarantine", {
     method: "POST",
     timeoutMs: 70_000,
+    body: JSON.stringify(input),
+  });
+}
+
+export function runCloudKitSyncNow(input: { confirmation: string; limit?: number }) {
+  return requestJson<{
+    sync: CloudKitSyncNowResult;
+    diagnostics: NetworkDiagnostics;
+  }>("/api/v1/admin/icloud-data-sync/sync-now", {
+    method: "POST",
+    timeoutMs: 90_000,
     body: JSON.stringify(input),
   });
 }

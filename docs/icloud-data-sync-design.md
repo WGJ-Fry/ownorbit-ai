@@ -279,6 +279,32 @@ Checkpoint promotion is conservative. A zone's `pending_server_change_token` is 
 
 This still is not unattended background two-way sync. It is the first safe SQLite merge path that proves LifeOS can import private CloudKit changes, review them locally, apply non-conflicting records, preserve rollback evidence, and avoid losing remote changes by advancing tokens too early.
 
+## Safe One-Step Sync
+
+The product-facing path is now a single guarded endpoint:
+
+```text
+POST /api/v1/admin/icloud-data-sync/sync-now
+```
+
+The endpoint requires explicit confirmation:
+
+```text
+SYNC_CLOUDKIT_NOW
+```
+
+This endpoint does not create a new sync policy. It orchestrates the existing safe steps in order:
+
+1. `sync-changes-preview` reads incremental CloudKit summaries and stores candidate checkpoints.
+2. `sync-import-quarantine` runs only when a real native helper is ready and remote changes exist.
+3. The backend writes changed payloads into local quarantine and strips raw payloads from the API response.
+4. `applyCloudKitSyncQuarantine` applies only recognized, conflict-free records.
+5. Checkpoints are promoted only after local SQLite writes succeed and the zone has no unresolved conflicts.
+
+The response returns only status, counts, next action, safe helper summaries, quarantine counts, apply counts, and backup metadata. It never returns `payloadJson`, raw CloudKit server change tokens, helper stdin, local backup paths, device credentials, AI provider keys, session cookies, or secret-like values.
+
+The one-step UI is the default path for normal users. The older preview/import/apply controls remain available as advanced diagnostics, but they are not the first thing a new user needs to understand.
+
 ## Conflict Model
 
 Start with conservative conflict handling:
@@ -343,3 +369,5 @@ Do not claim real iCloud data sync until all of this is true:
 当前还新增了隔离导入接口：`/api/v1/admin/icloud-data-sync/import-quarantine`。它要求显式确认 `IMPORT_CLOUDKIT_CHANGES`，由原生 helper 读取 CloudKit 变更正文，然后只写入本机 `cloudkit_sync_quarantine` 表等待冲突审核。API 响应不会返回 `payloadJson` 或原始 server change token，也不会直接改聊天、记忆、任务或生成程序状态。候选 token 仍不会升级为 applied token，直到后续“审核并应用”步骤真正写入 SQLite 并完成回滚证据。
 
 当前还新增了审核应用接口：`GET /api/v1/admin/icloud-data-sync/quarantine` 只返回隔离区摘要，`POST /api/v1/admin/icloud-data-sync/apply-quarantine` 需要显式确认 `APPLY_CLOUDKIT_QUARANTINE`。应用前会创建 SQLite 备份，只自动写入已识别且无冲突的聊天、消息、普通记忆、任务和已存在生成程序状态；硬删除、敏感记忆、未知记录、疑似密钥或本地更新较新的记录会继续留在隔离区。只有某个 zone 没有未解决隔离项时，才会把 pending CloudKit checkpoint 推进为 applied checkpoint。
+
+当前还新增了面向普通用户的一键安全同步接口：`POST /api/v1/admin/icloud-data-sync/sync-now`。它要求显式确认 `SYNC_CLOUDKIT_NOW`，内部按顺序执行“增量变更预览 → 导入隔离区 → 应用无冲突记录”。这个接口不会返回 `payloadJson`、原始 server change token、helper stdin、本地备份路径、设备凭证、AI Key 或 session 信息；遇到冲突时只返回下一步“查看隔离区并处理冲突”。它让默认 UI 只露出一个按钮，但安全边界和人工冲突审核仍然保留。
