@@ -1777,10 +1777,14 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("renderRepairRecommendationAction(latestRepairImportNextAction)") &&
     onboardingAppleRemoteSource.includes("getIcloudActionFollowupKey") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-desktop-one-next") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-desktop-one-next-cleanup") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-status-recovery-details") &&
     onboardingAppleRemoteSource.includes("renderDesktopIcloudOneNextAction") &&
     onboardingAppleRemoteSource.includes("renderPrimaryIcloudActionButton") &&
     onboardingAppleRemoteSource.includes("desktopIcloudOneNextTitleKey") &&
     onboardingAppleRemoteSource.includes("desktopIcloudOneNextBodyKey") &&
+    onboardingAppleRemoteSource.includes("desktopIcloudOneNextActionKey") &&
+    onboardingAppleRemoteSource.includes("desktopIcloudOneNextSource") &&
     appleRemoteIcloudPrimaryActionSource.includes("primaryIcloudActionFollowupKeys") &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudFollowupChooseRemoteEntry") &&
     appleRemoteIcloudPrimaryActionSource.includes("appleRemoteIcloudFollowupWaitSync") &&
@@ -1799,6 +1803,10 @@ function checkAssets() {
     translationsSource.includes("Use the repair info from the phone") &&
     translationsSource.includes("先修手机刚打开的入口") &&
     translationsSource.includes("Fix the entry the phone just opened") &&
+    translationsSource.includes("清理旧入口，避免手机选错") &&
+    translationsSource.includes("Clean old entries so the phone picks the right one") &&
+    translationsSource.includes("高级：状态与修复记录") &&
+    translationsSource.includes("Advanced: status and repair history") &&
     adminRoutesSource.includes("buildLatestIcloudEntryRepairSummary") &&
     adminRoutesSource.includes("saveIcloudRepairImportAnalysis") &&
     adminRoutesSource.includes("admin-repair-packet-import") &&

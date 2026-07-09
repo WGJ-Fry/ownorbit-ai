@@ -1250,21 +1250,56 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   };
 
   const renderDesktopIcloudOneNextAction = () => {
-    if (latestRepairImportNextAction) return renderRepairRecommendationAction(latestRepairImportNextAction);
-    if (latestEntryRepair && latestEntryRepair.status !== "none" && latestEntryRepair.action !== "none") return renderLatestEntryRepairPrimaryAction(latestEntryRepair);
+    if (desktopIcloudOneNextSource === "repair-import" && latestRepairImportNextAction) return renderRepairRecommendationAction(latestRepairImportNextAction);
+    if (desktopIcloudOneNextSource === "phone-issue" && latestEntryRepair && latestEntryRepair.status !== "none" && latestEntryRepair.action !== "none") return renderLatestEntryRepairPrimaryAction(latestEntryRepair);
+    if (desktopIcloudOneNextSource === "cleanup") {
+      return (
+        <button
+          type="button"
+          data-testid="onboarding-icloud-desktop-one-next-cleanup"
+          onClick={onCleanupIcloud}
+          disabled={isBusy}
+          className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-300 px-3 py-2 text-xs font-bold text-zinc-950 shadow-lg shadow-amber-950/20 transition hover:bg-amber-200 disabled:opacity-50"
+        >
+          {isIcloudCleanupBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+          {isIcloudCleanupBusy ? t("onboarding.appleRemoteIcloudCleanupCleaning") : t("onboarding.appleRemoteIcloudCleanupButton")}
+        </button>
+      );
+    }
     return renderPrimaryIcloudActionButton("onboarding-icloud-desktop-one-next-primary-action");
   };
 
-  const desktopIcloudOneNextTitleKey: TranslationKey = latestRepairImportNextAction
+  const shouldDoPrimaryIcloudActionBeforeCleanup = primaryIcloudAction.cta !== "none" || primaryIcloudAction.actionKey !== "onboarding.appleRemoteIcloudActionOpenFiles";
+  const desktopIcloudOneNextSource = latestRepairImportNextAction
+    ? "repair-import"
+    : latestEntryRepair && latestEntryRepair.status !== "none" && latestEntryRepair.action !== "none"
+    ? "phone-issue"
+    : shouldDoPrimaryIcloudActionBeforeCleanup
+    ? "primary"
+    : icloudCleanupNeeded
+    ? "cleanup"
+    : "primary";
+  const desktopIcloudOneNextTitleKey: TranslationKey = desktopIcloudOneNextSource === "repair-import"
     ? "onboarding.appleRemoteIcloudDesktopOneNextRepairImportTitle"
-    : latestEntryRepair && latestEntryRepair.status !== "none" && latestEntryRepair.action !== "none"
+    : desktopIcloudOneNextSource === "phone-issue"
     ? "onboarding.appleRemoteIcloudDesktopOneNextPhoneIssueTitle"
+    : desktopIcloudOneNextSource === "cleanup"
+    ? "onboarding.appleRemoteIcloudDesktopOneNextCleanupTitle"
     : primaryIcloudAction.titleKey;
-  const desktopIcloudOneNextBodyKey: TranslationKey = latestRepairImportNextAction
+  const desktopIcloudOneNextBodyKey: TranslationKey = desktopIcloudOneNextSource === "repair-import"
     ? "onboarding.appleRemoteIcloudDesktopOneNextRepairImportBody"
-    : latestEntryRepair && latestEntryRepair.status !== "none" && latestEntryRepair.action !== "none"
+    : desktopIcloudOneNextSource === "phone-issue"
     ? "onboarding.appleRemoteIcloudDesktopOneNextPhoneIssueBody"
+    : desktopIcloudOneNextSource === "cleanup"
+    ? "onboarding.appleRemoteIcloudDesktopOneNextCleanupBody"
     : primaryIcloudAction.bodyKey;
+  const desktopIcloudOneNextActionKey: TranslationKey = desktopIcloudOneNextSource === "repair-import"
+    ? (repairRecommendationKeys[latestRepairImportNextAction?.id as keyof typeof repairRecommendationKeys] || "onboarding.appleRemoteIcloudRepairRecReady") as TranslationKey
+    : desktopIcloudOneNextSource === "phone-issue"
+    ? latestEntryRepairActionKeys[latestEntryRepair?.action || "none"]
+    : desktopIcloudOneNextSource === "cleanup"
+    ? "onboarding.appleRemoteIcloudCleanupButton"
+    : primaryIcloudAction.actionKey;
 
   return (
     <section className="rounded-[28px] border border-sky-400/15 bg-[#101722] p-5">
@@ -1836,13 +1871,16 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
             <div className="mt-1 text-[11px] leading-relaxed text-cyan-50/80">{t(desktopIcloudOneNextBodyKey)}</div>
             <div className="mt-2 rounded-lg border border-cyan-100/10 bg-black/15 p-2 text-[11px] font-bold">
               {t("onboarding.appleRemoteIcloudOneNextAction", {
-                action: latestRepairImportNextActionLabel || t(primaryIcloudAction.actionKey),
+                action: t(desktopIcloudOneNextActionKey),
               })}
             </div>
             <div data-testid="onboarding-icloud-desktop-one-next-action">
               {renderDesktopIcloudOneNextAction()}
             </div>
           </div>
+          <details data-testid="onboarding-icloud-status-recovery-details" className="mt-3 rounded-xl border border-white/[0.06] bg-[#060a10]/30 p-3 text-[11px] text-zinc-300">
+            <summary className="cursor-pointer font-bold text-zinc-100">{t("onboarding.appleRemoteIcloudStatusAndRecoveryDetails")}</summary>
+            <div className="mt-3 grid gap-3">
           <div className={`mt-3 rounded-xl border p-3 ${simpleIcloudStatus.tone}`}>
             <div className="flex gap-2">
               {simpleIcloudStatus.icon === "ready" ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : simpleIcloudStatus.icon === "qr" ? <QrCode className="mt-0.5 h-4 w-4 shrink-0" /> : simpleIcloudStatus.icon === "refresh" ? <RefreshCw className="mt-0.5 h-4 w-4 shrink-0" /> : simpleIcloudStatus.icon === "warning" ? <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> : <Cloud className="mt-0.5 h-4 w-4 shrink-0" />}
@@ -2224,6 +2262,8 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
               </div>
             </div>
           ) : null}
+            </div>
+          </details>
           <details className="mt-3 rounded-xl border border-white/[0.06] bg-[#060a10]/30 p-3 text-[11px] text-zinc-500">
             <summary className="cursor-pointer font-bold text-zinc-200">{t("onboarding.appleRemoteIcloudAdvancedDiagnostics")}</summary>
             <div className="mt-3 break-all font-mono text-[11px] text-zinc-500">
