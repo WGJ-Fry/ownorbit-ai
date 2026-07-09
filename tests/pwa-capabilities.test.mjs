@@ -1157,7 +1157,7 @@ test("mobile iCloud handoff launch records server repair from failed connectivit
   installLocalStorage();
   t.after(cleanupLocalStorage);
   const now = 1_800_000_130_000;
-  const { buildMobileIcloudHandoffEntryFromServerRepair, buildMobileIcloudHandoffUrl, getMobileIcloudHandoffServerRepairOneNextAction, getMobileIcloudHandoffServerRepairStatus, handleMobileIcloudHandoffLaunch } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-connectivity-repair-${Date.now()}`);
+  const { buildMobileIcloudHandoffEntryFromServerRepair, buildMobileIcloudHandoffUrl, getMobileIcloudHandoffEntryKey, getMobileIcloudHandoffServerRepairOneNextAction, getMobileIcloudHandoffServerRepairStatus, getPreferredMobileIcloudHandoffEntryKey, getStoredMobileIcloudHandoff, getStoredMobileIcloudHandoffEntries, handleMobileIcloudHandoffLaunch } = await import(`../src/services/mobileIcloudHandoff.ts?case=icloud-connectivity-repair-${Date.now()}`);
   const href = [
     "https://lifeos.example.com/mobile/chat?lifeosEntry=icloud",
     `entryGeneratedAt=${now}`,
@@ -1216,6 +1216,12 @@ test("mobile iCloud handoff launch records server repair from failed connectivit
   assert.equal(repair.latestStability, "stable");
   assert.equal(repair.latestLabel, "Tailscale HTTPS Serve");
   assert.equal(repair.latestGeneratedAt, now + 6);
+  assert.equal(getStoredMobileIcloudHandoff().baseUrl, "https://new-lifeos.example.com");
+  assert.equal(getStoredMobileIcloudHandoff().mode, "tailscale");
+  assert.equal(getStoredMobileIcloudHandoff().stability, "stable");
+  assert.equal(getPreferredMobileIcloudHandoffEntryKey(), getMobileIcloudHandoffEntryKey(getStoredMobileIcloudHandoff()));
+  assert.equal(getStoredMobileIcloudHandoffEntries().some((entry) => entry.baseUrl === "https://lifeos.example.com"), true);
+  assert.equal(getStoredMobileIcloudHandoffEntries().some((entry) => entry.baseUrl === "https://new-lifeos.example.com"), true);
 
   const action = getMobileIcloudHandoffServerRepairOneNextAction(repair);
   assert.equal(action.id, "open-latest-entry");

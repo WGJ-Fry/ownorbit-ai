@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Copy, RefreshCw, Star, Trash2, Wifi } from "lucide-react";
 import type { DeviceConnectivityReport } from "../../services/lifeosApi";
 import type { MobileIcloudHandoffEntry, MobileIcloudHandoffEntryRecommendation, MobileIcloudHandoffServerRepairStatus, MobileIcloudHandoffStatus } from "../../services/mobileIcloudHandoff";
-import { autoSelectRecommendedMobileIcloudHandoffEntry, buildMobileIcloudHandoffEntryFromServerRepair, buildMobileIcloudHandoffRecoveryPacket, buildMobileIcloudHandoffUrl, forgetArchivedMobileIcloudHandoffEntries, forgetStoredMobileIcloudHandoffEntry, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffEntryFreshness, getMobileIcloudHandoffEntryKey, getMobileIcloudHandoffEntryRecommendation, getMobileIcloudHandoffOneNextAction, getMobileIcloudHandoffServerRepairOneNextAction, getPreferredMobileIcloudHandoffEntryKey, getStoredMobileIcloudHandoffEntries, isMobileIcloudHandoffSameWifiOnly, setPreferredMobileIcloudHandoffEntry } from "../../services/mobileIcloudHandoff";
+import { autoSelectRecommendedMobileIcloudHandoffEntry, buildMobileIcloudHandoffEntryFromServerRepair, buildMobileIcloudHandoffRecoveryPacket, buildMobileIcloudHandoffUrl, forgetArchivedMobileIcloudHandoffEntries, forgetStoredMobileIcloudHandoffEntry, getMobileIcloudHandoffActionKey, getMobileIcloudHandoffEntryFreshness, getMobileIcloudHandoffEntryKey, getMobileIcloudHandoffEntryRecommendation, getMobileIcloudHandoffOneNextAction, getMobileIcloudHandoffServerRepairOneNextAction, getPreferredMobileIcloudHandoffEntryKey, getStoredMobileIcloudHandoffEntries, isMobileIcloudHandoffSameWifiOnly, rememberMobileIcloudHandoffServerRepairEntry, setPreferredMobileIcloudHandoffEntry } from "../../services/mobileIcloudHandoff";
 import type { OfflineMessageQueueSummary } from "../../services/offlineMessageQueue";
 import type { MobileConnectivityIssueKey, MobileConnectivityResult, MobileRecoveryHintKey, RemoteEntryStatus } from "../../services/pwaCapabilities";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -246,8 +246,11 @@ export default function MobileRemoteEntryCard({
       return;
     }
     if (icloudServerRepairOneNextAction.id === "open-latest-entry") {
-      const latestEntry = buildMobileIcloudHandoffEntryFromServerRepair(icloudServerRepair, icloudHandoffStatus?.entry || null);
+      const latestEntry = rememberMobileIcloudHandoffServerRepairEntry(icloudServerRepair, icloudHandoffStatus?.entry || null) ||
+        buildMobileIcloudHandoffEntryFromServerRepair(icloudServerRepair, icloudHandoffStatus?.entry || null);
       if (latestEntry) {
+        setPreferredIcloudEntryKey(getPreferredMobileIcloudHandoffEntryKey());
+        setIcloudEntries(getStoredMobileIcloudHandoffEntries());
         openIcloudEntry(latestEntry);
         return;
       }

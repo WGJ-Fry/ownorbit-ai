@@ -386,6 +386,7 @@ function writeServerRepairStatus(
   } catch {
     // This status is only a local hint; pending event durability is handled separately.
   }
+  rememberMobileIcloudHandoffServerRepairEntry(record, getStoredMobileIcloudHandoff(), now);
   return record;
 }
 
@@ -422,6 +423,19 @@ export function buildMobileIcloudHandoffEntryFromServerRepair(
     checksumSha256: "",
     savedAt: now,
   };
+}
+
+export function rememberMobileIcloudHandoffServerRepairEntry(
+  status: MobileIcloudHandoffServerRepairStatus | null | undefined,
+  fallback?: MobileIcloudHandoffEntry | null,
+  now = Date.now(),
+) {
+  if (!status?.refreshed) return null;
+  const entry = buildMobileIcloudHandoffEntryFromServerRepair(status, fallback, now);
+  if (!entry) return null;
+  saveMobileIcloudHandoff(entry);
+  setPreferredMobileIcloudHandoffEntry(entry);
+  return entry;
 }
 
 export function getMobileIcloudHandoffServerRepairOneNextAction(
