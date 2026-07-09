@@ -359,6 +359,7 @@ function collectMemoryRecords(limit: number) {
       recordName: `memory:${memory.id}`,
       payload,
       logicalClock: payload.updatedAt,
+      requiresUserReview: Boolean(memory.deletedAt),
     }), limit);
   }
   return { records, blockedRecords, counts };

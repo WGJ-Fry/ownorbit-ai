@@ -2062,6 +2062,7 @@ function checkAssets() {
     cloudKitSyncBatchTestSource.includes("serializedSummary.includes(\"Safe export conversation\"), false") &&
     cloudKitSyncBatchTestSource.includes("recordType === \"LifeOSMessage\" && record.requiresUserReview === false") &&
     cloudKitSyncBatchTestSource.includes("recordType === \"LifeOSConversation\" && record.requiresUserReview === true") &&
+    cloudKitSyncBatchTestSource.includes("recordType === \"LifeOSMemory\" && record.requiresUserReview === false") &&
     cloudKitSyncBatchTestSource.includes("sendsRawUserContent, false") &&
     cloudKitSyncBatchTestSource.includes("keeps admin summary payload-free") &&
     cloudKitSyncApplySource.includes("APPLY_CLOUDKIT_QUARANTINE") &&
@@ -2070,7 +2071,10 @@ function checkAssets() {
     cloudKitSyncApplySource.includes("manualReviewRequired") &&
     cloudKitSyncApplySource.includes("promoteReadyZones") &&
     cloudKitSyncApplySource.includes("payloadJson") &&
+    cloudKitSyncApplySource.includes("Existing memory requires manual review before CloudKit can update it") &&
     cloudKitSyncApplyTestSource.includes("promotes pending checkpoint only after applying") &&
+    cloudKitSyncApplyTestSource.includes("auto memory apply writes a new normal memory") &&
+    cloudKitSyncApplyTestSource.includes("auto memory apply refuses to overwrite an existing memory") &&
     cloudKitSyncApplyTestSource.includes("blocks checkpoint promotion") &&
     cloudKitSyncNowSource.includes("SYNC_CLOUDKIT_NOW") &&
     cloudKitSyncNowSource.includes("runCloudKitSyncNow") &&

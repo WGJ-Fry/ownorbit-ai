@@ -270,6 +270,8 @@ function applyMemory(payload: Record<string, unknown>, row: QuarantineRow) {
   const updatedAt = numberValue(payload.updatedAt, createdAt);
   const deletedAt = row.recordType === "LifeOSMemoryTombstone" ? numberValue(payload.deletedAt, updatedAt) || updatedAt : numberValue(payload.deletedAt, 0) || null;
   const existing = db.prepare("SELECT updated_at as updatedAt FROM memories WHERE id = ?").get(memoryId) as { updatedAt?: number } | undefined;
+  if (!row.requiresUserReview && row.recordType !== "LifeOSMemory") throw new Error("Memory delete requires manual review.");
+  if (!row.requiresUserReview && existing) throw new Error("Existing memory requires manual review before CloudKit can update it.");
   if (existing && Number(existing.updatedAt || 0) > updatedAt) throw new Error("Local memory is newer; manual conflict review required.");
   db.prepare(`
     INSERT INTO memories (id, title, content, sensitivity, created_at, updated_at, deleted_at)

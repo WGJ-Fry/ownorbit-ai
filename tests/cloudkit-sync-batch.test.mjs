@@ -128,6 +128,7 @@ test("CloudKit sync batch preview builds safe records and blocks sensitive paylo
     assert.ok(preview.recordTypes.some((item) => item.recordType === "LifeOSGeneratedAppState"));
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSMessage" && record.requiresUserReview === false), true);
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSConversation" && record.requiresUserReview === true), true);
+    assert.equal(preview.records.some((record) => record.recordType === "LifeOSMemory" && record.requiresUserReview === false), true);
     assert.equal(preview.helperPayloadPlan.sendsRawUserContent, false);
     assert.equal(preview.helperPayloadPlan.nextHelperOperation, "sync-export-blocked");
     const serialized = JSON.stringify(preview);
@@ -183,6 +184,7 @@ test("CloudKit sync export package is ready only after confirmation and keeps ad
     assert.equal(exportPackage.helperSyncBatch.records.length >= 3, true);
     assert.equal(exportPackage.helperSyncBatch.records.some((record) => record.recordType === "LifeOSMessage" && record.fields.requiresUserReview === false), true);
     assert.equal(exportPackage.helperSyncBatch.records.some((record) => record.recordType === "LifeOSConversation" && record.fields.requiresUserReview === true), true);
+    assert.equal(exportPackage.helperSyncBatch.records.some((record) => record.recordType === "LifeOSMemory" && record.fields.requiresUserReview === false), true);
     assert.equal(exportPackage.helperSyncBatch.records.some((record) => (
       record.recordType === "LifeOSMessage" &&
       JSON.parse(String(record.fields.payloadJson || "{}")).conversationTitle === "Safe export conversation"
