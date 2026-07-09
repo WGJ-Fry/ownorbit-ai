@@ -15,12 +15,13 @@ const MAX_TEXT_CHARS = 800;
 
 type IcloudDataSyncReadiness = ReturnType<typeof getIcloudDataSyncReadiness>;
 
-export type CloudKitNativeHelperOperation = "probe" | "roundtrip" | "sync-export" | "sync-import-preview" | "sync-changes-preview" | "sync-import-quarantine";
+export type CloudKitNativeHelperOperation = "probe" | "roundtrip" | "subscription-probe" | "sync-export" | "sync-import-preview" | "sync-changes-preview" | "sync-import-quarantine";
 export type CloudKitNativeHelperRunStatus = "passed" | "failed" | "skipped";
 
 const operationRequiredNativeCapabilities: Record<CloudKitNativeHelperOperation, string[]> = {
   probe: ["account-status", "private-database", "container-reachability"],
   roundtrip: ["account-status", "private-database", "container-reachability", "custom-zones", "create-fetch-delete-roundtrip"],
+  "subscription-probe": ["account-status", "private-database", "container-reachability", "subscription-push"],
   "sync-export": ["account-status", "private-database", "container-reachability", "custom-zones", "sync-export-save"],
   "sync-import-preview": ["account-status", "private-database", "container-reachability", "custom-zones", "sync-import-preview-query"],
   "sync-changes-preview": ["account-status", "private-database", "container-reachability", "custom-zones", "change-token-fetch", "sync-changes-preview"],
@@ -269,6 +270,16 @@ function normalizeSyncImportQuarantine(value: unknown) {
   };
 }
 
+function normalizeSubscriptionProbe(value: unknown) {
+  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    subscriptionId: compact(input.subscriptionId, 160),
+    exists: Boolean(input.exists),
+    saved: Boolean(input.saved),
+    contentAvailable: Boolean(input.contentAvailable),
+  };
+}
+
 function nativeCapabilityCoverage(required: string[], verified: string[]) {
   const verifiedSet = new Set(verified);
   const missing = required.filter((capability) => !verifiedSet.has(capability));
@@ -289,7 +300,7 @@ export function cloudKitNativeHelperContract() {
     transport: CLOUDKIT_NATIVE_HELPER_TRANSPORT,
     requestSchema: CLOUDKIT_NATIVE_HELPER_REQUEST_SCHEMA,
     responseSchema: CLOUDKIT_NATIVE_HELPER_RESPONSE_SCHEMA,
-    operations: ["probe", "roundtrip", "sync-export", "sync-import-preview", "sync-changes-preview", "sync-import-quarantine"] as CloudKitNativeHelperOperation[],
+    operations: ["probe", "roundtrip", "subscription-probe", "sync-export", "sync-import-preview", "sync-changes-preview", "sync-import-quarantine"] as CloudKitNativeHelperOperation[],
     commandArgs: [...CLOUDKIT_NATIVE_HELPER_ARGS],
     timeoutMs: CLOUDKIT_NATIVE_HELPER_TIMEOUT_MS,
   };
@@ -363,6 +374,7 @@ function skippedResult(operation: CloudKitNativeHelperOperation, readinessStatus
     missingOperationCapabilities: requiredCapabilitiesForOperation(operation),
     operationCapabilityCoverageOk: false,
     roundtrip: normalizeRoundtrip(undefined),
+    subscriptionProbe: normalizeSubscriptionProbe(undefined),
     syncExport: normalizeSyncExport(undefined),
     syncImportPreview: normalizeSyncImportPreview(undefined),
     syncChangesPreview: normalizeSyncChangesPreview(undefined),
@@ -405,6 +417,7 @@ export async function runCloudKitNativeHelper(
   const syncImportPreview = normalizeSyncImportPreview(payload?.syncImportPreview);
   const syncChangesPreview = normalizeSyncChangesPreview(payload?.syncChangesPreview);
   const syncImportQuarantine = normalizeSyncImportQuarantine(payload?.syncImportQuarantine);
+  const subscriptionProbe = normalizeSubscriptionProbe(payload?.subscriptionProbe);
   const capabilitiesVerified = normalizeStringList(payload?.capabilitiesVerified || payload?.capabilities, 32);
   const capabilityCoverage = nativeCapabilityCoverage(readiness.requiredNativeCapabilities, capabilitiesVerified);
   const operationCapabilityCoverage = nativeCapabilityCoverage(requiredCapabilitiesForOperation(operation), capabilitiesVerified);
@@ -413,9 +426,10 @@ export async function runCloudKitNativeHelper(
     payload?.schema === CLOUDKIT_NATIVE_HELPER_RESPONSE_SCHEMA;
   const responseOk = payload?.ok === true;
   const roundtripOk = operation !== "roundtrip" || (roundtrip.created && roundtrip.fetched && roundtrip.deleted);
+  const subscriptionProbeOk = operation !== "subscription-probe" || (subscriptionProbe.exists && subscriptionProbe.contentAvailable);
   const syncExportOk = operation !== "sync-export" || (syncExport.attempted > 0 && syncExport.saved === syncExport.attempted && syncExport.failed === 0);
   const syncImportQuarantineOk = operation !== "sync-import-quarantine" || syncImportQuarantine.failed === 0;
-  const passed = command.exitCode === 0 && !command.timedOut && responseOk && protocolMatches && operationMatches && operationCapabilityCoverage.complete && roundtripOk && syncExportOk && syncImportQuarantineOk;
+  const passed = command.exitCode === 0 && !command.timedOut && responseOk && protocolMatches && operationMatches && operationCapabilityCoverage.complete && roundtripOk && subscriptionProbeOk && syncExportOk && syncImportQuarantineOk;
   const payloadWarnings = normalizeStringList(payload?.warnings).map((item) => redact(item, 240));
   const payloadErrors = normalizeStringList(payload?.errors).map((item) => redact(item, 240));
   const errors = [
@@ -446,6 +460,7 @@ export async function runCloudKitNativeHelper(
     missingOperationCapabilities: operationCapabilityCoverage.missing,
     operationCapabilityCoverageOk: operationCapabilityCoverage.complete,
     roundtrip,
+    subscriptionProbe,
     syncExport,
     syncImportPreview,
     syncChangesPreview,

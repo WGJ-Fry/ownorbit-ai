@@ -1408,7 +1408,7 @@ export type NetworkDiagnostics = {
 export type CloudKitNativeHelperResult = {
   ok: boolean;
   status: "passed" | "failed" | "skipped";
-  operation: "probe" | "roundtrip" | "sync-export" | "sync-import-preview" | "sync-changes-preview" | "sync-import-quarantine";
+  operation: "probe" | "roundtrip" | "subscription-probe" | "sync-export" | "sync-import-preview" | "sync-changes-preview" | "sync-import-quarantine";
   checkedAt: string;
   readinessStatus: string;
   reason?: string;
@@ -1418,7 +1418,7 @@ export type CloudKitNativeHelperResult = {
     transport: string;
     requestSchema: string;
     responseSchema: string;
-    operations: Array<"probe" | "roundtrip" | "sync-export" | "sync-import-preview" | "sync-changes-preview" | "sync-import-quarantine">;
+    operations: Array<"probe" | "roundtrip" | "subscription-probe" | "sync-export" | "sync-import-preview" | "sync-changes-preview" | "sync-import-quarantine">;
     commandArgs: string[];
     timeoutMs: number;
   };
@@ -1438,6 +1438,12 @@ export type CloudKitNativeHelperResult = {
     deleted: boolean;
     recordType: string;
     zone: string;
+  };
+  subscriptionProbe?: {
+    subscriptionId: string;
+    exists: boolean;
+    saved: boolean;
+    contentAvailable: boolean;
   };
   syncExport?: {
     attempted: number;

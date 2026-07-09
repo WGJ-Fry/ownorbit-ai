@@ -67,7 +67,15 @@ function normalizeInternalRefreshReason(value: unknown) {
 }
 
 function normalizeCloudKitHelperOperation(value: unknown): CloudKitNativeHelperOperation {
-  return value === "roundtrip" ? "roundtrip" : "probe";
+  if (value === "roundtrip") return "roundtrip";
+  if (value === "subscription-probe") return "subscription-probe";
+  return "probe";
+}
+
+function cloudKitHelperAuditEvent(operation: CloudKitNativeHelperOperation) {
+  if (operation === "roundtrip") return "icloud_cloudkit_helper_roundtrip";
+  if (operation === "subscription-probe") return "icloud_cloudkit_helper_subscription_probe";
+  return "icloud_cloudkit_helper_probe";
 }
 
 function normalizeCloudKitBatchLimit(value: unknown) {
@@ -732,7 +740,7 @@ export function registerAdminRoutes(app: express.Express) {
       const readiness = getIcloudDataSyncReadiness({ platformSupported: diagnostics.icloud.platformSupported });
       const result = await runCloudKitNativeHelper(readiness, { operation });
       insertAuditLog(
-        operation === "roundtrip" ? "icloud_cloudkit_helper_roundtrip" : "icloud_cloudkit_helper_probe",
+        cloudKitHelperAuditEvent(operation),
         "network",
         "cloudkit-helper",
         {

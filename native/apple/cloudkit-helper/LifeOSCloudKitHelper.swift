@@ -9,6 +9,7 @@ private let confirmationPhrase = "DELETE_DISPOSABLE_RECORDS"
 private let syncExportSchema = "lifeos-cloudkit-sync-export.v1"
 private let syncExportConfirmation = "SYNC_APPROVED_RECORDS"
 private let syncImportConfirmation = "IMPORT_CLOUDKIT_CHANGES"
+private let subscriptionId = "lifeos-private-database-changes-v1"
 
 private func nowIso() -> String {
   ISO8601DateFormatter().string(from: Date())
@@ -283,6 +284,60 @@ private func runRoundtrip(container: CKContainer, request: [String: Any]) async 
     "zone": plan.zone,
   ]
   response["evidenceId"] = "lifeos-cloudkit-roundtrip-\(UUID().uuidString)"
+  return response
+}
+
+private func runSubscriptionProbe(container: CKContainer) async -> [String: Any] {
+  let probe = await runProbe(container: container, operation: "subscription-probe")
+  guard probe["ok"] as? Bool == true else { return probe }
+
+  let database = container.privateCloudDatabase
+  let subscription = CKDatabaseSubscription(subscriptionID: subscriptionId)
+  let notification = CKSubscription.NotificationInfo()
+  notification.shouldSendContentAvailable = true
+  subscription.notificationInfo = notification
+  var warnings: [String] = []
+  var errors: [String] = []
+  var saved = false
+
+  do {
+    _ = try await database.save(subscription)
+    saved = true
+  } catch {
+    errors.append("CloudKit subscription save failed: \(redact(error.localizedDescription, limit: 240))")
+  }
+
+  var response = responseBase(operation: "subscription-probe", ok: saved && errors.isEmpty)
+  response["accountStatus"] = probe["accountStatus"] ?? "available"
+  response["containerReachable"] = probe["containerReachable"] ?? true
+  response["capabilitiesVerified"] = saved
+    ? [
+      "account-status",
+      "private-database",
+      "container-reachability",
+      "subscription-push",
+    ]
+    : [
+      "account-status",
+      "private-database",
+      "container-reachability",
+    ]
+  response["warnings"] = warnings.map { redact($0, limit: 240) }
+  response["errors"] = errors.map { redact($0, limit: 240) }
+  response["subscriptionProbe"] = [
+    "subscriptionId": subscriptionId,
+    "exists": saved,
+    "saved": saved,
+    "contentAvailable": saved,
+  ]
+  response["roundtrip"] = [
+    "created": false,
+    "fetched": false,
+    "deleted": false,
+    "recordType": "",
+    "zone": "",
+  ]
+  response["evidenceId"] = saved ? "lifeos-cloudkit-subscription-probe-\(UUID().uuidString)" : ""
   return response
 }
 
@@ -850,6 +905,8 @@ struct LifeOSCloudKitHelper {
       response = await runProbe(container: container, operation: operation)
     } else if operation == "roundtrip" {
       response = await runRoundtrip(container: container, request: request)
+    } else if operation == "subscription-probe" {
+      response = await runSubscriptionProbe(container: container)
     } else if operation == "sync-export" {
       response = await runSyncExport(container: container, request: request)
     } else if operation == "sync-import-preview" {

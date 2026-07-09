@@ -1048,10 +1048,16 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /dataSyncScope: "entry-file-only" \| "cloudkit-native-candidate"/);
   assert.match(lifeosApiSource, /missingNativeCapabilities/);
   assert.match(lifeosApiSource, /missingOperationCapabilities/);
+  assert.match(lifeosApiSource, /subscription-probe/);
+  assert.match(lifeosApiSource, /subscriptionProbe/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudDataSyncHelperCapabilityCoverage/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudDataSyncHelperMissingCapabilities/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudDataSyncHelperOperationCoverage/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudDataSyncHelperMissingOperationCapabilities/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-helper-subscription/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudDataSyncHelperSubscriptionResult/);
+  assert.match(translationsSource, /后台推送订阅/);
+  assert.match(translationsSource, /Background push subscription/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-quarantine-next/);
   assert.match(onboardingAppleRemoteSource, /data-cloudkit-quarantine-next/);
   assert.match(onboardingAppleRemoteSource, /cloudKitQuarantineNextAction/);

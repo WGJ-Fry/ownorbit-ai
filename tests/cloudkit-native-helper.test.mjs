@@ -212,6 +212,10 @@ test("Apple CloudKit helper source implements the native JSON stdio contract", a
   assert.match(swiftSource, /IMPORT_CLOUDKIT_CHANGES/);
   assert.match(swiftSource, /runSyncImportQuarantine/);
   assert.match(swiftSource, /sync-import-quarantine/);
+  assert.match(swiftSource, /runSubscriptionProbe/);
+  assert.match(swiftSource, /CKDatabaseSubscription/);
+  assert.match(swiftSource, /subscription-push/);
+  assert.match(swiftSource, /subscriptionProbe/);
   assert.match(swiftSource, /payloadJson/);
   assert.match(swiftSource, /recordZoneChanges/);
   assert.match(swiftSource, /CKServerChangeToken/);
@@ -270,6 +274,57 @@ process.stdin.on("end", () => {
     assert.equal(result.roundtrip.deleted, true);
     assert.equal(result.capabilitiesVerified.includes("change-token-fetch"), true);
     assert.equal(result.evidenceId, "fake-cloudkit-evidence");
+  } finally {
+    restoreEnv(env);
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit helper subscription probe executes the configured native helper contract", async () => {
+  const env = snapshotEnv();
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-helper-subscription-probe-"));
+  try {
+    await configureReadyCloudKitEnv(dir, `#!/usr/bin/env node
+let body = "";
+process.stdin.on("data", (chunk) => { body += chunk; });
+process.stdin.on("end", () => {
+  if (!process.argv.includes("--lifeos-cloudkit-json")) process.exit(7);
+  const request = JSON.parse(body);
+  if (request.operation !== "subscription-probe") process.exit(8);
+  console.log(JSON.stringify({
+    protocolVersion: 1,
+    schema: "${CLOUDKIT_NATIVE_HELPER_RESPONSE_SCHEMA}",
+    operation: request.operation,
+    ok: true,
+    accountStatus: "available",
+    containerReachable: true,
+    capabilitiesVerified: ["container-reachability", ...request.requiredNativeCapabilities, "subscription-push"],
+    subscriptionProbe: {
+      subscriptionId: "lifeos-private-database-changes-v1",
+      exists: true,
+      saved: true,
+      contentAvailable: true
+    },
+    evidenceId: "fake-cloudkit-subscription-probe-evidence"
+  }));
+});
+`);
+    const readiness = getIcloudDataSyncReadiness({ platformSupported: true });
+    const result = await runCloudKitNativeHelper(readiness, {
+      operation: "subscription-probe",
+      now: new Date("2026-01-02T03:04:05.000Z"),
+      timeoutMs: 5000,
+    });
+    assert.equal(result.status, "passed");
+    assert.equal(result.ok, true);
+    assert.equal(result.operation, "subscription-probe");
+    assert.equal(result.subscriptionProbe.subscriptionId, "lifeos-private-database-changes-v1");
+    assert.equal(result.subscriptionProbe.exists, true);
+    assert.equal(result.subscriptionProbe.saved, true);
+    assert.equal(result.subscriptionProbe.contentAvailable, true);
+    assert.equal(result.operationCapabilityCoverageOk, true);
+    assert.equal(result.capabilitiesVerified.includes("subscription-push"), true);
+    assert.equal(result.evidenceId, "fake-cloudkit-subscription-probe-evidence");
   } finally {
     restoreEnv(env);
     await rm(dir, { recursive: true, force: true });

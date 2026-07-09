@@ -1620,6 +1620,16 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                       {cloudKitHelperBusy === "roundtrip" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ClipboardCheck className="h-3.5 w-3.5" />}
                       {t("onboarding.appleRemoteIcloudDataSyncHelperRoundtrip")}
                     </button>
+                    <button
+                      type="button"
+                      data-testid="onboarding-icloud-data-sync-helper-subscription"
+                      onClick={() => handleRunCloudKitHelper("subscription-probe")}
+                      disabled={!dataSync.ready || Boolean(cloudKitHelperBusy)}
+                      className="inline-flex items-center justify-center gap-2 rounded-lg border border-current/15 bg-black/15 px-3 py-2 text-[11px] font-bold disabled:opacity-50"
+                    >
+                      {cloudKitHelperBusy === "subscription-probe" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Cloud className="h-3.5 w-3.5" />}
+                      {t("onboarding.appleRemoteIcloudDataSyncHelperSubscription")}
+                    </button>
                   </div>
                   <div className="mt-2 opacity-75">{t("onboarding.appleRemoteIcloudDataSyncHelperBoundary")}</div>
                   {cloudKitHelperMessage ? (
@@ -1659,6 +1669,11 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                           ? `${cloudKitHelperResult.roundtrip.created}/${cloudKitHelperResult.roundtrip.fetched}/${cloudKitHelperResult.roundtrip.deleted}`
                           : t("onboarding.appleRemoteIcloudDataSyncNotConfigured"),
                       })}</div>
+                      {cloudKitHelperResult.subscriptionProbe ? (
+                        <div>{t("onboarding.appleRemoteIcloudDataSyncHelperSubscriptionResult", {
+                          value: `${cloudKitHelperResult.subscriptionProbe.exists}/${cloudKitHelperResult.subscriptionProbe.saved}/${cloudKitHelperResult.subscriptionProbe.contentAvailable}`,
+                        })}</div>
+                      ) : null}
                       <div>{t("onboarding.appleRemoteIcloudDataSyncHelperWarnings", { value: String(cloudKitHelperResult.warnings?.length || 0) })}</div>
                       <div>{t("onboarding.appleRemoteIcloudDataSyncHelperErrors", { value: String(cloudKitHelperResult.errors?.length || 0) })}</div>
                     </div>

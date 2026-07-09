@@ -2068,6 +2068,7 @@ function checkAssets() {
     cloudKitNativeHelperSource.includes("operationCapabilityCoverageOk") &&
     cloudKitNativeHelperSource.includes("redact") &&
     cloudKitNativeHelperTestSource.includes("CloudKit helper roundtrip executes") &&
+    cloudKitNativeHelperTestSource.includes("CloudKit helper subscription probe executes") &&
     cloudKitNativeHelperTestSource.includes("CloudKit helper sync export executes") &&
     cloudKitNativeHelperTestSource.includes("CloudKit helper sync import preview executes") &&
     cloudKitNativeHelperTestSource.includes("CloudKit helper sync changes preview executes") &&
@@ -2175,6 +2176,9 @@ function checkAssets() {
     cloudKitNativeSwiftHelperSource.includes("database.records") &&
     cloudKitNativeSwiftHelperSource.includes("runSyncChangesPreview") &&
     cloudKitNativeSwiftHelperSource.includes("runSyncImportQuarantine") &&
+    cloudKitNativeSwiftHelperSource.includes("runSubscriptionProbe") &&
+    cloudKitNativeSwiftHelperSource.includes("CKDatabaseSubscription") &&
+    cloudKitNativeSwiftHelperSource.includes("subscription-push") &&
     cloudKitNativeSwiftHelperSource.includes("IMPORT_CLOUDKIT_CHANGES") &&
     cloudKitNativeSwiftHelperSource.includes("recordZoneChanges") &&
     cloudKitNativeSwiftHelperSource.includes("CKServerChangeToken") &&
@@ -2182,6 +2186,14 @@ function checkAssets() {
     cloudKitNativeSwiftHelperSource.includes("database.record(for: recordId)") &&
     cloudKitNativeSwiftHelperSource.includes("database.deleteRecord(withID: recordId)") &&
     cloudKitNativeHelperBuildSource.includes("CloudKit") &&
+    cloudKitNativeHelperSource.includes("subscription-probe") &&
+    cloudKitNativeHelperSource.includes("normalizeSubscriptionProbe") &&
+    lifeosApiSource.includes("subscriptionProbe") &&
+    lifeosApiSource.includes("subscription-probe") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-helper-subscription") &&
+    onboardingAppleRemoteSource.includes("appleRemoteIcloudDataSyncHelperSubscriptionResult") &&
+    translationsSource.includes("后台推送订阅") &&
+    translationsSource.includes("Background push subscription") &&
     cloudKitNativeHelperBuildSource.includes("build/native/LifeOSCloudKitHelper") &&
     packageJson.scripts["icloud:helper:build"]?.includes("build-cloudkit-helper.mjs") &&
     packageJson.scripts["icloud:helper:smoke"]?.includes("cloudkit-native-helper-smoke.mjs") &&

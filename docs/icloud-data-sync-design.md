@@ -126,6 +126,8 @@ export LIFEOS_CLOUDKIT_HELPER_BIN="$PWD/build/native/LifeOSCloudKitHelper"
 
 `roundtrip` must create, fetch, and delete a disposable test record in the private CloudKit database using the selected record plan. It must return an evidence id, verified capabilities, and redacted warnings/errors. A failed or skipped helper smoke never counts as real iCloud data sync.
 
+`subscription-probe` must create or verify a private CloudKit database subscription with a content-available notification. This proves the account/container can hold the background-push prerequisite for future native sync, but it does not prove iOS/macOS background delivery, app wakeups, conflict-free merging, or complete unattended sync.
+
 Each helper operation has its own capability gate. For example, `sync-changes-preview` must prove `change-token-fetch`, `sync-export` must prove `sync-export-save`, and `roundtrip` must prove `create-fetch-delete-roundtrip`; an otherwise successful helper response is treated as failed if the operation-specific proof is missing.
 
 The scaffold protects `roundtrip` behind `LIFEOS_CLOUDKIT_TEST_WRITE_CONFIRM=DELETE_DISPOSABLE_RECORDS`, so a probe can remain read-only and a disposable write cannot happen by accident.
@@ -391,6 +393,8 @@ Do not claim end-user-ready, fully automatic iCloud data sync until all of this 
 helper 探测通过不等于真实同步完成。API 会返回已验证能力、必需能力和未验证能力；如果 `subscription-push`、`change-token-fetch`、自定义 zone、写入 roundtrip 等证据缺失，UI 必须继续显示为候选/待验证，而不能写成已完成的 iCloud 数据同步。
 
 每个 helper 操作也必须通过自己的能力闸门。例如 `sync-changes-preview` 必须证明 `change-token-fetch`，`sync-export` 必须证明 `sync-export-save`，`roundtrip` 必须证明临时写入、读取和删除。即使 helper 返回 `ok=true`，缺少本次操作的能力证明也会被 LifeOS 判为失败。
+
+`subscription-probe` 只验证私有 CloudKit 数据库能创建或确认 content-available 后台推送订阅。它证明未来原生同步所需的推送订阅前置条件可用，但不证明 iOS/macOS 后台投递、应用唤醒、无冲突合并或完整无人值守同步已经完成。
 
 当前还新增了受管理员认证保护的批次预览接口：`/api/v1/admin/icloud-data-sync/batch-preview`。它会从 SQLite 里挑选聊天、记忆、任务、生成程序状态和设备信任元数据的候选记录，但只返回 hash、字段名、record type、zone、数量和阻断原因，不返回原始正文、access token、token hash、私钥或密钥。它可以帮助判断“哪些数据将来能通过 CloudKit 同步”，但它本身仍不是后台双向同步。
 
