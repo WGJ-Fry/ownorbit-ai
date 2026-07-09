@@ -2660,7 +2660,9 @@ function checkAssets() {
     mobileRemoteEntryCardSource.includes("getMobileIcloudHandoffEntryRecommendation") &&
     mobileRemoteEntryCardSource.includes("icloudEntryFreshnessKeys") &&
     mobileRemoteEntryCardSource.includes("forgetStoredMobileIcloudHandoffEntry") &&
-    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffKnownDesktops") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffRecommendedEntryTitle") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffRecommendedEntryBody") &&
+    mobileRemoteEntryCardSource.includes("mobile-icloud-recommended-entry-only") &&
     mobileRemoteEntryCardSource.includes("getDuplicateMobileIcloudDesktopNames") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffDuplicateHint") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffShortId") &&
@@ -2673,7 +2675,11 @@ function checkAssets() {
     mobileRemoteEntryCardSource.includes("mobile-icloud-recommended-reason") &&
     mobileRemoteEntryCardSource.includes("icloudRecommendedReasonKeys") &&
     mobileIcloudHandoffSource.includes("recommendedReason") &&
-    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffShowOtherDesktops") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffShowAdvancedEntries") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffHideAdvancedEntries") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffAdvancedEntriesTitle") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffOtherAdvancedEntries") &&
+    mobileRemoteEntryCardSource.includes("mobile-icloud-advanced-entries") &&
     mobileRemoteEntryCardSource.includes("showIcloudDesktopAdvanced") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffDefaultDesktop") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffMakeDefault") &&

@@ -489,9 +489,12 @@ export default function MobileRemoteEntryCard({
             </div>
           ) : null}
           {recommendedIcloudEntry ? (
-            <div className="mt-3 rounded-xl border border-white/[0.08] bg-black/10 p-2 text-xs">
-              <div className="font-bold">{t("mobileDevice.icloudHandoffKnownDesktops")}</div>
+            <div data-testid="mobile-icloud-recommended-entry-only" className="mt-3 rounded-xl border border-white/[0.08] bg-black/10 p-2 text-xs">
+              <div className="font-bold">{t("mobileDevice.icloudHandoffRecommendedEntryTitle")}</div>
               <div className="mt-1 opacity-80">{t(icloudRecommendedBodyKey)}</div>
+              <div className="mt-2 rounded-lg border border-sky-300/15 bg-sky-500/10 p-2 text-[11px] leading-relaxed text-sky-50">
+                {t("mobileDevice.icloudHandoffRecommendedEntryBody")}
+              </div>
               <div data-testid="mobile-icloud-recommended-reason" className="mt-2 rounded-lg border border-emerald-300/20 bg-emerald-500/10 p-2 text-[11px] font-bold text-emerald-100">
                 {t(icloudRecommendedReasonKeys[icloudEntryRecommendation.recommendedReason] as any, {
                   desktop: recommendedIcloudEntryDisplayName,
@@ -515,13 +518,17 @@ export default function MobileRemoteEntryCard({
                     onClick={() => setShowIcloudDesktopAdvanced((value) => !value)}
                     className="inline-flex w-full items-center justify-center rounded-xl border border-white/[0.08] bg-black/10 px-3 py-2 text-xs font-bold"
                   >
-                    {showIcloudDesktopAdvanced ? t("mobileDevice.icloudHandoffHideOtherDesktops") : t("mobileDevice.icloudHandoffShowOtherDesktops", { count: otherIcloudEntries.length + archivedIcloudEntries.length })}
+                    {showIcloudDesktopAdvanced ? t("mobileDevice.icloudHandoffHideAdvancedEntries") : t("mobileDevice.icloudHandoffShowAdvancedEntries", { count: otherIcloudEntries.length + archivedIcloudEntries.length })}
                   </button>
                   {showIcloudDesktopAdvanced ? (
-                    <div className="mt-2 grid gap-2">
+                    <div data-testid="mobile-icloud-advanced-entries" className="mt-2 grid gap-2 rounded-xl border border-white/[0.08] bg-black/10 p-2">
+                      <div>
+                        <div className="font-bold">{t("mobileDevice.icloudHandoffAdvancedEntriesTitle")}</div>
+                        <div className="mt-1 text-[11px] leading-relaxed text-white/65">{t("mobileDevice.icloudHandoffAdvancedEntriesBody")}</div>
+                      </div>
                       {otherIcloudEntries.length ? (
                         <>
-                          <div className="font-bold">{t("mobileDevice.icloudHandoffOtherDesktops")}</div>
+                          <div className="font-bold">{t("mobileDevice.icloudHandoffOtherAdvancedEntries")}</div>
                           {otherIcloudEntries.map((entry) => renderIcloudEntryRow(entry))}
                         </>
                       ) : null}

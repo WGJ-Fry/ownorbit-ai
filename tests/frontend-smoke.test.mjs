@@ -1332,7 +1332,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /Trash2/);
   assert.match(mobileRemoteEntryCardSource, /Star/);
   assert.match(mobileRemoteEntryCardSource, /buildMobileIcloudHandoffUrl/);
-  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffKnownDesktops/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffRecommendedEntryTitle/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffRecommendedEntryBody/);
+  assert.match(mobileRemoteEntryCardSource, /mobile-icloud-recommended-entry-only/);
   assert.match(mobileRemoteEntryCardSource, /getDuplicateMobileIcloudDesktopNames/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffDuplicateHint/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffShortId/);
@@ -1345,8 +1347,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /mobile-icloud-recommended-reason/);
   assert.match(mobileRemoteEntryCardSource, /icloudRecommendedReasonKeys/);
   assert.match(mobileRemoteEntryCardSource, /icloudEntryRecommendation\.recommendedReason/);
-  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffShowOtherDesktops/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffShowAdvancedEntries/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffHideAdvancedEntries/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffAdvancedEntriesTitle/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffOtherAdvancedEntries/);
   assert.match(mobileRemoteEntryCardSource, /archivedIcloudEntries/);
+  assert.match(mobileRemoteEntryCardSource, /mobile-icloud-advanced-entries/);
   assert.match(mobileRemoteEntryCardSource, /mobile-icloud-archived-entries/);
   assert.match(mobileRemoteEntryCardSource, /mobile-icloud-cleanup-archived/);
   assert.match(mobileRemoteEntryCardSource, /mobile-icloud-cleanup-done/);
@@ -1359,6 +1365,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffDefaultDesktop/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffMakeDefault/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffForgetDesktop/);
+  assert.match(translationsSource, /日常只需要使用这个入口/);
+  assert.match(translationsSource, /Use this entry for daily access/);
+  assert.match(translationsSource, /高级：其他入口/);
+  assert.match(translationsSource, /Advanced: other entries/);
   assert.match(translationsSource, /最适合异地使用的稳定 HTTPS 入口/);
   assert.match(translationsSource, /best stable HTTPS entry for off-LAN use/);
   assert.match(mobileRemoteEntryCardSource, /mobile-icloud-recommended-switch/);
