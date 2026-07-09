@@ -1034,6 +1034,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Create an iCloud Container in Apple Developer first/);
   assert.match(translationsSource, /AI Key、设备凭证、SQLite 数据库和审计日志不会进入 iCloud/);
   assert.match(translationsSource, /AI keys, device credentials, SQLite databases, and audit logs never go to iCloud/);
+  assert.match(translationsSource, /高级：分步同步工具/);
+  assert.match(translationsSource, /Advanced: step-by-step sync tools/);
   assert.match(translationsSource, /CloudKit 记录计划/);
   assert.match(translationsSource, /CloudKit record plan/);
   assert.match(translationsSource, /原生验收闸门/);
@@ -1044,6 +1046,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-readiness/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-primary-next/);
   assert.match(onboardingAppleRemoteSource, /icloudDataSyncPrimaryNextKeys/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-advanced-actions/);
   assert.match(onboardingAppleRemoteSource, /disabled=\{cloudKitSyncCycleBusy \|\| !dataSync\.ready\}/);
   assert.match(onboardingAppleRemoteSource, /disabled=\{cloudKitSyncUploadNowBusy \|\| !dataSync\.ready\}/);
   assert.match(onboardingAppleRemoteSource, /disabled=\{cloudKitSyncNowBusy \|\| !dataSync\.ready\}/);

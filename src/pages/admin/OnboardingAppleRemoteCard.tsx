@@ -1486,101 +1486,111 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                     </div>
                   </div>
                 </div>
-                <div data-testid="onboarding-icloud-data-sync-upload-now" className="mt-2 rounded-lg border border-sky-300/20 bg-sky-500/10 p-3 text-sky-50">
-                  <div className="flex items-start gap-2">
-                    <Cloud className="mt-0.5 h-4 w-4 shrink-0 text-sky-200" />
-                    <div className="min-w-0 flex-1">
-                      <div className="font-bold">{t("onboarding.appleRemoteIcloudDataSyncUploadNowTitle")}</div>
-                      <div className="mt-1 opacity-85">{t("onboarding.appleRemoteIcloudDataSyncUploadNowBody")}</div>
-                      <button
-                        type="button"
-                        data-testid="onboarding-icloud-data-sync-upload-now-run"
-                        onClick={handleRunCloudKitSyncUploadNow}
-                        disabled={cloudKitSyncUploadNowBusy || !dataSync.ready}
-                        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-sky-300 px-3 py-2 text-[11px] font-bold text-slate-950 disabled:opacity-50 sm:w-auto"
-                      >
-                        {cloudKitSyncUploadNowBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UploadCloud className="h-3.5 w-3.5" />}
-                        {t("onboarding.appleRemoteIcloudDataSyncUploadNowRun")}
-                      </button>
-                      {cloudKitSyncUploadNowMessage ? (
-                        <div className="mt-2 rounded-lg border border-current/10 bg-black/10 px-2 py-1 font-bold">
-                          {cloudKitSyncUploadNowMessage}
+                <details data-testid="onboarding-icloud-data-sync-advanced-actions" className="mt-2 rounded-lg border border-white/10 bg-black/10 p-3">
+                  <summary className="cursor-pointer font-bold text-cyan-50">
+                    {t("onboarding.appleRemoteIcloudDataSyncAdvancedActionsTitle")}
+                  </summary>
+                  <div className="mt-1 text-[11px] leading-relaxed opacity-80">
+                    {t("onboarding.appleRemoteIcloudDataSyncAdvancedActionsBody")}
+                  </div>
+                  <div className="mt-2 grid gap-2">
+                    <div data-testid="onboarding-icloud-data-sync-upload-now" className="rounded-lg border border-sky-300/20 bg-sky-500/10 p-3 text-sky-50">
+                      <div className="flex items-start gap-2">
+                        <Cloud className="mt-0.5 h-4 w-4 shrink-0 text-sky-200" />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold">{t("onboarding.appleRemoteIcloudDataSyncUploadNowTitle")}</div>
+                          <div className="mt-1 opacity-85">{t("onboarding.appleRemoteIcloudDataSyncUploadNowBody")}</div>
+                          <button
+                            type="button"
+                            data-testid="onboarding-icloud-data-sync-upload-now-run"
+                            onClick={handleRunCloudKitSyncUploadNow}
+                            disabled={cloudKitSyncUploadNowBusy || !dataSync.ready}
+                            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-sky-300 px-3 py-2 text-[11px] font-bold text-slate-950 disabled:opacity-50 sm:w-auto"
+                          >
+                            {cloudKitSyncUploadNowBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UploadCloud className="h-3.5 w-3.5" />}
+                            {t("onboarding.appleRemoteIcloudDataSyncUploadNowRun")}
+                          </button>
+                          {cloudKitSyncUploadNowMessage ? (
+                            <div className="mt-2 rounded-lg border border-current/10 bg-black/10 px-2 py-1 font-bold">
+                              {cloudKitSyncUploadNowMessage}
+                            </div>
+                          ) : null}
+                          {cloudKitSyncUploadNowResult ? (
+                            <div data-testid="onboarding-icloud-data-sync-upload-now-result" className="mt-2 grid gap-1 rounded-lg border border-current/10 bg-black/10 p-2 font-mono text-[10px] opacity-85">
+                              <div className="font-sans text-[11px] font-bold">{t("onboarding.appleRemoteIcloudDataSyncUploadNowResultTitle")}</div>
+                              <div>{t("onboarding.appleRemoteIcloudDataSyncUploadNowStatus", { value: cloudKitSyncUploadNowResult.status })}</div>
+                              <div>{t("onboarding.appleRemoteIcloudDataSyncUploadNowRecords", {
+                                ready: cloudKitSyncUploadNowResult.export.preview.readyRecordCount,
+                                blocked: cloudKitSyncUploadNowResult.export.preview.blockedRecordCount,
+                                exported: cloudKitSyncUploadNowResult.export.exportRecordCount,
+                              })}</div>
+                              <div>{t("onboarding.appleRemoteIcloudDataSyncUploadNowSaved", {
+                                saved: cloudKitSyncUploadNowResult.result?.syncExport?.saved || 0,
+                                attempted: cloudKitSyncUploadNowResult.result?.syncExport?.attempted || 0,
+                                failed: cloudKitSyncUploadNowResult.result?.syncExport?.failed || 0,
+                              })}</div>
+                              <div>{t("onboarding.appleRemoteIcloudDataSyncUploadNowBackup", {
+                                value: cloudKitSyncUploadNowResult.backup ? t("onboarding.appleRemoteIcloudDataSyncReadyValue") : t("onboarding.appleRemoteIcloudDataSyncNotConfigured"),
+                              })}</div>
+                              <div>{t("onboarding.appleRemoteIcloudDataSyncUploadNowNext", {
+                                action: t(cloudKitSyncUploadNowNextActionKeys[cloudKitSyncUploadNowResult.nextAction]),
+                              })}</div>
+                            </div>
+                          ) : null}
                         </div>
-                      ) : null}
-                      {cloudKitSyncUploadNowResult ? (
-                        <div data-testid="onboarding-icloud-data-sync-upload-now-result" className="mt-2 grid gap-1 rounded-lg border border-current/10 bg-black/10 p-2 font-mono text-[10px] opacity-85">
-                          <div className="font-sans text-[11px] font-bold">{t("onboarding.appleRemoteIcloudDataSyncUploadNowResultTitle")}</div>
-                          <div>{t("onboarding.appleRemoteIcloudDataSyncUploadNowStatus", { value: cloudKitSyncUploadNowResult.status })}</div>
-                          <div>{t("onboarding.appleRemoteIcloudDataSyncUploadNowRecords", {
-                            ready: cloudKitSyncUploadNowResult.export.preview.readyRecordCount,
-                            blocked: cloudKitSyncUploadNowResult.export.preview.blockedRecordCount,
-                            exported: cloudKitSyncUploadNowResult.export.exportRecordCount,
-                          })}</div>
-                          <div>{t("onboarding.appleRemoteIcloudDataSyncUploadNowSaved", {
-                            saved: cloudKitSyncUploadNowResult.result?.syncExport?.saved || 0,
-                            attempted: cloudKitSyncUploadNowResult.result?.syncExport?.attempted || 0,
-                            failed: cloudKitSyncUploadNowResult.result?.syncExport?.failed || 0,
-                          })}</div>
-                          <div>{t("onboarding.appleRemoteIcloudDataSyncUploadNowBackup", {
-                            value: cloudKitSyncUploadNowResult.backup ? t("onboarding.appleRemoteIcloudDataSyncReadyValue") : t("onboarding.appleRemoteIcloudDataSyncNotConfigured"),
-                          })}</div>
-                          <div>{t("onboarding.appleRemoteIcloudDataSyncUploadNowNext", {
-                            action: t(cloudKitSyncUploadNowNextActionKeys[cloudKitSyncUploadNowResult.nextAction]),
-                          })}</div>
+                      </div>
+                    </div>
+                    <div data-testid="onboarding-icloud-data-sync-one-step" className="rounded-lg border border-cyan-300/20 bg-cyan-500/10 p-3 text-cyan-50">
+                      <div className="flex items-start gap-2">
+                        <RefreshCw className="mt-0.5 h-4 w-4 shrink-0 text-cyan-200" />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold">{t("onboarding.appleRemoteIcloudDataSyncNowTitle")}</div>
+                          <div className="mt-1 opacity-85">{t("onboarding.appleRemoteIcloudDataSyncNowBody")}</div>
+                          <button
+                            type="button"
+                            data-testid="onboarding-icloud-data-sync-one-step-run"
+                            onClick={handleRunCloudKitSyncNow}
+                            disabled={cloudKitSyncNowBusy || !dataSync.ready}
+                            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-400 px-3 py-2 text-[11px] font-bold text-slate-950 disabled:opacity-50 sm:w-auto"
+                          >
+                            {cloudKitSyncNowBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
+                            {t("onboarding.appleRemoteIcloudDataSyncNowRun")}
+                          </button>
+                          {cloudKitSyncNowMessage ? (
+                            <div className="mt-2 rounded-lg border border-current/10 bg-black/10 px-2 py-1 font-bold">
+                              {cloudKitSyncNowMessage}
+                            </div>
+                          ) : null}
+                          {cloudKitSyncNowResult ? (
+                            <div data-testid="onboarding-icloud-data-sync-one-step-result" className="mt-2 grid gap-1 rounded-lg border border-current/10 bg-black/10 p-2 font-mono text-[10px] opacity-85">
+                              <div className="font-sans text-[11px] font-bold">{t("onboarding.appleRemoteIcloudDataSyncNowResultTitle")}</div>
+                              <div>{t("onboarding.appleRemoteIcloudDataSyncNowStatus", { value: cloudKitSyncNowResult.status })}</div>
+                              <div>{t("onboarding.appleRemoteIcloudDataSyncNowChanges", {
+                                changed: cloudKitSyncNowResult.changes.result.syncChangesPreview?.changed || 0,
+                                deleted: cloudKitSyncNowResult.changes.result.syncChangesPreview?.deleted || 0,
+                                saved: cloudKitSyncNowResult.changes.savedCheckpointCount,
+                              })}</div>
+                              <div>{t("onboarding.appleRemoteIcloudDataSyncNowApply", {
+                                attempted: cloudKitSyncNowResult.apply.attempted,
+                                applied: cloudKitSyncNowResult.apply.applied,
+                                review: cloudKitSyncNowResult.apply.manualReviewRequired,
+                                conflicts: cloudKitSyncNowResult.apply.conflicts,
+                              })}</div>
+                              <div>{t("onboarding.appleRemoteIcloudDataSyncNowQuarantine", {
+                                auto: cloudKitSyncNowResult.quarantine.summary.autoReady,
+                                pending: cloudKitSyncNowResult.quarantine.summary.pendingReview,
+                                conflicts: cloudKitSyncNowResult.quarantine.summary.conflicts,
+                              })}</div>
+                              <div>{t("onboarding.appleRemoteIcloudDataSyncNowNext", {
+                                action: t(cloudKitSyncNowNextActionKeys[cloudKitSyncNowResult.nextAction]),
+                              })}</div>
+                            </div>
+                          ) : null}
                         </div>
-                      ) : null}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div data-testid="onboarding-icloud-data-sync-one-step" className="mt-2 rounded-lg border border-cyan-300/20 bg-cyan-500/10 p-3 text-cyan-50">
-                  <div className="flex items-start gap-2">
-                    <RefreshCw className="mt-0.5 h-4 w-4 shrink-0 text-cyan-200" />
-                    <div className="min-w-0 flex-1">
-                      <div className="font-bold">{t("onboarding.appleRemoteIcloudDataSyncNowTitle")}</div>
-                      <div className="mt-1 opacity-85">{t("onboarding.appleRemoteIcloudDataSyncNowBody")}</div>
-                      <button
-                        type="button"
-                        data-testid="onboarding-icloud-data-sync-one-step-run"
-                        onClick={handleRunCloudKitSyncNow}
-                        disabled={cloudKitSyncNowBusy || !dataSync.ready}
-                        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-400 px-3 py-2 text-[11px] font-bold text-slate-950 disabled:opacity-50 sm:w-auto"
-                      >
-                        {cloudKitSyncNowBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
-                        {t("onboarding.appleRemoteIcloudDataSyncNowRun")}
-                      </button>
-                      {cloudKitSyncNowMessage ? (
-                        <div className="mt-2 rounded-lg border border-current/10 bg-black/10 px-2 py-1 font-bold">
-                          {cloudKitSyncNowMessage}
-                        </div>
-                      ) : null}
-                      {cloudKitSyncNowResult ? (
-                        <div data-testid="onboarding-icloud-data-sync-one-step-result" className="mt-2 grid gap-1 rounded-lg border border-current/10 bg-black/10 p-2 font-mono text-[10px] opacity-85">
-                          <div className="font-sans text-[11px] font-bold">{t("onboarding.appleRemoteIcloudDataSyncNowResultTitle")}</div>
-                          <div>{t("onboarding.appleRemoteIcloudDataSyncNowStatus", { value: cloudKitSyncNowResult.status })}</div>
-                          <div>{t("onboarding.appleRemoteIcloudDataSyncNowChanges", {
-                            changed: cloudKitSyncNowResult.changes.result.syncChangesPreview?.changed || 0,
-                            deleted: cloudKitSyncNowResult.changes.result.syncChangesPreview?.deleted || 0,
-                            saved: cloudKitSyncNowResult.changes.savedCheckpointCount,
-                          })}</div>
-                          <div>{t("onboarding.appleRemoteIcloudDataSyncNowApply", {
-                            attempted: cloudKitSyncNowResult.apply.attempted,
-                            applied: cloudKitSyncNowResult.apply.applied,
-                            review: cloudKitSyncNowResult.apply.manualReviewRequired,
-                            conflicts: cloudKitSyncNowResult.apply.conflicts,
-                          })}</div>
-                          <div>{t("onboarding.appleRemoteIcloudDataSyncNowQuarantine", {
-                            auto: cloudKitSyncNowResult.quarantine.summary.autoReady,
-                            pending: cloudKitSyncNowResult.quarantine.summary.pendingReview,
-                            conflicts: cloudKitSyncNowResult.quarantine.summary.conflicts,
-                          })}</div>
-                          <div>{t("onboarding.appleRemoteIcloudDataSyncNowNext", {
-                            action: t(cloudKitSyncNowNextActionKeys[cloudKitSyncNowResult.nextAction]),
-                          })}</div>
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
+                </details>
                 <div className="mt-2 grid gap-1 opacity-80">
                   <div>{t("onboarding.appleRemoteIcloudDataSyncContainer", { value: dataSync.containerId || t("onboarding.appleRemoteIcloudDataSyncNotConfigured") })}</div>
                   <div>{t("onboarding.appleRemoteIcloudDataSyncHelper", { value: dataSync.nativeHelper.executable ? t("onboarding.appleRemoteIcloudDataSyncReadyValue") : t("onboarding.appleRemoteIcloudDataSyncNotConfigured") })}</div>

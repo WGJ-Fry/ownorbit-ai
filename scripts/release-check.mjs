@@ -1984,10 +1984,13 @@ function checkAssets() {
     translationsSource.includes("Apply conflict-free records first") &&
     translationsSource.includes("安全同步 iCloud 数据") &&
     translationsSource.includes("Safely sync iCloud data") &&
+    translationsSource.includes("高级：分步同步工具") &&
+    translationsSource.includes("Advanced: step-by-step sync tools") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudDataBoundaryBody") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-readiness") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-cycle") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-cycle-result") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-advanced-actions") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-upload-now") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-upload-now-result") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-one-step") &&
