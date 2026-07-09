@@ -2080,6 +2080,10 @@ function checkAssets() {
     cloudKitSyncApplySource.includes("manualReviewRequired") &&
     cloudKitSyncApplySource.includes("promoteReadyZones") &&
     cloudKitSyncApplySource.includes("payloadJson") &&
+    cloudKitSyncApplySource.includes("cloudkit_device_trust_metadata") &&
+    cloudKitSyncApplySource.includes("Device trust metadata import requires manual review before local inventory can update") &&
+    cloudKitSyncApplySource.includes("Device trust metadata must not include raw public keys") &&
+    cloudKitSyncApplySource.includes("access_granted") &&
     cloudKitSyncApplySource.includes("Existing memory requires manual review before CloudKit can update it") &&
     cloudKitSyncApplySource.includes("Existing task requires manual review before CloudKit can update it") &&
     cloudKitSyncApplyTestSource.includes("promotes pending checkpoint only after applying") &&
@@ -2087,6 +2091,8 @@ function checkAssets() {
     cloudKitSyncApplyTestSource.includes("auto memory apply refuses to overwrite an existing memory") &&
     cloudKitSyncApplyTestSource.includes("auto task apply writes a new task") &&
     cloudKitSyncApplyTestSource.includes("auto task apply refuses to overwrite an existing task") &&
+    cloudKitSyncApplyTestSource.includes("device trust apply stores metadata without granting device access") &&
+    cloudKitSyncApplyTestSource.includes("device trust apply rejects raw public key payloads") &&
     cloudKitSyncApplyTestSource.includes("blocks checkpoint promotion") &&
     cloudKitSyncNowSource.includes("SYNC_CLOUDKIT_NOW") &&
     cloudKitSyncNowSource.includes("runCloudKitSyncNow") &&
@@ -3654,6 +3660,8 @@ function checkSecurityConfig() {
     : [];
   if (migrations.length >= 2 && migrations.includes("002_app_secrets.sql")) pass(`SQLite migration files exist (${migrations.length})`);
   else warn("migration files are sparse; keep new schema changes in server/migrations/");
+  if (migrations.includes("021_cloudkit_device_trust_metadata.sql")) pass("CloudKit device trust metadata migration exists");
+  else warn("CloudKit device trust metadata migration is missing");
 
   if (packageJson.dependencies?.["electron-updater"]) pass("electron-updater dependency is installed");
   else warn("electron-updater is not installed");
@@ -4388,6 +4396,8 @@ function checkReleaseDocs() {
       "CloudKit container owned by the app bundle",
       "No secret, token, AI key, session cookie, or raw device credential may be written to iCloud Drive or CloudKit user records",
       "LifeOSDeviceTrustZone",
+      "cloudkit_device_trust_metadata",
+      "access_granted = 0",
       "access token、token hash、私钥",
       "Native Helper Contract",
       "lifeos-cloudkit-helper-request.v1",
@@ -4400,7 +4410,8 @@ function checkReleaseDocs() {
       readmeEn.includes("docs/icloud-data-sync-design.md") &&
       readmeZh.includes("docs/icloud-data-sync-design.md") &&
       roadmap.includes("Default iCloud Drive still syncs only mobile entry files") &&
-      roadmap.includes("设备信任元数据记录")
+      roadmap.includes("设备信任元数据记录") &&
+      roadmap.includes("needs-rebind")
     ) {
       pass("iCloud data sync design boundary separates iCloud Drive handoff from guarded CloudKit candidate sync");
     } else {

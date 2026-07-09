@@ -290,7 +290,7 @@ With confirmation, LifeOS creates a local SQLite backup when there are pending i
 - new non-sensitive `LifeOSMemory` records into `memories`; existing-memory edits and memory tombstones require review;
 - new `LifeOSTask` records into `tasks`; existing-task edits and task tombstones require review;
 - `LifeOSGeneratedAppState` into `custom_app_state` only when the generated app already exists locally.
-- `LifeOSDeviceTrust` records are metadata-only and must not create a locally authenticated device without rebind or explicit trust review.
+- `LifeOSDeviceTrust` records are metadata-only. Applying them writes to `cloudkit_device_trust_metadata` with `review_status = needs-rebind` and `access_granted = 0`; it must not create a locally authenticated device without rebind or explicit trust review.
 
 CloudKit hard deletes and tombstones are not applied automatically. They become conflicts so the user can review the local impact before any destructive local write.
 
@@ -331,7 +331,7 @@ Start with conservative conflict handling:
 1. Append-only chat messages use mutation IDs and timestamps.
 2. New normal memories may auto-apply only when the local memory id does not exist; edits, sensitive memories, and tombstones require review.
 3. New tasks may auto-apply only when the local task id does not exist; edits, deletes, and tombstones require review.
-4. Device-trust records may mirror display name, device type, trust state, public-key fingerprint, and timestamps, but never raw tokens, token hashes, private keys, or automatic local access.
+4. Device-trust records may mirror display name, device type, trust state, public-key fingerprint, and timestamps into `cloudkit_device_trust_metadata`, but never raw tokens, token hashes, private keys, or automatic local access.
 5. Deleted records become tombstones first, then age out after backup.
 6. Cross-device schema migrations must stop sync until all required migrations run.
 
@@ -392,7 +392,7 @@ Do not claim end-user-ready, fully automatic iCloud data sync until all of this 
 
 当前还新增了隔离导入接口：`/api/v1/admin/icloud-data-sync/import-quarantine`。它要求显式确认 `IMPORT_CLOUDKIT_CHANGES`，由原生 helper 读取 CloudKit 变更正文，然后只写入本机 `cloudkit_sync_quarantine` 表等待冲突审核。API 响应不会返回 `payloadJson` 或原始 server change token，也不会直接改聊天、记忆、任务或生成程序状态。候选 token 仍不会升级为 applied token，直到后续“审核并应用”步骤真正写入 SQLite 并完成回滚证据。
 
-当前 apply 阶段可以自动落库追加型聊天消息、新普通记忆和新任务；已有本地记录、敏感记忆、删除/tombstone、未知记录和 secret-like payload 都会留在隔离区等待人工复核。设备信任记录只允许同步设备名、类型、信任状态、公钥指纹和时间戳，不允许同步 access token、token hash、私钥或自动授予本机访问权限。
+当前 apply 阶段可以自动落库追加型聊天消息、新普通记忆和新任务；已有本地记录、敏感记忆、删除/tombstone、未知记录和 secret-like payload 都会留在隔离区等待人工复核。设备信任记录只允许同步设备名、类型、信任状态、公钥指纹和时间戳，并且只会写入 `cloudkit_device_trust_metadata`，状态固定为 `needs-rebind`、`access_granted = 0`；它不会同步 access token、token hash、私钥，也不会自动授予本机访问权限。
 
 当前还新增了审核应用接口：`GET /api/v1/admin/icloud-data-sync/quarantine` 只返回隔离区摘要，`POST /api/v1/admin/icloud-data-sync/apply-quarantine` 需要显式确认 `APPLY_CLOUDKIT_QUARANTINE`。应用前会创建 SQLite 备份，只自动写入已识别且无冲突的聊天、消息、普通记忆、任务和已存在生成程序状态；硬删除、敏感记忆、未知记录、疑似密钥或本地更新较新的记录会继续留在隔离区。只有某个 zone 没有未解决隔离项时，才会把 pending CloudKit checkpoint 推进为 applied checkpoint。
 

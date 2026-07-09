@@ -174,9 +174,11 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   const calendarSyncRunColumns = db.prepare("PRAGMA table_info(calendar_sync_runs)").all().map((column) => column.name);
   const cloudKitSyncCheckpointColumns = db.prepare("PRAGMA table_info(cloudkit_sync_checkpoints)").all().map((column) => column.name);
   const cloudKitSyncQuarantineColumns = db.prepare("PRAGMA table_info(cloudkit_sync_quarantine)").all().map((column) => column.name);
+  const cloudKitDeviceTrustColumns = db.prepare("PRAGMA table_info(cloudkit_device_trust_metadata)").all().map((column) => column.name);
   const legacyDevice = db.prepare("SELECT id, access_token_expires_at as accessTokenExpiresAt FROM devices WHERE id = 'legacy-device'").get();
   const legacyCustomApp = db.prepare("SELECT id, name, description, code FROM custom_apps WHERE id = 'legacy-app-1'").get();
   const legacyCustomAppVersion = db.prepare("SELECT app_id as appId, version, code, note FROM custom_app_versions WHERE app_id = 'legacy-app-1'").get();
+  const cloudKitDeviceTrustMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 21").get();
   db.close();
 
   assert.ok(columns.includes("access_token_expires_at"));
@@ -198,6 +200,7 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   assert.equal(icloudHandoffEventsMigration.name, "device_icloud_handoff_events");
   assert.equal(cloudKitSyncCheckpointsMigration.name, "cloudkit_sync_checkpoints");
   assert.equal(cloudKitSyncQuarantineMigration.name, "cloudkit_sync_quarantine");
+  assert.equal(cloudKitDeviceTrustMigration.name, "cloudkit_device_trust_metadata");
   assert.ok(connectivityColumns.includes("current_base_url"));
   assert.ok(connectivityColumns.includes("mobile_shell_ok"));
   assert.ok(connectivityColumns.includes("websocket_ok"));
@@ -214,6 +217,11 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   assert.ok(cloudKitSyncQuarantineColumns.includes("payload_json"));
   assert.ok(cloudKitSyncQuarantineColumns.includes("payload_hash"));
   assert.ok(cloudKitSyncQuarantineColumns.includes("source_evidence_id"));
+  assert.ok(cloudKitDeviceTrustColumns.includes("device_id_hash"));
+  assert.ok(cloudKitDeviceTrustColumns.includes("public_key_fingerprint"));
+  assert.ok(cloudKitDeviceTrustColumns.includes("review_status"));
+  assert.ok(cloudKitDeviceTrustColumns.includes("access_granted"));
+  assert.equal(cloudKitDeviceTrustColumns.includes("access_token_hash"), false);
   assert.ok(messageColumns.includes("offline_mutation_id"));
   assert.ok(messageColumns.includes("idempotency_key"));
   assert.ok(messageColumns.includes("client_sequence"));
@@ -293,10 +301,12 @@ test("bundled fallback migrations upgrade legacy schema without SQL files on cwd
   const customAppColumns = db.prepare("PRAGMA table_info(custom_apps)").all().map((column) => column.name);
   const calendarSyncRunColumns = db.prepare("PRAGMA table_info(calendar_sync_runs)").all().map((column) => column.name);
   const icloudHandoffEventColumns = db.prepare("PRAGMA table_info(device_icloud_handoff_events)").all().map((column) => column.name);
+  const cloudKitDeviceTrustColumns = db.prepare("PRAGMA table_info(cloudkit_device_trust_metadata)").all().map((column) => column.name);
   const bindingBaseUrlMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 5").get();
   const customAppsMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 8").get();
   const calendarSyncRunsMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 17").get();
   const icloudHandoffEventsMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 18").get();
+  const cloudKitDeviceTrustMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 21").get();
   const legacyBinding = db.prepare("SELECT id, base_url as baseUrl FROM binding_sessions WHERE id = 'legacy-binding'").get();
   db.close();
 
@@ -306,9 +316,12 @@ test("bundled fallback migrations upgrade legacy schema without SQL files on cwd
   assert.ok(calendarSyncRunColumns.includes("summary_json"));
   assert.ok(icloudHandoffEventColumns.includes("entry_base_url"));
   assert.ok(icloudHandoffEventColumns.includes("stored_base_url"));
+  assert.ok(cloudKitDeviceTrustColumns.includes("device_id_hash"));
+  assert.ok(cloudKitDeviceTrustColumns.includes("access_granted"));
   assert.equal(bindingBaseUrlMigration.name, "binding_session_base_url");
   assert.equal(customAppsMigration.name, "custom_apps");
   assert.equal(calendarSyncRunsMigration.name, "calendar_sync_runs");
   assert.equal(icloudHandoffEventsMigration.name, "device_icloud_handoff_events");
+  assert.equal(cloudKitDeviceTrustMigration.name, "cloudkit_device_trust_metadata");
   assert.equal(legacyBinding.baseUrl, null);
 });

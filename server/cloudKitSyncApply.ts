@@ -334,13 +334,104 @@ function applyGeneratedAppState(payload: Record<string, unknown>, row: Quarantin
   `).run(appId, jsonValue(payload.stateJson), updatedAt);
 }
 
-function applyChangedRow(row: QuarantineRow) {
+function hexText(value: unknown, maxLength: number) {
+  const normalized = text(value, maxLength).toLowerCase();
+  return /^[a-f0-9]{16,128}$/.test(normalized) ? normalized : "";
+}
+
+function applyDeviceTrustMetadata(payload: Record<string, unknown>, row: QuarantineRow, now: number) {
+  if (!row.requiresUserReview) throw new Error("Device trust metadata import requires manual review before local inventory can update.");
+  if ("publicKey" in payload || "rawPublicKey" in payload || "devicePublicKey" in payload) {
+    throw new Error("Device trust metadata must not include raw public keys.");
+  }
+  const deviceIdHash = hexText(payload.deviceIdHash, 128);
+  if (!deviceIdHash || row.recordName !== `device:${deviceIdHash.slice(0, 24)}`) {
+    throw new Error("Device trust id hash does not match the CloudKit record name.");
+  }
+  const publicKeyFingerprint = payload.publicKeyFingerprint === undefined ? "" : hexText(payload.publicKeyFingerprint, 128);
+  if (payload.publicKeyFingerprint !== undefined && !publicKeyFingerprint) {
+    throw new Error("Device trust public key fingerprint is invalid.");
+  }
+  const displayName = text(payload.displayName, 120, "Synced Apple device");
+  const deviceType = text(payload.deviceType, 40, "unknown").toLowerCase();
+  const trustState = text(payload.trustState, 80, "unknown").toLowerCase();
+  const createdAt = numberValue(payload.createdAt, 0) || null;
+  const lastSeenAt = numberValue(payload.lastSeenAt, 0) || null;
+  const revokedAt = numberValue(payload.revokedAt, 0) || null;
+  const accessExpiresAt = numberValue(payload.accessExpiresAt, 0) || null;
+  const logicalClock = numberValue(payload.logicalClock, row.logicalClock || Date.now());
+  const mutationId = text(payload.mutationId, 120) || row.mutationId || null;
+  const existing = db.prepare("SELECT logical_clock as logicalClock FROM cloudkit_device_trust_metadata WHERE device_id_hash = ?")
+    .get(deviceIdHash) as { logicalClock?: number } | undefined;
+  if (existing && Number(existing.logicalClock || 0) > logicalClock) {
+    throw new Error("Local device trust metadata is newer; manual conflict review required.");
+  }
+  db.prepare(`
+    INSERT INTO cloudkit_device_trust_metadata (
+      device_id_hash,
+      display_name,
+      device_type,
+      trust_state,
+      public_key_fingerprint,
+      access_expires_at,
+      created_at,
+      last_seen_at,
+      revoked_at,
+      mutation_id,
+      logical_clock,
+      source_record_name,
+      source_evidence_id,
+      review_status,
+      access_granted,
+      imported_at,
+      applied_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'needs-rebind', 0, ?, ?)
+    ON CONFLICT(device_id_hash) DO UPDATE SET
+      display_name = excluded.display_name,
+      device_type = excluded.device_type,
+      trust_state = excluded.trust_state,
+      public_key_fingerprint = excluded.public_key_fingerprint,
+      access_expires_at = excluded.access_expires_at,
+      created_at = excluded.created_at,
+      last_seen_at = excluded.last_seen_at,
+      revoked_at = excluded.revoked_at,
+      mutation_id = excluded.mutation_id,
+      logical_clock = excluded.logical_clock,
+      source_record_name = excluded.source_record_name,
+      source_evidence_id = excluded.source_evidence_id,
+      review_status = 'needs-rebind',
+      access_granted = 0,
+      imported_at = excluded.imported_at,
+      applied_at = excluded.applied_at
+    WHERE cloudkit_device_trust_metadata.logical_clock <= excluded.logical_clock
+  `).run(
+    deviceIdHash,
+    displayName,
+    deviceType,
+    trustState,
+    publicKeyFingerprint || null,
+    accessExpiresAt,
+    createdAt,
+    lastSeenAt,
+    revokedAt,
+    mutationId,
+    logicalClock,
+    row.recordName,
+    row.sourceEvidenceId || null,
+    row.importedAt,
+    now,
+  );
+}
+
+function applyChangedRow(row: QuarantineRow, now: number) {
   const payload = parsePayload(row);
   if (row.recordType === "LifeOSConversation") return ensureConversation(payload, row);
   if (row.recordType === "LifeOSMessage") return applyMessage(payload, row);
   if (row.recordType === "LifeOSMemory" || row.recordType === "LifeOSMemoryTombstone") return applyMemory(payload, row);
   if (row.recordType === "LifeOSTask" || row.recordType === "LifeOSTaskTombstone") return applyTask(payload, row);
   if (row.recordType === "LifeOSGeneratedAppState") return applyGeneratedAppState(payload, row);
+  if (row.recordType === "LifeOSDeviceTrust") return applyDeviceTrustMetadata(payload, row, now);
   throw new Error(`Unsupported CloudKit record type: ${row.recordType}`);
 }
 
@@ -396,7 +487,7 @@ export function applyCloudKitSyncQuarantine(options: { limit?: number; now?: num
         continue;
       }
       try {
-        applyChangedRow(row);
+        applyChangedRow(row, now);
         setQuarantineStatus(row, "applied", now);
         applied += 1;
         records.push({ id: row.id, zone: row.zone, recordType: row.recordType, status: "applied" });

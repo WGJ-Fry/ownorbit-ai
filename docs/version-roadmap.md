@@ -109,7 +109,7 @@ These capabilities should not be described as current release features until the
 - LAN、Tailscale、Cloudflare Tunnel、可信 HTTPS 反向代理诊断和公网暴露风险提示。
 - 异地验收清单和发布证据要求：蜂窝网络、Wi-Fi/蜂窝切换、电脑重启、旧二维码修复、隧道断开恢复、诊断包导出和脱敏证据复核。
 - 远程健康长测样本：通过/失败次数、恢复尝试、连续成功次数、观测时长和最近样本。
-- opt-in CloudKit 原生数据同步候选能力：受控 helper 合约、安全批次预览、显式上传/同步确认、隔离区导入、保守 apply、checkpoint 推进、设备信任元数据记录，并且只对追加型聊天消息、新普通记忆、新任务做自动落库。
+- opt-in CloudKit 原生数据同步候选能力：受控 helper 合约、安全批次预览、显式上传/同步确认、隔离区导入、保守 apply、checkpoint 推进、设备信任元数据记录；设备信任只落到 `cloudkit_device_trust_metadata` 并保持 `needs-rebind`，不会授予访问权。
 - Studio 生成程序：蓝图确认、扩展模板、就绪评分、质量评分、验收标准、权限边界、运行日志、状态保存、带护栏的修复边界、修复队列证据、静态烟测复核和版本回滚。
 - 日历/任务同步安全闸门：本地 `.ics` 只读读取，以及显式开启的 Apple Calendar、Google Calendar/Tasks、系统提醒事项外部读取预览和确认写入连接器路径，包含审计日志、SQLite 写入历史、回滚可用性、安全反向操作和运行证据。
 - 基于 URL Scheme 的本地动作权限中心：危险动作确认、脱敏日志，以及剪贴板、白名单 Shortcuts、Finder reveal、白名单 macOS app 打开的窄范围 opt-in 原生桥。
@@ -138,7 +138,7 @@ These capabilities should not be described as current release features until the
 - 新打 tag，不移动旧的 `v0.1.5-alpha`。
 - README、中文 README、Release notes、Docker 镜像、桌面资产名和 alpha 限制必须严格一致。
 - 增强真实异地证据缺失提示，尤其是蜂窝网络、换网、重启恢复、旧二维码修复、隧道中断和诊断导出。
-- 继续区分 iCloud 入口同步和 CloudKit 数据同步：写清楚默认 iCloud Drive 只传入口文件，受控 CloudKit 原生候选能力只覆盖部分聊天/记忆/任务/生成程序状态/设备信任元数据记录，永远不同步原始设备凭证或 AI Key。
+- 继续区分 iCloud 入口同步和 CloudKit 数据同步：写清楚默认 iCloud Drive 只传入口文件，受控 CloudKit 原生候选能力只覆盖部分聊天/记忆/任务/生成程序状态/设备信任元数据记录；设备信任元数据只用于重新绑定前的安全盘点，永远不同步原始设备凭证或 AI Key。
 - 增强手机弱网后台恢复和多端冲突复核，覆盖手机重启、浏览器存储压力和过期远程入口。
 - 产品化日历/提醒事项连接器权限复核：更清楚的设置步骤、更窄授权范围、冲突预览、回滚计划和验收证据导出。
 - 继续增强 Studio 生成程序可靠性：更清楚的视觉 diff、模板级修复策略、更严格烟测和修复失败恢复。

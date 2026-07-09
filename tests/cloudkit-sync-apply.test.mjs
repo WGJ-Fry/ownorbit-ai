@@ -100,6 +100,26 @@ function runIsolatedCloudKitApply(env, scenario) {
       const payloadJson = JSON.stringify(taskPayload);
       db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'changed', 'auto-ready', ?, ?, ?, ?, ?, 0, ?, ?, NULL, ?, ?, NULL, NULL)")
         .run("q-task-new", "LifeOSTaskZone", "LifeOSTask", "task:remote-task", "task-mut", stableHash(taskPayload), stableHash(payloadJson), now + 2000, Buffer.byteLength(payloadJson), payloadJson, new Date(now + 2000).toISOString(), "evidence-task", now + 3000);
+    } else if (${JSON.stringify(scenario)} === "device-trust" || ${JSON.stringify(scenario)} === "device-trust-raw-public-key") {
+      db.prepare("INSERT INTO cloudkit_sync_checkpoints (zone, applied_server_change_token, pending_server_change_token, token_state, last_evidence_id, last_preview_at, last_applied_at, changed_count, deleted_count, failed_count, more_coming, updated_at) VALUES (?, NULL, ?, 'pending-preview', ?, ?, NULL, ?, ?, 0, 0, ?)")
+        .run("LifeOSDeviceTrustZone", "opaque-device-trust-token", "evidence-device-trust", now, 1, 0, now);
+      const deviceIdHash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+      const trustPayload = {
+        deviceIdHash,
+        displayName: "Alice iPhone",
+        deviceType: "mobile",
+        trustState: "online",
+        publicKeyFingerprint: "abcdef0123456789abcdef0123456789",
+        accessExpiresAt: now + 86400000,
+        createdAt: now - 5000,
+        lastSeenAt: now + 2000,
+        mutationId: "device-trust-mut",
+        logicalClock: now + 2000,
+        ...(${JSON.stringify(scenario)} === "device-trust-raw-public-key" ? { publicKey: "RAW_PUBLIC_KEY_SHOULD_NOT_APPLY" } : {}),
+      };
+      const payloadJson = JSON.stringify(trustPayload);
+      db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'changed', 'pending-review', ?, ?, ?, ?, ?, 1, ?, ?, NULL, ?, ?, NULL, NULL)")
+        .run("q-device-trust", "LifeOSDeviceTrustZone", "LifeOSDeviceTrust", "device:" + deviceIdHash.slice(0, 24), "device-trust-mut", stableHash(trustPayload), stableHash(payloadJson), now + 2000, Buffer.byteLength(payloadJson), payloadJson, new Date(now + 2000).toISOString(), "evidence-device-trust", now + 3000);
     } else {
       db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'deleted', 'pending-review', ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, NULL, NULL)")
         .run("q-delete", "LifeOSChatZone", "LifeOSMessage", "message:remote-message", "remote-mut", "delete-hash", "delete-payload-hash", now + 2000, 0, null, new Date(now + 2000).toISOString(), new Date(now + 2000).toISOString(), "evidence-chat", now + 3000);
@@ -109,16 +129,19 @@ function runIsolatedCloudKitApply(env, scenario) {
     const apply = applyCloudKitSyncQuarantine({
       limit: 10,
       now: now + 4000,
-      includeManualReview: ${JSON.stringify(scenario)} === "delete",
+      includeManualReview: ${JSON.stringify(scenario)} === "delete" || ${JSON.stringify(scenario)}.startsWith("device-trust"),
     });
     const sessions = db.prepare("SELECT id, title, updated_at as updatedAt FROM chat_sessions ORDER BY id").all();
     const messages = db.prepare("SELECT id, session_id as sessionId, content_json as contentJson, source_device_id as sourceDeviceId, offline_mutation_id as mutationId FROM messages ORDER BY id").all();
     const memories = db.prepare("SELECT id, title, content, sensitivity, updated_at as updatedAt FROM memories ORDER BY id").all();
     const tasks = db.prepare("SELECT id, type, status, input_json as inputJson, result_json as resultJson, created_by_device_id as createdByDeviceId, started_at as startedAt FROM tasks ORDER BY id").all();
+    const devices = db.prepare("SELECT id, name, access_token_hash as accessTokenHash FROM devices ORDER BY id").all();
+    const trustMetadata = db.prepare("SELECT device_id_hash as deviceIdHash, display_name as displayName, device_type as deviceType, trust_state as trustState, public_key_fingerprint as publicKeyFingerprint, access_expires_at as accessExpiresAt, review_status as reviewStatus, access_granted as accessGranted, source_record_name as sourceRecordName, source_evidence_id as sourceEvidenceId, logical_clock as logicalClock, applied_at as appliedAt FROM cloudkit_device_trust_metadata ORDER BY device_id_hash").all();
     const checkpoint = db.prepare("SELECT token_state as tokenState, applied_server_change_token as appliedToken, pending_server_change_token as pendingToken, last_applied_at as lastAppliedAt FROM cloudkit_sync_checkpoints WHERE zone = 'LifeOSChatZone'").get();
     const memoryCheckpoint = db.prepare("SELECT token_state as tokenState, applied_server_change_token as appliedToken, pending_server_change_token as pendingToken, last_applied_at as lastAppliedAt FROM cloudkit_sync_checkpoints WHERE zone = 'LifeOSMemoryZone'").get();
     const taskCheckpoint = db.prepare("SELECT token_state as tokenState, applied_server_change_token as appliedToken, pending_server_change_token as pendingToken, last_applied_at as lastAppliedAt FROM cloudkit_sync_checkpoints WHERE zone = 'LifeOSTaskZone'").get();
-    process.stdout.write(JSON.stringify({ listed, apply, sessions, messages, memories, tasks, checkpoint, memoryCheckpoint, taskCheckpoint }));
+    const deviceTrustCheckpoint = db.prepare("SELECT token_state as tokenState, applied_server_change_token as appliedToken, pending_server_change_token as pendingToken, last_applied_at as lastAppliedAt FROM cloudkit_sync_checkpoints WHERE zone = 'LifeOSDeviceTrustZone'").get();
+    process.stdout.write(JSON.stringify({ listed, apply, sessions, messages, memories, tasks, devices, trustMetadata, checkpoint, memoryCheckpoint, taskCheckpoint, deviceTrustCheckpoint }));
   `;
   const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
     cwd: rootDir,
@@ -280,6 +303,60 @@ test("CloudKit auto task apply refuses to overwrite an existing task", async () 
     assert.equal(result.taskCheckpoint.tokenState, "pending-preview");
     assert.equal(result.taskCheckpoint.appliedToken, null);
     assert.equal(result.taskCheckpoint.pendingToken, "opaque-task-token");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit device trust apply stores metadata without granting device access", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-device-trust-"));
+  try {
+    const result = runIsolatedCloudKitApply({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "device-trust");
+
+    assert.equal(result.apply.attempted, 1);
+    assert.equal(result.apply.applied, 1);
+    assert.equal(result.apply.manualReviewRequired, 0);
+    assert.deepEqual(result.apply.promotedZones, ["LifeOSDeviceTrustZone"]);
+    assert.equal(result.devices.length, 0);
+    assert.equal(result.trustMetadata.length, 1);
+    assert.equal(result.trustMetadata[0].displayName, "Alice iPhone");
+    assert.equal(result.trustMetadata[0].deviceType, "mobile");
+    assert.equal(result.trustMetadata[0].trustState, "online");
+    assert.equal(result.trustMetadata[0].publicKeyFingerprint, "abcdef0123456789abcdef0123456789");
+    assert.equal(result.trustMetadata[0].reviewStatus, "needs-rebind");
+    assert.equal(result.trustMetadata[0].accessGranted, 0);
+    assert.equal(result.trustMetadata[0].sourceRecordName, "device:0123456789abcdef01234567");
+    assert.equal(result.trustMetadata[0].sourceEvidenceId, "evidence-device-trust");
+    assert.equal(result.trustMetadata[0].appliedAt, 1700000004000);
+    assert.equal(result.deviceTrustCheckpoint.tokenState, "applied");
+    assert.equal(result.deviceTrustCheckpoint.appliedToken, "opaque-device-trust-token");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit device trust apply rejects raw public key payloads", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-device-trust-raw-key-"));
+  try {
+    const result = runIsolatedCloudKitApply({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "device-trust-raw-public-key");
+
+    assert.equal(result.apply.attempted, 1);
+    assert.equal(result.apply.applied, 0);
+    assert.equal(result.apply.conflicts, 1);
+    assert.deepEqual(result.apply.promotedZones, []);
+    assert.deepEqual(result.apply.blockedZones, ["LifeOSDeviceTrustZone"]);
+    assert.match(result.apply.records[0].error, /raw public keys/i);
+    assert.equal(result.devices.length, 0);
+    assert.equal(result.trustMetadata.length, 0);
+    assert.equal(result.deviceTrustCheckpoint.tokenState, "pending-preview");
+    assert.equal(result.deviceTrustCheckpoint.appliedToken, null);
+    assert.equal(result.deviceTrustCheckpoint.pendingToken, "opaque-device-trust-token");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
