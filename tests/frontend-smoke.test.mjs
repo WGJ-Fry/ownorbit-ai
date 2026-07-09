@@ -1416,6 +1416,14 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffSameWifiWarning/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffRecommendedDesktop/);
   assert.match(mobileRemoteEntryCardSource, /mobile-icloud-recommended-reason/);
+  assert.match(mobileRemoteEntryCardSource, /mobile-icloud-recommended-entry-summary/);
+  assert.match(mobileRemoteEntryCardSource, /getMobileIcloudEntryModeKey/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffEntryMode/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffEntryUse/);
+  assert.match(mobileRemoteEntryCardSource, /mobile-icloud-current-recommended-comparison/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffCurrentRecommendedComparisonTitle/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffCurrentOpenedEntry/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffRecommendedEntry/);
   assert.match(mobileRemoteEntryCardSource, /icloudRecommendedReasonKeys/);
   assert.match(mobileRemoteEntryCardSource, /icloudEntryRecommendation\.recommendedReason/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffShowAdvancedEntries/);
@@ -1442,6 +1450,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Advanced: other entries/);
   assert.match(translationsSource, /最适合异地使用的稳定 HTTPS 入口/);
   assert.match(translationsSource, /best stable HTTPS entry for off-LAN use/);
+  assert.match(translationsSource, /连接方式/);
+  assert.match(translationsSource, /Connection type/);
+  assert.match(translationsSource, /当前打开的不是推荐入口/);
+  assert.match(translationsSource, /Current page is not the recommended entry/);
+  assert.match(translationsSource, /Same-Wi-Fi LAN entry/);
+  assert.match(translationsSource, /Tailscale remote entry/);
   assert.match(mobileRemoteEntryCardSource, /mobile-icloud-recommended-switch/);
   assert.match(mobileRemoteEntryCardSource, /shouldOpenRecommendedIcloudEntry/);
   assert.match(mobileRemoteEntryCardSource, /mobile-icloud-one-next-action/);

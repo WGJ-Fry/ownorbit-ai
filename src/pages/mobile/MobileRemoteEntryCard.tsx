@@ -79,6 +79,15 @@ function getDuplicateMobileIcloudDesktopNames(entries: MobileIcloudHandoffEntry[
   return new Set([...counts.entries()].filter(([, count]) => count > 1).map(([key]) => key));
 }
 
+function getMobileIcloudEntryModeKey(entry: MobileIcloudHandoffEntry) {
+  if (isMobileIcloudHandoffSameWifiOnly(entry)) return "mobileDevice.icloudHandoffEntryModeSameWifi";
+  if (entry.mode === "tailscale") return "mobileDevice.icloudHandoffEntryModeTailscale";
+  if (entry.mode === "cloudflare") return "mobileDevice.icloudHandoffEntryModeCloudflare";
+  if (entry.mode === "configured") return "mobileDevice.icloudHandoffEntryModeConfigured";
+  if (entry.baseUrl.startsWith("https://")) return "mobileDevice.icloudHandoffEntryModeHttps";
+  return "mobileDevice.icloudHandoffEntryModeRemote";
+}
+
 export default function MobileRemoteEntryCard({
   connectivityBusy,
   connectivityReportStale,
@@ -258,6 +267,7 @@ export default function MobileRemoteEntryCard({
     const shortDesktopId = getMobileIcloudDesktopShortId(entry);
     const hasDuplicateName = duplicateIcloudDesktopNames.has(mobileIcloudDesktopNameKey(entry));
     const sameWifiOnly = isMobileIcloudHandoffSameWifiOnly(entry);
+    const modeKey = getMobileIcloudEntryModeKey(entry);
     return (
       <div
         key={key}
@@ -273,6 +283,7 @@ export default function MobileRemoteEntryCard({
             <span className="block truncate font-bold">{entry.desktopName || entry.label || t("mobileDevice.icloudHandoffUnknownDesktop")}</span>
             {hasDuplicateName ? <span className="mt-0.5 block text-[10px] opacity-70">{t("mobileDevice.icloudHandoffShortId", { id: shortDesktopId })}</span> : null}
             <span className="mt-0.5 block truncate opacity-70">{entry.baseUrl}</span>
+            <span className="mt-1 inline-flex rounded-full bg-white/[0.07] px-2 py-0.5 text-[10px] font-bold text-white/75">{t(modeKey as any)}</span>
           </span>
           <span className="flex shrink-0 flex-col items-end gap-1">
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${icloudEntryFreshnessTone(freshness)}`}>
@@ -509,6 +520,29 @@ export default function MobileRemoteEntryCard({
                   desktop: recommendedIcloudEntryDisplayName,
                 })}
               </div>
+              <div data-testid="mobile-icloud-recommended-entry-summary" className="mt-2 grid gap-2 rounded-lg border border-white/[0.08] bg-white/[0.04] p-2 text-[11px]">
+                <Row label={t("mobileDevice.icloudHandoffEntryMode")} value={t(getMobileIcloudEntryModeKey(recommendedIcloudEntry) as any)} />
+                <Row
+                  label={t("mobileDevice.icloudHandoffEntryUse")}
+                  value={t(isMobileIcloudHandoffSameWifiOnly(recommendedIcloudEntry)
+                    ? "mobileDevice.icloudHandoffEntryUseSameWifi"
+                    : "mobileDevice.icloudHandoffEntryUseRemote")}
+                />
+              </div>
+              {shouldOpenRecommendedIcloudEntry ? (
+                <div data-testid="mobile-icloud-current-recommended-comparison" className="mt-2 rounded-lg border border-cyan-300/20 bg-cyan-500/10 p-2 text-[11px] leading-relaxed text-cyan-50">
+                  <div className="font-bold">{t("mobileDevice.icloudHandoffCurrentRecommendedComparisonTitle")}</div>
+                  <div className="mt-2 grid gap-1">
+                    <Row label={t("mobileDevice.icloudHandoffCurrentOpenedEntry")} value={icloudHandoffStatus.entry.baseUrl} />
+                    <Row label={t("mobileDevice.icloudHandoffRecommendedEntry")} value={recommendedIcloudEntry.baseUrl} />
+                  </div>
+                  <div className="mt-2 text-cyan-50/80">
+                    {t("mobileDevice.icloudHandoffCurrentRecommendedComparisonBody", {
+                      desktop: recommendedIcloudEntryDisplayName,
+                    })}
+                  </div>
+                </div>
+              ) : null}
               {duplicateIcloudDesktopNames.size ? (
                 <div className="mt-2 rounded-lg border border-sky-300/20 bg-sky-500/10 p-2 text-[11px] leading-relaxed text-sky-50">
                   {t("mobileDevice.icloudHandoffDuplicateHint")}
