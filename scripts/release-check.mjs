@@ -2139,6 +2139,9 @@ function checkAssets() {
     deviceRoutesSource.includes("icloudRefresh,") &&
     mobileRemoteEntryCardSource.includes("autoSelectRecommendedMobileIcloudHandoffEntry") &&
     mobileRemoteEntryCardSource.includes("mobile-icloud-recommended-switch") &&
+    mobileRemoteEntryCardSource.includes("mobile-icloud-recommended-reason") &&
+    mobileRemoteEntryCardSource.includes("icloudRecommendedReasonKeys") &&
+    mobileRemoteEntryCardSource.includes("icloudEntryRecommendation.recommendedReason") &&
     mobileRemoteEntryCardSource.includes("shouldOpenRecommendedIcloudEntry") &&
     mobileRemoteEntryCardSource.includes("mobile-icloud-one-next-action") &&
     mobileRemoteEntryCardSource.includes("activateRecommendedIcloudEntry") &&
@@ -2572,6 +2575,9 @@ function checkAssets() {
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffSameWifiBadge") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffSameWifiWarning") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffRecommendedDesktop") &&
+    mobileRemoteEntryCardSource.includes("mobile-icloud-recommended-reason") &&
+    mobileRemoteEntryCardSource.includes("icloudRecommendedReasonKeys") &&
+    mobileIcloudHandoffSource.includes("recommendedReason") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffShowOtherDesktops") &&
     mobileRemoteEntryCardSource.includes("showIcloudDesktopAdvanced") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffDefaultDesktop") &&
@@ -2582,7 +2588,10 @@ function checkAssets() {
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffMakeRecommendedDefault") &&
     pwaCapabilitiesTestSource.includes("getPreferredMobileIcloudHandoffEntryKey") &&
     pwaCapabilitiesTestSource.includes("setPreferredMobileIcloudHandoffEntry") &&
+    pwaCapabilitiesTestSource.includes("recommendedReason") &&
     pwaCapabilitiesTestSource.includes("recommends a usable desktop when the default entry fails") &&
+    translationsSource.includes("最适合异地使用的稳定 HTTPS 入口") &&
+    translationsSource.includes("best stable HTTPS entry for off-LAN use") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffEntryExpired") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffEntryRefresh") &&
     mobileDeviceSource.includes("health?.remoteEntryMode") &&

@@ -59,6 +59,7 @@ export type MobileIcloudHandoffEntryFreshness = "fresh" | "stale" | "expired" | 
 export type MobileIcloudHandoffEntryRecommendation = {
   recommendedEntry: MobileIcloudHandoffEntry | null;
   recommendedKey: string;
+  recommendedReason: "none" | "saved-default" | "stable-remote" | "fresh-entry" | "only-entry" | "latest-entry";
   otherEntries: MobileIcloudHandoffEntry[];
   archivedEntries: MobileIcloudHandoffEntry[];
   preferredEntry: MobileIcloudHandoffEntry | null;
@@ -966,8 +967,17 @@ export function getMobileIcloudHandoffEntryRecommendation(
   const usablePreferred = preferredEntry && isRecommendedMobileIcloudHandoffEntry(preferredEntry, now) && (
     isLongTermRemoteMobileIcloudHandoffEntry(preferredEntry) || !bestLongTermEntry
   ) ? preferredEntry : null;
-  const recommendedEntry = usablePreferred || sortedEntries.find((entry) => isRecommendedMobileIcloudHandoffEntry(entry, now)) || uniqueEntries[0] || null;
+  const firstFreshEntry = sortedEntries.find((entry) => isRecommendedMobileIcloudHandoffEntry(entry, now)) || null;
+  const recommendedEntry = usablePreferred || firstFreshEntry || uniqueEntries[0] || null;
   const recommendedKey = recommendedEntry ? mobileIcloudHandoffEntryKey(recommendedEntry) : "";
+  let recommendedReason: MobileIcloudHandoffEntryRecommendation["recommendedReason"] = "none";
+  if (recommendedEntry) {
+    if (usablePreferred && mobileIcloudHandoffEntryKey(usablePreferred) === recommendedKey) recommendedReason = "saved-default";
+    else if (bestLongTermEntry && mobileIcloudHandoffEntryKey(bestLongTermEntry) === recommendedKey) recommendedReason = "stable-remote";
+    else if (isRecommendedMobileIcloudHandoffEntry(recommendedEntry, now)) recommendedReason = "fresh-entry";
+    else if (uniqueEntries.length === 1) recommendedReason = "only-entry";
+    else recommendedReason = "latest-entry";
+  }
   let preferredSwitchReason: MobileIcloudHandoffEntryRecommendation["preferredSwitchReason"] = "none";
   if (preferredEntry && recommendedKey && mobileIcloudHandoffEntryKey(preferredEntry) !== recommendedKey) {
     const freshness = getMobileIcloudHandoffEntryFreshness(preferredEntry, now);
@@ -980,6 +990,7 @@ export function getMobileIcloudHandoffEntryRecommendation(
   return {
     recommendedEntry,
     recommendedKey,
+    recommendedReason,
     otherEntries: sortedEntries.filter((entry) => (
       mobileIcloudHandoffEntryKey(entry) !== recommendedKey &&
       !isArchivedMobileIcloudHandoffEntry(entry, { now, hasRecommendedEntry: Boolean(recommendedEntry) })

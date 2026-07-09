@@ -30,6 +30,15 @@ const icloudPreferredSwitchReasonKeys: Record<MobileIcloudHandoffEntryRecommenda
   "default-same-wifi": "mobileDevice.icloudHandoffDefaultSwitchSameWifi",
 };
 
+const icloudRecommendedReasonKeys: Record<MobileIcloudHandoffEntryRecommendation["recommendedReason"], string> = {
+  none: "mobileDevice.icloudHandoffRecommendedReasonNone",
+  "saved-default": "mobileDevice.icloudHandoffRecommendedReasonDefault",
+  "stable-remote": "mobileDevice.icloudHandoffRecommendedReasonRemote",
+  "fresh-entry": "mobileDevice.icloudHandoffRecommendedReasonFresh",
+  "only-entry": "mobileDevice.icloudHandoffRecommendedReasonOnly",
+  "latest-entry": "mobileDevice.icloudHandoffRecommendedReasonLatest",
+};
+
 function icloudEntryFreshnessTone(freshness: keyof typeof icloudEntryFreshnessKeys) {
   if (freshness === "fresh") return "bg-emerald-500/15 text-emerald-100";
   if (freshness === "expired") return "bg-red-500/15 text-red-100";
@@ -417,10 +426,15 @@ export default function MobileRemoteEntryCard({
               </div>
             </div>
           ) : null}
-          {icloudEntries.length > 1 ? (
+          {recommendedIcloudEntry ? (
             <div className="mt-3 rounded-xl border border-white/[0.08] bg-black/10 p-2 text-xs">
               <div className="font-bold">{t("mobileDevice.icloudHandoffKnownDesktops")}</div>
               <div className="mt-1 opacity-80">{t(icloudRecommendedBodyKey)}</div>
+              <div data-testid="mobile-icloud-recommended-reason" className="mt-2 rounded-lg border border-emerald-300/20 bg-emerald-500/10 p-2 text-[11px] font-bold text-emerald-100">
+                {t(icloudRecommendedReasonKeys[icloudEntryRecommendation.recommendedReason] as any, {
+                  desktop: recommendedIcloudEntryName,
+                })}
+              </div>
               {duplicateIcloudDesktopNames.size ? (
                 <div className="mt-2 rounded-lg border border-sky-300/20 bg-sky-500/10 p-2 text-[11px] leading-relaxed text-sky-50">
                   {t("mobileDevice.icloudHandoffDuplicateHint")}

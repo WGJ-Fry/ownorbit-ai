@@ -1304,6 +1304,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffSameWifiBadge/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffSameWifiWarning/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffRecommendedDesktop/);
+  assert.match(mobileRemoteEntryCardSource, /mobile-icloud-recommended-reason/);
+  assert.match(mobileRemoteEntryCardSource, /icloudRecommendedReasonKeys/);
+  assert.match(mobileRemoteEntryCardSource, /icloudEntryRecommendation\.recommendedReason/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffShowOtherDesktops/);
   assert.match(mobileRemoteEntryCardSource, /archivedIcloudEntries/);
   assert.match(mobileRemoteEntryCardSource, /mobile-icloud-archived-entries/);
@@ -1318,6 +1321,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffDefaultDesktop/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffMakeDefault/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffForgetDesktop/);
+  assert.match(translationsSource, /最适合异地使用的稳定 HTTPS 入口/);
+  assert.match(translationsSource, /best stable HTTPS entry for off-LAN use/);
   assert.match(mobileRemoteEntryCardSource, /mobile-icloud-recommended-switch/);
   assert.match(mobileRemoteEntryCardSource, /shouldOpenRecommendedIcloudEntry/);
   assert.match(mobileRemoteEntryCardSource, /mobile-icloud-one-next-action/);
