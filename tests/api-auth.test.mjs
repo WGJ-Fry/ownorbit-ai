@@ -559,6 +559,37 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(blockedCloudKitExportJson.export.exportRecordCount, 0);
   assert.equal(blockedCloudKitExportJson.backup, undefined);
   assertPublicApiResponse("cloudKitSyncExportBlocked", blockedCloudKitExportJson);
+  const blockedCloudKitUploadNowAuth = await request(port, "/api/v1/admin/icloud-data-sync/upload-now", {
+    method: "POST",
+    body: JSON.stringify({ confirmation: "UPLOAD_CLOUDKIT_NOW" }),
+  });
+  assert.equal(blockedCloudKitUploadNowAuth.status, 401);
+  const blockedCloudKitUploadNow = await request(port, "/api/v1/admin/icloud-data-sync/upload-now", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ confirmation: "wrong-confirmation" }),
+  });
+  assert.equal(blockedCloudKitUploadNow.status, 400);
+  const blockedCloudKitUploadNowJson = await blockedCloudKitUploadNow.json();
+  assert.equal(blockedCloudKitUploadNowJson.expectedConfirmation, "UPLOAD_CLOUDKIT_NOW");
+  assert.equal(JSON.stringify(blockedCloudKitUploadNowJson).includes("payloadJson"), false);
+  assert.equal(JSON.stringify(blockedCloudKitUploadNowJson).includes("/Users/"), false);
+  assertPublicApiResponse("cloudKitSyncUploadNowBlocked", blockedCloudKitUploadNowJson);
+  const cloudKitUploadNow = await request(port, "/api/v1/admin/icloud-data-sync/upload-now", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ confirmation: "UPLOAD_CLOUDKIT_NOW" }),
+  }).then((res) => res.json());
+  assert.equal(cloudKitUploadNow.upload.status, "needs-setup");
+  assert.equal(cloudKitUploadNow.upload.nextAction, "configure-cloudkit");
+  assert.equal(cloudKitUploadNow.upload.export.exportRecordCount, 0);
+  assert.equal(cloudKitUploadNow.upload.backup, undefined);
+  assert.equal(cloudKitUploadNow.upload.result, undefined);
+  assert.equal(cloudKitUploadNow.upload.safety.rawPayloadReturnedToAdmin, false);
+  assert.equal(cloudKitUploadNow.upload.safety.localBackupPathReturnedToAdmin, false);
+  assert.equal(JSON.stringify(cloudKitUploadNow).includes("payloadJson"), false);
+  assert.equal(JSON.stringify(cloudKitUploadNow).includes("/Users/"), false);
+  assertPublicApiResponse("cloudKitSyncUploadNowNeedsSetup", cloudKitUploadNow);
   const blockedCloudKitImportPreviewAuth = await request(port, "/api/v1/admin/icloud-data-sync/import-preview", {
     method: "POST",
     body: JSON.stringify({}),

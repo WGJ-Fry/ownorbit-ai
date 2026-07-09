@@ -36,6 +36,7 @@ import { buildCloudKitSyncBatchPreview, buildCloudKitSyncExportPackage, CLOUDKIT
 import { CLOUDKIT_SYNC_IMPORT_CONFIRMATION, getCloudKitSyncQuarantineSummary, getCloudKitSyncStateSnapshot, listCloudKitSyncCheckpoints, publicCloudKitHelperResult, saveCloudKitSyncChangesPreview, saveCloudKitSyncImportQuarantine } from "../cloudKitSyncState";
 import { applyCloudKitSyncQuarantine, CLOUDKIT_SYNC_APPLY_CONFIRMATION, listCloudKitSyncQuarantineItems } from "../cloudKitSyncApply";
 import { CLOUDKIT_SYNC_NOW_CONFIRMATION, runCloudKitSyncNow } from "../cloudKitSyncNow";
+import { CLOUDKIT_SYNC_UPLOAD_NOW_CONFIRMATION, runCloudKitSyncUploadNow } from "../cloudKitSyncUploadNow";
 
 const loginFailures = new Map<string, { count: number; lockedUntil: number }>();
 
@@ -86,6 +87,10 @@ function normalizeCloudKitApplyConfirmation(value: unknown) {
 }
 
 function normalizeCloudKitSyncNowConfirmation(value: unknown) {
+  return String(value || "").trim();
+}
+
+function normalizeCloudKitSyncUploadNowConfirmation(value: unknown) {
   return String(value || "").trim();
 }
 
@@ -992,6 +997,57 @@ export function registerAdminRoutes(app: express.Express) {
         error: error.message || "CloudKit sync import quarantine failed",
         quarantine: getCloudKitSyncQuarantineSummary(),
         checkpoints: listCloudKitSyncCheckpoints(),
+        diagnostics: getAdminNetworkDiagnostics(),
+      });
+    }
+  });
+
+  app.post("/api/v1/admin/icloud-data-sync/upload-now", requireAdmin, rateLimit({ keyPrefix: "admin-cloudkit-sync-upload-now", windowMs: 60_000, max: 3 }), async (req, res) => {
+    const confirmation = normalizeCloudKitSyncUploadNowConfirmation(req.body?.confirmation);
+    const diagnostics = getAdminNetworkDiagnostics();
+    if (confirmation !== CLOUDKIT_SYNC_UPLOAD_NOW_CONFIRMATION) {
+      insertAuditLog("icloud_cloudkit_sync_upload_now_blocked", "network", "cloudkit-sync-upload-now", {
+        confirmationProvided: false,
+        rawPayloadReturnedToAdmin: false,
+        localBackupPathReturnedToAdmin: false,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      return res.status(400).json({
+        error: "CloudKit safe upload now requires explicit confirmation.",
+        expectedConfirmation: CLOUDKIT_SYNC_UPLOAD_NOW_CONFIRMATION,
+        diagnostics,
+      });
+    }
+    try {
+      const readiness = getIcloudDataSyncReadiness({ platformSupported: diagnostics.icloud.platformSupported });
+      const upload = await runCloudKitSyncUploadNow(readiness, { limit: normalizeCloudKitBatchLimit(req.body?.limit) || 100 });
+      insertAuditLog("icloud_cloudkit_sync_upload_now", "network", "cloudkit-sync-upload-now", {
+        ok: upload.ok,
+        status: upload.status,
+        nextAction: upload.nextAction,
+        readinessStatus: upload.export.preview.readinessStatus,
+        previewStatus: upload.export.preview.status,
+        readyRecordCount: upload.export.preview.readyRecordCount,
+        blockedRecordCount: upload.export.preview.blockedRecordCount,
+        exportRecordCount: upload.export.exportRecordCount,
+        recordPlanHash: upload.export.recordPlanHash,
+        syncExport: upload.result?.syncExport || null,
+        backupCreated: Boolean(upload.backup),
+        backupSize: upload.backup?.size || null,
+        rawPayloadReturnedToAdmin: false,
+        localBackupPathReturnedToAdmin: false,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(upload.status === "failed" || upload.status === "blocked" ? 400 : 200).json({
+        upload,
+        diagnostics: getAdminNetworkDiagnostics(),
+      });
+    } catch (error: any) {
+      insertAuditLog("icloud_cloudkit_sync_upload_now_failed", "network", "cloudkit-sync-upload-now", {
+        error: error?.message || "CloudKit safe upload failed",
+        rawPayloadReturnedToAdmin: false,
+        localBackupPathReturnedToAdmin: false,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(400).json({
+        error: error.message || "CloudKit safe upload failed",
         diagnostics: getAdminNetworkDiagnostics(),
       });
     }

@@ -1624,6 +1624,24 @@ export type CloudKitSyncNowResult = {
   };
 };
 
+export type CloudKitSyncUploadNowResult = {
+  ok: boolean;
+  status: "needs-setup" | "empty" | "blocked" | "uploaded" | "failed";
+  nextAction: "configure-cloudkit" | "add-local-data" | "review-blocked-records" | "retry" | "done";
+  startedAt: number;
+  finishedAt: number;
+  limit: number;
+  export: CloudKitSyncExportSummary;
+  backup?: { stage: "export-cloudkit"; created: true; size: number; createdAt: number; redaction?: BackupRecord["redaction"] };
+  result?: CloudKitNativeHelperResult;
+  safety: {
+    rawPayloadReturnedToAdmin: false;
+    rawPayloadSentOnlyToNativeHelper: boolean;
+    localBackupPathReturnedToAdmin: false;
+    requiresExplicitConfirmation: true;
+  };
+};
+
 export type CloudKitSyncBatchPreview = {
   ok: boolean;
   status: "skipped" | "blocked" | "empty" | "needs-review" | "ready";
@@ -2574,6 +2592,17 @@ export function runCloudKitSyncNow(input: { confirmation: string; limit?: number
     sync: CloudKitSyncNowResult;
     diagnostics: NetworkDiagnostics;
   }>("/api/v1/admin/icloud-data-sync/sync-now", {
+    method: "POST",
+    timeoutMs: 90_000,
+    body: JSON.stringify(input),
+  });
+}
+
+export function runCloudKitSyncUploadNow(input: { confirmation: string; limit?: number }) {
+  return requestJson<{
+    upload: CloudKitSyncUploadNowResult;
+    diagnostics: NetworkDiagnostics;
+  }>("/api/v1/admin/icloud-data-sync/upload-now", {
     method: "POST",
     timeoutMs: 90_000,
     body: JSON.stringify(input),

@@ -164,6 +164,14 @@ The admin response still returns only a summary: preview status, record counts, 
 
 The native helper now has a `sync-export` operation. It saves approved records into the private CloudKit database using the selected record zones and returns only attempted/saved/failed counts plus an evidence id. This is a first write path for approved CloudKit records, not complete background sync. Full sync still needs change-token import, conflict review, remote delete/tombstone handling, retry queues, and real two-device Apple testing.
 
+The product-facing upload path wraps the same safety model:
+
+```text
+POST /api/v1/admin/icloud-data-sync/upload-now
+```
+
+It requires explicit `UPLOAD_CLOUDKIT_NOW` confirmation, creates a SQLite backup, sends filtered records only to the native helper through local stdin, and returns only status/counts/evidence. Unlike the lower-level export endpoint, this one-step upload response never returns a local backup path. It is designed for first-launch Apple users who need a clear "put this Mac into iCloud" action before later syncing another device.
+
 Run the contract smoke with:
 
 ```bash
@@ -361,6 +369,8 @@ Do not claim real iCloud data sync until all of this is true:
 当前还新增了受管理员认证保护的批次预览接口：`/api/v1/admin/icloud-data-sync/batch-preview`。它会从 SQLite 里挑选聊天、记忆、任务和生成程序状态的候选记录，但只返回 hash、字段名、record type、zone、数量和阻断原因，不返回原始正文或密钥。它可以帮助判断“哪些数据将来能通过 CloudKit 同步”，但它本身仍不是后台双向同步。
 
 当前还新增了受控写入接口：`/api/v1/admin/icloud-data-sync/export`。它只在 CloudKit 准备度通过、批次预览为 ready、没有敏感阻断记录、请求显式确认 `SYNC_APPROVED_RECORDS` 时运行，并且会先创建本地 SQLite 备份。API 响应仍只返回摘要和证据，不返回正文；经过过滤的 payload 只会通过本机 stdin 发给原生 helper。这个能力代表“已具备第一条受控 CloudKit 写入路径”，但仍不是完整后台双向同步。
+
+当前还新增了面向普通用户的一键安全上传接口：`POST /api/v1/admin/icloud-data-sync/upload-now`。它要求显式确认 `UPLOAD_CLOUDKIT_NOW`，复用批次预览和敏感内容阻断逻辑，先创建 SQLite 备份，再把允许同步的本机记录交给原生 helper 写入私有 CloudKit。API 只返回状态、数量、安全摘要和 helper 证据，不返回原始正文、helper stdin 或本地备份路径。这个接口适合首次启动时的“把这台电脑的数据放进 iCloud”动作，但仍不是无人值守后台双向同步。
 
 当前还新增了安全读取预览接口：`/api/v1/admin/icloud-data-sync/import-preview`。它只从私有 CloudKit 读取 LifeOS 记录的摘要字段，例如 zone、record type、hash、logical clock、payload 大小和更新时间；不会请求 `payloadJson`，也不会导入 SQLite。这个能力代表“已具备第一条受控 CloudKit 读取摘要路径”，但仍不是完整双向同步。
 
