@@ -759,7 +759,7 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding.simpleIcloudSameWifiReadyBody") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudSameWifiOpenFilesAction") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudSameWifiReadyFollowup") &&
-    adminOnboardingSource.includes('simpleIcloudAction.cta === "remote-guide" && !simpleIcloudEntryReady') &&
+    adminOnboardingSource.includes('simpleIcloudAction.desktopAction === "open-connection-guide" && !simpleIcloudEntryReady') &&
     adminOnboardingSource.includes("simpleIcloudSameWifiActionTailscale") &&
     adminOnboardingSource.includes("simpleIcloudSameWifiActionCloudflare") &&
     adminOnboardingSource.includes("getIcloudPhonePickupStatus") &&
@@ -767,9 +767,14 @@ function checkAssets() {
     adminOnboardingSource.includes("simpleIcloudPickupStatus.cta === \"export\"") &&
     adminOnboardingSource.includes("simpleIcloudPickupStatus.cta === \"qr\"") &&
     adminOnboardingSource.includes("getPrimaryIcloudAction") &&
-    adminOnboardingSource.includes("simpleIcloudAction.cta === \"qr\"") &&
-    adminOnboardingSource.includes("simpleIcloudAction.cta === \"export\"") &&
-    adminOnboardingSource.includes("simpleIcloudAction.cta !== \"export\"") &&
+    adminOnboardingSource.includes("data-onboarding-icloud-primary-step") &&
+    adminOnboardingSource.includes("data-onboarding-icloud-desktop-action") &&
+    adminOnboardingSource.includes("data-onboarding-icloud-phone-action") &&
+    adminOnboardingSource.includes("data-onboarding-icloud-remote-required") &&
+    adminOnboardingSource.includes("simpleIcloudAction.desktopAction === \"regenerate-qr\"") &&
+    adminOnboardingSource.includes("simpleIcloudAction.desktopAction === \"export-icloud-entry\"") &&
+    adminOnboardingSource.includes("simpleIcloudAction.desktopAction === \"refresh-icloud-entry\"") &&
+    adminOnboardingSource.includes("simpleIcloudAction.desktopAction !== \"export-icloud-entry\"") &&
     adminOnboardingSource.includes("onboarding.appleRemoteIcloudOneNextAction") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudFilesPath") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudFilesActionTitle") &&
@@ -1592,6 +1597,11 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("getPrimaryIcloudAction") &&
     onboardingAppleRemoteSource.includes("primaryIcloudAction") &&
     onboardingAppleRemoteSource.includes("primaryIcloudAction.actionKey") &&
+    onboardingAppleRemoteSource.includes("primaryIcloudAction.stepId") &&
+    onboardingAppleRemoteSource.includes("primaryIcloudAction.desktopAction") &&
+    onboardingAppleRemoteSource.includes("primaryIcloudAction.phoneAction") &&
+    onboardingAppleRemoteSource.includes("primaryIcloudAction.remoteRequired") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-primary-action-card") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudOneNextAction") &&
     adminOnboardingSource.includes("getIcloudActionFollowupKey") &&
     adminOnboardingSource.includes("QRCodeSVG") &&
@@ -1923,7 +1933,7 @@ function checkAssets() {
     translationsSource.includes("generate a fresh QR code") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudActionOpenConnectionGuide") &&
     onboardingAppleRemoteSource.includes("/admin/settings#mobile-connect") &&
-    onboardingAppleRemoteSource.includes('primaryIcloudAction.cta === "remote-guide"') &&
+    onboardingAppleRemoteSource.includes('primaryIcloudAction.desktopAction === "open-connection-guide"') &&
     translationsSource.includes("下一步：切换到异地入口") &&
     translationsSource.includes("Next step: switch to a remote entry") &&
     translationsSource.includes("open the connection guide and choose a remote-ready entry") &&

@@ -172,7 +172,7 @@ export default function AdminOnboardingPage() {
     ? "qr"
     : simpleIcloudEntryReady
     ? "files"
-    : simpleIcloudAction.cta === "remote-guide"
+    : simpleIcloudAction.desktopAction === "open-connection-guide"
     ? "remote"
     : "entry";
   const simpleIcloudPrimaryStepIndex = simpleIcloudFlowStage === "qr"
@@ -191,7 +191,7 @@ export default function AdminOnboardingPage() {
     ? "onboarding.simpleIcloudFlowStatusLongTest"
     : simpleIcloudEntryReady
     ? "onboarding.simpleIcloudFlowStatusFilesNext"
-    : simpleIcloudAction.cta === "remote-guide"
+    : simpleIcloudAction.desktopAction === "open-connection-guide"
     ? "onboarding.simpleIcloudFlowStatusRemoteNeeded"
     : "onboarding.simpleIcloudFlowStatusEntryWaiting";
   const simpleIcloudConnectionMode = !simpleIcloudCurrentEntry
@@ -307,7 +307,13 @@ export default function AdminOnboardingPage() {
 
   useEffect(() => {
     const icloud = networkDiagnostics?.icloud;
-    if (primaryStep !== "device" || busy || autoIcloudExportAttempted || !icloud?.canExport || simpleIcloudAction.cta !== "export") return;
+    if (
+      primaryStep !== "device" ||
+      busy ||
+      autoIcloudExportAttempted ||
+      !icloud?.canExport ||
+      (simpleIcloudAction.desktopAction !== "export-icloud-entry" && simpleIcloudAction.desktopAction !== "refresh-icloud-entry")
+    ) return;
     let cancelled = false;
     setAutoIcloudExportAttempted(true);
     setBusy("icloud-handoff-auto");
@@ -329,7 +335,7 @@ export default function AdminOnboardingPage() {
     return () => {
       cancelled = true;
     };
-  }, [primaryStep, networkDiagnostics?.icloud?.canExport, simpleIcloudAction.cta, t]);
+  }, [primaryStep, networkDiagnostics?.icloud?.canExport, simpleIcloudAction.desktopAction, t]);
 
   useEffect(() => {
     if (!simpleIcloudShouldPollPickup) return;
@@ -1069,7 +1075,7 @@ export default function AdminOnboardingPage() {
                         ) : null}
                       </div>
                     ) : null}
-                    {simpleIcloudAction.cta === "remote-guide" && !simpleIcloudEntryReady ? (
+                    {simpleIcloudAction.desktopAction === "open-connection-guide" && !simpleIcloudEntryReady ? (
                       <a
                         data-testid="onboarding-icloud-quick-remote-guide"
                         href="/admin/settings#mobile-connect"
@@ -1079,7 +1085,7 @@ export default function AdminOnboardingPage() {
                         {t("onboarding.simpleIcloudSameWifiOpenGuide")}
                       </a>
                     ) : null}
-                    {simpleIcloudAction.cta === "icloud-folder" && desktopBridgeAvailable ? (
+                    {simpleIcloudAction.desktopAction === "open-icloud-folder" && desktopBridgeAvailable ? (
                       <button
                         type="button"
                         data-testid="onboarding-icloud-quick-open-folder"
@@ -1195,13 +1201,13 @@ export default function AdminOnboardingPage() {
                   </div>
                 </div>
                 <div className="mt-4 grid gap-3">
-                  {simpleIcloudAction.cta === "qr" && !simpleIcloudEntryReady ? (
+                  {simpleIcloudAction.desktopAction === "regenerate-qr" && !simpleIcloudEntryReady ? (
                   <a href="/admin/devices/pair" className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-400 px-4 py-3 text-sm font-bold text-[#061016]">
                     <QrCode className="h-4 w-4" />
                     {t("onboarding.simpleIcloudOpenQr")}
                   </a>
                   ) : null}
-                  {simpleIcloudAction.cta === "export" || simpleIcloudBusy ? (
+                  {simpleIcloudAction.desktopAction === "export-icloud-entry" || simpleIcloudAction.desktopAction === "refresh-icloud-entry" || simpleIcloudBusy ? (
                   <button
                     type="button"
                     onClick={handleExportIcloudHandoff}

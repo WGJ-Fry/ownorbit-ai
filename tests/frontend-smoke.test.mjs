@@ -596,7 +596,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.simpleIcloudSameWifiReadyBody/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudSameWifiOpenFilesAction/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudSameWifiReadyFollowup/);
-  assert.match(onboardingSource, /simpleIcloudAction\.cta === "remote-guide" && !simpleIcloudEntryReady/);
+  assert.match(onboardingSource, /simpleIcloudAction\.desktopAction === "open-connection-guide" && !simpleIcloudEntryReady/);
   assert.match(onboardingSource, /simpleIcloudSameWifiActionTailscale/);
   assert.match(onboardingSource, /simpleIcloudSameWifiActionCloudflare/);
   assert.match(onboardingSource, /getIcloudPhonePickupStatus/);
@@ -633,9 +633,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /simpleIcloudPickupStatus\.cta === "export"/);
   assert.match(onboardingSource, /simpleIcloudPickupStatus\.cta === "qr"/);
   assert.match(onboardingSource, /getPrimaryIcloudAction/);
-  assert.match(onboardingSource, /simpleIcloudAction\.cta === "qr"/);
-  assert.match(onboardingSource, /simpleIcloudAction\.cta === "export"/);
-  assert.match(onboardingSource, /simpleIcloudAction\.cta !== "export"/);
+  assert.match(onboardingSource, /simpleIcloudAction\.desktopAction === "regenerate-qr"/);
+  assert.match(onboardingSource, /simpleIcloudAction\.desktopAction === "export-icloud-entry"/);
+  assert.match(onboardingSource, /simpleIcloudAction\.desktopAction === "refresh-icloud-entry"/);
+  assert.match(onboardingSource, /simpleIcloudAction\.desktopAction !== "export-icloud-entry"/);
   assert.match(onboardingSource, /onboarding\.appleRemoteIcloudOneNextAction/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudFilesPath/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudFilesActionTitle/);

@@ -1121,7 +1121,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   };
 
   const renderPrimaryIcloudActionButton = (testId?: string) => {
-    if (primaryIcloudAction.cta === "export") {
+    if (primaryIcloudAction.desktopAction === "export-icloud-entry" || primaryIcloudAction.desktopAction === "refresh-icloud-entry") {
       return (
         <button
           type="button"
@@ -1135,7 +1135,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
         </button>
       );
     }
-    if (primaryIcloudAction.cta === "qr") {
+    if (primaryIcloudAction.desktopAction === "regenerate-qr") {
       return (
         <a
           data-testid={testId}
@@ -1147,7 +1147,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
         </a>
       );
     }
-    if (primaryIcloudAction.cta === "remote-guide") {
+    if (primaryIcloudAction.desktopAction === "open-connection-guide") {
       return (
         <a
           data-testid={testId}
@@ -1159,7 +1159,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
         </a>
       );
     }
-    if (primaryIcloudAction.cta === "icloud-settings" && onOpenIcloudSettings) {
+    if (primaryIcloudAction.desktopAction === "open-icloud-settings" && onOpenIcloudSettings) {
       return (
         <button
           type="button"
@@ -1173,7 +1173,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
         </button>
       );
     }
-    if (primaryIcloudAction.cta === "icloud-folder" && onOpenIcloudFolder) {
+    if (primaryIcloudAction.desktopAction === "open-icloud-folder" && onOpenIcloudFolder) {
       return (
         <button
           type="button"
@@ -1336,7 +1336,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
     return renderPrimaryIcloudActionButton("onboarding-icloud-desktop-one-next-primary-action");
   };
 
-  const shouldDoPrimaryIcloudActionBeforeCleanup = primaryIcloudAction.cta !== "none" || primaryIcloudAction.actionKey !== "onboarding.appleRemoteIcloudActionOpenFiles";
+  const shouldDoPrimaryIcloudActionBeforeCleanup = primaryIcloudAction.desktopAction !== "none" || primaryIcloudAction.phoneAction !== "open-files-app";
   const desktopIcloudOneNextSource = latestRepairImportNextAction
     ? "repair-import"
     : latestEntryRepair && latestEntryRepair.status !== "none" && latestEntryRepair.action !== "none"
