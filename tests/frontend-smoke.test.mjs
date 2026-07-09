@@ -1045,6 +1045,14 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudDataBoundaryBody/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-readiness/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-primary-next/);
+  assert.match(onboardingAppleRemoteSource, /CloudKitAutoSyncCard/);
+  assert.match(onboardingAppleRemoteSource, /dataSyncReady=\{dataSync\.ready\}/);
+  const cloudKitAutoSyncCardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "CloudKitAutoSyncCard.tsx"), "utf8");
+  assert.match(cloudKitAutoSyncCardSource, /onboarding-icloud-data-sync-auto/);
+  assert.match(cloudKitAutoSyncCardSource, /getCloudKitAutoSyncSchedule/);
+  assert.match(cloudKitAutoSyncCardSource, /updateCloudKitAutoSyncSchedule/);
+  assert.match(cloudKitAutoSyncCardSource, /runCloudKitAutoSyncNow/);
+  assert.match(cloudKitAutoSyncCardSource, /disabled=\{!dataSyncReady/);
   assert.match(onboardingAppleRemoteSource, /icloudDataSyncPrimaryNextKeys/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-advanced-actions/);
   assert.match(onboardingAppleRemoteSource, /disabled=\{cloudKitSyncCycleBusy \|\| !dataSync\.ready\}/);
@@ -1078,6 +1086,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudDataSyncHelperSubscriptionResult/);
   assert.match(translationsSource, /后台推送订阅/);
   assert.match(translationsSource, /Background push subscription/);
+  assert.match(translationsSource, /自动同步聊天、记忆和任务/);
+  assert.match(translationsSource, /Auto-sync chats, memories, and tasks/);
+  assert.match(translationsSource, /不会静默覆盖本机数据/);
+  assert.match(translationsSource, /instead of silently overwriting local data/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-quarantine-next/);
   assert.match(onboardingAppleRemoteSource, /data-cloudkit-quarantine-next/);
   assert.match(onboardingAppleRemoteSource, /cloudKitQuarantineNextAction/);
