@@ -183,10 +183,15 @@ test("CloudKit sync export package is ready only after confirmation and keeps ad
     assert.equal(exportPackage.helperSyncBatch.records.length >= 3, true);
     assert.equal(exportPackage.helperSyncBatch.records.some((record) => record.recordType === "LifeOSMessage" && record.fields.requiresUserReview === false), true);
     assert.equal(exportPackage.helperSyncBatch.records.some((record) => record.recordType === "LifeOSConversation" && record.fields.requiresUserReview === true), true);
+    assert.equal(exportPackage.helperSyncBatch.records.some((record) => (
+      record.recordType === "LifeOSMessage" &&
+      JSON.parse(String(record.fields.payloadJson || "{}")).conversationTitle === "Safe export conversation"
+    )), true);
     assert.equal(JSON.stringify(exportPackage.helperSyncBatch).includes("Plan tomorrow without secrets"), true);
     assert.equal(summary.ok, true);
     assert.equal(summary.exportRecordCount, exportPackage.helperSyncBatch.records.length);
     const serializedSummary = JSON.stringify(summary);
+    assert.equal(serializedSummary.includes("Safe export conversation"), false);
     assert.equal(serializedSummary.includes("Plan tomorrow without secrets"), false);
     assert.equal(serializedSummary.includes("Prepare the weekly plan"), false);
     assert.equal(serializedSummary.includes(dir), false);

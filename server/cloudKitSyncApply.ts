@@ -235,10 +235,11 @@ function applyMessage(payload: Record<string, unknown>, row: QuarantineRow) {
   const mutationId = text(payload.mutationId, 120, messageId);
   const logicalClock = numberValue(payload.logicalClock, createdAt);
   const queuedAt = numberValue(payload.queuedAt, 0) || null;
+  const conversationTitle = text(payload.conversationTitle, 120, "Synced conversation");
   const existingSession = db.prepare("SELECT id FROM chat_sessions WHERE id = ?").get(conversationId);
   if (!existingSession) {
     db.prepare("INSERT INTO chat_sessions (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)")
-      .run(conversationId, "Synced conversation", createdAt, createdAt);
+      .run(conversationId, conversationTitle, createdAt, createdAt);
   }
   const existing = db.prepare("SELECT content_json as contentJson FROM messages WHERE id = ?").get(messageId) as { contentJson?: string } | undefined;
   if (existing) {

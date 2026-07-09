@@ -49,6 +49,20 @@ function runIsolatedCloudKitApply(env, scenario) {
         const payloadJson = JSON.stringify(item[3]);
         insert.run(item[0], "LifeOSChatZone", item[1], item[2], item[4], stableHash(item[3]), stableHash(payloadJson), item[5], Buffer.byteLength(payloadJson), payloadJson, new Date(item[5]).toISOString(), "evidence-chat", now + 3000);
       }
+    } else if (${JSON.stringify(scenario)} === "message-title") {
+      const messagePayload = {
+        conversationId: "remote-title-convo",
+        conversationTitle: "Remote planning room",
+        messageId: "remote-title-message",
+        role: "assistant",
+        contentJson: { parts: [{ text: "hello with title snapshot" }] },
+        createdAt: now + 2000,
+        mutationId: "remote-title-mut",
+        logicalClock: now + 2000,
+      };
+      const payloadJson = JSON.stringify(messagePayload);
+      db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'changed', 'auto-ready', ?, ?, ?, ?, ?, 0, ?, ?, NULL, ?, ?, NULL, NULL)")
+        .run("q-message-title", "LifeOSChatZone", "LifeOSMessage", "message:remote-title-message", "remote-title-mut", stableHash(messagePayload), stableHash(payloadJson), now + 2000, Buffer.byteLength(payloadJson), payloadJson, new Date(now + 2000).toISOString(), "evidence-chat", now + 3000);
     } else {
       db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'deleted', 'pending-review', ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, NULL, NULL)")
         .run("q-delete", "LifeOSChatZone", "LifeOSMessage", "message:remote-message", "remote-mut", "delete-hash", "delete-payload-hash", now + 2000, 0, null, new Date(now + 2000).toISOString(), new Date(now + 2000).toISOString(), "evidence-chat", now + 3000);
@@ -101,6 +115,26 @@ test("CloudKit quarantine apply writes conflict-free records and promotes pendin
     assert.equal(result.checkpoint.appliedToken, "opaque-next-token");
     assert.equal(result.checkpoint.pendingToken, null);
     assert.equal(result.checkpoint.lastAppliedAt, 1700000004000);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit auto message apply creates a readable conversation from the safe title snapshot", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-message-title-"));
+  try {
+    const result = runIsolatedCloudKitApply({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "message-title");
+
+    assert.equal(result.apply.attempted, 1);
+    assert.equal(result.apply.applied, 1);
+    assert.equal(result.apply.manualReviewRequired, 0);
+    assert.equal(result.sessions[0].id, "remote-title-convo");
+    assert.equal(result.sessions[0].title, "Remote planning room");
+    assert.equal(result.messages[0].id, "remote-title-message");
+    assert.equal(JSON.parse(result.messages[0].contentJson).parts[0].text, "hello with title snapshot");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

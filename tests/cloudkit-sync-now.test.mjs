@@ -35,6 +35,7 @@ function runIsolatedCloudKitSyncNow(env, scenario) {
     const now = 1700000000000;
     const readiness = getIcloudDataSyncReadiness({ platformSupported: true });
     const requiresReview = ${JSON.stringify(scenario)} === "manual-review";
+    const remoteChangedCount = ${JSON.stringify(scenario)} === "apply" ? 1 : 2;
 
     const skippedResult = (operation, reason) => ({
       ok: false,
@@ -59,7 +60,7 @@ function runIsolatedCloudKitSyncNow(env, scenario) {
           evidenceId: "sync-now-evidence-preview",
           syncChangesPreview: {
             scannedZones: ["LifeOSChatZone"],
-            changed: 2,
+            changed: remoteChangedCount,
             deleted: 0,
             failed: 0,
             moreComing: false,
@@ -68,7 +69,7 @@ function runIsolatedCloudKitSyncNow(env, scenario) {
               zone: "LifeOSChatZone",
               previousServerChangeTokenPresent: false,
               serverChangeToken: "opaque-preview-token",
-              changed: 2,
+              changed: remoteChangedCount,
               deleted: 0,
               failed: 0,
               moreComing: false
@@ -89,7 +90,7 @@ function runIsolatedCloudKitSyncNow(env, scenario) {
         syncChangesPreview: { scannedZones: [], changed: 0, deleted: 0, failed: 0, moreComing: false, rawPayloadIncluded: false, zones: [], changedRecords: [], deletedRecords: [] },
         syncImportQuarantine: {
           scannedZones: ["LifeOSChatZone"],
-          changed: 2,
+          changed: remoteChangedCount,
           deleted: 0,
           failed: 0,
           moreComing: false,
@@ -98,12 +99,23 @@ function runIsolatedCloudKitSyncNow(env, scenario) {
             zone: "LifeOSChatZone",
             previousServerChangeTokenPresent: false,
             serverChangeToken: "opaque-import-token",
-            changed: 2,
+            changed: remoteChangedCount,
             deleted: 0,
             failed: 0,
             moreComing: false
           }],
-          changedRecords: [{
+          changedRecords: ${JSON.stringify(scenario)} === "apply" ? [{
+            zone: "LifeOSChatZone",
+            recordType: "LifeOSMessage",
+            recordName: "message:remote-message",
+            mutationId: "mut-message",
+            contentHash: "hash-message",
+            logicalClock: now + 2,
+            payloadByteSize: 120,
+            modifiedAt: new Date(now + 2).toISOString(),
+            requiresUserReview: false,
+            payloadJson: JSON.stringify({ conversationId: "remote-convo", conversationTitle: "Remote synced", messageId: "remote-message", role: "user", contentJson: { parts: [{ text: "hello from cloudkit" }] }, createdAt: now + 2, mutationId: "mut-message", logicalClock: now + 2 })
+          }] : [{
             zone: "LifeOSChatZone",
             recordType: "LifeOSConversation",
             recordName: "conversation:remote-convo",
@@ -158,10 +170,10 @@ test("CloudKit safe sync now imports, applies conflict-free records, and returns
     assert.equal(result.status, "applied");
     assert.equal(result.nextAction, "done");
     assert.equal(result.changes.savedCheckpointCount, 1);
-    assert.equal(result.import.quarantine.importedChanged, 2);
-    assert.equal(result.import.quarantine.autoReady, 2);
-    assert.equal(result.apply.attempted, 2);
-    assert.equal(result.apply.applied, 2);
+    assert.equal(result.import.quarantine.importedChanged, 1);
+    assert.equal(result.import.quarantine.autoReady, 1);
+    assert.equal(result.apply.attempted, 1);
+    assert.equal(result.apply.applied, 1);
     assert.equal(result.apply.manualReviewRequired, 0);
     assert.equal(result.apply.conflicts, 0);
     assert.equal(result.quarantine.summary.autoReady, 0);
@@ -170,6 +182,7 @@ test("CloudKit safe sync now imports, applies conflict-free records, and returns
     assert.equal(result.safety.serverChangeTokenReturnedToAdmin, false);
     assert.equal(result.backups.length, 2);
     assert.equal(sessions[0].id, "remote-convo");
+    assert.equal(sessions[0].title, "Remote synced");
     assert.equal(messages[0].id, "remote-message");
     assert.equal(messages[0].sourceDeviceId, "cloudkit");
     const serialized = JSON.stringify(result);

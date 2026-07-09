@@ -149,6 +149,12 @@ function hasForbiddenValue(value: unknown) {
   return forbiddenValuePattern.test(JSON.stringify(value ?? ""));
 }
 
+function safeConversationTitleSnapshot(value: unknown) {
+  const title = String(value || "").replace(/\s+/g, " ").trim().slice(0, 120);
+  if (!title || hasForbiddenValue(title)) return undefined;
+  return title;
+}
+
 function byteSize(value: unknown) {
   return Buffer.byteLength(JSON.stringify(value ?? null), "utf8");
 }
@@ -271,12 +277,14 @@ function collectChatRecords(limit: number) {
   }
 
   const messages = db.prepare(`
-    SELECT id, session_id as sessionId, role, content_json as contentJson,
-           offline_mutation_id as offlineMutationId, idempotency_key as idempotencyKey,
-           client_sequence as clientSequence, source_version as sourceVersion,
-           queued_at as queuedAt, created_at as createdAt
-    FROM messages
-    ORDER BY created_at DESC
+    SELECT m.id, m.session_id as sessionId, m.role, m.content_json as contentJson,
+           m.offline_mutation_id as offlineMutationId, m.idempotency_key as idempotencyKey,
+           m.client_sequence as clientSequence, m.source_version as sourceVersion,
+           m.queued_at as queuedAt, m.created_at as createdAt,
+           s.title as sessionTitle
+    FROM messages m
+    LEFT JOIN chat_sessions s ON s.id = m.session_id
+    ORDER BY m.created_at DESC
     LIMIT ?
   `).all(limit);
   for (const message of messages as any[]) {
@@ -298,6 +306,7 @@ function collectChatRecords(limit: number) {
       mutationId: message.offlineMutationId || message.idempotencyKey || message.id,
       logicalClock: Number(message.sourceVersion || message.createdAt || 0),
       queuedAt: Number(message.queuedAt || 0) || undefined,
+      conversationTitle: safeConversationTitleSnapshot(message.sessionTitle),
     };
     pushReady(records, counts, buildRecord({
       id: message.id,
