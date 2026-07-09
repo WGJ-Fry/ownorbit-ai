@@ -1024,6 +1024,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /CloudKit \/ iCloud Container/);
   assert.match(translationsSource, /CloudKit 原生数据同步准备度/);
   assert.match(translationsSource, /CloudKit Native Data Sync Readiness/);
+  assert.match(translationsSource, /现在只做这一步/);
+  assert.match(translationsSource, /Only do this now/);
+  assert.match(translationsSource, /先在 Apple Developer 后台准备 iCloud Container/);
+  assert.match(translationsSource, /Create an iCloud Container in Apple Developer first/);
+  assert.match(translationsSource, /AI Key、设备凭证、SQLite 数据库和审计日志不会进入 iCloud/);
+  assert.match(translationsSource, /AI keys, device credentials, SQLite databases, and audit logs never go to iCloud/);
   assert.match(translationsSource, /CloudKit 记录计划/);
   assert.match(translationsSource, /CloudKit record plan/);
   assert.match(translationsSource, /原生验收闸门/);
@@ -1032,6 +1038,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Apply conflict-free records first/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudDataBoundaryBody/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-readiness/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-primary-next/);
+  assert.match(onboardingAppleRemoteSource, /icloudDataSyncPrimaryNextKeys/);
+  assert.match(onboardingAppleRemoteSource, /disabled=\{cloudKitSyncCycleBusy \|\| !dataSync\.ready\}/);
+  assert.match(onboardingAppleRemoteSource, /disabled=\{cloudKitSyncUploadNowBusy \|\| !dataSync\.ready\}/);
+  assert.match(onboardingAppleRemoteSource, /disabled=\{cloudKitSyncNowBusy \|\| !dataSync\.ready\}/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-record-plan/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-acceptance-gates/);
   assert.match(onboardingAppleRemoteSource, /icloudDataSyncStatusKeys/);

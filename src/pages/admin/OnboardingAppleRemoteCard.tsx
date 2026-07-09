@@ -164,6 +164,17 @@ const icloudDataSyncStatusKeys: Record<NetworkDiagnostics["icloud"]["dataSync"][
   "ready-to-test": "onboarding.appleRemoteIcloudDataSyncReadyToTest",
 };
 
+const icloudDataSyncPrimaryNextKeys: Record<NetworkDiagnostics["icloud"]["dataSync"]["status"], TranslationKey> = {
+  "not-enabled": "onboarding.appleRemoteIcloudDataSyncPrimaryNextEnable",
+  "missing-apple-platform": "onboarding.appleRemoteIcloudDataSyncPrimaryNextApple",
+  "missing-container": "onboarding.appleRemoteIcloudDataSyncPrimaryNextContainer",
+  "missing-apple-identity": "onboarding.appleRemoteIcloudDataSyncPrimaryNextIdentity",
+  "missing-native-helper": "onboarding.appleRemoteIcloudDataSyncPrimaryNextHelper",
+  "missing-entitlements": "onboarding.appleRemoteIcloudDataSyncPrimaryNextEntitlements",
+  "no-data-types": "onboarding.appleRemoteIcloudDataSyncPrimaryNextDataTypes",
+  "ready-to-test": "onboarding.appleRemoteIcloudDataSyncPrimaryNextReady",
+};
+
 const icloudHumanSyncStepKeys: Record<NetworkDiagnostics["icloud"]["syncReadiness"]["action"], { title: TranslationKey; body: TranslationKey }> = {
   "use-apple-device": {
     title: "onboarding.appleRemoteIcloudHumanUseAppleTitle",
@@ -1424,8 +1435,13 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                   </span>
                 </div>
                 <div className="mt-1 opacity-85">{t("onboarding.appleRemoteIcloudDataSyncBody")}</div>
-                <div className="mt-2 rounded-lg border border-current/10 bg-black/15 p-2 font-bold">
-                  {t("onboarding.appleRemoteIcloudDataSyncNext", { action: dataSync.nextAction })}
+                <div data-testid="onboarding-icloud-data-sync-primary-next" className="mt-2 rounded-lg border border-current/10 bg-black/15 p-2">
+                  <div className="text-[10px] font-bold uppercase tracking-normal opacity-70">
+                    {t("onboarding.appleRemoteIcloudDataSyncPrimaryNextLabel")}
+                  </div>
+                  <div className="mt-1 font-bold">
+                    {t(icloudDataSyncPrimaryNextKeys[dataSync.status])}
+                  </div>
                 </div>
                 <div data-testid="onboarding-icloud-data-sync-cycle" className="mt-2 rounded-lg border border-emerald-300/20 bg-emerald-500/10 p-3 text-emerald-50">
                   <div className="flex items-start gap-2">
@@ -1437,7 +1453,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                         type="button"
                         data-testid="onboarding-icloud-data-sync-cycle-run"
                         onClick={handleRunCloudKitSyncCycle}
-                        disabled={cloudKitSyncCycleBusy}
+                        disabled={cloudKitSyncCycleBusy || !dataSync.ready}
                         className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-300 px-3 py-2 text-[11px] font-bold text-slate-950 disabled:opacity-50 sm:w-auto"
                       >
                         {cloudKitSyncCycleBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
@@ -1480,7 +1496,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                         type="button"
                         data-testid="onboarding-icloud-data-sync-upload-now-run"
                         onClick={handleRunCloudKitSyncUploadNow}
-                        disabled={cloudKitSyncUploadNowBusy}
+                        disabled={cloudKitSyncUploadNowBusy || !dataSync.ready}
                         className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-sky-300 px-3 py-2 text-[11px] font-bold text-slate-950 disabled:opacity-50 sm:w-auto"
                       >
                         {cloudKitSyncUploadNowBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UploadCloud className="h-3.5 w-3.5" />}
@@ -1526,7 +1542,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                         type="button"
                         data-testid="onboarding-icloud-data-sync-one-step-run"
                         onClick={handleRunCloudKitSyncNow}
-                        disabled={cloudKitSyncNowBusy}
+                        disabled={cloudKitSyncNowBusy || !dataSync.ready}
                         className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-400 px-3 py-2 text-[11px] font-bold text-slate-950 disabled:opacity-50 sm:w-auto"
                       >
                         {cloudKitSyncNowBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}

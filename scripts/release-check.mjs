@@ -2001,6 +2001,11 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("data-cloudkit-quarantine-next") &&
     onboardingAppleRemoteSource.includes("cloudKitQuarantineNextAction") &&
     onboardingAppleRemoteSource.includes("handleCloudKitQuarantineNextAction") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-primary-next") &&
+    onboardingAppleRemoteSource.includes("icloudDataSyncPrimaryNextKeys") &&
+    onboardingAppleRemoteSource.includes("cloudKitSyncCycleBusy || !dataSync.ready") &&
+    onboardingAppleRemoteSource.includes("cloudKitSyncUploadNowBusy || !dataSync.ready") &&
+    onboardingAppleRemoteSource.includes("cloudKitSyncNowBusy || !dataSync.ready") &&
     onboardingAppleRemoteSource.includes("handleLoadCloudKitBatchPreview") &&
     onboardingAppleRemoteSource.includes("handleRunCloudKitSyncExport") &&
     onboardingAppleRemoteSource.includes("handleRunCloudKitSyncImportPreview") &&
@@ -2065,6 +2070,12 @@ function checkAssets() {
     onboardingAppleRemoteSource.includes("appleRemoteIcloudDataSyncHelperMissingCapabilities") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudDataSyncHelperOperationCoverage") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudDataSyncHelperMissingOperationCapabilities") &&
+    translationsSource.includes("现在只做这一步") &&
+    translationsSource.includes("Only do this now") &&
+    translationsSource.includes("先在 Apple Developer 后台准备 iCloud Container") &&
+    translationsSource.includes("Create an iCloud Container in Apple Developer first") &&
+    translationsSource.includes("AI Key、设备凭证、SQLite 数据库和审计日志不会进入 iCloud") &&
+    translationsSource.includes("AI keys, device credentials, SQLite databases, and audit logs never go to iCloud") &&
     icloudDataSyncReadinessSource.includes("LIFEOS_CLOUDKIT_CONTAINER_ID") &&
     icloudDataSyncReadinessSource.includes("blockedCloudKitDataTypes") &&
     icloudDataSyncReadinessSource.includes("cloudKitRecordPlans") &&
