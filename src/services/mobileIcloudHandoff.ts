@@ -61,7 +61,7 @@ export type MobileIcloudHandoffEntryFreshness = "fresh" | "stale" | "expired" | 
 export type MobileIcloudHandoffEntryRecommendation = {
   recommendedEntry: MobileIcloudHandoffEntry | null;
   recommendedKey: string;
-  recommendedReason: "none" | "saved-default" | "stable-remote" | "fresh-entry" | "only-entry" | "latest-entry";
+  recommendedReason: "none" | "saved-default" | "stable-remote" | "fresh-entry" | "only-entry" | "latest-entry" | "best-available-entry";
   otherEntries: MobileIcloudHandoffEntry[];
   archivedEntries: MobileIcloudHandoffEntry[];
   preferredEntry: MobileIcloudHandoffEntry | null;
@@ -1063,7 +1063,8 @@ export function getMobileIcloudHandoffEntryRecommendation(
     isLongTermRemoteMobileIcloudHandoffEntry(preferredEntry) || !bestLongTermEntry
   ) ? preferredEntry : null;
   const firstFreshEntry = sortedEntries.find((entry) => isRecommendedMobileIcloudHandoffEntry(entry, now)) || null;
-  const recommendedEntry = usablePreferred || firstFreshEntry || uniqueEntries[0] || null;
+  const bestAvailableEntry = sortedEntries[0] || null;
+  const recommendedEntry = usablePreferred || firstFreshEntry || bestAvailableEntry;
   const recommendedKey = recommendedEntry ? mobileIcloudHandoffEntryKey(recommendedEntry) : "";
   let recommendedReason: MobileIcloudHandoffEntryRecommendation["recommendedReason"] = "none";
   if (recommendedEntry) {
@@ -1071,6 +1072,7 @@ export function getMobileIcloudHandoffEntryRecommendation(
     else if (bestLongTermEntry && mobileIcloudHandoffEntryKey(bestLongTermEntry) === recommendedKey) recommendedReason = "stable-remote";
     else if (isRecommendedMobileIcloudHandoffEntry(recommendedEntry, now)) recommendedReason = "fresh-entry";
     else if (uniqueEntries.length === 1) recommendedReason = "only-entry";
+    else if (bestAvailableEntry && mobileIcloudHandoffEntryKey(bestAvailableEntry) === recommendedKey) recommendedReason = "best-available-entry";
     else recommendedReason = "latest-entry";
   }
   let preferredSwitchReason: MobileIcloudHandoffEntryRecommendation["preferredSwitchReason"] = "none";

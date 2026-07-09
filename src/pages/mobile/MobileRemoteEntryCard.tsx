@@ -37,6 +37,7 @@ const icloudRecommendedReasonKeys: Record<MobileIcloudHandoffEntryRecommendation
   "fresh-entry": "mobileDevice.icloudHandoffRecommendedReasonFresh",
   "only-entry": "mobileDevice.icloudHandoffRecommendedReasonOnly",
   "latest-entry": "mobileDevice.icloudHandoffRecommendedReasonLatest",
+  "best-available-entry": "mobileDevice.icloudHandoffRecommendedReasonBestAvailable",
 };
 
 function icloudEntryFreshnessTone(freshness: keyof typeof icloudEntryFreshnessKeys) {
