@@ -696,6 +696,50 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(JSON.stringify(cloudKitQuarantineList).includes("payloadJson"), false);
   assert.equal(JSON.stringify(cloudKitQuarantineList).includes("serverChangeToken"), false);
   assertPublicApiResponse("cloudKitSyncQuarantineList", cloudKitQuarantineList);
+  const cloudKitTrustDb = new DatabaseSync(path.join(dataDir, "lifeos.db"));
+  const cloudKitTrustNow = Date.now();
+  cloudKitTrustDb.prepare("INSERT INTO cloudkit_device_trust_metadata (device_id_hash, display_name, device_type, trust_state, public_key_fingerprint, access_expires_at, created_at, last_seen_at, revoked_at, mutation_id, logical_clock, source_record_name, source_evidence_id, review_status, access_granted, imported_at, applied_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    .run(
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "Alice iPhone",
+      "mobile",
+      "online",
+      "abcdef0123456789abcdef0123456789",
+      cloudKitTrustNow + 86400000,
+      cloudKitTrustNow - 5000,
+      cloudKitTrustNow,
+      null,
+      "device-trust-api-mut",
+      cloudKitTrustNow,
+      "device:0123456789abcdef01234567",
+      "evidence-device-trust-api",
+      "needs-rebind",
+      0,
+      cloudKitTrustNow,
+      cloudKitTrustNow,
+    );
+  cloudKitTrustDb.close();
+  const blockedCloudKitDeviceTrust = await request(port, "/api/v1/admin/icloud-data-sync/device-trust", {
+    headers: { Authorization: "Bearer invalid-admin-session" },
+  });
+  assert.equal(blockedCloudKitDeviceTrust.status, 401);
+  const cloudKitDeviceTrust = await request(port, "/api/v1/admin/icloud-data-sync/device-trust", { headers: adminHeaders }).then((res) => res.json());
+  assert.equal(cloudKitDeviceTrust.deviceTrust.summary.total, 1);
+  assert.equal(cloudKitDeviceTrust.deviceTrust.summary.needsRebind, 1);
+  assert.equal(cloudKitDeviceTrust.deviceTrust.summary.accessGranted, 0);
+  assert.equal(cloudKitDeviceTrust.deviceTrust.summary.nextAction, "rebind-device");
+  assert.equal(cloudKitDeviceTrust.deviceTrust.summary.rawCredentialReturnedToAdmin, false);
+  assert.equal(cloudKitDeviceTrust.deviceTrust.summary.deviceAccessGrantedFromCloudKit, false);
+  assert.equal(cloudKitDeviceTrust.deviceTrust.items[0].displayName, "Alice iPhone");
+  assert.equal(cloudKitDeviceTrust.deviceTrust.items[0].id, "0123456789abcdef");
+  assert.equal(cloudKitDeviceTrust.deviceTrust.items[0].publicKeyFingerprintShort, "abcdef012345");
+  assert.equal(cloudKitDeviceTrust.deviceTrust.items[0].accessGranted, false);
+  assert.equal(cloudKitDeviceTrust.deviceTrust.items[0].nextAction, "rebind-device");
+  assert.equal(JSON.stringify(cloudKitDeviceTrust).includes("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"), false);
+  assert.equal(JSON.stringify(cloudKitDeviceTrust).includes("abcdef0123456789abcdef0123456789"), false);
+  assert.equal(JSON.stringify(cloudKitDeviceTrust).includes("accessToken"), false);
+  assert.equal(JSON.stringify(cloudKitDeviceTrust).includes("access_token"), false);
+  assertPublicApiResponse("cloudKitDeviceTrust", cloudKitDeviceTrust);
   const blockedCloudKitApplyQuarantineAuth = await request(port, "/api/v1/admin/icloud-data-sync/apply-quarantine", {
     method: "POST",
     body: JSON.stringify({ confirmation: "APPLY_CLOUDKIT_QUARANTINE" }),
@@ -3308,6 +3352,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     { label: "scoped data export", value: scopedDataExport },
     { label: "data cleanup preview", value: cleanupPreviewResponse },
     { label: "data cleanup", value: cleanupResponse },
+    { label: "cloudkit device trust", value: cloudKitDeviceTrust },
     { label: "diagnostic bundle", value: diagnosticBundle },
     { label: "audit logs after exports", value: auditAfterExports },
     { label: "pending restore", value: pendingRestore },

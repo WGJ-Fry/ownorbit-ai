@@ -1493,6 +1493,8 @@ function checkAssets() {
   const cloudKitSyncBatchTestSource = exists("tests/cloudkit-sync-batch.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-sync-batch.test.mjs"), "utf8") : "";
   const cloudKitSyncApplySource = exists("server/cloudKitSyncApply.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitSyncApply.ts"), "utf8") : "";
   const cloudKitSyncApplyTestSource = exists("tests/cloudkit-sync-apply.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-sync-apply.test.mjs"), "utf8") : "";
+  const cloudKitDeviceTrustMetadataSource = exists("server/cloudKitDeviceTrustMetadata.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitDeviceTrustMetadata.ts"), "utf8") : "";
+  const cloudKitDeviceTrustMetadataTestSource = exists("tests/cloudkit-device-trust-metadata.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-device-trust-metadata.test.mjs"), "utf8") : "";
   const cloudKitSyncNowSource = exists("server/cloudKitSyncNow.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitSyncNow.ts"), "utf8") : "";
   const cloudKitSyncNowTestSource = exists("tests/cloudkit-sync-now.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-sync-now.test.mjs"), "utf8") : "";
   const cloudKitSyncUploadNowSource = exists("server/cloudKitSyncUploadNow.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitSyncUploadNow.ts"), "utf8") : "";
@@ -2093,6 +2095,14 @@ function checkAssets() {
     cloudKitSyncApplyTestSource.includes("auto task apply refuses to overwrite an existing task") &&
     cloudKitSyncApplyTestSource.includes("device trust apply stores metadata without granting device access") &&
     cloudKitSyncApplyTestSource.includes("device trust apply rejects raw public key payloads") &&
+    cloudKitDeviceTrustMetadataSource.includes("listCloudKitDeviceTrustMetadata") &&
+    cloudKitDeviceTrustMetadataSource.includes("Bind this device again before it can access this LifeOS computer") &&
+    cloudKitDeviceTrustMetadataSource.includes("rawCredentialReturnedToAdmin: false") &&
+    cloudKitDeviceTrustMetadataSource.includes("deviceAccessGrantedFromCloudKit: false") &&
+    cloudKitDeviceTrustMetadataTestSource.includes("shows rebind guidance without granting access") &&
+    apiAuthTestSource.includes("/api/v1/admin/icloud-data-sync/device-trust") &&
+    apiAuthTestSource.includes("cloudKitDeviceTrust.deviceTrust.summary.deviceAccessGrantedFromCloudKit, false") &&
+    packageJson.scripts?.test?.includes("tests/cloudkit-device-trust-metadata.test.mjs") &&
     cloudKitSyncApplyTestSource.includes("blocks checkpoint promotion") &&
     cloudKitSyncNowSource.includes("SYNC_CLOUDKIT_NOW") &&
     cloudKitSyncNowSource.includes("runCloudKitSyncNow") &&
@@ -4398,6 +4408,7 @@ function checkReleaseDocs() {
       "LifeOSDeviceTrustZone",
       "cloudkit_device_trust_metadata",
       "access_granted = 0",
+      "GET /api/v1/admin/icloud-data-sync/device-trust",
       "access token、token hash、私钥",
       "Native Helper Contract",
       "lifeos-cloudkit-helper-request.v1",

@@ -277,6 +277,14 @@ POST /api/v1/admin/icloud-data-sync/apply-quarantine
 
 The list endpoint returns only review metadata: zone, record type, record name, status, mutation id, content hash, byte size, timestamps, and whether a payload exists locally. It never returns `payloadJson`, raw CloudKit server change tokens, helper stdin, local file paths, device credentials, AI provider keys, or session material.
 
+The device trust inventory endpoint is separate:
+
+```text
+GET /api/v1/admin/icloud-data-sync/device-trust
+```
+
+It returns only safe metadata from `cloudkit_device_trust_metadata`: display name, device type, trust state, a short public-key fingerprint, review status, and one next action such as `rebind-device`. It does not return full device hashes, raw public keys, access tokens, token hashes, or any material that could authenticate a device. `access_granted` remains false until the device completes the normal binding flow.
+
 The apply endpoint requires explicit confirmation:
 
 ```text
@@ -393,6 +401,8 @@ Do not claim end-user-ready, fully automatic iCloud data sync until all of this 
 当前还新增了隔离导入接口：`/api/v1/admin/icloud-data-sync/import-quarantine`。它要求显式确认 `IMPORT_CLOUDKIT_CHANGES`，由原生 helper 读取 CloudKit 变更正文，然后只写入本机 `cloudkit_sync_quarantine` 表等待冲突审核。API 响应不会返回 `payloadJson` 或原始 server change token，也不会直接改聊天、记忆、任务或生成程序状态。候选 token 仍不会升级为 applied token，直到后续“审核并应用”步骤真正写入 SQLite 并完成回滚证据。
 
 当前 apply 阶段可以自动落库追加型聊天消息、新普通记忆和新任务；已有本地记录、敏感记忆、删除/tombstone、未知记录和 secret-like payload 都会留在隔离区等待人工复核。设备信任记录只允许同步设备名、类型、信任状态、公钥指纹和时间戳，并且只会写入 `cloudkit_device_trust_metadata`，状态固定为 `needs-rebind`、`access_granted = 0`；它不会同步 access token、token hash、私钥，也不会自动授予本机访问权限。
+
+当前还新增了设备信任安全盘点接口：`GET /api/v1/admin/icloud-data-sync/device-trust`。它只返回设备名、类型、信任状态、公钥指纹短码、审核状态和下一步动作，例如“重新绑定这台设备”；不会返回完整设备 hash、原始公钥、access token、token hash 或任何可登录材料。
 
 当前还新增了审核应用接口：`GET /api/v1/admin/icloud-data-sync/quarantine` 只返回隔离区摘要，`POST /api/v1/admin/icloud-data-sync/apply-quarantine` 需要显式确认 `APPLY_CLOUDKIT_QUARANTINE`。应用前会创建 SQLite 备份，只自动写入已识别且无冲突的聊天、消息、普通记忆、任务和已存在生成程序状态；硬删除、敏感记忆、未知记录、疑似密钥或本地更新较新的记录会继续留在隔离区。只有某个 zone 没有未解决隔离项时，才会把 pending CloudKit checkpoint 推进为 applied checkpoint。
 

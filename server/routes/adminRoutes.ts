@@ -35,6 +35,7 @@ import { runCloudKitNativeHelper, type CloudKitNativeHelperOperation } from "../
 import { buildCloudKitSyncBatchPreview, buildCloudKitSyncExportPackage, CLOUDKIT_SYNC_EXPORT_CONFIRMATION, summarizeCloudKitSyncExportPackage } from "../cloudKitSyncBatch";
 import { CLOUDKIT_SYNC_IMPORT_CONFIRMATION, getCloudKitSyncQuarantineSummary, getCloudKitSyncStateSnapshot, listCloudKitSyncCheckpoints, publicCloudKitHelperResult, saveCloudKitSyncChangesPreview, saveCloudKitSyncImportQuarantine } from "../cloudKitSyncState";
 import { applyCloudKitSyncQuarantine, CLOUDKIT_SYNC_APPLY_CONFIRMATION, listCloudKitSyncQuarantineItems } from "../cloudKitSyncApply";
+import { listCloudKitDeviceTrustMetadata } from "../cloudKitDeviceTrustMetadata";
 import { CLOUDKIT_SYNC_NOW_CONFIRMATION, runCloudKitSyncNow } from "../cloudKitSyncNow";
 import { CLOUDKIT_SYNC_UPLOAD_NOW_CONFIRMATION, runCloudKitSyncUploadNow } from "../cloudKitSyncUploadNow";
 import { CLOUDKIT_SYNC_CYCLE_CONFIRMATION, runCloudKitSyncCycle } from "../cloudKitSyncCycle";
@@ -1187,6 +1188,42 @@ export function registerAdminRoutes(app: express.Express) {
       res.status(400).json({
         error: error.message || "CloudKit sync quarantine view failed",
         quarantine: { items: [], summary: getCloudKitSyncQuarantineSummary(), checkpoints: listCloudKitSyncCheckpoints() },
+        diagnostics: getAdminNetworkDiagnostics(),
+      });
+    }
+  });
+
+  app.get("/api/v1/admin/icloud-data-sync/device-trust", requireAdmin, rateLimit({ keyPrefix: "admin-cloudkit-device-trust", windowMs: 60_000, max: 20 }), (req, res) => {
+    try {
+      const deviceTrust = listCloudKitDeviceTrustMetadata({ limit: normalizeCloudKitBatchLimit(req.query.limit) || 50 });
+      insertAuditLog("icloud_cloudkit_device_trust_viewed", "network", "cloudkit-device-trust", {
+        itemCount: deviceTrust.items.length,
+        needsRebind: deviceTrust.summary.needsRebind,
+        revoked: deviceTrust.summary.revoked,
+        accessGranted: deviceTrust.summary.accessGranted,
+        rawCredentialReturnedToAdmin: false,
+        deviceAccessGrantedFromCloudKit: false,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.json({ deviceTrust, diagnostics: getAdminNetworkDiagnostics() });
+    } catch (error: any) {
+      insertAuditLog("icloud_cloudkit_device_trust_view_failed", "network", "cloudkit-device-trust", {
+        error: error?.message || "CloudKit device trust view failed",
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(400).json({
+        error: error.message || "CloudKit device trust view failed",
+        deviceTrust: {
+          items: [],
+          summary: {
+            total: 0,
+            needsRebind: 0,
+            revoked: 0,
+            accessGranted: 0,
+            newestAppliedAt: null,
+            nextAction: "none",
+            rawCredentialReturnedToAdmin: false,
+            deviceAccessGrantedFromCloudKit: false,
+          },
+        },
         diagnostics: getAdminNetworkDiagnostics(),
       });
     }
