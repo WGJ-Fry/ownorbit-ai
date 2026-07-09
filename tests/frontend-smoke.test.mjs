@@ -1066,6 +1066,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(cloudKitAutoSyncCardSource, /onboarding-icloud-data-sync-auto-next-action/);
   assert.match(cloudKitAutoSyncCardSource, /data-cloudkit-auto-sync-next-action/);
   assert.match(cloudKitAutoSyncCardSource, /onboarding-icloud-data-sync-auto-next-action-button/);
+  assert.match(cloudKitAutoSyncCardSource, /onboarding-icloud-data-sync-auto-pending-local/);
+  assert.match(cloudKitAutoSyncCardSource, /pendingLocalChanges/);
   assert.match(cloudKitAutoSyncCardSource, /handleLastResultNextAction/);
   assert.match(cloudKitAutoSyncCardSource, /review-conflicts/);
   assert.match(cloudKitAutoSyncCardSource, /review-blocked-records/);
@@ -1104,6 +1106,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Background push subscription/);
   assert.match(translationsSource, /自动同步聊天、记忆和任务/);
   assert.match(translationsSource, /Auto-sync chats, memories, and tasks/);
+  assert.match(translationsSource, /local change\(s\) are waiting to sync/);
   assert.match(translationsSource, /不会静默覆盖本机数据/);
   assert.match(translationsSource, /instead of silently overwriting local data/);
   assert.match(translationsSource, /先查看同步冲突/);

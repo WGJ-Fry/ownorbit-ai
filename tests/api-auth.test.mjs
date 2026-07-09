@@ -2281,6 +2281,17 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   });
   assert.equal(deletedMemory.status, 200);
 
+  const cloudKitAutoSyncAfterLocalChanges = await request(port, "/api/v1/admin/icloud-data-sync/auto-sync", { headers: adminHeaders }).then((res) => res.json());
+  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.total, 4);
+  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.byType["chat-history"], 1);
+  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.byType.memory, 3);
+  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.rawPayloadStored, false);
+  assert.equal(typeof cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.nextSuggestedRunAt, "number");
+  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.nextRunAt <= cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.nextSuggestedRunAt, true);
+  assert.equal(JSON.stringify(cloudKitAutoSyncAfterLocalChanges).includes("Hello from mobile"), false);
+  assert.equal(JSON.stringify(cloudKitAutoSyncAfterLocalChanges).includes("Updated memory"), false);
+  assertPublicApiResponse("cloudKitAutoSyncAfterLocalChanges", cloudKitAutoSyncAfterLocalChanges);
+
   const unauthProblemBlueprints = await request(port, "/api/v1/problem-blueprints");
   assert.equal(unauthProblemBlueprints.status, 401);
   const unauthCustomApps = await request(port, "/api/v1/custom-apps");

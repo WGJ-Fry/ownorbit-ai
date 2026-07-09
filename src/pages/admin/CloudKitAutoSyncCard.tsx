@@ -101,9 +101,16 @@ export default function CloudKitAutoSyncCard({ dataSyncReady, onDiagnostics }: P
   const enabled = Boolean(schedule?.enabled);
   const intervalMinutes = schedule?.intervalMinutes || 30;
   const lastResult = schedule?.lastResult;
+  const pendingLocalChanges = schedule?.pendingLocalChanges;
   const lastResultNextAction = lastResult ? autoSyncNextActionKeys[lastResult.nextAction] || autoSyncNextActionKeys.retry : null;
   const nextRunAt = formatTime(schedule?.nextRunAt);
+  const pendingNextRunAt = formatTime(pendingLocalChanges?.nextSuggestedRunAt);
   const lastRunAt = formatTime(schedule?.lastRunAt);
+  const pendingTypeSummary = pendingLocalChanges
+    ? Object.entries(pendingLocalChanges.byType)
+      .map(([type, count]) => `${type}: ${count}`)
+      .join(", ")
+    : "";
   const statusTone = enabled
     ? "border-emerald-300/20 bg-emerald-500/10 text-emerald-50"
     : dataSyncReady
@@ -219,6 +226,12 @@ export default function CloudKitAutoSyncCard({ dataSyncReady, onDiagnostics }: P
           {message ? (
             <div className="mt-2 rounded-lg border border-current/10 bg-black/10 px-2 py-1 font-bold">
               {message}
+            </div>
+          ) : null}
+          {pendingLocalChanges?.total ? (
+            <div data-testid="onboarding-icloud-data-sync-auto-pending-local" className="mt-2 rounded-lg border border-current/10 bg-black/10 p-2 text-[10px] font-bold">
+              <div>{t("onboarding.appleRemoteIcloudDataSyncAutoPendingLocal", { count: pendingLocalChanges.total, types: pendingTypeSummary || "-" })}</div>
+              {pendingNextRunAt ? <div className="mt-1 opacity-80">{t("onboarding.appleRemoteIcloudDataSyncAutoPendingNext", { time: pendingNextRunAt })}</div> : null}
             </div>
           ) : null}
           {lastResult ? (

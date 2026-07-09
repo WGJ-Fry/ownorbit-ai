@@ -1,7 +1,8 @@
 import type express from "express";
 import { insertAuditLog } from "../audit";
 import { requireActor } from "../auth";
-import { createChatSession, getChatSession, getChatSessions, getMessages, insertMessage } from "../chat";
+import { createChatSession, getChatSession, getChatSessions, getExistingMessageForSyncMetadata, getMessages, insertMessage } from "../chat";
+import { noteCloudKitLocalChange } from "../cloudKitAutoSyncSchedule";
 import { broadcastRealtime } from "../realtime";
 
 export function registerChatRoutes(app: express.Express) {
@@ -31,7 +32,11 @@ export function registerChatRoutes(app: express.Express) {
       return res.status(400).json({ error: "Invalid message role" });
     }
 
+    const existingMessage = getExistingMessageForSyncMetadata(req.params.sessionId, metadata);
     const message = insertMessage(req.params.sessionId, role, content, sourceDeviceId, metadata);
+    if (!existingMessage) {
+      noteCloudKitLocalChange("chat-history", { type: (req as any).actor?.type || "actor", id: (req as any).actor?.id || "unknown" });
+    }
     broadcastRealtime({
       type: "message.created",
       sessionId: req.params.sessionId,

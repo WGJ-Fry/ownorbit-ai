@@ -1711,6 +1711,14 @@ export type CloudKitAutoSyncSchedule = {
   nextRunAt?: number;
   updatedAt?: number;
   lastResult?: CloudKitAutoSyncLastResult;
+  pendingLocalChanges?: {
+    total: number;
+    byType: Record<string, number>;
+    firstChangedAt: number;
+    lastChangedAt: number;
+    nextSuggestedRunAt: number;
+    rawPayloadStored: false;
+  };
 };
 
 export type CloudKitSyncBatchPreview = {

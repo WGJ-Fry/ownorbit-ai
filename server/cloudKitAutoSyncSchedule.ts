@@ -8,6 +8,8 @@ const CLOUDKIT_AUTO_SYNC_STATE_KEY = "lifeos_cloudkit_auto_sync_schedule";
 const DEFAULT_INTERVAL_MINUTES = 120;
 const MIN_INTERVAL_MINUTES = 15;
 const MAX_INTERVAL_MINUTES = 7 * 24 * 60;
+const LOCAL_CHANGE_SYNC_DELAY_MS = 60 * 1000;
+const safeLocalChangeTypes = new Set(["chat-history", "memory", "tasks", "generated-app-state", "device-trust"]);
 
 let schedulerTimer: NodeJS.Timeout | undefined;
 let schedulerStarted = false;
@@ -20,6 +22,16 @@ export type CloudKitAutoSyncSchedule = {
   nextRunAt?: number;
   updatedAt?: number;
   lastResult?: CloudKitAutoSyncLastResult;
+  pendingLocalChanges?: CloudKitAutoSyncPendingLocalChanges;
+};
+
+export type CloudKitAutoSyncPendingLocalChanges = {
+  total: number;
+  byType: Record<string, number>;
+  firstChangedAt: number;
+  lastChangedAt: number;
+  nextSuggestedRunAt: number;
+  rawPayloadStored: false;
 };
 
 export type CloudKitAutoSyncLastResult = {
@@ -58,12 +70,18 @@ function computeNextRun(now: number, intervalMinutes: number, lastRunAt?: number
   return (lastRunAt || now) + intervalMinutes * 60 * 1000;
 }
 
+function preferPendingLocalChangeRunAt(nextRunAt: number | undefined, pending?: CloudKitAutoSyncPendingLocalChanges) {
+  if (!pending?.nextSuggestedRunAt) return nextRunAt;
+  return Math.min(nextRunAt || pending.nextSuggestedRunAt, pending.nextSuggestedRunAt);
+}
+
 function normalizeSchedule(value: any): CloudKitAutoSyncSchedule {
   const intervalMinutes = normalizeIntervalMinutes(value?.intervalMinutes);
   const lastRunAt = Number.isFinite(Number(value?.lastRunAt)) ? Number(value.lastRunAt) : undefined;
   const nextRunAt = Number.isFinite(Number(value?.nextRunAt)) ? Number(value.nextRunAt) : undefined;
   const updatedAt = Number.isFinite(Number(value?.updatedAt)) ? Number(value.updatedAt) : undefined;
   const lastResult = normalizeLastResult(value?.lastResult);
+  const pendingLocalChanges = normalizePendingLocalChanges(value?.pendingLocalChanges);
   return {
     enabled: Boolean(value?.enabled),
     intervalMinutes,
@@ -71,6 +89,32 @@ function normalizeSchedule(value: any): CloudKitAutoSyncSchedule {
     nextRunAt,
     updatedAt,
     lastResult,
+    pendingLocalChanges,
+  };
+}
+
+function normalizePendingLocalChanges(value: any): CloudKitAutoSyncPendingLocalChanges | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const firstChangedAt = Number(value.firstChangedAt || 0);
+  const lastChangedAt = Number(value.lastChangedAt || 0);
+  const nextSuggestedRunAt = Number(value.nextSuggestedRunAt || 0);
+  if (!Number.isFinite(firstChangedAt) || !Number.isFinite(lastChangedAt) || !Number.isFinite(nextSuggestedRunAt)) return undefined;
+  if (firstChangedAt <= 0 || lastChangedAt <= 0 || nextSuggestedRunAt <= 0) return undefined;
+  const byType: Record<string, number> = {};
+  for (const [type, count] of Object.entries(value.byType || {})) {
+    if (!safeLocalChangeTypes.has(type)) continue;
+    const normalizedCount = Number(count || 0);
+    if (Number.isFinite(normalizedCount) && normalizedCount > 0) byType[type] = Math.min(100_000, Math.floor(normalizedCount));
+  }
+  const total = Object.values(byType).reduce((sum, count) => sum + count, 0);
+  if (total <= 0) return undefined;
+  return {
+    total,
+    byType,
+    firstChangedAt,
+    lastChangedAt,
+    nextSuggestedRunAt,
+    rawPayloadStored: false,
   };
 }
 
@@ -172,9 +216,10 @@ export function updateCloudKitAutoSyncSchedule(input: Partial<CloudKitAutoSyncSc
     intervalMinutes: normalizeIntervalMinutes(input.intervalMinutes ?? previous.intervalMinutes),
     lastRunAt: input.lastRunAt ?? previous.lastRunAt,
     lastResult: input.lastResult ?? previous.lastResult,
+    pendingLocalChanges: input.pendingLocalChanges ?? previous.pendingLocalChanges,
     updatedAt: now,
   };
-  next.nextRunAt = next.enabled ? computeNextRun(now, next.intervalMinutes, next.lastRunAt) : undefined;
+  next.nextRunAt = next.enabled ? preferPendingLocalChangeRunAt(computeNextRun(now, next.intervalMinutes, next.lastRunAt), next.pendingLocalChanges) : undefined;
   persistSchedule(next, actor);
   insertAuditLog("icloud_cloudkit_auto_sync_schedule_updated", "network", "cloudkit-auto-sync", {
     enabled: next.enabled,
@@ -182,6 +227,50 @@ export function updateCloudKitAutoSyncSchedule(input: Partial<CloudKitAutoSyncSc
     nextRunAt: next.nextRunAt || null,
     manualOnlyUntilEnabled: !next.enabled,
   }, actor?.type || "system", actor?.id);
+  return next;
+}
+
+export function noteCloudKitLocalChange(
+  dataType: "chat-history" | "memory" | "tasks" | "generated-app-state" | "device-trust",
+  actor?: { type: string; id: string },
+  now = Date.now(),
+) {
+  if (!safeLocalChangeTypes.has(dataType)) return getCloudKitAutoSyncSchedule();
+  const previous = getCloudKitAutoSyncSchedule();
+  const pending = previous.pendingLocalChanges || {
+    total: 0,
+    byType: {},
+    firstChangedAt: now,
+    lastChangedAt: now,
+    nextSuggestedRunAt: now + LOCAL_CHANGE_SYNC_DELAY_MS,
+    rawPayloadStored: false as const,
+  };
+  const nextSuggestedRunAt = now + LOCAL_CHANGE_SYNC_DELAY_MS;
+  const next: CloudKitAutoSyncSchedule = {
+    ...previous,
+    pendingLocalChanges: {
+      total: Math.min(100_000, pending.total + 1),
+      byType: {
+        ...pending.byType,
+        [dataType]: Math.min(100_000, (pending.byType[dataType] || 0) + 1),
+      },
+      firstChangedAt: pending.firstChangedAt || now,
+      lastChangedAt: now,
+      nextSuggestedRunAt,
+      rawPayloadStored: false,
+    },
+    nextRunAt: previous.enabled ? Math.min(previous.nextRunAt || nextSuggestedRunAt, nextSuggestedRunAt) : previous.nextRunAt,
+    updatedAt: now,
+  };
+  persistSchedule(next, actor);
+  insertAuditLog("icloud_cloudkit_auto_sync_local_change_noted", "network", "cloudkit-auto-sync", {
+    dataType,
+    pendingTotal: next.pendingLocalChanges?.total || 0,
+    nextSuggestedRunAt,
+    nextRunAt: next.nextRunAt || null,
+    enabled: next.enabled,
+    rawPayloadStored: false,
+  }, actor?.type || "system", actor?.id || "cloudkit-auto-sync");
   return next;
 }
 
@@ -247,6 +336,7 @@ export async function runCloudKitAutoSyncNow(
       nextRunAt: schedule.enabled ? computeNextRun(startedAt, schedule.intervalMinutes, startedAt) : undefined,
       updatedAt: startedAt,
       lastResult,
+      pendingLocalChanges: cycle.ok ? undefined : schedule.pendingLocalChanges,
     };
     persistSchedule(nextSchedule, actor || { type: "system", id: "cloudkit-auto-sync" });
     insertAuditLog("icloud_cloudkit_auto_sync_run", "network", "cloudkit-auto-sync", {

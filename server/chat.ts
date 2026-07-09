@@ -77,6 +77,11 @@ function getMessageByIdempotencyKey(sessionId: string, idempotencyKey?: string |
   return row ? mapMessageRow(row) : null;
 }
 
+export function getExistingMessageForSyncMetadata(sessionId: string, metadata?: ChatMessageSyncMetadata) {
+  const syncMetadata = normalizeMessageSyncMetadata(metadata);
+  return getMessageByIdempotencyKey(sessionId, syncMetadata.idempotencyKey);
+}
+
 export function insertMessage(sessionId: string, role: string, contentJson: unknown, sourceDeviceId?: string, metadata?: ChatMessageSyncMetadata) {
   const now = Date.now();
   const syncMetadata = normalizeMessageSyncMetadata(metadata);

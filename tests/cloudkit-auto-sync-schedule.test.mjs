@@ -142,3 +142,100 @@ test("CloudKit auto sync records a single setup action when native data sync is 
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("CloudKit auto sync tracks local changes without storing payloads and clears them after a safe cycle", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-auto-sync-dirty-"));
+  try {
+    const script = `
+      const { runMigrations } = await import("./server/migrations.ts");
+      runMigrations();
+      const scheduleModule = await import("./server/cloudKitAutoSyncSchedule.ts");
+      const auditModule = await import("./server/audit.ts");
+      const now = 1700000000000;
+      const calls = [];
+      const readyReadiness = {
+        enabled: true,
+        ready: true,
+        status: "ready-to-test",
+        dataSyncScope: "cloudkit-native-candidate",
+      };
+      const fakeRunCycle = async () => {
+        calls.push("cycle");
+        return {
+          ok: true,
+          status: "completed",
+          nextAction: "done",
+          startedAt: now + 61_000,
+          finishedAt: now + 61_025,
+          limit: 100,
+          pull: {
+            ok: true,
+            status: "applied",
+            nextAction: "done",
+            startedAt: now + 61_000,
+            finishedAt: now + 61_010,
+            limit: 100,
+            changes: { result: { status: "passed" }, savedCheckpointCount: 1, checkpoints: [] },
+            apply: { attempted: 1, applied: 1, manualReviewRequired: 0, conflicts: 0, failed: 0, skipped: 0, promotedZones: ["LifeOSChatZone"], blockedZones: [], records: [], summary: {}, checkpoints: [] },
+            quarantine: { summary: {}, checkpoints: [] },
+            backups: [],
+            safety: { rawPayloadReturnedToAdmin: false, cloudKitChangeTokenReturnedToAdmin: false, appliesOnlyConflictFreeRecords: true },
+          },
+          upload: {
+            ok: true,
+            status: "uploaded",
+            nextAction: "done",
+            startedAt: now + 61_010,
+            finishedAt: now + 61_025,
+            limit: 100,
+            export: { exportRecordCount: 2 },
+            result: { syncExport: { saved: 2 } },
+            safety: { rawPayloadReturnedToAdmin: false, rawPayloadSentOnlyToNativeHelper: true, localBackupPathReturnedToAdmin: false, requiresExplicitConfirmation: true },
+          },
+          safety: { rawPayloadReturnedToAdmin: false, cloudKitChangeTokenReturnedToAdmin: false, localBackupPathReturnedToAdmin: false, uploadRunsOnlyAfterConflictFreePull: true },
+        };
+      };
+
+      const enabled = scheduleModule.updateCloudKitAutoSyncSchedule({
+        enabled: true,
+        intervalMinutes: 120,
+        lastRunAt: now,
+      }, { type: "admin", id: "owner" });
+      const afterChat = scheduleModule.noteCloudKitLocalChange("chat-history", { type: "admin", id: "owner" }, now + 1000);
+      const afterMemory = scheduleModule.noteCloudKitLocalChange("memory", { type: "admin", id: "owner" }, now + 2000);
+      const tooEarly = await scheduleModule.runDueCloudKitAutoSync(now + 30_000, { getReadiness: () => readyReadiness, runCycle: fakeRunCycle });
+      const due = await scheduleModule.runDueCloudKitAutoSync(now + 61_000, { getReadiness: () => readyReadiness, runCycle: fakeRunCycle });
+      const after = scheduleModule.getCloudKitAutoSyncSchedule();
+      const audits = auditModule.listAuditLogs(20).map((log) => ({ action: log.action, metadata: log.metadata }));
+      process.stdout.write(JSON.stringify({ enabled, afterChat, afterMemory, tooEarly, due, after, calls, audits }));
+    `;
+    const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
+      cwd: rootDir,
+      env: {
+        ...process.env,
+        LIFEOS_DATA_DIR: path.join(dir, "data"),
+      },
+      encoding: "utf8",
+      maxBuffer: 1024 * 1024,
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const data = JSON.parse(result.stdout);
+    assert.equal(data.enabled.nextRunAt, 1700000000000 + 120 * 60 * 1000);
+    assert.equal(data.afterChat.pendingLocalChanges.total, 1);
+    assert.equal(data.afterChat.pendingLocalChanges.byType["chat-history"], 1);
+    assert.equal(data.afterChat.pendingLocalChanges.rawPayloadStored, false);
+    assert.equal(data.afterChat.nextRunAt, 1700000000000 + 1000 + 60 * 1000);
+    assert.equal(data.afterMemory.pendingLocalChanges.total, 2);
+    assert.equal(data.afterMemory.pendingLocalChanges.byType.memory, 1);
+    assert.equal(data.afterMemory.nextRunAt, data.afterChat.nextRunAt);
+    assert.equal(data.tooEarly, null);
+    assert.deepEqual(data.calls, ["cycle"]);
+    assert.equal(data.due.skipped, false);
+    assert.equal(data.due.lastResult.status, "completed");
+    assert.equal(data.after.pendingLocalChanges, undefined);
+    assert.equal(JSON.stringify(data.afterChat).includes("hello from cloudkit"), false);
+    assert.ok(data.audits.some((log) => log.action === "icloud_cloudkit_auto_sync_local_change_noted" && log.metadata.rawPayloadStored === false));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

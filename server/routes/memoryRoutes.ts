@@ -1,6 +1,7 @@
 import type express from "express";
 import { insertAuditLog } from "../audit";
 import { requireActor } from "../auth";
+import { noteCloudKitLocalChange } from "../cloudKitAutoSyncSchedule";
 import { getMemories, insertMemory, softDeleteMemory, updateMemory } from "../memories";
 import { broadcastRealtime } from "../realtime";
 
@@ -16,6 +17,7 @@ export function registerMemoryRoutes(app: express.Express) {
     }
 
     const memory = insertMemory(title, content, sensitivity === "sensitive" ? "sensitive" : "normal");
+    noteCloudKitLocalChange("memory", { type: (req as any).actor?.type || "actor", id: (req as any).actor?.id || "unknown" });
     insertAuditLog("memory_created", "memory", memory.id, { title: memory.title });
     broadcastRealtime({ type: "memory.created", memory, timestamp: memory.createdAt });
     res.json({ memory });
@@ -26,6 +28,7 @@ export function registerMemoryRoutes(app: express.Express) {
     if (!memory) return res.status(404).json({ error: "Memory not found" });
 
     insertAuditLog("memory_updated", "memory", memory.id, { title: memory.title });
+    noteCloudKitLocalChange("memory", { type: (req as any).actor?.type || "actor", id: (req as any).actor?.id || "unknown" });
     broadcastRealtime({ type: "memory.updated", memory, timestamp: memory.updatedAt });
     res.json({ memory });
   });
@@ -35,6 +38,7 @@ export function registerMemoryRoutes(app: express.Express) {
     if (!memory) return res.status(404).json({ error: "Memory not found" });
 
     insertAuditLog("memory_deleted", "memory", memory.id, { title: memory.title });
+    noteCloudKitLocalChange("memory", { type: (req as any).actor?.type || "actor", id: (req as any).actor?.id || "unknown" });
     broadcastRealtime({ type: "memory.deleted", memoryId: memory.id, timestamp: memory.deletedAt });
     res.json({ ok: true });
   });
