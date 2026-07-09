@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, Tray, clipboard, dialog, ipcMain, nativeImage, powerMonitor, shell } = require("electron");
+const { app, BrowserWindow, Menu, Tray, Notification, clipboard, dialog, ipcMain, nativeImage, powerMonitor, shell } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const crypto = require("crypto");
 const fs = require("fs");
@@ -15,12 +15,17 @@ let desktopLogPath = "";
 let desktopInternalToken = "";
 let desktopPowerMonitorRegistered = false;
 let lastDesktopWakeIcloudRefreshAt = 0;
+let lastDesktopStatusNotificationKey = "";
+let lastDesktopStatusNotificationAt = 0;
 let desktopShellStatus = {
   core: "starting",
   coreLabel: "Local core starting",
   adminLabel: "Admin status unknown",
   aiLabel: "AI status unknown",
   deviceLabel: "Device status unknown",
+  remoteLabel: "Remote status unknown",
+  icloudLabel: "iCloud status unknown",
+  statusAlert: null,
   url: "",
   updatedAt: null,
 };
@@ -39,6 +44,7 @@ const chromiumUnsafePorts = new Set([
   540, 548, 554, 556, 563, 587, 601, 636, 989, 990, 993, 995, 1719, 1720, 1723, 2049, 3659, 4045, 5060, 5061, 6000,
   6566, 6665, 6666, 6667, 6668, 6669, 6697, 10080,
 ]);
+const desktopStatusNotificationCooldownMs = 30 * 60 * 1000;
 
 if (process.env.LIFEOS_DESKTOP_USER_DATA_DIR) {
   app.setPath("userData", path.resolve(process.env.LIFEOS_DESKTOP_USER_DATA_DIR));
@@ -488,6 +494,13 @@ function postLocalJson(pathname, body = {}, headers = {}) {
   });
 }
 
+async function fetchDesktopInternalNetworkSummary(reason = "desktop-tray") {
+  const response = await postLocalJson("/api/v1/internal/desktop/network-summary", { reason }, {
+    "X-LifeOS-Desktop-Token": ensureDesktopInternalToken(),
+  });
+  return response.ok ? response.body : null;
+}
+
 function publicHealthSnapshot(health) {
   if (!health || typeof health !== "object") return null;
   return {
@@ -519,7 +532,7 @@ function publicAdminStatusSnapshot(status) {
   };
 }
 
-function summarizeDesktopShellStatus(health, adminStatus) {
+function summarizeDesktopShellStatus(health, adminStatus, networkSummary = null) {
   const deviceCount = Number.isFinite(Number(health?.deviceCount)) ? Number(health.deviceCount) : 0;
   const onlineDeviceCount = Number.isFinite(Number(health?.onlineDeviceCount)) ? Number(health.onlineDeviceCount) : 0;
   const adminLabel = adminStatus?.configured
@@ -527,12 +540,19 @@ function summarizeDesktopShellStatus(health, adminStatus) {
       ? "First-run guide pending"
       : "Admin configured"
     : "Admin not configured";
+  const remoteSeverity = networkSummary?.remote?.severity || "";
+  const remoteStatus = networkSummary?.remote?.status || "";
+  const icloudSeverity = networkSummary?.icloud?.severity || "";
+  const icloudStatus = networkSummary?.icloud?.status || "";
   return {
     core: health?.ok ? "healthy" : "unreachable",
     coreLabel: health?.ok ? `Local core healthy · ${health.networkMode === "lan" ? "LAN" : "Local"}` : "Local core unreachable",
     adminLabel,
     aiLabel: health?.aiConfigured ? "AI configured" : "AI not configured",
     deviceLabel: `Devices ${onlineDeviceCount}/${deviceCount} online`,
+    remoteLabel: remoteStatus ? `Remote ${remoteSeverity === "ok" ? "ready" : "needs attention"} · ${remoteStatus}` : "Remote status unknown",
+    icloudLabel: icloudStatus ? `iCloud ${icloudSeverity === "ok" ? "ready" : "needs attention"} · ${icloudStatus}` : "iCloud status unknown",
+    statusAlert: networkSummary?.alert || null,
     url: localUrl("/admin/login"),
     updatedAt: Date.now(),
   };
@@ -546,6 +566,9 @@ function publicDesktopShellStatus() {
     adminLabel: desktopShellStatus.adminLabel,
     aiLabel: desktopShellStatus.aiLabel,
     deviceLabel: desktopShellStatus.deviceLabel,
+    remoteLabel: desktopShellStatus.remoteLabel,
+    icloudLabel: desktopShellStatus.icloudLabel,
+    statusAlert: desktopShellStatus.statusAlert,
     url: desktopShellStatus.url || localUrl("/admin/login"),
     updatedAt: desktopShellStatus.updatedAt,
     updateLabel: desktopUpdateLabel(),
@@ -619,12 +642,13 @@ function readReleaseSnapshot() {
 async function createDesktopDiagnosticBundle() {
   const logStat = desktopLogPath && fs.existsSync(desktopLogPath) ? fs.statSync(desktopLogPath) : null;
   desktopUpdateStatus = validateDesktopUpdateUrl(process.env.LIFEOS_UPDATE_URL);
-  const [healthResult, adminStatusResult] = await Promise.all([
+  const [healthResult, adminStatusResult, networkSummary] = await Promise.all([
     fetchLocalJson("/api/v1/health"),
     fetchLocalJson("/api/v1/admin/status"),
+    fetchDesktopInternalNetworkSummary("desktop-diagnostics"),
   ]);
   if (healthResult.ok) {
-    desktopShellStatus = summarizeDesktopShellStatus(healthResult.body, adminStatusResult.ok ? adminStatusResult.body : null);
+    desktopShellStatus = summarizeDesktopShellStatus(healthResult.body, adminStatusResult.ok ? adminStatusResult.body : null, networkSummary);
   }
   return {
     generatedAt: new Date().toISOString(),
@@ -789,15 +813,23 @@ function copyLocalAddress() {
 }
 
 function buildTrayMenu() {
+  const statusAlert = desktopShellStatus.statusAlert;
   return Menu.buildFromTemplate([
     { label: "LifeOS AI", enabled: false },
     { label: desktopShellStatus.coreLabel, enabled: false },
     { label: desktopShellStatus.adminLabel, enabled: false },
     { label: desktopShellStatus.aiLabel, enabled: false },
     { label: desktopShellStatus.deviceLabel, enabled: false },
+    { label: desktopShellStatus.icloudLabel, enabled: false },
+    { label: desktopShellStatus.remoteLabel, enabled: false },
     { label: desktopUpdateLabel(), enabled: false },
     { label: `Local port ${serverPort}`, enabled: false },
     { type: "separator" },
+    ...(statusAlert ? [
+      { label: `Needs attention: ${statusAlert.title}`, enabled: false },
+      { label: statusAlert.actionLabel || "Open Repair Guide", click: () => showPreferredAdminWindow(statusAlert.path || "/admin/onboarding") },
+      { type: "separator" },
+    ] : []),
     { label: "Open Console", click: () => showPreferredAdminWindow("/admin/dashboard") },
     { label: "First Launch Guide", click: () => showMainWindow("/admin/onboarding") },
     { label: "Pair Phone", click: () => showMainWindow("/admin/devices/pair") },
@@ -814,19 +846,40 @@ function buildTrayMenu() {
 
 function updateTrayPresentation() {
   if (!tray) return;
-  tray.setToolTip(`LifeOS AI: ${desktopShellStatus.coreLabel} · ${desktopShellStatus.aiLabel} · ${desktopUpdateLabel()} · ${localUrl("/admin/login")}`);
+  tray.setToolTip(`LifeOS AI: ${desktopShellStatus.coreLabel} · ${desktopShellStatus.aiLabel} · ${desktopShellStatus.icloudLabel} · ${desktopUpdateLabel()} · ${localUrl("/admin/login")}`);
   tray.setContextMenu(buildTrayMenu());
 }
 
+function maybeNotifyDesktopStatus(statusAlert) {
+  if (!statusAlert || statusAlert.severity === "ok") return;
+  if (process.env.LIFEOS_DESKTOP_DISABLE_NOTIFICATIONS === "1") return;
+  if (!Notification?.isSupported?.()) return;
+  const now = Date.now();
+  const key = [statusAlert.id || "status", statusAlert.severity || "warning", statusAlert.action || "", statusAlert.title || ""].join(":");
+  if (key === lastDesktopStatusNotificationKey && now - lastDesktopStatusNotificationAt < desktopStatusNotificationCooldownMs) return;
+  lastDesktopStatusNotificationKey = key;
+  lastDesktopStatusNotificationAt = now;
+  const notification = new Notification({
+    title: statusAlert.title || "LifeOS needs attention",
+    body: statusAlert.body || "Open LifeOS to repair the phone connection.",
+    silent: true,
+  });
+  notification.on("click", () => showPreferredAdminWindow(statusAlert.path || "/admin/onboarding"));
+  notification.show();
+}
+
 async function refreshDesktopShellStatus() {
-  const [healthResult, adminStatusResult] = await Promise.all([
+  const [healthResult, adminStatusResult, networkSummary] = await Promise.all([
     fetchLocalJson("/api/v1/health"),
     fetchLocalJson("/api/v1/admin/status"),
+    fetchDesktopInternalNetworkSummary("desktop-tray"),
   ]);
   desktopShellStatus = summarizeDesktopShellStatus(
     healthResult.ok ? healthResult.body : null,
     adminStatusResult.ok ? adminStatusResult.body : null,
+    networkSummary,
   );
+  maybeNotifyDesktopStatus(desktopShellStatus.statusAlert);
   updateTrayPresentation();
   return desktopShellStatus;
 }

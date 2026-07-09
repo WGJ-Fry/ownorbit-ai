@@ -453,6 +453,151 @@ function getAdminNetworkDiagnostics() {
   };
 }
 
+function rankDesktopInternalSeverity(severity: string) {
+  if (severity === "danger") return 3;
+  if (severity === "warning") return 2;
+  if (severity === "ok") return 1;
+  return 0;
+}
+
+function buildDesktopInternalNetworkSummary(reason = "desktop-summary") {
+  const diagnostics = getAdminNetworkDiagnostics();
+  const icloud = diagnostics.icloud;
+  const remote = diagnostics.remoteHealthSummary;
+  const issues: Array<{
+    id: string;
+    severity: "warning" | "danger";
+    action: string;
+    title: string;
+    body: string;
+    actionLabel: string;
+    path: string;
+    updatedAt: number;
+  }> = [];
+  const now = Date.now();
+  const latestRepair = icloud.latestEntryRepair || null;
+
+  if (latestRepair && latestRepair.status !== "none" && latestRepair.action !== "none") {
+    issues.push({
+      id: "icloud-entry-repair",
+      severity: latestRepair.severity === "danger" ? "danger" : "warning",
+      action: latestRepair.action,
+      title: latestRepair.needsQr ? "Phone opened an old LifeOS entry" : "Refresh the iCloud phone entry",
+      body: latestRepair.needsQr
+        ? "Refresh the iCloud entry and generate a new QR code before pairing again."
+        : "Refresh the iCloud entry so the phone opens the current desktop address.",
+      actionLabel: latestRepair.needsQr ? "Refresh iCloud Entry And QR" : "Refresh iCloud Entry",
+      path: "/admin/onboarding",
+      updatedAt: Number(latestRepair.eventAt || now),
+    });
+  }
+
+  if (icloud.pairingSession?.action === "create-qr" || icloud.pairingSession?.action === "regenerate-qr") {
+    issues.push({
+      id: "icloud-qr-refresh",
+      severity: icloud.pairingSession.severity === "danger" ? "danger" : "warning",
+      action: icloud.pairingSession.action,
+      title: icloud.pairingSession.action === "regenerate-qr" ? "Phone QR needs to be regenerated" : "Phone QR is not ready yet",
+      body: "Open the LifeOS first launch guide and generate a fresh phone binding QR code.",
+      actionLabel: "Open Phone Pairing",
+      path: "/admin/devices/pair",
+      updatedAt: Number(icloud.pairingSession.expiresAt || icloud.pairingSession.createdAt || now),
+    });
+  }
+
+  if (icloud.syncReadiness?.severity && icloud.syncReadiness.severity !== "ok") {
+    issues.push({
+      id: "icloud-sync-readiness",
+      severity: icloud.syncReadiness.severity === "danger" ? "danger" : "warning",
+      action: icloud.syncReadiness.action,
+      title: "iCloud phone handoff needs attention",
+      body: icloud.syncReadiness.pendingCount > 0
+        ? "iCloud is still syncing the phone entry. Open the guide for the one next step."
+        : "Open the guide to create or repair the iCloud phone entry.",
+      actionLabel: "Open iCloud Guide",
+      path: "/admin/onboarding",
+      updatedAt: now,
+    });
+  }
+
+  if (remote?.severity && remote.severity !== "ok" && !["missing", "unchecked"].includes(remote.status)) {
+    issues.push({
+      id: "remote-health",
+      severity: remote.severity === "danger" ? "danger" : "warning",
+      action: remote.recommendations[0] || "run-remote-health",
+      title: "Remote phone entry needs a check",
+      body: "Run the remote health check before relying on this address outside your Wi-Fi.",
+      actionLabel: "Open Connection Guide",
+      path: "/admin/onboarding",
+      updatedAt: Number(remote.lastCheckedAt || now),
+    });
+  }
+
+  issues.sort((a, b) => rankDesktopInternalSeverity(b.severity) - rankDesktopInternalSeverity(a.severity) || b.updatedAt - a.updatedAt);
+
+  return {
+    ok: true,
+    reason,
+    generatedAt: now,
+    alert: issues[0] || null,
+    issues,
+    remote: {
+      status: remote?.status || "unchecked",
+      severity: remote?.severity || "warning",
+      entryKind: remote?.entryKind || "missing",
+      lastCheckedAt: remote?.lastCheckedAt || null,
+      recommendations: Array.isArray(remote?.recommendations) ? remote.recommendations.slice(0, 3) : [],
+    },
+    icloud: {
+      available: Boolean(icloud.available),
+      platformSupported: Boolean(icloud.platformSupported),
+      status: icloud.syncReadiness?.status || icloud.handoffHealth?.status || "unsupported",
+      severity: icloud.syncReadiness?.severity || "warning",
+      recommendedMode: icloud.recommendedMode || "",
+      recommendedStability: icloud.recommendedStability || "",
+      syncReadiness: {
+        status: icloud.syncReadiness?.status || "unsupported",
+        severity: icloud.syncReadiness?.severity || "warning",
+        action: icloud.syncReadiness?.action || "use-apple-device",
+        pendingCount: Number(icloud.syncReadiness?.pendingCount || 0),
+        pendingFiles: Array.isArray(icloud.syncReadiness?.pendingFiles) ? icloud.syncReadiness.pendingFiles : [],
+        missingFiles: Array.isArray(icloud.syncReadiness?.missingFiles) ? icloud.syncReadiness.missingFiles : [],
+      },
+      handoffHealth: {
+        status: icloud.handoffHealth?.status || "missing",
+        needsRefresh: Boolean(icloud.handoffHealth?.needsRefresh),
+        refreshAfterMs: Number(icloud.handoffHealth?.refreshAfterMs || 0),
+        expiresAfterMs: Number(icloud.handoffHealth?.expiresAfterMs || 0),
+      },
+      phoneConfirmation: {
+        status: icloud.phoneConfirmation?.status || "missing",
+        severity: icloud.phoneConfirmation?.severity || "warning",
+        action: icloud.phoneConfirmation?.action || "open-on-phone",
+      },
+      pairingSession: {
+        status: icloud.pairingSession?.status || "missing",
+        severity: icloud.pairingSession?.severity || "warning",
+        action: icloud.pairingSession?.action || "create-qr",
+        secondsRemaining: Number(icloud.pairingSession?.secondsRemaining || 0),
+      },
+      latestEntryRepair: latestRepair ? {
+        status: latestRepair.status,
+        severity: latestRepair.severity,
+        action: latestRepair.action,
+        needsRefresh: Boolean(latestRepair.needsRefresh),
+        needsQr: Boolean(latestRepair.needsQr),
+        eventAt: Number(latestRepair.eventAt || 0),
+      } : null,
+      monitor: {
+        enabled: Boolean(diagnostics.icloudMonitor?.enabled),
+        running: Boolean(diagnostics.icloudMonitor?.running),
+        lastRunAt: diagnostics.icloudMonitor?.lastRunAt || null,
+        nextRunAt: diagnostics.icloudMonitor?.nextRunAt || null,
+      },
+    },
+  };
+}
+
 function safeAutoRefreshIcloudHandoff(reason: string) {
   try {
     return maybeRefreshIcloudHandoff(reason);
@@ -700,6 +845,19 @@ export function registerAdminRoutes(app: express.Express) {
 
   app.get("/api/v1/admin/network-diagnostics", requireAdmin, (_req, res) => {
     res.json(getAdminNetworkDiagnostics());
+  });
+
+  app.post("/api/v1/internal/desktop/network-summary", rateLimit({ keyPrefix: "internal-desktop-network-summary", windowMs: 60_000, max: 60 }), (req, res) => {
+    if (!isLoopbackSocket(req)) {
+      insertAuditLog("desktop_internal_network_summary_blocked", "network", "desktop-network-summary", { reason: "non_loopback_socket" }, "system", "desktop");
+      return res.status(403).json({ error: "Desktop network summary is only available on this computer.", code: "local_only" });
+    }
+    if (!verifyDesktopInternalToken(req)) {
+      insertAuditLog("desktop_internal_network_summary_blocked", "network", "desktop-network-summary", { reason: "invalid_desktop_token" }, "system", "desktop");
+      return res.status(401).json({ error: "Desktop internal authentication required", code: "desktop_internal_auth_required" });
+    }
+    const reason = normalizeInternalRefreshReason(req.body?.reason || "desktop-summary");
+    res.json(buildDesktopInternalNetworkSummary(reason));
   });
 
   app.post("/api/v1/admin/network-diagnostics/test-url", requireAdmin, async (req, res) => {

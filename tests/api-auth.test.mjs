@@ -3503,6 +3503,36 @@ test("desktop internal iCloud refresh requires the local desktop token", async (
   });
   assert.equal(wrongTokenInternalIcloudRefresh.status, 401);
 
+  const blockedDesktopNetworkSummary = await request(port, "/api/v1/internal/desktop/network-summary", {
+    method: "POST",
+    body: JSON.stringify({ reason: "test-desktop-summary" }),
+  });
+  assert.equal(blockedDesktopNetworkSummary.status, 401);
+
+  const wrongTokenDesktopNetworkSummary = await request(port, "/api/v1/internal/desktop/network-summary", {
+    method: "POST",
+    headers: { "X-LifeOS-Desktop-Token": "wrong-desktop-internal-token-1234567890" },
+    body: JSON.stringify({ reason: "test-desktop-summary" }),
+  });
+  assert.equal(wrongTokenDesktopNetworkSummary.status, 401);
+
+  const desktopNetworkSummaryResponse = await request(port, "/api/v1/internal/desktop/network-summary", {
+    method: "POST",
+    headers: { "X-LifeOS-Desktop-Token": desktopInternalToken },
+    body: JSON.stringify({ reason: "test-desktop-summary" }),
+  });
+  const desktopNetworkSummary = await desktopNetworkSummaryResponse.json();
+  assert.equal(desktopNetworkSummaryResponse.status, 200, JSON.stringify(desktopNetworkSummary));
+  assert.equal(desktopNetworkSummary.ok, true);
+  assert.equal(desktopNetworkSummary.reason, "test-desktop-summary");
+  assert.equal(typeof desktopNetworkSummary.icloud.syncReadiness.status, "string");
+  assert.equal(typeof desktopNetworkSummary.icloud.handoffHealth.needsRefresh, "boolean");
+  assert.equal(Array.isArray(desktopNetworkSummary.issues), true);
+  if (desktopNetworkSummary.alert) {
+    assert.equal(typeof desktopNetworkSummary.alert.id, "string");
+    assert.equal(typeof desktopNetworkSummary.alert.path, "string");
+  }
+
   const internalIcloudRefreshResponse = await request(port, "/api/v1/internal/icloud-handoff/refresh", {
     method: "POST",
     headers: { "X-LifeOS-Desktop-Token": desktopInternalToken },
