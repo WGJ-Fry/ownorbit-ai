@@ -194,6 +194,26 @@ export default function AdminOnboardingPage() {
     : simpleIcloudAction.cta === "remote-guide"
     ? "onboarding.simpleIcloudFlowStatusRemoteNeeded"
     : "onboarding.simpleIcloudFlowStatusEntryWaiting";
+  const simpleIcloudConnectionMode = !simpleIcloudCurrentEntry
+    ? "missing"
+    : simpleIcloudSameWifiOnly
+    ? "same-wifi"
+    : "remote-ready";
+  const simpleIcloudConnectionTitleKey: TranslationKey = simpleIcloudConnectionMode === "remote-ready"
+    ? "onboarding.simpleIcloudConnectionRemoteTitle"
+    : simpleIcloudConnectionMode === "same-wifi"
+    ? "onboarding.simpleIcloudConnectionSameWifiTitle"
+    : "onboarding.simpleIcloudConnectionMissingTitle";
+  const simpleIcloudConnectionBodyKey: TranslationKey = simpleIcloudConnectionMode === "remote-ready"
+    ? "onboarding.simpleIcloudConnectionRemoteBody"
+    : simpleIcloudConnectionMode === "same-wifi"
+    ? "onboarding.simpleIcloudConnectionSameWifiBody"
+    : "onboarding.simpleIcloudConnectionMissingBody";
+  const simpleIcloudConnectionTone = simpleIcloudConnectionMode === "remote-ready"
+    ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-50"
+    : simpleIcloudConnectionMode === "same-wifi"
+    ? "border-amber-300/20 bg-amber-400/10 text-amber-50"
+    : "border-cyan-100/10 bg-black/15 text-cyan-50/80";
   const simpleIcloudShouldPollPickup = primaryStep === "device" &&
     showSimpleIcloudEntry &&
     !hasDevice &&
@@ -792,6 +812,24 @@ export default function AdminOnboardingPage() {
                   </div>
                   <div data-testid="onboarding-icloud-default-flow-status" className="mt-3 rounded-xl border border-cyan-100/10 bg-black/15 p-3 text-xs font-bold leading-relaxed text-cyan-50/90">
                     {t(simpleIcloudFlowStatusKey)}
+                  </div>
+                  <div data-testid="onboarding-icloud-connection-mode" data-onboarding-icloud-connection-mode={simpleIcloudConnectionMode} className={`mt-3 rounded-xl border p-3 text-xs leading-relaxed ${simpleIcloudConnectionTone}`}>
+                    <div className="flex items-start gap-2">
+                      {simpleIcloudConnectionMode === "remote-ready" ? (
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                      ) : simpleIcloudConnectionMode === "same-wifi" ? (
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                      ) : (
+                        <Wifi className="mt-0.5 h-4 w-4 shrink-0" />
+                      )}
+                      <div className="min-w-0">
+                        <div className="font-bold">{t(simpleIcloudConnectionTitleKey)}</div>
+                        <div className="mt-1 opacity-80">{t(simpleIcloudConnectionBodyKey)}</div>
+                        {simpleIcloudCurrentEntry ? (
+                          <div className="mt-2 break-all rounded-lg border border-current/10 bg-black/15 p-2 font-mono text-[10px] opacity-80">{simpleIcloudCurrentEntry}</div>
+                        ) : null}
+                      </div>
+                    </div>
                   </div>
                   {!simpleIcloudBusy ? (
                     <div

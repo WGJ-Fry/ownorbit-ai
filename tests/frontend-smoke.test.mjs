@@ -554,6 +554,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /data-onboarding-icloud-flow-step/);
   assert.match(onboardingSource, /simpleIcloudFlowStage/);
   assert.match(onboardingSource, /simpleIcloudFlowStatusKey/);
+  assert.match(onboardingSource, /simpleIcloudConnectionMode/);
+  assert.match(onboardingSource, /onboarding-icloud-connection-mode/);
+  assert.match(onboardingSource, /data-onboarding-icloud-connection-mode/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudConnectionSameWifiTitle/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudConnectionRemoteTitle/);
   assert.match(onboardingSource, /simpleIcloudFlowSteps/);
   assert.match(onboardingSource, /onboarding-icloud-phone-pickup/);
   assert.match(onboardingSource, /onboarding-icloud-same-wifi-notice/);
@@ -790,6 +795,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /手机下一步/);
   assert.match(translationsSource, /正在等 iCloud 同步/);
   assert.match(translationsSource, /iCloud 同步卡住了/);
+  assert.match(translationsSource, /iCloud 只负责把地址同步到手机，不会让局域网地址变成公网地址/);
+  assert.match(translationsSource, /当前入口支持离家使用/);
   assert.match(translationsSource, /不用重新扫码，也不用反复生成/);
   assert.match(translationsSource, /旧二维码和旧主屏幕入口先不要用/);
   assert.match(translationsSource, /这个入口旧了，点这里重新生成/);
@@ -798,6 +805,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Phone next step/);
   assert.match(translationsSource, /Waiting for iCloud sync/);
   assert.match(translationsSource, /iCloud sync is stuck/);
+  assert.match(translationsSource, /iCloud only syncs the address to the phone/);
+  assert.match(translationsSource, /This entry works away from home/);
   assert.match(translationsSource, /No need to rescan or create it again/);
   assert.match(translationsSource, /Do not use old QR codes or old home-screen entries yet/);
   assert.match(translationsSource, /This entry is old\. Regenerate it here/);
