@@ -1598,6 +1598,13 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                   <div>{t("onboarding.appleRemoteIcloudDataSyncHelper", { value: dataSync.nativeHelper.executable ? t("onboarding.appleRemoteIcloudDataSyncReadyValue") : t("onboarding.appleRemoteIcloudDataSyncNotConfigured") })}</div>
                   <div>{t("onboarding.appleRemoteIcloudDataSyncTypes", { value: dataSync.selectedDataTypes.length ? dataSync.selectedDataTypes.join(", ") : t("onboarding.appleRemoteIcloudDataSyncNotConfigured") })}</div>
                 </div>
+                <div data-testid="onboarding-icloud-data-sync-credential-boundary" className="mt-2 rounded-lg border border-amber-300/15 bg-amber-500/10 p-2 text-amber-50">
+                  <div className="font-bold">{t("onboarding.appleRemoteIcloudDataSyncCredentialBoundaryTitle")}</div>
+                  <div className="mt-1 opacity-85">{t("onboarding.appleRemoteIcloudDataSyncCredentialBoundaryBody")}</div>
+                  <div className="mt-1 opacity-75">{t("onboarding.appleRemoteIcloudDataSyncCredentialBoundaryFields", {
+                    value: dataSync.credentialBoundary.neverSyncedFields.slice(0, 4).join(", "),
+                  })}</div>
+                </div>
                 <div data-testid="onboarding-icloud-data-sync-acceptance-gates" className="mt-2 rounded-lg border border-current/10 bg-black/10 p-2">
                   <div className="font-bold">{t("onboarding.appleRemoteIcloudDataSyncAcceptanceGates")}</div>
                   <div className="mt-1 opacity-80">

@@ -294,6 +294,15 @@ function makeIcloudOnboardingDiagnostics(phase: IcloudOnboardingPhase) {
         blockedDataTypes: ["chat", "memory", "tasks", "devices"],
         blockedDataTypePolicy: "CloudKit native client required before syncing user data.",
         notSyncedDataTypes: ["chat", "memory", "tasks", "devices"],
+        credentialBoundary: {
+          policy: "CloudKit may mirror reviewable device trust metadata, but it must never grant access or sync login material.",
+          safeDataType: "device-trust",
+          safeFields: ["deviceIdHash", "displayName", "deviceType", "trustState", "publicKeyFingerprint"],
+          neverSyncedFields: ["device access token", "device token hash", "raw device credential", "device private key", "session cookie", "private key", "raw public key"],
+          importedDeviceAction: "Imported Apple device records stay review-only until the user rebinds the phone or explicitly approves local trust.",
+          phoneRecoveryAction: "Create a new pairing QR and rotate the old device token instead of restoring credentials from iCloud.",
+          userFacingSummary: "iCloud can help LifeOS remember which Apple device was seen, but it cannot silently log that device in.",
+        },
         recordPlan: [],
         requiredNativeCapabilities: ["CloudKit container", "native helper"],
         nativeHelperContract: {

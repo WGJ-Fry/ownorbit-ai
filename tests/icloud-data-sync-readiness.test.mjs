@@ -39,9 +39,14 @@ test("CloudKit data sync readiness stays handoff-only until explicitly enabled",
     assert.equal(readiness.dataSyncScope, "entry-file-only");
     assert.equal(readiness.ready, false);
     assert.equal(readiness.notSyncedDataTypes.includes("ai-keys"), true);
+    assert.equal(readiness.credentialBoundary.safeDataType, "device-trust");
+    assert.equal(readiness.credentialBoundary.neverSyncedFields.includes("device access token"), true);
+    assert.equal(readiness.credentialBoundary.neverSyncedFields.includes("raw public key"), true);
+    assert.match(readiness.credentialBoundary.phoneRecoveryAction, /pairing QR/);
     assert.deepEqual(readiness.recordPlan, []);
     assert.deepEqual(readiness.requiredNativeCapabilities, []);
     assert.equal(readiness.acceptanceGates.some((item) => item.id === "explicit-opt-in" && item.status === "blocked"), true);
+    assert.equal(readiness.acceptanceGates.some((item) => item.id === "credential-boundary" && item.status === "passed"), true);
   } finally {
     restoreEnv(env);
   }
@@ -80,6 +85,9 @@ test("CloudKit data sync readiness blocks unsafe types and requires native helpe
     assert.equal(readiness.nativeHelper.executable, true);
     assert.equal(readiness.entitlements.mentionsContainer, true);
     assert.equal(readiness.blockedDataTypePolicy.includes("Never sync AI keys"), true);
+    assert.match(readiness.credentialBoundary.policy, /never grant access/i);
+    assert.equal(readiness.credentialBoundary.safeFields.includes("publicKeyFingerprint"), true);
+    assert.equal(readiness.credentialBoundary.neverSyncedFields.includes("device private key"), true);
     assert.equal(readiness.recordPlan.length, 3);
     assert.equal(readiness.recordPlan[0].zone, "LifeOSChatZone");
     assert.deepEqual(readiness.recordPlan[0].recordTypes.slice(0, 2), ["LifeOSConversation", "LifeOSMessage"]);

@@ -1043,6 +1043,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Create an iCloud Container in Apple Developer first/);
   assert.match(translationsSource, /AI Key、设备凭证、SQLite 数据库和审计日志不会进入 iCloud/);
   assert.match(translationsSource, /AI keys, device credentials, SQLite databases, and audit logs never go to iCloud/);
+  assert.match(translationsSource, /设备凭证不会进 iCloud/);
+  assert.match(translationsSource, /Device credentials never go to iCloud/);
   assert.match(translationsSource, /高级：分步同步工具/);
   assert.match(translationsSource, /Advanced: step-by-step sync tools/);
   assert.match(translationsSource, /CloudKit 记录计划/);
@@ -1054,6 +1056,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudDataBoundaryBody/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-readiness/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-primary-next/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-credential-boundary/);
+  assert.match(lifeosApiSource, /credentialBoundary: \{/);
   assert.match(onboardingAppleRemoteSource, /CloudKitAutoSyncCard/);
   assert.match(onboardingAppleRemoteSource, /dataSyncReady=\{dataSync\.ready\}/);
   const cloudKitAutoSyncCardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "CloudKitAutoSyncCard.tsx"), "utf8");

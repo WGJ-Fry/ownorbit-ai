@@ -91,6 +91,16 @@ const requiredNativeCapabilities = [
   "subscription-push",
 ] as const;
 
+const credentialBoundary = {
+  policy: "CloudKit may mirror reviewable device trust metadata, but it must never grant access or sync login material.",
+  safeDataType: "device-trust",
+  safeFields: ["deviceIdHash", "displayName", "deviceType", "trustState", "publicKeyFingerprint", "accessExpiresAt", "lastSeenAt", "revokedAt"],
+  neverSyncedFields: ["device access token", "device token hash", "raw device credential", "device private key", "session cookie", "private key", "raw public key"],
+  importedDeviceAction: "Imported Apple device records stay review-only until the user rebinds the phone or explicitly approves local trust.",
+  phoneRecoveryAction: "If a phone loses its local credential, create a new pairing QR and rotate the old device token instead of restoring credentials from iCloud.",
+  userFacingSummary: "iCloud can help LifeOS remember which Apple device was seen, but it cannot silently log that device in.",
+} as const;
+
 function cleanText(value: unknown, limit = 160) {
   return String(value || "").replace(/\s+/g, " ").trim().slice(0, limit);
 }
@@ -208,6 +218,7 @@ export function getIcloudDataSyncReadiness(options: { platformSupported?: boolea
     blockedDataTypes,
     blockedDataTypePolicy: "Never sync AI keys, raw device credentials, session cookies, raw tokens, or whole SQLite databases through CloudKit user records.",
     notSyncedDataTypes: ["ai-keys", "device-credentials", "session-cookies", "raw-tokens", "sqlite-database"],
+    credentialBoundary,
     recordPlan: selectedRecordPlan,
     requiredNativeCapabilities: enabled ? [...requiredNativeCapabilities] : [],
     nativeHelperContract: cloudKitNativeHelperContract(),
@@ -220,6 +231,7 @@ export function getIcloudDataSyncReadiness(options: { platformSupported?: boolea
       acceptanceGate("entitlements", entitlementReady ? "passed" : "blocked", entitlementReady ? "Entitlements mention CloudKit and the selected container." : "Point LIFEOS_CLOUDKIT_ENTITLEMENTS_PATH at CloudKit entitlements for this container."),
       acceptanceGate("safe-data-types", selectedDataTypes.length ? "passed" : "blocked", selectedDataTypes.length ? "At least one safe data class is selected." : "Choose safe data types such as chat-history, memory, tasks, generated-app-state, or device-trust."),
       acceptanceGate("blocked-types-filtered", blockedDataTypes.length ? "manual-required" : "passed", blockedDataTypes.length ? "Unsafe requested data types were filtered and must be removed before release." : "No unsafe data type was requested."),
+      acceptanceGate("credential-boundary", "passed", "Device credentials, access tokens, private keys, and session material are never synced; CloudKit device trust records are review-only metadata."),
       acceptanceGate("backup-before-first-sync", ready ? "manual-required" : "blocked", ready ? "Create and verify a local SQLite backup before first CloudKit write." : "Backup gate opens only after native CloudKit readiness passes."),
       acceptanceGate("helper-roundtrip", ready ? "manual-required" : "blocked", ready ? "Run a native helper create/fetch/delete roundtrip in the private CloudKit database." : "Roundtrip gate opens only after native CloudKit readiness passes."),
       acceptanceGate("redaction-proof", selectedDataTypes.length ? "manual-required" : "blocked", selectedDataTypes.length ? "Prove selected records do not include keys, tokens, credentials, cookies, or SQLite blobs." : "Redaction proof requires at least one selected data class."),

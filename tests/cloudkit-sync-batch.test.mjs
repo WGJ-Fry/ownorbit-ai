@@ -130,6 +130,11 @@ test("CloudKit sync batch preview builds safe records and blocks sensitive paylo
     assert.equal(preview.readyRecordCount >= 6, true);
     assert.equal(preview.blockedRecordCount >= 2, true);
     assert.equal(preview.safety.rawPayloadIncluded, false);
+    assert.equal(preview.safety.forbiddenFieldNames.includes("redacted-sensitive-fields"), true);
+    assert.equal(preview.safety.forbiddenFieldCount > 0, true);
+    assert.equal(preview.safety.credentialBoundary.safeDataType, "device-trust");
+    assert.equal(preview.safety.credentialBoundary.safeFields.includes("publicKeyFingerprint"), true);
+    assert.equal(preview.safety.credentialBoundary.neverSyncedFields.includes("device token hash"), true);
     assert.equal(preview.safety.secretLikeContentBlocked >= 1, true);
     assert.equal(preview.safety.sensitiveMemoryBlocked >= 1, true);
     assert.ok(preview.recordTypes.some((item) => item.recordType === "LifeOSMessage"));
@@ -157,6 +162,7 @@ test("CloudKit sync batch preview builds safe records and blocks sensitive paylo
     assert.equal(serialized.includes("deleted-secret"), false);
     assert.equal(serialized.includes("RAW_PUBLIC_KEY_SHOULD_NOT_SYNC"), false);
     assert.equal(serialized.includes("ACCESS_TOKEN_HASH_SHOULD_NOT_SYNC"), false);
+    assert.equal(serialized.includes("accessToken"), false);
     assert.equal(serialized.includes(dir), false);
   } finally {
     await rm(dir, { recursive: true, force: true });

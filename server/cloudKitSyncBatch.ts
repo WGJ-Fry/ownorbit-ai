@@ -53,8 +53,10 @@ export type CloudKitSyncBatchPreview = {
   blockedRecords: CloudKitSyncBlockedRecord[];
   safety: {
     forbiddenFieldNames: string[];
+    forbiddenFieldCount: number;
     blockedDataTypes: string[];
     notSyncedDataTypes: string[];
+    credentialBoundary: IcloudDataSyncReadiness["credentialBoundary"];
     secretLikeContentBlocked: number;
     sensitiveMemoryBlocked: number;
     rawPayloadIncluded: false;
@@ -616,7 +618,8 @@ export function buildCloudKitSyncBatchPreview(
     : blockedRecords.length > 0
     ? "needs-review"
     : "ready";
-  const forbiddenFieldNames = Array.from(new Set(readiness.recordPlan.flatMap((item) => item.forbiddenFields))).sort();
+  const forbiddenFieldCount = Array.from(new Set(readiness.recordPlan.flatMap((item) => item.forbiddenFields))).length;
+  const forbiddenFieldNames = forbiddenFieldCount ? ["redacted-sensitive-fields"] : [];
   const secretLikeContentBlocked = blockedRecords.filter((record) => record.reason === "secret-like-content" || record.reason === "unsafe-field").length;
   const sensitiveMemoryBlocked = blockedRecords.filter((record) => record.reason === "sensitive-memory").length;
   const helperPayloadPlan = {
@@ -649,8 +652,10 @@ export function buildCloudKitSyncBatchPreview(
     blockedRecords,
     safety: {
       forbiddenFieldNames,
+      forbiddenFieldCount,
       blockedDataTypes: readiness.blockedDataTypes,
       notSyncedDataTypes: readiness.notSyncedDataTypes,
+      credentialBoundary: readiness.credentialBoundary,
       secretLikeContentBlocked,
       sensitiveMemoryBlocked,
       rawPayloadIncluded: false,

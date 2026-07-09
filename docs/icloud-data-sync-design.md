@@ -47,6 +47,24 @@ Minimum architecture:
 | Audit logs | SQLite | Export-only or redacted sync, never silent full sync |
 | Backups | Local encrypted files | User-controlled encrypted backup only |
 
+## Device Credential Boundary
+
+CloudKit may mirror `device-trust` metadata so another Apple device can see that a phone or desktop was previously known to LifeOS. That metadata is review-only. It is not a login credential and it must never grant access by itself.
+
+Safe device-trust fields are limited to hashed or descriptive metadata such as `deviceIdHash`, `displayName`, `deviceType`, `trustState`, `publicKeyFingerprint`, `accessExpiresAt`, `lastSeenAt`, and `revokedAt`.
+
+The following fields are never allowed in iCloud Drive files, CloudKit records, diagnostics, API responses, or release examples:
+
+- `accessToken`;
+- `accessTokenHash`;
+- `rawDeviceCredential`;
+- `devicePrivateKey`;
+- `sessionCookie`;
+- `privateKey`;
+- `rawPublicKey`.
+
+If a phone loses its local credential, LifeOS must create a new pairing QR and rotate/revoke the old token. It must not restore login material from iCloud.
+
 ## Safety Rules
 
 - No secret, token, AI key, session cookie, or raw device credential may be written to iCloud Drive or CloudKit user records.

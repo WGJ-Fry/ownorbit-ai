@@ -948,12 +948,22 @@ export type NetworkDiagnostics = {
       blockedDataTypes: string[];
       blockedDataTypePolicy: string;
       notSyncedDataTypes: string[];
+      credentialBoundary: {
+        policy: string;
+        safeDataType: string;
+        safeFields: string[];
+        neverSyncedFields: string[];
+        importedDeviceAction: string;
+        phoneRecoveryAction: string;
+        userFacingSummary: string;
+      };
       recordPlan: Array<{
         dataType: string;
         zone: string;
         recordTypes: string[];
         safeFields: string[];
         forbiddenFields: string[];
+        forbiddenFieldCount?: number;
         mutationModel: string;
         conflictPolicy: string;
         requiresUserReview: boolean;
@@ -1757,8 +1767,10 @@ export type CloudKitSyncBatchPreview = {
   }>;
   safety: {
     forbiddenFieldNames: string[];
+    forbiddenFieldCount: number;
     blockedDataTypes: string[];
     notSyncedDataTypes: string[];
+    credentialBoundary: NetworkDiagnostics["icloud"]["dataSync"]["credentialBoundary"];
     secretLikeContentBlocked: number;
     sensitiveMemoryBlocked: number;
     rawPayloadIncluded: false;

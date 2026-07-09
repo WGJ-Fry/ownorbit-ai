@@ -1977,6 +1977,11 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
 function publicIcloudDataSyncReadiness(readiness: ReturnType<typeof getIcloudDataSyncReadiness>) {
   return {
     ...readiness,
+    recordPlan: readiness.recordPlan.map((item) => ({
+      ...item,
+      forbiddenFields: item.forbiddenFields.length ? ["redacted-sensitive-fields"] : [],
+      forbiddenFieldCount: item.forbiddenFields.length,
+    })),
     nativeHelper: {
       configured: readiness.nativeHelper.configured,
       detected: readiness.nativeHelper.detected,
