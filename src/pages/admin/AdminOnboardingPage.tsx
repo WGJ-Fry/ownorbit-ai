@@ -97,6 +97,8 @@ export default function AdminOnboardingPage() {
     canExportIcloud: simpleIcloudCanExport,
   });
   const simpleIcloudActionFollowupKey = getIcloudActionFollowupKey(simpleIcloudAction.actionKey);
+  const simpleIcloudHumanRecovery = icloud?.syncReadiness?.userStep?.humanRecovery || null;
+  const simpleIcloudSyncStuckMinutes = Math.max(1, Math.round((icloud?.availability?.syncStuckAfterMs || 0) / 60000));
   const simpleIcloudSameWifiOnly = isIcloudEntrySameWifiOnly(icloud);
   const simpleIcloudEntryOpenable = Boolean(icloud?.syncReadiness?.canOpenOnPhone);
   const simpleIcloudEntryReady = simpleIcloudEntryOpenable;
@@ -110,11 +112,15 @@ export default function AdminOnboardingPage() {
     ? "onboarding.simpleIcloudAutoTitle"
     : simpleIcloudEntryOpenable && simpleIcloudSameWifiOnly
       ? "onboarding.simpleIcloudSameWifiReadyTitle"
+      : simpleIcloudHumanRecovery
+      ? simpleIcloudHumanRecovery.titleKey
       : simpleIcloudAction.titleKey;
   const simpleIcloudBodyKey = simpleIcloudBusy
     ? "onboarding.simpleIcloudAutoBody"
     : simpleIcloudEntryOpenable && simpleIcloudSameWifiOnly
       ? "onboarding.simpleIcloudSameWifiReadyBody"
+      : simpleIcloudHumanRecovery
+      ? simpleIcloudHumanRecovery.bodyKey
       : simpleIcloudAction.bodyKey;
   const simpleIcloudPickupStatus = getIcloudPhonePickupStatus({
     phoneConfirmation: icloud?.phoneConfirmation,
@@ -136,6 +142,8 @@ export default function AdminOnboardingPage() {
     ? t("onboarding.simpleIcloudScanQrAction")
     : simpleIcloudEntryOpenable && simpleIcloudSameWifiOnly
     ? t("onboarding.simpleIcloudSameWifiOpenFilesAction")
+    : simpleIcloudHumanRecovery
+    ? t(simpleIcloudHumanRecovery.primaryCtaKey as any, { count: icloud?.syncReadiness?.pendingCount || 0, minutes: simpleIcloudSyncStuckMinutes })
     : t(simpleIcloudAction.actionKey);
   const simpleIcloudOneStepFollowupText = simpleIcloudLongTestActionKey
     ? t("onboarding.simpleIcloudLongTestFollowup")
@@ -143,6 +151,8 @@ export default function AdminOnboardingPage() {
     ? t("onboarding.simpleIcloudScanQrFollowup")
     : simpleIcloudEntryOpenable && simpleIcloudSameWifiOnly
     ? t("onboarding.simpleIcloudSameWifiReadyFollowup")
+    : simpleIcloudHumanRecovery
+    ? t(simpleIcloudHumanRecovery.afterKey as any, { count: icloud?.syncReadiness?.pendingCount || 0, minutes: simpleIcloudSyncStuckMinutes })
     : t(simpleIcloudActionFollowupKey as any);
   const simpleIcloudOffLanAction = networkDiagnostics?.tailscale.installed
     ? "tailscale"
@@ -780,7 +790,11 @@ export default function AdminOnboardingPage() {
                     {t(simpleIcloudFlowStatusKey)}
                   </div>
                   {!simpleIcloudBusy ? (
-                    <div data-testid="onboarding-icloud-quick-one-step" className="mt-3 rounded-2xl border border-cyan-100/15 bg-[#060a10]/35 p-4 text-sm leading-relaxed text-cyan-50">
+                    <div
+                      data-testid="onboarding-icloud-quick-one-step"
+                      data-onboarding-icloud-human-recovery={simpleIcloudHumanRecovery?.desktopAction || "none"}
+                      className="mt-3 rounded-2xl border border-cyan-100/15 bg-[#060a10]/35 p-4 text-sm leading-relaxed text-cyan-50"
+                    >
                       <div className="text-[11px] font-bold uppercase text-cyan-100/70">
                         {t("onboarding.simpleIcloudOnlyStepKicker", { step: simpleIcloudPrimaryStepIndex })}
                       </div>
@@ -819,7 +833,9 @@ export default function AdminOnboardingPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="font-bold">{t(simpleIcloudTitleKey as any)}</div>
-                    <p className="mt-1 text-xs leading-relaxed opacity-80">{t(simpleIcloudBodyKey as any)}</p>
+                    <p className="mt-1 text-xs leading-relaxed opacity-80">
+                      {t(simpleIcloudBodyKey as any, { count: icloud?.syncReadiness?.pendingCount || 0, minutes: simpleIcloudSyncStuckMinutes })}
+                    </p>
                     {simpleIcloudNeedsSettings ? (
                       <button
                         type="button"

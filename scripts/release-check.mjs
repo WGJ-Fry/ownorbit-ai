@@ -703,6 +703,10 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding-icloud-qr-after-pickup") &&
     adminOnboardingSource.includes("simpleIcloudPhoneConfirmed") &&
     adminOnboardingSource.includes("simpleIcloudPairingConfirmed") &&
+    adminOnboardingSource.includes("simpleIcloudHumanRecovery") &&
+    adminOnboardingSource.includes("simpleIcloudSyncStuckMinutes") &&
+    adminOnboardingSource.includes("simpleIcloudHumanRecovery.primaryCtaKey") &&
+    adminOnboardingSource.includes("simpleIcloudHumanRecovery.afterKey") &&
     adminOnboardingSource.includes("simpleIcloudOneStepActionText") &&
     adminOnboardingSource.includes("simpleIcloudOneStepFollowupText") &&
     adminOnboardingSource.includes("simpleIcloudLongTestActionKey") &&
@@ -1549,6 +1553,7 @@ function checkAssets() {
     adminOnboardingSource.includes("inlinePairingSession") &&
     adminOnboardingSource.includes("handleCreateInlinePairing") &&
     adminOnboardingSource.includes("simpleIcloudActionFollowupKey") &&
+    adminOnboardingSource.includes("data-onboarding-icloud-human-recovery") &&
     adminOnboardingSource.includes("onboarding-icloud-quick-one-step") &&
     adminOnboardingSource.includes("onboarding-icloud-quick-followup") &&
     adminOnboardingSource.includes("onboarding-icloud-quick-remote-guide") &&

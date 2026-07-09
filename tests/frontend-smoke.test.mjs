@@ -598,11 +598,16 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /inlinePairingBusy/);
   assert.match(onboardingSource, /handleCreateInlinePairing/);
   assert.match(onboardingSource, /simpleIcloudActionFollowupKey/);
+  assert.match(onboardingSource, /simpleIcloudHumanRecovery/);
+  assert.match(onboardingSource, /simpleIcloudSyncStuckMinutes/);
+  assert.match(onboardingSource, /simpleIcloudHumanRecovery\.primaryCtaKey/);
+  assert.match(onboardingSource, /simpleIcloudHumanRecovery\.afterKey/);
   assert.match(onboardingSource, /simpleIcloudOneStepActionText/);
   assert.match(onboardingSource, /simpleIcloudOneStepFollowupText/);
   assert.match(onboardingSource, /simpleIcloudPairingConfirmed/);
   assert.match(onboardingSource, /simpleIcloudLongTestActionKey/);
   assert.match(onboardingSource, /onboarding-icloud-quick-one-step/);
+  assert.match(onboardingSource, /data-onboarding-icloud-human-recovery/);
   assert.match(onboardingSource, /onboarding-icloud-quick-followup/);
   assert.match(onboardingSource, /onboarding-icloud-quick-long-test/);
   assert.match(onboardingSource, /onboarding-icloud-quick-remote-guide/);
