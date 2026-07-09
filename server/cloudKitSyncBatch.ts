@@ -307,6 +307,7 @@ function collectChatRecords(limit: number) {
       recordName: `message:${message.id}`,
       payload,
       logicalClock: payload.logicalClock,
+      requiresUserReview: false,
     }), limit);
   }
 

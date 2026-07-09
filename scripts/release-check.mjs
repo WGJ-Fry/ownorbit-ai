@@ -2053,8 +2053,11 @@ function checkAssets() {
     cloudKitSyncBatchSource.includes("summarizeCloudKitSyncExportPackage") &&
     cloudKitSyncBatchSource.includes("rawPayloadIncluded: false") &&
     cloudKitSyncBatchSource.includes("rawPayloadReturnedToAdmin: false") &&
+    cloudKitSyncBatchSource.includes("requiresUserReview: false") &&
     cloudKitSyncBatchSource.includes("secretLikeContentBlocked") &&
     cloudKitSyncBatchTestSource.includes("blocks sensitive payloads") &&
+    cloudKitSyncBatchTestSource.includes("recordType === \"LifeOSMessage\" && record.requiresUserReview === false") &&
+    cloudKitSyncBatchTestSource.includes("recordType === \"LifeOSConversation\" && record.requiresUserReview === true") &&
     cloudKitSyncBatchTestSource.includes("sendsRawUserContent, false") &&
     cloudKitSyncBatchTestSource.includes("keeps admin summary payload-free") &&
     cloudKitSyncApplySource.includes("APPLY_CLOUDKIT_QUARANTINE") &&
