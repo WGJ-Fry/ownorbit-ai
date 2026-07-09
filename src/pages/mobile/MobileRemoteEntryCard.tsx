@@ -139,6 +139,13 @@ export default function MobileRemoteEntryCard({
   const currentIcloudEntryKey = icloudHandoffStatus ? getMobileIcloudHandoffEntryKey(icloudHandoffStatus.entry) : "";
   const recommendedIcloudEntryKey = recommendedIcloudEntry ? getMobileIcloudHandoffEntryKey(recommendedIcloudEntry) : "";
   const recommendedIcloudEntryName = recommendedIcloudEntry?.desktopName || recommendedIcloudEntry?.label || t("mobileDevice.icloudHandoffUnknownDesktop");
+  const recommendedIcloudEntryShortId = recommendedIcloudEntry ? getMobileIcloudDesktopShortId(recommendedIcloudEntry) : "";
+  const recommendedIcloudEntryDisplayName = recommendedIcloudEntry && duplicateIcloudDesktopNames.has(mobileIcloudDesktopNameKey(recommendedIcloudEntry))
+    ? t("mobileDevice.icloudHandoffDesktopNameWithShortId", {
+      desktop: recommendedIcloudEntryName,
+      id: recommendedIcloudEntryShortId,
+    })
+    : recommendedIcloudEntryName;
   const shouldOpenRecommendedIcloudEntry = Boolean(icloudHandoffStatus && recommendedIcloudEntry && recommendedIcloudEntryKey && recommendedIcloudEntryKey !== currentIcloudEntryKey);
   const shouldSwitchDefaultIcloudEntry = Boolean(recommendedIcloudEntry && recommendedIcloudEntryKey && recommendedIcloudEntryKey !== preferredIcloudEntryKey && icloudEntryRecommendation.preferredNeedsSwitch);
   const hasIcloudOneNextAction = Boolean(recommendedIcloudEntry && (shouldOpenRecommendedIcloudEntry || shouldSwitchDefaultIcloudEntry));
@@ -299,9 +306,17 @@ export default function MobileRemoteEntryCard({
     if (!result.switched || !result.nextEntry) return;
     setPreferredIcloudEntryKey(getPreferredMobileIcloudHandoffEntryKey());
     setIcloudEntries(getStoredMobileIcloudHandoffEntries());
-    setAutoSwitchedIcloudEntryName(result.nextEntry.desktopName || result.nextEntry.label || "");
+    const duplicateNames = getDuplicateMobileIcloudDesktopNames(icloudEntries);
+    const nextEntryName = result.nextEntry.desktopName || result.nextEntry.label || t("mobileDevice.icloudHandoffUnknownDesktop");
+    const nextEntryShortId = getMobileIcloudDesktopShortId(result.nextEntry);
+    setAutoSwitchedIcloudEntryName(duplicateNames.has(mobileIcloudDesktopNameKey(result.nextEntry))
+      ? t("mobileDevice.icloudHandoffDesktopNameWithShortId", {
+        desktop: nextEntryName,
+        id: nextEntryShortId,
+      })
+      : nextEntryName);
     setAutoSwitchedIcloudEntryReason(result.recommendation.preferredSwitchReason);
-  }, [icloudEntries, preferredIcloudEntryKey]);
+  }, [icloudEntries, preferredIcloudEntryKey, t]);
 
   return (
     <section className="mt-4 rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
@@ -385,7 +400,7 @@ export default function MobileRemoteEntryCard({
               <div className="mt-1 font-bold">{t(icloudOneNextTitleKey as any)}</div>
               <div className="mt-1 text-cyan-50/80">
                 {t(icloudOneNextBodyKey as any, {
-                  desktop: recommendedIcloudEntryName,
+                  desktop: recommendedIcloudEntryDisplayName,
                 })}
               </div>
               <button
@@ -474,7 +489,7 @@ export default function MobileRemoteEntryCard({
               <div className="mt-1 opacity-80">{t(icloudRecommendedBodyKey)}</div>
               <div data-testid="mobile-icloud-recommended-reason" className="mt-2 rounded-lg border border-emerald-300/20 bg-emerald-500/10 p-2 text-[11px] font-bold text-emerald-100">
                 {t(icloudRecommendedReasonKeys[icloudEntryRecommendation.recommendedReason] as any, {
-                  desktop: recommendedIcloudEntryName,
+                  desktop: recommendedIcloudEntryDisplayName,
                 })}
               </div>
               {duplicateIcloudDesktopNames.size ? (

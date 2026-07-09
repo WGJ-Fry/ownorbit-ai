@@ -1305,6 +1305,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileRemoteEntryCardSource, /getDuplicateMobileIcloudDesktopNames/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffDuplicateHint/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffShortId/);
+  assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffDesktopNameWithShortId/);
+  assert.match(mobileRemoteEntryCardSource, /recommendedIcloudEntryDisplayName/);
   assert.match(mobileRemoteEntryCardSource, /isMobileIcloudHandoffSameWifiOnly/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffSameWifiBadge/);
   assert.match(mobileRemoteEntryCardSource, /mobileDevice\.icloudHandoffSameWifiWarning/);

@@ -2588,6 +2588,8 @@ function checkAssets() {
     mobileRemoteEntryCardSource.includes("getDuplicateMobileIcloudDesktopNames") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffDuplicateHint") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffShortId") &&
+    mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffDesktopNameWithShortId") &&
+    mobileRemoteEntryCardSource.includes("recommendedIcloudEntryDisplayName") &&
     mobileRemoteEntryCardSource.includes("isMobileIcloudHandoffSameWifiOnly") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffSameWifiBadge") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffSameWifiWarning") &&
@@ -2608,7 +2610,9 @@ function checkAssets() {
     pwaCapabilitiesTestSource.includes("recommendedReason") &&
     pwaCapabilitiesTestSource.includes("recommends a usable desktop when the default entry fails") &&
     translationsSource.includes("最适合异地使用的稳定 HTTPS 入口") &&
+    translationsSource.includes("{{desktop}}（ID：{{id}}）") &&
     translationsSource.includes("best stable HTTPS entry for off-LAN use") &&
+    translationsSource.includes("{{desktop}} (ID: {{id}})") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffEntryExpired") &&
     mobileRemoteEntryCardSource.includes("mobileDevice.icloudHandoffEntryRefresh") &&
     mobileDeviceSource.includes("health?.remoteEntryMode") &&
