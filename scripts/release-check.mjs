@@ -159,7 +159,7 @@ function checkSourceSizeBudgets() {
 }
 
 function checkScripts() {
-  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "icloud:helper:build", "icloud:helper:smoke", "mobile:simulator:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
+  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "icloud:helper:build", "icloud:helper:smoke", "icloud:acceptance", "mobile:simulator:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
     if (hasScript(script)) pass(`package script exists: ${script}`);
     else fail(`missing package script: ${script}`);
   }
@@ -362,6 +362,36 @@ function checkScripts() {
     else fail("remote acceptance runbook must cover smoke, temporary tunnel status, cellular/restart/network-switch/stale-QR/interruption manual checks, evidence output, and tests");
   } else {
     fail("missing remote acceptance runbook script: scripts/remote-acceptance-runbook.mjs");
+  }
+
+  if (exists("scripts/icloud-data-sync-acceptance-runbook.mjs")) {
+    const icloudAcceptance = fs.readFileSync(path.join(rootDir, "scripts/icloud-data-sync-acceptance-runbook.mjs"), "utf8");
+    const icloudAcceptanceTest = exists("tests/icloud-data-sync-acceptance-runbook.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/icloud-data-sync-acceptance-runbook.test.mjs"), "utf8") : "";
+    if (
+      packageJson.scripts?.["icloud:acceptance"]?.includes("icloud-data-sync-acceptance-runbook.mjs") &&
+      packageJson.scripts?.["icloud:acceptance"]?.includes("--import tsx") &&
+      packageJson.scripts?.test?.includes("tests/icloud-data-sync-acceptance-runbook.test.mjs") &&
+      icloudAcceptance.includes("runCloudKitNativeHelper") &&
+      icloudAcceptance.includes("subscription-probe") &&
+      icloudAcceptance.includes("mac-a-cloudkit-upload") &&
+      icloudAcceptance.includes("mac-b-cloudkit-import") &&
+      icloudAcceptance.includes("iphone-cellular-entry-boundary") &&
+      icloudAcceptance.includes("wifi-cellular-switch") &&
+      icloudAcceptance.includes("mac-restart-recovery") &&
+      icloudAcceptance.includes("icloud-delay-human-copy") &&
+      icloudAcceptance.includes("old-entry-qr-expiry") &&
+      icloudAcceptance.includes("multi-desktop-default-entry") &&
+      icloudAcceptance.includes("cloudkit-background-push") &&
+      icloudAcceptance.includes("offline-conflict-review") &&
+      icloudAcceptance.includes("never proves complete unattended iCloud data sync") &&
+      icloudAcceptance.includes("LIFEOS_ICLOUD_ACCEPTANCE_OUT") &&
+      icloudAcceptanceTest.includes("iCloud data sync acceptance runbook writes full helper evidence") &&
+      icloudAcceptanceTest.includes("iCloud data sync acceptance CLI writes redacted evidence") &&
+      icloudAcceptanceTest.includes("cloudkit-background-push")
+    ) pass("iCloud data sync acceptance runbook records helper evidence and required real Apple-device checks");
+    else fail("iCloud data sync acceptance runbook must verify CloudKit helper evidence, subscription probe, real Apple-device manual checks, redacted output, package script, and tests");
+  } else {
+    fail("missing iCloud data sync acceptance runbook script: scripts/icloud-data-sync-acceptance-runbook.mjs");
   }
 
   if (exists("scripts/calendar-acceptance-runbook.mjs")) {
@@ -4479,6 +4509,9 @@ function checkReleaseDocs() {
       "lifeos-cloudkit-helper-request.v1",
       "subscription-probe",
       "background-push subscription prerequisite",
+      "npm run icloud:acceptance",
+      "icloud-data-sync-acceptance.json",
+      "automated-ready-manual-required",
       "Do not claim end-user-ready, fully automatic iCloud data sync until all of this is true",
       "受控 CloudKit 数据同步候选能力",
       "后台推送订阅前置条件",

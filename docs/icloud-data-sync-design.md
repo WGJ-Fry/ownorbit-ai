@@ -202,6 +202,16 @@ npm run icloud:helper:smoke -- --subscription-probe --strict
 
 Run the subscription probe after the disposable roundtrip when preparing real Apple-device evidence. It verifies that the private CloudKit database can save the background-push subscription prerequisite; it still does not replace the later iPhone/macOS background-delivery, restart, network-switch, and conflict tests.
 
+Generate the broader iCloud data-sync acceptance pack with:
+
+```bash
+LIFEOS_CLOUDKIT_TEST_WRITE_CONFIRM=DELETE_DISPOSABLE_RECORDS \
+LIFEOS_ICLOUD_ACCEPTANCE_OUT="./icloud-data-sync-acceptance.json" \
+npm run icloud:acceptance -- --all --json
+```
+
+That report records the helper probe, disposable roundtrip, subscription probe, and every required real Apple-device manual check. A passing helper pack is still only `automated-ready-manual-required`; public claims require current evidence for Mac-to-Mac import, iPhone cellular entry behavior, Wi-Fi/cellular switching, Mac restart recovery, iCloud delay copy, old entry/QR expiry, multi-desktop defaults, native background push delivery, and offline conflict review.
+
 ## Controlled Import Preview
 
 The next read-side guard is a summary-only CloudKit query:
@@ -400,6 +410,8 @@ helper 探测通过不等于真实同步完成。API 会返回已验证能力、
 `subscription-probe` 只验证私有 CloudKit 数据库能创建或确认 content-available 后台推送订阅。它证明未来原生同步所需的推送订阅前置条件可用，但不证明 iOS/macOS 后台投递、应用唤醒、无冲突合并或完整无人值守同步已经完成。
 
 真实 Apple 设备验收时，应在临时写入 roundtrip 之后运行 `npm run icloud:helper:smoke -- --subscription-probe --strict`。这一步只能证明 CloudKit 私有库能保存后台推送订阅前置条件；后续仍要继续做 iPhone/macOS 后台投递、应用唤醒、重启、换网和冲突测试。
+
+更完整的验收包用 `npm run icloud:acceptance -- --all --json` 生成，并可通过 `LIFEOS_ICLOUD_ACCEPTANCE_OUT="./icloud-data-sync-acceptance.json"` 写入证据文件。这个报告会记录 helper 探测、临时写入、订阅探测，以及所有必须人工完成的真实 Apple 设备检查。即使 helper 全部通过，状态也只能是 `automated-ready-manual-required`；只有 Mac 到 Mac 导入、iPhone 蜂窝入口、Wi-Fi/蜂窝切换、Mac 重启恢复、iCloud 延迟提示、旧入口/旧二维码失效、多桌面默认入口、原生后台推送投递和离线冲突审核都有新鲜证据后，才能对外宣称完整 iCloud 数据同步。
 
 当前还新增了受管理员认证保护的批次预览接口：`/api/v1/admin/icloud-data-sync/batch-preview`。它会从 SQLite 里挑选聊天、记忆、任务、生成程序状态和设备信任元数据的候选记录，但只返回 hash、字段名、record type、zone、数量和阻断原因，不返回原始正文、access token、token hash、私钥或密钥。它可以帮助判断“哪些数据将来能通过 CloudKit 同步”，但它本身仍不是后台双向同步。
 
