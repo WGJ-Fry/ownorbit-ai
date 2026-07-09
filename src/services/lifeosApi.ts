@@ -1738,6 +1738,35 @@ export type CloudKitSyncExportSummary = {
   };
 };
 
+export type CloudKitDeviceTrustMetadataItem = {
+  id: string;
+  displayName: string;
+  deviceType: string;
+  trustState: string;
+  publicKeyFingerprintShort?: string;
+  accessExpiresAt?: number;
+  createdAt?: number;
+  lastSeenAt?: number;
+  revokedAt?: number;
+  reviewStatus: "needs-rebind" | "reviewed" | "ignored";
+  accessGranted: false;
+  importedAt: number;
+  appliedAt: number;
+  nextAction: "rebind-device" | "review-revoked-device" | "keep-for-reference";
+  guidance: string;
+};
+
+export type CloudKitDeviceTrustMetadataSummary = {
+  total: number;
+  needsRebind: number;
+  revoked: number;
+  accessGranted: 0;
+  newestAppliedAt: number | null;
+  nextAction: "rebind-device" | "review-revoked-device" | "none";
+  rawCredentialReturnedToAdmin: false;
+  deviceAccessGrantedFromCloudKit: false;
+};
+
 export type ConnectionTestResult = {
   ok: boolean;
   httpsStatus?: {
@@ -2600,6 +2629,17 @@ export function getCloudKitSyncQuarantine(limit?: number) {
     };
     diagnostics: NetworkDiagnostics;
   }>(`/api/v1/admin/icloud-data-sync/quarantine${query}`);
+}
+
+export function getCloudKitDeviceTrustMetadata(limit?: number) {
+  const query = limit ? `?limit=${encodeURIComponent(String(limit))}` : "";
+  return requestJson<{
+    deviceTrust: {
+      items: CloudKitDeviceTrustMetadataItem[];
+      summary: CloudKitDeviceTrustMetadataSummary;
+    };
+    diagnostics: NetworkDiagnostics;
+  }>(`/api/v1/admin/icloud-data-sync/device-trust${query}`);
 }
 
 export function applyCloudKitSyncQuarantine(input: { confirmation: string; limit?: number }) {

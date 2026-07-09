@@ -6,6 +6,7 @@ import ConnectionGuide from "./ConnectionGuide";
 import AuditLogPanel from "./settings/AuditLogPanel";
 import BackupRestorePanel from "./settings/BackupRestorePanel";
 import CalendarSyncControlPanel from "./settings/CalendarSyncControlPanel";
+import CloudKitDeviceTrustPanel from "./settings/CloudKitDeviceTrustPanel";
 import ConfigDiagnosticsPanel from "./settings/ConfigDiagnosticsPanel";
 import NativeAutomationControlPanel from "./settings/NativeAutomationControlPanel";
 import StatusPanel from "./settings/StatusPanel";
@@ -137,6 +138,8 @@ export default function AdminSettingsPage() {
         <NativeAutomationControlPanel />
 
         <ConnectionGuide health={health} />
+
+        <CloudKitDeviceTrustPanel />
 
         <BackupRestorePanel backups={backups} pendingRestore={pendingRestore} onChanged={refresh} />
 

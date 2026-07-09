@@ -317,6 +317,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   const studioRuntimeEventsPanelSource = await readFile(path.join(rootDir, "src", "components", "apps", "studio", "StudioRuntimeEventsPanel.tsx"), "utf8");
   const configDiagnosticsPanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "ConfigDiagnosticsPanel.tsx"), "utf8");
   const adminSettingsPageSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminSettingsPage.tsx"), "utf8");
+  const cloudKitDeviceTrustPanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "CloudKitDeviceTrustPanel.tsx"), "utf8");
   const calendarSyncControlPanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "CalendarSyncControlPanel.tsx"), "utf8");
   const nativeAutomationControlPanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "NativeAutomationControlPanel.tsx"), "utf8");
   const releaseUpdateStatusCardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "ReleaseUpdateStatusCard.tsx"), "utf8");
@@ -1026,6 +1027,14 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-record-plan/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-acceptance-gates/);
   assert.match(onboardingAppleRemoteSource, /icloudDataSyncStatusKeys/);
+  assert.match(adminSettingsPageSource, /CloudKitDeviceTrustPanel/);
+  assert.match(cloudKitDeviceTrustPanelSource, /getCloudKitDeviceTrustMetadata\(20\)/);
+  assert.match(cloudKitDeviceTrustPanelSource, /settings\.cloudKitDeviceTrustSafeBoundary/);
+  assert.match(cloudKitDeviceTrustPanelSource, /\/admin\/devices\/pair/);
+  assert.match(lifeosApiSource, /CloudKitDeviceTrustMetadataItem/);
+  assert.match(lifeosApiSource, /\/api\/v1\/admin\/icloud-data-sync\/device-trust/);
+  assert.match(translationsSource, /iCloud 设备信任审阅/);
+  assert.match(translationsSource, /iCloud Device Trust Review/);
   assert.match(lifeosApiSource, /recordPlan: Array/);
   assert.match(lifeosApiSource, /acceptanceGates: Array/);
   assert.match(lifeosApiSource, /dataSyncScope: "entry-file-only" \| "cloudkit-native-candidate"/);

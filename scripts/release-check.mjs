@@ -1495,6 +1495,7 @@ function checkAssets() {
   const cloudKitSyncApplyTestSource = exists("tests/cloudkit-sync-apply.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-sync-apply.test.mjs"), "utf8") : "";
   const cloudKitDeviceTrustMetadataSource = exists("server/cloudKitDeviceTrustMetadata.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitDeviceTrustMetadata.ts"), "utf8") : "";
   const cloudKitDeviceTrustMetadataTestSource = exists("tests/cloudkit-device-trust-metadata.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-device-trust-metadata.test.mjs"), "utf8") : "";
+  const cloudKitDeviceTrustPanelSource = exists("src/pages/admin/settings/CloudKitDeviceTrustPanel.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/CloudKitDeviceTrustPanel.tsx"), "utf8") : "";
   const cloudKitSyncNowSource = exists("server/cloudKitSyncNow.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitSyncNow.ts"), "utf8") : "";
   const cloudKitSyncNowTestSource = exists("tests/cloudkit-sync-now.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-sync-now.test.mjs"), "utf8") : "";
   const cloudKitSyncUploadNowSource = exists("server/cloudKitSyncUploadNow.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitSyncUploadNow.ts"), "utf8") : "";
@@ -2102,6 +2103,13 @@ function checkAssets() {
     cloudKitDeviceTrustMetadataTestSource.includes("shows rebind guidance without granting access") &&
     apiAuthTestSource.includes("/api/v1/admin/icloud-data-sync/device-trust") &&
     apiAuthTestSource.includes("cloudKitDeviceTrust.deviceTrust.summary.deviceAccessGrantedFromCloudKit, false") &&
+    lifeosApiSource.includes("getCloudKitDeviceTrustMetadata") &&
+    lifeosApiSource.includes("/api/v1/admin/icloud-data-sync/device-trust") &&
+    cloudKitDeviceTrustPanelSource.includes("getCloudKitDeviceTrustMetadata(20)") &&
+    cloudKitDeviceTrustPanelSource.includes("settings.cloudKitDeviceTrustSafeBoundary") &&
+    cloudKitDeviceTrustPanelSource.includes("/admin/devices/pair") &&
+    translationsSource.includes("iCloud 设备信任审阅") &&
+    translationsSource.includes("iCloud Device Trust Review") &&
     packageJson.scripts?.test?.includes("tests/cloudkit-device-trust-metadata.test.mjs") &&
     cloudKitSyncApplyTestSource.includes("blocks checkpoint promotion") &&
     cloudKitSyncNowSource.includes("SYNC_CLOUDKIT_NOW") &&
