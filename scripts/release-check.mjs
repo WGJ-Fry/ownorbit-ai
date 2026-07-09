@@ -712,6 +712,8 @@ function checkAssets() {
     adminOnboardingSource.includes("simpleIcloudLongTestActionKey") &&
     adminOnboardingSource.includes("showSimpleIcloudFilesFirst") &&
     adminOnboardingSource.includes("showSimpleIcloudQrAfterPickup") &&
+    adminOnboardingSource.includes("simpleIcloudShouldPollPickup") &&
+    adminOnboardingSource.includes("onboarding-icloud-auto-watch") &&
     adminOnboardingSource.includes("showSimpleIcloudLongTest") &&
     adminOnboardingSource.includes("onboarding-icloud-phone-pickup-cta") &&
     adminOnboardingSource.includes("onboarding-device-advanced-icloud-tools") &&
@@ -739,6 +741,7 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding.simpleIcloudFilesPath") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudFilesActionTitle") &&
     adminOnboardingSource.includes("onboarding.simpleIcloudFilesOneStepHint") &&
+    adminOnboardingSource.includes("onboarding.simpleIcloudFilesAutoWatch") &&
     adminOnboardingSource.includes("onboarding-icloud-copy-entry-path") &&
     adminOnboardingSource.includes("handleCopyIcloudEntryPath") &&
     adminOnboardingSource.includes("navigator.clipboard.writeText(entryPath)") &&
@@ -787,6 +790,8 @@ function checkAssets() {
     translationsSource.includes("onboarding.simpleDeviceBody") &&
     translationsSource.includes("Apple 设备会先走最省心的默认流程") &&
     translationsSource.includes("Apple devices start with the simplest default flow") &&
+    translationsSource.includes("手机打开文件后，这里会自动跳到二维码绑定") &&
+    translationsSource.includes("this page will move to QR pairing automatically") &&
     translationsSource.includes("备用：直接扫码绑定") &&
     translationsSource.includes("Backup: pair directly by QR") &&
     translationsSource.includes("onboarding.simpleDeviceAdvancedTitle") &&

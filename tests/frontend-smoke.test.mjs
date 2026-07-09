@@ -560,6 +560,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /simpleIcloudPhoneConfirmed/);
   assert.match(onboardingSource, /showSimpleIcloudFilesFirst/);
   assert.match(onboardingSource, /showSimpleIcloudQrAfterPickup/);
+  assert.match(onboardingSource, /simpleIcloudShouldPollPickup/);
+  assert.match(onboardingSource, /onboarding-icloud-auto-watch/);
   assert.match(onboardingSource, /onboarding-icloud-copy-entry-path/);
   assert.match(onboardingSource, /handleCopyIcloudEntryPath/);
   assert.match(onboardingSource, /navigator\.clipboard\.writeText\(entryPath\)/);
@@ -623,6 +625,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.simpleIcloudFilesPath/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudFilesActionTitle/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudFilesOneStepHint/);
+  assert.match(onboardingSource, /onboarding\.simpleIcloudFilesAutoWatch/);
   assert.match(onboardingSource, /simpleIcloudCurrentEntry/);
   assert.match(onboardingSource, /onboarding-icloud-current-entry/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudCurrentEntryTitle/);
@@ -664,6 +667,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /primaryProgress} \/ \{primaryStepsTotal/);
   assert.match(translationsSource, /Apple 设备会先走最省心的默认流程/);
   assert.match(translationsSource, /Apple devices start with the simplest default flow/);
+  assert.match(translationsSource, /手机打开文件后，这里会自动跳到二维码绑定/);
+  assert.match(translationsSource, /this page will move to QR pairing automatically/);
   assert.match(translationsSource, /备用：直接扫码绑定/);
   assert.match(translationsSource, /Backup: pair directly by QR/);
   const onboardingRecoverySource = await readFile(path.join(rootDir, "src", "pages", "admin", "OnboardingRecoveryCard.tsx"), "utf8");

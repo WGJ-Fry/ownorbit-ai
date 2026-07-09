@@ -189,6 +189,11 @@ export default function AdminOnboardingPage() {
     : simpleIcloudAction.cta === "remote-guide"
     ? "onboarding.simpleIcloudFlowStatusRemoteNeeded"
     : "onboarding.simpleIcloudFlowStatusEntryWaiting";
+  const simpleIcloudShouldPollPickup = primaryStep === "device" &&
+    showSimpleIcloudEntry &&
+    !hasDevice &&
+    !simpleIcloudNeedsSettings &&
+    (simpleIcloudFlowStage === "entry" || simpleIcloudFlowStage === "files");
   const simpleIcloudFlowSteps: Array<{
     id: "entry" | "files" | "qr";
     labelKey: TranslationKey;
@@ -298,6 +303,21 @@ export default function AdminOnboardingPage() {
       cancelled = true;
     };
   }, [primaryStep, networkDiagnostics?.icloud?.canExport, simpleIcloudAction.cta, t]);
+
+  useEffect(() => {
+    if (!simpleIcloudShouldPollPickup) return;
+    let stopped = false;
+    const interval = window.setInterval(async () => {
+      const networkData = await getNetworkDiagnostics().catch(() => null);
+      if (!stopped && networkData) {
+        setNetworkDiagnostics(networkData);
+      }
+    }, simpleIcloudFlowStage === "files" ? 1500 : 2500);
+    return () => {
+      stopped = true;
+      window.clearInterval(interval);
+    };
+  }, [simpleIcloudShouldPollPickup, simpleIcloudFlowStage]);
 
   useEffect(() => {
     if (primaryStep !== "device" || hasDevice || !showSimpleIcloudQrAfterPickup || !simpleIcloudCurrentEntry || inlinePairingSession || inlinePairingBusy || inlinePairingError) return;
@@ -858,6 +878,9 @@ export default function AdminOnboardingPage() {
                           </div>
                           <p className="mt-1 opacity-75">{t("onboarding.simpleIcloudFilesActionBody")}</p>
                           <p className="mt-2 rounded-lg border border-current/10 bg-black/15 p-2 font-bold opacity-90">{t("onboarding.simpleIcloudFilesOneStepHint")}</p>
+                          <p data-testid="onboarding-icloud-auto-watch" className="mt-2 rounded-lg border border-emerald-300/15 bg-emerald-400/10 p-2 font-bold text-emerald-50">
+                            {t("onboarding.simpleIcloudFilesAutoWatch")}
+                          </p>
                           <div className="mt-2 break-all rounded-lg bg-black/20 p-2 font-mono text-[11px] opacity-75">{icloud?.handoffFilePath || t("onboarding.simpleIcloudFilesPath")}</div>
                           <button
                             type="button"
