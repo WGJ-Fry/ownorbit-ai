@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import type React from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { AlertTriangle, ArrowRight, CheckCircle2, Cloud, Copy, DatabaseBackup, KeyRound, Loader2, QrCode, RefreshCw, ShieldAlert, SlidersHorizontal, Sparkles, Smartphone, Wifi } from "lucide-react";
-import { cleanupIcloudHandoffEntries, completeOnboarding, createBackup, exportIcloudHandoff, getBackupSchedule, getBindingSession, getConfigDiagnostics, getNetworkDiagnostics, getOnboardingStatus, listAiProviders, listBackups, listDevices, saveAiProviderKey, saveDesktopConnectionConfig, startBindingSession, startCloudflareTunnel, startTailscaleHttpsServe, testAiProvider, testConnectionUrl, updateActiveAiProvider, updateAiProviderModel, updateBackupSchedule } from "../../services/lifeosApi";
-import type { AiProviderId, AiProviderStatus, BackupRecord, BackupSchedule, BindingSession, BoundDevice, ConfigDiagnostics, NetworkDiagnostics, OnboardingStatus } from "../../services/lifeosApi";
+import { cleanupIcloudHandoffEntries, completeOnboarding, createBackup, exportIcloudHandoff, getBackupSchedule, getBindingSession, getCloudKitDeviceTrustMetadata, getConfigDiagnostics, getNetworkDiagnostics, getOnboardingStatus, listAiProviders, listBackups, listDevices, saveAiProviderKey, saveDesktopConnectionConfig, startBindingSession, startCloudflareTunnel, startTailscaleHttpsServe, testAiProvider, testConnectionUrl, updateActiveAiProvider, updateAiProviderModel, updateBackupSchedule } from "../../services/lifeosApi";
+import type { AiProviderId, AiProviderStatus, BackupRecord, BackupSchedule, BindingSession, BoundDevice, CloudKitDeviceTrustMetadataSummary, ConfigDiagnostics, NetworkDiagnostics, OnboardingStatus } from "../../services/lifeosApi";
 import LanguageSwitcher from "../../i18n/LanguageSwitcher";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { TranslationKey } from "../../i18n/translations";
@@ -59,6 +59,7 @@ export default function AdminOnboardingPage() {
   const [backups, setBackups] = useState<BackupRecord[]>([]);
   const [backupSchedule, setBackupSchedule] = useState<BackupSchedule | null>(null);
   const [devices, setDevices] = useState<BoundDevice[]>([]);
+  const [cloudKitDeviceTrustSummary, setCloudKitDeviceTrustSummary] = useState<CloudKitDeviceTrustMetadataSummary | null>(null);
   const [onboarding, setOnboarding] = useState<OnboardingStatus | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -86,6 +87,7 @@ export default function AdminOnboardingPage() {
   const remoteReady = networkDiagnostics?.remoteReadiness?.severity === "ok";
   const icloud = networkDiagnostics?.icloud;
   const showSimpleIcloudEntry = primaryStep === "device" && Boolean(icloud?.platformSupported);
+  const simpleIcloudNeedsDeviceRebind = showSimpleIcloudEntry && !hasDevice && Boolean(cloudKitDeviceTrustSummary?.needsRebind);
   const simpleIcloudBusy = busy === "icloud-handoff-auto" || busy === "icloud-handoff";
   const simpleIcloudCanExport = Boolean(icloud?.canExport);
   const simpleIcloudAction = getPrimaryIcloudAction({
@@ -254,7 +256,7 @@ export default function AdminOnboardingPage() {
     : t("onboarding.finishBlocked", { steps: incompleteStepLabels.join(t("onboarding.stepSeparator")) || t("onboarding.unknownStep") });
 
   const refresh = async () => {
-    const [providerData, diagnosticsData, backupData, scheduleData, deviceData, onboardingData, networkData] = await Promise.all([
+    const [providerData, diagnosticsData, backupData, scheduleData, deviceData, onboardingData, networkData, deviceTrustData] = await Promise.all([
       listAiProviders(),
       getConfigDiagnostics(),
       listBackups(),
@@ -262,6 +264,7 @@ export default function AdminOnboardingPage() {
       listDevices(),
       getOnboardingStatus(),
       getNetworkDiagnostics().catch(() => null),
+      getCloudKitDeviceTrustMetadata(10).catch(() => null),
     ]);
     setProviders(providerData.providers);
     setDiagnostics(diagnosticsData);
@@ -269,6 +272,7 @@ export default function AdminOnboardingPage() {
     setBackups(backupData.backups);
     setBackupSchedule(scheduleData.schedule);
     setDevices(deviceData.devices);
+    setCloudKitDeviceTrustSummary(deviceTrustData?.deviceTrust.summary || null);
     setOnboarding(onboardingData.onboarding);
   };
 
@@ -812,6 +816,29 @@ export default function AdminOnboardingPage() {
                   <div data-testid="onboarding-icloud-default-flow-status" className="mt-3 rounded-xl border border-cyan-100/10 bg-black/15 p-3 text-xs font-bold leading-relaxed text-cyan-50/90">
                     {t(simpleIcloudFlowStatusKey)}
                   </div>
+                  {simpleIcloudNeedsDeviceRebind ? (
+                    <div data-testid="onboarding-icloud-device-trust-rebind" className="mt-3 rounded-2xl border border-amber-200/20 bg-amber-400/10 p-4 text-sm leading-relaxed text-amber-50">
+                      <div className="flex gap-3">
+                        <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold">{t("onboarding.simpleIcloudDeviceTrustTitle", { count: cloudKitDeviceTrustSummary?.needsRebind || 0 })}</div>
+                          <p className="mt-1 text-xs text-amber-50/80">{t("onboarding.simpleIcloudDeviceTrustBody")}</p>
+                          <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-100/15 bg-black/15 p-3 text-xs font-bold">
+                            <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                            <span>
+                              {t("onboarding.appleRemoteIcloudOneNextAction", {
+                                action: t("onboarding.simpleIcloudDeviceTrustAction"),
+                              })}
+                            </span>
+                          </div>
+                          <a href="/admin/devices/pair" className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-200 px-3 py-2 text-xs font-bold text-[#1d1304] shadow-lg shadow-amber-950/20 transition hover:bg-amber-100">
+                            <QrCode className="h-3.5 w-3.5" />
+                            {t("onboarding.simpleIcloudDeviceTrustCta")}
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                   {!simpleIcloudBusy ? (
                     <div
                       data-testid="onboarding-icloud-quick-one-step"

@@ -638,6 +638,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.simpleIcloudLongTestTitle/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudDefaultFlowTitle/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudFlowStatusFilesNext/);
+  assert.match(onboardingSource, /getCloudKitDeviceTrustMetadata\(10\)/);
+  assert.match(onboardingSource, /onboarding-icloud-device-trust-rebind/);
+  assert.match(onboardingSource, /simpleIcloudNeedsDeviceRebind/);
   assert.match(onboardingSource, /onboarding-icloud-inline-qr/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudInlineQrReady/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudInlineQrFullPage/);
@@ -1035,6 +1038,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /\/api\/v1\/admin\/icloud-data-sync\/device-trust/);
   assert.match(translationsSource, /iCloud 设备信任审阅/);
   assert.match(translationsSource, /iCloud Device Trust Review/);
+  assert.match(translationsSource, /iCloud 发现 \{\{count\}\} 台 Apple 设备记录/);
+  assert.match(translationsSource, /iCloud found \{\{count\}\} Apple device record/);
   assert.match(lifeosApiSource, /recordPlan: Array/);
   assert.match(lifeosApiSource, /acceptanceGates: Array/);
   assert.match(lifeosApiSource, /dataSyncScope: "entry-file-only" \| "cloudkit-native-candidate"/);

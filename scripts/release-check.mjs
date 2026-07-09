@@ -2108,8 +2108,13 @@ function checkAssets() {
     cloudKitDeviceTrustPanelSource.includes("getCloudKitDeviceTrustMetadata(20)") &&
     cloudKitDeviceTrustPanelSource.includes("settings.cloudKitDeviceTrustSafeBoundary") &&
     cloudKitDeviceTrustPanelSource.includes("/admin/devices/pair") &&
+    adminOnboardingSource.includes("onboarding-icloud-device-trust-rebind") &&
+    adminOnboardingSource.includes("getCloudKitDeviceTrustMetadata(10)") &&
+    adminOnboardingSource.includes("simpleIcloudNeedsDeviceRebind") &&
     translationsSource.includes("iCloud 设备信任审阅") &&
     translationsSource.includes("iCloud Device Trust Review") &&
+    translationsSource.includes("iCloud 发现 {{count}} 台 Apple 设备记录") &&
+    translationsSource.includes("iCloud found {{count}} Apple device record") &&
     packageJson.scripts?.test?.includes("tests/cloudkit-device-trust-metadata.test.mjs") &&
     cloudKitSyncApplyTestSource.includes("blocks checkpoint promotion") &&
     cloudKitSyncNowSource.includes("SYNC_CLOUDKIT_NOW") &&
