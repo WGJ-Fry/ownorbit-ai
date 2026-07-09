@@ -1716,6 +1716,7 @@ test("iCloud availability detects placeholder files that are still syncing", asy
   assert.equal(diagnostics.icloud.syncReadiness.action, "wait-for-sync");
   assert.equal(diagnostics.icloud.syncReadiness.userStep.humanRecovery.titleKey, "onboarding.appleRemoteIcloudHumanRecoveryWaitTitle");
   assert.equal(diagnostics.icloud.syncReadiness.userStep.humanRecovery.primaryCtaKey, "onboarding.appleRemoteIcloudActionWaitSync");
+  assert.equal(diagnostics.icloud.syncReadiness.userStep.humanRecovery.tipKey, "onboarding.appleRemoteIcloudHumanRecoveryWaitTip");
   assert.equal(diagnostics.icloud.syncReadiness.userStep.humanRecovery.phoneAction, "open-files-app-after-sync");
   assert.equal(diagnostics.icloud.syncReadiness.userStep.humanRecovery.showTechnicalDetails, false);
   assert.equal(diagnostics.icloud.syncReadiness.userStep.id, "waiting-for-icloud-sync");
@@ -1976,6 +1977,7 @@ test("iCloud availability flags entry files that appear stuck syncing", async (t
   assert.equal(diagnostics.icloud.syncReadiness.userStep.id, "repair-icloud-sync");
   assert.equal(diagnostics.icloud.syncReadiness.userStep.primaryAction, "open-icloud-settings");
   assert.equal(diagnostics.icloud.syncReadiness.userStep.titleKey, "onboarding.appleRemoteIcloudNextStepFixSyncTitle");
+  assert.equal(diagnostics.icloud.syncReadiness.userStep.humanRecovery.tipKey, "onboarding.appleRemoteIcloudHumanRecoveryFixSyncTip");
   assert.deepEqual(diagnostics.icloud.syncReadiness.userStep.pendingFiles, ["html"]);
 });
 

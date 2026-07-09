@@ -907,6 +907,7 @@ export type NetworkDiagnostics = {
           bodyKey: string;
           primaryCtaKey: string;
           afterKey: string;
+          tipKey: string;
           desktopAction: "use-qr-or-tunnel" | "open-icloud-settings" | "export-icloud-entry" | "refresh-icloud-entry" | "wait" | "none";
           phoneAction: "none" | "open-files-app-after-sync" | "open-latest-entry" | "open-files-app";
           showTechnicalDetails: boolean;

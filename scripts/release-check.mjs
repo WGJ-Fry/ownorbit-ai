@@ -707,6 +707,8 @@ function checkAssets() {
     adminOnboardingSource.includes("simpleIcloudSyncStuckMinutes") &&
     adminOnboardingSource.includes("simpleIcloudHumanRecovery.primaryCtaKey") &&
     adminOnboardingSource.includes("simpleIcloudHumanRecovery.afterKey") &&
+    adminOnboardingSource.includes("simpleIcloudHumanRecovery.tipKey") &&
+    adminOnboardingSource.includes("onboarding-icloud-quick-human-tip") &&
     adminOnboardingSource.includes("simpleIcloudOneStepActionText") &&
     adminOnboardingSource.includes("simpleIcloudOneStepFollowupText") &&
     adminOnboardingSource.includes("simpleIcloudLongTestActionKey") &&
@@ -1649,14 +1651,18 @@ function checkAssets() {
     translationsSource.includes("这个入口旧了，点这里重新生成") &&
     translationsSource.includes("请打开 iPhone 文件 App") &&
     translationsSource.includes("手机刚打开的是旧入口，请用最新入口") &&
+    translationsSource.includes("不用重新扫码，也不用反复生成") &&
+    translationsSource.includes("Do not use old QR codes or old home-screen entries yet") &&
     networkDiagnosticsSource.includes("waiting-for-icloud-sync") &&
     onboardingAppleRemoteSource.includes("safeIcloudSyncUserStepKey") &&
     onboardingAppleRemoteSource.includes("syncReadinessActionText") &&
     onboardingAppleRemoteSource.includes("syncHumanRecovery") &&
+    onboardingAppleRemoteSource.includes("syncHumanRecoveryTipKey") &&
     onboardingAppleRemoteSource.includes("syncUserStepPendingFiles") &&
     onboardingAppleRemoteSource.includes("syncUserStepMissingFiles") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-human-sync-files") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-human-recovery-after") &&
+    onboardingAppleRemoteSource.includes("onboarding-icloud-human-recovery-tip") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudWaitingForFiles") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudMissingFiles") &&
     onboardingAppleRemoteSource.includes("action: syncReadinessActionText") &&
@@ -1671,8 +1677,10 @@ function checkAssets() {
     networkDiagnosticsTestSource.includes("syncReadiness.userStep.id") &&
     networkDiagnosticsTestSource.includes("syncReadiness.userStep.pendingFiles") &&
     networkDiagnosticsTestSource.includes("syncReadiness.userStep.humanRecovery") &&
+    networkDiagnosticsTestSource.includes("humanRecovery.tipKey") &&
     networkDiagnosticsTestSource.includes('pendingFiles.includes("html")') &&
     lifeosApiSource.includes("humanRecovery") &&
+    lifeosApiSource.includes("tipKey") &&
     apiAuthTestSource.includes("networkDiagnosticsWithBinding.icloud.pairingSession.status") &&
     networkDiagnosticsTestSource.includes("iCloud pairing session status guides stale QR repair") &&
     networkDiagnosticsTestSource.includes("iCloud handoff monitor refreshes after the latest pairing QR expires") &&

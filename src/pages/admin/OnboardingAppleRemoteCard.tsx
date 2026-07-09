@@ -606,6 +606,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const syncHumanRecoveryBodyKey = (syncHumanRecovery?.bodyKey || "") as TranslationKey;
   const syncHumanRecoveryCtaKey = (syncHumanRecovery?.primaryCtaKey || "") as TranslationKey;
   const syncHumanRecoveryAfterKey = (syncHumanRecovery?.afterKey || "") as TranslationKey;
+  const syncHumanRecoveryTipKey = (syncHumanRecovery?.tipKey || "") as TranslationKey;
   const syncUserStepPendingFiles = syncReadiness?.userStep?.pendingFiles || [];
   const syncUserStepMissingFiles = syncReadiness?.userStep?.missingFiles || [];
   const humanSyncStep = syncReadiness ? icloudHumanSyncStepKeys[syncReadiness.action] : null;
@@ -1949,6 +1950,11 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                     <div data-testid="onboarding-icloud-human-recovery-after" className="mt-2 rounded-lg border border-current/10 bg-black/15 p-2 text-[11px] leading-relaxed opacity-85">
                       <span className="font-bold">{t("onboarding.appleRemoteIcloudThenLabel")}</span>{" "}
                       {t(syncHumanRecoveryAfterKey, { count: syncReadiness.pendingCount, minutes: icloudSyncStuckMinutes })}
+                    </div>
+                  ) : null}
+                  {syncHumanRecovery?.tipKey ? (
+                    <div data-testid="onboarding-icloud-human-recovery-tip" className="mt-2 rounded-lg border border-current/10 bg-black/15 p-2 text-[11px] leading-relaxed opacity-85">
+                      {t(syncHumanRecoveryTipKey, { count: syncReadiness.pendingCount, minutes: icloudSyncStuckMinutes })}
                     </div>
                   ) : null}
                   {(syncHumanRecovery?.showTechnicalDetails || !syncHumanRecovery) && (syncUserStepPendingFiles.length || syncUserStepMissingFiles.length) ? (

@@ -604,8 +604,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /simpleIcloudSyncStuckMinutes/);
   assert.match(onboardingSource, /simpleIcloudHumanRecovery\.primaryCtaKey/);
   assert.match(onboardingSource, /simpleIcloudHumanRecovery\.afterKey/);
+  assert.match(onboardingSource, /simpleIcloudHumanRecovery\.tipKey/);
   assert.match(onboardingSource, /simpleIcloudOneStepActionText/);
   assert.match(onboardingSource, /simpleIcloudOneStepFollowupText/);
+  assert.match(onboardingSource, /onboarding-icloud-quick-human-tip/);
   assert.match(onboardingSource, /simpleIcloudPairingConfirmed/);
   assert.match(onboardingSource, /simpleIcloudLongTestActionKey/);
   assert.match(onboardingSource, /onboarding-icloud-quick-one-step/);
@@ -777,12 +779,16 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /手机下一步/);
   assert.match(translationsSource, /正在等 iCloud 同步/);
   assert.match(translationsSource, /iCloud 同步卡住了/);
+  assert.match(translationsSource, /不用重新扫码，也不用反复生成/);
+  assert.match(translationsSource, /旧二维码和旧主屏幕入口先不要用/);
   assert.match(translationsSource, /这个入口旧了，点这里重新生成/);
   assert.match(translationsSource, /请打开 iPhone 文件 App/);
   assert.match(translationsSource, /手机刚打开的是旧入口，请用最新入口/);
   assert.match(translationsSource, /Phone next step/);
   assert.match(translationsSource, /Waiting for iCloud sync/);
   assert.match(translationsSource, /iCloud sync is stuck/);
+  assert.match(translationsSource, /No need to rescan or create it again/);
+  assert.match(translationsSource, /Do not use old QR codes or old home-screen entries yet/);
   assert.match(translationsSource, /This entry is old\. Regenerate it here/);
   assert.match(translationsSource, /Open the iPhone Files app/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSimpleReadyTitle/);
@@ -806,8 +812,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /icloudHumanSyncStepKeys/);
   assert.match(onboardingAppleRemoteSource, /humanSyncStep/);
   assert.match(onboardingAppleRemoteSource, /syncHumanRecovery/);
+  assert.match(onboardingAppleRemoteSource, /syncHumanRecoveryTipKey/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-human-sync-step/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-human-recovery-after/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-human-recovery-tip/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-human-sync-settings/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-human-sync-folder/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-human-sync-export/);
@@ -819,6 +827,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudSyncReady/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudAdvancedDiagnostics/);
   assert.match(lifeosApiSource, /humanRecovery/);
+  assert.match(lifeosApiSource, /tipKey/);
   assert.match(onboardingAppleRemoteSource, /icloudAvailability\.pendingCount/);
   assert.match(onboardingAppleRemoteSource, /icloudMonitor/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudMonitorPhoneConfirmation/);

@@ -154,6 +154,9 @@ export default function AdminOnboardingPage() {
     : simpleIcloudHumanRecovery
     ? t(simpleIcloudHumanRecovery.afterKey as any, { count: icloud?.syncReadiness?.pendingCount || 0, minutes: simpleIcloudSyncStuckMinutes })
     : t(simpleIcloudActionFollowupKey as any);
+  const simpleIcloudHumanRecoveryTipText = simpleIcloudHumanRecovery
+    ? t(simpleIcloudHumanRecovery.tipKey as any, { count: icloud?.syncReadiness?.pendingCount || 0, minutes: simpleIcloudSyncStuckMinutes })
+    : "";
   const simpleIcloudOffLanAction = networkDiagnostics?.tailscale.installed
     ? "tailscale"
     : networkDiagnostics?.cloudflare.installed
@@ -830,6 +833,11 @@ export default function AdminOnboardingPage() {
                         <span className="font-bold text-cyan-50">{t("onboarding.appleRemoteIcloudThenLabel")}</span>{" "}
                         {simpleIcloudOneStepFollowupText}
                       </div>
+                      {simpleIcloudHumanRecoveryTipText ? (
+                        <div data-testid="onboarding-icloud-quick-human-tip" className="mt-2 rounded-xl border border-cyan-100/10 bg-black/15 p-2 text-xs leading-relaxed text-cyan-50/75">
+                          {simpleIcloudHumanRecoveryTipText}
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
