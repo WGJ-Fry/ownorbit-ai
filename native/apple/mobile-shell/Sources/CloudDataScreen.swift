@@ -4,6 +4,7 @@ struct CloudDataScreen: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var cloudStore: LifeOSCloudDataStore
     @State private var confirmClear = false
+    @State private var pendingTaskCompletion: LifeOSPendingTaskCompletion?
 
     var body: some View {
         NavigationStack {
@@ -36,6 +37,25 @@ struct CloudDataScreen: View {
                 Button("common.cancel", role: .cancel) {}
             } message: {
                 Text("cloud.clear.body")
+            }
+            .alert(
+                "cloud.task.complete.title",
+                isPresented: Binding(
+                    get: { pendingTaskCompletion != nil },
+                    set: { if !$0 { pendingTaskCompletion = nil } }
+                ),
+                presenting: pendingTaskCompletion
+            ) { request in
+                Button("cloud.task.complete.confirm") {
+                    pendingTaskCompletion = nil
+                    Task { await cloudStore.completeTaskListItem(record: request.record, item: request.item) }
+                }
+                Button("common.cancel", role: .cancel) { pendingTaskCompletion = nil }
+            } message: { request in
+                Text(String(
+                    format: NSLocalizedString("cloud.task.complete.body", comment: ""),
+                    request.item.text
+                ))
             }
         }
     }
@@ -99,26 +119,7 @@ struct CloudDataScreen: View {
             ForEach(groupedRecords, id: \.dataType) { group in
                 Section(header: Text(sectionTitle(group.dataType))) {
                     ForEach(group.records.prefix(30)) { record in
-                        VStack(alignment: .leading, spacing: 5) {
-                            HStack {
-                                Text(record.displayTitle)
-                                    .font(.body.weight(.semibold))
-                                    .lineLimit(2)
-                                Spacer()
-                                if record.requiresUserReview {
-                                    Image(systemName: "person.crop.circle.badge.exclamationmark")
-                                        .foregroundStyle(.orange)
-                                        .accessibilityLabel(Text("cloud.reviewRequired"))
-                                }
-                            }
-                            if !record.displayBody.isEmpty {
-                                Text(record.displayBody)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(3)
-                            }
-                        }
-                        .padding(.vertical, 4)
+                        cloudRecordRow(record)
                     }
                 }
             }
@@ -146,6 +147,60 @@ struct CloudDataScreen: View {
                 }
                 .padding(32)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func cloudRecordRow(_ record: LifeOSCloudRecord) -> some View {
+        if record.recordType == "LifeOSTaskListSnapshot" && !record.taskItems.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(record.displayTitle)
+                    .font(.body.weight(.semibold))
+                ForEach(record.taskItems) { item in
+                    HStack(alignment: .top, spacing: 11) {
+                        Button {
+                            guard !item.completed else { return }
+                            pendingTaskCompletion = LifeOSPendingTaskCompletion(record: record, item: item)
+                        } label: {
+                            Image(systemName: item.completed ? "checkmark.circle.fill" : "circle")
+                                .font(.title3)
+                                .foregroundStyle(item.completed ? .mint : .cyan)
+                                .frame(width: 28, height: 28)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(item.completed || cloudStore.writingTaskRecordId != nil)
+                        .accessibilityLabel(Text(item.completed ? "cloud.task.completed" : "cloud.task.complete.accessibility"))
+                        Text(item.text)
+                            .font(.subheadline)
+                            .foregroundStyle(item.completed ? .secondary : .primary)
+                            .strikethrough(item.completed)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
+                    }
+                }
+            }
+            .padding(.vertical, 4)
+        } else {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack {
+                    Text(record.displayTitle)
+                        .font(.body.weight(.semibold))
+                        .lineLimit(2)
+                    Spacer()
+                    if record.requiresUserReview {
+                        Image(systemName: "person.crop.circle.badge.exclamationmark")
+                            .foregroundStyle(.orange)
+                            .accessibilityLabel(Text("cloud.reviewRequired"))
+                    }
+                }
+                if !record.displayBody.isEmpty {
+                    Text(record.displayBody)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(3)
+                }
+            }
+            .padding(.vertical, 4)
         }
     }
 
@@ -213,4 +268,10 @@ struct CloudDataScreen: View {
         case .error: return "xmark.octagon"
         }
     }
+}
+
+private struct LifeOSPendingTaskCompletion: Identifiable {
+    let record: LifeOSCloudRecord
+    let item: LifeOSCloudTaskItem
+    var id: String { "\(record.id)/\(item.id)" }
 }

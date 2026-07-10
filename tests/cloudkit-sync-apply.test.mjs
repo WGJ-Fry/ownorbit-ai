@@ -16,6 +16,7 @@ function runIsolatedCloudKitApply(env, scenario) {
     const { db } = await import("./server/db.ts");
     runMigrations();
     const { listCloudKitSyncQuarantineItems, applyCloudKitSyncQuarantine } = await import("./server/cloudKitSyncApply.ts");
+    const { buildCloudKitTaskListPayload, cloudKitPayloadContentHash } = await import("./server/cloudKitSyncBatch.ts");
 
     function stableHash(value) {
       return crypto.createHash("sha256").update(JSON.stringify(value ?? null)).digest("hex");
@@ -105,6 +106,38 @@ function runIsolatedCloudKitApply(env, scenario) {
       const payloadJson = JSON.stringify(taskPayload);
       db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'changed', 'auto-ready', ?, ?, ?, ?, ?, 0, ?, ?, NULL, ?, ?, NULL, NULL)")
         .run("q-task-new", "LifeOSTaskZone", "LifeOSTask", "task:remote-task", "task-mut", stableHash(taskPayload), stableHash(payloadJson), now + 2000, Buffer.byteLength(payloadJson), payloadJson, new Date(now + 2000).toISOString(), "evidence-task", now + 3000);
+    } else if (${JSON.stringify(scenario)} === "task-list-ios-complete" || ${JSON.stringify(scenario)} === "task-list-ios-stale" || ${JSON.stringify(scenario)} === "task-list-ios-wide" || ${JSON.stringify(scenario)} === "task-list-ios-missing-base") {
+      db.prepare("INSERT INTO cloudkit_sync_checkpoints (zone, applied_server_change_token, pending_server_change_token, token_state, last_evidence_id, last_preview_at, last_applied_at, changed_count, deleted_count, failed_count, more_coming, updated_at) VALUES (?, NULL, ?, 'pending-preview', ?, ?, NULL, ?, ?, 0, 0, ?)")
+        .run("LifeOSTaskZone", "opaque-ios-task-token", "evidence-ios-task", now, 1, 0, now);
+      const localItems = [
+        { id: "task-1", text: "Finish the CloudKit bridge", completed: false, priority: "high", createdAt: now - 1000 },
+        { id: "task-2", text: "Keep this unchanged", completed: false, priority: "medium", createdAt: now - 500 },
+      ];
+      if (${JSON.stringify(scenario)} !== "task-list-ios-missing-base") {
+        db.prepare("INSERT INTO client_state (key, value_json, updated_at, updated_by_type, updated_by_id) VALUES (?, ?, ?, 'device', 'local-phone')")
+          .run("lifeos_tasks_pro", JSON.stringify(localItems), now);
+      }
+      const basePayload = buildCloudKitTaskListPayload(localItems, now);
+      const nextItems = localItems.map((item) => {
+        if (item.id === "task-1") return { ...item, completed: true };
+        if (${JSON.stringify(scenario)} === "task-list-ios-wide") return { ...item, text: "Unexpected wider mutation" };
+        return item;
+      });
+      const taskListPayload = {
+        taskListKey: "lifeos_tasks_pro",
+        items: nextItems,
+        updatedAt: now + 2000,
+        syncMutation: {
+          kind: "task-list-item-complete",
+          origin: "ios-native",
+          itemId: "task-1",
+          baseContentHash: ${JSON.stringify(scenario)} === "task-list-ios-stale" ? "0".repeat(64) : cloudKitPayloadContentHash(basePayload),
+          mutatedAt: now + 2000,
+        },
+      };
+      const payloadJson = JSON.stringify(taskListPayload);
+      db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'changed', 'auto-ready', ?, ?, ?, ?, ?, 0, ?, ?, NULL, ?, ?, NULL, NULL)")
+        .run("q-task-list-ios", "LifeOSTaskZone", "LifeOSTaskListSnapshot", "task-list:lifeos_tasks_pro", "ios-task-mut", stableHash(taskListPayload), stableHash(payloadJson), now + 2000, Buffer.byteLength(payloadJson), payloadJson, new Date(now + 2000).toISOString(), "evidence-ios-task", now + 3000);
     } else if (${JSON.stringify(scenario)} === "task-list-snapshot" || ${JSON.stringify(scenario)} === "task-list-local-newer") {
       db.prepare("INSERT INTO cloudkit_sync_checkpoints (zone, applied_server_change_token, pending_server_change_token, token_state, last_evidence_id, last_preview_at, last_applied_at, changed_count, deleted_count, failed_count, more_coming, updated_at) VALUES (?, NULL, ?, 'pending-preview', ?, ?, NULL, ?, ?, 0, 0, ?)")
         .run("LifeOSTaskZone", "opaque-task-list-token", "evidence-task-list", now, 1, 0, now);
@@ -424,6 +457,87 @@ test("CloudKit task list snapshot apply writes synced client task state", async 
     assert.equal(result.taskClientState.updatedById, "tasks");
     assert.equal(result.taskCheckpoint.tokenState, "applied");
     assert.equal(result.taskCheckpoint.appliedToken, "opaque-task-list-token");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit applies one iOS task completion only when the base content hash still matches", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-ios-task-complete-"));
+  try {
+    const result = runIsolatedCloudKitApply({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "task-list-ios-complete");
+
+    assert.equal(result.apply.attempted, 1);
+    assert.equal(result.apply.applied, 1);
+    assert.equal(result.apply.conflicts, 0);
+    assert.deepEqual(result.apply.promotedZones, ["LifeOSTaskZone"]);
+    const tasks = JSON.parse(result.taskClientState.valueJson);
+    assert.equal(tasks[0].completed, true);
+    assert.equal(tasks[1].completed, false);
+    assert.equal(result.taskClientState.updatedByType, "cloudkit");
+    assert.equal(result.taskClientState.updatedById, "ios-task-completion");
+    assert.equal(result.taskClientState.updatedAt > 1700000002000, true);
+    assert.equal(result.taskCheckpoint.tokenState, "applied");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit rejects an iOS task completion after the local task list changed", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-ios-task-stale-"));
+  try {
+    const result = runIsolatedCloudKitApply({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "task-list-ios-stale");
+
+    assert.equal(result.apply.applied, 0);
+    assert.equal(result.apply.conflicts, 1);
+    assert.match(result.apply.records[0].error, /changed after the iPhone read it/);
+    const tasks = JSON.parse(result.taskClientState.valueJson);
+    assert.equal(tasks[0].completed, false);
+    assert.equal(result.taskCheckpoint.tokenState, "pending-preview");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit rejects an iOS task completion that changes any other task field", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-ios-task-wide-"));
+  try {
+    const result = runIsolatedCloudKitApply({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "task-list-ios-wide");
+
+    assert.equal(result.apply.applied, 0);
+    assert.equal(result.apply.conflicts, 1);
+    assert.match(result.apply.records[0].error, /only change one completion flag/);
+    const tasks = JSON.parse(result.taskClientState.valueJson);
+    assert.equal(tasks[0].completed, false);
+    assert.equal(tasks[1].text, "Keep this unchanged");
+    assert.equal(result.taskCheckpoint.tokenState, "pending-preview");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit rejects an iOS task completion when no local base task list exists", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-ios-task-missing-base-"));
+  try {
+    const result = runIsolatedCloudKitApply({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "task-list-ios-missing-base");
+
+    assert.equal(result.apply.applied, 0);
+    assert.equal(result.apply.conflicts, 1);
+    assert.match(result.apply.records[0].error, /unavailable for optimistic conflict checking/);
+    assert.equal(result.taskClientState, undefined);
+    assert.equal(result.taskCheckpoint.tokenState, "pending-preview");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

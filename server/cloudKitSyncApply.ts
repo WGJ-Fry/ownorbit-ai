@@ -1,7 +1,8 @@
 import crypto from "crypto";
 import { db } from "./db";
+import { buildCloudKitTaskListPayload, cloudKitPayloadContentHash } from "./cloudKitSyncBatch";
 import { getCloudKitSyncQuarantineSummary, listCloudKitSyncCheckpoints } from "./cloudKitSyncState";
-import { setClientState } from "./clientState";
+import { setClientState, setClientStateAt } from "./clientState";
 
 export const CLOUDKIT_SYNC_APPLY_CONFIRMATION = "APPLY_CLOUDKIT_QUARANTINE";
 
@@ -335,13 +336,78 @@ function normalizeTaskListSnapshotItems(value: unknown) {
   });
 }
 
+function applyGuardedTaskCompletionMutation(
+  payload: Record<string, unknown>,
+  existing: { valueJson?: string; updatedAt?: number },
+  updatedAt: number,
+) {
+  const mutation = payload.syncMutation;
+  if (!mutation || typeof mutation !== "object" || Array.isArray(mutation)) {
+    throw new Error("Native task completion mutation metadata is missing.");
+  }
+  const source = mutation as Record<string, unknown>;
+  const kind = text(source.kind, 80);
+  const origin = text(source.origin, 80);
+  const itemId = idText(source.itemId, 80);
+  const baseContentHash = text(source.baseContentHash, 80).toLowerCase();
+  const mutatedAt = numberValue(source.mutatedAt, 0);
+  if (
+    kind !== "task-list-item-complete" ||
+    origin !== "ios-native" ||
+    !itemId ||
+    !/^[a-f0-9]{64}$/.test(baseContentHash) ||
+    mutatedAt !== updatedAt
+  ) {
+    throw new Error("Native task completion mutation metadata is invalid.");
+  }
+  const now = Date.now();
+  if (updatedAt <= Number(existing.updatedAt || 0) || updatedAt > now + 5 * 60 * 1000) {
+    throw new Error("Native task completion timestamp is stale or too far in the future.");
+  }
+  const localValue = parseStoredJson(existing.valueJson);
+  if (!Array.isArray(localValue)) throw new Error("Local task list is unavailable for optimistic conflict checking.");
+  const basePayload = buildCloudKitTaskListPayload(localValue, Number(existing.updatedAt || 0));
+  if (cloudKitPayloadContentHash(basePayload) !== baseContentHash) {
+    throw new Error("Local task list changed after the iPhone read it; manual conflict review required.");
+  }
+  const baseItems = normalizeTaskListSnapshotItems(basePayload.items);
+  const nextItems = normalizeTaskListSnapshotItems(payload.items);
+  if (baseItems.length !== nextItems.length) throw new Error("Native task completion cannot add or remove task items.");
+  let completedTarget = false;
+  for (let index = 0; index < baseItems.length; index += 1) {
+    const before = baseItems[index];
+    const after = nextItems[index];
+    if (
+      String(before.id) !== String(after.id) ||
+      before.text !== after.text ||
+      before.priority !== after.priority ||
+      before.createdAt !== after.createdAt
+    ) {
+      throw new Error("Native task completion can only change one completion flag.");
+    }
+    if (String(before.id) === itemId) {
+      if (before.completed || !after.completed) throw new Error("The selected task is already complete or the requested transition is invalid.");
+      completedTarget = true;
+    } else if (before.completed !== after.completed) {
+      throw new Error("Native task completion changed more than the selected task.");
+    }
+  }
+  if (!completedTarget) throw new Error("The selected task was not found in the current task list.");
+  setClientStateAt("lifeos_tasks_pro", nextItems, Math.max(now, updatedAt + 1), { type: "cloudkit", id: "ios-task-completion" });
+}
+
 function applyTaskListSnapshot(payload: Record<string, unknown>, row: QuarantineRow) {
   const taskListKey = idText(payload.taskListKey, 80);
   if (taskListKey !== "lifeos_tasks_pro" || row.recordName !== `task-list:${taskListKey}`) {
     throw new Error("Task list key does not match the CloudKit record name.");
   }
   const updatedAt = numberValue(payload.updatedAt, row.logicalClock || Date.now());
-  const existing = db.prepare("SELECT updated_at as updatedAt FROM client_state WHERE key = ?").get(taskListKey) as { updatedAt?: number } | undefined;
+  const existing = db.prepare("SELECT value_json as valueJson, updated_at as updatedAt FROM client_state WHERE key = ?").get(taskListKey) as { valueJson?: string; updatedAt?: number } | undefined;
+  if (payload.syncMutation !== undefined) {
+    if (!existing) throw new Error("Local task list is unavailable for optimistic conflict checking.");
+    applyGuardedTaskCompletionMutation(payload, existing, updatedAt);
+    return;
+  }
   if (existing && Number(existing.updatedAt || 0) > updatedAt) throw new Error("Local task list is newer; manual conflict review required.");
   setClientState(taskListKey, normalizeTaskListSnapshotItems(payload.items), { type: "cloudkit", id: "tasks" });
 }

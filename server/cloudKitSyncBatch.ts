@@ -128,12 +128,32 @@ function stableHash(value: unknown) {
   return crypto.createHash("sha256").update(JSON.stringify(value ?? null)).digest("hex");
 }
 
+export function cloudKitPayloadContentHash(value: unknown) {
+  return stableHash(value);
+}
+
 function recordId(prefix: string, id: string) {
   return `${prefix}:${crypto.createHash("sha256").update(id).digest("hex").slice(0, 16)}`;
 }
 
 function stableIdHash(value: unknown) {
   return crypto.createHash("sha256").update(String(value || "")).digest("hex");
+}
+
+export function buildCloudKitTaskListPayload(value: unknown, updatedAt: number) {
+  return {
+    taskListKey: "lifeos_tasks_pro",
+    items: Array.isArray(value)
+      ? value.map((item) => ({
+        id: typeof item?.id === "number" || typeof item?.id === "string" ? String(item.id).slice(0, 80) : stableIdHash(JSON.stringify(item)).slice(0, 16),
+        text: String(item?.text || "").replace(/\s+/g, " ").trim().slice(0, 500),
+        completed: Boolean(item?.completed),
+        priority: ["high", "medium", "low"].includes(String(item?.priority)) ? String(item.priority) : "medium",
+        createdAt: Number.isFinite(Number(item?.createdAt)) ? Number(item.createdAt) : 0,
+      }))
+      : undefined,
+    updatedAt: Number(updatedAt || 0),
+  };
 }
 
 function collectFieldNames(value: unknown, prefix = "", output = new Set<string>()) {
@@ -452,19 +472,7 @@ function collectTaskRecords(limit: number) {
   `).get() as any;
   if (taskListState) {
     const value = safeJson(taskListState.valueJson, undefined);
-    const payload = {
-      taskListKey: "lifeos_tasks_pro",
-      items: Array.isArray(value)
-        ? value.map((item) => ({
-          id: typeof item?.id === "number" || typeof item?.id === "string" ? String(item.id).slice(0, 80) : stableIdHash(JSON.stringify(item)).slice(0, 16),
-          text: String(item?.text || "").replace(/\s+/g, " ").trim().slice(0, 500),
-          completed: Boolean(item?.completed),
-          priority: ["high", "medium", "low"].includes(String(item?.priority)) ? String(item.priority) : "medium",
-          createdAt: Number.isFinite(Number(item?.createdAt)) ? Number(item.createdAt) : 0,
-        }))
-        : undefined,
-      updatedAt: Number(taskListState.updatedAt || 0),
-    };
+    const payload = buildCloudKitTaskListPayload(value, Number(taskListState.updatedAt || 0));
     if (!Array.isArray(value)) {
       pushBlocked(blockedRecords, { id: taskListState.key, dataType: "tasks", recordType: "LifeOSTaskListSnapshot", reason: "malformed-json", payload }, limit);
     } else if (hasForbiddenField(value) || hasForbiddenValue(value) || hasForbiddenValue(payload)) {

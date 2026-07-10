@@ -355,6 +355,7 @@ function checkScripts() {
     const nativeWebView = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSWebView.swift"), "utf8");
     const nativeCloudData = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSCloudData.swift"), "utf8");
     const nativeCloudSync = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSCloudKitSync.swift"), "utf8");
+    const nativeCloudScreen = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "CloudDataScreen.swift"), "utf8");
     const nativeEntitlements = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Config", "LifeOSMobile.entitlements"), "utf8");
     const nativeBuild = fs.readFileSync(path.join(rootDir, "scripts", "build-ios-mobile-shell.mjs"), "utf8");
     const nativeSmoke = fs.readFileSync(path.join(rootDir, "scripts", "mobile-ios-native-shell-smoke.mjs"), "utf8");
@@ -375,12 +376,16 @@ function checkScripts() {
       nativeCloudData.includes("contentHashMismatch") &&
       nativeCloudData.includes("accountFingerprint") &&
       nativeCloudData.includes("resetZones: Set<String>") &&
+      nativeCloudData.includes("task-list-item-complete") &&
+      nativeCloudData.includes("baseContentHash") &&
       nativeCloudSync.includes("privateCloudDatabase") &&
       nativeCloudSync.includes("recordZoneChanges") &&
       nativeCloudSync.includes("changeTokenExpired") &&
       nativeCloudSync.includes("Notification.Name.CKAccountChanged") &&
       nativeCloudSync.includes("maxCatchUpPasses = 3") &&
       nativeCloudSync.includes("scheduleRetry(after:") &&
+      nativeCloudSync.includes("completeTaskListItem") &&
+      nativeCloudSync.includes("savePolicy: .ifServerRecordUnchanged") &&
       nativeCloudSync.includes("completeUntilFirstUserAuthentication") &&
       nativeCloudSync.includes("isExcludedFromBackup = true") &&
       nativeEntitlements.includes("com.apple.developer.icloud-container-identifiers") &&
@@ -390,9 +395,12 @@ function checkScripts() {
       nativeSmoke.includes("native-entry-setup") &&
       nativeSmoke.includes("native-mobile-chat") &&
       nativeSmoke.includes("native-cloud-data") &&
+      nativeSmoke.includes("--cloud-data-demo") &&
+      nativeCloudScreen.includes("LifeOSPendingTaskCompletion") &&
+      nativeCloudScreen.includes("cloudStore.completeTaskListItem") &&
       nativeSmoke.includes("does not replace cellular")
-    ) pass("Apple native iOS shell validates entries and CloudKit records, isolates Apple accounts, recovers expired cursors, retries bounded pulls, protects offline snapshots, and has simulator/device build coverage");
-    else fail("Apple native iOS shell must validate iCloud entry and CloudKit data, isolate Apple accounts, recover expired cursors, retry bounded pulls, protect offline snapshots, restrict WebView navigation, and run through Xcode Simulator smoke coverage");
+    ) pass("Apple native iOS shell validates entries and CloudKit records, isolates Apple accounts, recovers expired cursors, retries bounded pulls, supports guarded task completion write-back, protects offline snapshots, and has simulator/device build coverage");
+    else fail("Apple native iOS shell must validate iCloud entry and CloudKit data, isolate Apple accounts, recover expired cursors, retry bounded pulls, guard task completion write-back, protect offline snapshots, restrict WebView navigation, and run through Xcode Simulator smoke coverage");
   } else {
     fail("missing Apple native iOS shell source or simulator smoke script");
   }
@@ -2209,6 +2217,8 @@ function checkAssets() {
     cloudKitSyncBatchSource.includes("secretLikeContentBlocked") &&
     cloudKitSyncBatchSource.includes("MAX_CLOUDKIT_RECORD_PAYLOAD_BYTES") &&
     cloudKitSyncBatchSource.includes("payload-too-large") &&
+    cloudKitSyncBatchSource.includes("buildCloudKitTaskListPayload") &&
+    cloudKitSyncBatchSource.includes("cloudKitPayloadContentHash") &&
     cloudKitSyncBatchTestSource.includes("blocks sensitive payloads") &&
     cloudKitSyncBatchTestSource.includes("oversizedContentBlocked") &&
     cloudKitSyncBatchTestSource.includes("Safe export conversation") &&
@@ -2236,11 +2246,16 @@ function checkAssets() {
     cloudKitSyncApplySource.includes("Existing task requires manual review before CloudKit can update it") &&
     cloudKitSyncApplySource.includes("Generated app must exist locally before state can be imported") &&
     cloudKitSyncApplySource.includes("Local generated app state is newer; manual conflict review required") &&
+    cloudKitSyncApplySource.includes("task-list-item-complete") &&
+    cloudKitSyncApplySource.includes("baseContentHash") &&
+    cloudKitSyncApplySource.includes("Native task completion can only change one completion flag") &&
     cloudKitSyncApplyTestSource.includes("promotes pending checkpoint only after applying") &&
     cloudKitSyncApplyTestSource.includes("auto memory apply writes a new normal memory") &&
     cloudKitSyncApplyTestSource.includes("auto memory apply refuses to overwrite an existing memory") &&
     cloudKitSyncApplyTestSource.includes("auto task apply writes a new task") &&
     cloudKitSyncApplyTestSource.includes("auto task apply refuses to overwrite an existing task") &&
+    cloudKitSyncApplyTestSource.includes("applies one iOS task completion only when the base content hash still matches") &&
+    cloudKitSyncApplyTestSource.includes("rejects an iOS task completion after the local task list changed") &&
     cloudKitSyncApplyTestSource.includes("auto generated app state apply updates an existing generated app only") &&
     cloudKitSyncApplyTestSource.includes("generated app state apply refuses to create unknown generated apps") &&
     cloudKitSyncApplyTestSource.includes("generated app state apply refuses to overwrite newer local generated app state") &&

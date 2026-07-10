@@ -73,6 +73,28 @@ struct LifeOSCloudRecord: Codable, Equatable, Identifiable {
         return ""
     }
 
+    var taskItems: [LifeOSCloudTaskItem] {
+        guard recordType == "LifeOSTaskListSnapshot",
+              let items = decodedPayload["items"] as? [[String: Any]] else { return [] }
+        return items.prefix(50).compactMap { item in
+            guard let rawId = item["id"], let text = item["text"] as? String else { return nil }
+            let id: String
+            if let value = rawId as? String { id = value }
+            else if let value = rawId as? NSNumber { id = value.stringValue }
+            else { return nil }
+            let normalizedText = text.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !id.isEmpty, !normalizedText.isEmpty else { return nil }
+            return LifeOSCloudTaskItem(
+                id: String(id.prefix(80)),
+                text: String(normalizedText.prefix(500)),
+                completed: item["completed"] as? Bool ?? false,
+                priority: item["priority"] as? String ?? "medium",
+                createdAt: (item["createdAt"] as? NSNumber)?.int64Value ?? 0
+            )
+        }
+    }
+
     private var decodedPayload: [String: Any] {
         guard let data = payloadJson.data(using: .utf8),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [:] }
@@ -84,6 +106,91 @@ struct LifeOSCloudRecord: Codable, Equatable, Identifiable {
         let compact = text.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return compact.isEmpty ? fallback : String(compact.prefix(500))
+    }
+}
+
+struct LifeOSCloudTaskItem: Equatable, Identifiable {
+    let id: String
+    let text: String
+    let completed: Bool
+    let priority: String
+    let createdAt: Int64
+}
+
+struct LifeOSCloudTaskCompletionMutation: Equatable {
+    let payloadJson: String
+    let contentHash: String
+    let payloadByteSize: Int
+    let logicalClock: Int64
+}
+
+enum LifeOSCloudTaskWriteError: LocalizedError, Equatable {
+    case stale
+    case invalidRecord
+    case taskNotFound
+    case alreadyCompleted
+    case saveFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .stale: return NSLocalizedString("cloud.task.error.stale", comment: "")
+        case .invalidRecord: return NSLocalizedString("cloud.task.error.invalid", comment: "")
+        case .taskNotFound: return NSLocalizedString("cloud.task.error.notFound", comment: "")
+        case .alreadyCompleted: return NSLocalizedString("cloud.task.error.completed", comment: "")
+        case .saveFailed: return NSLocalizedString("cloud.task.error.failed", comment: "")
+        }
+    }
+}
+
+enum LifeOSCloudTaskMutationBuilder {
+    static func complete(
+        record: LifeOSCloudRecord,
+        itemId: String,
+        now: Date
+    ) throws -> LifeOSCloudTaskCompletionMutation {
+        guard record.zone == "LifeOSTaskZone",
+              record.recordType == "LifeOSTaskListSnapshot",
+              record.recordName == "task-list:lifeos_tasks_pro",
+              let payloadData = record.payloadJson.data(using: .utf8),
+              var payload = try JSONSerialization.jsonObject(with: payloadData) as? [String: Any],
+              payload["taskListKey"] as? String == "lifeos_tasks_pro",
+              var items = payload["items"] as? [[String: Any]] else {
+            throw LifeOSCloudTaskWriteError.invalidRecord
+        }
+        guard let itemIndex = items.firstIndex(where: { item in
+            if let value = item["id"] as? String { return value == itemId }
+            if let value = item["id"] as? NSNumber { return value.stringValue == itemId }
+            return false
+        }) else { throw LifeOSCloudTaskWriteError.taskNotFound }
+        if items[itemIndex]["completed"] as? Bool == true { throw LifeOSCloudTaskWriteError.alreadyCompleted }
+        items[itemIndex]["completed"] = true
+        let wallClock = Int64(now.timeIntervalSince1970 * 1000)
+        let nextClock = record.logicalClock.addingReportingOverflow(1)
+        guard !nextClock.overflow else { throw LifeOSCloudTaskWriteError.invalidRecord }
+        let timestamp = max(wallClock, nextClock.partialValue)
+        payload["items"] = items
+        payload["updatedAt"] = NSNumber(value: timestamp)
+        payload["syncMutation"] = [
+            "kind": "task-list-item-complete",
+            "origin": "ios-native",
+            "itemId": itemId,
+            "baseContentHash": record.contentHash,
+            "mutatedAt": NSNumber(value: timestamp),
+        ]
+        guard JSONSerialization.isValidJSONObject(payload) else { throw LifeOSCloudTaskWriteError.invalidRecord }
+        let nextPayloadData = try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys, .withoutEscapingSlashes])
+        guard !nextPayloadData.isEmpty,
+              nextPayloadData.count <= LifeOSCloudRecordValidator.maxPayloadBytes,
+              let payloadJson = String(data: nextPayloadData, encoding: .utf8) else {
+            throw LifeOSCloudTaskWriteError.invalidRecord
+        }
+        let contentHash = SHA256.hash(data: nextPayloadData).map { String(format: "%02x", $0) }.joined()
+        return LifeOSCloudTaskCompletionMutation(
+            payloadJson: payloadJson,
+            contentHash: contentHash,
+            payloadByteSize: nextPayloadData.count,
+            logicalClock: timestamp
+        )
     }
 }
 

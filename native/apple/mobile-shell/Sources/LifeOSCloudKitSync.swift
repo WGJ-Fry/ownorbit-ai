@@ -1,4 +1,5 @@
 import CloudKit
+import CryptoKit
 import Foundation
 import UIKit
 
@@ -222,6 +223,51 @@ final class LifeOSCloudKitClient {
         ))
     }
 
+    func completeTaskListItem(
+        snapshotRecord: LifeOSCloudRecord,
+        itemId: String,
+        now: Date = Date()
+    ) async throws -> LifeOSCloudRecord {
+        guard snapshotRecord.zone == "LifeOSTaskZone",
+              snapshotRecord.recordType == "LifeOSTaskListSnapshot",
+              snapshotRecord.recordName == "task-list:lifeos_tasks_pro" else {
+            throw LifeOSCloudTaskWriteError.invalidRecord
+        }
+        let zoneId = CKRecordZone.ID(zoneName: snapshotRecord.zone, ownerName: CKCurrentUserDefaultName)
+        let recordId = CKRecord.ID(recordName: snapshotRecord.recordName, zoneID: zoneId)
+        let cloudRecord = try await database.record(for: recordId)
+        let current = try validatedRecord(cloudRecord, zone: snapshotRecord.zone)
+        guard current.contentHash == snapshotRecord.contentHash else { throw LifeOSCloudTaskWriteError.stale }
+        let mutation = try LifeOSCloudTaskMutationBuilder.complete(record: current, itemId: itemId, now: now)
+        cloudRecord["mutationId"] = "ios-task-complete:\(UUID().uuidString)" as CKRecordValue
+        cloudRecord["logicalClock"] = NSNumber(value: mutation.logicalClock)
+        cloudRecord["contentHash"] = mutation.contentHash as CKRecordValue
+        cloudRecord["payloadByteSize"] = NSNumber(value: mutation.payloadByteSize)
+        cloudRecord["requiresUserReview"] = NSNumber(value: false)
+        cloudRecord["payloadJson"] = mutation.payloadJson as CKRecordValue
+        cloudRecord["lifeosSyncedAt"] = now as CKRecordValue
+
+        do {
+            let result = try await database.modifyRecords(
+                saving: [cloudRecord],
+                deleting: [],
+                savePolicy: .ifServerRecordUnchanged,
+                atomically: true
+            )
+            guard let saveResult = result.saveResults[recordId] else { throw LifeOSCloudTaskWriteError.saveFailed }
+            switch saveResult {
+            case .success(let saved):
+                return try validatedRecord(saved, zone: snapshotRecord.zone)
+            case .failure(let error as CKError) where error.code == .serverRecordChanged:
+                throw LifeOSCloudTaskWriteError.stale
+            case .failure:
+                throw LifeOSCloudTaskWriteError.saveFailed
+            }
+        } catch let error as CKError where error.code == .serverRecordChanged {
+            throw LifeOSCloudTaskWriteError.stale
+        }
+    }
+
     private func validatedRecord(_ record: CKRecord, zone: String) throws -> LifeOSCloudRecord {
         try LifeOSCloudRecordValidator.validate(LifeOSCloudRecordInput(
             zone: zone,
@@ -285,6 +331,7 @@ final class LifeOSCloudDataStore: ObservableObject {
     @Published private(set) var statusMessage = ""
     @Published private(set) var statusTone: StatusTone = .neutral
     @Published private(set) var nextAction: NextAction = .none
+    @Published private(set) var writingTaskRecordId: String?
     @Published private(set) var enabled: Bool
 
     private let enabledKey = "lifeos.native.cloud-data-enabled.v1"
@@ -294,12 +341,23 @@ final class LifeOSCloudDataStore: ObservableObject {
     private var retryTask: Task<Void, Never>?
     private var retryAttempt = 0
     private let maxCatchUpPasses = 3
+    private let simulatorDemoMode: Bool
     private lazy var client = LifeOSCloudKitClient()
 
     init() {
-        enabled = UserDefaults.standard.bool(forKey: enabledKey)
         fileURL = Self.snapshotFileURL()
-        snapshot = Self.loadSnapshot(from: fileURL)
+        #if targetEnvironment(simulator)
+        let demoMode = ProcessInfo.processInfo.arguments.contains("--cloud-data-demo")
+        #else
+        let demoMode = false
+        #endif
+        simulatorDemoMode = demoMode
+        enabled = demoMode || UserDefaults.standard.bool(forKey: enabledKey)
+        snapshot = demoMode ? Self.simulatorDemoSnapshot() : Self.loadSnapshot(from: fileURL)
+        if demoMode {
+            statusMessage = NSLocalizedString("cloud.status.ready", comment: "")
+            statusTone = .success
+        }
         notificationObserver = NotificationCenter.default.addObserver(
             forName: .lifeOSCloudKitPush,
             object: nil,
@@ -337,6 +395,12 @@ final class LifeOSCloudDataStore: ObservableObject {
     @discardableResult
     func sync(reason: String = "manual") async -> Bool {
         guard enabled, !isSyncing else { return false }
+        if simulatorDemoMode {
+            statusMessage = NSLocalizedString("cloud.status.ready", comment: "")
+            statusTone = .success
+            nextAction = .none
+            return false
+        }
         if reason == "retry" {
             retryTask = nil
         } else {
@@ -415,6 +479,79 @@ final class LifeOSCloudDataStore: ObservableObject {
             await sync(reason: "next-action")
         case .none:
             break
+        }
+    }
+
+    func completeTaskListItem(record: LifeOSCloudRecord, item: LifeOSCloudTaskItem) async {
+        guard enabled, !isSyncing, writingTaskRecordId == nil else { return }
+        writingTaskRecordId = "\(record.id)/\(item.id)"
+        statusMessage = NSLocalizedString("cloud.task.status.writing", comment: "")
+        statusTone = .neutral
+        nextAction = .none
+        defer { writingTaskRecordId = nil }
+        do {
+            #if targetEnvironment(simulator)
+            guard simulatorDemoMode else { throw LifeOSCloudSyncError.invalidContainer }
+            let mutation = try LifeOSCloudTaskMutationBuilder.complete(record: record, itemId: item.id, now: Date())
+            let updatedRecord = LifeOSCloudRecord(
+                zone: record.zone,
+                recordType: record.recordType,
+                recordName: record.recordName,
+                dataType: record.dataType,
+                sourceIdHash: record.sourceIdHash,
+                mutationId: "simulator-task-complete",
+                logicalClock: mutation.logicalClock,
+                contentHash: mutation.contentHash,
+                requiresUserReview: false,
+                payloadJson: mutation.payloadJson,
+                modifiedAt: Date()
+            )
+            snapshot = snapshot.merging(
+                changed: [updatedRecord],
+                deletedRecordIds: [],
+                serverChangeTokens: [:],
+                accountFingerprint: snapshot.accountFingerprint ?? "simulator-demo",
+                moreComing: false,
+                now: Date()
+            )
+            statusMessage = String(
+                format: NSLocalizedString("cloud.task.status.completed", comment: ""),
+                item.text
+            )
+            statusTone = .success
+            #else
+            let updatedRecord = try await client.completeTaskListItem(snapshotRecord: record, itemId: item.id)
+            guard let accountFingerprint = snapshot.accountFingerprint else {
+                throw LifeOSCloudTaskWriteError.invalidRecord
+            }
+            let next = snapshot.merging(
+                changed: [updatedRecord],
+                deletedRecordIds: [],
+                serverChangeTokens: [:],
+                accountFingerprint: accountFingerprint,
+                moreComing: snapshot.moreComing,
+                now: Date()
+            )
+            try save(next)
+            snapshot = next
+            statusMessage = String(
+                format: NSLocalizedString("cloud.task.status.completed", comment: ""),
+                item.text
+            )
+            statusTone = .success
+            #endif
+        } catch let error as LifeOSCloudTaskWriteError {
+            statusMessage = error.errorDescription ?? NSLocalizedString("cloud.task.error.failed", comment: "")
+            statusTone = .error
+            if error == .stale { nextAction = .continueSync }
+        } catch let error as LifeOSCloudSyncError {
+            statusMessage = error.errorDescription ?? NSLocalizedString("cloud.task.error.failed", comment: "")
+            statusTone = .error
+        } catch {
+            statusMessage = LifeOSCloudSyncError.userFacing(error).errorDescription
+                ?? NSLocalizedString("cloud.task.error.failed", comment: "")
+            statusTone = .error
+            nextAction = .continueSync
         }
     }
 
@@ -510,4 +647,53 @@ final class LifeOSCloudDataStore: ObservableObject {
               snapshot.schemaVersion == 1 else { return .empty }
         return snapshot
     }
+
+    #if targetEnvironment(simulator)
+    private static func simulatorDemoSnapshot() -> LifeOSCloudSnapshot {
+        let payload: [String: Any] = [
+            "taskListKey": "lifeos_tasks_pro",
+            "items": [
+                [
+                    "id": "demo-1",
+                    "text": NSLocalizedString("cloud.demo.task.review", comment: ""),
+                    "completed": false,
+                    "priority": "high",
+                    "createdAt": 1_700_000_000_000,
+                ],
+                [
+                    "id": "demo-2",
+                    "text": NSLocalizedString("cloud.demo.task.online", comment: ""),
+                    "completed": true,
+                    "priority": "medium",
+                    "createdAt": 1_700_000_001_000,
+                ],
+            ],
+            "updatedAt": 1_700_000_002_000,
+        ]
+        guard let payloadData = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]),
+              let payloadJson = String(data: payloadData, encoding: .utf8) else { return .empty }
+        let contentHash = SHA256.hash(data: payloadData).map { String(format: "%02x", $0) }.joined()
+        let record = LifeOSCloudRecord(
+            zone: "LifeOSTaskZone",
+            recordType: "LifeOSTaskListSnapshot",
+            recordName: "task-list:lifeos_tasks_pro",
+            dataType: "tasks",
+            sourceIdHash: "tasks:simulator-demo",
+            mutationId: "simulator-demo",
+            logicalClock: 1_700_000_002_000,
+            contentHash: contentHash,
+            requiresUserReview: false,
+            payloadJson: payloadJson,
+            modifiedAt: Date(timeIntervalSince1970: 1_700_000_002)
+        )
+        return LifeOSCloudSnapshot(
+            schemaVersion: 1,
+            accountFingerprint: "simulator-demo",
+            updatedAt: Date(),
+            records: [record],
+            serverChangeTokens: [:],
+            moreComing: false
+        )
+    }
+    #endif
 }

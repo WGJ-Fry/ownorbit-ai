@@ -178,6 +178,82 @@ final class LifeOSCloudDataTests: XCTestCase {
         XCTAssertNil(reset.serverChangeTokens["LifeOSMemoryZone"])
     }
 
+    func testTaskListSnapshotExposesOnlySafeCompletionItems() throws {
+        let record = try LifeOSCloudRecordValidator.validate(input(
+            zone: "LifeOSTaskZone",
+            recordType: "LifeOSTaskListSnapshot",
+            dataType: "tasks",
+            recordName: "task-list:lifeos_tasks_pro",
+            sourceIdHash: "tasks:0123456789abcdef",
+            payload: #"{"taskListKey":"lifeos_tasks_pro","items":[{"id":"task-1","text":"Finish CloudKit write-back","completed":false,"priority":"high","createdAt":1700000000000}],"updatedAt":1700000001000}"#
+        ))
+
+        XCTAssertEqual(record.taskItems, [LifeOSCloudTaskItem(
+            id: "task-1",
+            text: "Finish CloudKit write-back",
+            completed: false,
+            priority: "high",
+            createdAt: 1_700_000_000_000
+        )])
+    }
+
+    func testTaskCompletionMutationChangesOnlySelectedItemAndKeepsBaseHash() throws {
+        let record = try LifeOSCloudRecordValidator.validate(input(
+            zone: "LifeOSTaskZone",
+            recordType: "LifeOSTaskListSnapshot",
+            dataType: "tasks",
+            recordName: "task-list:lifeos_tasks_pro",
+            sourceIdHash: "tasks:0123456789abcdef",
+            payload: #"{"taskListKey":"lifeos_tasks_pro","items":[{"id":"task-1","text":"Complete me","completed":false,"priority":"high","createdAt":1},{"id":"task-2","text":"Keep me","completed":false,"priority":"medium","createdAt":2}],"updatedAt":10}"#
+        ))
+        let mutation = try LifeOSCloudTaskMutationBuilder.complete(
+            record: record,
+            itemId: "task-1",
+            now: Date(timeIntervalSince1970: 1_700_000_000)
+        )
+        let payload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(mutation.payloadJson.utf8)) as? [String: Any]
+        )
+        let items = try XCTUnwrap(payload["items"] as? [[String: Any]])
+        let metadata = try XCTUnwrap(payload["syncMutation"] as? [String: Any])
+        let digest = SHA256.hash(data: Data(mutation.payloadJson.utf8)).map { String(format: "%02x", $0) }.joined()
+
+        XCTAssertEqual(items[0]["completed"] as? Bool, true)
+        XCTAssertEqual(items[1]["completed"] as? Bool, false)
+        XCTAssertEqual(items[1]["text"] as? String, "Keep me")
+        XCTAssertEqual(metadata["kind"] as? String, "task-list-item-complete")
+        XCTAssertEqual(metadata["baseContentHash"] as? String, record.contentHash)
+        XCTAssertEqual(mutation.logicalClock, 1_700_000_000_000)
+        XCTAssertEqual(mutation.payloadByteSize, Data(mutation.payloadJson.utf8).count)
+        XCTAssertEqual(mutation.contentHash, digest)
+    }
+
+    func testTaskCompletionMutationKeepsLogicalClockMonotonicWhenPhoneClockIsBehind() throws {
+        let record = try LifeOSCloudRecordValidator.validate(input(
+            zone: "LifeOSTaskZone",
+            recordType: "LifeOSTaskListSnapshot",
+            dataType: "tasks",
+            recordName: "task-list:lifeos_tasks_pro",
+            sourceIdHash: "tasks:0123456789abcdef",
+            payload: #"{"taskListKey":"lifeos_tasks_pro","items":[{"id":"task-1","text":"Complete me","completed":false,"priority":"high","createdAt":1}],"updatedAt":1700000000100}"#,
+            logicalClock: 1_700_000_000_100
+        ))
+
+        let mutation = try LifeOSCloudTaskMutationBuilder.complete(
+            record: record,
+            itemId: "task-1",
+            now: Date(timeIntervalSince1970: 1_700_000_000)
+        )
+        let payload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(mutation.payloadJson.utf8)) as? [String: Any]
+        )
+        let metadata = try XCTUnwrap(payload["syncMutation"] as? [String: Any])
+
+        XCTAssertEqual(mutation.logicalClock, 1_700_000_000_101)
+        XCTAssertEqual((payload["updatedAt"] as? NSNumber)?.int64Value, mutation.logicalClock)
+        XCTAssertEqual((metadata["mutatedAt"] as? NSNumber)?.int64Value, mutation.logicalClock)
+    }
+
     private func input(
         zone: String,
         recordType: String,

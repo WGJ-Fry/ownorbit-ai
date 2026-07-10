@@ -69,6 +69,7 @@ test("Apple native mobile shell has a guarded private CloudKit offline data path
   assert.match(cloudData, /accountFingerprint/);
   assert.match(cloudData, /func scoped\(to fingerprint:/);
   assert.match(cloudData, /resetZones: Set<String>/);
+  assert.match(cloudData, /var taskItems: \[LifeOSCloudTaskItem\]/);
   assert.match(cloudSync, /privateCloudDatabase/);
   assert.match(cloudSync, /recordZoneChanges/);
   assert.match(cloudSync, /CKDatabaseSubscription/);
@@ -77,11 +78,16 @@ test("Apple native mobile shell has a guarded private CloudKit offline data path
   assert.match(cloudSync, /Notification\.Name\.CKAccountChanged/);
   assert.match(cloudSync, /maxCatchUpPasses = 3/);
   assert.match(cloudSync, /scheduleRetry\(after:/);
+  assert.match(cloudSync, /completeTaskListItem/);
+  assert.match(cloudData, /task-list-item-complete/);
+  assert.match(cloudSync, /savePolicy: \.ifServerRecordUnchanged/);
   assert.match(cloudSync, /completeUntilFirstUserAuthentication/);
   assert.match(cloudSync, /isExcludedFromBackup = true/);
   assert.match(cloudSync, /serverChangeTokens/);
   assert.match(cloudScreen, /cloud\.enable\.safe/);
   assert.match(cloudScreen, /cloudStore\.performNextAction/);
+  assert.match(cloudScreen, /LifeOSPendingTaskCompletion/);
+  assert.match(cloudScreen, /cloudStore\.completeTaskListItem/);
   assert.match(buildScript, /generic\/platform=iOS/);
   assert.match(buildScript, /LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES/);
   assert.match(buildScript, /No matching iPhone provisioning profile is installed/);

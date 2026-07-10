@@ -101,7 +101,7 @@ async function main() {
   await xcrun(["simctl", "install", device.udid, appPath], { timeoutMs: 60_000 });
   const setupScreenshot = await launchAndCapture(device, "native-entry-setup");
   const connectedScreenshot = await launchAndCapture(device, "native-mobile-chat", ["--base-url", baseURL]);
-  const cloudDataScreenshot = await launchAndCapture(device, "native-cloud-data", ["--base-url", baseURL, "--show-cloud-data"]);
+  const cloudDataScreenshot = await launchAndCapture(device, "native-cloud-data", ["--base-url", baseURL, "--show-cloud-data", "--cloud-data-demo"]);
 
   const evidence = {
     ok: true,
@@ -121,7 +121,7 @@ async function main() {
       "The native SwiftUI shell builds and its entry validator unit tests pass.",
       "The app installs and remains running on an iPhone Simulator.",
       "The app verifies a LifeOS local core and loads the mobile chat shell.",
-      "The native iCloud data opt-in surface launches without exposing credentials or requiring CloudKit access in the simulator.",
+      "The native iCloud data surface renders a simulator-only task snapshot and guarded completion control without exposing credentials or requiring CloudKit access.",
     ],
     limits: [
       "The simulator does not prove iCloud account document delivery on a physical iPhone.",

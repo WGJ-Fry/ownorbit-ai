@@ -179,8 +179,7 @@ export function publicClientState(state: ReturnType<typeof getClientState>) {
   };
 }
 
-export function setClientState(key: string, value: unknown, actor?: { type: string; id: string }) {
-  const now = Date.now();
+function writeClientState(key: string, value: unknown, updatedAt: number, actor?: { type: string; id: string }) {
   const normalizedValue = normalizeClientStateValue(key, value);
   const valueJson = serializeClientStateValue(normalizedValue);
   db.prepare(`
@@ -191,6 +190,15 @@ export function setClientState(key: string, value: unknown, actor?: { type: stri
       updated_at = excluded.updated_at,
       updated_by_type = excluded.updated_by_type,
       updated_by_id = excluded.updated_by_id
-  `).run(key, valueJson, now, actor?.type || null, actor?.id || null);
+  `).run(key, valueJson, updatedAt, actor?.type || null, actor?.id || null);
   return getClientState(key);
+}
+
+export function setClientState(key: string, value: unknown, actor?: { type: string; id: string }) {
+  return writeClientState(key, value, Date.now(), actor);
+}
+
+export function setClientStateAt(key: string, value: unknown, updatedAt: number, actor?: { type: string; id: string }) {
+  const normalizedTimestamp = Number.isFinite(updatedAt) && updatedAt > 0 ? Math.floor(updatedAt) : Date.now();
+  return writeClientState(key, value, normalizedTimestamp, actor);
 }
