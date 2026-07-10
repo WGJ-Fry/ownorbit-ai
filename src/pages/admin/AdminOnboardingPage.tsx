@@ -166,7 +166,7 @@ export default function AdminOnboardingPage() {
     : simpleIcloudHumanRecovery
     ? t(simpleIcloudHumanRecovery.afterKey as any, { count: icloud?.syncReadiness?.pendingCount || 0, minutes: simpleIcloudSyncStuckMinutes })
     : t(simpleIcloudActionFollowupKey as any);
-  const simpleIcloudHumanRecoveryTipText = simpleIcloudHumanRecovery
+  const simpleIcloudHumanRecoveryTipText = simpleIcloudHumanRecovery?.tipKey
     ? t(simpleIcloudHumanRecovery.tipKey as any, { count: icloud?.syncReadiness?.pendingCount || 0, minutes: simpleIcloudSyncStuckMinutes })
     : "";
   const simpleIcloudOffLanAction = networkDiagnostics?.tailscale.installed
@@ -286,8 +286,11 @@ export default function AdminOnboardingPage() {
     : t("onboarding.finishBlocked", { steps: incompleteStepLabels.join(t("onboarding.stepSeparator")) || t("onboarding.unknownStep") });
 
   const refresh = async () => {
-    const [providerData, diagnosticsData, backupData, scheduleData, deviceData, onboardingData, networkData, deviceTrustData] = await Promise.all([
-      listAiProviders(),
+    // The model picker is the first interactive onboarding control. Populate it
+    // before slower backup, network, iCloud, and device diagnostics finish.
+    const providerData = await listAiProviders();
+    setProviders(providerData.providers);
+    const [diagnosticsData, backupData, scheduleData, deviceData, onboardingData, networkData, deviceTrustData] = await Promise.all([
       getConfigDiagnostics(),
       listBackups(),
       getBackupSchedule(),
@@ -296,7 +299,6 @@ export default function AdminOnboardingPage() {
       getNetworkDiagnostics().catch(() => null),
       getCloudKitDeviceTrustMetadata(10).catch(() => null),
     ]);
-    setProviders(providerData.providers);
     setDiagnostics(diagnosticsData);
     setNetworkDiagnostics(networkData);
     setBackups(backupData.backups);
