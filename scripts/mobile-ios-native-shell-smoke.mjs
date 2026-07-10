@@ -102,6 +102,7 @@ async function main() {
   const setupScreenshot = await launchAndCapture(device, "native-entry-setup");
   const connectedScreenshot = await launchAndCapture(device, "native-mobile-chat", ["--base-url", baseURL]);
   const cloudDataScreenshot = await launchAndCapture(device, "native-cloud-data", ["--base-url", baseURL, "--show-cloud-data", "--cloud-data-demo"]);
+  const cloudMemoryScreenshot = await launchAndCapture(device, "native-cloud-memory-create", ["--base-url", baseURL, "--show-cloud-data", "--cloud-data-demo", "--cloud-memory-compose-demo"]);
 
   const evidence = {
     ok: true,
@@ -116,12 +117,13 @@ async function main() {
       total: endpoint.total,
     },
     app: { bundleId, appPath },
-    screenshots: { setup: setupScreenshot, connected: connectedScreenshot, cloudData: cloudDataScreenshot },
+    screenshots: { setup: setupScreenshot, connected: connectedScreenshot, cloudData: cloudDataScreenshot, cloudMemory: cloudMemoryScreenshot },
     proves: [
       "The native SwiftUI shell builds and its entry validator unit tests pass.",
       "The app installs and remains running on an iPhone Simulator.",
       "The app verifies a LifeOS local core and loads the mobile chat shell.",
       "The native iCloud data surface renders a simulator-only task snapshot and guarded completion control without exposing credentials or requiring CloudKit access.",
+      "The native memory composer renders a bilingual, size-bounded form with explicit private-iCloud safety guidance.",
     ],
     limits: [
       "The simulator does not prove iCloud account document delivery on a physical iPhone.",
@@ -132,7 +134,7 @@ async function main() {
   const evidencePath = path.join(outDir, "latest.json");
   fs.writeFileSync(evidencePath, JSON.stringify(evidence, null, 2));
   log(`PASS. Evidence: ${evidencePath}`);
-  log(`Screenshots: ${setupScreenshot}, ${connectedScreenshot}, ${cloudDataScreenshot}`);
+  log(`Screenshots: ${setupScreenshot}, ${connectedScreenshot}, ${cloudDataScreenshot}, ${cloudMemoryScreenshot}`);
 }
 
 main().catch((error) => {

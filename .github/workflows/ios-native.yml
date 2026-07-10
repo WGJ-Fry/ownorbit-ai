@@ -1,0 +1,41 @@
+name: iOS Native Compile
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "native/apple/mobile-shell/**"
+      - "scripts/build-ios-mobile-shell.mjs"
+      - "tests/apple-mobile-native-shell.test.mjs"
+      - "package.json"
+      - ".github/workflows/ios-native.yml"
+  pull_request:
+    paths:
+      - "native/apple/mobile-shell/**"
+      - "scripts/build-ios-mobile-shell.mjs"
+      - "tests/apple-mobile-native-shell.test.mjs"
+      - "package.json"
+      - ".github/workflows/ios-native.yml"
+
+jobs:
+  compile:
+    runs-on: macos-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Validate native contracts
+        run: npm run test:apple-native
+
+      - name: Compile unsigned iPhoneOS target
+        run: npm run mobile:native:device:compile

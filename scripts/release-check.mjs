@@ -159,7 +159,7 @@ function checkSourceSizeBudgets() {
 }
 
 function checkScripts() {
-  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "icloud:helper:build", "icloud:helper:smoke", "icloud:acceptance", "mobile:simulator:smoke", "mobile:native:build", "mobile:native:device:build", "mobile:native:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:apple-native", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
+  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "icloud:helper:build", "icloud:helper:smoke", "icloud:acceptance", "mobile:simulator:smoke", "mobile:native:build", "mobile:native:device:compile", "mobile:native:device:build", "mobile:native:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:apple-native", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
     if (hasScript(script)) pass(`package script exists: ${script}`);
     else fail(`missing package script: ${script}`);
   }
@@ -362,6 +362,7 @@ function checkScripts() {
     if (
       packageJson.scripts?.["mobile:native:build"]?.includes("build-ios-mobile-shell.mjs") &&
       packageJson.scripts?.["mobile:native:smoke"]?.includes("mobile-ios-native-shell-smoke.mjs") &&
+      packageJson.scripts?.["mobile:native:device:compile"]?.includes("--device-compile") &&
       packageJson.scripts?.["mobile:native:device:build"]?.includes("--device") &&
       packageJson.scripts?.["test:apple-native"]?.includes("apple-mobile-native-shell.test.mjs") &&
       packageJson.scripts?.["quality:gate"]?.includes("test:apple-native") &&
@@ -378,6 +379,8 @@ function checkScripts() {
       nativeCloudData.includes("resetZones: Set<String>") &&
       nativeCloudData.includes("task-list-item-complete") &&
       nativeCloudData.includes("baseContentHash") &&
+      nativeCloudData.includes("LifeOSCloudMemoryMutationBuilder") &&
+      nativeCloudData.includes("memory-create") &&
       nativeCloudSync.includes("privateCloudDatabase") &&
       nativeCloudSync.includes("recordZoneChanges") &&
       nativeCloudSync.includes("changeTokenExpired") &&
@@ -385,6 +388,8 @@ function checkScripts() {
       nativeCloudSync.includes("maxCatchUpPasses = 3") &&
       nativeCloudSync.includes("scheduleRetry(after:") &&
       nativeCloudSync.includes("completeTaskListItem") &&
+      nativeCloudSync.includes("func createMemory") &&
+      nativeCloudSync.includes("ensureZone") &&
       nativeCloudSync.includes("savePolicy: .ifServerRecordUnchanged") &&
       nativeCloudSync.includes("completeUntilFirstUserAuthentication") &&
       nativeCloudSync.includes("isExcludedFromBackup = true") &&
@@ -396,11 +401,16 @@ function checkScripts() {
       nativeSmoke.includes("native-mobile-chat") &&
       nativeSmoke.includes("native-cloud-data") &&
       nativeSmoke.includes("--cloud-data-demo") &&
+      nativeSmoke.includes("--cloud-memory-compose-demo") &&
       nativeCloudScreen.includes("LifeOSPendingTaskCompletion") &&
       nativeCloudScreen.includes("cloudStore.completeTaskListItem") &&
+      nativeCloudScreen.includes("LifeOSMemoryComposer") &&
+      nativeCloudScreen.includes("cloudStore.createMemory") &&
+      nativeBuild.includes("deviceCompile") &&
+      nativeBuild.includes("CODE_SIGNING_ALLOWED=NO") &&
       nativeSmoke.includes("does not replace cellular")
-    ) pass("Apple native iOS shell validates entries and CloudKit records, isolates Apple accounts, recovers expired cursors, retries bounded pulls, supports guarded task completion write-back, protects offline snapshots, and has simulator/device build coverage");
-    else fail("Apple native iOS shell must validate iCloud entry and CloudKit data, isolate Apple accounts, recover expired cursors, retry bounded pulls, guard task completion write-back, protect offline snapshots, restrict WebView navigation, and run through Xcode Simulator smoke coverage");
+    ) pass("Apple native iOS shell validates entries and CloudKit records, isolates Apple accounts, recovers expired cursors, retries bounded pulls, supports guarded memory creation and task completion write-back, protects offline snapshots, and has simulator/device build coverage");
+    else fail("Apple native iOS shell must validate iCloud entry and CloudKit data, isolate Apple accounts, recover expired cursors, retry bounded pulls, guard memory creation and task completion write-back, protect offline snapshots, restrict WebView navigation, and run through Xcode Simulator smoke coverage");
   } else {
     fail("missing Apple native iOS shell source or simulator smoke script");
   }
@@ -2249,6 +2259,8 @@ function checkAssets() {
     cloudKitSyncApplySource.includes("task-list-item-complete") &&
     cloudKitSyncApplySource.includes("baseContentHash") &&
     cloudKitSyncApplySource.includes("Native task completion can only change one completion flag") &&
+    cloudKitSyncApplySource.includes("Native memory creation mutation metadata is invalid") &&
+    cloudKitSyncApplySource.includes("Native memory creation cannot overwrite an existing memory") &&
     cloudKitSyncApplyTestSource.includes("promotes pending checkpoint only after applying") &&
     cloudKitSyncApplyTestSource.includes("auto memory apply writes a new normal memory") &&
     cloudKitSyncApplyTestSource.includes("auto memory apply refuses to overwrite an existing memory") &&
@@ -2256,6 +2268,8 @@ function checkAssets() {
     cloudKitSyncApplyTestSource.includes("auto task apply refuses to overwrite an existing task") &&
     cloudKitSyncApplyTestSource.includes("applies one iOS task completion only when the base content hash still matches") &&
     cloudKitSyncApplyTestSource.includes("rejects an iOS task completion after the local task list changed") &&
+    cloudKitSyncApplyTestSource.includes("applies a contract-valid memory created on iPhone") &&
+    cloudKitSyncApplyTestSource.includes("rejects an iPhone memory creation that collides with local SQLite") &&
     cloudKitSyncApplyTestSource.includes("auto generated app state apply updates an existing generated app only") &&
     cloudKitSyncApplyTestSource.includes("generated app state apply refuses to create unknown generated apps") &&
     cloudKitSyncApplyTestSource.includes("generated app state apply refuses to overwrite newer local generated app state") &&

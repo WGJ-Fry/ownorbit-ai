@@ -7,7 +7,7 @@ const rootDir = process.cwd();
 const nativeDir = path.join(rootDir, "native", "apple", "mobile-shell");
 
 test("Apple native mobile shell validates safe iCloud entries without storing credentials", async () => {
-  const [project, entry, store, webView, content, buildScript, smokeScript, packageJson] = await Promise.all([
+  const [project, entry, store, webView, content, buildScript, smokeScript, packageJson, nativeWorkflow] = await Promise.all([
     readFile(path.join(nativeDir, "project.yml"), "utf8"),
     readFile(path.join(nativeDir, "Sources", "LifeOSEntry.swift"), "utf8"),
     readFile(path.join(nativeDir, "Sources", "LifeOSEntryStore.swift"), "utf8"),
@@ -16,6 +16,7 @@ test("Apple native mobile shell validates safe iCloud entries without storing cr
     readFile(path.join(rootDir, "scripts", "build-ios-mobile-shell.mjs"), "utf8"),
     readFile(path.join(rootDir, "scripts", "mobile-ios-native-shell-smoke.mjs"), "utf8"),
     readFile(path.join(rootDir, "package.json"), "utf8").then(JSON.parse),
+    readFile(path.join(rootDir, ".github", "workflows", "ios-native.yml"), "utf8"),
   ]);
 
   assert.match(project, /platform: iOS/);
@@ -44,8 +45,11 @@ test("Apple native mobile shell validates safe iCloud entries without storing cr
   assert.match(smokeScript, /native-cloud-data/);
   assert.match(smokeScript, /does not replace cellular/);
   assert.match(packageJson.scripts["mobile:native:build"], /build-ios-mobile-shell/);
+  assert.match(packageJson.scripts["mobile:native:device:compile"], /--device-compile/);
   assert.match(packageJson.scripts["mobile:native:device:build"], /--device/);
   assert.match(packageJson.scripts["mobile:native:smoke"], /mobile-ios-native-shell-smoke/);
+  assert.match(nativeWorkflow, /runs-on: macos-latest/);
+  assert.match(nativeWorkflow, /npm run mobile:native:device:compile/);
 });
 
 test("Apple native mobile shell has a guarded private CloudKit offline data path", async () => {
@@ -60,6 +64,7 @@ test("Apple native mobile shell has a guarded private CloudKit offline data path
 
   assert.match(project, /CODE_SIGN_ENTITLEMENTS: Config\/LifeOSMobile\.entitlements/);
   assert.match(project, /UIBackgroundModes:[\s\S]*remote-notification/);
+  assert.match(project, /UISupportedInterfaceOrientations/);
   assert.match(entitlements, /com\.apple\.developer\.icloud-container-identifiers/);
   assert.match(entitlements, /com\.apple\.developer\.icloud-services/);
   assert.match(entitlements, /CloudKit/);
@@ -80,7 +85,15 @@ test("Apple native mobile shell has a guarded private CloudKit offline data path
   assert.match(cloudSync, /scheduleRetry\(after:/);
   assert.match(cloudSync, /completeTaskListItem/);
   assert.match(cloudData, /task-list-item-complete/);
+  assert.match(cloudData, /LifeOSCloudMemoryMutationBuilder/);
+  assert.match(cloudData, /memory-create/);
+  assert.match(cloudSync, /func createMemory/);
+  assert.match(cloudSync, /ensureZone/);
   assert.match(cloudSync, /savePolicy: \.ifServerRecordUnchanged/);
+  assert.match(
+    cloudSync,
+    /#if targetEnvironment\(simulator\)\s+snapshot = demoMode \? Self\.simulatorDemoSnapshot\(\) : Self\.loadSnapshot\(from: fileURL\)\s+#else\s+snapshot = Self\.loadSnapshot\(from: fileURL\)\s+#endif/,
+  );
   assert.match(cloudSync, /completeUntilFirstUserAuthentication/);
   assert.match(cloudSync, /isExcludedFromBackup = true/);
   assert.match(cloudSync, /serverChangeTokens/);
@@ -88,7 +101,11 @@ test("Apple native mobile shell has a guarded private CloudKit offline data path
   assert.match(cloudScreen, /cloudStore\.performNextAction/);
   assert.match(cloudScreen, /LifeOSPendingTaskCompletion/);
   assert.match(cloudScreen, /cloudStore\.completeTaskListItem/);
+  assert.match(cloudScreen, /LifeOSMemoryComposer/);
+  assert.match(cloudScreen, /cloudStore\.createMemory/);
   assert.match(buildScript, /generic\/platform=iOS/);
+  assert.match(buildScript, /deviceCompile/);
+  assert.match(buildScript, /CODE_SIGNING_ALLOWED=NO/);
   assert.match(buildScript, /LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES/);
   assert.match(buildScript, /No matching iPhone provisioning profile is installed/);
   assert.doesNotMatch(`${cloudData}\n${cloudSync}`, /accessToken|adminPassword|providerApiKey|sessionCookie|privateKey/);

@@ -41,6 +41,15 @@ targets:
           NSAllowsArbitraryLoadsInWebContent: true
         NSLocalNetworkUsageDescription: LifeOS connects to your own computer on the local network.
         LifeOSCloudKitContainerIdentifier: $(LIFEOS_CLOUDKIT_CONTAINER_ID)
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        "UISupportedInterfaceOrientations~ipad":
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
         UIBackgroundModes:
           - remote-notification
         CFBundleURLTypes:

@@ -87,6 +87,32 @@ function runIsolatedCloudKitApply(env, scenario) {
       const payloadJson = JSON.stringify(memoryPayload);
       db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'changed', ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, NULL, NULL)")
         .run("q-memory-new", "LifeOSMemoryZone", ${JSON.stringify(scenario)} === "memory-tombstone" ? "LifeOSMemoryTombstone" : "LifeOSMemory", "memory:remote-memory", ${JSON.stringify(scenario)} === "memory-tombstone" ? "pending-review" : "auto-ready", "memory-mut", stableHash(memoryPayload), stableHash(payloadJson), now + 2000, Buffer.byteLength(payloadJson), ${JSON.stringify(scenario)} === "memory-tombstone" ? 1 : 0, payloadJson, new Date(now + 2000).toISOString(), "evidence-memory", now + 3000);
+    } else if (${JSON.stringify(scenario)} === "memory-ios-create" || ${JSON.stringify(scenario)} === "memory-ios-existing" || ${JSON.stringify(scenario)} === "memory-ios-wide" || ${JSON.stringify(scenario)} === "memory-ios-future") {
+      db.prepare("INSERT INTO cloudkit_sync_checkpoints (zone, applied_server_change_token, pending_server_change_token, token_state, last_evidence_id, last_preview_at, last_applied_at, changed_count, deleted_count, failed_count, more_coming, updated_at) VALUES (?, NULL, ?, 'pending-preview', ?, ?, NULL, ?, ?, 0, 0, ?)")
+        .run("LifeOSMemoryZone", "opaque-ios-memory-token", "evidence-ios-memory", now, 1, 0, now);
+      const memoryId = "ios-memory-123e4567-e89b-42d3-a456-426614174000";
+      if (${JSON.stringify(scenario)} === "memory-ios-existing") {
+        db.prepare("INSERT INTO memories (id, title, content, sensitivity, created_at, updated_at, deleted_at) VALUES (?, ?, ?, 'normal', ?, ?, NULL)")
+          .run(memoryId, "Existing local memory", "Must not be overwritten", now - 5000, now - 1000);
+      }
+      const mutationAt = ${JSON.stringify(scenario)} === "memory-ios-future" ? now + 10 * 60 * 1000 : now + 2000;
+      const memoryPayload = {
+        memoryId,
+        title: "Captured on iPhone",
+        text: "Remember the guarded CloudKit path.",
+        sensitivity: "normal",
+        createdAt: mutationAt,
+        updatedAt: mutationAt,
+        syncMutation: {
+          kind: "memory-create",
+          origin: "ios-native",
+          mutatedAt: mutationAt,
+        },
+        ...(${JSON.stringify(scenario)} === "memory-ios-wide" ? { deletedAt: now + 2000 } : {}),
+      };
+      const payloadJson = JSON.stringify(memoryPayload);
+      db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'changed', 'auto-ready', ?, ?, ?, ?, ?, 0, ?, ?, NULL, ?, ?, NULL, NULL)")
+        .run("q-memory-ios", "LifeOSMemoryZone", "LifeOSMemory", "memory:" + memoryId, "ios-memory-create:" + memoryId, stableHash(memoryPayload), stableHash(payloadJson), mutationAt, Buffer.byteLength(payloadJson), payloadJson, new Date(mutationAt).toISOString(), "evidence-ios-memory", now + 3000);
     } else if (${JSON.stringify(scenario)} === "task-new" || ${JSON.stringify(scenario)} === "task-existing") {
       db.prepare("INSERT INTO cloudkit_sync_checkpoints (zone, applied_server_change_token, pending_server_change_token, token_state, last_evidence_id, last_preview_at, last_applied_at, changed_count, deleted_count, failed_count, more_coming, updated_at) VALUES (?, NULL, ?, 'pending-preview', ?, ?, NULL, ?, ?, 0, 0, ?)")
         .run("LifeOSTaskZone", "opaque-task-token", "evidence-task", now, 1, 0, now);
@@ -379,6 +405,82 @@ test("CloudKit memory tombstone apply records a reviewed soft delete", async () 
     assert.equal(result.memories[0].deletedAt, 1700000002000);
     assert.equal(result.memoryCheckpoint.tokenState, "applied");
     assert.equal(result.memoryCheckpoint.appliedToken, "opaque-memory-token");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit applies a contract-valid memory created on iPhone", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-ios-memory-create-"));
+  try {
+    const result = runIsolatedCloudKitApply({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "memory-ios-create");
+
+    assert.equal(result.apply.applied, 1);
+    assert.equal(result.apply.conflicts, 0);
+    assert.deepEqual(result.apply.promotedZones, ["LifeOSMemoryZone"]);
+    assert.equal(result.memories[0].id, "ios-memory-123e4567-e89b-42d3-a456-426614174000");
+    assert.equal(result.memories[0].title, "Captured on iPhone");
+    assert.equal(result.memories[0].content, "Remember the guarded CloudKit path.");
+    assert.equal(result.memories[0].sensitivity, "normal");
+    assert.equal(result.memoryCheckpoint.tokenState, "applied");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit rejects an iPhone memory creation that collides with local SQLite", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-ios-memory-existing-"));
+  try {
+    const result = runIsolatedCloudKitApply({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "memory-ios-existing");
+
+    assert.equal(result.apply.applied, 0);
+    assert.equal(result.apply.conflicts, 1);
+    assert.match(result.apply.records[0].error, /cannot overwrite an existing memory/);
+    assert.equal(result.memories[0].title, "Existing local memory");
+    assert.equal(result.memories[0].content, "Must not be overwritten");
+    assert.equal(result.memoryCheckpoint.tokenState, "pending-preview");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit rejects an iPhone memory creation with fields outside the native contract", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-ios-memory-wide-"));
+  try {
+    const result = runIsolatedCloudKitApply({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "memory-ios-wide");
+
+    assert.equal(result.apply.applied, 0);
+    assert.equal(result.apply.conflicts, 1);
+    assert.match(result.apply.records[0].error, /unsupported fields/);
+    assert.equal(result.memories.length, 0);
+    assert.equal(result.memoryCheckpoint.tokenState, "pending-preview");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit rejects an iPhone memory creation timestamp too far in the future", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-ios-memory-future-"));
+  try {
+    const result = runIsolatedCloudKitApply({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "memory-ios-future");
+
+    assert.equal(result.apply.applied, 0);
+    assert.equal(result.apply.conflicts, 1);
+    assert.match(result.apply.records[0].error, /too far in the future/);
+    assert.equal(result.memories.length, 0);
+    assert.equal(result.memoryCheckpoint.tokenState, "pending-preview");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

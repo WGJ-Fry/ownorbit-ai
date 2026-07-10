@@ -268,6 +268,67 @@ final class LifeOSCloudKitClient {
         }
     }
 
+    func createMemory(
+        title: String,
+        text: String,
+        memoryId: String,
+        now: Date = Date()
+    ) async throws -> (record: LifeOSCloudRecord, accountFingerprint: String) {
+        let account = try await container.accountStatus()
+        guard account == .available else {
+            if account == .noAccount { throw LifeOSCloudSyncError.noAccount }
+            if account == .restricted { throw LifeOSCloudSyncError.restricted }
+            throw LifeOSCloudSyncError.unavailable
+        }
+        let userRecordId = try await container.userRecordID()
+        let accountFingerprint = LifeOSCloudAccountIdentity.fingerprint(
+            containerIdentifier: containerIdentifier,
+            userRecordName: userRecordId.recordName
+        )
+        let candidate = try LifeOSCloudMemoryMutationBuilder.create(
+            title: title,
+            text: text,
+            memoryId: memoryId,
+            now: now
+        )
+        let zoneId = CKRecordZone.ID(zoneName: candidate.zone, ownerName: CKCurrentUserDefaultName)
+        try await ensureZone(zoneId)
+        let recordId = CKRecord.ID(recordName: candidate.recordName, zoneID: zoneId)
+        let cloudRecord = CKRecord(recordType: candidate.recordType, recordID: recordId)
+        cloudRecord["lifeosSchema"] = "lifeos-cloudkit-record.v1" as CKRecordValue
+        cloudRecord["lifeosDataType"] = candidate.dataType as CKRecordValue
+        cloudRecord["lifeosRecordType"] = candidate.recordType as CKRecordValue
+        cloudRecord["lifeosRecordName"] = candidate.recordName as CKRecordValue
+        cloudRecord["sourceIdHash"] = candidate.sourceIdHash as CKRecordValue
+        cloudRecord["mutationId"] = candidate.mutationId as CKRecordValue
+        cloudRecord["logicalClock"] = NSNumber(value: candidate.logicalClock)
+        cloudRecord["contentHash"] = candidate.contentHash as CKRecordValue
+        cloudRecord["payloadByteSize"] = NSNumber(value: candidate.payloadJson.utf8.count)
+        cloudRecord["requiresUserReview"] = NSNumber(value: false)
+        cloudRecord["payloadJson"] = candidate.payloadJson as CKRecordValue
+        cloudRecord["lifeosSyncedAt"] = now as CKRecordValue
+
+        do {
+            let result = try await database.modifyRecords(
+                saving: [cloudRecord],
+                deleting: [],
+                savePolicy: .ifServerRecordUnchanged,
+                atomically: true
+            )
+            guard let saveResult = result.saveResults[recordId] else { throw LifeOSCloudMemoryWriteError.saveFailed }
+            switch saveResult {
+            case .success(let saved):
+                return (try validatedRecord(saved, zone: candidate.zone), accountFingerprint)
+            case .failure(let error as CKError) where error.code == .serverRecordChanged:
+                throw LifeOSCloudMemoryWriteError.collision
+            case .failure:
+                throw LifeOSCloudMemoryWriteError.saveFailed
+            }
+        } catch let error as CKError where error.code == .serverRecordChanged {
+            throw LifeOSCloudMemoryWriteError.collision
+        }
+    }
+
     private func validatedRecord(_ record: CKRecord, zone: String) throws -> LifeOSCloudRecord {
         try LifeOSCloudRecordValidator.validate(LifeOSCloudRecordInput(
             zone: zone,
@@ -284,6 +345,14 @@ final class LifeOSCloudKitClient {
             payloadJson: record["payloadJson"] as? String ?? "",
             modifiedAt: record.modificationDate
         ))
+    }
+
+    private func ensureZone(_ zoneId: CKRecordZone.ID) async throws {
+        do {
+            _ = try await database.recordZone(for: zoneId)
+        } catch let error as CKError where error.code == .zoneNotFound {
+            _ = try await database.save(CKRecordZone(zoneID: zoneId))
+        }
     }
 
     private func ensureSubscription() async -> Bool {
@@ -332,7 +401,10 @@ final class LifeOSCloudDataStore: ObservableObject {
     @Published private(set) var statusTone: StatusTone = .neutral
     @Published private(set) var nextAction: NextAction = .none
     @Published private(set) var writingTaskRecordId: String?
+    @Published private(set) var writingMemory = false
     @Published private(set) var enabled: Bool
+
+    var isWriting: Bool { writingTaskRecordId != nil || writingMemory }
 
     private let enabledKey = "lifeos.native.cloud-data-enabled.v1"
     private let fileURL: URL
@@ -344,20 +416,26 @@ final class LifeOSCloudDataStore: ObservableObject {
     private let simulatorDemoMode: Bool
     private lazy var client = LifeOSCloudKitClient()
 
-    init() {
+    init(demoModeOverride: Bool? = nil) {
         fileURL = Self.snapshotFileURL()
         #if targetEnvironment(simulator)
-        let demoMode = ProcessInfo.processInfo.arguments.contains("--cloud-data-demo")
+        let demoMode = demoModeOverride ?? ProcessInfo.processInfo.arguments.contains("--cloud-data-demo")
         #else
         let demoMode = false
         #endif
         simulatorDemoMode = demoMode
         enabled = demoMode || UserDefaults.standard.bool(forKey: enabledKey)
+        #if targetEnvironment(simulator)
         snapshot = demoMode ? Self.simulatorDemoSnapshot() : Self.loadSnapshot(from: fileURL)
+        #else
+        snapshot = Self.loadSnapshot(from: fileURL)
+        #endif
+        #if targetEnvironment(simulator)
         if demoMode {
             statusMessage = NSLocalizedString("cloud.status.ready", comment: "")
             statusTone = .success
         }
+        #endif
         notificationObserver = NotificationCenter.default.addObserver(
             forName: .lifeOSCloudKitPush,
             object: nil,
@@ -394,7 +472,7 @@ final class LifeOSCloudDataStore: ObservableObject {
 
     @discardableResult
     func sync(reason: String = "manual") async -> Bool {
-        guard enabled, !isSyncing else { return false }
+        guard enabled, !isSyncing, !isWriting else { return false }
         if simulatorDemoMode {
             statusMessage = NSLocalizedString("cloud.status.ready", comment: "")
             statusTone = .success
@@ -483,7 +561,7 @@ final class LifeOSCloudDataStore: ObservableObject {
     }
 
     func completeTaskListItem(record: LifeOSCloudRecord, item: LifeOSCloudTaskItem) async {
-        guard enabled, !isSyncing, writingTaskRecordId == nil else { return }
+        guard enabled, !isSyncing, !isWriting else { return }
         writingTaskRecordId = "\(record.id)/\(item.id)"
         statusMessage = NSLocalizedString("cloud.task.status.writing", comment: "")
         statusTone = .neutral
@@ -532,8 +610,15 @@ final class LifeOSCloudDataStore: ObservableObject {
                 moreComing: snapshot.moreComing,
                 now: Date()
             )
-            try save(next)
             snapshot = next
+            do {
+                try save(next)
+            } catch {
+                statusMessage = NSLocalizedString("cloud.task.status.savedCacheWarning", comment: "")
+                statusTone = .warning
+                nextAction = .continueSync
+                return
+            }
             statusMessage = String(
                 format: NSLocalizedString("cloud.task.status.completed", comment: ""),
                 item.text
@@ -552,6 +637,83 @@ final class LifeOSCloudDataStore: ObservableObject {
                 ?? NSLocalizedString("cloud.task.error.failed", comment: "")
             statusTone = .error
             nextAction = .continueSync
+        }
+    }
+
+    func createMemory(
+        title: String,
+        text: String,
+        memoryId: String = "ios-memory-\(UUID().uuidString.lowercased())"
+    ) async -> Bool {
+        guard enabled, !isSyncing, !isWriting else { return false }
+        writingMemory = true
+        statusMessage = NSLocalizedString("cloud.memory.status.writing", comment: "")
+        statusTone = .neutral
+        nextAction = .none
+        defer { writingMemory = false }
+        do {
+            #if targetEnvironment(simulator)
+            guard simulatorDemoMode else { throw LifeOSCloudSyncError.invalidContainer }
+            if snapshot.records.contains(where: { $0.zone == "LifeOSMemoryZone" && $0.recordName == "memory:\(memoryId)" }) {
+                throw LifeOSCloudMemoryWriteError.collision
+            }
+            let createdRecord = try LifeOSCloudMemoryMutationBuilder.create(
+                title: title,
+                text: text,
+                memoryId: memoryId,
+                now: Date()
+            )
+            snapshot = snapshot.merging(
+                changed: [createdRecord],
+                deletedRecordIds: [],
+                serverChangeTokens: [:],
+                accountFingerprint: snapshot.accountFingerprint ?? "simulator-demo",
+                moreComing: false,
+                now: Date()
+            )
+            #else
+            let created = try await client.createMemory(
+                title: title,
+                text: text,
+                memoryId: memoryId
+            )
+            let accountSnapshot = snapshot.scoped(to: created.accountFingerprint).snapshot
+            let next = accountSnapshot.merging(
+                changed: [created.record],
+                deletedRecordIds: [],
+                serverChangeTokens: [:],
+                accountFingerprint: created.accountFingerprint,
+                moreComing: accountSnapshot.moreComing,
+                now: Date()
+            )
+            snapshot = next
+            do {
+                try save(next)
+            } catch {
+                statusMessage = NSLocalizedString("cloud.memory.status.savedCacheWarning", comment: "")
+                statusTone = .warning
+                nextAction = .continueSync
+                return true
+            }
+            #endif
+            statusMessage = NSLocalizedString("cloud.memory.status.saved", comment: "")
+            statusTone = .success
+            return true
+        } catch let error as LifeOSCloudMemoryWriteError {
+            statusMessage = error.errorDescription ?? NSLocalizedString("cloud.memory.error.failed", comment: "")
+            statusTone = .error
+            if error == .collision { nextAction = .continueSync }
+            return false
+        } catch let error as LifeOSCloudSyncError {
+            statusMessage = error.errorDescription ?? NSLocalizedString("cloud.memory.error.failed", comment: "")
+            statusTone = .error
+            return false
+        } catch {
+            statusMessage = LifeOSCloudSyncError.userFacing(error).errorDescription
+                ?? NSLocalizedString("cloud.memory.error.failed", comment: "")
+            statusTone = .error
+            nextAction = .continueSync
+            return false
         }
     }
 

@@ -194,6 +194,92 @@ enum LifeOSCloudTaskMutationBuilder {
     }
 }
 
+enum LifeOSCloudMemoryWriteError: LocalizedError, Equatable {
+    case emptyTitle
+    case emptyText
+    case tooLong
+    case unsafeContent
+    case collision
+    case saveFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .emptyTitle: return NSLocalizedString("cloud.memory.error.title", comment: "")
+        case .emptyText: return NSLocalizedString("cloud.memory.error.text", comment: "")
+        case .tooLong: return NSLocalizedString("cloud.memory.error.length", comment: "")
+        case .unsafeContent: return NSLocalizedString("cloud.memory.error.unsafe", comment: "")
+        case .collision: return NSLocalizedString("cloud.memory.error.collision", comment: "")
+        case .saveFailed: return NSLocalizedString("cloud.memory.error.failed", comment: "")
+        }
+    }
+}
+
+enum LifeOSCloudMemoryMutationBuilder {
+    static let maxTitleLength = 120
+    static let maxTextLength = 4000
+
+    static func create(
+        title: String,
+        text: String,
+        memoryId: String,
+        now: Date
+    ) throws -> LifeOSCloudRecord {
+        let normalizedTitle = title.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedTitle.isEmpty else { throw LifeOSCloudMemoryWriteError.emptyTitle }
+        guard !normalizedText.isEmpty else { throw LifeOSCloudMemoryWriteError.emptyText }
+        guard normalizedTitle.utf16.count <= maxTitleLength, normalizedText.utf16.count <= maxTextLength else {
+            throw LifeOSCloudMemoryWriteError.tooLong
+        }
+        let idPattern = #"^ios-memory-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"#
+        guard memoryId.range(of: idPattern, options: .regularExpression) != nil else {
+            throw LifeOSCloudMemoryWriteError.unsafeContent
+        }
+        let timestamp = Int64(now.timeIntervalSince1970 * 1000)
+        guard timestamp > 0 else { throw LifeOSCloudMemoryWriteError.unsafeContent }
+        let payload: [String: Any] = [
+            "memoryId": memoryId,
+            "title": normalizedTitle,
+            "text": normalizedText,
+            "sensitivity": "normal",
+            "createdAt": NSNumber(value: timestamp),
+            "updatedAt": NSNumber(value: timestamp),
+            "syncMutation": [
+                "kind": "memory-create",
+                "origin": "ios-native",
+                "mutatedAt": NSNumber(value: timestamp),
+            ],
+        ]
+        guard JSONSerialization.isValidJSONObject(payload),
+              let payloadData = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys, .withoutEscapingSlashes]),
+              let payloadJson = String(data: payloadData, encoding: .utf8) else {
+            throw LifeOSCloudMemoryWriteError.unsafeContent
+        }
+        let contentHash = SHA256.hash(data: payloadData).map { String(format: "%02x", $0) }.joined()
+        let sourceHash = SHA256.hash(data: Data(memoryId.utf8)).map { String(format: "%02x", $0) }.joined()
+        do {
+            return try LifeOSCloudRecordValidator.validate(LifeOSCloudRecordInput(
+                zone: "LifeOSMemoryZone",
+                recordType: "LifeOSMemory",
+                recordName: "memory:\(memoryId)",
+                lifeosSchema: "lifeos-cloudkit-record.v1",
+                lifeosDataType: "memory",
+                sourceIdHash: "memory:\(sourceHash.prefix(16))",
+                mutationId: "ios-memory-create:\(memoryId)",
+                logicalClock: timestamp,
+                contentHash: contentHash,
+                payloadByteSize: payloadData.count,
+                requiresUserReview: false,
+                payloadJson: payloadJson,
+                modifiedAt: now
+            ))
+        } catch {
+            throw LifeOSCloudMemoryWriteError.unsafeContent
+        }
+    }
+}
+
 struct LifeOSCloudSnapshot: Codable, Equatable {
     let schemaVersion: Int
     var accountFingerprint: String?

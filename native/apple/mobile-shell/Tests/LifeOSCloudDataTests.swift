@@ -254,6 +254,90 @@ final class LifeOSCloudDataTests: XCTestCase {
         XCTAssertEqual((metadata["mutatedAt"] as? NSNumber)?.int64Value, mutation.logicalClock)
     }
 
+    func testMemoryCreateMutationBuildsAValidatedNormalMemoryRecord() throws {
+        let memoryId = "ios-memory-123e4567-e89b-42d3-a456-426614174000"
+        let record = try LifeOSCloudMemoryMutationBuilder.create(
+            title: "  Captured   on iPhone  ",
+            text: "Remember the guarded CloudKit path.",
+            memoryId: memoryId,
+            now: Date(timeIntervalSince1970: 1_700_000_000)
+        )
+        let payload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(record.payloadJson.utf8)) as? [String: Any]
+        )
+        let metadata = try XCTUnwrap(payload["syncMutation"] as? [String: Any])
+        let digest = SHA256.hash(data: Data(record.payloadJson.utf8)).map { String(format: "%02x", $0) }.joined()
+
+        XCTAssertEqual(record.zone, "LifeOSMemoryZone")
+        XCTAssertEqual(record.recordType, "LifeOSMemory")
+        XCTAssertEqual(record.recordName, "memory:\(memoryId)")
+        XCTAssertEqual(record.mutationId, "ios-memory-create:\(memoryId)")
+        XCTAssertEqual(record.contentHash, digest)
+        XCTAssertFalse(record.requiresUserReview)
+        XCTAssertEqual(payload["title"] as? String, "Captured on iPhone")
+        XCTAssertEqual(payload["text"] as? String, "Remember the guarded CloudKit path.")
+        XCTAssertEqual(payload["sensitivity"] as? String, "normal")
+        XCTAssertEqual(metadata["kind"] as? String, "memory-create")
+        XCTAssertEqual(metadata["origin"] as? String, "ios-native")
+        XCTAssertEqual((metadata["mutatedAt"] as? NSNumber)?.int64Value, 1_700_000_000_000)
+    }
+
+    func testMemoryCreateMutationRejectsSensitiveLookingAndOversizedText() {
+        let memoryId = "ios-memory-123e4567-e89b-42d3-a456-426614174000"
+        XCTAssertThrowsError(try LifeOSCloudMemoryMutationBuilder.create(
+            title: "Private path",
+            text: "Read /Users/example/private.txt later",
+            memoryId: memoryId,
+            now: Date()
+        )) { error in
+            XCTAssertEqual(error as? LifeOSCloudMemoryWriteError, .unsafeContent)
+        }
+        XCTAssertThrowsError(try LifeOSCloudMemoryMutationBuilder.create(
+            title: "Too long",
+            text: String(repeating: "a", count: LifeOSCloudMemoryMutationBuilder.maxTextLength + 1),
+            memoryId: memoryId,
+            now: Date()
+        )) { error in
+            XCTAssertEqual(error as? LifeOSCloudMemoryWriteError, .tooLong)
+        }
+    }
+
+    @MainActor
+    func testSimulatorDataStoreCreatesMemoryAndRejectsUnsafeDraftWithoutCloudKit() async {
+        let store = LifeOSCloudDataStore(demoModeOverride: true)
+        let initialCount = store.snapshot.records.count
+        let memoryId = "ios-memory-123e4567-e89b-42d3-a456-426614174000"
+
+        let created = await store.createMemory(
+            title: "Simulator memory",
+            text: "This should join the protected offline snapshot.",
+            memoryId: memoryId
+        )
+        XCTAssertTrue(created)
+        XCTAssertEqual(store.snapshot.records.count, initialCount + 1)
+        let memory = store.snapshot.records.first(where: { $0.recordType == "LifeOSMemory" })
+        XCTAssertEqual(memory?.displayTitle, "Simulator memory")
+        XCTAssertEqual(memory?.displayBody, "This should join the protected offline snapshot.")
+
+        let duplicate = await store.createMemory(
+            title: "Duplicate retry",
+            text: "The same draft identifier must not create another record.",
+            memoryId: memoryId
+        )
+        XCTAssertFalse(duplicate)
+        XCTAssertEqual(store.snapshot.records.count, initialCount + 1)
+        XCTAssertEqual(store.nextAction, .continueSync)
+
+        let countBeforeUnsafeDraft = store.snapshot.records.count
+        let rejected = await store.createMemory(
+            title: "Private path",
+            text: "Read /Users/example/private.txt later"
+        )
+        XCTAssertFalse(rejected)
+        XCTAssertEqual(store.snapshot.records.count, countBeforeUnsafeDraft)
+        XCTAssertEqual(store.statusTone, .error)
+    }
+
     private func input(
         zone: String,
         recordType: String,

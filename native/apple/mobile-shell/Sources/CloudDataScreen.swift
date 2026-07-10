@@ -5,6 +5,7 @@ struct CloudDataScreen: View {
     @EnvironmentObject private var cloudStore: LifeOSCloudDataStore
     @State private var confirmClear = false
     @State private var pendingTaskCompletion: LifeOSPendingTaskCompletion?
+    @State private var showMemoryComposer = ProcessInfo.processInfo.arguments.contains("--cloud-memory-compose-demo")
 
     var body: some View {
         NavigationStack {
@@ -21,13 +22,20 @@ struct CloudDataScreen: View {
                     Button("common.done") { dismiss() }
                 }
                 if cloudStore.enabled {
-                    ToolbarItem(placement: .topBarTrailing) {
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        Button {
+                            showMemoryComposer = true
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                        .disabled(cloudStore.isSyncing || cloudStore.isWriting)
+                        .accessibilityLabel(Text("cloud.memory.add"))
                         Button {
                             Task { await cloudStore.sync() }
                         } label: {
                             Image(systemName: "arrow.clockwise")
                         }
-                        .disabled(cloudStore.isSyncing)
+                        .disabled(cloudStore.isSyncing || cloudStore.isWriting)
                         .accessibilityLabel(Text("cloud.refresh"))
                     }
                 }
@@ -56,6 +64,10 @@ struct CloudDataScreen: View {
                     format: NSLocalizedString("cloud.task.complete.body", comment: ""),
                     request.item.text
                 ))
+            }
+            .sheet(isPresented: $showMemoryComposer) {
+                LifeOSMemoryComposer()
+                    .environmentObject(cloudStore)
             }
         }
     }
@@ -126,6 +138,7 @@ struct CloudDataScreen: View {
 
             Section {
                 Button("cloud.clear.button", role: .destructive) { confirmClear = true }
+                    .disabled(cloudStore.isSyncing || cloudStore.isWriting)
             } footer: {
                 Text("cloud.readOnly")
             }
@@ -248,6 +261,121 @@ struct CloudDataScreen: View {
         case "tasks": return "cloud.section.tasks"
         case "generated-app-state": return "cloud.section.apps"
         default: return "cloud.section.devices"
+        }
+    }
+
+    private var statusColor: Color {
+        switch cloudStore.statusTone {
+        case .neutral: return .secondary
+        case .success: return .mint
+        case .warning: return .orange
+        case .error: return .red
+        }
+    }
+
+    private var statusIcon: String {
+        switch cloudStore.statusTone {
+        case .neutral: return "icloud"
+        case .success: return "checkmark.circle"
+        case .warning: return "exclamationmark.triangle"
+        case .error: return "xmark.octagon"
+        }
+    }
+}
+
+private struct LifeOSMemoryComposer: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var cloudStore: LifeOSCloudDataStore
+    @State private var title = ""
+    @State private var text = ""
+    @State private var confirmSave = false
+    @State private var attemptedSave = false
+    @State private var memoryId = "ios-memory-\(UUID().uuidString.lowercased())"
+
+    private var canSave: Bool {
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            title.utf16.count <= LifeOSCloudMemoryMutationBuilder.maxTitleLength &&
+            text.utf16.count <= LifeOSCloudMemoryMutationBuilder.maxTextLength &&
+            !cloudStore.writingMemory
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("cloud.memory.form.title") {
+                    TextField("cloud.memory.form.title.placeholder", text: $title)
+                        .textInputAutocapitalization(.sentences)
+                        .disabled(cloudStore.writingMemory)
+                }
+                Section {
+                    ZStack(alignment: .topLeading) {
+                        if text.isEmpty {
+                            Text("cloud.memory.form.text.placeholder")
+                                .foregroundStyle(.tertiary)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 8)
+                        }
+                        TextEditor(text: $text)
+                            .frame(minHeight: 180)
+                            .scrollContentBackground(.hidden)
+                            .disabled(cloudStore.writingMemory)
+                    }
+                    Text(String(
+                        format: NSLocalizedString("cloud.memory.form.counter", comment: ""),
+                        text.utf16.count,
+                        LifeOSCloudMemoryMutationBuilder.maxTextLength
+                    ))
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(text.utf16.count > LifeOSCloudMemoryMutationBuilder.maxTextLength ? Color.red : Color.secondary)
+                } header: {
+                    Text("cloud.memory.form.text")
+                } footer: {
+                    Label("cloud.memory.form.safe", systemImage: "lock.shield")
+                }
+                if cloudStore.writingMemory {
+                    Section {
+                        HStack(spacing: 10) {
+                            ProgressView()
+                            Text("cloud.memory.status.writing")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } else if attemptedSave && !cloudStore.statusMessage.isEmpty {
+                    Section {
+                        Label(cloudStore.statusMessage, systemImage: statusIcon)
+                            .foregroundStyle(statusColor)
+                        if cloudStore.nextAction != .none {
+                            Button(LocalizedStringKey(cloudStore.nextAction.localizationKey)) {
+                                Task { await cloudStore.performNextAction() }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle(Text("cloud.memory.form.navigation"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("common.cancel") { dismiss() }
+                        .disabled(cloudStore.writingMemory)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("cloud.memory.form.save") { confirmSave = true }
+                        .disabled(!canSave)
+                }
+            }
+            .alert("cloud.memory.confirm.title", isPresented: $confirmSave) {
+                Button("cloud.memory.confirm.confirm") {
+                    attemptedSave = true
+                    Task {
+                        if await cloudStore.createMemory(title: title, text: text, memoryId: memoryId) { dismiss() }
+                    }
+                }
+                Button("common.cancel", role: .cancel) {}
+            } message: {
+                Text("cloud.memory.confirm.body")
+            }
         }
     }
 

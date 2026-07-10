@@ -10,7 +10,9 @@ const buildDir = path.resolve(process.env.LIFEOS_IOS_NATIVE_BUILD_DIR || path.jo
 const derivedDataDir = path.join(buildDir, "DerivedData");
 const projectPath = path.join(buildDir, "LifeOSMobile.xcodeproj");
 const deviceBuild = process.argv.includes("--device");
-const productFolder = deviceBuild ? "Debug-iphoneos" : "Debug-iphonesimulator";
+const deviceCompile = process.argv.includes("--device-compile");
+const deviceTarget = deviceBuild || deviceCompile;
+const productFolder = deviceTarget ? "Debug-iphoneos" : "Debug-iphonesimulator";
 const appPath = path.join(derivedDataDir, "Build", "Products", productFolder, "LifeOSMobile.app");
 const cloudKitContainerId = String(process.env.LIFEOS_CLOUDKIT_CONTAINER_ID || "iCloud.ai.lifeos.desktop").trim();
 const cloudKitEnvironment = String(process.env.LIFEOS_CLOUDKIT_ENVIRONMENT || "Development").trim();
@@ -105,6 +107,14 @@ if (deviceBuild) {
     }
     process.exit(deviceResult.status || 1);
   }
+} else if (deviceCompile) {
+  run("xcodebuild", [
+    ...commonArgs,
+    "-destination", "generic/platform=iOS",
+    "CODE_SIGNING_ALLOWED=NO",
+    "CODE_SIGNING_REQUIRED=NO",
+    "build",
+  ]);
 } else if (process.env.LIFEOS_IOS_NATIVE_RUN_TESTS === "1") {
   const device = selectSimulator();
   if (!device) {
@@ -125,4 +135,5 @@ if (!existsSync(appPath)) {
   process.exit(1);
 }
 
-console.log(`Built LifeOS native iOS shell (${deviceBuild ? "signed device" : "simulator"}): ${appPath}`);
+const buildKind = deviceBuild ? "signed device" : deviceCompile ? "unsigned device compile" : "simulator";
+console.log(`Built LifeOS native iOS shell (${buildKind}): ${appPath}`);

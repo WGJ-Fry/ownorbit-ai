@@ -260,7 +260,51 @@ function applyMessage(payload: Record<string, unknown>, row: QuarantineRow) {
   db.prepare("UPDATE chat_sessions SET updated_at = MAX(updated_at, ?) WHERE id = ?").run(createdAt, conversationId);
 }
 
-function applyMemory(payload: Record<string, unknown>, row: QuarantineRow) {
+function validateNativeMemoryCreateMutation(
+  payload: Record<string, unknown>,
+  row: QuarantineRow,
+  createdAt: number,
+  updatedAt: number,
+  existing: { updatedAt?: number } | undefined,
+  now: number,
+) {
+  const mutation = payload.syncMutation;
+  if (mutation === undefined) return;
+  if (!mutation || typeof mutation !== "object" || Array.isArray(mutation)) {
+    throw new Error("Native memory creation mutation metadata is missing.");
+  }
+  const memoryId = idText(payload.memoryId);
+  const source = mutation as Record<string, unknown>;
+  const allowedPayloadFields = new Set(["memoryId", "title", "text", "sensitivity", "createdAt", "updatedAt", "syncMutation"]);
+  const allowedMutationFields = new Set(["kind", "origin", "mutatedAt"]);
+  if (Object.keys(payload).some((key) => !allowedPayloadFields.has(key)) || Object.keys(source).some((key) => !allowedMutationFields.has(key))) {
+    throw new Error("Native memory creation contains unsupported fields.");
+  }
+  if (
+    source.kind !== "memory-create" ||
+    source.origin !== "ios-native" ||
+    numberValue(source.mutatedAt, 0) !== updatedAt ||
+    createdAt !== updatedAt ||
+    Number(row.logicalClock || 0) !== updatedAt ||
+    row.recordType !== "LifeOSMemory" ||
+    row.mutationId !== `ios-memory-create:${memoryId}` ||
+    !/^ios-memory-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(memoryId)
+  ) {
+    throw new Error("Native memory creation mutation metadata is invalid.");
+  }
+  if (updatedAt <= 0 || updatedAt > now + 5 * 60 * 1000) {
+    throw new Error("Native memory creation timestamp is invalid or too far in the future.");
+  }
+  if (payload.sensitivity !== "normal") throw new Error("Native memory creation only accepts normal memories.");
+  if (existing) throw new Error("Native memory creation cannot overwrite an existing memory.");
+  const normalizedTitle = text(payload.title, 120);
+  const normalizedContent = typeof payload.text === "string" ? payload.text.trim() : "";
+  if (!normalizedTitle || payload.title !== normalizedTitle || !normalizedContent || payload.text !== normalizedContent || normalizedContent.length > 4000) {
+    throw new Error("Native memory creation text is invalid or exceeds the safe limit.");
+  }
+}
+
+function applyMemory(payload: Record<string, unknown>, row: QuarantineRow, now: number) {
   const memoryId = idText(payload.memoryId);
   if (!memoryId || row.recordName !== `memory:${memoryId}`) throw new Error("Memory id does not match the CloudKit record name.");
   const title = text(payload.title, 120, "Synced memory");
@@ -274,6 +318,7 @@ function applyMemory(payload: Record<string, unknown>, row: QuarantineRow) {
   const updatedAt = numberValue(payload.updatedAt, createdAt);
   const deletedAt = isTombstone ? payloadDeletedAt || updatedAt : null;
   const existing = db.prepare("SELECT updated_at as updatedAt FROM memories WHERE id = ?").get(memoryId) as { updatedAt?: number } | undefined;
+  validateNativeMemoryCreateMutation(payload, row, createdAt, updatedAt, existing, now);
   if (isTombstone && !row.requiresUserReview) throw new Error("Memory delete requires manual review.");
   if (!row.requiresUserReview && existing) throw new Error("Existing memory requires manual review before CloudKit can update it.");
   if (existing && Number(existing.updatedAt || 0) > updatedAt) throw new Error("Local memory is newer; manual conflict review required.");
@@ -526,7 +571,7 @@ function applyChangedRow(row: QuarantineRow, now: number) {
   const payload = parsePayload(row);
   if (row.recordType === "LifeOSConversation") return ensureConversation(payload, row);
   if (row.recordType === "LifeOSMessage") return applyMessage(payload, row);
-  if (row.recordType === "LifeOSMemory" || row.recordType === "LifeOSMemoryTombstone") return applyMemory(payload, row);
+  if (row.recordType === "LifeOSMemory" || row.recordType === "LifeOSMemoryTombstone") return applyMemory(payload, row, now);
   if (row.recordType === "LifeOSTask" || row.recordType === "LifeOSTaskTombstone") return applyTask(payload, row);
   if (row.recordType === "LifeOSTaskListSnapshot") return applyTaskListSnapshot(payload, row);
   if (row.recordType === "LifeOSGeneratedAppState") return applyGeneratedAppState(payload, row);
