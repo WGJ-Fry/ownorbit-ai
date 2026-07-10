@@ -2331,15 +2331,21 @@ function checkAssets() {
     cloudKitAutoSyncScheduleSource.includes("rawPayloadReturnedToAdmin: false") &&
     cloudKitAutoSyncScheduleSource.includes("cloudKitChangeTokenReturnedToAdmin: false") &&
     cloudKitAutoSyncScheduleSource.includes("localBackupPathReturnedToAdmin: false") &&
+    cloudKitAutoSyncScheduleSource.includes("TRANSIENT_RETRY_DELAY_MS") &&
+    cloudKitAutoSyncScheduleSource.includes("STARTUP_SYNC_DELAY_MS") &&
     cloudKitAutoSyncScheduleSource.includes("REMOTE_PAGE_SYNC_DELAY_MS") &&
     cloudKitAutoSyncScheduleSource.includes('cycle.status === "remote-more-coming"') &&
     cloudKitAutoSyncScheduleTestSource.includes("CloudKit auto sync stays off by default") &&
     cloudKitAutoSyncScheduleTestSource.includes("records safe scheduled cycle summaries") &&
     cloudKitAutoSyncScheduleTestSource.includes("single setup action when native data sync is not ready") &&
     cloudKitAutoSyncScheduleTestSource.includes("schedules the next remote page quickly without uploading local data") &&
+    cloudKitAutoSyncScheduleTestSource.includes("retries a transient cycle failure after five minutes") &&
+    cloudKitAutoSyncScheduleTestSource.includes("retries an unexpected helper error after five minutes") &&
     serverSource.includes("startCloudKitAutoSyncScheduler") &&
     adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/auto-sync") &&
     adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/auto-sync/run-now") &&
+    adminRoutesSource.includes("cloudKitDataSyncQueued") &&
+    adminRoutesSource.includes("publicDesktopCloudKitAutoSync") &&
     cloudKitAutoSyncScheduleSource.includes("icloud_cloudkit_auto_sync_schedule_updated") &&
     apiAuthTestSource.includes("/api/v1/admin/icloud-data-sync/auto-sync") &&
     apiAuthTestSource.includes("/api/v1/admin/icloud-data-sync/auto-sync/run-now") &&
@@ -4129,7 +4135,16 @@ function checkSecurityConfig() {
     desktopSmokeTestSource.includes('"/admin/onboarding"')
   ) pass("desktop smoke verifies first-launch setup routes into onboarding");
   else warn("desktop smoke does not verify setup-to-onboarding routing");
-  if (desktopMain.includes("refreshDesktopShellStatus") && desktopMain.includes("desktopShell: publicDesktopShellStatus()") && desktopMain.includes("Refresh Status") && desktopMain.includes("First Launch Guide")) pass("desktop tray exposes refreshed health/admin/AI/device status and first-launch entry");
+  if (
+    desktopMain.includes("refreshDesktopShellStatus") &&
+    desktopMain.includes("desktopShell: publicDesktopShellStatus()") &&
+    desktopMain.includes("Refresh Status") &&
+    desktopMain.includes("First Launch Guide") &&
+    desktopMain.includes("desktopIcloudLabel") &&
+    desktopMain.includes("Refresh iCloud Entry & Data") &&
+    desktopMain.includes("dataSyncQueued") &&
+    desktopMain.includes('"continue-pull"')
+  ) pass("desktop tray exposes refreshed health/admin/AI/device/iCloud data sync status and first-launch entry");
   else warn("desktop tray does not expose refreshed health/admin/AI/device status");
   if (desktopMain.includes("showStartupFailureWindow") && desktopMain.includes("lifeos-desktop.log")) pass("desktop startup failure page points users to logs");
   else warn("desktop startup failure page does not point users to logs");

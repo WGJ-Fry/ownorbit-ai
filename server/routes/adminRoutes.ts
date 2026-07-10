@@ -460,6 +460,26 @@ function rankDesktopInternalSeverity(severity: string) {
   return 0;
 }
 
+function publicDesktopCloudKitAutoSync(schedule: ReturnType<typeof getCloudKitAutoSyncSchedule>) {
+  const lastResult = schedule.lastResult;
+  return {
+    enabled: schedule.enabled,
+    intervalMinutes: schedule.intervalMinutes,
+    lastRunAt: schedule.lastRunAt || null,
+    nextRunAt: schedule.nextRunAt || null,
+    pendingTotal: schedule.pendingLocalChanges?.total || 0,
+    pendingByType: schedule.pendingLocalChanges?.byType || {},
+    lastResult: lastResult ? {
+      ok: lastResult.ok,
+      status: lastResult.status,
+      nextAction: lastResult.nextAction,
+      finishedAt: lastResult.finishedAt,
+    } : null,
+    rawPayloadReturned: false,
+    cloudKitChangeTokenReturned: false,
+  };
+}
+
 function buildDesktopInternalNetworkSummary(reason = "desktop-summary") {
   const diagnostics = getAdminNetworkDiagnostics();
   const icloud = diagnostics.icloud;
@@ -476,6 +496,8 @@ function buildDesktopInternalNetworkSummary(reason = "desktop-summary") {
   }> = [];
   const now = Date.now();
   const latestRepair = icloud.latestEntryRepair || null;
+  const dataSync = icloud.dataSync;
+  const cloudKitAutoSync = getCloudKitAutoSyncSchedule();
 
   if (latestRepair && latestRepair.status !== "none" && latestRepair.action !== "none") {
     issues.push({
@@ -517,6 +539,39 @@ function buildDesktopInternalNetworkSummary(reason = "desktop-summary") {
       actionLabel: "Open iCloud Guide",
       path: "/admin/onboarding",
       updatedAt: now,
+    });
+  }
+
+  if (dataSync.enabled && !dataSync.ready) {
+    issues.push({
+      id: "cloudkit-data-sync-setup",
+      severity: "danger",
+      action: "configure-cloudkit",
+      title: "Finish iCloud data sync setup",
+      body: "Open the Apple connection guide and complete the one missing setup step before LifeOS syncs personal data.",
+      actionLabel: "Open iCloud Data Setup",
+      path: "/admin/onboarding",
+      updatedAt: now,
+    });
+  } else if (
+    dataSync.ready &&
+    cloudKitAutoSync.enabled &&
+    cloudKitAutoSync.lastResult &&
+    !cloudKitAutoSync.lastResult.ok &&
+    !["continue-pull", "wait"].includes(cloudKitAutoSync.lastResult.nextAction)
+  ) {
+    const reviewRequired = ["review-conflicts", "review-blocked-records"].includes(cloudKitAutoSync.lastResult.nextAction);
+    issues.push({
+      id: reviewRequired ? "cloudkit-data-sync-review" : "cloudkit-data-sync-retry",
+      severity: reviewRequired ? "warning" : "danger",
+      action: cloudKitAutoSync.lastResult.nextAction,
+      title: reviewRequired ? "Review iCloud data changes" : "Retry iCloud data sync",
+      body: reviewRequired
+        ? "LifeOS stopped before overwriting local data. Review the pending changes on this Mac."
+        : "LifeOS could not finish the latest data sync. Open the guide for the next safe step.",
+      actionLabel: reviewRequired ? "Review iCloud Changes" : "Open iCloud Data Sync",
+      path: "/admin/onboarding",
+      updatedAt: cloudKitAutoSync.lastResult.finishedAt || now,
     });
   }
 
@@ -588,6 +643,13 @@ function buildDesktopInternalNetworkSummary(reason = "desktop-summary") {
         needsQr: Boolean(latestRepair.needsQr),
         eventAt: Number(latestRepair.eventAt || 0),
       } : null,
+      dataSync: {
+        enabled: Boolean(dataSync.enabled),
+        ready: Boolean(dataSync.ready),
+        status: dataSync.status,
+        selectedDataTypes: Array.isArray(dataSync.selectedDataTypes) ? dataSync.selectedDataTypes.slice(0, 8) : [],
+        autoSync: publicDesktopCloudKitAutoSync(cloudKitAutoSync),
+      },
       monitor: {
         enabled: Boolean(diagnostics.icloudMonitor?.enabled),
         running: Boolean(diagnostics.icloudMonitor?.running),
@@ -1606,6 +1668,21 @@ export function registerAdminRoutes(app: express.Express) {
 
     const reason = normalizeInternalRefreshReason(req.body?.reason || "desktop-wake");
     const result = runIcloudHandoffStartupRefresh(reason);
+    const cloudKitSchedule = getCloudKitAutoSyncSchedule();
+    const cloudKitReadiness = getIcloudDataSyncReadiness({ platformSupported: process.platform === "darwin" });
+    const cloudKitQueued = cloudKitSchedule.enabled && cloudKitReadiness.ready;
+    if (cloudKitQueued) {
+      const wakeTimer = setTimeout(() => {
+        runCloudKitAutoSyncNow("scheduled", { type: "system", id: `desktop-${reason}` }).catch((error) => {
+          insertAuditLog("icloud_cloudkit_auto_sync_failed", "network", "cloudkit-auto-sync", {
+            trigger: "desktop-wake",
+            reason,
+            error: error instanceof Error ? error.message : String(error),
+          }, "system", `desktop-${reason}`);
+        });
+      }, 0);
+      wakeTimer.unref?.();
+    }
     insertAuditLog("icloud_handoff_internal_refreshed", "network", result.recommendedBaseUrl || "icloud-handoff", {
       reason,
       refreshed: result.refreshed,
@@ -1613,11 +1690,22 @@ export function registerAdminRoutes(app: express.Express) {
       status: result.status,
       previousStatus: result.previousStatus || null,
       recommendedBaseUrl: result.recommendedBaseUrl || null,
+      cloudKitDataSyncQueued: cloudKitQueued,
+      cloudKitDataSyncReady: cloudKitReadiness.ready,
     }, "system", "desktop");
     res.json({
       ok: true,
       result,
       monitor: getIcloudHandoffMonitorStatus(),
+      cloudKitDataSync: {
+        queued: cloudKitQueued,
+        enabled: cloudKitSchedule.enabled,
+        ready: cloudKitReadiness.ready,
+        status: cloudKitReadiness.status,
+        nextRunAt: cloudKitSchedule.nextRunAt || null,
+        rawPayloadReturned: false,
+        cloudKitChangeTokenReturned: false,
+      },
     });
   });
 

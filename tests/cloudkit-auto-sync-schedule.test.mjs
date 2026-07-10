@@ -32,17 +32,19 @@ function runIsolatedAutoSync(env, scenario) {
     const fakeRunCycle = async () => {
       calls.push("cycle");
       const remoteMoreComing = ${JSON.stringify(scenario)} === "more-coming";
+      const retryRequired = ${JSON.stringify(scenario)} === "retry";
+      if (${JSON.stringify(scenario)} === "throws") throw new Error("temporary helper failure");
       return {
-        ok: !remoteMoreComing,
-        status: remoteMoreComing ? "remote-more-coming" : "completed",
-        nextAction: remoteMoreComing ? "continue-pull" : "done",
+        ok: !remoteMoreComing && !retryRequired,
+        status: remoteMoreComing ? "remote-more-coming" : retryRequired ? "failed" : "completed",
+        nextAction: remoteMoreComing ? "continue-pull" : retryRequired ? "retry" : "done",
         startedAt: now,
         finishedAt: now + 25,
         limit: 100,
         pull: {
-          ok: true,
-          status: remoteMoreComing ? "more-coming" : "applied",
-          nextAction: remoteMoreComing ? "run-again" : "done",
+          ok: !retryRequired,
+          status: remoteMoreComing ? "more-coming" : retryRequired ? "failed" : "applied",
+          nextAction: remoteMoreComing ? "run-again" : retryRequired ? "retry" : "done",
           startedAt: now,
           finishedAt: now + 10,
           limit: 100,
@@ -52,7 +54,7 @@ function runIsolatedAutoSync(env, scenario) {
           backups: [],
           safety: { rawPayloadReturnedToAdmin: false, cloudKitChangeTokenReturnedToAdmin: false, appliesOnlyConflictFreeRecords: true },
         },
-        upload: remoteMoreComing ? undefined : {
+        upload: remoteMoreComing || retryRequired ? undefined : {
           ok: true,
           status: "uploaded",
           nextAction: "done",
@@ -104,6 +106,7 @@ test("CloudKit auto sync stays off by default and records safe scheduled cycle s
     }, "ready");
 
     assert.equal(result.defaultSchedule.enabled, false);
+    assert.equal(result.defaultSchedule.intervalMinutes, 15);
     assert.equal(result.tooEarly, null);
     assert.equal(result.saved.enabled, true);
     assert.equal(result.saved.intervalMinutes, 15);
@@ -155,8 +158,43 @@ test("CloudKit auto sync schedules the next remote page quickly without uploadin
     assert.deepEqual(result.calls, ["cycle"]);
     assert.equal(result.due.lastResult.status, "remote-more-coming");
     assert.equal(result.due.lastResult.nextAction, "continue-pull");
-    assert.equal(result.after.nextRunAt, 1700000000000 + 60 * 1000);
+    assert.equal(result.after.nextRunAt, 1700000000000 + 15 * 1000);
     assert.equal(result.due.cycle.upload, undefined);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit auto sync retries a transient cycle failure after five minutes", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-auto-sync-retry-"));
+  try {
+    const result = runIsolatedAutoSync({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "retry");
+
+    assert.deepEqual(result.calls, ["cycle"]);
+    assert.equal(result.due.lastResult.status, "failed");
+    assert.equal(result.due.lastResult.nextAction, "retry");
+    assert.equal(result.after.nextRunAt, 1700000000000 + 5 * 60 * 1000);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit auto sync retries an unexpected helper error after five minutes", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-auto-sync-throws-"));
+  try {
+    const result = runIsolatedAutoSync({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "throws");
+
+    assert.deepEqual(result.calls, ["cycle"]);
+    assert.equal(result.due.reason, "error");
+    assert.equal(result.due.lastResult.status, "failed");
+    assert.equal(result.due.lastResult.nextAction, "retry");
+    assert.equal(result.after.nextRunAt, 1700000000000 + 5 * 60 * 1000);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -222,8 +260,8 @@ test("CloudKit auto sync tracks local changes without storing payloads and clear
       }, { type: "admin", id: "owner" });
       const afterChat = scheduleModule.noteCloudKitLocalChange("chat-history", { type: "admin", id: "owner" }, now + 1000);
       const afterMemory = scheduleModule.noteCloudKitLocalChange("memory", { type: "admin", id: "owner" }, now + 2000);
-      const tooEarly = await scheduleModule.runDueCloudKitAutoSync(now + 30_000, { getReadiness: () => readyReadiness, runCycle: fakeRunCycle });
-      const due = await scheduleModule.runDueCloudKitAutoSync(now + 61_000, { getReadiness: () => readyReadiness, runCycle: fakeRunCycle });
+      const tooEarly = await scheduleModule.runDueCloudKitAutoSync(now + 10_000, { getReadiness: () => readyReadiness, runCycle: fakeRunCycle });
+      const due = await scheduleModule.runDueCloudKitAutoSync(now + 16_000, { getReadiness: () => readyReadiness, runCycle: fakeRunCycle });
       const after = scheduleModule.getCloudKitAutoSyncSchedule();
       const audits = auditModule.listAuditLogs(20).map((log) => ({ action: log.action, metadata: log.metadata }));
       process.stdout.write(JSON.stringify({ enabled, afterChat, afterMemory, tooEarly, due, after, calls, audits }));
@@ -243,7 +281,7 @@ test("CloudKit auto sync tracks local changes without storing payloads and clear
     assert.equal(data.afterChat.pendingLocalChanges.total, 1);
     assert.equal(data.afterChat.pendingLocalChanges.byType["chat-history"], 1);
     assert.equal(data.afterChat.pendingLocalChanges.rawPayloadStored, false);
-    assert.equal(data.afterChat.nextRunAt, 1700000000000 + 1000 + 60 * 1000);
+    assert.equal(data.afterChat.nextRunAt, 1700000000000 + 1000 + 15 * 1000);
     assert.equal(data.afterMemory.pendingLocalChanges.total, 2);
     assert.equal(data.afterMemory.pendingLocalChanges.byType.memory, 1);
     assert.equal(data.afterMemory.nextRunAt, data.afterChat.nextRunAt);

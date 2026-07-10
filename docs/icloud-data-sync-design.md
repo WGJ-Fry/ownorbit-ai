@@ -192,6 +192,8 @@ npm run mobile:native:device:build
 
 This is a developer candidate, not a public iOS package. The unkeyed entry checksum detects accidental file modification; it is not a cryptographic server identity signature, so the normal pairing QR remains mandatory before web access is granted. Simulator evidence proves compilation, record validation, protected snapshot merging, app installation, launch, and the CloudKit opt-in UI. The unsigned device compile additionally proves that the arm64 iPhoneOS target compiles without installing an app or requiring a provisioning profile. Neither path proves a private CloudKit database exchange, iCloud document delivery on a physical phone, cellular/Wi-Fi switching, provisioning, background push, or long-running two-device synchronization. AI keys, admin passwords, device tokens, private keys, session cookies, SQLite databases, backups, and raw CloudKit credentials are never copied into the native entry or CloudKit snapshot.
 
+When the user explicitly enables CloudKit data auto-sync, the Mac safe-cycle scheduler now uses a 15-minute default poll, queues local safe-data changes within 15 seconds, continues paged remote pulls within 15 seconds, retries transient failures after 5 minutes, and performs an additional check after local-core startup or desktop wake. The desktop tray distinguishes the iCloud Drive phone entry from CloudKit personal-data sync and shows only redacted state, counts, and one next action. This improves bounded background recovery, but it is still polling plus wake recovery: a persistent signed macOS CloudKit push receiver and real two-device delivery evidence are still required before calling it realtime or fully unattended sync.
+
 The build output is intentionally local (`build/native/LifeOSCloudKitHelper`) and should not be committed. Configure it with:
 
 ```bash
@@ -482,6 +484,8 @@ Do not claim end-user-ready, fully automatic iCloud data sync until all of this 
 当前已经有第一版原生 helper 源码：`native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift`。它可以在 macOS 上通过 `npm run icloud:helper:build` 编译，输出到 `build/native/LifeOSCloudKitHelper`。这个 helper 表示 CloudKit 原生桥已经有受控落脚点；当前只应宣称“受控 alpha 候选同步”，不能宣称完整后台 macOS/iOS 原生同步。
 
 当前还新增了源码级 iOS SwiftUI 原生壳候选版本：`native/apple/mobile-shell`。它可以通过 iPhone“文件”选择 iCloud Drive 中的 `lifeos-mobile-entry-*.json`，校验与电脑端一致的 SHA-256、版本、有效期、地址来源和 LifeOS 健康接口，然后在限制同源跳转的 `WKWebView` 中打开 `/mobile/chat`。它也加入了用户明确开启的 CloudKit 私有库增量拉取、变更游标、后台推送订阅、前台恢复、账号隔离、游标过期 zone 重建、自动续页与退避重试、记录 schema/zone/type/大小/SHA-256 校验和 Data Protection 离线快照。当前已形成两条真实双向写回候选路径：用户确认后，iPhone 可以新建一条通过敏感内容检测的普通记忆，Mac 仅在记录全新时写入 SQLite；也可以把一条未完成任务改为完成，并通过 CKRecord change tag 与基础内容哈希做双重乐观并发。已有记忆、聊天、生成程序和设备元数据仍只读。`npm run mobile:native:build`、`LIFEOS_IOS_NATIVE_RUN_TESTS=1 npm run mobile:native:build` 和 `npm run mobile:native:smoke -- http://127.0.0.1:3000` 可以在未签名的 iPhone 模拟器完成构建、单测、安装、启动和截图证据；`npm run mobile:native:device:build` 提供带 CloudKit entitlement 的真机签名入口。它还不是公开 iOS 安装包；在 Apple 协议、Container、provisioning 和真实双设备数据往返证据完成前，也不能宣称 CloudKit 已真实跑通。
+
+用户明确开启 CloudKit 数据自动同步后，Mac 安全同步循环现在默认每 15 分钟检查一次；本机安全数据发生变化后 15 秒内排队，远端还有分页时 15 秒内续拉，临时失败 5 分钟后重试，并在本地核心启动或桌面唤醒后额外检查。桌面托盘会区分“iCloud Drive 手机入口”和“CloudKit 个人数据同步”，只显示脱敏状态、数量和一个下一步。这改善了受控后台恢复，但本质仍是轮询加唤醒恢复；在常驻、已签名的 macOS CloudKit push 接收器和真实双设备投递证据完成前，不能称为实时或完全无人值守同步。
 
 helper 探测通过不等于真实同步完成。API 会返回已验证能力、必需能力和未验证能力；如果 `subscription-push`、`change-token-fetch`、自定义 zone、写入 roundtrip 等证据缺失，UI 必须继续显示为候选/待验证，而不能写成已完成的 iCloud 数据同步。
 

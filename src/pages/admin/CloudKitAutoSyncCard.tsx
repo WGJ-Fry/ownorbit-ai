@@ -99,7 +99,7 @@ export default function CloudKitAutoSyncCard({ dataSyncReady, onDiagnostics }: P
   }, [onDiagnostics, t]);
 
   const enabled = Boolean(schedule?.enabled);
-  const intervalMinutes = schedule?.intervalMinutes || 30;
+  const intervalMinutes = schedule?.intervalMinutes || 15;
   const lastResult = schedule?.lastResult;
   const pendingLocalChanges = schedule?.pendingLocalChanges;
   const lastResultNextAction = lastResult ? autoSyncNextActionKeys[lastResult.nextAction] || autoSyncNextActionKeys.retry : null;

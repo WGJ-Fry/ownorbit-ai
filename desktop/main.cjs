@@ -532,6 +532,25 @@ function publicAdminStatusSnapshot(status) {
   };
 }
 
+function desktopIcloudLabel(networkSummary) {
+  const dataSync = networkSummary?.icloud?.dataSync;
+  if (dataSync?.enabled) {
+    if (!dataSync.ready) return "iCloud data sync needs setup";
+    if (!dataSync.autoSync?.enabled) return "iCloud data sync ready · manual";
+    if (dataSync.autoSync.lastResult && !dataSync.autoSync.lastResult.ok && !["continue-pull", "wait"].includes(dataSync.autoSync.lastResult.nextAction)) {
+      return "iCloud data sync needs attention";
+    }
+    const pendingTotal = Number(dataSync.autoSync.pendingTotal || 0);
+    if (pendingTotal > 0 || dataSync.autoSync.lastResult?.nextAction === "continue-pull") {
+      return pendingTotal > 0 ? `iCloud data sync waiting · ${pendingTotal} pending` : "iCloud data sync continuing";
+    }
+    return "iCloud data sync ready · automatic";
+  }
+  const severity = networkSummary?.icloud?.severity || "";
+  const status = networkSummary?.icloud?.status || "";
+  return status ? `iCloud entry ${severity === "ok" ? "ready" : "needs attention"} · ${status}` : "iCloud status unknown";
+}
+
 function summarizeDesktopShellStatus(health, adminStatus, networkSummary = null) {
   const deviceCount = Number.isFinite(Number(health?.deviceCount)) ? Number(health.deviceCount) : 0;
   const onlineDeviceCount = Number.isFinite(Number(health?.onlineDeviceCount)) ? Number(health.onlineDeviceCount) : 0;
@@ -542,8 +561,6 @@ function summarizeDesktopShellStatus(health, adminStatus, networkSummary = null)
     : "Admin not configured";
   const remoteSeverity = networkSummary?.remote?.severity || "";
   const remoteStatus = networkSummary?.remote?.status || "";
-  const icloudSeverity = networkSummary?.icloud?.severity || "";
-  const icloudStatus = networkSummary?.icloud?.status || "";
   return {
     core: health?.ok ? "healthy" : "unreachable",
     coreLabel: health?.ok ? `Local core healthy · ${health.networkMode === "lan" ? "LAN" : "Local"}` : "Local core unreachable",
@@ -551,7 +568,7 @@ function summarizeDesktopShellStatus(health, adminStatus, networkSummary = null)
     aiLabel: health?.aiConfigured ? "AI configured" : "AI not configured",
     deviceLabel: `Devices ${onlineDeviceCount}/${deviceCount} online`,
     remoteLabel: remoteStatus ? `Remote ${remoteSeverity === "ok" ? "ready" : "needs attention"} · ${remoteStatus}` : "Remote status unknown",
-    icloudLabel: icloudStatus ? `iCloud ${icloudSeverity === "ok" ? "ready" : "needs attention"} · ${icloudStatus}` : "iCloud status unknown",
+    icloudLabel: desktopIcloudLabel(networkSummary),
     statusAlert: networkSummary?.alert || null,
     url: localUrl("/admin/login"),
     updatedAt: Date.now(),
@@ -836,6 +853,7 @@ function buildTrayMenu() {
     { label: "System Settings", click: () => showMainWindow("/admin/settings") },
     { type: "separator" },
     { label: "Refresh Status", click: () => refreshDesktopShellStatus().catch((error) => writeDesktopLog("Failed to refresh tray status", error?.message || String(error))) },
+    { label: "Refresh iCloud Entry & Data", click: () => refreshIcloudHandoffFromDesktopWake("desktop-tray-manual").catch((error) => writeDesktopLog("Manual iCloud refresh failed", error?.message || String(error))) },
     { label: "Copy Local Address", click: copyLocalAddress },
     { label: "Export Desktop Diagnostics", click: () => exportDesktopDiagnosticBundle().catch((error) => writeDesktopLog("Failed to export desktop diagnostics", error?.message || String(error))) },
     { label: "Open Logs Folder", click: openLogsFolder },
@@ -886,7 +904,8 @@ async function refreshDesktopShellStatus() {
 
 async function refreshIcloudHandoffFromDesktopWake(reason = "desktop-resume") {
   const now = Date.now();
-  if (now - lastDesktopWakeIcloudRefreshAt < 15_000) {
+  const manualRefresh = reason === "desktop-tray-manual";
+  if (!manualRefresh && now - lastDesktopWakeIcloudRefreshAt < 15_000) {
     writeDesktopLog("Skipped iCloud handoff desktop wake refresh", `reason=${reason} debounce=true`);
     return null;
   }
@@ -896,7 +915,8 @@ async function refreshIcloudHandoffFromDesktopWake(reason = "desktop-resume") {
   });
   if (response.ok) {
     const result = response.body?.result || {};
-    writeDesktopLog("iCloud handoff refreshed after desktop wake", `reason=${reason} refreshed=${Boolean(result.refreshed)} status=${result.status || "unknown"} refreshReason=${result.refreshReason || "unknown"}`);
+    const dataSync = response.body?.cloudKitDataSync || {};
+    writeDesktopLog("iCloud handoff refreshed after desktop wake", `reason=${reason} refreshed=${Boolean(result.refreshed)} status=${result.status || "unknown"} refreshReason=${result.refreshReason || "unknown"} dataSyncQueued=${Boolean(dataSync.queued)} dataSyncStatus=${dataSync.status || "not-enabled"}`);
   } else {
     writeDesktopLog("iCloud handoff desktop wake refresh failed", `reason=${reason} status=${response.status} error=${response.error || response.body?.error || "unknown"}`);
   }

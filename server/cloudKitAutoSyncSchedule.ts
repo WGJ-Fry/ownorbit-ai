@@ -5,14 +5,18 @@ import { getNetworkDiagnostics } from "./networkDiagnostics";
 import { runCloudKitSyncCycle, type CloudKitSyncCycleResult } from "./cloudKitSyncCycle";
 
 const CLOUDKIT_AUTO_SYNC_STATE_KEY = "lifeos_cloudkit_auto_sync_schedule";
-const DEFAULT_INTERVAL_MINUTES = 120;
+const DEFAULT_INTERVAL_MINUTES = 15;
 const MIN_INTERVAL_MINUTES = 15;
 const MAX_INTERVAL_MINUTES = 7 * 24 * 60;
-const LOCAL_CHANGE_SYNC_DELAY_MS = 60 * 1000;
-const REMOTE_PAGE_SYNC_DELAY_MS = 60 * 1000;
+const LOCAL_CHANGE_SYNC_DELAY_MS = 15 * 1000;
+const REMOTE_PAGE_SYNC_DELAY_MS = 15 * 1000;
+const TRANSIENT_RETRY_DELAY_MS = 5 * 60 * 1000;
+const SCHEDULER_POLL_INTERVAL_MS = 15 * 1000;
+const STARTUP_SYNC_DELAY_MS = 2 * 1000;
 const safeLocalChangeTypes = new Set(["chat-history", "memory", "tasks", "generated-app-state", "device-trust"]);
 
 let schedulerTimer: NodeJS.Timeout | undefined;
+let schedulerStartupTimer: NodeJS.Timeout | undefined;
 let schedulerStarted = false;
 let runInProgress = false;
 
@@ -358,6 +362,8 @@ export async function runCloudKitAutoSyncNow(
     const regularNextRunAt = computeNextRun(startedAt, schedule.intervalMinutes, startedAt);
     const nextRunAt = cycle.status === "remote-more-coming"
       ? Math.min(regularNextRunAt, startedAt + REMOTE_PAGE_SYNC_DELAY_MS)
+      : !cycle.ok && cycle.nextAction === "retry"
+      ? Math.min(regularNextRunAt, startedAt + TRANSIENT_RETRY_DELAY_MS)
       : regularNextRunAt;
     const nextSchedule: CloudKitAutoSyncSchedule = {
       ...schedule,
@@ -395,7 +401,9 @@ export async function runCloudKitAutoSyncNow(
     const nextSchedule: CloudKitAutoSyncSchedule = {
       ...schedule,
       lastRunAt: startedAt,
-      nextRunAt: schedule.enabled ? computeNextRun(startedAt, schedule.intervalMinutes, startedAt) : undefined,
+      nextRunAt: schedule.enabled
+        ? Math.min(computeNextRun(startedAt, schedule.intervalMinutes, startedAt), startedAt + TRANSIENT_RETRY_DELAY_MS)
+        : undefined,
       updatedAt: startedAt,
       lastResult,
     };
@@ -422,19 +430,33 @@ export async function runDueCloudKitAutoSync(now = Date.now(), dependencies: Run
 export function startCloudKitAutoSyncScheduler() {
   if (schedulerStarted) return;
   schedulerStarted = true;
+  schedulerStartupTimer = setTimeout(() => {
+    schedulerStartupTimer = undefined;
+    const schedule = getCloudKitAutoSyncSchedule();
+    if (!schedule.enabled) return;
+    runCloudKitAutoSyncNow("scheduled", { type: "system", id: "cloudkit-auto-sync-startup" }).catch((error) => {
+      insertAuditLog("icloud_cloudkit_auto_sync_failed", "network", "cloudkit-auto-sync", {
+        error: error instanceof Error ? error.message : String(error),
+        trigger: "server-startup",
+      }, "system", "cloudkit-auto-sync-startup");
+    });
+  }, STARTUP_SYNC_DELAY_MS);
+  schedulerStartupTimer.unref?.();
   schedulerTimer = setInterval(() => {
     runDueCloudKitAutoSync().catch((error) => {
       insertAuditLog("icloud_cloudkit_auto_sync_failed", "network", "cloudkit-auto-sync", {
         error: error instanceof Error ? error.message : String(error),
       });
     });
-  }, 60 * 1000);
+  }, SCHEDULER_POLL_INTERVAL_MS);
   schedulerTimer.unref?.();
 }
 
 export function stopCloudKitAutoSyncSchedulerForTests() {
   if (schedulerTimer) clearInterval(schedulerTimer);
+  if (schedulerStartupTimer) clearTimeout(schedulerStartupTimer);
   schedulerTimer = undefined;
+  schedulerStartupTimer = undefined;
   schedulerStarted = false;
   runInProgress = false;
 }

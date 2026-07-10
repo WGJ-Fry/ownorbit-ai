@@ -3508,6 +3508,12 @@ test("desktop internal iCloud refresh requires the local desktop token", async (
       LIFEOS_ICLOUD_DRIVE_DIR: icloudDir,
       LIFEOS_FORCE_ICLOUD_HANDOFF: "1",
       LIFEOS_DESKTOP_INTERNAL_TOKEN: desktopInternalToken,
+      LIFEOS_ICLOUD_DATA_SYNC: "1",
+      LIFEOS_CLOUDKIT_CONTAINER_ID: "iCloud.ai.lifeos.desktop",
+      LIFEOS_CLOUDKIT_TEAM_ID: "TESTTEAM123",
+      LIFEOS_CLOUDKIT_BUNDLE_ID: "ai.lifeos.cloudkit-test",
+      LIFEOS_CLOUDKIT_SYNC_TYPES: "memory,tasks",
+      LIFEOS_CLOUDKIT_HELPER_BIN: "",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -3560,7 +3566,14 @@ test("desktop internal iCloud refresh requires the local desktop token", async (
   assert.equal(desktopNetworkSummary.reason, "test-desktop-summary");
   assert.equal(typeof desktopNetworkSummary.icloud.syncReadiness.status, "string");
   assert.equal(typeof desktopNetworkSummary.icloud.handoffHealth.needsRefresh, "boolean");
+  assert.equal(desktopNetworkSummary.icloud.dataSync.enabled, true);
+  assert.equal(desktopNetworkSummary.icloud.dataSync.ready, false);
+  assert.equal(typeof desktopNetworkSummary.icloud.dataSync.autoSync.enabled, "boolean");
+  assert.equal(desktopNetworkSummary.icloud.dataSync.autoSync.rawPayloadReturned, false);
+  assert.equal(desktopNetworkSummary.icloud.dataSync.autoSync.cloudKitChangeTokenReturned, false);
   assert.equal(Array.isArray(desktopNetworkSummary.issues), true);
+  assert.ok(desktopNetworkSummary.issues.some((issue) => issue.id === "cloudkit-data-sync-setup" && issue.severity === "danger"));
+  assert.equal(desktopNetworkSummary.alert.id, "cloudkit-data-sync-setup");
   if (desktopNetworkSummary.alert) {
     assert.equal(typeof desktopNetworkSummary.alert.id, "string");
     assert.equal(typeof desktopNetworkSummary.alert.path, "string");
@@ -3578,6 +3591,13 @@ test("desktop internal iCloud refresh requires the local desktop token", async (
   assert.equal(typeof internalIcloudRefresh.result.refreshed, "boolean");
   assert.equal(internalIcloudRefresh.monitor.startupRunReason, "test-desktop-resume");
   assert.equal(internalIcloudRefresh.monitor.startupResult.reason, "test-desktop-resume");
+  assert.equal(internalIcloudRefresh.cloudKitDataSync.queued, false);
+  assert.equal(internalIcloudRefresh.cloudKitDataSync.enabled, false);
+  assert.equal(internalIcloudRefresh.cloudKitDataSync.ready, false);
+  assert.equal(internalIcloudRefresh.cloudKitDataSync.rawPayloadReturned, false);
+  assert.equal(internalIcloudRefresh.cloudKitDataSync.cloudKitChangeTokenReturned, false);
+  assert.equal(JSON.stringify(internalIcloudRefresh).includes("payloadJson"), false);
+  assert.equal(JSON.stringify(internalIcloudRefresh).includes("serverChangeToken"), false);
 });
 
 test("local admin password reset works only as a guarded local recovery path", async (t) => {

@@ -479,6 +479,11 @@ test("Electron desktop keeps a startup failure window open when local core fails
   assert.match(desktopMain, /\/api\/v1\/internal\/desktop\/network-summary/);
   assert.match(desktopMain, /Needs attention:/);
   assert.match(desktopMain, /iCloud status unknown/);
+  assert.match(desktopMain, /desktopIcloudLabel/);
+  assert.match(desktopMain, /iCloud data sync waiting/);
+  assert.match(desktopMain, /Refresh iCloud Entry & Data/);
+  assert.match(desktopMain, /dataSyncQueued/);
+  assert.match(desktopMain, /manualRefresh/);
   assert.match(desktopMain, /Remote status unknown/);
   assert.match(desktopMain, /lifeos:open-icloud-folder/);
   assert.match(desktopMain, /openIcloudFolder/);
