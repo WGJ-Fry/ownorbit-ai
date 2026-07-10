@@ -42,6 +42,8 @@
     "icloud:helper:smoke": "node --import tsx scripts/cloudkit-native-helper-smoke.mjs",
     "icloud:acceptance": "node --import tsx scripts/icloud-data-sync-acceptance-runbook.mjs",
     "mobile:simulator:smoke": "node scripts/mobile-ios-simulator-smoke.mjs",
+    "mobile:native:build": "node scripts/build-ios-mobile-shell.mjs",
+    "mobile:native:smoke": "node scripts/mobile-ios-native-shell-smoke.mjs",
     "remote:acceptance": "node scripts/remote-acceptance-runbook.mjs",
     "calendar:acceptance": "node --import tsx scripts/calendar-acceptance-runbook.mjs",
     "remote:mock-smoke": "node scripts/remote-connection-mock-smoke.mjs",
@@ -53,7 +55,8 @@
     "test:smoke": "npm run build && node --test tests/frontend-smoke.test.mjs",
     "test:e2e": "playwright test",
     "test:mobile:simulator": "playwright test tests/e2e/admin-mobile-binding.spec.ts --project=chromium",
-    "quality:gate": "npm run lint && npm test && npm run test:e2e && npm run test:desktop && npm run release:check:unsigned",
+    "test:apple-native": "node --test tests/apple-mobile-native-shell.test.mjs",
+    "quality:gate": "npm run lint && npm run test:apple-native && npm test && npm run test:e2e && npm run test:desktop && npm run release:check:unsigned",
     "test": "npm run build && node --import tsx --test --test-concurrency=1 tests/i18n.test.mjs tests/client-routing.test.mjs tests/offline-queue.test.mjs tests/mobile-pairing-intent.test.mjs tests/mobile-pairing-errors.test.mjs tests/device-pairing-errors.test.mjs tests/mobile-install-hint-storage.test.mjs tests/pwa-capabilities.test.mjs tests/pwa-service-worker-lifecycle.test.mjs tests/device-credential-store.test.mjs tests/onboarding-handoff-summary.test.mjs tests/apple-remote-icloud-primary-action.test.mjs tests/apple-remote-icloud-simple-status.test.mjs tests/apple-remote-icloud-phone-pickup.test.mjs tests/icloud-data-sync-readiness.test.mjs tests/icloud-data-sync-acceptance-runbook.test.mjs tests/cloudkit-native-helper.test.mjs tests/cloudkit-sync-batch.test.mjs tests/cloudkit-sync-apply.test.mjs tests/cloudkit-device-trust-metadata.test.mjs tests/cloudkit-sync-now.test.mjs tests/cloudkit-sync-upload-now.test.mjs tests/cloudkit-sync-cycle.test.mjs tests/cloudkit-auto-sync-schedule.test.mjs tests/sensitive-local-storage.test.mjs tests/synced-client-state.test.mjs tests/network-status.test.mjs tests/network-diagnostics.test.mjs tests/cloudflare-tunnel.test.mjs tests/remote-connection-smoke.test.mjs tests/calendar-acceptance-runbook.test.mjs tests/backup-schedule.test.mjs tests/audit-redaction.test.mjs tests/http-security.test.mjs tests/data-export-redaction.test.mjs tests/diagnostic-bundle-redaction.test.mjs tests/ai-provider-runtime.test.mjs tests/vault.test.mjs tests/calendar-sync-preview.test.mjs tests/release-update-check.test.mjs tests/native-automation-bridge.test.mjs tests/chat-state-changes.test.mjs tests/problem-blueprint.test.mjs tests/chat-message-storage.test.mjs tests/chat-runtime-settings.test.mjs tests/chat-session-storage.test.mjs tests/server-mobile-install.test.mjs tests/system-actions.test.mjs tests/backup-restore-ui.test.mjs tests/connection-setup-packet.test.mjs tests/version-truth.test.mjs tests/github-public-state.test.mjs && node --import tsx --test --test-concurrency=1 tests/api-auth.test.mjs tests/backup-restore.test.mjs tests/chat-vault-route.test.mjs tests/frontend-smoke.test.mjs tests/migrations.test.mjs tests/public-mode.test.mjs tests/release-feed.test.mjs tests/remote-validation-report.test.mjs"
   },
   "dependencies": {

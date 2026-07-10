@@ -157,6 +157,26 @@ npm run icloud:helper:xcode:build
 
 This generates an ignored Xcode project and `.app` under `build/native/cloudkit-helper-xcode`, builds with automatic signing, verifies the embedded executable entitlement, and proves the helper can start. By default it uses only profiles already installed on the Mac and does not modify the Apple Developer account. After the App ID and iCloud Container have been reviewed, `LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES=1` allows Xcode to create or update the matching App ID, certificate, and provisioning profile through the account already signed into Xcode. The Apple Developer Program License Agreement must be accepted by the account holder before Xcode is allowed to perform those updates.
 
+## Native iOS Shell Candidate
+
+The source-only SwiftUI shell lives at `native/apple/mobile-shell`. It is separate from the public PWA and desktop release assets. It can:
+
+- select `lifeos-mobile-entry-*.json` through the iOS Files picker, including iCloud Drive;
+- verify the desktop-compatible SHA-256 packet checksum, packet version, expiry, exact endpoint path/origin, HTTPS/private-LAN policy, and `/api/v1/health` service shape;
+- store only non-secret entry metadata in `UserDefaults`;
+- load `/mobile/chat` in a same-origin restricted `WKWebView`, where the normal LifeOS device binding keeps its credential in web storage;
+- accept a validated `lifeos://connect?baseUrl=...` deep link for a future Shortcut-assisted setup flow.
+
+Build and test it on an iPhone Simulator without Apple signing:
+
+```bash
+npm run mobile:native:build
+LIFEOS_IOS_NATIVE_RUN_TESTS=1 npm run mobile:native:build
+npm run mobile:native:smoke -- http://127.0.0.1:3000
+```
+
+This is a developer candidate, not a public iOS package. The unkeyed checksum detects accidental file modification; it is not a cryptographic server identity signature, so the normal pairing QR remains mandatory before access is granted. Simulator evidence proves compilation, entry validation, app installation, launch, and mobile-shell loading. It does not prove iCloud document delivery on a physical phone, cellular/Wi-Fi switching, provisioning, CloudKit background push, or long-running two-device synchronization. AI keys, admin passwords, device tokens, private keys, session cookies, SQLite databases, backups, and raw CloudKit credentials are never copied into the native entry store.
+
 The build output is intentionally local (`build/native/LifeOSCloudKitHelper`) and should not be committed. Configure it with:
 
 ```bash
@@ -443,6 +463,8 @@ Do not claim end-user-ready, fully automatic iCloud data sync until all of this 
 - README、Release、诊断和路线图都明确区分“入口文件同步”和“真实数据同步”。
 
 当前已经有第一版原生 helper 源码：`native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift`。它可以在 macOS 上通过 `npm run icloud:helper:build` 编译，输出到 `build/native/LifeOSCloudKitHelper`。这个 helper 表示 CloudKit 原生桥已经有受控落脚点；当前只应宣称“受控 alpha 候选同步”，不能宣称完整后台 macOS/iOS 原生同步。
+
+当前还新增了源码级 iOS SwiftUI 原生壳候选版本：`native/apple/mobile-shell`。它可以通过 iPhone“文件”选择 iCloud Drive 中的 `lifeos-mobile-entry-*.json`，校验与电脑端一致的 SHA-256、版本、有效期、地址来源和 LifeOS 健康接口，然后在限制同源跳转的 `WKWebView` 中打开 `/mobile/chat`。原生入口存储只保存不含密钥的连接元数据，设备凭证仍由 LifeOS 网页会话管理。`npm run mobile:native:build`、`LIFEOS_IOS_NATIVE_RUN_TESTS=1 npm run mobile:native:build` 和 `npm run mobile:native:smoke -- http://127.0.0.1:3000` 可以在未签名的 iPhone 模拟器完成构建、单测、安装、启动和截图证据。它还不是公开 iOS 安装包，也不能替代真实 iPhone 的 iCloud 文件投递、蜂窝换网、Apple provisioning、CloudKit 后台推送和长期双设备同步验收。
 
 helper 探测通过不等于真实同步完成。API 会返回已验证能力、必需能力和未验证能力；如果 `subscription-push`、`change-token-fetch`、自定义 zone、写入 roundtrip 等证据缺失，UI 必须继续显示为候选/待验证，而不能写成已完成的 iCloud 数据同步。
 

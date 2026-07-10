@@ -159,7 +159,7 @@ function checkSourceSizeBudgets() {
 }
 
 function checkScripts() {
-  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "icloud:helper:build", "icloud:helper:smoke", "icloud:acceptance", "mobile:simulator:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
+  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "icloud:helper:build", "icloud:helper:smoke", "icloud:acceptance", "mobile:simulator:smoke", "mobile:native:build", "mobile:native:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:apple-native", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
     if (hasScript(script)) pass(`package script exists: ${script}`);
     else fail(`missing package script: ${script}`);
   }
@@ -341,6 +341,34 @@ function checkScripts() {
     else fail("iOS Simulator smoke must boot/open Mobile Safari through simctl, validate mobile endpoints, write evidence, and state that real-device acceptance is still required");
   } else {
     fail("missing iOS Simulator smoke script: scripts/mobile-ios-simulator-smoke.mjs");
+  }
+
+  if (exists("native/apple/mobile-shell/project.yml") && exists("scripts/mobile-ios-native-shell-smoke.mjs")) {
+    const nativeEntry = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSEntry.swift"), "utf8");
+    const nativeStore = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSEntryStore.swift"), "utf8");
+    const nativeWebView = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSWebView.swift"), "utf8");
+    const nativeBuild = fs.readFileSync(path.join(rootDir, "scripts", "build-ios-mobile-shell.mjs"), "utf8");
+    const nativeSmoke = fs.readFileSync(path.join(rootDir, "scripts", "mobile-ios-native-shell-smoke.mjs"), "utf8");
+    if (
+      packageJson.scripts?.["mobile:native:build"]?.includes("build-ios-mobile-shell.mjs") &&
+      packageJson.scripts?.["mobile:native:smoke"]?.includes("mobile-ios-native-shell-smoke.mjs") &&
+      packageJson.scripts?.["test:apple-native"]?.includes("apple-mobile-native-shell.test.mjs") &&
+      packageJson.scripts?.["quality:gate"]?.includes("test:apple-native") &&
+      nativeEntry.includes("SHA256.hash") &&
+      nativeEntry.includes("withoutEscapingSlashes") &&
+      nativeEntry.includes("entryChecksumSha256 == checksum") &&
+      nativeStore.includes("startAccessingSecurityScopedResource") &&
+      nativeStore.includes('payload["service"] as? String == "lifeos-local-core"') &&
+      nativeWebView.includes("WKNavigationDelegate") &&
+      nativeWebView.includes("sameOrigin(url, entry.baseURL)") &&
+      nativeBuild.includes("CODE_SIGNING_ALLOWED=NO") &&
+      nativeSmoke.includes("native-entry-setup") &&
+      nativeSmoke.includes("native-mobile-chat") &&
+      nativeSmoke.includes("does not replace cellular")
+    ) pass("Apple native iOS shell validates iCloud entries, restricts navigation, and has simulator build/smoke coverage");
+    else fail("Apple native iOS shell must validate iCloud entry checksums and endpoints, restrict WebView navigation, and run through Xcode Simulator smoke coverage");
+  } else {
+    fail("missing Apple native iOS shell source or simulator smoke script");
   }
 
   if (exists("scripts/remote-acceptance-runbook.mjs")) {

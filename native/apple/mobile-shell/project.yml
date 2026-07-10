@@ -1,0 +1,63 @@
+name: LifeOSMobile
+options:
+  createIntermediateGroups: true
+  deploymentTarget:
+    iOS: "16.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "0.1.5"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  LifeOSMobile:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: Resources
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ai.lifeos.mobile
+        PRODUCT_NAME: LifeOSMobile
+        CODE_SIGN_STYLE: Automatic
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SUPPORTS_MACCATALYST: NO
+    info:
+      path: Generated/Info.plist
+      properties:
+        CFBundleDisplayName: LifeOS Mobile
+        CFBundleShortVersionString: "0.1.5"
+        CFBundleVersion: "1"
+        UILaunchScreen: {}
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+          NSAllowsArbitraryLoadsInWebContent: true
+        NSLocalNetworkUsageDescription: LifeOS connects to your own computer on the local network.
+        CFBundleURLTypes:
+          - CFBundleURLName: ai.lifeos.mobile.entry
+            CFBundleURLSchemes:
+              - lifeos
+  LifeOSMobileTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: LifeOSMobile
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ai.lifeos.mobile.tests
+        CODE_SIGNING_ALLOWED: NO
+schemes:
+  LifeOSMobile:
+    build:
+      targets:
+        LifeOSMobile: all
+        LifeOSMobileTests: [test]
+    test:
+      config: Debug
+      targets:
+        - LifeOSMobileTests
+    run:
+      config: Debug
