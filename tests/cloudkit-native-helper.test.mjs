@@ -748,6 +748,35 @@ test("CloudKit helper smoke redacts helper stderr and payload errors", async () 
   }
 });
 
+test("CloudKit helper reports a provisioning action when macOS blocks startup", async () => {
+  const env = snapshotEnv();
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-helper-launch-blocked-"));
+  try {
+    await configureReadyCloudKitEnv(dir);
+    const readiness = getIcloudDataSyncReadiness({ platformSupported: true });
+    const result = await runCloudKitNativeHelper(readiness, {
+      operation: "probe",
+      runCommand: async () => ({
+        exitCode: null,
+        signal: "SIGKILL",
+        timedOut: false,
+        stdout: "",
+        stderr: "",
+      }),
+    });
+
+    assert.equal(result.status, "failed");
+    assert.equal(result.failureKind, "helper-launch-blocked");
+    assert.equal(result.command.signal, "SIGKILL");
+    assert.equal(result.errors.length, 1);
+    assert.match(result.errors[0], /matching Apple provisioning profile/);
+    assert.equal(result.errors.some((error) => error.includes("not valid JSON")), false);
+  } finally {
+    restoreEnv(env);
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("CloudKit helper reports missing native capabilities instead of overstating real sync readiness", async () => {
   const env = snapshotEnv();
   const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-helper-missing-capabilities-"));

@@ -42,7 +42,7 @@ type CommandRunner = (
   command: string,
   args: string[],
   options: { stdin: string; timeoutMs: number },
-) => Promise<{ exitCode: number | null; stdout: string; stderr: string; timedOut: boolean }>;
+) => Promise<{ exitCode: number | null; signal?: string | null; stdout: string; stderr: string; timedOut: boolean }>;
 
 type HelperRunOptions = {
   operation?: CloudKitNativeHelperOperation;
@@ -76,7 +76,7 @@ function appendBounded(current: string, chunk: Buffer | string) {
 }
 
 function defaultCommandRunner(command: string, args: string[], options: { stdin: string; timeoutMs: number }) {
-  return new Promise<{ exitCode: number | null; stdout: string; stderr: string; timedOut: boolean }>((resolve) => {
+  return new Promise<{ exitCode: number | null; signal: string | null; stdout: string; stderr: string; timedOut: boolean }>((resolve) => {
     const child = spawn(command, args, {
       stdio: ["pipe", "pipe", "pipe"],
       env: {
@@ -88,11 +88,11 @@ function defaultCommandRunner(command: string, args: string[], options: { stdin:
     let stderr = "";
     let settled = false;
     let timedOut = false;
-    const finish = (exitCode: number | null) => {
+    const finish = (exitCode: number | null, signal: string | null = null) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      resolve({ exitCode, stdout, stderr, timedOut });
+      resolve({ exitCode, signal, stdout, stderr, timedOut });
     };
     const timer = setTimeout(() => {
       timedOut = true;
@@ -114,7 +114,7 @@ function defaultCommandRunner(command: string, args: string[], options: { stdin:
       stderr = appendBounded(stderr, error.message);
       finish(null);
     });
-    child.on("close", (code) => finish(code));
+    child.on("close", (code, signal) => finish(code, signal));
     child.stdin.end(options.stdin);
   });
 }
@@ -365,6 +365,7 @@ function skippedResult(operation: CloudKitNativeHelperOperation, readinessStatus
   return {
     ok: false,
     status: "skipped" as const,
+    failureKind: "not-run" as const,
     operation,
     checkedAt: new Date().toISOString(),
     readinessStatus,
@@ -430,20 +431,33 @@ export async function runCloudKitNativeHelper(
   const syncExportOk = operation !== "sync-export" || (syncExport.attempted > 0 && syncExport.saved === syncExport.attempted && syncExport.failed === 0);
   const syncImportQuarantineOk = operation !== "sync-import-quarantine" || syncImportQuarantine.failed === 0;
   const passed = command.exitCode === 0 && !command.timedOut && responseOk && protocolMatches && operationMatches && operationCapabilityCoverage.complete && roundtripOk && subscriptionProbeOk && syncExportOk && syncImportQuarantineOk;
+  const helperLaunchBlocked = !command.timedOut && command.exitCode === null && Boolean(command.signal) && !command.stdout.trim();
+  const failureKind = passed
+    ? "none" as const
+    : helperLaunchBlocked
+    ? "helper-launch-blocked" as const
+    : command.timedOut
+    ? "timeout" as const
+    : payload
+    ? "operation-failed" as const
+    : "invalid-response" as const;
   const payloadWarnings = normalizeStringList(payload?.warnings).map((item) => redact(item, 240));
   const payloadErrors = normalizeStringList(payload?.errors).map((item) => redact(item, 240));
-  const errors = [
-    ...payloadErrors,
-    ...(payload ? [] : ["Helper stdout was not valid JSON."]),
-    ...(protocolMatches ? [] : ["Helper protocol response did not match LifeOS CloudKit helper v1."]),
-    ...(operationMatches ? [] : ["Helper operation did not match the request."]),
-    ...(operationCapabilityCoverage.complete ? [] : [`Helper did not verify required operation capabilities: ${operationCapabilityCoverage.missing.join(", ")}.`]),
-    ...(command.timedOut ? ["Helper timed out."] : []),
-  ];
+  const errors = helperLaunchBlocked
+    ? ["macOS blocked the CloudKit helper before startup. Install a matching Apple provisioning profile for the helper bundle and iCloud Container."]
+    : [
+        ...payloadErrors,
+        ...(payload ? [] : ["Helper stdout was not valid JSON."]),
+        ...(protocolMatches ? [] : ["Helper protocol response did not match LifeOS CloudKit helper v1."]),
+        ...(operationMatches ? [] : ["Helper operation did not match the request."]),
+        ...(operationCapabilityCoverage.complete ? [] : [`Helper did not verify required operation capabilities: ${operationCapabilityCoverage.missing.join(", ")}.`]),
+        ...(command.timedOut ? ["Helper timed out."] : []),
+      ];
 
   return {
     ok: passed,
     status: passed ? "passed" as const : "failed" as const,
+    failureKind,
     operation,
     checkedAt: new Date().toISOString(),
     readinessStatus: readiness.status,
@@ -469,6 +483,7 @@ export async function runCloudKitNativeHelper(
     errors,
     command: {
       exitCode: command.exitCode,
+      signal: command.signal || null,
       timedOut: command.timedOut,
       stdoutBytes: Buffer.byteLength(command.stdout, "utf8"),
       stderr: redact(command.stderr, 600),

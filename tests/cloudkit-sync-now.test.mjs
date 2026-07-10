@@ -50,6 +50,17 @@ function runIsolatedCloudKitSyncNow(env, scenario) {
 
     const fakeRunHelper = async (_readiness, options) => {
       if (${JSON.stringify(scenario)} === "needs-setup") return skippedResult(options.operation, "CloudKit data sync is not enabled.");
+      if (${JSON.stringify(scenario)} === "launch-blocked") return {
+        ok: false,
+        status: "failed",
+        failureKind: "helper-launch-blocked",
+        operation: options.operation,
+        checkedAt: new Date(now).toISOString(),
+        readinessStatus: "ready-to-test",
+        errors: ["macOS blocked the CloudKit helper before startup."],
+        syncChangesPreview: { scannedZones: [], changed: 0, deleted: 0, failed: 0, moreComing: false, rawPayloadIncluded: false, zones: [], changedRecords: [], deletedRecords: [] },
+        syncImportQuarantine: { scannedZones: [], changed: 0, deleted: 0, failed: 0, moreComing: false, rawPayloadIncluded: false, zones: [], changedRecords: [], deletedRecords: [] },
+      };
       if (options.operation === "sync-changes-preview") {
         return {
           ok: true,
@@ -237,6 +248,24 @@ test("CloudKit safe sync now gives one setup action when native CloudKit is not 
     assert.equal(result.backups.length, 0);
     assert.equal(JSON.stringify(result).includes("opaque-preview-token"), false);
     assert.equal(JSON.stringify(result).includes("opaque-import-token"), false);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit safe sync now gives one setup action when macOS blocks the helper profile", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-now-profile-"));
+  try {
+    const { result } = runIsolatedCloudKitSyncNow({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "launch-blocked");
+
+    assert.equal(result.status, "needs-setup");
+    assert.equal(result.nextAction, "configure-cloudkit");
+    assert.equal(result.changes.result.failureKind, "helper-launch-blocked");
+    assert.equal(result.apply.attempted, 0);
+    assert.equal(result.backups.length, 0);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

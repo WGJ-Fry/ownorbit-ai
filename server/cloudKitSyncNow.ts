@@ -77,6 +77,9 @@ function determineStatus(input: {
   if (!input.readiness.enabled || input.changes.status === "skipped") {
     return { status: "needs-setup" as SyncNowStatus, nextAction: "configure-cloudkit" as SyncNowNextAction };
   }
+  if (input.changes.status === "failed" && input.changes.failureKind === "helper-launch-blocked") {
+    return { status: "needs-setup" as SyncNowStatus, nextAction: "configure-cloudkit" as SyncNowNextAction };
+  }
   if (input.changes.status === "failed" || input.changes.syncChangesPreview?.failed) {
     return { status: "failed" as SyncNowStatus, nextAction: "retry" as SyncNowNextAction };
   }
