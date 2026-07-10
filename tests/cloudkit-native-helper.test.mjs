@@ -194,6 +194,7 @@ test("CloudKit helper request carries an approved sync export batch only for nat
 test("Apple CloudKit helper source implements the native JSON stdio contract", async () => {
   const swiftSource = await readFile(path.join(rootDir, "native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift"), "utf8");
   const buildScript = await readFile(path.join(rootDir, "scripts/build-cloudkit-helper.mjs"), "utf8");
+  const xcodeBuildScript = await readFile(path.join(rootDir, "scripts/build-cloudkit-helper-xcode.mjs"), "utf8");
   const packageJson = JSON.parse(await readFile(path.join(rootDir, "package.json"), "utf8"));
   assert.match(swiftSource, /import CloudKit/);
   assert.match(swiftSource, /lifeos-cloudkit-helper-request\.v1/);
@@ -238,7 +239,18 @@ test("Apple CloudKit helper source implements the native JSON stdio contract", a
   assert.match(buildScript, /--verify/);
   assert.match(buildScript, /launchCheck/);
   assert.match(buildScript, /matching Apple provisioning profile/);
+  assert.match(xcodeBuildScript, /xcodegen/);
+  assert.match(xcodeBuildScript, /xcodebuild/);
+  assert.match(xcodeBuildScript, /type: application/);
+  assert.match(xcodeBuildScript, /CODE_SIGN_STYLE: Automatic/);
+  assert.match(xcodeBuildScript, /LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES/);
+  assert.match(xcodeBuildScript, /-allowProvisioningUpdates/);
+  assert.match(xcodeBuildScript, /PLA Update available/);
+  assert.match(xcodeBuildScript, /Program License Agreement must be accepted/);
+  assert.match(xcodeBuildScript, /com\.apple\.developer\.icloud-container-identifiers/);
+  assert.match(xcodeBuildScript, /launchCheck/);
   assert.match(packageJson.scripts["icloud:helper:build"], /build-cloudkit-helper\.mjs/);
+  assert.match(packageJson.scripts["icloud:helper:xcode:build"], /build-cloudkit-helper-xcode\.mjs/);
 });
 
 test("CloudKit helper roundtrip executes the configured native helper contract", async () => {

@@ -146,6 +146,17 @@ npm run icloud:helper:build
 
 The build script selects a matching local Apple Development or Developer ID Application identity unless `LIFEOS_CLOUDKIT_SIGN_IDENTITY` is set, generates an ignored entitlement file under `build/native`, signs the helper, verifies the signature, confirms the requested CloudKit container is present in the signed entitlement, and launches a no-write startup check. It does not create an Apple Developer App ID, CloudKit container, or provisioning profile. If macOS reports `No matching profile found`, the build fails before a probe and the matching Apple provisioning profile must be created and installed first.
 
+For a provisioning-aware macOS app bundle, use the Xcode build path after reviewing the bundle and container identifiers:
+
+```bash
+export LIFEOS_CLOUDKIT_CONTAINER_ID="iCloud.ai.lifeos.desktop"
+export LIFEOS_CLOUDKIT_TEAM_ID="YOUR_TEAM_ID"
+export LIFEOS_CLOUDKIT_BUNDLE_ID="ai.lifeos.cloudkit-helper"
+npm run icloud:helper:xcode:build
+```
+
+This generates an ignored Xcode project and `.app` under `build/native/cloudkit-helper-xcode`, builds with automatic signing, verifies the embedded executable entitlement, and proves the helper can start. By default it uses only profiles already installed on the Mac and does not modify the Apple Developer account. After the App ID and iCloud Container have been reviewed, `LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES=1` allows Xcode to create or update the matching App ID, certificate, and provisioning profile through the account already signed into Xcode. The Apple Developer Program License Agreement must be accepted by the account holder before Xcode is allowed to perform those updates.
+
 The build output is intentionally local (`build/native/LifeOSCloudKitHelper`) and should not be committed. Configure it with:
 
 ```bash

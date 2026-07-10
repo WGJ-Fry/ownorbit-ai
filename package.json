@@ -38,6 +38,7 @@
     "version:truth:release": "node scripts/check-version-truth.mjs --promotion",
     "remote:smoke": "node scripts/remote-connection-smoke.mjs",
     "icloud:helper:build": "node scripts/build-cloudkit-helper.mjs",
+    "icloud:helper:xcode:build": "node scripts/build-cloudkit-helper-xcode.mjs",
     "icloud:helper:smoke": "node --import tsx scripts/cloudkit-native-helper-smoke.mjs",
     "icloud:acceptance": "node --import tsx scripts/icloud-data-sync-acceptance-runbook.mjs",
     "mobile:simulator:smoke": "node scripts/mobile-ios-simulator-smoke.mjs",
