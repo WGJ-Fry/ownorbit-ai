@@ -1484,6 +1484,13 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                               })}
                             </div>
                           ) : null}
+                          {(cloudKitSyncCycleResult.pull.import?.result.syncImportQuarantine?.changeTokenResetZones.length || 0) > 0 ? (
+                            <div className="font-sans font-bold text-amber-200">
+                              {t("onboarding.appleRemoteIcloudDataSyncFullResyncReview", {
+                                zones: cloudKitSyncCycleResult.pull.import?.result.syncImportQuarantine?.changeTokenResetZones.join(", ") || "CloudKit",
+                              })}
+                            </div>
+                          ) : null}
                           <div>{t("onboarding.appleRemoteIcloudDataSyncCycleUpload", {
                             exported: cloudKitSyncCycleResult.upload?.export.exportRecordCount || 0,
                             saved: cloudKitSyncCycleResult.upload?.result?.syncExport?.saved || 0,
@@ -1592,6 +1599,13 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                                 pending: cloudKitSyncNowResult.quarantine.summary.pendingReview,
                                 conflicts: cloudKitSyncNowResult.quarantine.summary.conflicts,
                               })}</div>
+                              {(cloudKitSyncNowResult.import?.result.syncImportQuarantine?.changeTokenResetZones.length || 0) > 0 ? (
+                                <div className="font-sans font-bold text-amber-200">
+                                  {t("onboarding.appleRemoteIcloudDataSyncFullResyncReview", {
+                                    zones: cloudKitSyncNowResult.import?.result.syncImportQuarantine?.changeTokenResetZones.join(", ") || "CloudKit",
+                                  })}
+                                </div>
+                              ) : null}
                               <div>{t("onboarding.appleRemoteIcloudDataSyncNowNext", {
                                 action: t(cloudKitSyncNowNextActionKeys[cloudKitSyncNowResult.nextAction]),
                               })}</div>

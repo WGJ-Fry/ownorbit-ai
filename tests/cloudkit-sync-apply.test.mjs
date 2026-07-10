@@ -164,6 +164,9 @@ function runIsolatedCloudKitApply(env, scenario) {
       const payloadJson = JSON.stringify(trustPayload);
       db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'changed', 'pending-review', ?, ?, ?, ?, ?, 1, ?, ?, NULL, ?, ?, NULL, NULL)")
         .run("q-device-trust", "LifeOSDeviceTrustZone", "LifeOSDeviceTrust", "device:" + deviceIdHash.slice(0, 24), "device-trust-mut", stableHash(trustPayload), stableHash(payloadJson), now + 2000, Buffer.byteLength(payloadJson), payloadJson, new Date(now + 2000).toISOString(), "evidence-device-trust", now + 3000);
+    } else if (${JSON.stringify(scenario)} === "checkpoint-reset") {
+      db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'checkpoint-reset', 'pending-review', NULL, ?, NULL, 0, 0, 1, NULL, NULL, NULL, ?, ?, NULL, ?)")
+        .run("q-checkpoint-reset", "LifeOSChatZone", "LifeOSFullResyncReview", "checkpoint-reset:LifeOSChatZone", "reset-hash", "evidence-chat", now + 3000, "Review rebuilt CloudKit baseline.");
     } else {
       db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, deleted_at, source_evidence_id, imported_at, applied_at, error) VALUES (?, ?, ?, ?, 'deleted', 'pending-review', ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, NULL, NULL)")
         .run("q-delete", "LifeOSChatZone", "LifeOSMessage", "message:remote-message", "remote-mut", "delete-hash", "delete-payload-hash", now + 2000, 0, null, new Date(now + 2000).toISOString(), new Date(now + 2000).toISOString(), "evidence-chat", now + 3000);
@@ -173,7 +176,7 @@ function runIsolatedCloudKitApply(env, scenario) {
     const apply = applyCloudKitSyncQuarantine({
       limit: 10,
       now: now + 4000,
-      includeManualReview: ${JSON.stringify(scenario)} === "delete" || ${JSON.stringify(scenario)} === "memory-tombstone" || ${JSON.stringify(scenario)}.startsWith("device-trust"),
+      includeManualReview: ${JSON.stringify(scenario)} === "delete" || ${JSON.stringify(scenario)} === "memory-tombstone" || ${JSON.stringify(scenario)} === "checkpoint-reset" || ${JSON.stringify(scenario)}.startsWith("device-trust"),
     });
     const sessions = db.prepare("SELECT id, title, updated_at as updatedAt FROM chat_sessions ORDER BY id").all();
     const messages = db.prepare("SELECT id, session_id as sessionId, content_json as contentJson, source_device_id as sourceDeviceId, offline_mutation_id as mutationId FROM messages ORDER BY id").all();
@@ -226,6 +229,27 @@ test("CloudKit quarantine apply writes conflict-free records and promotes pendin
     assert.equal(result.checkpoint.appliedToken, "opaque-next-token");
     assert.equal(result.checkpoint.pendingToken, null);
     assert.equal(result.checkpoint.lastAppliedAt, 1700000004000);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit full-resync checkpoint advances only after explicit baseline review", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-reset-review-"));
+  try {
+    const result = runIsolatedCloudKitApply({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "checkpoint-reset");
+
+    assert.equal(result.listed.items[0].changeType, "checkpoint-reset");
+    assert.equal(result.listed.items[0].requiresUserReview, true);
+    assert.equal(result.apply.attempted, 1);
+    assert.equal(result.apply.applied, 1);
+    assert.equal(result.apply.conflicts, 0);
+    assert.deepEqual(result.apply.promotedZones, ["LifeOSChatZone"]);
+    assert.equal(result.checkpoint.tokenState, "applied");
+    assert.equal(result.checkpoint.appliedToken, "opaque-next-token");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

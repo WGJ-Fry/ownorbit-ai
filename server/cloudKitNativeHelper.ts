@@ -230,6 +230,8 @@ function normalizeChangePreviewZone(value: unknown) {
     failed: Number(input.failed || 0),
     moreComing: Boolean(input.moreComing),
     pagesFetched: Math.max(0, Number(input.pagesFetched || 0)),
+    changeTokenReset: Boolean(input.changeTokenReset),
+    requiresFullReview: Boolean(input.requiresFullReview),
   };
 }
 
@@ -241,6 +243,7 @@ function normalizeSyncChangesPreview(value: unknown) {
     deleted: Number(input.deleted || 0),
     failed: Number(input.failed || 0),
     moreComing: Boolean(input.moreComing),
+    changeTokenResetZones: normalizeStringList(input.changeTokenResetZones, 32),
     rawPayloadIncluded: Boolean(input.rawPayloadIncluded),
     zones: Array.isArray(input.zones) ? input.zones.map(normalizeChangePreviewZone).slice(0, 32) : [],
     changedRecords: Array.isArray(input.changedRecords) ? input.changedRecords.map(normalizeChangePreviewRecord).slice(0, 500) : [],
@@ -264,6 +267,7 @@ function normalizeImportQuarantineRecord(value: unknown) {
     payloadByteSize: Number(input.payloadByteSize || Buffer.byteLength(payloadJson, "utf8")),
     modifiedAt: compact(input.modifiedAt, 80),
     requiresUserReview: Boolean(input.requiresUserReview),
+    fullResync: Boolean(input.fullResync),
     payloadJson,
     payloadCaptured: Boolean(payloadJson || input.payloadCaptured),
   };
@@ -277,6 +281,7 @@ function normalizeSyncImportQuarantine(value: unknown) {
     deleted: Number(input.deleted || 0),
     failed: Number(input.failed || 0),
     moreComing: Boolean(input.moreComing),
+    changeTokenResetZones: normalizeStringList(input.changeTokenResetZones, 32),
     rawPayloadIncluded: Boolean(input.rawPayloadIncluded),
     zones: Array.isArray(input.zones) ? input.zones.map(normalizeChangePreviewZone).slice(0, 32) : [],
     changedRecords: Array.isArray(input.changedRecords) ? input.changedRecords.map(normalizeImportQuarantineRecord).slice(0, 500) : [],

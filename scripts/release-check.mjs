@@ -373,8 +373,14 @@ function checkScripts() {
       nativeWebView.includes("sameOrigin(url, entry.baseURL)") &&
       nativeCloudData.includes("maxPayloadBytes = 64 * 1024") &&
       nativeCloudData.includes("contentHashMismatch") &&
+      nativeCloudData.includes("accountFingerprint") &&
+      nativeCloudData.includes("resetZones: Set<String>") &&
       nativeCloudSync.includes("privateCloudDatabase") &&
       nativeCloudSync.includes("recordZoneChanges") &&
+      nativeCloudSync.includes("changeTokenExpired") &&
+      nativeCloudSync.includes("Notification.Name.CKAccountChanged") &&
+      nativeCloudSync.includes("maxCatchUpPasses = 3") &&
+      nativeCloudSync.includes("scheduleRetry(after:") &&
       nativeCloudSync.includes("completeUntilFirstUserAuthentication") &&
       nativeCloudSync.includes("isExcludedFromBackup = true") &&
       nativeEntitlements.includes("com.apple.developer.icloud-container-identifiers") &&
@@ -385,8 +391,8 @@ function checkScripts() {
       nativeSmoke.includes("native-mobile-chat") &&
       nativeSmoke.includes("native-cloud-data") &&
       nativeSmoke.includes("does not replace cellular")
-    ) pass("Apple native iOS shell validates entries and CloudKit records, protects offline snapshots, restricts navigation, and has simulator/device build coverage");
-    else fail("Apple native iOS shell must validate iCloud entry and CloudKit data, protect offline snapshots, restrict WebView navigation, and run through Xcode Simulator smoke coverage");
+    ) pass("Apple native iOS shell validates entries and CloudKit records, isolates Apple accounts, recovers expired cursors, retries bounded pulls, protects offline snapshots, and has simulator/device build coverage");
+    else fail("Apple native iOS shell must validate iCloud entry and CloudKit data, isolate Apple accounts, recover expired cursors, retry bounded pulls, protect offline snapshots, restrict WebView navigation, and run through Xcode Simulator smoke coverage");
   } else {
     fail("missing Apple native iOS shell source or simulator smoke script");
   }
@@ -2173,6 +2179,7 @@ function checkAssets() {
     cloudKitNativeHelperSource.includes("syncChangesPreview") &&
     cloudKitNativeHelperSource.includes("sync-import-quarantine") &&
     cloudKitNativeHelperSource.includes("syncImportQuarantine") &&
+    cloudKitNativeHelperSource.includes("changeTokenResetZones") &&
     cloudKitNativeHelperSource.includes("syncExportPackage") &&
     cloudKitNativeHelperSource.includes("nativeCapabilityCoverage") &&
     cloudKitNativeHelperSource.includes("missingNativeCapabilities") &&
@@ -2185,6 +2192,7 @@ function checkAssets() {
     cloudKitNativeHelperTestSource.includes("CloudKit helper sync import preview executes") &&
     cloudKitNativeHelperTestSource.includes("CloudKit helper sync changes preview executes") &&
     cloudKitNativeHelperTestSource.includes("CloudKit helper sync import quarantine keeps payloads off public admin responses") &&
+    cloudKitNativeHelperTestSource.includes("changeTokenExpired") &&
     cloudKitNativeHelperTestSource.includes("missing native capabilities instead of overstating real sync readiness") &&
     cloudKitNativeHelperTestSource.includes("required native capability proof is missing") &&
     cloudKitNativeHelperTestSource.includes("redacts helper stderr") &&
@@ -2268,8 +2276,10 @@ function checkAssets() {
     cloudKitSyncStateSource.includes("validateImportedRecordIntegrity") &&
     cloudKitSyncStateSource.includes("content-hash-mismatch") &&
     cloudKitSyncStateSource.includes("CloudKit record rejected before import") &&
+    cloudKitSyncStateSource.includes("record.fullResync") &&
     cloudKitSyncNowTestSource.includes("CloudKit safe sync now imports") &&
     cloudKitSyncNowTestSource.includes("manual-review records in quarantine") &&
+    cloudKitSyncNowTestSource.includes("expired cursors rebuild a full baseline") &&
     cloudKitSyncNowTestSource.includes("returns only safe summaries") &&
     cloudKitSyncNowTestSource.includes("rejects a tampered payload before it can enter local data tables") &&
     cloudKitSyncUploadNowSource.includes("UPLOAD_CLOUDKIT_NOW") &&
@@ -2336,6 +2346,8 @@ function checkAssets() {
     cloudKitNativeSwiftHelperSource.includes("recordZoneChanges") &&
     cloudKitNativeSwiftHelperSource.includes("validatedPayloadJson") &&
     cloudKitNativeSwiftHelperSource.includes("maxChangePages") &&
+    cloudKitNativeSwiftHelperSource.includes("changeTokenExpired") &&
+    cloudKitNativeSwiftHelperSource.includes("requiresFullReview") &&
     cloudKitNativeSwiftHelperSource.includes("CKServerChangeToken") &&
     cloudKitNativeSwiftHelperSource.includes("database.save(record)") &&
     cloudKitNativeSwiftHelperSource.includes("database.record(for: recordId)") &&

@@ -81,7 +81,7 @@ struct CloudDataScreen: View {
                     Image(systemName: cloudStore.isSyncing ? "arrow.triangle.2.circlepath.icloud" : "checkmark.icloud")
                         .foregroundStyle(.cyan)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(cloudStore.isSyncing ? "cloud.status.syncing" : "cloud.status.ready")
+                        Text(cloudSummaryTitle)
                             .font(.headline)
                         if let updatedAt = cloudStore.snapshot.updatedAt {
                             Text(updatedAt, style: .relative)
@@ -130,7 +130,9 @@ struct CloudDataScreen: View {
             }
         }
         .overlay {
-            if cloudStore.snapshot.records.isEmpty && !cloudStore.isSyncing {
+            if cloudStore.snapshot.records.isEmpty &&
+                !cloudStore.isSyncing &&
+                (cloudStore.statusTone == .neutral || cloudStore.statusTone == .success) {
                 VStack(spacing: 12) {
                     Image(systemName: "icloud.slash")
                         .font(.system(size: 34))
@@ -150,9 +152,28 @@ struct CloudDataScreen: View {
     @ViewBuilder
     private var cloudStatus: some View {
         if !cloudStore.statusMessage.isEmpty {
-            Label(cloudStore.statusMessage, systemImage: statusIcon)
-                .font(.footnote)
-                .foregroundStyle(statusColor)
+            VStack(alignment: .leading, spacing: 10) {
+                Label(cloudStore.statusMessage, systemImage: statusIcon)
+                    .font(.footnote)
+                    .foregroundStyle(statusColor)
+                if cloudStore.nextAction != .none {
+                    Button {
+                        Task { await cloudStore.performNextAction() }
+                    } label: {
+                        Text(LocalizedStringKey(cloudStore.nextAction.localizationKey))
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(cloudStore.isSyncing)
+                }
+            }
+        }
+    }
+
+    private var cloudSummaryTitle: LocalizedStringKey {
+        if cloudStore.isSyncing { return "cloud.status.syncing" }
+        switch cloudStore.statusTone {
+        case .error, .warning: return "cloud.status.needsAttention"
+        case .neutral, .success: return "cloud.status.ready"
         }
     }
 

@@ -722,14 +722,17 @@ private func runSyncChangesPreview(container: CKContainer, request: [String: Any
     scannedZones.insert(zone)
     let zoneId = CKRecordZone.ID(zoneName: zone, ownerName: CKCurrentUserDefaultName)
     let previousToken = decodeChangeToken(previousTokens[zone] ?? "")
+    let changedStartIndex = changedRecords.count
+    let deletedStartIndex = deletedRecords.count
+    let errorStartIndex = errors.count
     var cursorToken = previousToken
     var zoneChanged = 0
     var zoneDeleted = 0
     var zoneFailed = 0
     var zoneMoreComing = true
     var page = 0
+    var changeTokenReset = false
     while zoneMoreComing && page < maxChangePages && (changedRecords.count + deletedRecords.count) < maxChangedRecords {
-      page += 1
       do {
         let remaining = max(1, maxChangedRecords - changedRecords.count - deletedRecords.count)
         let result = try await database.recordZoneChanges(
@@ -738,6 +741,7 @@ private func runSyncChangesPreview(container: CKContainer, request: [String: Any
           desiredKeys: desiredKeys,
           resultsLimit: min(100, remaining)
         )
+        page += 1
         for (_, recordResult) in result.modificationResultsByID {
           switch recordResult {
           case .success(let modification):
@@ -766,6 +770,21 @@ private func runSyncChangesPreview(container: CKContainer, request: [String: Any
         }
         cursorToken = result.changeToken
         zoneMoreComing = result.moreComing
+      } catch let error as CKError where error.code == .changeTokenExpired && cursorToken != nil && !changeTokenReset {
+        changed -= zoneChanged
+        deleted -= zoneDeleted
+        failed -= zoneFailed
+        changedRecords.removeSubrange(changedStartIndex..<changedRecords.count)
+        deletedRecords.removeSubrange(deletedStartIndex..<deletedRecords.count)
+        errors.removeSubrange(errorStartIndex..<errors.count)
+        zoneChanged = 0
+        zoneDeleted = 0
+        zoneFailed = 0
+        cursorToken = nil
+        page = 0
+        changeTokenReset = true
+        warnings.append("CloudKit expired the saved cursor for \(redact(zone, limit: 80)); LifeOS restarted a full, review-only baseline.")
+        continue
       } catch {
         failed += 1
         zoneFailed += 1
@@ -786,6 +805,8 @@ private func runSyncChangesPreview(container: CKContainer, request: [String: Any
       "failed": zoneFailed,
       "moreComing": zoneMoreComing,
       "pagesFetched": page,
+      "changeTokenReset": changeTokenReset,
+      "requiresFullReview": changeTokenReset,
     ])
   }
 
@@ -808,6 +829,7 @@ private func runSyncChangesPreview(container: CKContainer, request: [String: Any
     "deleted": deleted,
     "failed": failed,
     "moreComing": anyMoreComing,
+    "changeTokenResetZones": zones.filter { $0["changeTokenReset"] as? Bool == true }.compactMap { $0["zone"] as? String },
     "zones": zones,
     "changedRecords": changedRecords,
     "deletedRecords": deletedRecords,
@@ -887,14 +909,17 @@ private func runSyncImportQuarantine(container: CKContainer, request: [String: A
     scannedZones.insert(zone)
     let zoneId = CKRecordZone.ID(zoneName: zone, ownerName: CKCurrentUserDefaultName)
     let previousToken = decodeChangeToken(previousTokens[zone] ?? "")
+    let changedStartIndex = changedRecords.count
+    let deletedStartIndex = deletedRecords.count
+    let errorStartIndex = errors.count
     var cursorToken = previousToken
     var zoneChanged = 0
     var zoneDeleted = 0
     var zoneFailed = 0
     var zoneMoreComing = true
     var page = 0
+    var changeTokenReset = false
     while zoneMoreComing && page < maxChangePages && (changedRecords.count + deletedRecords.count) < maxChangedRecords {
-      page += 1
       do {
         let remaining = max(1, maxChangedRecords - changedRecords.count - deletedRecords.count)
         let result = try await database.recordZoneChanges(
@@ -903,6 +928,7 @@ private func runSyncImportQuarantine(container: CKContainer, request: [String: A
           desiredKeys: desiredKeys,
           resultsLimit: min(100, remaining)
         )
+        page += 1
         for (_, recordResult) in result.modificationResultsByID {
           switch recordResult {
           case .success(let modification):
@@ -911,6 +937,10 @@ private func runSyncImportQuarantine(container: CKContainer, request: [String: A
               changed += 1
               zoneChanged += 1
               var summary = cloudKitRecordSummary(record: modification.record, zone: zone)
+              if changeTokenReset {
+                summary["requiresUserReview"] = true
+                summary["fullResync"] = true
+              }
               summary["payloadJson"] = payloadJson
               changedRecords.append(summary)
             case .failure(let validationError):
@@ -936,6 +966,21 @@ private func runSyncImportQuarantine(container: CKContainer, request: [String: A
         }
         cursorToken = result.changeToken
         zoneMoreComing = result.moreComing
+      } catch let error as CKError where error.code == .changeTokenExpired && cursorToken != nil && !changeTokenReset {
+        changed -= zoneChanged
+        deleted -= zoneDeleted
+        failed -= zoneFailed
+        changedRecords.removeSubrange(changedStartIndex..<changedRecords.count)
+        deletedRecords.removeSubrange(deletedStartIndex..<deletedRecords.count)
+        errors.removeSubrange(errorStartIndex..<errors.count)
+        zoneChanged = 0
+        zoneDeleted = 0
+        zoneFailed = 0
+        cursorToken = nil
+        page = 0
+        changeTokenReset = true
+        warnings.append("CloudKit expired the saved cursor for \(redact(zone, limit: 80)); LifeOS restarted a full baseline and marked every record for review.")
+        continue
       } catch {
         failed += 1
         zoneFailed += 1
@@ -956,6 +1001,8 @@ private func runSyncImportQuarantine(container: CKContainer, request: [String: A
       "failed": zoneFailed,
       "moreComing": zoneMoreComing,
       "pagesFetched": page,
+      "changeTokenReset": changeTokenReset,
+      "requiresFullReview": changeTokenReset,
     ])
   }
 
@@ -978,6 +1025,7 @@ private func runSyncImportQuarantine(container: CKContainer, request: [String: A
     "deleted": deleted,
     "failed": failed,
     "moreComing": anyMoreComing,
+    "changeTokenResetZones": zones.filter { $0["changeTokenReset"] as? Bool == true }.compactMap { $0["zone"] as? String },
     "zones": zones,
     "changedRecords": changedRecords,
     "deletedRecords": deletedRecords,

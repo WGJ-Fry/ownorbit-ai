@@ -1494,6 +1494,7 @@ export type CloudKitNativeHelperResult = {
     deleted: number;
     failed: number;
     moreComing: boolean;
+    changeTokenResetZones: string[];
     rawPayloadIncluded: boolean;
     zones: Array<{
       zone: string;
@@ -1504,6 +1505,8 @@ export type CloudKitNativeHelperResult = {
       failed: number;
       moreComing: boolean;
       pagesFetched: number;
+      changeTokenReset: boolean;
+      requiresFullReview: boolean;
     }>;
     changedRecords: Array<{
       zone: string;
@@ -1532,6 +1535,7 @@ export type CloudKitNativeHelperResult = {
     deleted: number;
     failed: number;
     moreComing: boolean;
+    changeTokenResetZones: string[];
     rawPayloadIncluded: boolean;
     zones: Array<{
       zone: string;
@@ -1542,6 +1546,8 @@ export type CloudKitNativeHelperResult = {
       failed: number;
       moreComing: boolean;
       pagesFetched: number;
+      changeTokenReset: boolean;
+      requiresFullReview: boolean;
     }>;
     changedRecords: Array<{
       zone: string;
@@ -1556,6 +1562,7 @@ export type CloudKitNativeHelperResult = {
       payloadByteSize: number;
       modifiedAt: string;
       requiresUserReview: boolean;
+      fullResync: boolean;
       payloadCaptured: boolean;
     }>;
     deletedRecords: Array<{
@@ -1607,7 +1614,7 @@ export type CloudKitSyncQuarantineItem = {
   zone: string;
   recordType: string;
   recordName: string;
-  changeType: "changed" | "deleted";
+  changeType: "changed" | "deleted" | "checkpoint-reset";
   status: string;
   mutationId?: string;
   contentHash?: string;

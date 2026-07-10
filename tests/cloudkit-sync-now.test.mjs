@@ -36,7 +36,9 @@ function runIsolatedCloudKitSyncNow(env, scenario) {
     const now = 1700000000000;
     const readiness = getIcloudDataSyncReadiness({ platformSupported: true });
     const requiresReview = ${JSON.stringify(scenario)} === "manual-review";
-    const remoteChangedCount = ${JSON.stringify(scenario)} === "apply" || ${JSON.stringify(scenario)} === "tampered" ? 1 : 2;
+    const fullResync = ${JSON.stringify(scenario)} === "full-resync" || ${JSON.stringify(scenario)} === "full-resync-empty";
+    const fullResyncEmpty = ${JSON.stringify(scenario)} === "full-resync-empty";
+    const remoteChangedCount = fullResyncEmpty ? 0 : (${JSON.stringify(scenario)} === "apply" || ${JSON.stringify(scenario)} === "tampered" ? 1 : 2);
     const remoteConversationPayload = { conversationId: "remote-convo", title: "Remote synced", createdAt: now, updatedAt: now + 1 };
     const remoteMessagePayload = { conversationId: "remote-convo", conversationTitle: "Remote synced", messageId: "remote-message", role: "user", contentJson: { parts: [{ text: "hello from cloudkit" }] }, createdAt: now + 2, mutationId: "mut-message", logicalClock: now + 2 };
     const integrityFields = (dataType, sourceId, payload) => {
@@ -89,6 +91,7 @@ function runIsolatedCloudKitSyncNow(env, scenario) {
             deleted: 0,
             failed: 0,
             moreComing: false,
+            changeTokenResetZones: fullResync ? ["LifeOSChatZone"] : [],
             rawPayloadIncluded: false,
             zones: [{
               zone: "LifeOSChatZone",
@@ -97,7 +100,9 @@ function runIsolatedCloudKitSyncNow(env, scenario) {
               changed: remoteChangedCount,
               deleted: 0,
               failed: 0,
-              moreComing: false
+              moreComing: false,
+              changeTokenReset: fullResync,
+              requiresFullReview: fullResync
             }],
             changedRecords: [],
             deletedRecords: []
@@ -119,6 +124,7 @@ function runIsolatedCloudKitSyncNow(env, scenario) {
           deleted: 0,
           failed: 0,
           moreComing: false,
+          changeTokenResetZones: fullResync ? ["LifeOSChatZone"] : [],
           rawPayloadIncluded: true,
           zones: [{
             zone: "LifeOSChatZone",
@@ -127,9 +133,11 @@ function runIsolatedCloudKitSyncNow(env, scenario) {
             changed: remoteChangedCount,
             deleted: 0,
             failed: 0,
-            moreComing: false
+            moreComing: false,
+            changeTokenReset: fullResync,
+            requiresFullReview: fullResync
           }],
-          changedRecords: ${JSON.stringify(scenario)} === "apply" ? [{
+          changedRecords: fullResyncEmpty ? [] : ${JSON.stringify(scenario)} === "apply" ? [{
             zone: "LifeOSChatZone",
             recordType: "LifeOSMessage",
             recordName: "message:remote-message",
@@ -247,6 +255,47 @@ test("CloudKit safe sync now leaves manual-review records in quarantine instead 
     assert.deepEqual(messages, []);
     assert.equal(JSON.stringify(result).includes("payloadJson"), false);
     assert.equal(JSON.stringify(result).includes("hello from cloudkit"), false);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit expired cursors require baseline review even when the remote zone is empty", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-now-empty-resync-"));
+  try {
+    const { result, sessions, messages } = runIsolatedCloudKitSyncNow({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "full-resync-empty");
+
+    assert.equal(result.status, "conflicts");
+    assert.equal(result.nextAction, "review-conflicts");
+    assert.equal(result.import.quarantine.importedChanged, 0);
+    assert.equal(result.import.quarantine.pendingReview, 1);
+    assert.equal(result.import.result.syncImportQuarantine.changeTokenResetZones[0], "LifeOSChatZone");
+    assert.deepEqual(sessions, []);
+    assert.deepEqual(messages, []);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit expired cursors rebuild a full baseline without silently overwriting SQLite", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-now-full-resync-"));
+  try {
+    const { result, sessions, messages } = runIsolatedCloudKitSyncNow({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "full-resync");
+
+    assert.equal(result.status, "conflicts");
+    assert.equal(result.nextAction, "review-conflicts");
+    assert.deepEqual(result.import.result.syncImportQuarantine.changeTokenResetZones, ["LifeOSChatZone"]);
+    assert.equal(result.import.quarantine.autoReady, 0);
+    assert.equal(result.import.quarantine.pendingReview, 3);
+    assert.equal(result.apply.applied, 0);
+    assert.deepEqual(sessions, []);
+    assert.deepEqual(messages, []);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

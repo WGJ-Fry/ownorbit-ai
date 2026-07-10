@@ -46,7 +46,12 @@ function shouldRunNativeImport(readiness: IcloudDataSyncReadiness, changes: Clou
   if (changes.status !== "passed") return false;
   if (!readiness.enabled || !readiness.ready || !readiness.nativeHelper.executable || !readiness.nativeHelper.path) return false;
   const summary = changes.syncChangesPreview;
-  return Boolean(summary && (summary.changed > 0 || summary.deleted > 0 || summary.moreComing));
+  return Boolean(summary && (
+    summary.changed > 0 ||
+    summary.deleted > 0 ||
+    summary.moreComing ||
+    (summary.changeTokenResetZones?.length || 0) > 0
+  ));
 }
 
 function emptyApply(): CloudKitSyncApplyResult {

@@ -89,6 +89,7 @@ struct LifeOSCloudRecord: Codable, Equatable, Identifiable {
 
 struct LifeOSCloudSnapshot: Codable, Equatable {
     let schemaVersion: Int
+    var accountFingerprint: String?
     var updatedAt: Date?
     var records: [LifeOSCloudRecord]
     var serverChangeTokens: [String: Data]
@@ -96,29 +97,53 @@ struct LifeOSCloudSnapshot: Codable, Equatable {
 
     static let empty = LifeOSCloudSnapshot(
         schemaVersion: 1,
+        accountFingerprint: nil,
         updatedAt: nil,
         records: [],
         serverChangeTokens: [:],
         moreComing: false
     )
 
+    func scoped(to fingerprint: String) -> (snapshot: LifeOSCloudSnapshot, didReset: Bool) {
+        let normalized = fingerprint.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else { return (.empty, true) }
+        if accountFingerprint == normalized {
+            return (self, false)
+        }
+        let hadPreviousScope = accountFingerprint != nil || !records.isEmpty || !serverChangeTokens.isEmpty
+        return (LifeOSCloudSnapshot(
+            schemaVersion: 1,
+            accountFingerprint: normalized,
+            updatedAt: nil,
+            records: [],
+            serverChangeTokens: [:],
+            moreComing: false
+        ), hadPreviousScope)
+    }
+
     func merging(
         changed: [LifeOSCloudRecord],
         deletedRecordIds: Set<String>,
         serverChangeTokens: [String: Data],
+        accountFingerprint: String,
+        resetZones: Set<String> = [],
         moreComing: Bool,
         now: Date
     ) -> LifeOSCloudSnapshot {
-        var byId = Dictionary(uniqueKeysWithValues: records.map { ($0.id, $0) })
+        var byId = Dictionary(uniqueKeysWithValues: records
+            .filter { !resetZones.contains($0.zone) }
+            .map { ($0.id, $0) })
         for id in deletedRecordIds { byId.removeValue(forKey: id) }
         for record in changed {
             if let existing = byId[record.id], existing.logicalClock > record.logicalClock { continue }
             byId[record.id] = record
         }
         var nextTokens = self.serverChangeTokens
+        for zone in resetZones { nextTokens.removeValue(forKey: zone) }
         for (zone, token) in serverChangeTokens { nextTokens[zone] = token }
         return LifeOSCloudSnapshot(
             schemaVersion: 1,
+            accountFingerprint: accountFingerprint,
             updatedAt: now,
             records: byId.values.sorted {
                 ($0.modifiedAt ?? .distantPast) > ($1.modifiedAt ?? .distantPast)
@@ -126,6 +151,13 @@ struct LifeOSCloudSnapshot: Codable, Equatable {
             serverChangeTokens: nextTokens,
             moreComing: moreComing
         )
+    }
+}
+
+enum LifeOSCloudAccountIdentity {
+    static func fingerprint(containerIdentifier: String, userRecordName: String) -> String {
+        let value = "\(containerIdentifier):\(userRecordName)"
+        return SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 }
 

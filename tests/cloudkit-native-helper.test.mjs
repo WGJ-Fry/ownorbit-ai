@@ -224,6 +224,9 @@ test("Apple CloudKit helper source implements the native JSON stdio contract", a
   assert.match(swiftSource, /payload checksum does not match/);
   assert.match(swiftSource, /maxChangePages/);
   assert.match(swiftSource, /run another pull before uploading local data/);
+  assert.match(swiftSource, /changeTokenExpired/);
+  assert.match(swiftSource, /full, review-only baseline/);
+  assert.match(swiftSource, /requiresFullReview/);
   assert.match(swiftSource, /runSubscriptionProbe/);
   assert.match(swiftSource, /CKDatabaseSubscription/);
   assert.match(swiftSource, /subscription-push/);
@@ -581,6 +584,7 @@ process.stdin.on("end", () => {
       deleted: 1,
       failed: 0,
       moreComing: false,
+      changeTokenResetZones: [],
       rawPayloadIncluded: false,
       zones: [{
         zone: "LifeOSChatZone",
@@ -589,7 +593,9 @@ process.stdin.on("end", () => {
         changed: 1,
         deleted: 1,
         failed: 0,
-        moreComing: false
+        moreComing: false,
+        changeTokenReset: false,
+        requiresFullReview: false
       }],
       changedRecords: [{
         zone: "LifeOSChatZone",
@@ -631,6 +637,7 @@ process.stdin.on("end", () => {
     assert.equal(result.syncChangesPreview.failed, 0);
     assert.equal(result.syncChangesPreview.zones[0].previousServerChangeTokenPresent, true);
     assert.equal(result.syncChangesPreview.zones[0].serverChangeToken, "opaque-next-token");
+    assert.equal(result.syncChangesPreview.zones[0].changeTokenReset, false);
     assert.equal(result.syncChangesPreview.rawPayloadIncluded, false);
     assert.equal(result.capabilitiesVerified.includes("sync-changes-preview"), true);
     assert.equal(result.evidenceId, "fake-cloudkit-sync-changes-preview-evidence");
@@ -670,6 +677,7 @@ process.stdin.on("end", () => {
       deleted: 1,
       failed: 0,
       moreComing: false,
+      changeTokenResetZones: ["LifeOSChatZone"],
       rawPayloadIncluded: true,
       zones: [{
         zone: "LifeOSChatZone",
@@ -678,7 +686,9 @@ process.stdin.on("end", () => {
         changed: 1,
         deleted: 1,
         failed: 0,
-        moreComing: false
+        moreComing: false,
+        changeTokenReset: true,
+        requiresFullReview: true
       }],
       changedRecords: [{
         zone: "LifeOSChatZone",
@@ -690,6 +700,7 @@ process.stdin.on("end", () => {
         payloadByteSize: 77,
         modifiedAt: "2026-01-02T03:06:05.000Z",
         requiresUserReview: true,
+        fullResync: true,
         payloadJson: JSON.stringify({ messageId: "m1", text: "remote text" })
       }],
       deletedRecords: [{
@@ -721,6 +732,9 @@ process.stdin.on("end", () => {
     assert.equal(result.syncImportQuarantine.deleted, 1);
     assert.equal(result.syncImportQuarantine.rawPayloadIncluded, true);
     assert.equal(result.syncImportQuarantine.changedRecords[0].payloadJson.includes("remote text"), true);
+    assert.deepEqual(result.syncImportQuarantine.changeTokenResetZones, ["LifeOSChatZone"]);
+    assert.equal(result.syncImportQuarantine.zones[0].requiresFullReview, true);
+    assert.equal(result.syncImportQuarantine.changedRecords[0].fullResync, true);
     assert.equal(result.syncImportQuarantine.zones[0].serverChangeToken, "opaque-import-token");
     assert.equal(result.capabilitiesVerified.includes("sync-import-quarantine"), true);
     assert.equal(result.evidenceId, "fake-cloudkit-sync-import-quarantine-evidence");

@@ -319,6 +319,7 @@ export function saveCloudKitSyncImportQuarantine(result: CloudKitNativeHelperRes
     return { tokenSaved: 0, integrityRejected: 0, rejectionReasons: [], summary: getCloudKitSyncQuarantineSummary(), checkpoints: listCloudKitSyncCheckpoints() };
   }
   const evidenceId = "evidenceId" in result ? result.evidenceId || null : null;
+  const fullResyncZones = new Set(importResult.changeTokenResetZones || []);
   const changedStatement = db.prepare(`
     INSERT OR IGNORE INTO cloudkit_sync_quarantine (
       id,
@@ -363,6 +364,29 @@ export function saveCloudKitSyncImportQuarantine(result: CloudKitNativeHelperRes
       error
     )
     VALUES (?, ?, ?, ?, 'changed', 'failed', ?, ?, ?, ?, ?, 1, NULL, ?, NULL, ?, ?, ?)
+  `);
+  const resetReviewStatement = db.prepare(`
+    INSERT OR IGNORE INTO cloudkit_sync_quarantine (
+      id,
+      zone,
+      record_type,
+      record_name,
+      change_type,
+      status,
+      mutation_id,
+      content_hash,
+      payload_hash,
+      logical_clock,
+      payload_byte_size,
+      requires_user_review,
+      payload_json,
+      server_modified_at,
+      deleted_at,
+      source_evidence_id,
+      imported_at,
+      error
+    )
+    VALUES (?, ?, 'LifeOSFullResyncReview', ?, 'checkpoint-reset', 'pending-review', NULL, ?, NULL, 0, 0, 1, NULL, NULL, NULL, ?, ?, ?)
   `);
   const deletedStatement = db.prepare(`
     INSERT OR IGNORE INTO cloudkit_sync_quarantine (
@@ -423,18 +447,19 @@ export function saveCloudKitSyncImportQuarantine(result: CloudKitNativeHelperRes
         integrityRejected += 1;
         continue;
       }
+      const requiresUserReview = Boolean(record.requiresUserReview || record.fullResync || fullResyncZones.has(record.zone));
       const before = (changedStatement.run(
         stableId(["changed", record.zone, record.recordType, record.recordName, record.contentHash || stableHash(record.payloadJson)]),
         record.zone,
         record.recordType,
         record.recordName,
-        record.requiresUserReview ? "pending-review" : "auto-ready",
+        requiresUserReview ? "pending-review" : "auto-ready",
         record.mutationId || null,
         integrity.contentHash,
         stableHash(record.payloadJson),
         Number(record.logicalClock || 0),
         integrity.payloadBytes,
-        record.requiresUserReview ? 1 : 0,
+        requiresUserReview ? 1 : 0,
         record.payloadJson,
         record.modifiedAt || null,
         evidenceId,
@@ -461,6 +486,19 @@ export function saveCloudKitSyncImportQuarantine(result: CloudKitNativeHelperRes
       ) as any)?.changes || 0;
       importedDeleted += before;
       if (!before) skipped += 1;
+    }
+    for (const zone of Array.from(fullResyncZones).sort()) {
+      const zoneResult = (importResult.zones || []).find((item) => item.zone === zone);
+      const markerHash = stableHash(["checkpoint-reset", zone, zoneResult?.serverChangeToken || evidenceId || now].join(":"));
+      resetReviewStatement.run(
+        stableId(["checkpoint-reset", zone, markerHash]),
+        zone,
+        `checkpoint-reset:${zone}`,
+        markerHash,
+        evidenceId,
+        now,
+        "CloudKit cursor expired. Review this rebuilt baseline before LifeOS advances the checkpoint.",
+      );
     }
     const tokenSaved = savePendingTokensFromZones(importResult.zones || [], evidenceId, now);
     db.exec("COMMIT");

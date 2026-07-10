@@ -33,14 +33,19 @@ struct LifeOSCloudSyncReport: Codable, Equatable {
     let deleted: Int
     let rejected: Int
     let pagesFetched: Int
+    let passes: Int
     let moreComing: Bool
     let subscriptionReady: Bool
+    let accountChanged: Bool
+    let resetZoneCount: Int
     let syncedAt: Date
 }
 
-enum LifeOSCloudSyncError: LocalizedError {
+enum LifeOSCloudSyncError: LocalizedError, Equatable {
     case noAccount
     case restricted
+    case networkUnavailable
+    case temporarilyUnavailable
     case unavailable
     case invalidContainer
 
@@ -48,13 +53,27 @@ enum LifeOSCloudSyncError: LocalizedError {
         switch self {
         case .noAccount: return NSLocalizedString("cloud.error.noAccount", comment: "")
         case .restricted: return NSLocalizedString("cloud.error.restricted", comment: "")
+        case .networkUnavailable: return NSLocalizedString("cloud.error.network", comment: "")
+        case .temporarilyUnavailable: return NSLocalizedString("cloud.error.temporary", comment: "")
         case .unavailable: return NSLocalizedString("cloud.error.unavailable", comment: "")
         case .invalidContainer: return NSLocalizedString("cloud.error.invalidContainer", comment: "")
+        }
+    }
+
+    static func userFacing(_ error: Error) -> LifeOSCloudSyncError {
+        guard let cloudError = error as? CKError else { return .unavailable }
+        switch cloudError.code {
+        case .notAuthenticated: return .noAccount
+        case .accountTemporarilyUnavailable: return .temporarilyUnavailable
+        case .networkFailure, .networkUnavailable: return .networkUnavailable
+        case .requestRateLimited, .serviceUnavailable, .zoneBusy: return .temporarilyUnavailable
+        default: return .unavailable
         }
     }
 }
 
 final class LifeOSCloudKitClient {
+    private let containerIdentifier: String
     private let container: CKContainer
     private let database: CKDatabase
     private let zones = [
@@ -80,6 +99,7 @@ final class LifeOSCloudKitClient {
     private let maxPages = 10
 
     init(containerIdentifier: String = LifeOSCloudKitClient.configuredContainerIdentifier) {
+        self.containerIdentifier = containerIdentifier
         container = CKContainer(identifier: containerIdentifier)
         database = container.privateCloudDatabase
     }
@@ -98,10 +118,19 @@ final class LifeOSCloudKitClient {
             throw LifeOSCloudSyncError.unavailable
         }
 
+        let userRecordId = try await container.userRecordID()
+        let accountFingerprint = LifeOSCloudAccountIdentity.fingerprint(
+            containerIdentifier: containerIdentifier,
+            userRecordName: userRecordId.recordName
+        )
+        let scoped = snapshot.scoped(to: accountFingerprint)
+        let currentSnapshot = scoped.snapshot
+
         let subscriptionReady = await ensureSubscription()
         var changed: [LifeOSCloudRecord] = []
         var deleted = Set<String>()
         var tokens: [String: Data] = [:]
+        var resetZones = Set<String>()
         var rejected = 0
         var pagesFetched = 0
         var moreComing = false
@@ -112,10 +141,11 @@ final class LifeOSCloudKitClient {
                 break
             }
             let zoneId = CKRecordZone.ID(zoneName: zone, ownerName: CKCurrentUserDefaultName)
-            var cursor = decodeToken(snapshot.serverChangeTokens[zone])
+            var cursor = decodeToken(currentSnapshot.serverChangeTokens[zone])
             var zoneMoreComing = true
             var zoneRejected = false
             var zonePages = 0
+            var didResetExpiredToken = false
 
             while zoneMoreComing && zonePages < maxPages && changed.count + deleted.count < maxRecords {
                 let remaining = max(1, maxRecords - changed.count - deleted.count)
@@ -148,7 +178,17 @@ final class LifeOSCloudKitClient {
                     }
                     cursor = result.changeToken
                     zoneMoreComing = result.moreComing
+                } catch let error as CKError where error.code == .changeTokenExpired && cursor != nil && !didResetExpiredToken {
+                    changed.removeAll { $0.zone == zone }
+                    deleted = Set(deleted.filter { !$0.hasPrefix("\(zone)/") })
+                    cursor = nil
+                    resetZones.insert(zone)
+                    didResetExpiredToken = true
+                    zonePages = 0
+                    continue
                 } catch let error as CKError where error.code == .zoneNotFound {
+                    resetZones.insert(zone)
+                    cursor = nil
                     zoneMoreComing = false
                     break
                 }
@@ -158,10 +198,12 @@ final class LifeOSCloudKitClient {
             if !zoneRejected, let encoded = encodeToken(cursor) { tokens[zone] = encoded }
         }
 
-        let next = snapshot.merging(
+        let next = currentSnapshot.merging(
             changed: changed,
             deletedRecordIds: deleted,
             serverChangeTokens: tokens,
+            accountFingerprint: accountFingerprint,
+            resetZones: resetZones,
             moreComing: moreComing,
             now: now
         )
@@ -171,8 +213,11 @@ final class LifeOSCloudKitClient {
             deleted: deleted.count,
             rejected: rejected,
             pagesFetched: pagesFetched,
+            passes: 1,
             moreComing: moreComing,
             subscriptionReady: subscriptionReady,
+            accountChanged: scoped.didReset,
+            resetZoneCount: resetZones.count,
             syncedAt: now
         ))
     }
@@ -217,18 +262,38 @@ final class LifeOSCloudKitClient {
 
 @MainActor
 final class LifeOSCloudDataStore: ObservableObject {
-    enum StatusTone { case neutral, success, warning, error }
+    enum StatusTone: Equatable { case neutral, success, warning, error }
+    enum NextAction: Equatable {
+        case none
+        case retry
+        case continueSync
+        case checkAccount
+
+        var localizationKey: String {
+            switch self {
+            case .none: return ""
+            case .retry: return "cloud.action.retry"
+            case .continueSync: return "cloud.action.continue"
+            case .checkAccount: return "cloud.action.checkAccount"
+            }
+        }
+    }
 
     @Published private(set) var snapshot: LifeOSCloudSnapshot
     @Published private(set) var report: LifeOSCloudSyncReport?
     @Published private(set) var isSyncing = false
     @Published private(set) var statusMessage = ""
     @Published private(set) var statusTone: StatusTone = .neutral
+    @Published private(set) var nextAction: NextAction = .none
     @Published private(set) var enabled: Bool
 
     private let enabledKey = "lifeos.native.cloud-data-enabled.v1"
     private let fileURL: URL
     private var notificationObserver: NSObjectProtocol?
+    private var accountObserver: NSObjectProtocol?
+    private var retryTask: Task<Void, Never>?
+    private var retryAttempt = 0
+    private let maxCatchUpPasses = 3
     private lazy var client = LifeOSCloudKitClient()
 
     init() {
@@ -246,10 +311,21 @@ final class LifeOSCloudDataStore: ObservableObject {
                 request?.finish(synced ? .newData : .noData)
             }
         }
+        accountObserver = NotificationCenter.default.addObserver(
+            forName: Notification.Name.CKAccountChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                await self?.handleAccountChanged()
+            }
+        }
     }
 
     deinit {
         if let notificationObserver { NotificationCenter.default.removeObserver(notificationObserver) }
+        if let accountObserver { NotificationCenter.default.removeObserver(accountObserver) }
+        retryTask?.cancel()
     }
 
     func enableAndSync() async {
@@ -261,33 +337,90 @@ final class LifeOSCloudDataStore: ObservableObject {
     @discardableResult
     func sync(reason: String = "manual") async -> Bool {
         guard enabled, !isSyncing else { return false }
+        if reason == "retry" {
+            retryTask = nil
+        } else {
+            retryTask?.cancel()
+            retryTask = nil
+        }
         isSyncing = true
         statusMessage = NSLocalizedString("cloud.status.syncing", comment: "")
         statusTone = .neutral
+        nextAction = .none
         defer { isSyncing = false }
         do {
             #if targetEnvironment(simulator)
             throw LifeOSCloudSyncError.invalidContainer
             #else
-            let (next, nextReport) = try await client.sync(snapshot: snapshot)
-            try save(next)
-            snapshot = next
+            var currentSnapshot = snapshot
+            var combinedReport: LifeOSCloudSyncReport?
+            for _ in 0..<maxCatchUpPasses {
+                let (next, passReport) = try await client.sync(snapshot: currentSnapshot)
+                try save(next)
+                currentSnapshot = next
+                snapshot = next
+                combinedReport = combine(combinedReport, with: passReport)
+                if !passReport.moreComing || passReport.rejected > 0 { break }
+                try await Task.sleep(nanoseconds: 250_000_000)
+            }
+            guard let nextReport = combinedReport else { return false }
             report = nextReport
-            statusMessage = nextReport.moreComing
-                ? NSLocalizedString("cloud.status.moreComing", comment: "")
-                : NSLocalizedString("cloud.status.ready", comment: "")
-            statusTone = nextReport.rejected > 0 || nextReport.moreComing ? .warning : .success
-            return true
+            if nextReport.rejected > 0 {
+                statusMessage = String(
+                    format: NSLocalizedString("cloud.status.reviewRequired", comment: ""),
+                    nextReport.rejected
+                )
+                statusTone = .warning
+            } else if nextReport.moreComing {
+                statusMessage = NSLocalizedString("cloud.status.moreComing", comment: "")
+                statusTone = .warning
+                nextAction = .continueSync
+                scheduleRetry(after: 2)
+            } else if nextReport.accountChanged {
+                statusMessage = NSLocalizedString("cloud.status.accountChanged", comment: "")
+                statusTone = .success
+                retryAttempt = 0
+            } else if nextReport.resetZoneCount > 0 {
+                statusMessage = NSLocalizedString("cloud.status.cursorRebuilt", comment: "")
+                statusTone = .success
+                retryAttempt = 0
+            } else {
+                statusMessage = NSLocalizedString("cloud.status.ready", comment: "")
+                statusTone = .success
+                retryAttempt = 0
+            }
+            return nextReport.changed > 0 || nextReport.deleted > 0 || nextReport.accountChanged || nextReport.resetZoneCount > 0
             #endif
         } catch {
-            statusMessage = (error as? LocalizedError)?.errorDescription
-                ?? NSLocalizedString("cloud.error.unavailable", comment: "")
+            let userError = error as? LifeOSCloudSyncError ?? LifeOSCloudSyncError.userFacing(error)
+            if userError == .noAccount || userError == .restricted {
+                clearAccountScopedSnapshot()
+                nextAction = .checkAccount
+            } else if userError == .invalidContainer {
+                nextAction = .none
+            } else {
+                nextAction = .retry
+                retryAttempt = min(retryAttempt + 1, 6)
+                scheduleRetry(after: retryDelay(for: error))
+            }
+            statusMessage = userError.errorDescription ?? NSLocalizedString("cloud.error.unavailable", comment: "")
             statusTone = .error
             return false
         }
     }
 
+    func performNextAction() async {
+        switch nextAction {
+        case .retry, .continueSync, .checkAccount:
+            await sync(reason: "next-action")
+        case .none:
+            break
+        }
+    }
+
     func disableAndClear() {
+        retryTask?.cancel()
+        retryTask = nil
         enabled = false
         UserDefaults.standard.removeObject(forKey: enabledKey)
         try? FileManager.default.removeItem(at: fileURL)
@@ -295,6 +428,60 @@ final class LifeOSCloudDataStore: ObservableObject {
         report = nil
         statusMessage = NSLocalizedString("cloud.status.cleared", comment: "")
         statusTone = .neutral
+        nextAction = .none
+    }
+
+    private func combine(_ current: LifeOSCloudSyncReport?, with next: LifeOSCloudSyncReport) -> LifeOSCloudSyncReport {
+        guard let current else { return next }
+        return LifeOSCloudSyncReport(
+            accountStatus: next.accountStatus,
+            changed: current.changed + next.changed,
+            deleted: current.deleted + next.deleted,
+            rejected: current.rejected + next.rejected,
+            pagesFetched: current.pagesFetched + next.pagesFetched,
+            passes: current.passes + next.passes,
+            moreComing: next.moreComing,
+            subscriptionReady: current.subscriptionReady || next.subscriptionReady,
+            accountChanged: current.accountChanged || next.accountChanged,
+            resetZoneCount: current.resetZoneCount + next.resetZoneCount,
+            syncedAt: next.syncedAt
+        )
+    }
+
+    private func handleAccountChanged() async {
+        guard enabled else { return }
+        retryTask?.cancel()
+        retryTask = nil
+        clearAccountScopedSnapshot()
+        statusMessage = NSLocalizedString("cloud.status.accountChecking", comment: "")
+        statusTone = .neutral
+        nextAction = .none
+        await sync(reason: "account-change")
+    }
+
+    private func clearAccountScopedSnapshot() {
+        try? FileManager.default.removeItem(at: fileURL)
+        snapshot = .empty
+        report = nil
+    }
+
+    private func scheduleRetry(after seconds: TimeInterval) {
+        guard enabled else { return }
+        retryTask?.cancel()
+        let nanoseconds = UInt64(max(1, min(seconds, 300)) * 1_000_000_000)
+        retryTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: nanoseconds)
+            guard !Task.isCancelled else { return }
+            await self?.sync(reason: "retry")
+        }
+    }
+
+    private func retryDelay(for error: Error) -> TimeInterval {
+        if let cloudError = error as? CKError,
+           let retryAfter = cloudError.userInfo[CKErrorRetryAfterKey] as? NSNumber {
+            return max(1, min(retryAfter.doubleValue, 300))
+        }
+        return min(5 * pow(2, Double(max(0, retryAttempt - 1))), 300)
     }
 
     private func save(_ snapshot: LifeOSCloudSnapshot) throws {

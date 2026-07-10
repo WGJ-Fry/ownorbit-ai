@@ -13,7 +13,7 @@ export type CloudKitSyncQuarantineItem = {
   zone: string;
   recordType: string;
   recordName: string;
-  changeType: "changed" | "deleted";
+  changeType: "changed" | "deleted" | "checkpoint-reset";
   status: string;
   mutationId?: string;
   contentHash?: string;
@@ -48,7 +48,7 @@ type QuarantineRow = {
   zone: string;
   recordType: string;
   recordName: string;
-  changeType: "changed" | "deleted";
+  changeType: "changed" | "deleted" | "checkpoint-reset";
   status: string;
   mutationId: string | null;
   contentHash: string | null;
@@ -512,6 +512,12 @@ export function applyCloudKitSyncQuarantine(options: { limit?: number; now?: num
   try {
     for (const row of rows) {
       touchedZones.add(row.zone);
+      if (row.changeType === "checkpoint-reset" && row.recordType === "LifeOSFullResyncReview") {
+        setQuarantineStatus(row, "applied", now);
+        applied += 1;
+        records.push({ id: row.id, zone: row.zone, recordType: row.recordType, status: "applied" });
+        continue;
+      }
       if (row.changeType !== "changed") {
         const error = "CloudKit hard delete requires manual review; no local data was removed.";
         setQuarantineStatus(row, "conflict", now, error);
