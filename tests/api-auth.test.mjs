@@ -3555,6 +3555,69 @@ test("desktop internal iCloud refresh requires the local desktop token", async (
   });
   assert.equal(wrongTokenDesktopNetworkSummary.status, 401);
 
+  const pushEventBody = {
+    protocolVersion: 1,
+    schema: "lifeos-cloudkit-listener-event.v1",
+    event: "listener-ready",
+    reason: "ready",
+    emittedAt: "2026-07-11T08:00:00Z",
+    subscriptionMatched: true,
+    payloadIncluded: false,
+    deviceTokenIncluded: false,
+    changeTokenIncluded: false,
+  };
+  const blockedPushEvent = await request(port, "/api/v1/internal/cloudkit-push/event", {
+    method: "POST",
+    body: JSON.stringify(pushEventBody),
+  });
+  assert.equal(blockedPushEvent.status, 401);
+  const unsafePushEvent = await request(port, "/api/v1/internal/cloudkit-push/event", {
+    method: "POST",
+    headers: { "X-LifeOS-Desktop-Token": desktopInternalToken },
+    body: JSON.stringify({ ...pushEventBody, payloadIncluded: true, payload: { secret: "must-not-enter-sqlite" } }),
+  });
+  assert.equal(unsafePushEvent.status, 400);
+  const mismatchedPushEvent = await request(port, "/api/v1/internal/cloudkit-push/event", {
+    method: "POST",
+    headers: { "X-LifeOS-Desktop-Token": desktopInternalToken },
+    body: JSON.stringify({ ...pushEventBody, event: "remote-change", reason: "ready" }),
+  });
+  assert.equal(mismatchedPushEvent.status, 400);
+  const wrongSchemaPushEvent = await request(port, "/api/v1/internal/cloudkit-push/event", {
+    method: "POST",
+    headers: { "X-LifeOS-Desktop-Token": desktopInternalToken },
+    body: JSON.stringify({ ...pushEventBody, schema: "lifeos-cloudkit-listener-event.v2" }),
+  });
+  assert.equal(wrongSchemaPushEvent.status, 400);
+  const unknownFieldPushEvent = await request(port, "/api/v1/internal/cloudkit-push/event", {
+    method: "POST",
+    headers: { "X-LifeOS-Desktop-Token": desktopInternalToken },
+    body: JSON.stringify({ ...pushEventBody, unexpected: "must-be-rejected" }),
+  });
+  assert.equal(unknownFieldPushEvent.status, 400);
+  const readyPushEventResponse = await request(port, "/api/v1/internal/cloudkit-push/event", {
+    method: "POST",
+    headers: { "X-LifeOS-Desktop-Token": desktopInternalToken },
+    body: JSON.stringify(pushEventBody),
+  });
+  const readyPushEvent = await readyPushEventResponse.json();
+  assert.equal(readyPushEventResponse.status, 200, JSON.stringify(readyPushEvent));
+  assert.equal(readyPushEvent.evidence.deliveryVerified, false);
+  const remotePushEventResponse = await request(port, "/api/v1/internal/cloudkit-push/event", {
+    method: "POST",
+    headers: { "X-LifeOS-Desktop-Token": desktopInternalToken },
+    body: JSON.stringify({ ...pushEventBody, event: "remote-change", reason: "database-change" }),
+  });
+  const remotePushEvent = await remotePushEventResponse.json();
+  assert.equal(remotePushEventResponse.status, 200, JSON.stringify(remotePushEvent));
+  assert.equal(remotePushEvent.queued, false);
+  assert.equal(remotePushEvent.evidence.deliveryVerified, true);
+  assert.equal(remotePushEvent.evidence.receivedRemoteChanges, 1);
+  assert.equal(remotePushEvent.cloudKitDataSync.rawPayloadReturned, false);
+  assert.equal(remotePushEvent.cloudKitDataSync.deviceTokenReturned, false);
+  assert.equal(remotePushEvent.cloudKitDataSync.cloudKitChangeTokenReturned, false);
+  assert.equal(JSON.stringify(remotePushEvent).includes("must-not-enter-sqlite"), false);
+
   const desktopNetworkSummaryResponse = await request(port, "/api/v1/internal/desktop/network-summary", {
     method: "POST",
     headers: { "X-LifeOS-Desktop-Token": desktopInternalToken },
@@ -3571,6 +3634,11 @@ test("desktop internal iCloud refresh requires the local desktop token", async (
   assert.equal(typeof desktopNetworkSummary.icloud.dataSync.autoSync.enabled, "boolean");
   assert.equal(desktopNetworkSummary.icloud.dataSync.autoSync.rawPayloadReturned, false);
   assert.equal(desktopNetworkSummary.icloud.dataSync.autoSync.cloudKitChangeTokenReturned, false);
+  assert.equal(desktopNetworkSummary.icloud.dataSync.pushEvidence.deliveryVerified, true);
+  assert.equal(desktopNetworkSummary.icloud.dataSync.pushEvidence.receivedRemoteChanges, 1);
+  assert.equal(desktopNetworkSummary.icloud.dataSync.pushEvidence.rawPayloadStored, false);
+  assert.equal(desktopNetworkSummary.icloud.dataSync.pushEvidence.deviceTokenStored, false);
+  assert.equal(desktopNetworkSummary.icloud.dataSync.pushEvidence.cloudKitChangeTokenStored, false);
   assert.equal(Array.isArray(desktopNetworkSummary.issues), true);
   assert.ok(desktopNetworkSummary.issues.some((issue) => issue.id === "cloudkit-data-sync-setup" && issue.severity === "danger"));
   assert.equal(desktopNetworkSummary.alert.id, "cloudkit-data-sync-setup");

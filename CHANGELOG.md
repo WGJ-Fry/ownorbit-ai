@@ -13,6 +13,8 @@ Release candidate for the next public alpha. Do not advertise as publicly availa
 - Tightened signed/unsigned desktop update diagnostics so signed distributions can use a safe HTTPS feed by default while unsigned alpha builds remain manual unless explicitly opted in.
 - Added the source-only native iOS CloudKit data browser with guarded normal-memory creation and task completion; existing memory, chat, generated-app, and device-trust records remain read-only on iPhone.
 - Tightened the opt-in Mac CloudKit safe-cycle scheduler to check new installations every 15 minutes, queue local changes within 15 seconds, continue remote pages within 15 seconds, retry temporary failures after 5 minutes, and check again after server startup or desktop wake without exposing payloads or change tokens.
+- Added a source-level persistent macOS CloudKit push-listener path: a provisioned `.app` helper registers for APNs, verifies the private database subscription, emits only fixed redacted lifecycle events, and lets Electron queue the existing guarded sync cycle after a matched database-change notification.
+- Split CloudKit push evidence into subscription registration, listener readiness, and real delivery. Saving a subscription no longer counts as push delivery, and LifeOS never persists the APNs device token, notification payload, or CloudKit change token through this path.
 - Updated README, Docker Compose, user install guide, release notes, promotion kit, security policy, and roadmap to the `v0.1.5-alpha` release line.
 
 ## 0.1.4-alpha.0

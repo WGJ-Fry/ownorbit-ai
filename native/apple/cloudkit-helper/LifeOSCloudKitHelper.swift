@@ -1,3 +1,4 @@
+import AppKit
 import CloudKit
 import CryptoKit
 import Foundation
@@ -5,6 +6,7 @@ import Foundation
 private let protocolVersion = 1
 private let requestSchema = "lifeos-cloudkit-helper-request.v1"
 private let responseSchema = "lifeos-cloudkit-helper-response.v1"
+private let listenerEventSchema = "lifeos-cloudkit-listener-event.v1"
 private let confirmationEnv = "LIFEOS_CLOUDKIT_TEST_WRITE_CONFIRM"
 private let confirmationPhrase = "DELETE_DISPOSABLE_RECORDS"
 private let syncExportSchema = "lifeos-cloudkit-sync-export.v1"
@@ -61,6 +63,27 @@ private func emit(_ response: [String: Any], exitCode: Int32) -> Never {
   FileHandle.standardOutput.write(data)
   FileHandle.standardOutput.write(Data("\n".utf8))
   Foundation.exit(exitCode)
+}
+
+private func emitListenerEvent(
+  event: String,
+  reason: String,
+  subscriptionMatched: Bool = false
+) {
+  let response: [String: Any] = [
+    "protocolVersion": protocolVersion,
+    "schema": listenerEventSchema,
+    "event": event,
+    "reason": reason,
+    "emittedAt": nowIso(),
+    "subscriptionMatched": subscriptionMatched,
+    "payloadIncluded": false,
+    "deviceTokenIncluded": false,
+    "changeTokenIncluded": false,
+  ]
+  guard let data = try? JSONSerialization.data(withJSONObject: response, options: [.sortedKeys]) else { return }
+  FileHandle.standardOutput.write(data)
+  FileHandle.standardOutput.write(Data("\n".utf8))
 }
 
 private func responseBase(operation: String, ok: Bool) -> [String: Any] {
@@ -390,7 +413,7 @@ private func runSubscriptionProbe(container: CKContainer) async -> [String: Any]
       "account-status",
       "private-database",
       "container-reachability",
-      "subscription-push",
+      "subscription-registration",
     ]
     : [
       "account-status",
@@ -404,6 +427,8 @@ private func runSubscriptionProbe(container: CKContainer) async -> [String: Any]
     "exists": saved,
     "saved": saved,
     "contentAvailable": saved,
+    "deliveryVerified": false,
+    "listenerRequired": true,
   ]
   response["roundtrip"] = [
     "created": false,
@@ -1042,9 +1067,105 @@ private func runSyncImportQuarantine(container: CKContainer, request: [String: A
   return response
 }
 
+private func commandLineValue(after flag: String) -> String {
+  guard let index = CommandLine.arguments.firstIndex(of: flag), index + 1 < CommandLine.arguments.count else { return "" }
+  return compact(CommandLine.arguments[index + 1], limit: 160)
+}
+
+private func validCloudKitContainerId(_ value: String) -> Bool {
+  value.range(of: "^iCloud\\.[A-Za-z0-9.-]{3,150}$", options: .regularExpression) != nil
+}
+
+@MainActor
+private final class LifeOSCloudKitPushListenerDelegate: NSObject, NSApplicationDelegate {
+  private let container: CKContainer
+  private var apnsReady = false
+  private var subscriptionReady = false
+  private var readyEmitted = false
+
+  init(containerId: String) {
+    container = CKContainer(identifier: containerId)
+  }
+
+  func applicationDidFinishLaunching(_ notification: Notification) {
+    emitListenerEvent(event: "listener-starting", reason: "starting")
+    NSApplication.shared.registerForRemoteNotifications()
+    Task { await ensureSubscription() }
+  }
+
+  private func ensureSubscription() async {
+    let subscription = CKDatabaseSubscription(subscriptionID: subscriptionId)
+    let notification = CKSubscription.NotificationInfo()
+    notification.shouldSendContentAvailable = true
+    subscription.notificationInfo = notification
+    do {
+      _ = try await container.privateCloudDatabase.save(subscription)
+      subscriptionReady = true
+      emitReadyIfPossible()
+    } catch {
+      subscriptionReady = false
+      emitListenerEvent(event: "subscription-failed", reason: "subscription-save-failed")
+    }
+  }
+
+  private func emitReadyIfPossible() {
+    guard apnsReady, subscriptionReady, !readyEmitted else { return }
+    readyEmitted = true
+    emitListenerEvent(event: "listener-ready", reason: "ready", subscriptionMatched: true)
+  }
+
+  func application(_ application: NSApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+    apnsReady = !deviceToken.isEmpty
+    emitReadyIfPossible()
+  }
+
+  func application(_ application: NSApplication, didFailToRegisterForRemoteNotificationsWithError error: any Error) {
+    apnsReady = false
+    emitListenerEvent(event: "registration-failed", reason: "apns-registration-failed")
+  }
+
+  func application(_ application: NSApplication, didReceiveRemoteNotification userInfo: [String: Any]) {
+    guard let notification = CKNotification(fromRemoteNotificationDictionary: userInfo) else {
+      emitListenerEvent(event: "notification-ignored", reason: "unsupported-notification")
+      return
+    }
+    guard notification.subscriptionID == subscriptionId else {
+      emitListenerEvent(event: "notification-ignored", reason: "subscription-mismatch")
+      return
+    }
+    guard notification is CKDatabaseNotification else {
+      emitListenerEvent(event: "notification-ignored", reason: "unsupported-notification", subscriptionMatched: true)
+      return
+    }
+    emitListenerEvent(event: "remote-change", reason: "database-change", subscriptionMatched: true)
+  }
+}
+
+@MainActor private var activePushListenerDelegate: LifeOSCloudKitPushListenerDelegate?
+
+@MainActor
+private func runCloudKitPushListener(containerId: String) -> Never {
+  let application = NSApplication.shared
+  application.setActivationPolicy(.prohibited)
+  let delegate = LifeOSCloudKitPushListenerDelegate(containerId: containerId)
+  activePushListenerDelegate = delegate
+  application.delegate = delegate
+  application.run()
+  Foundation.exit(0)
+}
+
 @main
 struct LifeOSCloudKitHelper {
   static func main() async {
+    if CommandLine.arguments.contains("--lifeos-cloudkit-listener") {
+      let containerId = commandLineValue(after: "--container-id")
+      guard validCloudKitContainerId(containerId) else {
+        emitListenerEvent(event: "subscription-failed", reason: "subscription-save-failed")
+        Foundation.exit(2)
+      }
+      await runCloudKitPushListener(containerId: containerId)
+    }
+
     guard CommandLine.arguments.contains("--lifeos-cloudkit-json") else {
       emit(responseBase(operation: "unknown", ok: false).merging([
         "errors": ["Missing --lifeos-cloudkit-json."],

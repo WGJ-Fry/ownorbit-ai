@@ -192,19 +192,21 @@ npm run mobile:native:device:build
 
 This is a developer candidate, not a public iOS package. The unkeyed entry checksum detects accidental file modification; it is not a cryptographic server identity signature, so the normal pairing QR remains mandatory before web access is granted. Simulator evidence proves compilation, record validation, protected snapshot merging, app installation, launch, and the CloudKit opt-in UI. The unsigned device compile additionally proves that the arm64 iPhoneOS target compiles without installing an app or requiring a provisioning profile. Neither path proves a private CloudKit database exchange, iCloud document delivery on a physical phone, cellular/Wi-Fi switching, provisioning, background push, or long-running two-device synchronization. AI keys, admin passwords, device tokens, private keys, session cookies, SQLite databases, backups, and raw CloudKit credentials are never copied into the native entry or CloudKit snapshot.
 
-When the user explicitly enables CloudKit data auto-sync, the Mac safe-cycle scheduler now uses a 15-minute default poll, queues local safe-data changes within 15 seconds, continues paged remote pulls within 15 seconds, retries transient failures after 5 minutes, and performs an additional check after local-core startup or desktop wake. The desktop tray distinguishes the iCloud Drive phone entry from CloudKit personal-data sync and shows only redacted state, counts, and one next action. This improves bounded background recovery, but it is still polling plus wake recovery: a persistent signed macOS CloudKit push receiver and real two-device delivery evidence are still required before calling it realtime or fully unattended sync.
+When the user explicitly enables CloudKit data auto-sync, the Mac safe-cycle scheduler uses a 15-minute fallback poll, queues local safe-data changes within 15 seconds, continues paged remote pulls within 15 seconds, retries transient failures after 5 minutes, and performs an additional check after local-core startup or desktop wake. A provisioned Xcode-built `.app` helper can now stay alive under Electron, register for macOS remote notifications, verify the private-database subscription, and queue the existing guarded sync cycle after a matched CloudKit database notification. The listener sends only a fixed event name, reason, match flag, and timestamp to the local core; it never forwards the APNs device token, notification payload, or CloudKit change token. The desktop tray distinguishes listener-ready, polling-fallback, and setup-required states. Source compilation and subscription registration do not prove delivery: real two-device delivery, restart, network-switch, and long-run evidence are still required before calling the path realtime or fully unattended sync.
 
-The build output is intentionally local (`build/native/LifeOSCloudKitHelper`) and should not be committed. Configure it with:
+Build output is intentionally local and should not be committed. The plain `swiftc` helper at `build/native/LifeOSCloudKitHelper` is suitable for JSON-contract compilation and foreground probe/sync checks only:
 
 ```bash
 export LIFEOS_CLOUDKIT_HELPER_BIN="$PWD/build/native/LifeOSCloudKitHelper"
 ```
 
+Persistent push listening requires the provisioned Xcode `.app` target because macOS remote-notification registration needs an application bundle identity plus CloudKit and APNs entitlements. Build it with `npm run icloud:helper:xcode:build`, then use the executable path printed by that command. If LifeOS is configured with the plain binary, guarded polling and wake recovery continue, but the desktop correctly reports push-listener fallback instead of claiming notification delivery.
+
 `probe` must check Apple account status and CloudKit container reachability without writing user data. It must also report which required native capabilities are still unverified. Readiness is not allowed to imply full sync until custom zone access, change-token fetch, background subscription/push, and disposable write evidence have been proven by the helper result.
 
 `roundtrip` must create, fetch, and delete a disposable test record in the private CloudKit database using the selected record plan. It must return an evidence id, verified capabilities, and redacted warnings/errors. A failed or skipped helper smoke never counts as real iCloud data sync.
 
-`subscription-probe` must create or verify a private CloudKit database subscription with a content-available notification. This proves the account/container can hold the background-push prerequisite for future native sync, but it does not prove iOS/macOS background delivery, app wakeups, conflict-free merging, or complete unattended sync.
+`subscription-probe` must create or verify a private CloudKit database subscription with a content-available notification. It reports `subscription-registration`, not `subscription-push`; delivery becomes verified only after the provisioned persistent listener receives a matching `CKDatabaseNotification`. Neither result alone proves conflict-free merging or complete unattended sync.
 
 Each helper operation has its own capability gate. For example, `sync-changes-preview` must prove `change-token-fetch`, `sync-export` must prove `sync-export-save`, and `roundtrip` must prove `create-fetch-delete-roundtrip`; an otherwise successful helper response is treated as failed if the operation-specific proof is missing.
 
@@ -483,15 +485,17 @@ Do not claim end-user-ready, fully automatic iCloud data sync until all of this 
 
 当前已经有第一版原生 helper 源码：`native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift`。它可以在 macOS 上通过 `npm run icloud:helper:build` 编译，输出到 `build/native/LifeOSCloudKitHelper`。这个 helper 表示 CloudKit 原生桥已经有受控落脚点；当前只应宣称“受控 alpha 候选同步”，不能宣称完整后台 macOS/iOS 原生同步。
 
+这里必须区分两种产物：`npm run icloud:helper:build` 生成的普通二进制用于 JSON 契约编译、前台探测和受控同步；常驻推送监听必须使用 `npm run icloud:helper:xcode:build` 生成并完成 provisioning 的 `.app` 可执行文件，因为 macOS 远程通知注册依赖应用 Bundle ID、CloudKit entitlement 和 APNs entitlement。若只配置普通二进制，LifeOS 会继续使用安全轮询与唤醒恢复，并明确显示“推送监听降级”，不会把它误写成真实通知投递。
+
 当前还新增了源码级 iOS SwiftUI 原生壳候选版本：`native/apple/mobile-shell`。它可以通过 iPhone“文件”选择 iCloud Drive 中的 `lifeos-mobile-entry-*.json`，校验与电脑端一致的 SHA-256、版本、有效期、地址来源和 LifeOS 健康接口，然后在限制同源跳转的 `WKWebView` 中打开 `/mobile/chat`。它也加入了用户明确开启的 CloudKit 私有库增量拉取、变更游标、后台推送订阅、前台恢复、账号隔离、游标过期 zone 重建、自动续页与退避重试、记录 schema/zone/type/大小/SHA-256 校验和 Data Protection 离线快照。当前已形成两条真实双向写回候选路径：用户确认后，iPhone 可以新建一条通过敏感内容检测的普通记忆，Mac 仅在记录全新时写入 SQLite；也可以把一条未完成任务改为完成，并通过 CKRecord change tag 与基础内容哈希做双重乐观并发。已有记忆、聊天、生成程序和设备元数据仍只读。`npm run mobile:native:build`、`LIFEOS_IOS_NATIVE_RUN_TESTS=1 npm run mobile:native:build` 和 `npm run mobile:native:smoke -- http://127.0.0.1:3000` 可以在未签名的 iPhone 模拟器完成构建、单测、安装、启动和截图证据；`npm run mobile:native:device:build` 提供带 CloudKit entitlement 的真机签名入口。它还不是公开 iOS 安装包；在 Apple 协议、Container、provisioning 和真实双设备数据往返证据完成前，也不能宣称 CloudKit 已真实跑通。
 
-用户明确开启 CloudKit 数据自动同步后，Mac 安全同步循环现在默认每 15 分钟检查一次；本机安全数据发生变化后 15 秒内排队，远端还有分页时 15 秒内续拉，临时失败 5 分钟后重试，并在本地核心启动或桌面唤醒后额外检查。桌面托盘会区分“iCloud Drive 手机入口”和“CloudKit 个人数据同步”，只显示脱敏状态、数量和一个下一步。这改善了受控后台恢复，但本质仍是轮询加唤醒恢复；在常驻、已签名的 macOS CloudKit push 接收器和真实双设备投递证据完成前，不能称为实时或完全无人值守同步。
+用户明确开启 CloudKit 数据自动同步后，Mac 安全同步循环会保留每 15 分钟一次的兜底轮询；本机安全数据发生变化后 15 秒内排队，远端还有分页时 15 秒内续拉，临时失败 5 分钟后重试，并在本地核心启动或桌面唤醒后额外检查。现在还增加了源码级常驻 macOS 推送监听：使用 Xcode 构建且带正确 provisioning、CloudKit 与 APNs entitlement 的 `.app` helper，由 Electron 守护运行；收到匹配的 `CKDatabaseNotification` 后，只向本机核心发送固定事件名、原因、匹配标记和时间，再排队现有安全同步循环。APNs device token、通知正文和 CloudKit change token 都不会经过这个接口或写入 SQLite。桌面托盘会区分监听就绪、轮询降级和待配置状态。源码编译、订阅保存和监听启动都不等于真实投递完成；仍需双设备、重启、换网和长时间运行证据后，才能称为实时或完全无人值守同步。
 
-helper 探测通过不等于真实同步完成。API 会返回已验证能力、必需能力和未验证能力；如果 `subscription-push`、`change-token-fetch`、自定义 zone、写入 roundtrip 等证据缺失，UI 必须继续显示为候选/待验证，而不能写成已完成的 iCloud 数据同步。
+helper 探测通过不等于真实同步完成。API 会返回已验证能力、必需能力和未验证能力；`subscription-registration` 只代表订阅已保存，`subscription-push` 只有收到匹配的真实数据库变更通知后才有投递证据。如果推送投递、`change-token-fetch`、自定义 zone、写入 roundtrip 等证据缺失，UI 必须继续显示为候选/待验证，而不能写成已完成的 iCloud 数据同步。
 
 每个 helper 操作也必须通过自己的能力闸门。例如 `sync-changes-preview` 必须证明 `change-token-fetch`，`sync-export` 必须证明 `sync-export-save`，`roundtrip` 必须证明临时写入、读取和删除。即使 helper 返回 `ok=true`，缺少本次操作的能力证明也会被 LifeOS 判为失败。
 
-`subscription-probe` 只验证私有 CloudKit 数据库能创建或确认 content-available 后台推送订阅。它证明未来原生同步所需的推送订阅前置条件可用，但不证明 iOS/macOS 后台投递、应用唤醒、无冲突合并或完整无人值守同步已经完成。
+`subscription-probe` 只验证私有 CloudKit 数据库能创建或确认 content-available 后台推送订阅，并只返回 `subscription-registration`。只有 Xcode 构建的常驻 `.app` listener 收到匹配的 CloudKit 数据库通知，LifeOS 才记录脱敏的投递证据；这仍不证明无冲突合并或完整无人值守同步已经完成。
 
 真实 Apple 设备验收时，应在临时写入 roundtrip 之后运行 `npm run icloud:helper:smoke -- --subscription-probe --strict`。这一步只能证明 CloudKit 私有库能保存后台推送订阅前置条件；后续仍要继续做 iPhone/macOS 后台投递、应用唤醒、重启、换网和冲突测试。
 

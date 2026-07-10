@@ -11,6 +11,7 @@ const projectPath = resolve(buildDir, "LifeOSCloudKitHelper.xcodeproj");
 const appPath = resolve(derivedDataDir, "Build/Products/Release/LifeOSCloudKitHelper.app");
 const executablePath = resolve(appPath, "Contents/MacOS/LifeOSCloudKitHelper");
 const entitlementsPath = resolve(buildDir, "LifeOSCloudKitHelper.entitlements");
+const compileOnly = process.argv.includes("--compile-only") || process.env.LIFEOS_CLOUDKIT_XCODE_COMPILE_ONLY === "1";
 
 function run(command, args) {
   const result = spawnSync(command, args, {
@@ -71,6 +72,7 @@ targets:
           - ${yamlString(containerId)}
         com.apple.developer.icloud-services:
           - CloudKit
+        com.apple.developer.aps-environment: ${yamlString(environment.toLowerCase())}
         com.apple.security.app-sandbox: true
         com.apple.security.network.client: true
 schemes:
@@ -94,8 +96,10 @@ if (!xcodegen.ok) {
   process.exit(2);
 }
 
-const containerId = requiredEnv("LIFEOS_CLOUDKIT_CONTAINER_ID");
-const teamId = requiredEnv("LIFEOS_CLOUDKIT_TEAM_ID", process.env.APPLE_TEAM_ID);
+const containerId = requiredEnv("LIFEOS_CLOUDKIT_CONTAINER_ID", compileOnly ? "iCloud.ai.lifeos.desktop" : "");
+const teamId = compileOnly
+  ? String(process.env.LIFEOS_CLOUDKIT_TEAM_ID || process.env.APPLE_TEAM_ID || "UNSIGNED").trim()
+  : requiredEnv("LIFEOS_CLOUDKIT_TEAM_ID", process.env.APPLE_TEAM_ID);
 const bundleId = requiredEnv("LIFEOS_CLOUDKIT_BUNDLE_ID", "ai.lifeos.cloudkit-helper");
 const environment = String(process.env.LIFEOS_CLOUDKIT_ENVIRONMENT || "Development").trim();
 if (environment !== "Development" && environment !== "Production") {
@@ -128,10 +132,10 @@ const xcodeArgs = [
   "platform=macOS",
   "-derivedDataPath",
   derivedDataDir,
-  `DEVELOPMENT_TEAM=${teamId}`,
   `PRODUCT_BUNDLE_IDENTIFIER=${bundleId}`,
-  "CODE_SIGN_STYLE=Automatic",
-  ...(allowProvisioningUpdates ? ["-allowProvisioningUpdates"] : []),
+  ...(compileOnly
+    ? ["CODE_SIGNING_ALLOWED=NO", "CODE_SIGNING_REQUIRED=NO"]
+    : [`DEVELOPMENT_TEAM=${teamId}`, "CODE_SIGN_STYLE=Automatic", ...(allowProvisioningUpdates ? ["-allowProvisioningUpdates"] : [])]),
   "build",
 ];
 const build = run("xcodebuild", xcodeArgs);
@@ -139,10 +143,10 @@ if (!build.ok) {
   if (build.stdout) process.stdout.write(build.stdout);
   if (build.stderr) process.stderr.write(build.stderr);
   const buildOutput = `${build.stdout}\n${build.stderr}`;
-  if (buildOutput.includes("PLA Update available") || buildOutput.includes("Program License Agreement")) {
+  if (!compileOnly && (buildOutput.includes("PLA Update available") || buildOutput.includes("Program License Agreement"))) {
     console.error("Apple Developer Program License Agreement must be accepted by the account holder before Xcode can create the LifeOS provisioning profile.");
   }
-  if (!allowProvisioningUpdates) {
+  if (!compileOnly && !allowProvisioningUpdates) {
     console.error("Xcode could not find a matching local profile. After reviewing the App ID and iCloud Container, rerun with LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES=1.");
   }
   process.exit(build.status || 1);
@@ -152,17 +156,19 @@ if (!existsSync(executablePath)) {
   console.error(`Xcode completed without the expected helper executable: ${executablePath}`);
   process.exit(1);
 }
-const verified = run("codesign", ["--verify", "--strict", "--deep", appPath]);
-if (!verified.ok) {
-  if (verified.stdout) process.stdout.write(verified.stdout);
-  if (verified.stderr) process.stderr.write(verified.stderr);
-  process.exit(verified.status || 1);
-}
-const inspected = run("codesign", ["-d", "--entitlements", ":-", executablePath]);
-const inspectedEntitlements = `${inspected.stdout}\n${inspected.stderr}`;
-if (!inspected.ok || !inspectedEntitlements.includes(containerId) || !inspectedEntitlements.includes("CloudKit")) {
-  console.error("The Xcode-built helper does not expose the requested CloudKit container entitlement.");
-  process.exit(inspected.status || 1);
+if (!compileOnly) {
+  const verified = run("codesign", ["--verify", "--strict", "--deep", appPath]);
+  if (!verified.ok) {
+    if (verified.stdout) process.stdout.write(verified.stdout);
+    if (verified.stderr) process.stderr.write(verified.stderr);
+    process.exit(verified.status || 1);
+  }
+  const inspected = run("codesign", ["-d", "--entitlements", ":-", executablePath]);
+  const inspectedEntitlements = `${inspected.stdout}\n${inspected.stderr}`;
+  if (!inspected.ok || !inspectedEntitlements.includes(containerId) || !inspectedEntitlements.includes("CloudKit") || !inspectedEntitlements.includes("com.apple.developer.aps-environment")) {
+    console.error("The Xcode-built helper does not expose the requested CloudKit container and macOS push entitlements.");
+    process.exit(inspected.status || 1);
+  }
 }
 const launchCheck = run(executablePath, []);
 if (launchCheck.status !== 2 || !launchCheck.stdout.includes("lifeos-cloudkit-helper-response.v1")) {
@@ -172,6 +178,7 @@ if (launchCheck.status !== 2 || !launchCheck.stdout.includes("lifeos-cloudkit-he
 }
 
 console.log(`Built launchable Xcode CloudKit helper: ${appPath}`);
+console.log(`Build mode: ${compileOnly ? "unsigned compile-only" : "signed CloudKit + APNs"}`);
 console.log(`Use helper: LIFEOS_CLOUDKIT_HELPER_BIN="${executablePath}"`);
 console.log(`Use entitlements: LIFEOS_CLOUDKIT_ENTITLEMENTS_PATH="${entitlementsPath}"`);
-console.log(`Provisioning updates allowed: ${allowProvisioningUpdates ? "yes" : "no"}`);
+if (!compileOnly) console.log(`Provisioning updates allowed: ${allowProvisioningUpdates ? "yes" : "no"}`);

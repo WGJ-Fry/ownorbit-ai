@@ -8,7 +8,7 @@ import { runCloudKitNativeHelper } from "../server/cloudKitNativeHelper.ts";
 const helperOperationTitles = {
   probe: "CloudKit account and private database probe",
   roundtrip: "Disposable CloudKit create/fetch/delete roundtrip",
-  "subscription-probe": "CloudKit background push subscription probe",
+  "subscription-probe": "CloudKit background push subscription registration probe",
 };
 
 const allowedOperations = new Set(Object.keys(helperOperationTitles));
@@ -163,6 +163,8 @@ function summarizeHelperResult(result, latencyMs) {
       exists: Boolean(result.subscriptionProbe.exists),
       saved: Boolean(result.subscriptionProbe.saved),
       contentAvailable: Boolean(result.subscriptionProbe.contentAvailable),
+      deliveryVerified: Boolean(result.subscriptionProbe.deliveryVerified),
+      listenerRequired: result.subscriptionProbe.listenerRequired !== false,
     } : undefined,
     warnings: Array.isArray(result.warnings) ? result.warnings.map((item) => redact(item, 240)) : [],
     errors: Array.isArray(result.errors) ? result.errors.map((item) => redact(item, 240)) : [],
@@ -222,7 +224,7 @@ function manualAcceptanceSteps() {
     {
       id: "cloudkit-background-push",
       title: "Native Apple background push and wakeup evidence",
-      instruction: "With the future native Apple client installed, change a selected record on another device. Confirm the content-available CloudKit subscription wakes the client and records sync evidence without polling-only behavior.",
+      instruction: "Run the signed persistent Mac listener, change a selected record on another Apple device, and confirm LifeOS records a matched CloudKit notification plus an immediate safe sync cycle. A saved subscription alone does not pass this step.",
       required: true,
     },
     {
@@ -241,7 +243,7 @@ function buildRecommendations({ readiness, operations, automatedOk, fullHelperEv
     recommendations.push("Run again with --roundtrip or --all after setting LIFEOS_CLOUDKIT_TEST_WRITE_CONFIRM=DELETE_DISPOSABLE_RECORDS to collect disposable write evidence.");
   }
   if (!operations.includes("subscription-probe")) {
-    recommendations.push("Run again with --subscription-probe or --all to prove the CloudKit background-push subscription prerequisite.");
+    recommendations.push("Run again with --subscription-probe or --all to prove the CloudKit background-push subscription registration prerequisite. Real delivery still needs listener evidence.");
   }
   if (!automatedOk) recommendations.push("Repair failed or skipped automated CloudKit helper checks before starting real Apple-device testing.");
   if (fullHelperEvidence) recommendations.push("Automated helper prerequisites are ready; complete every required real Apple-device manual step before any public claim of real iCloud data sync.");

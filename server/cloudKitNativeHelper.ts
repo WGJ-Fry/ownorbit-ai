@@ -21,7 +21,7 @@ export type CloudKitNativeHelperRunStatus = "passed" | "failed" | "skipped";
 const operationRequiredNativeCapabilities: Record<CloudKitNativeHelperOperation, string[]> = {
   probe: ["account-status", "private-database", "container-reachability"],
   roundtrip: ["account-status", "private-database", "container-reachability", "custom-zones", "create-fetch-delete-roundtrip"],
-  "subscription-probe": ["account-status", "private-database", "container-reachability", "subscription-push"],
+  "subscription-probe": ["account-status", "private-database", "container-reachability", "subscription-registration"],
   "sync-export": ["account-status", "private-database", "container-reachability", "custom-zones", "sync-export-save"],
   "sync-import-preview": ["account-status", "private-database", "container-reachability", "custom-zones", "sync-import-preview-query"],
   "sync-changes-preview": ["account-status", "private-database", "container-reachability", "custom-zones", "change-token-fetch", "sync-changes-preview"],
@@ -296,6 +296,8 @@ function normalizeSubscriptionProbe(value: unknown) {
     exists: Boolean(input.exists),
     saved: Boolean(input.saved),
     contentAvailable: Boolean(input.contentAvailable),
+    deliveryVerified: Boolean(input.deliveryVerified),
+    listenerRequired: input.listenerRequired !== false,
   };
 }
 

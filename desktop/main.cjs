@@ -6,10 +6,12 @@ const http = require("http");
 const net = require("net");
 const os = require("os");
 const path = require("path");
+const { createCloudKitPushListenerController } = require("./cloudKitPushListener.cjs");
 
 let mainWindow;
 let tray;
 let trayRefreshTimer;
+let cloudKitPushStatusRefreshTimer;
 let serverPort = 3000;
 let desktopLogPath = "";
 let desktopInternalToken = "";
@@ -36,6 +38,21 @@ let desktopUpdateStatus = {
   updateUrlHost: "",
   reason: "not_configured",
 };
+let cloudKitPushStatus = {
+  configured: false,
+  running: false,
+  ready: false,
+  status: "not-configured",
+  reason: "not-configured",
+  lastReadyAt: null,
+  lastEventAt: null,
+  lastRemoteChangeAt: null,
+  receivedRemoteChanges: 0,
+  restartCount: 0,
+  rawPayloadReturned: false,
+  deviceTokenReturned: false,
+  changeTokenReturned: false,
+};
 let shutdownRequested = false;
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 const chromiumUnsafePorts = new Set([
@@ -45,6 +62,14 @@ const chromiumUnsafePorts = new Set([
   6566, 6665, 6666, 6667, 6668, 6669, 6697, 10080,
 ]);
 const desktopStatusNotificationCooldownMs = 30 * 60 * 1000;
+const cloudKitPushListenerController = createCloudKitPushListenerController({
+  onEvent: (event) => handleCloudKitPushListenerEvent(event),
+  onStatus: (status) => {
+    cloudKitPushStatus = status;
+    queueCloudKitPushStatusRefresh();
+  },
+  onLog: (message, details) => writeDesktopLog(message, redactDiagnosticText(details)),
+});
 
 if (process.env.LIFEOS_DESKTOP_USER_DATA_DIR) {
   app.setPath("userData", path.resolve(process.env.LIFEOS_DESKTOP_USER_DATA_DIR));
@@ -501,6 +526,43 @@ async function fetchDesktopInternalNetworkSummary(reason = "desktop-tray") {
   return response.ok ? response.body : null;
 }
 
+function queueCloudKitPushStatusRefresh() {
+  if (shutdownRequested || !app.isReady()) return;
+  if (cloudKitPushStatusRefreshTimer) clearTimeout(cloudKitPushStatusRefreshTimer);
+  cloudKitPushStatusRefreshTimer = setTimeout(() => {
+    cloudKitPushStatusRefreshTimer = null;
+    refreshDesktopShellStatus().catch((error) => writeDesktopLog("Failed to refresh CloudKit push status", error?.message || String(error)));
+  }, 250);
+  cloudKitPushStatusRefreshTimer.unref?.();
+}
+
+async function handleCloudKitPushListenerEvent(event) {
+  const response = await postLocalJson("/api/v1/internal/cloudkit-push/event", event, {
+    "X-LifeOS-Desktop-Token": ensureDesktopInternalToken(),
+  });
+  if (response.ok) {
+    writeDesktopLog("CloudKit push listener event accepted", `event=${event.event} reason=${event.reason} queued=${Boolean(response.body?.queued)} deliveryVerified=${Boolean(response.body?.evidence?.deliveryVerified)}`);
+  } else {
+    writeDesktopLog("CloudKit push listener event rejected", `event=${event.event} status=${response.status} error=${response.error || response.body?.code || "unknown"}`);
+  }
+  queueCloudKitPushStatusRefresh();
+  return response;
+}
+
+function reconcileCloudKitPushListener(networkSummary) {
+  const dataSync = networkSummary?.icloud?.dataSync;
+  const enabled = process.env.LIFEOS_CLOUDKIT_PUSH_LISTENER !== "0"
+    && Boolean(dataSync?.enabled)
+    && Boolean(dataSync?.ready)
+    && Boolean(dataSync?.autoSync?.enabled);
+  cloudKitPushStatus = cloudKitPushListenerController.configure({
+    enabled,
+    helperPath: process.env.LIFEOS_CLOUDKIT_HELPER_BIN,
+    containerId: process.env.LIFEOS_CLOUDKIT_CONTAINER_ID,
+  });
+  return cloudKitPushStatus;
+}
+
 function publicHealthSnapshot(health) {
   if (!health || typeof health !== "object") return null;
   return {
@@ -532,7 +594,7 @@ function publicAdminStatusSnapshot(status) {
   };
 }
 
-function desktopIcloudLabel(networkSummary) {
+function desktopIcloudLabel(networkSummary, pushStatus = cloudKitPushStatus) {
   const dataSync = networkSummary?.icloud?.dataSync;
   if (dataSync?.enabled) {
     if (!dataSync.ready) return "iCloud data sync needs setup";
@@ -544,14 +606,19 @@ function desktopIcloudLabel(networkSummary) {
     if (pendingTotal > 0 || dataSync.autoSync.lastResult?.nextAction === "continue-pull") {
       return pendingTotal > 0 ? `iCloud data sync waiting · ${pendingTotal} pending` : "iCloud data sync continuing";
     }
-    return "iCloud data sync ready · automatic";
+    if (pushStatus?.ready) return "iCloud data sync ready · push listening";
+    if (pushStatus?.running) return "iCloud data sync ready · push starting";
+    if (["registration-failed", "subscription-failed", "exited", "restart-wait", "start-failed"].includes(pushStatus?.status)) {
+      return "iCloud data sync ready · polling fallback";
+    }
+    return "iCloud data sync ready · automatic polling";
   }
   const severity = networkSummary?.icloud?.severity || "";
   const status = networkSummary?.icloud?.status || "";
   return status ? `iCloud entry ${severity === "ok" ? "ready" : "needs attention"} · ${status}` : "iCloud status unknown";
 }
 
-function summarizeDesktopShellStatus(health, adminStatus, networkSummary = null) {
+function summarizeDesktopShellStatus(health, adminStatus, networkSummary = null, pushStatus = cloudKitPushStatus) {
   const deviceCount = Number.isFinite(Number(health?.deviceCount)) ? Number(health.deviceCount) : 0;
   const onlineDeviceCount = Number.isFinite(Number(health?.onlineDeviceCount)) ? Number(health.onlineDeviceCount) : 0;
   const adminLabel = adminStatus?.configured
@@ -568,7 +635,7 @@ function summarizeDesktopShellStatus(health, adminStatus, networkSummary = null)
     aiLabel: health?.aiConfigured ? "AI configured" : "AI not configured",
     deviceLabel: `Devices ${onlineDeviceCount}/${deviceCount} online`,
     remoteLabel: remoteStatus ? `Remote ${remoteSeverity === "ok" ? "ready" : "needs attention"} · ${remoteStatus}` : "Remote status unknown",
-    icloudLabel: desktopIcloudLabel(networkSummary),
+    icloudLabel: desktopIcloudLabel(networkSummary, pushStatus),
     statusAlert: networkSummary?.alert || null,
     url: localUrl("/admin/login"),
     updatedAt: Date.now(),
@@ -589,6 +656,7 @@ function publicDesktopShellStatus() {
     url: desktopShellStatus.url || localUrl("/admin/login"),
     updatedAt: desktopShellStatus.updatedAt,
     updateLabel: desktopUpdateLabel(),
+    cloudKitPush: cloudKitPushListenerController.publicStatus(),
   };
 }
 
@@ -664,8 +732,9 @@ async function createDesktopDiagnosticBundle() {
     fetchLocalJson("/api/v1/admin/status"),
     fetchDesktopInternalNetworkSummary("desktop-diagnostics"),
   ]);
+  reconcileCloudKitPushListener(networkSummary);
   if (healthResult.ok) {
-    desktopShellStatus = summarizeDesktopShellStatus(healthResult.body, adminStatusResult.ok ? adminStatusResult.body : null, networkSummary);
+    desktopShellStatus = summarizeDesktopShellStatus(healthResult.body, adminStatusResult.ok ? adminStatusResult.body : null, networkSummary, cloudKitPushStatus);
   }
   return {
     generatedAt: new Date().toISOString(),
@@ -892,10 +961,12 @@ async function refreshDesktopShellStatus() {
     fetchLocalJson("/api/v1/admin/status"),
     fetchDesktopInternalNetworkSummary("desktop-tray"),
   ]);
+  reconcileCloudKitPushListener(networkSummary);
   desktopShellStatus = summarizeDesktopShellStatus(
     healthResult.ok ? healthResult.body : null,
     adminStatusResult.ok ? adminStatusResult.body : null,
     networkSummary,
+    cloudKitPushStatus,
   );
   maybeNotifyDesktopStatus(desktopShellStatus.statusAlert);
   updateTrayPresentation();
@@ -1017,6 +1088,7 @@ function requestDesktopShutdown(reason = "signal") {
   if (shutdownRequested) return;
   shutdownRequested = true;
   writeDesktopLog("Desktop shutdown requested", reason);
+  cloudKitPushListenerController.stop(reason);
   try {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
   } catch {}
@@ -1103,7 +1175,11 @@ if (!hasSingleInstanceLock) {
   });
 
   app.on("before-quit", () => {
+    shutdownRequested = true;
     if (trayRefreshTimer) clearInterval(trayRefreshTimer);
+    cloudKitPushListenerController.stop("app-quit");
+    if (cloudKitPushStatusRefreshTimer) clearTimeout(cloudKitPushStatusRefreshTimer);
+    cloudKitPushStatusRefreshTimer = null;
   });
 }
 

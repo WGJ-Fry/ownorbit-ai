@@ -56,12 +56,14 @@ process.stdin.on("end", () => {
   if (operation === "subscription-probe") {
     console.log(JSON.stringify({
       ...base,
-      capabilitiesVerified: ["container-reachability", ...request.requiredNativeCapabilities, "subscription-push"],
+      capabilitiesVerified: ["account-status", "private-database", "container-reachability", "subscription-registration"],
       subscriptionProbe: {
         subscriptionId: "lifeos-private-database-changes-v1",
         exists: true,
         saved: true,
-        contentAvailable: true
+        contentAvailable: true,
+        deliveryVerified: false,
+        listenerRequired: true
       }
     }));
     return;
@@ -132,6 +134,8 @@ test("iCloud data sync acceptance runbook writes full helper evidence and real-d
   assert.equal(report.automatedChecks.fullHelperEvidence, true);
   assert.equal(report.automatedChecks.steps.some((step) => step.operation === "roundtrip" && step.roundtrip.created), true);
   assert.equal(report.automatedChecks.steps.some((step) => step.operation === "subscription-probe" && step.subscriptionProbe.contentAvailable), true);
+  assert.equal(report.automatedChecks.steps.some((step) => step.operation === "subscription-probe" && step.subscriptionProbe.deliveryVerified === false), true);
+  assert.equal(report.automatedChecks.steps.some((step) => step.operation === "subscription-probe" && step.subscriptionProbe.listenerRequired), true);
   for (const id of ["mac-a-cloudkit-upload", "mac-b-cloudkit-import", "iphone-cellular-entry-boundary", "wifi-cellular-switch", "mac-restart-recovery", "icloud-delay-human-copy", "old-entry-qr-expiry", "multi-desktop-default-entry", "cloudkit-background-push", "offline-conflict-review"]) {
     assert.equal(report.manualAcceptance.some((step) => step.id === id && step.required), true, `${id} should be required`);
   }

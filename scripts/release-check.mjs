@@ -159,7 +159,7 @@ function checkSourceSizeBudgets() {
 }
 
 function checkScripts() {
-  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "icloud:helper:build", "icloud:helper:smoke", "icloud:acceptance", "mobile:simulator:smoke", "mobile:native:build", "mobile:native:device:compile", "mobile:native:device:build", "mobile:native:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:apple-native", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
+  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "icloud:helper:build", "icloud:helper:xcode:build", "icloud:helper:xcode:compile", "icloud:helper:smoke", "icloud:acceptance", "mobile:simulator:smoke", "mobile:native:build", "mobile:native:device:compile", "mobile:native:device:build", "mobile:native:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:apple-native", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
     if (hasScript(script)) pass(`package script exists: ${script}`);
     else fail(`missing package script: ${script}`);
   }
@@ -1620,6 +1620,11 @@ function checkAssets() {
   const cloudKitNativeHelperSmokeSource = exists("scripts/cloudkit-native-helper-smoke.mjs") ? fs.readFileSync(path.join(rootDir, "scripts/cloudkit-native-helper-smoke.mjs"), "utf8") : "";
   const cloudKitNativeSwiftHelperSource = exists("native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift") ? fs.readFileSync(path.join(rootDir, "native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift"), "utf8") : "";
   const cloudKitNativeHelperBuildSource = exists("scripts/build-cloudkit-helper.mjs") ? fs.readFileSync(path.join(rootDir, "scripts/build-cloudkit-helper.mjs"), "utf8") : "";
+  const cloudKitNativeHelperXcodeBuildSource = exists("scripts/build-cloudkit-helper-xcode.mjs") ? fs.readFileSync(path.join(rootDir, "scripts/build-cloudkit-helper-xcode.mjs"), "utf8") : "";
+  const cloudKitPushListenerSource = exists("desktop/cloudKitPushListener.cjs") ? fs.readFileSync(path.join(rootDir, "desktop/cloudKitPushListener.cjs"), "utf8") : "";
+  const cloudKitPushEvidenceSource = exists("server/cloudKitPushEvidence.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitPushEvidence.ts"), "utf8") : "";
+  const cloudKitPushListenerTestSource = exists("tests/cloudkit-push-listener.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-push-listener.test.mjs"), "utf8") : "";
+  const cloudKitPushEvidenceTestSource = exists("tests/cloudkit-push-evidence.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-push-evidence.test.mjs"), "utf8") : "";
   const appleRemoteIcloudPrimaryActionSource = exists("src/pages/admin/appleRemoteIcloudPrimaryAction.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/appleRemoteIcloudPrimaryAction.ts"), "utf8") : "";
   const icloudPhonePickupStatusSource = exists("src/pages/admin/icloudPhonePickupStatus.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/icloudPhonePickupStatus.ts"), "utf8") : "";
   const icloudAutoRefreshStatusSource = exists("src/pages/admin/icloudAutoRefreshStatus.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/icloudAutoRefreshStatus.ts"), "utf8") : "";
@@ -2376,7 +2381,14 @@ function checkAssets() {
     cloudKitNativeSwiftHelperSource.includes("runSyncImportQuarantine") &&
     cloudKitNativeSwiftHelperSource.includes("runSubscriptionProbe") &&
     cloudKitNativeSwiftHelperSource.includes("CKDatabaseSubscription") &&
-    cloudKitNativeSwiftHelperSource.includes("subscription-push") &&
+    cloudKitNativeSwiftHelperSource.includes("subscription-registration") &&
+    cloudKitNativeSwiftHelperSource.includes("lifeos-cloudkit-listener-event.v1") &&
+    cloudKitNativeSwiftHelperSource.includes("--lifeos-cloudkit-listener") &&
+    cloudKitNativeSwiftHelperSource.includes("registerForRemoteNotifications") &&
+    cloudKitNativeSwiftHelperSource.includes("didReceiveRemoteNotification") &&
+    cloudKitNativeSwiftHelperSource.includes("CKDatabaseNotification") &&
+    cloudKitNativeSwiftHelperSource.includes("deviceTokenIncluded") &&
+    cloudKitNativeSwiftHelperSource.includes("changeTokenIncluded") &&
     cloudKitNativeSwiftHelperSource.includes("IMPORT_CLOUDKIT_CHANGES") &&
     cloudKitNativeSwiftHelperSource.includes("recordZoneChanges") &&
     cloudKitNativeSwiftHelperSource.includes("validatedPayloadJson") &&
@@ -2388,19 +2400,41 @@ function checkAssets() {
     cloudKitNativeSwiftHelperSource.includes("database.record(for: recordId)") &&
     cloudKitNativeSwiftHelperSource.includes("database.deleteRecord(withID: recordId)") &&
     cloudKitNativeHelperBuildSource.includes("CloudKit") &&
+    cloudKitNativeHelperBuildSource.includes("AppKit") &&
+    cloudKitNativeHelperBuildSource.includes("com.apple.developer.aps-environment") &&
+    cloudKitNativeHelperXcodeBuildSource.includes("type: application") &&
+    cloudKitNativeHelperXcodeBuildSource.includes("com.apple.developer.aps-environment") &&
+    cloudKitNativeHelperXcodeBuildSource.includes("--compile-only") &&
+    cloudKitPushListenerSource.includes("lifeos-cloudkit-listener-event.v1") &&
+    cloudKitPushListenerSource.includes("appBundleExecutable") &&
+    cloudKitPushListenerSource.includes("eventReasons") &&
+    cloudKitPushListenerSource.includes("minimalListenerEnvironment") &&
+    cloudKitPushListenerSource.includes("payloadIncluded !== false") &&
+    cloudKitPushEvidenceSource.includes("icloud_cloudkit_push_event") &&
+    cloudKitPushEvidenceSource.includes("isCloudKitPushEventPair") &&
+    cloudKitPushEvidenceSource.includes("rawPayloadStored: false") &&
+    adminRoutesSource.includes("/api/v1/internal/cloudkit-push/event") &&
+    adminRoutesSource.includes("runCloudKitAutoSyncNow") &&
+    apiAuthTestSource.includes("/api/v1/internal/cloudkit-push/event") &&
+    cloudKitPushListenerTestSource.includes("requires a macOS app-bundle executable") &&
+    cloudKitPushListenerTestSource.includes('eventLine("remote-change", "ready")') &&
+    cloudKitPushEvidenceTestSource.includes("persists only delivery counts and safe status") &&
     cloudKitNativeHelperSource.includes("subscription-probe") &&
     cloudKitNativeHelperSource.includes("normalizeSubscriptionProbe") &&
     lifeosApiSource.includes("subscriptionProbe") &&
     lifeosApiSource.includes("subscription-probe") &&
     onboardingAppleRemoteSource.includes("onboarding-icloud-data-sync-helper-subscription") &&
     onboardingAppleRemoteSource.includes("appleRemoteIcloudDataSyncHelperSubscriptionResult") &&
-    translationsSource.includes("后台推送订阅") &&
-    translationsSource.includes("Background push subscription") &&
+    translationsSource.includes("注册推送订阅") &&
+    translationsSource.includes("Register push subscription") &&
     cloudKitNativeHelperBuildSource.includes("build/native/LifeOSCloudKitHelper") &&
     packageJson.scripts["icloud:helper:build"]?.includes("build-cloudkit-helper.mjs") &&
+    packageJson.scripts["icloud:helper:xcode:compile"]?.includes("--compile-only") &&
     packageJson.scripts["icloud:helper:smoke"]?.includes("cloudkit-native-helper-smoke.mjs") &&
     packageJson.scripts.test.includes("tests/icloud-data-sync-readiness.test.mjs") &&
     packageJson.scripts.test.includes("tests/cloudkit-native-helper.test.mjs") &&
+    packageJson.scripts.test.includes("tests/cloudkit-push-evidence.test.mjs") &&
+    packageJson.scripts["test:desktop"]?.includes("tests/cloudkit-push-listener.test.mjs") &&
     packageJson.scripts.test.includes("tests/cloudkit-sync-batch.test.mjs") &&
     packageJson.scripts.test.includes("tests/cloudkit-sync-apply.test.mjs") &&
     packageJson.scripts.test.includes("tests/cloudkit-sync-now.test.mjs") &&

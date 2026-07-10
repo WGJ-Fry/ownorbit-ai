@@ -40,6 +40,7 @@ import { CLOUDKIT_SYNC_NOW_CONFIRMATION, runCloudKitSyncNow } from "../cloudKitS
 import { CLOUDKIT_SYNC_UPLOAD_NOW_CONFIRMATION, runCloudKitSyncUploadNow } from "../cloudKitSyncUploadNow";
 import { CLOUDKIT_SYNC_CYCLE_CONFIRMATION, runCloudKitSyncCycle } from "../cloudKitSyncCycle";
 import { clearCloudKitLocalChanges, getCloudKitAutoSyncSchedule, runCloudKitAutoSyncNow, updateCloudKitAutoSyncSchedule } from "../cloudKitAutoSyncSchedule";
+import { getCloudKitPushEvidence, isCloudKitPushEventPair, recordCloudKitPushEvent } from "../cloudKitPushEvidence";
 
 const loginFailures = new Map<string, { count: number; lockedUntil: number }>();
 
@@ -65,6 +66,16 @@ function normalizeInternalRefreshReason(value: unknown) {
   const raw = String(value || "desktop-internal").trim();
   if (!raw) return "desktop-internal";
   return raw.replace(/[^a-z0-9_.:-]/gi, "-").slice(0, 80);
+}
+
+function normalizeCloudKitPushEvent(value: unknown) {
+  const event = String(value || "").trim().slice(0, 40);
+  return ["listener-starting", "listener-ready", "registration-failed", "subscription-failed", "remote-change", "notification-ignored"].includes(event) ? event : "";
+}
+
+function normalizeCloudKitPushReason(value: unknown) {
+  const reason = String(value || "").trim().slice(0, 60);
+  return ["starting", "ready", "apns-registration-failed", "subscription-save-failed", "database-change", "subscription-mismatch", "unsupported-notification"].includes(reason) ? reason : "";
 }
 
 function normalizeCloudKitHelperOperation(value: unknown): CloudKitNativeHelperOperation {
@@ -498,6 +509,7 @@ function buildDesktopInternalNetworkSummary(reason = "desktop-summary") {
   const latestRepair = icloud.latestEntryRepair || null;
   const dataSync = icloud.dataSync;
   const cloudKitAutoSync = getCloudKitAutoSyncSchedule();
+  const cloudKitPushEvidence = getCloudKitPushEvidence();
 
   if (latestRepair && latestRepair.status !== "none" && latestRepair.action !== "none") {
     issues.push({
@@ -649,6 +661,7 @@ function buildDesktopInternalNetworkSummary(reason = "desktop-summary") {
         status: dataSync.status,
         selectedDataTypes: Array.isArray(dataSync.selectedDataTypes) ? dataSync.selectedDataTypes.slice(0, 8) : [],
         autoSync: publicDesktopCloudKitAutoSync(cloudKitAutoSync),
+        pushEvidence: cloudKitPushEvidence,
       },
       monitor: {
         enabled: Boolean(diagnostics.icloudMonitor?.enabled),
@@ -1654,6 +1667,61 @@ export function registerAdminRoutes(app: express.Express) {
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.status(400).json({ error: error.message || "iCloud repair info could not be analyzed", diagnostics: getAdminNetworkDiagnostics() });
     }
+  });
+
+  app.post("/api/v1/internal/cloudkit-push/event", rateLimit({ keyPrefix: "internal-cloudkit-push", windowMs: 60_000, max: 60 }), (req, res) => {
+    if (!isLoopbackSocket(req)) {
+      insertAuditLog("icloud_cloudkit_push_blocked", "network", "cloudkit-push-listener", { reason: "non_loopback_socket" }, "system", "desktop");
+      return res.status(403).json({ error: "CloudKit push events are only accepted on this computer.", code: "local_only" });
+    }
+    if (!verifyDesktopInternalToken(req)) {
+      insertAuditLog("icloud_cloudkit_push_blocked", "network", "cloudkit-push-listener", { reason: "invalid_desktop_token" }, "system", "desktop");
+      return res.status(401).json({ error: "Desktop internal authentication required", code: "desktop_internal_auth_required" });
+    }
+    const event = normalizeCloudKitPushEvent(req.body?.event);
+    const reason = normalizeCloudKitPushReason(req.body?.reason);
+    const eventSchemaOk = req.body?.protocolVersion === 1 && req.body?.schema === "lifeos-cloudkit-listener-event.v1";
+    const emittedAt = String(req.body?.emittedAt || "");
+    const emittedAtOk = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(emittedAt) && emittedAt.length <= 40;
+    const contractSafe = req.body?.payloadIncluded === false && req.body?.deviceTokenIncluded === false && req.body?.changeTokenIncluded === false;
+    const forbiddenFieldPresent = ["payload", "payloadJson", "userInfo", "deviceToken", "serverChangeToken", "changeToken"].some((key) => Object.prototype.hasOwnProperty.call(req.body || {}, key));
+    const allowedFields = new Set(["protocolVersion", "schema", "event", "reason", "emittedAt", "subscriptionMatched", "payloadIncluded", "deviceTokenIncluded", "changeTokenIncluded"]);
+    const unknownFieldPresent = Object.keys(req.body || {}).some((key) => !allowedFields.has(key));
+    if (!eventSchemaOk || !emittedAtOk || !event || !reason || !isCloudKitPushEventPair(event, reason) || !contractSafe || forbiddenFieldPresent || unknownFieldPresent) {
+      insertAuditLog("icloud_cloudkit_push_blocked", "network", "cloudkit-push-listener", { reason: "invalid_event_contract" }, "system", "desktop");
+      return res.status(400).json({ error: "CloudKit push event contract was rejected.", code: "invalid_cloudkit_push_event" });
+    }
+
+    const subscriptionMatched = event === "remote-change" && Boolean(req.body?.subscriptionMatched);
+    const evidence = recordCloudKitPushEvent({ event, reason, subscriptionMatched }, { type: "system", id: "desktop-cloudkit-listener" });
+    const cloudKitSchedule = getCloudKitAutoSyncSchedule();
+    const cloudKitReadiness = getIcloudDataSyncReadiness({ platformSupported: process.platform === "darwin" });
+    const cloudKitQueued = subscriptionMatched && cloudKitSchedule.enabled && cloudKitReadiness.ready;
+    if (cloudKitQueued) {
+      const pushTimer = setTimeout(() => {
+        runCloudKitAutoSyncNow("scheduled", { type: "system", id: "cloudkit-push" }).catch((error) => {
+          insertAuditLog("icloud_cloudkit_auto_sync_failed", "network", "cloudkit-auto-sync", {
+            trigger: "cloudkit-push",
+            error: error instanceof Error ? error.message : String(error),
+          }, "system", "cloudkit-push");
+        });
+      }, 0);
+      pushTimer.unref?.();
+    }
+    res.json({
+      ok: true,
+      accepted: true,
+      queued: cloudKitQueued,
+      evidence,
+      cloudKitDataSync: {
+        enabled: cloudKitSchedule.enabled,
+        ready: cloudKitReadiness.ready,
+        status: cloudKitReadiness.status,
+        rawPayloadReturned: false,
+        deviceTokenReturned: false,
+        cloudKitChangeTokenReturned: false,
+      },
+    });
   });
 
   app.post("/api/v1/internal/icloud-handoff/refresh", rateLimit({ keyPrefix: "internal-icloud-refresh", windowMs: 60_000, max: 30 }), (req, res) => {

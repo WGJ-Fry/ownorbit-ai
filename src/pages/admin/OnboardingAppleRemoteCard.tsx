@@ -1728,9 +1728,16 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                           : t("onboarding.appleRemoteIcloudDataSyncNotConfigured"),
                       })}</div>
                       {cloudKitHelperResult.subscriptionProbe ? (
-                        <div>{t("onboarding.appleRemoteIcloudDataSyncHelperSubscriptionResult", {
-                          value: `${cloudKitHelperResult.subscriptionProbe.exists}/${cloudKitHelperResult.subscriptionProbe.saved}/${cloudKitHelperResult.subscriptionProbe.contentAvailable}`,
-                        })}</div>
+                        <>
+                          <div>{t("onboarding.appleRemoteIcloudDataSyncHelperSubscriptionResult", {
+                            value: `${cloudKitHelperResult.subscriptionProbe.exists}/${cloudKitHelperResult.subscriptionProbe.saved}/${cloudKitHelperResult.subscriptionProbe.contentAvailable}`,
+                          })}</div>
+                          <div className="font-sans">{t("onboarding.appleRemoteIcloudDataSyncHelperPushDelivery", {
+                            value: t(cloudKitHelperResult.subscriptionProbe.deliveryVerified
+                              ? "onboarding.appleRemoteIcloudDataSyncHelperPushDeliveryVerified"
+                              : "onboarding.appleRemoteIcloudDataSyncHelperPushDeliveryPending"),
+                          })}</div>
+                        </>
                       ) : null}
                       <div>{t("onboarding.appleRemoteIcloudDataSyncHelperWarnings", { value: String(cloudKitHelperResult.warnings?.length || 0) })}</div>
                       <div>{t("onboarding.appleRemoteIcloudDataSyncHelperErrors", { value: String(cloudKitHelperResult.errors?.length || 0) })}</div>

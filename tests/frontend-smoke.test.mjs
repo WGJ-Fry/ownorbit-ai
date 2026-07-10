@@ -1146,8 +1146,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudDataSyncHelperMissingOperationCapabilities/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-helper-subscription/);
   assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudDataSyncHelperSubscriptionResult/);
-  assert.match(translationsSource, /后台推送订阅/);
-  assert.match(translationsSource, /Background push subscription/);
+  assert.match(translationsSource, /注册推送订阅/);
+  assert.match(translationsSource, /Register push subscription/);
+  assert.match(translationsSource, /只有 Mac 实际收到一次 CloudKit 变更，才算推送投递已验证/);
+  assert.match(translationsSource, /Delivery is verified only after the Mac receives a real CloudKit change/);
   assert.match(translationsSource, /自动同步聊天、记忆和任务/);
   assert.match(translationsSource, /Auto-sync chats, memories, and tasks/);
   assert.match(translationsSource, /local change\(s\) are waiting to sync/);

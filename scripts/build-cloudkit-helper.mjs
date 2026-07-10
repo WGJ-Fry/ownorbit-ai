@@ -56,6 +56,8 @@ function generatedEntitlements({ containerId, teamId, bundleId, environment }) {
   <array>
     <string>CloudKit</string>
   </array>
+  <key>com.apple.developer.aps-environment</key>
+  <string>${xmlEscape(environment.toLowerCase())}</string>
   <key>com.apple.developer.team-identifier</key>
   <string>${xmlEscape(teamId)}</string>
   <key>com.apple.security.app-sandbox</key>
@@ -131,8 +133,8 @@ function signCloudKitHelper() {
   }
   const inspected = run("codesign", ["-d", "--entitlements", ":-", output]);
   const inspectedEntitlements = `${inspected.stdout}\n${inspected.stderr}`;
-  if (!inspected.ok || !inspectedEntitlements.includes(containerId) || !inspectedEntitlements.includes("CloudKit")) {
-    console.error("The signed helper does not expose the requested CloudKit container entitlement.");
+  if (!inspected.ok || !inspectedEntitlements.includes(containerId) || !inspectedEntitlements.includes("CloudKit") || !inspectedEntitlements.includes("com.apple.developer.aps-environment")) {
+    console.error("The signed helper does not expose the requested CloudKit container and macOS push entitlements.");
     process.exit(inspected.status || 1);
   }
   const launchCheck = run(output, []);
@@ -164,6 +166,8 @@ const build = run(swiftCommand, [
   "-parse-as-library",
   "-framework",
   "CloudKit",
+  "-framework",
+  "AppKit",
   source,
   "-o",
   output,

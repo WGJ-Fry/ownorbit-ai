@@ -1454,6 +1454,8 @@ export type CloudKitNativeHelperResult = {
     exists: boolean;
     saved: boolean;
     contentAvailable: boolean;
+    deliveryVerified: boolean;
+    listenerRequired: boolean;
   };
   syncExport?: {
     attempted: number;

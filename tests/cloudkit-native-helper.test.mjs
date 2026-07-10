@@ -229,8 +229,14 @@ test("Apple CloudKit helper source implements the native JSON stdio contract", a
   assert.match(swiftSource, /requiresFullReview/);
   assert.match(swiftSource, /runSubscriptionProbe/);
   assert.match(swiftSource, /CKDatabaseSubscription/);
-  assert.match(swiftSource, /subscription-push/);
+  assert.match(swiftSource, /subscription-registration/);
   assert.match(swiftSource, /subscriptionProbe/);
+  assert.match(swiftSource, /lifeos-cloudkit-listener-event\.v1/);
+  assert.match(swiftSource, /--lifeos-cloudkit-listener/);
+  assert.match(swiftSource, /registerForRemoteNotifications/);
+  assert.match(swiftSource, /didReceiveRemoteNotification/);
+  assert.match(swiftSource, /CKDatabaseNotification/);
+  assert.match(swiftSource, /deviceTokenIncluded/);
   assert.match(swiftSource, /payloadJson/);
   assert.match(swiftSource, /recordZoneChanges/);
   assert.match(swiftSource, /CKServerChangeToken/);
@@ -241,12 +247,14 @@ test("Apple CloudKit helper source implements the native JSON stdio contract", a
   assert.match(swiftSource, /rawPayloadIncluded/);
   assert.doesNotMatch(swiftSource, /deviceCredential|sessionCookie|providerApiKey|sqliteBlob/);
   assert.match(buildScript, /CloudKit\.framework/);
+  assert.match(buildScript, /AppKit/);
   assert.match(buildScript, /build\/native\/LifeOSCloudKitHelper/);
   assert.match(buildScript, /LIFEOS_CLOUDKIT_SIGN_HELPER/);
   assert.match(buildScript, /LIFEOS_CLOUDKIT_SIGN_IDENTITY/);
   assert.match(buildScript, /LIFEOS_CLOUDKIT_CONTAINER_ID/);
   assert.match(buildScript, /com\.apple\.developer\.icloud-container-identifiers/);
   assert.match(buildScript, /com\.apple\.developer\.icloud-services/);
+  assert.match(buildScript, /com\.apple\.developer\.aps-environment/);
   assert.match(buildScript, /codesign/);
   assert.match(buildScript, /--entitlements/);
   assert.match(buildScript, /--verify/);
@@ -261,6 +269,8 @@ test("Apple CloudKit helper source implements the native JSON stdio contract", a
   assert.match(xcodeBuildScript, /PLA Update available/);
   assert.match(xcodeBuildScript, /Program License Agreement must be accepted/);
   assert.match(xcodeBuildScript, /com\.apple\.developer\.icloud-container-identifiers/);
+  assert.match(xcodeBuildScript, /com\.apple\.developer\.aps-environment/);
+  assert.match(xcodeBuildScript, /--compile-only/);
   assert.match(xcodeBuildScript, /launchCheck/);
   assert.match(packageJson.scripts["icloud:helper:build"], /build-cloudkit-helper\.mjs/);
   assert.match(packageJson.scripts["icloud:helper:xcode:build"], /build-cloudkit-helper-xcode\.mjs/);
@@ -334,12 +344,14 @@ process.stdin.on("end", () => {
     ok: true,
     accountStatus: "available",
     containerReachable: true,
-    capabilitiesVerified: ["container-reachability", ...request.requiredNativeCapabilities, "subscription-push"],
+    capabilitiesVerified: ["account-status", "private-database", "container-reachability", "subscription-registration"],
     subscriptionProbe: {
       subscriptionId: "lifeos-private-database-changes-v1",
       exists: true,
       saved: true,
-      contentAvailable: true
+      contentAvailable: true,
+      deliveryVerified: false,
+      listenerRequired: true
     },
     evidenceId: "fake-cloudkit-subscription-probe-evidence"
   }));
@@ -358,8 +370,11 @@ process.stdin.on("end", () => {
     assert.equal(result.subscriptionProbe.exists, true);
     assert.equal(result.subscriptionProbe.saved, true);
     assert.equal(result.subscriptionProbe.contentAvailable, true);
+    assert.equal(result.subscriptionProbe.deliveryVerified, false);
+    assert.equal(result.subscriptionProbe.listenerRequired, true);
     assert.equal(result.operationCapabilityCoverageOk, true);
-    assert.equal(result.capabilitiesVerified.includes("subscription-push"), true);
+    assert.equal(result.capabilitiesVerified.includes("subscription-registration"), true);
+    assert.equal(result.capabilitiesVerified.includes("subscription-push"), false);
     assert.equal(result.evidenceId, "fake-cloudkit-subscription-probe-evidence");
   } finally {
     restoreEnv(env);
@@ -385,12 +400,14 @@ process.stdin.on("end", () => {
     ok: true,
     accountStatus: "available",
     containerReachable: true,
-    capabilitiesVerified: ["container-reachability", ...request.requiredNativeCapabilities, "subscription-push"],
+    capabilitiesVerified: ["account-status", "private-database", "container-reachability", "subscription-registration"],
     subscriptionProbe: {
       subscriptionId: "lifeos-private-database-changes-v1",
       exists: true,
       saved: true,
-      contentAvailable: true
+      contentAvailable: true,
+      deliveryVerified: false,
+      listenerRequired: true
     },
     evidenceId: "fake-cloudkit-subscription-cli-evidence"
   }));
