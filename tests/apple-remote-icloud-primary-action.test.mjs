@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getIcloudActionFollowupKey, getPrimaryIcloudAction, isIcloudEntrySameWifiOnly } from "../src/pages/admin/appleRemoteIcloudPrimaryAction.ts";
+import { getIcloudActionFollowupKey, getPrimaryIcloudAction, getPrimaryIcloudInstructionKeys, isIcloudEntrySameWifiOnly } from "../src/pages/admin/appleRemoteIcloudPrimaryAction.ts";
 
 function baseIcloud(overrides = {}) {
   return {
@@ -105,6 +105,11 @@ test("iCloud primary action gives one plain wait action while files sync", () =>
   assert.equal(action.desktopAction, "open-icloud-folder");
   assert.equal(action.phoneAction, "open-files-app-after-sync");
   assert.equal(action.showTechnicalDetails, false);
+
+  const instructions = getPrimaryIcloudInstructionKeys(action);
+  assert.equal(instructions.desktopKey, "onboarding.appleRemoteIcloudDesktopInstructionFolder");
+  assert.equal(instructions.phoneKey, "onboarding.appleRemoteIcloudPhoneInstructionAfterSync");
+  assert.equal(instructions.remoteKey, null);
 });
 
 test("iCloud primary action opens iCloud settings when sync is stuck", () => {
@@ -172,6 +177,11 @@ test("iCloud primary action lets LAN-only Apple entries continue same-Wi-Fi pair
   assert.equal(action.desktopAction, "none");
   assert.equal(action.phoneAction, "same-wifi-only");
   assert.equal(action.remoteRequired, true);
+
+  const instructions = getPrimaryIcloudInstructionKeys(action);
+  assert.equal(instructions.desktopKey, "onboarding.appleRemoteIcloudDesktopInstructionNone");
+  assert.equal(instructions.phoneKey, "onboarding.appleRemoteIcloudPhoneInstructionSameWifi");
+  assert.equal(instructions.remoteKey, "onboarding.appleRemoteIcloudInstructionRemoteRequired");
 });
 
 test("iCloud primary action tells unsupported platforms to use QR or a trusted tunnel", () => {

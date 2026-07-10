@@ -46,6 +46,12 @@ export type IcloudPrimaryAction = {
   showTechnicalDetails: boolean;
 };
 
+export type IcloudPrimaryInstructionKeys = {
+  desktopKey: TranslationKey;
+  phoneKey: TranslationKey;
+  remoteKey: TranslationKey | null;
+};
+
 export const primaryIcloudActionFollowupKeys: Partial<Record<TranslationKey, TranslationKey>> = {
   "onboarding.appleRemoteIcloudActionUseQrOrTunnel": "onboarding.appleRemoteIcloudFollowupUseQrOrTunnel",
   "onboarding.appleRemoteIcloudActionEnableDrive": "onboarding.appleRemoteIcloudFollowupEnableDrive",
@@ -63,6 +69,32 @@ export const primaryIcloudActionFollowupKeys: Partial<Record<TranslationKey, Tra
 
 export function getIcloudActionFollowupKey(actionKey: TranslationKey): TranslationKey {
   return primaryIcloudActionFollowupKeys[actionKey] || "onboarding.appleRemoteIcloudFollowupReview";
+}
+
+const desktopInstructionKeys: Record<IcloudPrimaryDesktopAction, TranslationKey> = {
+  none: "onboarding.appleRemoteIcloudDesktopInstructionNone",
+  "open-connection-guide": "onboarding.appleRemoteIcloudDesktopInstructionConnectionGuide",
+  "open-icloud-settings": "onboarding.appleRemoteIcloudDesktopInstructionSettings",
+  "open-icloud-folder": "onboarding.appleRemoteIcloudDesktopInstructionFolder",
+  "export-icloud-entry": "onboarding.appleRemoteIcloudDesktopInstructionExport",
+  "refresh-icloud-entry": "onboarding.appleRemoteIcloudDesktopInstructionRefresh",
+  "regenerate-qr": "onboarding.appleRemoteIcloudDesktopInstructionQr",
+};
+
+const phoneInstructionKeys: Record<IcloudPrimaryPhoneAction, TranslationKey> = {
+  none: "onboarding.appleRemoteIcloudPhoneInstructionNone",
+  "open-files-app": "onboarding.appleRemoteIcloudPhoneInstructionOpenFiles",
+  "open-files-app-after-sync": "onboarding.appleRemoteIcloudPhoneInstructionAfterSync",
+  "open-latest-entry": "onboarding.appleRemoteIcloudPhoneInstructionLatest",
+  "same-wifi-only": "onboarding.appleRemoteIcloudPhoneInstructionSameWifi",
+};
+
+export function getPrimaryIcloudInstructionKeys(action: Pick<IcloudPrimaryAction, "desktopAction" | "phoneAction" | "remoteRequired">): IcloudPrimaryInstructionKeys {
+  return {
+    desktopKey: desktopInstructionKeys[action.desktopAction],
+    phoneKey: phoneInstructionKeys[action.phoneAction],
+    remoteKey: action.remoteRequired ? "onboarding.appleRemoteIcloudInstructionRemoteRequired" : null,
+  };
 }
 
 function isPrivateNetworkHost(hostname: string) {

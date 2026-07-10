@@ -751,6 +751,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /desktopIcloudOneNextSource/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-one-step-guide/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-primary-action-card/);
+  assert.match(onboardingAppleRemoteSource, /getPrimaryIcloudInstructionKeys/);
+  assert.match(onboardingAppleRemoteSource, /primaryIcloudInstructionKeys/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-action-split/);
+  assert.match(onboardingAppleRemoteSource, /onboarding-icloud-action-split-remote/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudDesktopInstructionLabel/);
+  assert.match(onboardingAppleRemoteSource, /appleRemoteIcloudPhoneInstructionLabel/);
   assert.match(onboardingAppleRemoteSource, /primaryIcloudAction\.stepId/);
   assert.match(onboardingAppleRemoteSource, /primaryIcloudAction\.desktopAction/);
   assert.match(onboardingAppleRemoteSource, /primaryIcloudAction\.phoneAction/);
@@ -760,6 +766,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(appleRemoteIcloudPrimaryActionSource, /IcloudPrimaryStepId/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /IcloudPrimaryDesktopAction/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /IcloudPrimaryPhoneAction/);
+  assert.match(appleRemoteIcloudPrimaryActionSource, /IcloudPrimaryInstructionKeys/);
+  assert.match(appleRemoteIcloudPrimaryActionSource, /getPrimaryIcloudInstructionKeys/);
+  assert.match(appleRemoteIcloudPrimaryActionSource, /desktopInstructionKeys/);
+  assert.match(appleRemoteIcloudPrimaryActionSource, /phoneInstructionKeys/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /remoteRequired/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /showTechnicalDetails/);
   assert.match(appleRemoteIcloudPrimaryActionSource, /appleRemoteIcloudNextStepOldEntryTitle/);
@@ -808,6 +818,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /下一步：切换到异地入口/);
   assert.match(translationsSource, /Next step: switch to a remote entry/);
   assert.match(translationsSource, /手机下一步/);
+  assert.match(translationsSource, /这台 Mac/);
+  assert.match(translationsSource, /iPhone/);
+  assert.match(translationsSource, /生成 iCloud 手机入口，写入 iCloud Drive/);
+  assert.match(translationsSource, /等文件出现后，再打开/);
+  assert.match(translationsSource, /要离家长期使用，仍需要先配置 Tailscale/);
   assert.match(translationsSource, /正在等 iCloud 同步/);
   assert.match(translationsSource, /iCloud 同步卡住了/);
   assert.match(translationsSource, /iCloud 只负责把地址同步到手机，不会让局域网地址变成公网地址/);
@@ -818,6 +833,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /请打开 iPhone 文件 App/);
   assert.match(translationsSource, /手机刚打开的是旧入口，请用最新入口/);
   assert.match(translationsSource, /Phone next step/);
+  assert.match(translationsSource, /This Mac/);
+  assert.match(translationsSource, /Generate the iCloud mobile entry and write it to iCloud Drive/);
+  assert.match(translationsSource, /After the file appears, open Files/);
+  assert.match(translationsSource, /For long-term away-from-home use, configure Tailscale/);
   assert.match(translationsSource, /Waiting for iCloud sync/);
   assert.match(translationsSource, /iCloud sync is stuck/);
   assert.match(translationsSource, /iCloud only syncs the address to the phone/);

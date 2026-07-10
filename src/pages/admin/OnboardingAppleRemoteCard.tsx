@@ -4,7 +4,7 @@ import { analyzeIcloudHandoffRepairPacket, applyCloudKitSyncQuarantine, getCloud
 import type { CloudKitNativeHelperResult, CloudKitSyncApplyResult, CloudKitSyncBatchPreview, CloudKitSyncCheckpoint, CloudKitSyncCycleResult, CloudKitSyncExportSummary, CloudKitSyncNowResult, CloudKitSyncQuarantineItem, CloudKitSyncQuarantineSummary, CloudKitSyncUploadNowResult, IcloudAutoRefreshResult, IcloudHandoffRepairAnalysis, NetworkDiagnostics } from "../../services/lifeosApi";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { TranslationKey } from "../../i18n/translations";
-import { getIcloudActionFollowupKey, getPrimaryIcloudAction } from "./appleRemoteIcloudPrimaryAction";
+import { getIcloudActionFollowupKey, getPrimaryIcloudAction, getPrimaryIcloudInstructionKeys } from "./appleRemoteIcloudPrimaryAction";
 import CloudKitAutoSyncCard from "./CloudKitAutoSyncCard";
 
 type ConnectionCandidate = NetworkDiagnostics["connectionCandidates"][number];
@@ -680,6 +680,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
   const simpleIcloudStatus = getSimpleIcloudStatus(icloud);
   const primaryIcloudAction = getPrimaryIcloudAction({ icloud, latestEntryRepair, pairingSession, syncReadiness, handoffHealth, canExportIcloud });
   const primaryIcloudActionFollowupKey = getIcloudActionFollowupKey(primaryIcloudAction.actionKey);
+  const primaryIcloudInstructionKeys = getPrimaryIcloudInstructionKeys(primaryIcloudAction);
   const focusedIcloudAcceptanceItem = icloudAcceptance?.items.find((item) => (
     item.id === icloudAcceptance.nextManualItemId &&
     item.status === "manual-required" &&
@@ -2070,6 +2071,21 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
               <div className="min-w-0 flex-1">
                 <div className="font-bold">{t(primaryIcloudAction.titleKey)}</div>
                 <div className="mt-1 text-[11px] leading-relaxed opacity-80">{t(primaryIcloudAction.bodyKey)}</div>
+                <div data-testid="onboarding-icloud-action-split" className="mt-3 grid gap-2 rounded-xl border border-current/10 bg-black/15 p-3 text-[11px] leading-relaxed">
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-normal opacity-65">{t("onboarding.appleRemoteIcloudDesktopInstructionLabel")}</div>
+                    <div className="mt-0.5 font-bold">{t(primaryIcloudInstructionKeys.desktopKey)}</div>
+                  </div>
+                  <div className="border-t border-current/10 pt-2">
+                    <div className="text-[10px] font-bold uppercase tracking-normal opacity-65">{t("onboarding.appleRemoteIcloudPhoneInstructionLabel")}</div>
+                    <div className="mt-0.5 font-bold">{t(primaryIcloudInstructionKeys.phoneKey)}</div>
+                  </div>
+                  {primaryIcloudInstructionKeys.remoteKey ? (
+                    <div data-testid="onboarding-icloud-action-split-remote" className="rounded-lg border border-amber-300/20 bg-amber-500/10 p-2 text-amber-50">
+                      {t(primaryIcloudInstructionKeys.remoteKey)}
+                    </div>
+                  ) : null}
+                </div>
                 <div data-testid="onboarding-icloud-one-step-guide" className="mt-3 rounded-xl border border-current/10 bg-black/15 p-3 text-[11px] leading-relaxed">
                   <div className="flex items-start gap-2 font-bold">
                     <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0" />
