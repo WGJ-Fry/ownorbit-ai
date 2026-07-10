@@ -112,6 +112,7 @@ const cloudKitSyncCycleNextActionKeys: Record<CloudKitSyncCycleResult["nextActio
   "configure-cloudkit": "onboarding.appleRemoteIcloudDataSyncCycleNextConfigure",
   "review-conflicts": "onboarding.appleRemoteIcloudDataSyncCycleNextReviewConflicts",
   "review-blocked-records": "onboarding.appleRemoteIcloudDataSyncCycleNextReviewBlocked",
+  "continue-pull": "onboarding.appleRemoteIcloudDataSyncCycleNextContinuePull",
   retry: "onboarding.appleRemoteIcloudDataSyncCycleNextRetry",
   "use-lifeos": "onboarding.appleRemoteIcloudDataSyncCycleNextUseLifeOS",
   done: "onboarding.appleRemoteIcloudDataSyncCycleNextDone",
@@ -1476,6 +1477,13 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                             applied: cloudKitSyncCycleResult.pull.apply.applied,
                             conflicts: cloudKitSyncCycleResult.pull.apply.conflicts,
                           })}</div>
+                          {(cloudKitSyncCycleResult.pull.import?.integrityRejected || 0) > 0 ? (
+                            <div className="font-sans font-bold text-amber-200">
+                              {t("onboarding.appleRemoteIcloudDataSyncCycleIntegrityRejected", {
+                                count: cloudKitSyncCycleResult.pull.import?.integrityRejected || 0,
+                              })}
+                            </div>
+                          ) : null}
                           <div>{t("onboarding.appleRemoteIcloudDataSyncCycleUpload", {
                             exported: cloudKitSyncCycleResult.upload?.export.exportRecordCount || 0,
                             saved: cloudKitSyncCycleResult.upload?.result?.syncExport?.saved || 0,

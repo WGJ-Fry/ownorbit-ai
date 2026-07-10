@@ -10,7 +10,7 @@ export const CLOUDKIT_NATIVE_HELPER_TRANSPORT = "json-stdio";
 export const CLOUDKIT_NATIVE_HELPER_ARGS = ["--lifeos-cloudkit-json"] as const;
 export const CLOUDKIT_NATIVE_HELPER_TIMEOUT_MS = 15_000;
 
-const MAX_HELPER_OUTPUT_BYTES = 128 * 1024;
+const MAX_HELPER_OUTPUT_BYTES = 8 * 1024 * 1024;
 const MAX_TEXT_CHARS = 800;
 
 type IcloudDataSyncReadiness = ReturnType<typeof getIcloudDataSyncReadiness>;
@@ -149,6 +149,10 @@ function normalizeSyncExport(value: unknown) {
   return {
     attempted: Number(input.attempted || 0),
     saved: Number(input.saved || 0),
+    created: Number(input.created || 0),
+    updated: Number(input.updated || 0),
+    unchanged: Number(input.unchanged || 0),
+    conflicts: Number(input.conflicts || 0),
     failed: Number(input.failed || 0),
     recordPlanHash: compact(input.recordPlanHash, 80),
     zones: normalizeStringList(input.zones, 24),
@@ -162,6 +166,9 @@ function normalizeImportPreviewRecord(value: unknown) {
     zone: compact(input.zone, 80),
     recordType: compact(input.recordType, 80),
     recordName: compact(input.recordName, 160),
+    lifeosSchema: compact(input.lifeosSchema, 80),
+    lifeosDataType: compact(input.lifeosDataType, 80),
+    sourceIdHash: compact(input.sourceIdHash, 120),
     mutationId: compact(input.mutationId, 80),
     contentHash: compact(input.contentHash, 120),
     logicalClock: Number(input.logicalClock || 0),
@@ -189,6 +196,9 @@ function normalizeChangePreviewRecord(value: unknown) {
     zone: compact(input.zone, 80),
     recordType: compact(input.recordType, 80),
     recordName: compact(input.recordName, 160),
+    lifeosSchema: compact(input.lifeosSchema, 80),
+    lifeosDataType: compact(input.lifeosDataType, 80),
+    sourceIdHash: compact(input.sourceIdHash, 120),
     mutationId: compact(input.mutationId, 80),
     contentHash: compact(input.contentHash, 120),
     logicalClock: Number(input.logicalClock || 0),
@@ -219,6 +229,7 @@ function normalizeChangePreviewZone(value: unknown) {
     deleted: Number(input.deleted || 0),
     failed: Number(input.failed || 0),
     moreComing: Boolean(input.moreComing),
+    pagesFetched: Math.max(0, Number(input.pagesFetched || 0)),
   };
 }
 
@@ -244,6 +255,9 @@ function normalizeImportQuarantineRecord(value: unknown) {
     zone: compact(input.zone, 80),
     recordType: compact(input.recordType, 80),
     recordName: compact(input.recordName, 160),
+    lifeosSchema: compact(input.lifeosSchema, 80),
+    lifeosDataType: compact(input.lifeosDataType, 80),
+    sourceIdHash: compact(input.sourceIdHash, 120),
     mutationId: compact(input.mutationId, 80),
     contentHash: compact(input.contentHash, 120),
     logicalClock: Number(input.logicalClock || 0),

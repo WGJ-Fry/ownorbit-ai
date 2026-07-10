@@ -7,8 +7,8 @@ import { runCloudKitSyncUploadNow } from "./cloudKitSyncUploadNow";
 export const CLOUDKIT_SYNC_CYCLE_CONFIRMATION = "SYNC_CLOUDKIT_CYCLE";
 
 type IcloudDataSyncReadiness = ReturnType<typeof getIcloudDataSyncReadiness>;
-type SyncCycleStatus = "needs-setup" | "remote-failed" | "remote-conflicts" | "upload-blocked" | "upload-failed" | "local-empty" | "completed";
-type SyncCycleNextAction = "configure-cloudkit" | "review-conflicts" | "review-blocked-records" | "retry" | "use-lifeos" | "done";
+type SyncCycleStatus = "needs-setup" | "remote-failed" | "remote-conflicts" | "remote-more-coming" | "upload-blocked" | "upload-failed" | "local-empty" | "completed";
+type SyncCycleNextAction = "configure-cloudkit" | "review-conflicts" | "review-blocked-records" | "continue-pull" | "retry" | "use-lifeos" | "done";
 
 type SyncCycleOptions = {
   limit?: number;
@@ -32,6 +32,9 @@ function stopAfterPullStatus(status: Awaited<ReturnType<typeof runCloudKitSyncNo
   }
   if (status === "conflicts") {
     return { status: "remote-conflicts" as SyncCycleStatus, nextAction: "review-conflicts" as SyncCycleNextAction, ok: false };
+  }
+  if (status === "more-coming") {
+    return { status: "remote-more-coming" as SyncCycleStatus, nextAction: "continue-pull" as SyncCycleNextAction, ok: false };
   }
   return null;
 }

@@ -1,4 +1,5 @@
 import CloudKit
+import CryptoKit
 import Foundation
 
 private let protocolVersion = 1
@@ -10,6 +11,18 @@ private let syncExportSchema = "lifeos-cloudkit-sync-export.v1"
 private let syncExportConfirmation = "SYNC_APPROVED_RECORDS"
 private let syncImportConfirmation = "IMPORT_CLOUDKIT_CHANGES"
 private let subscriptionId = "lifeos-private-database-changes-v1"
+private let maxChangePages = 10
+private let maxChangedRecords = 100
+private let maxPayloadBytes = 64 * 1024
+
+private enum PayloadValidationError: Error {
+  case rejected(String)
+
+  var message: String {
+    if case .rejected(let message) = self { return message }
+    return "CloudKit record payload was rejected."
+  }
+}
 
 private func nowIso() -> String {
   ISO8601DateFormatter().string(from: Date())
@@ -109,6 +122,9 @@ private func cloudKitRecordSummary(record: CKRecord, zone: String) -> [String: A
     "zone": zone,
     "recordType": record.recordType,
     "recordName": record.recordID.recordName,
+    "lifeosSchema": compact(record["lifeosSchema"], limit: 80),
+    "lifeosDataType": compact(record["lifeosDataType"], limit: 80),
+    "sourceIdHash": compact(record["sourceIdHash"], limit: 120),
     "mutationId": compact(record["mutationId"], limit: 80),
     "contentHash": compact(record["contentHash"], limit: 120),
     "logicalClock": (record["logicalClock"] as? NSNumber)?.doubleValue ?? 0,
@@ -116,6 +132,65 @@ private func cloudKitRecordSummary(record: CKRecord, zone: String) -> [String: A
     "requiresUserReview": (record["requiresUserReview"] as? NSNumber)?.boolValue ?? true,
     "modifiedAt": iso(record.modificationDate),
   ]
+}
+
+private func sha256(_ value: String) -> String {
+  SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
+}
+
+private func validatedPayloadJson(record: CKRecord) -> Result<String, PayloadValidationError> {
+  guard let payloadJson = record["payloadJson"] as? String else {
+    return .failure(.rejected("CloudKit record payloadJson is missing."))
+  }
+  let payloadBytes = payloadJson.lengthOfBytes(using: .utf8)
+  guard payloadBytes > 0, payloadBytes <= maxPayloadBytes else {
+    return .failure(.rejected("CloudKit record payloadJson exceeds the LifeOS size limit."))
+  }
+  let declaredBytes = (record["payloadByteSize"] as? NSNumber)?.intValue ?? -1
+  guard declaredBytes == payloadBytes else {
+    return .failure(.rejected("CloudKit record payload byte length does not match its metadata."))
+  }
+  let contentHash = compact(record["contentHash"], limit: 120).lowercased()
+  guard contentHash.count == 64, sha256(payloadJson) == contentHash else {
+    return .failure(.rejected("CloudKit record payload checksum does not match its metadata."))
+  }
+  guard let data = payloadJson.data(using: .utf8),
+        let object = try? JSONSerialization.jsonObject(with: data),
+        object is [String: Any] else {
+    return .failure(.rejected("CloudKit record payloadJson is not a JSON object."))
+  }
+  return .success(payloadJson)
+}
+
+private func validatedExportFields(item: [String: Any]) -> Result<[String: Any], PayloadValidationError> {
+  guard let fields = item["fields"] as? [String: Any] else {
+    return .failure(.rejected("CloudKit export fields are missing."))
+  }
+  guard compact(fields["lifeosSchema"], limit: 80) == "lifeos-cloudkit-record.v1" else {
+    return .failure(.rejected("CloudKit export schema is invalid."))
+  }
+  guard let payloadJson = fields["payloadJson"] as? String else {
+    return .failure(.rejected("CloudKit export payloadJson is missing."))
+  }
+  let payloadBytes = payloadJson.lengthOfBytes(using: .utf8)
+  guard payloadBytes > 0, payloadBytes <= maxPayloadBytes else {
+    return .failure(.rejected("CloudKit export payload exceeds the LifeOS size limit."))
+  }
+  let declaredBytes = (fields["payloadByteSize"] as? NSNumber)?.intValue ?? -1
+  guard declaredBytes == payloadBytes else {
+    return .failure(.rejected("CloudKit export payload byte length does not match its metadata."))
+  }
+  let itemHash = compact(item["contentHash"], limit: 120).lowercased()
+  let fieldHash = compact(fields["contentHash"], limit: 120).lowercased()
+  guard itemHash.count == 64, itemHash == fieldHash, sha256(payloadJson) == itemHash else {
+    return .failure(.rejected("CloudKit export payload checksum does not match its metadata."))
+  }
+  guard let data = payloadJson.data(using: .utf8),
+        let object = try? JSONSerialization.jsonObject(with: data),
+        object is [String: Any] else {
+    return .failure(.rejected("CloudKit export payloadJson is not a JSON object."))
+  }
+  return .success(fields)
 }
 
 private func accountStatusName(_ status: CKAccountStatus) -> String {
@@ -361,7 +436,7 @@ private func runSyncExport(container: CKContainer, request: [String: Any]) async
     response["capabilitiesVerified"] = ["account-status"]
     response["warnings"] = []
     response["errors"] = ["syncBatch is required for CloudKit sync export."]
-    response["syncExport"] = ["attempted": 0, "saved": 0, "failed": 0, "recordPlanHash": "", "zones": [], "recordTypes": []]
+    response["syncExport"] = ["attempted": 0, "saved": 0, "created": 0, "updated": 0, "unchanged": 0, "conflicts": 0, "failed": 0, "recordPlanHash": "", "zones": [], "recordTypes": []]
     response["evidenceId"] = ""
     return response
   }
@@ -372,7 +447,7 @@ private func runSyncExport(container: CKContainer, request: [String: Any]) async
     response["capabilitiesVerified"] = ["account-status"]
     response["warnings"] = []
     response["errors"] = ["CloudKit sync export requires an approved LifeOS batch schema and confirmation."]
-    response["syncExport"] = ["attempted": 0, "saved": 0, "failed": 0, "recordPlanHash": "", "zones": [], "recordTypes": []]
+    response["syncExport"] = ["attempted": 0, "saved": 0, "created": 0, "updated": 0, "unchanged": 0, "conflicts": 0, "failed": 0, "recordPlanHash": "", "zones": [], "recordTypes": []]
     response["evidenceId"] = ""
     return response
   }
@@ -386,6 +461,10 @@ private func runSyncExport(container: CKContainer, request: [String: Any]) async
   var warnings: [String] = []
   var errors: [String] = []
   var saved = 0
+  var created = 0
+  var updated = 0
+  var unchanged = 0
+  var conflicts = 0
   var failed = 0
   var zones = Set<String>()
   var recordTypes = Set<String>()
@@ -400,6 +479,15 @@ private func runSyncExport(container: CKContainer, request: [String: Any]) async
       errors.append("CloudKit sync export skipped one invalid record descriptor.")
       continue
     }
+    let fields: [String: Any]
+    switch validatedExportFields(item: item) {
+    case .success(let approvedFields):
+      fields = approvedFields
+    case .failure(let validationError):
+      failed += 1
+      errors.append("CloudKit sync export rejected one invalid record: \(validationError.message)")
+      continue
+    }
     zones.insert(zone)
     recordTypes.insert(recordType)
     let zoneId = CKRecordZone.ID(zoneName: zone, ownerName: CKCurrentUserDefaultName)
@@ -412,17 +500,51 @@ private func runSyncExport(container: CKContainer, request: [String: Any]) async
       createdZones.insert(zone)
     }
 
-    let record = CKRecord(recordType: recordType, recordID: CKRecord.ID(recordName: recordName, zoneID: zoneId))
-    if let fields = item["fields"] as? [String: Any] {
-      for (key, value) in fields {
-        assignRecordField(record, key: key, value: value)
-      }
+    let recordId = CKRecord.ID(recordName: recordName, zoneID: zoneId)
+    let record: CKRecord
+    let existed: Bool
+    do {
+      record = try await database.record(for: recordId)
+      existed = true
+    } catch let error as CKError where error.code == .unknownItem {
+      record = CKRecord(recordType: recordType, recordID: recordId)
+      existed = false
+    } catch {
+      failed += 1
+      errors.append("CloudKit sync export could not check the existing \(redact(recordType, limit: 80)) record: \(redact(error.localizedDescription, limit: 240))")
+      continue
+    }
+
+    if record.recordType != recordType {
+      failed += 1
+      conflicts += 1
+      errors.append("CloudKit sync export found an incompatible existing record type for \(redact(recordName, limit: 120)).")
+      continue
+    }
+    let localClock = (fields["logicalClock"] as? NSNumber)?.doubleValue ?? 0
+    let localHash = compact(fields["contentHash"], limit: 120)
+    let remoteClock = (record["logicalClock"] as? NSNumber)?.doubleValue ?? 0
+    let remoteHash = compact(record["contentHash"], limit: 120)
+    if existed && !localHash.isEmpty && remoteHash == localHash {
+      saved += 1
+      unchanged += 1
+      continue
+    }
+    if existed && (remoteClock > localClock || (remoteClock == localClock && !remoteHash.isEmpty && remoteHash != localHash)) {
+      failed += 1
+      conflicts += 1
+      errors.append("CloudKit sync export kept a newer or conflicting remote \(redact(recordType, limit: 80)) record for local review.")
+      continue
+    }
+    for (key, value) in fields {
+      assignRecordField(record, key: key, value: value)
     }
     record["lifeosSyncedAt"] = Date() as NSDate
 
     do {
       _ = try await database.save(record)
       saved += 1
+      if existed { updated += 1 } else { created += 1 }
     } catch {
       failed += 1
       errors.append("CloudKit sync export failed for \(redact(recordType, limit: 80)): \(redact(error.localizedDescription, limit: 240))")
@@ -438,12 +560,17 @@ private func runSyncExport(container: CKContainer, request: [String: Any]) async
     "container-reachability",
     "custom-zones",
     "sync-export-save",
+    "sync-export-upsert",
   ]
   response["warnings"] = warnings.map { redact($0, limit: 240) }
   response["errors"] = errors.map { redact($0, limit: 240) }
   response["syncExport"] = [
     "attempted": records.count,
     "saved": saved,
+    "created": created,
+    "updated": updated,
+    "unchanged": unchanged,
+    "conflicts": conflicts,
     "failed": failed,
     "recordPlanHash": recordPlanHash,
     "zones": Array(zones).sorted(),
@@ -510,17 +637,7 @@ private func runSyncImportPreview(container: CKContainer, request: [String: Any]
           case .success(let record):
             fetched += 1
             if previewRecords.count < 200 {
-              previewRecords.append([
-                "zone": zone,
-                "recordType": record.recordType,
-                "recordName": record.recordID.recordName,
-                "mutationId": compact(record["mutationId"], limit: 80),
-                "contentHash": compact(record["contentHash"], limit: 120),
-                "logicalClock": (record["logicalClock"] as? NSNumber)?.doubleValue ?? 0,
-                "payloadByteSize": (record["payloadByteSize"] as? NSNumber)?.intValue ?? 0,
-                "requiresUserReview": (record["requiresUserReview"] as? NSNumber)?.boolValue ?? true,
-                "modifiedAt": iso(record.modificationDate),
-              ])
+              previewRecords.append(cloudKitRecordSummary(record: record, zone: zone))
             } else {
               truncated = true
             }
@@ -605,65 +722,71 @@ private func runSyncChangesPreview(container: CKContainer, request: [String: Any
     scannedZones.insert(zone)
     let zoneId = CKRecordZone.ID(zoneName: zone, ownerName: CKCurrentUserDefaultName)
     let previousToken = decodeChangeToken(previousTokens[zone] ?? "")
-    do {
-      let result = try await database.recordZoneChanges(
-        inZoneWith: zoneId,
-        since: previousToken,
-        desiredKeys: desiredKeys,
-        resultsLimit: 100
-      )
-      var zoneChanged = 0
-      var zoneDeleted = 0
-      var zoneFailed = 0
-      for (_, recordResult) in result.modificationResultsByID {
-        switch recordResult {
-        case .success(let modification):
-          changed += 1
-          zoneChanged += 1
-          if changedRecords.count < 300 {
-            changedRecords.append(cloudKitRecordSummary(record: modification.record, zone: zone))
+    var cursorToken = previousToken
+    var zoneChanged = 0
+    var zoneDeleted = 0
+    var zoneFailed = 0
+    var zoneMoreComing = true
+    var page = 0
+    while zoneMoreComing && page < maxChangePages && (changedRecords.count + deletedRecords.count) < maxChangedRecords {
+      page += 1
+      do {
+        let remaining = max(1, maxChangedRecords - changedRecords.count - deletedRecords.count)
+        let result = try await database.recordZoneChanges(
+          inZoneWith: zoneId,
+          since: cursorToken,
+          desiredKeys: desiredKeys,
+          resultsLimit: min(100, remaining)
+        )
+        for (_, recordResult) in result.modificationResultsByID {
+          switch recordResult {
+          case .success(let modification):
+            changed += 1
+            zoneChanged += 1
+            if changedRecords.count < maxChangedRecords {
+              changedRecords.append(cloudKitRecordSummary(record: modification.record, zone: zone))
+            }
+          case .failure(let error):
+            failed += 1
+            zoneFailed += 1
+            errors.append("CloudKit change preview could not read one changed record in \(redact(zone, limit: 80)): \(redact(error.localizedDescription, limit: 240))")
           }
-        case .failure(let error):
-          failed += 1
-          zoneFailed += 1
-          errors.append("CloudKit change preview could not read one changed record in \(redact(zone, limit: 80)): \(redact(error.localizedDescription, limit: 240))")
         }
-      }
-      for deletion in result.deletions {
-        deleted += 1
-        zoneDeleted += 1
-        if deletedRecords.count < 300 {
-          deletedRecords.append([
-            "zone": zone,
-            "recordType": deletion.recordType,
-            "recordName": deletion.recordID.recordName,
-            "deletedAt": nowIso(),
-          ])
+        for deletion in result.deletions {
+          deleted += 1
+          zoneDeleted += 1
+          if deletedRecords.count < maxChangedRecords {
+            deletedRecords.append([
+              "zone": zone,
+              "recordType": deletion.recordType,
+              "recordName": deletion.recordID.recordName,
+              "deletedAt": nowIso(),
+            ])
+          }
         }
+        cursorToken = result.changeToken
+        zoneMoreComing = result.moreComing
+      } catch {
+        failed += 1
+        zoneFailed += 1
+        zoneMoreComing = false
+        errors.append("CloudKit change preview failed for \(redact(zone, limit: 80)): \(redact(error.localizedDescription, limit: 240))")
       }
-      if result.moreComing { anyMoreComing = true }
-      zones.append([
-        "zone": zone,
-        "previousServerChangeTokenPresent": previousToken != nil,
-        "serverChangeToken": encodeChangeToken(result.changeToken),
-        "changed": zoneChanged,
-        "deleted": zoneDeleted,
-        "failed": zoneFailed,
-        "moreComing": result.moreComing,
-      ])
-    } catch {
-      failed += 1
-      errors.append("CloudKit change preview failed for \(redact(zone, limit: 80)): \(redact(error.localizedDescription, limit: 240))")
-      zones.append([
-        "zone": zone,
-        "previousServerChangeTokenPresent": previousToken != nil,
-        "serverChangeToken": "",
-        "changed": 0,
-        "deleted": 0,
-        "failed": 1,
-        "moreComing": false,
-      ])
     }
+    if zoneMoreComing {
+      anyMoreComing = true
+      warnings.append("CloudKit has more changes for \(redact(zone, limit: 80)); run another pull before uploading local data.")
+    }
+    zones.append([
+      "zone": zone,
+      "previousServerChangeTokenPresent": previousToken != nil,
+      "serverChangeToken": encodeChangeToken(cursorToken),
+      "changed": zoneChanged,
+      "deleted": zoneDeleted,
+      "failed": zoneFailed,
+      "moreComing": zoneMoreComing,
+      "pagesFetched": page,
+    ])
   }
 
   var response = responseBase(operation: "sync-changes-preview", ok: failed == 0)
@@ -764,36 +887,46 @@ private func runSyncImportQuarantine(container: CKContainer, request: [String: A
     scannedZones.insert(zone)
     let zoneId = CKRecordZone.ID(zoneName: zone, ownerName: CKCurrentUserDefaultName)
     let previousToken = decodeChangeToken(previousTokens[zone] ?? "")
-    do {
-      let result = try await database.recordZoneChanges(
-        inZoneWith: zoneId,
-        since: previousToken,
-        desiredKeys: desiredKeys,
-        resultsLimit: 100
-      )
-      var zoneChanged = 0
-      var zoneDeleted = 0
-      var zoneFailed = 0
-      for (_, recordResult) in result.modificationResultsByID {
-        switch recordResult {
-        case .success(let modification):
-          changed += 1
-          zoneChanged += 1
-          if changedRecords.count < 300 {
-            var summary = cloudKitRecordSummary(record: modification.record, zone: zone)
-            summary["payloadJson"] = compact(modification.record["payloadJson"], limit: 64_000)
-            changedRecords.append(summary)
+    var cursorToken = previousToken
+    var zoneChanged = 0
+    var zoneDeleted = 0
+    var zoneFailed = 0
+    var zoneMoreComing = true
+    var page = 0
+    while zoneMoreComing && page < maxChangePages && (changedRecords.count + deletedRecords.count) < maxChangedRecords {
+      page += 1
+      do {
+        let remaining = max(1, maxChangedRecords - changedRecords.count - deletedRecords.count)
+        let result = try await database.recordZoneChanges(
+          inZoneWith: zoneId,
+          since: cursorToken,
+          desiredKeys: desiredKeys,
+          resultsLimit: min(100, remaining)
+        )
+        for (_, recordResult) in result.modificationResultsByID {
+          switch recordResult {
+          case .success(let modification):
+            switch validatedPayloadJson(record: modification.record) {
+            case .success(let payloadJson):
+              changed += 1
+              zoneChanged += 1
+              var summary = cloudKitRecordSummary(record: modification.record, zone: zone)
+              summary["payloadJson"] = payloadJson
+              changedRecords.append(summary)
+            case .failure(let validationError):
+              failed += 1
+              zoneFailed += 1
+              errors.append("CloudKit import quarantine rejected one changed record in \(redact(zone, limit: 80)): \(validationError.message)")
+            }
+          case .failure(let error):
+            failed += 1
+            zoneFailed += 1
+            errors.append("CloudKit import quarantine could not read one changed record in \(redact(zone, limit: 80)): \(redact(error.localizedDescription, limit: 240))")
           }
-        case .failure(let error):
-          failed += 1
-          zoneFailed += 1
-          errors.append("CloudKit import quarantine could not read one changed record in \(redact(zone, limit: 80)): \(redact(error.localizedDescription, limit: 240))")
         }
-      }
-      for deletion in result.deletions {
-        deleted += 1
-        zoneDeleted += 1
-        if deletedRecords.count < 300 {
+        for deletion in result.deletions {
+          deleted += 1
+          zoneDeleted += 1
           deletedRecords.append([
             "zone": zone,
             "recordType": deletion.recordType,
@@ -801,30 +934,29 @@ private func runSyncImportQuarantine(container: CKContainer, request: [String: A
             "deletedAt": nowIso(),
           ])
         }
+        cursorToken = result.changeToken
+        zoneMoreComing = result.moreComing
+      } catch {
+        failed += 1
+        zoneFailed += 1
+        zoneMoreComing = false
+        errors.append("CloudKit import quarantine failed for \(redact(zone, limit: 80)): \(redact(error.localizedDescription, limit: 240))")
       }
-      if result.moreComing { anyMoreComing = true }
-      zones.append([
-        "zone": zone,
-        "previousServerChangeTokenPresent": previousToken != nil,
-        "serverChangeToken": encodeChangeToken(result.changeToken),
-        "changed": zoneChanged,
-        "deleted": zoneDeleted,
-        "failed": zoneFailed,
-        "moreComing": result.moreComing,
-      ])
-    } catch {
-      failed += 1
-      errors.append("CloudKit import quarantine failed for \(redact(zone, limit: 80)): \(redact(error.localizedDescription, limit: 240))")
-      zones.append([
-        "zone": zone,
-        "previousServerChangeTokenPresent": previousToken != nil,
-        "serverChangeToken": "",
-        "changed": 0,
-        "deleted": 0,
-        "failed": 1,
-        "moreComing": false,
-      ])
     }
+    if zoneMoreComing {
+      anyMoreComing = true
+      warnings.append("CloudKit has more import changes for \(redact(zone, limit: 80)); run another pull before uploading local data.")
+    }
+    zones.append([
+      "zone": zone,
+      "previousServerChangeTokenPresent": previousToken != nil,
+      "serverChangeToken": encodeChangeToken(cursorToken),
+      "changed": zoneChanged,
+      "deleted": zoneDeleted,
+      "failed": zoneFailed,
+      "moreComing": zoneMoreComing,
+      "pagesFetched": page,
+    ])
   }
 
   var response = responseBase(operation: "sync-import-quarantine", ok: failed == 0)

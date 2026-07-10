@@ -1458,6 +1458,10 @@ export type CloudKitNativeHelperResult = {
   syncExport?: {
     attempted: number;
     saved: number;
+    created: number;
+    updated: number;
+    unchanged: number;
+    conflicts: number;
     failed: number;
     recordPlanHash: string;
     zones: string[];
@@ -1473,6 +1477,9 @@ export type CloudKitNativeHelperResult = {
       zone: string;
       recordType: string;
       recordName: string;
+      lifeosSchema: string;
+      lifeosDataType: string;
+      sourceIdHash: string;
       mutationId: string;
       contentHash: string;
       logicalClock: number;
@@ -1496,11 +1503,15 @@ export type CloudKitNativeHelperResult = {
       deleted: number;
       failed: number;
       moreComing: boolean;
+      pagesFetched: number;
     }>;
     changedRecords: Array<{
       zone: string;
       recordType: string;
       recordName: string;
+      lifeosSchema: string;
+      lifeosDataType: string;
+      sourceIdHash: string;
       mutationId: string;
       contentHash: string;
       logicalClock: number;
@@ -1530,11 +1541,15 @@ export type CloudKitNativeHelperResult = {
       deleted: number;
       failed: number;
       moreComing: boolean;
+      pagesFetched: number;
     }>;
     changedRecords: Array<{
       zone: string;
       recordType: string;
       recordName: string;
+      lifeosSchema: string;
+      lifeosDataType: string;
+      sourceIdHash: string;
       mutationId: string;
       contentHash: string;
       logicalClock: number;
@@ -1637,6 +1652,8 @@ export type CloudKitSyncNowResult = {
   import?: {
     result: CloudKitNativeHelperResult;
     tokenSaved: number;
+    integrityRejected: number;
+    rejectionReasons: Array<{ reason: string; count: number }>;
     quarantine: CloudKitSyncQuarantineSummary;
     checkpoints: CloudKitSyncCheckpoint[];
   };
@@ -1673,8 +1690,8 @@ export type CloudKitSyncUploadNowResult = {
 
 export type CloudKitSyncCycleResult = {
   ok: boolean;
-  status: "needs-setup" | "remote-failed" | "remote-conflicts" | "upload-blocked" | "upload-failed" | "local-empty" | "completed";
-  nextAction: "configure-cloudkit" | "review-conflicts" | "review-blocked-records" | "retry" | "use-lifeos" | "done";
+  status: "needs-setup" | "remote-failed" | "remote-conflicts" | "remote-more-coming" | "upload-blocked" | "upload-failed" | "local-empty" | "completed";
+  nextAction: "configure-cloudkit" | "review-conflicts" | "review-blocked-records" | "continue-pull" | "retry" | "use-lifeos" | "done";
   startedAt: number;
   finishedAt: number;
   limit: number;

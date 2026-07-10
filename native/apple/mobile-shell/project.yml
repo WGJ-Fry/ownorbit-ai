@@ -16,11 +16,17 @@ targets:
       - path: Sources
       - path: Resources
         buildPhase: resources
+      - path: Config
+        buildPhase: none
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ai.lifeos.mobile
         PRODUCT_NAME: LifeOSMobile
         CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_ENTITLEMENTS: Config/LifeOSMobile.entitlements
+        LIFEOS_CLOUDKIT_CONTAINER_ID: iCloud.ai.lifeos.desktop
+        LIFEOS_CLOUDKIT_ENVIRONMENT: Development
+        LIFEOS_APS_ENVIRONMENT: development
         TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTS_MACCATALYST: NO
     info:
@@ -34,6 +40,9 @@ targets:
           NSAllowsLocalNetworking: true
           NSAllowsArbitraryLoadsInWebContent: true
         NSLocalNetworkUsageDescription: LifeOS connects to your own computer on the local network.
+        LifeOSCloudKitContainerIdentifier: $(LIFEOS_CLOUDKIT_CONTAINER_ID)
+        UIBackgroundModes:
+          - remote-notification
         CFBundleURLTypes:
           - CFBundleURLName: ai.lifeos.mobile.entry
             CFBundleURLSchemes:

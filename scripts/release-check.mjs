@@ -159,7 +159,7 @@ function checkSourceSizeBudgets() {
 }
 
 function checkScripts() {
-  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "icloud:helper:build", "icloud:helper:smoke", "icloud:acceptance", "mobile:simulator:smoke", "mobile:native:build", "mobile:native:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:apple-native", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
+  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "icloud:helper:build", "icloud:helper:smoke", "icloud:acceptance", "mobile:simulator:smoke", "mobile:native:build", "mobile:native:device:build", "mobile:native:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:apple-native", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
     if (hasScript(script)) pass(`package script exists: ${script}`);
     else fail(`missing package script: ${script}`);
   }
@@ -343,15 +343,25 @@ function checkScripts() {
     fail("missing iOS Simulator smoke script: scripts/mobile-ios-simulator-smoke.mjs");
   }
 
-  if (exists("native/apple/mobile-shell/project.yml") && exists("scripts/mobile-ios-native-shell-smoke.mjs")) {
+  if (
+    exists("native/apple/mobile-shell/project.yml") &&
+    exists("native/apple/mobile-shell/Config/LifeOSMobile.entitlements") &&
+    exists("native/apple/mobile-shell/Sources/LifeOSCloudData.swift") &&
+    exists("native/apple/mobile-shell/Sources/LifeOSCloudKitSync.swift") &&
+    exists("scripts/mobile-ios-native-shell-smoke.mjs")
+  ) {
     const nativeEntry = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSEntry.swift"), "utf8");
     const nativeStore = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSEntryStore.swift"), "utf8");
     const nativeWebView = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSWebView.swift"), "utf8");
+    const nativeCloudData = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSCloudData.swift"), "utf8");
+    const nativeCloudSync = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSCloudKitSync.swift"), "utf8");
+    const nativeEntitlements = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Config", "LifeOSMobile.entitlements"), "utf8");
     const nativeBuild = fs.readFileSync(path.join(rootDir, "scripts", "build-ios-mobile-shell.mjs"), "utf8");
     const nativeSmoke = fs.readFileSync(path.join(rootDir, "scripts", "mobile-ios-native-shell-smoke.mjs"), "utf8");
     if (
       packageJson.scripts?.["mobile:native:build"]?.includes("build-ios-mobile-shell.mjs") &&
       packageJson.scripts?.["mobile:native:smoke"]?.includes("mobile-ios-native-shell-smoke.mjs") &&
+      packageJson.scripts?.["mobile:native:device:build"]?.includes("--device") &&
       packageJson.scripts?.["test:apple-native"]?.includes("apple-mobile-native-shell.test.mjs") &&
       packageJson.scripts?.["quality:gate"]?.includes("test:apple-native") &&
       nativeEntry.includes("SHA256.hash") &&
@@ -361,12 +371,22 @@ function checkScripts() {
       nativeStore.includes('payload["service"] as? String == "lifeos-local-core"') &&
       nativeWebView.includes("WKNavigationDelegate") &&
       nativeWebView.includes("sameOrigin(url, entry.baseURL)") &&
+      nativeCloudData.includes("maxPayloadBytes = 64 * 1024") &&
+      nativeCloudData.includes("contentHashMismatch") &&
+      nativeCloudSync.includes("privateCloudDatabase") &&
+      nativeCloudSync.includes("recordZoneChanges") &&
+      nativeCloudSync.includes("completeUntilFirstUserAuthentication") &&
+      nativeCloudSync.includes("isExcludedFromBackup = true") &&
+      nativeEntitlements.includes("com.apple.developer.icloud-container-identifiers") &&
+      nativeEntitlements.includes("CloudKit") &&
       nativeBuild.includes("CODE_SIGNING_ALLOWED=NO") &&
+      nativeBuild.includes("No matching iPhone provisioning profile is installed") &&
       nativeSmoke.includes("native-entry-setup") &&
       nativeSmoke.includes("native-mobile-chat") &&
+      nativeSmoke.includes("native-cloud-data") &&
       nativeSmoke.includes("does not replace cellular")
-    ) pass("Apple native iOS shell validates iCloud entries, restricts navigation, and has simulator build/smoke coverage");
-    else fail("Apple native iOS shell must validate iCloud entry checksums and endpoints, restrict WebView navigation, and run through Xcode Simulator smoke coverage");
+    ) pass("Apple native iOS shell validates entries and CloudKit records, protects offline snapshots, restricts navigation, and has simulator/device build coverage");
+    else fail("Apple native iOS shell must validate iCloud entry and CloudKit data, protect offline snapshots, restrict WebView navigation, and run through Xcode Simulator smoke coverage");
   } else {
     fail("missing Apple native iOS shell source or simulator smoke script");
   }
@@ -1559,6 +1579,7 @@ function checkAssets() {
   const cloudKitNativeHelperTestSource = exists("tests/cloudkit-native-helper.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-native-helper.test.mjs"), "utf8") : "";
   const cloudKitSyncBatchSource = exists("server/cloudKitSyncBatch.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitSyncBatch.ts"), "utf8") : "";
   const cloudKitSyncBatchTestSource = exists("tests/cloudkit-sync-batch.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-sync-batch.test.mjs"), "utf8") : "";
+  const cloudKitSyncStateSource = exists("server/cloudKitSyncState.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitSyncState.ts"), "utf8") : "";
   const cloudKitSyncApplySource = exists("server/cloudKitSyncApply.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitSyncApply.ts"), "utf8") : "";
   const cloudKitSyncApplyTestSource = exists("tests/cloudkit-sync-apply.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-sync-apply.test.mjs"), "utf8") : "";
   const cloudKitDeviceTrustMetadataSource = exists("server/cloudKitDeviceTrustMetadata.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitDeviceTrustMetadata.ts"), "utf8") : "";
@@ -2178,7 +2199,10 @@ function checkAssets() {
     cloudKitSyncBatchSource.includes("conversationTitle") &&
     cloudKitSyncBatchSource.includes("requiresUserReview: false") &&
     cloudKitSyncBatchSource.includes("secretLikeContentBlocked") &&
+    cloudKitSyncBatchSource.includes("MAX_CLOUDKIT_RECORD_PAYLOAD_BYTES") &&
+    cloudKitSyncBatchSource.includes("payload-too-large") &&
     cloudKitSyncBatchTestSource.includes("blocks sensitive payloads") &&
+    cloudKitSyncBatchTestSource.includes("oversizedContentBlocked") &&
     cloudKitSyncBatchTestSource.includes("Safe export conversation") &&
     cloudKitSyncBatchTestSource.includes("serializedSummary.includes(\"Safe export conversation\"), false") &&
     cloudKitSyncBatchTestSource.includes("recordType === \"LifeOSMessage\" && record.requiresUserReview === false") &&
@@ -2240,9 +2264,14 @@ function checkAssets() {
     cloudKitSyncNowSource.includes("beforeApply.autoReady") &&
     cloudKitSyncNowSource.includes("publicCloudKitHelperResult") &&
     cloudKitSyncNowSource.includes("serverChangeTokenReturnedToAdmin: false") &&
+    cloudKitSyncNowSource.includes("integrityRejected") &&
+    cloudKitSyncStateSource.includes("validateImportedRecordIntegrity") &&
+    cloudKitSyncStateSource.includes("content-hash-mismatch") &&
+    cloudKitSyncStateSource.includes("CloudKit record rejected before import") &&
     cloudKitSyncNowTestSource.includes("CloudKit safe sync now imports") &&
     cloudKitSyncNowTestSource.includes("manual-review records in quarantine") &&
     cloudKitSyncNowTestSource.includes("returns only safe summaries") &&
+    cloudKitSyncNowTestSource.includes("rejects a tampered payload before it can enter local data tables") &&
     cloudKitSyncUploadNowSource.includes("UPLOAD_CLOUDKIT_NOW") &&
     cloudKitSyncUploadNowSource.includes("runCloudKitSyncUploadNow") &&
     cloudKitSyncUploadNowSource.includes("localBackupPathReturnedToAdmin: false") &&
@@ -2251,8 +2280,11 @@ function checkAssets() {
     cloudKitSyncCycleSource.includes("SYNC_CLOUDKIT_CYCLE") &&
     cloudKitSyncCycleSource.includes("runCloudKitSyncCycle") &&
     cloudKitSyncCycleSource.includes("uploadRunsOnlyAfterConflictFreePull: true") &&
+    cloudKitSyncCycleSource.includes("remote-more-coming") &&
+    cloudKitSyncCycleSource.includes("continue-pull") &&
     cloudKitSyncCycleTestSource.includes("CloudKit safe sync cycle pulls first") &&
     cloudKitSyncCycleTestSource.includes("stops before upload when the remote pull fails") &&
+    cloudKitSyncCycleTestSource.includes("drains every remote page before uploading local records") &&
     cloudKitAutoSyncScheduleSource.includes("lifeos_cloudkit_auto_sync_schedule") &&
     cloudKitAutoSyncScheduleSource.includes("startCloudKitAutoSyncScheduler") &&
     cloudKitAutoSyncScheduleSource.includes("runDueCloudKitAutoSync") &&
@@ -2260,9 +2292,12 @@ function checkAssets() {
     cloudKitAutoSyncScheduleSource.includes("rawPayloadReturnedToAdmin: false") &&
     cloudKitAutoSyncScheduleSource.includes("cloudKitChangeTokenReturnedToAdmin: false") &&
     cloudKitAutoSyncScheduleSource.includes("localBackupPathReturnedToAdmin: false") &&
+    cloudKitAutoSyncScheduleSource.includes("REMOTE_PAGE_SYNC_DELAY_MS") &&
+    cloudKitAutoSyncScheduleSource.includes('cycle.status === "remote-more-coming"') &&
     cloudKitAutoSyncScheduleTestSource.includes("CloudKit auto sync stays off by default") &&
     cloudKitAutoSyncScheduleTestSource.includes("records safe scheduled cycle summaries") &&
     cloudKitAutoSyncScheduleTestSource.includes("single setup action when native data sync is not ready") &&
+    cloudKitAutoSyncScheduleTestSource.includes("schedules the next remote page quickly without uploading local data") &&
     serverSource.includes("startCloudKitAutoSyncScheduler") &&
     adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/auto-sync") &&
     adminRoutesSource.includes("/api/v1/admin/icloud-data-sync/auto-sync/run-now") &&
@@ -2286,6 +2321,9 @@ function checkAssets() {
     cloudKitNativeSwiftHelperSource.includes("DELETE_DISPOSABLE_RECORDS") &&
     cloudKitNativeSwiftHelperSource.includes("SYNC_APPROVED_RECORDS") &&
     cloudKitNativeSwiftHelperSource.includes("runSyncExport") &&
+    cloudKitNativeSwiftHelperSource.includes("validatedExportFields") &&
+    cloudKitNativeSwiftHelperSource.includes("sync-export-upsert") &&
+    cloudKitNativeSwiftHelperSource.includes("database.record(for: recordId)") &&
     cloudKitNativeSwiftHelperSource.includes("runSyncImportPreview") &&
     cloudKitNativeSwiftHelperSource.includes("sync-import-preview-query") &&
     cloudKitNativeSwiftHelperSource.includes("database.records") &&
@@ -2296,6 +2334,8 @@ function checkAssets() {
     cloudKitNativeSwiftHelperSource.includes("subscription-push") &&
     cloudKitNativeSwiftHelperSource.includes("IMPORT_CLOUDKIT_CHANGES") &&
     cloudKitNativeSwiftHelperSource.includes("recordZoneChanges") &&
+    cloudKitNativeSwiftHelperSource.includes("validatedPayloadJson") &&
+    cloudKitNativeSwiftHelperSource.includes("maxChangePages") &&
     cloudKitNativeSwiftHelperSource.includes("CKServerChangeToken") &&
     cloudKitNativeSwiftHelperSource.includes("database.save(record)") &&
     cloudKitNativeSwiftHelperSource.includes("database.record(for: recordId)") &&

@@ -112,6 +112,7 @@ private struct BrowserScreen: View {
     @State private var loading = true
     @State private var failureMessage = ""
     @State private var confirmForget = false
+    @State private var showCloudData = ProcessInfo.processInfo.arguments.contains("--show-cloud-data")
 
     var body: some View {
         VStack(spacing: 0) {
@@ -126,6 +127,12 @@ private struct BrowserScreen: View {
                 }
                 Spacer()
                 if loading { ProgressView().controlSize(.small) }
+                Button {
+                    showCloudData = true
+                } label: {
+                    Image(systemName: "icloud")
+                }
+                .accessibilityLabel(Text("cloud.title"))
                 Button {
                     reloadToken = UUID()
                 } label: {
@@ -176,6 +183,9 @@ private struct BrowserScreen: View {
             Button("common.cancel", role: .cancel) {}
         } message: {
             Text("browser.changeConfirmBody")
+        }
+        .sheet(isPresented: $showCloudData) {
+            CloudDataScreen()
         }
     }
 }

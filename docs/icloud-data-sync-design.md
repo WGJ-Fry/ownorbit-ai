@@ -166,6 +166,8 @@ The source-only SwiftUI shell lives at `native/apple/mobile-shell`. It is separa
 - store only non-secret entry metadata in `UserDefaults`;
 - load `/mobile/chat` in a same-origin restricted `WKWebView`, where the normal LifeOS device binding keeps its credential in web storage;
 - accept a validated `lifeos://connect?baseUrl=...` deep link for a future Shortcut-assisted setup flow.
+- explicitly opt in to the same private CloudKit container used by the Mac helper, validate approved LifeOS record schema/zone/type/size/SHA-256 before persistence, and keep an incremental offline snapshot under iOS Data Protection;
+- subscribe to private-database changes, retry on foreground or silent push, and present a bilingual read-only view of synced chats, memories, tasks, generated app state, and review-only device metadata.
 
 Build and test it on an iPhone Simulator without Apple signing:
 
@@ -175,7 +177,17 @@ LIFEOS_IOS_NATIVE_RUN_TESTS=1 npm run mobile:native:build
 npm run mobile:native:smoke -- http://127.0.0.1:3000
 ```
 
-This is a developer candidate, not a public iOS package. The unkeyed checksum detects accidental file modification; it is not a cryptographic server identity signature, so the normal pairing QR remains mandatory before access is granted. Simulator evidence proves compilation, entry validation, app installation, launch, and mobile-shell loading. It does not prove iCloud document delivery on a physical phone, cellular/Wi-Fi switching, provisioning, CloudKit background push, or long-running two-device synchronization. AI keys, admin passwords, device tokens, private keys, session cookies, SQLite databases, backups, and raw CloudKit credentials are never copied into the native entry store.
+A signed physical-device build has a separate explicit path:
+
+```bash
+LIFEOS_CLOUDKIT_TEAM_ID=YOUR_TEAM_ID \
+LIFEOS_CLOUDKIT_CONTAINER_ID=iCloud.ai.lifeos.desktop \
+LIFEOS_CLOUDKIT_MOBILE_BUNDLE_ID=ai.lifeos.mobile \
+LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES=1 \
+npm run mobile:native:device:build
+```
+
+This is a developer candidate, not a public iOS package. The unkeyed entry checksum detects accidental file modification; it is not a cryptographic server identity signature, so the normal pairing QR remains mandatory before web access is granted. Simulator evidence proves compilation, record validation, protected snapshot merging, app installation, launch, and the CloudKit opt-in UI. It does not prove a private CloudKit database exchange, iCloud document delivery on a physical phone, cellular/Wi-Fi switching, provisioning, background push, or long-running two-device synchronization. AI keys, admin passwords, device tokens, private keys, session cookies, SQLite databases, backups, and raw CloudKit credentials are never copied into the native entry or CloudKit snapshot.
 
 The build output is intentionally local (`build/native/LifeOSCloudKitHelper`) and should not be committed. Configure it with:
 
@@ -229,7 +241,7 @@ The endpoint only runs when all of these are true:
 
 The admin response still returns only a summary: preview status, record counts, zones, record plan hash, helper evidence, and backup metadata. It does not return raw chat text, memory text, task payloads, generated-app state, or helper stdin. The filtered payload is sent only from the local desktop server to the configured native helper through JSON stdin.
 
-The native helper now has a `sync-export` operation. It saves approved records into the private CloudKit database using the selected record zones and returns only attempted/saved/failed counts plus an evidence id. This is a first write path for approved CloudKit records, not complete background sync. Full sync still needs change-token import, conflict review, remote delete/tombstone handling, retry queues, and real two-device Apple testing.
+The native helper has a `sync-export` operation. It saves approved records into the private CloudKit database using the selected record zones and returns only attempted/saved/failed counts plus an evidence id. The repository also now contains change-token import, quarantine, conflict review, guarded SQLite apply, retry scheduling, and a native iOS offline pull path. Completion still requires a provisioned container and real two-device Apple evidence.
 
 The product-facing upload path wraps the same safety model:
 
@@ -245,7 +257,7 @@ The safest product-facing loop is:
 POST /api/v1/admin/icloud-data-sync/cycle
 ```
 
-It requires explicit `SYNC_CLOUDKIT_CYCLE` confirmation and always pulls first. The backend runs `sync-now` to read CloudKit changes, import them into quarantine, and apply only conflict-free records. If the pull fails or leaves conflicts, the cycle stops and does not upload local records. Only after the pull is clean does LifeOS run the guarded upload path. This gives users one default "sync this computer and iCloud" button while keeping conflict review and sensitive-record blocking intact.
+It requires explicit `SYNC_CLOUDKIT_CYCLE` confirmation and always pulls first. The backend runs `sync-now` to read CloudKit changes, import them into quarantine, and apply only conflict-free records. If the pull fails, rejects an integrity check, leaves conflicts, or reports `moreComing`, the cycle stops and does not upload local records. Only after every fetched page is clean does LifeOS run the guarded upload path. This prevents a local upload from racing ahead of unread remote changes.
 
 Run the contract smoke with:
 
@@ -316,7 +328,7 @@ The backend stores the new token as a **candidate checkpoint** in SQLite (`cloud
 
 The admin API response hides raw server change tokens and exposes only whether a checkpoint was captured. This means the current step can prove incremental CloudKit reads and local checkpoint storage without leaking opaque sync state to the browser.
 
-This is still not full sync. To become real background two-way sync, the next guarded step must import changed payloads into a quarantine table, run conflict/tombstone review, apply selected changes to SQLite, then promote the pending token to the applied token only after the local write succeeds.
+The guarded payload import, quarantine review, SQLite apply, and checkpoint promotion steps described below are implemented. A candidate token becomes applied only after its local records are accepted and the zone has no unresolved failures or conflicts.
 
 ## Quarantine Import
 
@@ -332,7 +344,7 @@ The endpoint requires explicit confirmation:
 IMPORT_CLOUDKIT_CHANGES
 ```
 
-With confirmation, the backend invokes the native helper operation `sync-import-quarantine`. The helper uses `recordZoneChanges(inZoneWith:since:desiredKeys:resultsLimit:)`, includes `payloadJson` in the native helper response, and sends that raw payload only through the local helper-to-backend stdio channel. The admin API writes changed and deleted records into SQLite table `cloudkit_sync_quarantine`, then removes `payloadJson` and raw CloudKit server change tokens from the browser response.
+With confirmation, the backend invokes the native helper operation `sync-import-quarantine`. The helper uses paged `recordZoneChanges(inZoneWith:since:desiredKeys:resultsLimit:)`, includes `payloadJson` only in the local helper response, and sends it through the helper-to-backend stdio channel. The helper preserves the raw JSON bytes and verifies byte length and SHA-256 before returning it. The backend independently verifies schema, zone/type plan, source id, size, SHA-256, JSON shape, forbidden fields, and secret-shaped content before admitting a record. Rejected payloads are represented only by metadata and an error in quarantine so their zone checkpoint cannot advance. Browser responses still remove `payloadJson` and raw server change tokens.
 
 This step still does **not** directly modify chats, memories, tasks, generated apps, or device trust records. It also does not promote `pending_server_change_token` into `applied_server_change_token`. The token remains a candidate until the review/apply step resolves conflicts, applies selected safe changes to local SQLite, records rollback evidence, and only then marks the checkpoint as applied.
 
@@ -342,6 +354,7 @@ Safety rules:
 - a SQLite backup is created before a real helper-backed quarantine import;
 - API responses expose counts, evidence ids, and `payloadCaptured`, never raw `payloadJson`;
 - failed or partial helper runs do not advance the applied checkpoint;
+- a single record is limited to 64 KiB and a pull is limited to a bounded page; `moreComing` must be drained before upload;
 - quarantined records require user review by default, except explicitly safe append-only/new-record cases.
 
 ## Review And Apply
@@ -464,7 +477,7 @@ Do not claim end-user-ready, fully automatic iCloud data sync until all of this 
 
 当前已经有第一版原生 helper 源码：`native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift`。它可以在 macOS 上通过 `npm run icloud:helper:build` 编译，输出到 `build/native/LifeOSCloudKitHelper`。这个 helper 表示 CloudKit 原生桥已经有受控落脚点；当前只应宣称“受控 alpha 候选同步”，不能宣称完整后台 macOS/iOS 原生同步。
 
-当前还新增了源码级 iOS SwiftUI 原生壳候选版本：`native/apple/mobile-shell`。它可以通过 iPhone“文件”选择 iCloud Drive 中的 `lifeos-mobile-entry-*.json`，校验与电脑端一致的 SHA-256、版本、有效期、地址来源和 LifeOS 健康接口，然后在限制同源跳转的 `WKWebView` 中打开 `/mobile/chat`。原生入口存储只保存不含密钥的连接元数据，设备凭证仍由 LifeOS 网页会话管理。`npm run mobile:native:build`、`LIFEOS_IOS_NATIVE_RUN_TESTS=1 npm run mobile:native:build` 和 `npm run mobile:native:smoke -- http://127.0.0.1:3000` 可以在未签名的 iPhone 模拟器完成构建、单测、安装、启动和截图证据。它还不是公开 iOS 安装包，也不能替代真实 iPhone 的 iCloud 文件投递、蜂窝换网、Apple provisioning、CloudKit 后台推送和长期双设备同步验收。
+当前还新增了源码级 iOS SwiftUI 原生壳候选版本：`native/apple/mobile-shell`。它可以通过 iPhone“文件”选择 iCloud Drive 中的 `lifeos-mobile-entry-*.json`，校验与电脑端一致的 SHA-256、版本、有效期、地址来源和 LifeOS 健康接口，然后在限制同源跳转的 `WKWebView` 中打开 `/mobile/chat`。它也加入了用户明确开启的 CloudKit 私有库增量拉取、变更游标、后台推送订阅、前台恢复、记录 schema/zone/type/大小/SHA-256 校验、Data Protection 离线快照，以及聊天、记忆、任务等数据的中英文只读页面。`npm run mobile:native:build`、`LIFEOS_IOS_NATIVE_RUN_TESTS=1 npm run mobile:native:build` 和 `npm run mobile:native:smoke -- http://127.0.0.1:3000` 可以在未签名的 iPhone 模拟器完成构建、单测、安装、启动和截图证据；`npm run mobile:native:device:build` 提供带 CloudKit entitlement 的真机签名入口。它还不是公开 iOS 安装包；在 Apple 协议、Container、provisioning 和真实双设备数据往返证据完成前，也不能宣称 CloudKit 已真实跑通。
 
 helper 探测通过不等于真实同步完成。API 会返回已验证能力、必需能力和未验证能力；如果 `subscription-push`、`change-token-fetch`、自定义 zone、写入 roundtrip 等证据缺失，UI 必须继续显示为候选/待验证，而不能写成已完成的 iCloud 数据同步。
 

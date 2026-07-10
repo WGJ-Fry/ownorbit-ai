@@ -10,6 +10,7 @@ const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 
 function runIsolatedCloudKitSyncNow(env, scenario) {
   const script = `
+    const crypto = await import("node:crypto");
     const fs = await import("node:fs");
     const path = await import("node:path");
     const { runMigrations } = await import("./server/migrations.ts");
@@ -35,7 +36,20 @@ function runIsolatedCloudKitSyncNow(env, scenario) {
     const now = 1700000000000;
     const readiness = getIcloudDataSyncReadiness({ platformSupported: true });
     const requiresReview = ${JSON.stringify(scenario)} === "manual-review";
-    const remoteChangedCount = ${JSON.stringify(scenario)} === "apply" ? 1 : 2;
+    const remoteChangedCount = ${JSON.stringify(scenario)} === "apply" || ${JSON.stringify(scenario)} === "tampered" ? 1 : 2;
+    const remoteConversationPayload = { conversationId: "remote-convo", title: "Remote synced", createdAt: now, updatedAt: now + 1 };
+    const remoteMessagePayload = { conversationId: "remote-convo", conversationTitle: "Remote synced", messageId: "remote-message", role: "user", contentJson: { parts: [{ text: "hello from cloudkit" }] }, createdAt: now + 2, mutationId: "mut-message", logicalClock: now + 2 };
+    const integrityFields = (dataType, sourceId, payload) => {
+      const payloadJson = JSON.stringify(payload);
+      return {
+        lifeosSchema: "lifeos-cloudkit-record.v1",
+        lifeosDataType: dataType,
+        sourceIdHash: dataType + ":" + crypto.createHash("sha256").update(sourceId).digest("hex").slice(0, 16),
+        contentHash: crypto.createHash("sha256").update(payloadJson).digest("hex"),
+        payloadByteSize: Buffer.byteLength(payloadJson),
+        payloadJson,
+      };
+    };
 
     const skippedResult = (operation, reason) => ({
       ok: false,
@@ -120,34 +134,38 @@ function runIsolatedCloudKitSyncNow(env, scenario) {
             recordType: "LifeOSMessage",
             recordName: "message:remote-message",
             mutationId: "mut-message",
-            contentHash: "hash-message",
             logicalClock: now + 2,
-            payloadByteSize: 120,
             modifiedAt: new Date(now + 2).toISOString(),
             requiresUserReview: false,
-            payloadJson: JSON.stringify({ conversationId: "remote-convo", conversationTitle: "Remote synced", messageId: "remote-message", role: "user", contentJson: { parts: [{ text: "hello from cloudkit" }] }, createdAt: now + 2, mutationId: "mut-message", logicalClock: now + 2 })
+            ...integrityFields("chat-history", "remote-message", remoteMessagePayload)
+          }] : ${JSON.stringify(scenario)} === "tampered" ? [{
+            zone: "LifeOSChatZone",
+            recordType: "LifeOSMessage",
+            recordName: "message:remote-message",
+            mutationId: "mut-message",
+            logicalClock: now + 2,
+            modifiedAt: new Date(now + 2).toISOString(),
+            requiresUserReview: false,
+            ...integrityFields("chat-history", "remote-message", remoteMessagePayload),
+            contentHash: "0".repeat(64)
           }] : [{
             zone: "LifeOSChatZone",
             recordType: "LifeOSConversation",
             recordName: "conversation:remote-convo",
             mutationId: "mut-convo",
-            contentHash: "hash-convo",
             logicalClock: now + 1,
-            payloadByteSize: 100,
             modifiedAt: new Date(now + 1).toISOString(),
             requiresUserReview: requiresReview,
-            payloadJson: JSON.stringify({ conversationId: "remote-convo", title: "Remote synced", createdAt: now, updatedAt: now + 1 })
+            ...integrityFields("chat-history", "remote-convo", remoteConversationPayload)
           }, {
             zone: "LifeOSChatZone",
             recordType: "LifeOSMessage",
             recordName: "message:remote-message",
             mutationId: "mut-message",
-            contentHash: "hash-message",
             logicalClock: now + 2,
-            payloadByteSize: 120,
             modifiedAt: new Date(now + 2).toISOString(),
             requiresUserReview: requiresReview,
-            payloadJson: JSON.stringify({ conversationId: "remote-convo", messageId: "remote-message", role: "user", contentJson: { parts: [{ text: "hello from cloudkit" }] }, createdAt: now + 2, mutationId: "mut-message", logicalClock: now + 2 })
+            ...integrityFields("chat-history", "remote-message", { ...remoteMessagePayload, conversationTitle: undefined })
           }],
           deletedRecords: []
         },
@@ -266,6 +284,28 @@ test("CloudKit safe sync now gives one setup action when macOS blocks the helper
     assert.equal(result.changes.result.failureKind, "helper-launch-blocked");
     assert.equal(result.apply.attempted, 0);
     assert.equal(result.backups.length, 0);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit safe sync now rejects a tampered payload before it can enter local data tables", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-now-tampered-"));
+  try {
+    const { result, sessions, messages } = runIsolatedCloudKitSyncNow({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "tampered");
+
+    assert.equal(result.status, "failed");
+    assert.equal(result.nextAction, "retry");
+    assert.equal(result.import.integrityRejected, 1);
+    assert.deepEqual(result.import.rejectionReasons, [{ reason: "content-hash-mismatch", count: 1 }]);
+    assert.equal(result.import.quarantine.failed, 1);
+    assert.equal(result.apply.applied, 0);
+    assert.deepEqual(sessions, []);
+    assert.deepEqual(messages, []);
+    assert.equal(JSON.stringify(result).includes("hello from cloudkit"), false);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

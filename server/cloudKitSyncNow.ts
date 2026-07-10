@@ -68,6 +68,9 @@ function emptyApply(): CloudKitSyncApplyResult {
 function determineStatus(input: {
   readiness: IcloudDataSyncReadiness;
   changes: CloudKitNativeHelperResult;
+  importFailed: boolean;
+  importMoreComing: boolean;
+  integrityRejected: number;
   importedChanged: number;
   importedDeleted: number;
   apply: CloudKitSyncApplyResult;
@@ -80,13 +83,13 @@ function determineStatus(input: {
   if (input.changes.status === "failed" && input.changes.failureKind === "helper-launch-blocked") {
     return { status: "needs-setup" as SyncNowStatus, nextAction: "configure-cloudkit" as SyncNowNextAction };
   }
-  if (input.changes.status === "failed" || input.changes.syncChangesPreview?.failed) {
+  if (input.changes.status === "failed" || input.changes.syncChangesPreview?.failed || input.importFailed || input.integrityRejected > 0) {
     return { status: "failed" as SyncNowStatus, nextAction: "retry" as SyncNowNextAction };
   }
   if (input.apply.conflicts > 0 || input.pendingAfter > 0 || input.conflictsAfter > 0) {
     return { status: "conflicts" as SyncNowStatus, nextAction: "review-conflicts" as SyncNowNextAction };
   }
-  if (input.changes.syncChangesPreview?.moreComing) {
+  if (input.changes.syncChangesPreview?.moreComing || input.importMoreComing) {
     return { status: "more-coming" as SyncNowStatus, nextAction: "run-again" as SyncNowNextAction };
   }
   if (input.apply.applied > 0) {
@@ -119,6 +122,8 @@ export async function runCloudKitSyncNow(readiness: IcloudDataSyncReadiness, opt
   let importResult: CloudKitNativeHelperResult | undefined;
   let importSaved = {
     tokenSaved: 0,
+    integrityRejected: 0,
+    rejectionReasons: [] as Array<{ reason: string; count: number }>,
     summary: getCloudKitSyncQuarantineSummary(),
     checkpoints: listCloudKitSyncCheckpoints(),
   };
@@ -150,6 +155,9 @@ export async function runCloudKitSyncNow(readiness: IcloudDataSyncReadiness, opt
   const status = determineStatus({
     readiness,
     changes,
+    importFailed: Boolean(importResult && importResult.status !== "passed"),
+    importMoreComing: Boolean(importResult?.syncImportQuarantine?.moreComing),
+    integrityRejected: importSaved.integrityRejected,
     importedChanged: importSaved.summary.importedChanged,
     importedDeleted: importSaved.summary.importedDeleted,
     apply,
@@ -173,6 +181,8 @@ export async function runCloudKitSyncNow(readiness: IcloudDataSyncReadiness, opt
       ? {
           result: publicCloudKitHelperResult(importResult),
           tokenSaved: importSaved.tokenSaved,
+          integrityRejected: importSaved.integrityRejected,
+          rejectionReasons: importSaved.rejectionReasons,
           quarantine: importSaved.summary,
           checkpoints: importSaved.checkpoints,
         }

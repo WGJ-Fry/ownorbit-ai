@@ -9,6 +9,7 @@ const DEFAULT_INTERVAL_MINUTES = 120;
 const MIN_INTERVAL_MINUTES = 15;
 const MAX_INTERVAL_MINUTES = 7 * 24 * 60;
 const LOCAL_CHANGE_SYNC_DELAY_MS = 60 * 1000;
+const REMOTE_PAGE_SYNC_DELAY_MS = 60 * 1000;
 const safeLocalChangeTypes = new Set(["chat-history", "memory", "tasks", "generated-app-state", "device-trust"]);
 
 let schedulerTimer: NodeJS.Timeout | undefined;
@@ -354,10 +355,14 @@ export async function runCloudKitAutoSyncNow(
       readinessStatus: readiness.status,
       dataSyncScope: readiness.dataSyncScope,
     };
+    const regularNextRunAt = computeNextRun(startedAt, schedule.intervalMinutes, startedAt);
+    const nextRunAt = cycle.status === "remote-more-coming"
+      ? Math.min(regularNextRunAt, startedAt + REMOTE_PAGE_SYNC_DELAY_MS)
+      : regularNextRunAt;
     const nextSchedule: CloudKitAutoSyncSchedule = {
       ...schedule,
       lastRunAt: startedAt,
-      nextRunAt: schedule.enabled ? computeNextRun(startedAt, schedule.intervalMinutes, startedAt) : undefined,
+      nextRunAt: schedule.enabled ? nextRunAt : undefined,
       updatedAt: startedAt,
       lastResult,
       pendingLocalChanges: cycle.ok ? undefined : schedule.pendingLocalChanges,

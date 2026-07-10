@@ -41,9 +41,42 @@ test("Apple native mobile shell validates safe iCloud entries without storing cr
   assert.match(smokeScript, /simctl/);
   assert.match(smokeScript, /native-entry-setup/);
   assert.match(smokeScript, /native-mobile-chat/);
+  assert.match(smokeScript, /native-cloud-data/);
   assert.match(smokeScript, /does not replace cellular/);
   assert.match(packageJson.scripts["mobile:native:build"], /build-ios-mobile-shell/);
+  assert.match(packageJson.scripts["mobile:native:device:build"], /--device/);
   assert.match(packageJson.scripts["mobile:native:smoke"], /mobile-ios-native-shell-smoke/);
+});
+
+test("Apple native mobile shell has a guarded private CloudKit offline data path", async () => {
+  const [project, entitlements, cloudData, cloudSync, cloudScreen, buildScript] = await Promise.all([
+    readFile(path.join(nativeDir, "project.yml"), "utf8"),
+    readFile(path.join(nativeDir, "Config", "LifeOSMobile.entitlements"), "utf8"),
+    readFile(path.join(nativeDir, "Sources", "LifeOSCloudData.swift"), "utf8"),
+    readFile(path.join(nativeDir, "Sources", "LifeOSCloudKitSync.swift"), "utf8"),
+    readFile(path.join(nativeDir, "Sources", "CloudDataScreen.swift"), "utf8"),
+    readFile(path.join(rootDir, "scripts", "build-ios-mobile-shell.mjs"), "utf8"),
+  ]);
+
+  assert.match(project, /CODE_SIGN_ENTITLEMENTS: Config\/LifeOSMobile\.entitlements/);
+  assert.match(project, /UIBackgroundModes:[\s\S]*remote-notification/);
+  assert.match(entitlements, /com\.apple\.developer\.icloud-container-identifiers/);
+  assert.match(entitlements, /com\.apple\.developer\.icloud-services/);
+  assert.match(entitlements, /CloudKit/);
+  assert.match(cloudData, /maxPayloadBytes = 64 \* 1024/);
+  assert.match(cloudData, /contentHashMismatch/);
+  assert.match(cloudData, /forbiddenField/);
+  assert.match(cloudSync, /privateCloudDatabase/);
+  assert.match(cloudSync, /recordZoneChanges/);
+  assert.match(cloudSync, /CKDatabaseSubscription/);
+  assert.match(cloudSync, /completeUntilFirstUserAuthentication/);
+  assert.match(cloudSync, /isExcludedFromBackup = true/);
+  assert.match(cloudSync, /serverChangeTokens/);
+  assert.match(cloudScreen, /cloud\.enable\.safe/);
+  assert.match(buildScript, /generic\/platform=iOS/);
+  assert.match(buildScript, /LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES/);
+  assert.match(buildScript, /No matching iPhone provisioning profile is installed/);
+  assert.doesNotMatch(`${cloudData}\n${cloudSync}`, /accessToken|adminPassword|providerApiKey|sessionCookie|privateKey/);
 });
 
 test("Apple native mobile shell localizations stay aligned", async () => {

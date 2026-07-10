@@ -1,8 +1,19 @@
 import crypto from "crypto";
 import { db } from "./db";
+import { MAX_CLOUDKIT_RECORD_PAYLOAD_BYTES } from "./cloudKitSyncBatch";
 import type { CloudKitNativeHelperResult } from "./cloudKitNativeHelper";
 
 export const CLOUDKIT_SYNC_IMPORT_CONFIRMATION = "IMPORT_CLOUDKIT_CHANGES";
+
+const forbiddenValuePattern = /\b(?:github_pat_[A-Za-z0-9_]+|ghp_[A-Za-z0-9_]+|sk-[A-Za-z0-9_-]{12,}|sk-or-[A-Za-z0-9_-]{12,}|AIza[0-9A-Za-z_-]{20,}|Bearer\s+[A-Za-z0-9._~+/=-]+)\b|\/Users\/[^/\s]+|[A-Z]:\\Users\\[^\\\s]+/i;
+const forbiddenFieldPattern = /api[-_]?key|provider[-_]?key|token|password|passphrase|secret|authorization|cookie|private[-_]?key|credential|sqlite|local[-_]?path|file[-_]?path/i;
+const allowedCloudKitRecordPlan = {
+  LifeOSChatZone: { dataType: "chat-history", recordTypes: new Set(["LifeOSConversation", "LifeOSMessage", "LifeOSSyncCheckpoint"]) },
+  LifeOSMemoryZone: { dataType: "memory", recordTypes: new Set(["LifeOSMemory", "LifeOSMemoryTombstone", "LifeOSSyncCheckpoint"]) },
+  LifeOSTaskZone: { dataType: "tasks", recordTypes: new Set(["LifeOSTask", "LifeOSTaskTombstone", "LifeOSTaskListSnapshot", "LifeOSSyncCheckpoint"]) },
+  LifeOSGeneratedAppZone: { dataType: "generated-app-state", recordTypes: new Set(["LifeOSGeneratedAppState", "LifeOSGeneratedAppMutation", "LifeOSSyncCheckpoint"]) },
+  LifeOSDeviceTrustZone: { dataType: "device-trust", recordTypes: new Set(["LifeOSDeviceTrust", "LifeOSSyncCheckpoint"]) },
+} as const;
 
 export type CloudKitSyncCheckpoint = {
   zone: string;
@@ -83,6 +94,51 @@ function stableId(parts: unknown[]) {
 
 function stableHash(value: unknown) {
   return crypto.createHash("sha256").update(String(value ?? "")).digest("hex");
+}
+
+function collectFieldNames(value: unknown, prefix = "", output = new Set<string>()) {
+  if (!value || typeof value !== "object") return output;
+  if (Array.isArray(value)) {
+    for (const item of value.slice(0, 16)) collectFieldNames(item, prefix, output);
+    return output;
+  }
+  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+    const next = prefix ? `${prefix}.${key}` : key;
+    output.add(next);
+    if (child && typeof child === "object") collectFieldNames(child, next, output);
+  }
+  return output;
+}
+
+function validateImportedRecordIntegrity(record: NonNullable<CloudKitNativeHelperResult["syncImportQuarantine"]>["changedRecords"][number]) {
+  const plan = allowedCloudKitRecordPlan[record.zone as keyof typeof allowedCloudKitRecordPlan];
+  if (!plan || !plan.recordTypes.has(record.recordType as never)) return { ok: false as const, reason: "unsupported-record-plan" };
+  if (record.lifeosSchema !== "lifeos-cloudkit-record.v1" || record.lifeosDataType !== plan.dataType) {
+    return { ok: false as const, reason: "schema-mismatch" };
+  }
+  if (!record.sourceIdHash || !record.sourceIdHash.startsWith(`${plan.dataType}:`)) {
+    return { ok: false as const, reason: "source-id-mismatch" };
+  }
+  const payloadJson = record.payloadJson || "";
+  const payloadBytes = Buffer.byteLength(payloadJson, "utf8");
+  if (!payloadJson || payloadBytes > MAX_CLOUDKIT_RECORD_PAYLOAD_BYTES) return { ok: false as const, reason: "payload-size" };
+  if (record.payloadByteSize !== payloadBytes) return { ok: false as const, reason: "payload-length-mismatch" };
+  const contentHash = String(record.contentHash || "").toLowerCase();
+  if (!/^[a-f0-9]{64}$/.test(contentHash) || stableHash(payloadJson) !== contentHash) {
+    return { ok: false as const, reason: "content-hash-mismatch" };
+  }
+  let payload: unknown;
+  try {
+    payload = JSON.parse(payloadJson);
+  } catch {
+    return { ok: false as const, reason: "invalid-json" };
+  }
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return { ok: false as const, reason: "invalid-payload-shape" };
+  if (Array.from(collectFieldNames(payload)).some((field) => forbiddenFieldPattern.test(field))) {
+    return { ok: false as const, reason: "forbidden-field" };
+  }
+  if (forbiddenValuePattern.test(payloadJson)) return { ok: false as const, reason: "secret-like-content" };
+  return { ok: true as const, payloadBytes, contentHash };
 }
 
 export function listCloudKitSyncCheckpoints(): CloudKitSyncCheckpoint[] {
@@ -260,7 +316,7 @@ export function getCloudKitSyncQuarantineSummary(): CloudKitSyncQuarantineSummar
 export function saveCloudKitSyncImportQuarantine(result: CloudKitNativeHelperResult, now = Date.now()) {
   const importResult = result.syncImportQuarantine;
   if (!importResult) {
-    return { tokenSaved: 0, summary: getCloudKitSyncQuarantineSummary(), checkpoints: listCloudKitSyncCheckpoints() };
+    return { tokenSaved: 0, integrityRejected: 0, rejectionReasons: [], summary: getCloudKitSyncQuarantineSummary(), checkpoints: listCloudKitSyncCheckpoints() };
   }
   const evidenceId = "evidenceId" in result ? result.evidenceId || null : null;
   const changedStatement = db.prepare(`
@@ -284,6 +340,29 @@ export function saveCloudKitSyncImportQuarantine(result: CloudKitNativeHelperRes
       imported_at
     )
     VALUES (?, ?, ?, ?, 'changed', ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
+  `);
+  const rejectedStatement = db.prepare(`
+    INSERT OR IGNORE INTO cloudkit_sync_quarantine (
+      id,
+      zone,
+      record_type,
+      record_name,
+      change_type,
+      status,
+      mutation_id,
+      content_hash,
+      payload_hash,
+      logical_clock,
+      payload_byte_size,
+      requires_user_review,
+      payload_json,
+      server_modified_at,
+      deleted_at,
+      source_evidence_id,
+      imported_at,
+      error
+    )
+    VALUES (?, ?, ?, ?, 'changed', 'failed', ?, ?, ?, ?, ?, 1, NULL, ?, NULL, ?, ?, ?)
   `);
   const deletedStatement = db.prepare(`
     INSERT OR IGNORE INTO cloudkit_sync_quarantine (
@@ -312,9 +391,36 @@ export function saveCloudKitSyncImportQuarantine(result: CloudKitNativeHelperRes
     let importedChanged = 0;
     let importedDeleted = 0;
     let skipped = 0;
+    let integrityRejected = 0;
+    const rejectionReasons = new Map<string, number>();
     for (const record of importResult.changedRecords || []) {
       if (!record.zone || !record.recordType || !record.recordName || !record.payloadJson) {
         skipped += 1;
+        integrityRejected += 1;
+        rejectionReasons.set("missing-record-fields", (rejectionReasons.get("missing-record-fields") || 0) + 1);
+        continue;
+      }
+      const integrity = validateImportedRecordIntegrity(record);
+      if (!integrity.ok) {
+        const reason = integrity.reason;
+        rejectionReasons.set(reason, (rejectionReasons.get(reason) || 0) + 1);
+        rejectedStatement.run(
+          stableId(["rejected", record.zone, record.recordType, record.recordName, record.contentHash || stableHash(record.payloadJson)]),
+          record.zone,
+          record.recordType,
+          record.recordName,
+          record.mutationId || null,
+          record.contentHash || null,
+          stableHash(record.payloadJson),
+          Number(record.logicalClock || 0),
+          Buffer.byteLength(record.payloadJson, "utf8"),
+          record.modifiedAt || null,
+          evidenceId,
+          now,
+          `CloudKit record rejected before import: ${reason}`,
+        );
+        skipped += 1;
+        integrityRejected += 1;
         continue;
       }
       const before = (changedStatement.run(
@@ -324,10 +430,10 @@ export function saveCloudKitSyncImportQuarantine(result: CloudKitNativeHelperRes
         record.recordName,
         record.requiresUserReview ? "pending-review" : "auto-ready",
         record.mutationId || null,
-        record.contentHash || null,
+        integrity.contentHash,
         stableHash(record.payloadJson),
         Number(record.logicalClock || 0),
-        Number(record.payloadByteSize || Buffer.byteLength(record.payloadJson, "utf8")),
+        integrity.payloadBytes,
         record.requiresUserReview ? 1 : 0,
         record.payloadJson,
         record.modifiedAt || null,
@@ -361,6 +467,8 @@ export function saveCloudKitSyncImportQuarantine(result: CloudKitNativeHelperRes
     const summary = getCloudKitSyncQuarantineSummary();
     return {
       tokenSaved,
+      integrityRejected,
+      rejectionReasons: Array.from(rejectionReasons.entries()).map(([reason, count]) => ({ reason, count })),
       summary: { ...summary, importedChanged, importedDeleted, skipped, payloadStored: importedChanged > 0 || summary.payloadStored },
       checkpoints: listCloudKitSyncCheckpoints(),
     };

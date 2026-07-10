@@ -264,14 +264,16 @@ function applyMemory(payload: Record<string, unknown>, row: QuarantineRow) {
   if (!memoryId || row.recordName !== `memory:${memoryId}`) throw new Error("Memory id does not match the CloudKit record name.");
   const title = text(payload.title, 120, "Synced memory");
   const content = typeof payload.text === "string" ? String(payload.text).trim() : "";
-  if (!content && row.recordType === "LifeOSMemory") throw new Error("Memory text is empty.");
+  const payloadDeletedAt = numberValue(payload.deletedAt, 0);
+  const isTombstone = row.recordType === "LifeOSMemoryTombstone" || payloadDeletedAt > 0;
+  if (!content && !isTombstone) throw new Error("Memory text is empty.");
   const sensitivity = payload.sensitivity === "sensitive" ? "sensitive" : "normal";
   if (sensitivity === "sensitive") throw new Error("Sensitive memory import requires manual review.");
   const createdAt = numberValue(payload.createdAt, Date.now());
   const updatedAt = numberValue(payload.updatedAt, createdAt);
-  const deletedAt = row.recordType === "LifeOSMemoryTombstone" ? numberValue(payload.deletedAt, updatedAt) || updatedAt : numberValue(payload.deletedAt, 0) || null;
+  const deletedAt = isTombstone ? payloadDeletedAt || updatedAt : null;
   const existing = db.prepare("SELECT updated_at as updatedAt FROM memories WHERE id = ?").get(memoryId) as { updatedAt?: number } | undefined;
-  if (!row.requiresUserReview && row.recordType !== "LifeOSMemory") throw new Error("Memory delete requires manual review.");
+  if (isTombstone && !row.requiresUserReview) throw new Error("Memory delete requires manual review.");
   if (!row.requiresUserReview && existing) throw new Error("Existing memory requires manual review before CloudKit can update it.");
   if (existing && Number(existing.updatedAt || 0) > updatedAt) throw new Error("Local memory is newer; manual conflict review required.");
   db.prepare(`
@@ -292,13 +294,14 @@ function applyTask(payload: Record<string, unknown>, row: QuarantineRow) {
   if (!taskId || row.recordName !== `task:${taskId}`) throw new Error("Task id does not match the CloudKit record name.");
   const type = text(payload.type, 80, "synced");
   const status = row.recordType === "LifeOSTaskTombstone" ? "deleted" : text(payload.state, 80, "ready");
+  const isTombstone = status === "deleted";
   const createdAt = numberValue(payload.createdAt, Date.now());
   const startedAt = numberValue(payload.startedAt, 0) || null;
   const finishedAt = numberValue(payload.finishedAt, 0) || null;
   const remoteClock = finishedAt || startedAt || createdAt;
   const existing = db.prepare("SELECT created_at as createdAt, started_at as startedAt, finished_at as finishedAt FROM tasks WHERE id = ?").get(taskId) as any;
   const localClock = existing ? Number(existing.finishedAt || existing.startedAt || existing.createdAt || 0) : 0;
-  if (!row.requiresUserReview && row.recordType !== "LifeOSTask") throw new Error("Task delete requires manual review.");
+  if (isTombstone && !row.requiresUserReview) throw new Error("Task delete requires manual review.");
   if (!row.requiresUserReview && existing) throw new Error("Existing task requires manual review before CloudKit can update it.");
   if (localClock > remoteClock) throw new Error("Local task is newer; manual conflict review required.");
   db.prepare(`

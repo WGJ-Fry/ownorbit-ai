@@ -45,6 +45,7 @@ function runIsolatedCloudKitCycle(env, scenario) {
       operations.push(options.operation);
       if (options.operation === "sync-changes-preview") {
         const failed = ${JSON.stringify(scenario)} === "remote-failed";
+        const moreComing = ${JSON.stringify(scenario)} === "more-coming";
         return {
           ok: !failed,
           status: failed ? "failed" : "passed",
@@ -57,9 +58,9 @@ function runIsolatedCloudKitCycle(env, scenario) {
             changed: 0,
             deleted: 0,
             failed: failed ? 1 : 0,
-            moreComing: false,
+            moreComing,
             rawPayloadIncluded: false,
-            zones: [],
+            zones: moreComing ? [{ zone: "LifeOSChatZone", serverChangeToken: "next-page-token", changed: 100, deleted: 0, failed: 0, moreComing: true }] : [],
             changedRecords: [],
             deletedRecords: []
           },
@@ -91,6 +92,25 @@ function runIsolatedCloudKitCycle(env, scenario) {
           syncChangesPreview: { scannedZones: [], changed: 0, deleted: 0, failed: 0, moreComing: false, rawPayloadIncluded: false, zones: [], changedRecords: [], deletedRecords: [] },
           syncImportQuarantine: emptyImport,
           roundtrip: { created: false, fetched: false, deleted: false },
+          warnings: [],
+          errors: [],
+        };
+      }
+      if (options.operation === "sync-import-quarantine" && ${JSON.stringify(scenario)} === "more-coming") {
+        return {
+          ok: true,
+          status: "passed",
+          operation: "sync-import-quarantine",
+          checkedAt: new Date(now).toISOString(),
+          readinessStatus: "ready",
+          evidenceId: "cycle-import-page-evidence",
+          syncChangesPreview: { scannedZones: [], changed: 0, deleted: 0, failed: 0, moreComing: false, rawPayloadIncluded: false, zones: [], changedRecords: [], deletedRecords: [] },
+          syncImportQuarantine: {
+            ...emptyImport,
+            scannedZones: ["LifeOSChatZone"],
+            moreComing: true,
+            zones: [{ zone: "LifeOSChatZone", serverChangeToken: "next-import-page-token", changed: 0, deleted: 0, failed: 0, moreComing: true }],
+          },
           warnings: [],
           errors: [],
         };
@@ -153,6 +173,26 @@ test("CloudKit safe sync cycle stops before upload when the remote pull fails", 
     assert.equal(result.safety.cloudKitChangeTokenReturnedToAdmin, false);
     assert.equal(result.safety.localBackupPathReturnedToAdmin, false);
     assert.equal(JSON.stringify(result).includes("payloadJson"), false);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit safe sync cycle drains every remote page before uploading local records", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-cycle-more-coming-"));
+  try {
+    const { result, operations } = runIsolatedCloudKitCycle({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "more-coming");
+
+    assert.deepEqual(operations, ["sync-changes-preview", "sync-import-quarantine"]);
+    assert.equal(result.status, "remote-more-coming");
+    assert.equal(result.nextAction, "continue-pull");
+    assert.equal(result.upload, undefined);
+    assert.equal(result.pull.status, "more-coming");
+    assert.equal(result.safety.uploadRunsOnlyAfterConflictFreePull, true);
+    assert.equal(JSON.stringify(result).includes("next-page-token"), false);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

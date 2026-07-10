@@ -37,6 +37,7 @@ function runIsolatedCloudKitBatch(env) {
     insertMessage(session.id, "user", { parts: [{ text: "do not sync sk-secret-value-1234567890" }] });
     insertMemory("Safe memory", "Buy milk and plan the week", "normal");
     insertMemory("Sensitive memory", "passport token=secret", "sensitive");
+    insertMemory("Oversized memory", "x".repeat(70 * 1024), "normal");
     db.prepare("INSERT INTO memories (id, title, content, sensitivity, created_at, updated_at, deleted_at) VALUES (?, ?, ?, 'sensitive', ?, ?, ?)")
       .run("deleted-sensitive-memory", "Deleted sensitive memory", "passport token=deleted-secret", 1700000000000, 1700000003000, 1700000003000);
     db.prepare("INSERT INTO tasks (id, type, status, input_json, result_json, error, created_by_device_id, created_at, started_at, finished_at) VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, NULL, ?)")
@@ -137,9 +138,11 @@ test("CloudKit sync batch preview builds safe records and blocks sensitive paylo
     assert.equal(preview.safety.credentialBoundary.neverSyncedFields.includes("device token hash"), true);
     assert.equal(preview.safety.secretLikeContentBlocked >= 1, true);
     assert.equal(preview.safety.sensitiveMemoryBlocked >= 1, true);
+    assert.equal(preview.safety.oversizedContentBlocked, 1);
+    assert.equal(preview.safety.maxRecordPayloadBytes, 64 * 1024);
+    assert.equal(preview.blockedRecords.some((record) => record.reason === "payload-too-large"), true);
     assert.ok(preview.recordTypes.some((item) => item.recordType === "LifeOSMessage"));
     assert.ok(preview.recordTypes.some((item) => item.recordType === "LifeOSMemory"));
-    assert.ok(preview.recordTypes.some((item) => item.recordType === "LifeOSMemoryTombstone"));
     assert.ok(preview.recordTypes.some((item) => item.recordType === "LifeOSTask"));
     assert.ok(preview.recordTypes.some((item) => item.recordType === "LifeOSTaskListSnapshot"));
     assert.ok(preview.recordTypes.some((item) => item.recordType === "LifeOSGeneratedAppState"));
@@ -147,7 +150,7 @@ test("CloudKit sync batch preview builds safe records and blocks sensitive paylo
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSMessage" && record.requiresUserReview === false), true);
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSConversation" && record.requiresUserReview === true), true);
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSMemory" && record.requiresUserReview === false), true);
-    assert.equal(preview.records.some((record) => record.recordType === "LifeOSMemoryTombstone" && record.recordName === "memory:deleted-sensitive-memory" && record.requiresUserReview === true), true);
+    assert.equal(preview.records.some((record) => record.recordType === "LifeOSMemory" && record.recordName === "memory:deleted-sensitive-memory" && record.requiresUserReview === true), true);
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSTask" && record.requiresUserReview === false), true);
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSTaskListSnapshot" && record.recordName === "task-list:lifeos_tasks_pro" && record.requiresUserReview === false), true);
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSDeviceTrust" && record.requiresUserReview === true), true);

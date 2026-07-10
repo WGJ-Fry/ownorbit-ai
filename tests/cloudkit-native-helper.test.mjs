@@ -197,6 +197,7 @@ test("Apple CloudKit helper source implements the native JSON stdio contract", a
   const xcodeBuildScript = await readFile(path.join(rootDir, "scripts/build-cloudkit-helper-xcode.mjs"), "utf8");
   const packageJson = JSON.parse(await readFile(path.join(rootDir, "package.json"), "utf8"));
   assert.match(swiftSource, /import CloudKit/);
+  assert.match(swiftSource, /import CryptoKit/);
   assert.match(swiftSource, /lifeos-cloudkit-helper-request\.v1/);
   assert.match(swiftSource, /lifeos-cloudkit-helper-response\.v1/);
   assert.match(swiftSource, /--lifeos-cloudkit-json/);
@@ -214,6 +215,15 @@ test("Apple CloudKit helper source implements the native JSON stdio contract", a
   assert.match(swiftSource, /IMPORT_CLOUDKIT_CHANGES/);
   assert.match(swiftSource, /runSyncImportQuarantine/);
   assert.match(swiftSource, /sync-import-quarantine/);
+  assert.match(swiftSource, /validatedPayloadJson/);
+  assert.match(swiftSource, /validatedExportFields/);
+  assert.match(swiftSource, /database\.record\(for: recordId\)/);
+  assert.match(swiftSource, /sync-export-upsert/);
+  assert.match(swiftSource, /newer or conflicting remote/);
+  assert.match(swiftSource, /payload byte length does not match/);
+  assert.match(swiftSource, /payload checksum does not match/);
+  assert.match(swiftSource, /maxChangePages/);
+  assert.match(swiftSource, /run another pull before uploading local data/);
   assert.match(swiftSource, /runSubscriptionProbe/);
   assert.match(swiftSource, /CKDatabaseSubscription/);
   assert.match(swiftSource, /subscription-push/);

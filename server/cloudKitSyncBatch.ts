@@ -8,6 +8,7 @@ type CloudKitSyncDataType = "chat-history" | "memory" | "tasks" | "generated-app
 
 const DEFAULT_LIMIT = 200;
 const MAX_LIMIT = 500;
+export const MAX_CLOUDKIT_RECORD_PAYLOAD_BYTES = 64 * 1024;
 export const CLOUDKIT_SYNC_EXPORT_SCHEMA = "lifeos-cloudkit-sync-export.v1";
 export const CLOUDKIT_SYNC_EXPORT_CONFIRMATION = "SYNC_APPROVED_RECORDS";
 const forbiddenValuePattern = /\b(?:github_pat_[A-Za-z0-9_]+|ghp_[A-Za-z0-9_]+|sk-[A-Za-z0-9_-]{12,}|sk-or-[A-Za-z0-9_-]{12,}|AIza[0-9A-Za-z_-]{20,}|Bearer\s+[A-Za-z0-9._~+/=-]+)\b|\/Users\/[^/\s]+|[A-Z]:\\Users\\[^\\\s]+/i;
@@ -31,7 +32,7 @@ export type CloudKitSyncBlockedRecord = {
   id: string;
   dataType: CloudKitSyncDataType;
   recordType: string;
-  reason: "sensitive-memory" | "secret-like-content" | "unsafe-field" | "malformed-json" | "unsupported-record";
+  reason: "sensitive-memory" | "secret-like-content" | "unsafe-field" | "malformed-json" | "unsupported-record" | "payload-too-large";
   contentHash: string;
 };
 
@@ -59,6 +60,8 @@ export type CloudKitSyncBatchPreview = {
     credentialBoundary: IcloudDataSyncReadiness["credentialBoundary"];
     secretLikeContentBlocked: number;
     sensitiveMemoryBlocked: number;
+    oversizedContentBlocked: number;
+    maxRecordPayloadBytes: number;
     rawPayloadIncluded: false;
   };
   helperPayloadPlan: {
@@ -176,10 +179,23 @@ function addCount(counts: Map<string, number>, key: string) {
 
 function pushReady(
   records: CloudKitSyncRecordCandidate[],
+  blockedRecords: CloudKitSyncBlockedRecord[],
   counts: { zones: Map<string, number>; recordTypes: Map<string, number> },
   record: CloudKitSyncRecordCandidate,
   limit: number,
 ) {
+  if (record.byteSize > MAX_CLOUDKIT_RECORD_PAYLOAD_BYTES) {
+    if (blockedRecords.length < limit) {
+      blockedRecords.push({
+        id: record.id,
+        dataType: record.dataType,
+        recordType: record.recordType,
+        reason: "payload-too-large",
+        contentHash: record.contentHash,
+      });
+    }
+    return;
+  }
   addCount(counts.zones, record.zone);
   addCount(counts.recordTypes, record.recordType);
   if (records.length < limit) records.push(record);
@@ -271,7 +287,7 @@ function collectChatRecords(limit: number) {
       createdAt: Number(session.createdAt || 0),
       updatedAt: Number(session.updatedAt || 0),
     };
-    pushReady(records, counts, buildRecord({
+    pushReady(records, blockedRecords, counts, buildRecord({
       id: session.id,
       dataType: "chat-history",
       zone: "LifeOSChatZone",
@@ -314,7 +330,7 @@ function collectChatRecords(limit: number) {
       queuedAt: Number(message.queuedAt || 0) || undefined,
       conversationTitle: safeConversationTitleSnapshot(message.sessionTitle),
     };
-    pushReady(records, counts, buildRecord({
+    pushReady(records, blockedRecords, counts, buildRecord({
       id: message.id,
       dataType: "chat-history",
       zone: "LifeOSChatZone",
@@ -351,11 +367,11 @@ function collectMemoryRecords(limit: number) {
       deletedAt,
     };
     if (deletedAt) {
-      pushReady(records, counts, buildRecord({
+      pushReady(records, blockedRecords, counts, buildRecord({
         id: memory.id,
         dataType: "memory",
         zone: "LifeOSMemoryZone",
-        recordType: "LifeOSMemoryTombstone",
+        recordType: "LifeOSMemory",
         recordName: `memory:${memory.id}`,
         payload,
         logicalClock: payload.updatedAt,
@@ -371,7 +387,7 @@ function collectMemoryRecords(limit: number) {
       pushBlocked(blockedRecords, { id: memory.id, dataType: "memory", recordType: "LifeOSMemory", reason: "secret-like-content", payload }, limit);
       continue;
     }
-    pushReady(records, counts, buildRecord({
+    pushReady(records, blockedRecords, counts, buildRecord({
       id: memory.id,
       dataType: "memory",
       zone: "LifeOSMemoryZone",
@@ -418,11 +434,11 @@ function collectTaskRecords(limit: number) {
       pushBlocked(blockedRecords, { id: task.id, dataType: "tasks", recordType: "LifeOSTask", reason: hasForbiddenField(payload) ? "unsafe-field" : "secret-like-content", payload }, limit);
       continue;
     }
-    pushReady(records, counts, buildRecord({
+    pushReady(records, blockedRecords, counts, buildRecord({
       id: task.id,
       dataType: "tasks",
       zone: "LifeOSTaskZone",
-      recordType: task.status === "deleted" ? "LifeOSTaskTombstone" : "LifeOSTask",
+      recordType: "LifeOSTask",
       recordName: `task:${task.id}`,
       payload,
       logicalClock: Number(task.finishedAt || task.startedAt || task.createdAt || 0),
@@ -454,7 +470,7 @@ function collectTaskRecords(limit: number) {
     } else if (hasForbiddenField(value) || hasForbiddenValue(value) || hasForbiddenValue(payload)) {
       pushBlocked(blockedRecords, { id: taskListState.key, dataType: "tasks", recordType: "LifeOSTaskListSnapshot", reason: hasForbiddenField(value) ? "unsafe-field" : "secret-like-content", payload }, limit);
     } else {
-      pushReady(records, counts, buildRecord({
+      pushReady(records, blockedRecords, counts, buildRecord({
         id: taskListState.key,
         dataType: "tasks",
         zone: "LifeOSTaskZone",
@@ -501,11 +517,11 @@ function collectGeneratedAppStateRecords(limit: number) {
       pushBlocked(blockedRecords, { id: row.appId, dataType: "generated-app-state", recordType: "LifeOSGeneratedAppState", reason: hasForbiddenField(payload) ? "unsafe-field" : "secret-like-content", payload }, limit);
       continue;
     }
-    pushReady(records, counts, buildRecord({
+    pushReady(records, blockedRecords, counts, buildRecord({
       id: row.appId,
       dataType: "generated-app-state",
       zone: "LifeOSGeneratedAppZone",
-      recordType: row.deletedAt ? "LifeOSGeneratedAppMutation" : "LifeOSGeneratedAppState",
+      recordType: "LifeOSGeneratedAppState",
       recordName: `generated-app-state:${row.appId}`,
       payload,
       logicalClock: payload.updatedAt,
@@ -545,7 +561,7 @@ function collectDeviceTrustRecords(limit: number) {
       pushBlocked(blockedRecords, { id: device.id, dataType: "device-trust", recordType: "LifeOSDeviceTrust", reason: "secret-like-content", payload }, limit);
       continue;
     }
-    pushReady(records, counts, buildRecord({
+    pushReady(records, blockedRecords, counts, buildRecord({
       id: device.id,
       dataType: "device-trust",
       zone: "LifeOSDeviceTrustZone",
@@ -622,6 +638,7 @@ export function buildCloudKitSyncBatchPreview(
   const forbiddenFieldNames = forbiddenFieldCount ? ["redacted-sensitive-fields"] : [];
   const secretLikeContentBlocked = blockedRecords.filter((record) => record.reason === "secret-like-content" || record.reason === "unsafe-field").length;
   const sensitiveMemoryBlocked = blockedRecords.filter((record) => record.reason === "sensitive-memory").length;
+  const oversizedContentBlocked = blockedRecords.filter((record) => record.reason === "payload-too-large").length;
   const helperPayloadPlan = {
     schema: "lifeos-cloudkit-sync-batch-preview.v1" as const,
     operation: "preview" as const,
@@ -658,6 +675,8 @@ export function buildCloudKitSyncBatchPreview(
       credentialBoundary: readiness.credentialBoundary,
       secretLikeContentBlocked,
       sensitiveMemoryBlocked,
+      oversizedContentBlocked,
+      maxRecordPayloadBytes: MAX_CLOUDKIT_RECORD_PAYLOAD_BYTES,
       rawPayloadIncluded: false,
     },
     helperPayloadPlan,

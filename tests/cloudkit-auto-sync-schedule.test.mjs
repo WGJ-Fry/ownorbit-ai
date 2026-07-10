@@ -31,17 +31,18 @@ function runIsolatedAutoSync(env, scenario) {
     };
     const fakeRunCycle = async () => {
       calls.push("cycle");
+      const remoteMoreComing = ${JSON.stringify(scenario)} === "more-coming";
       return {
-        ok: true,
-        status: "completed",
-        nextAction: "done",
+        ok: !remoteMoreComing,
+        status: remoteMoreComing ? "remote-more-coming" : "completed",
+        nextAction: remoteMoreComing ? "continue-pull" : "done",
         startedAt: now,
         finishedAt: now + 25,
         limit: 100,
         pull: {
           ok: true,
-          status: "applied",
-          nextAction: "done",
+          status: remoteMoreComing ? "more-coming" : "applied",
+          nextAction: remoteMoreComing ? "run-again" : "done",
           startedAt: now,
           finishedAt: now + 10,
           limit: 100,
@@ -51,7 +52,7 @@ function runIsolatedAutoSync(env, scenario) {
           backups: [],
           safety: { rawPayloadReturnedToAdmin: false, cloudKitChangeTokenReturnedToAdmin: false, appliesOnlyConflictFreeRecords: true },
         },
-        upload: {
+        upload: remoteMoreComing ? undefined : {
           ok: true,
           status: "uploaded",
           nextAction: "done",
@@ -138,6 +139,24 @@ test("CloudKit auto sync records a single setup action when native data sync is 
     assert.equal(result.due.lastResult.readinessStatus, "not-enabled");
     assert.equal(result.due.lastResult.dataSyncScope, "entry-file-only");
     assert.ok(result.audits.some((log) => log.action === "icloud_cloudkit_auto_sync_skipped"));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit auto sync schedules the next remote page quickly without uploading local data", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-auto-sync-more-coming-"));
+  try {
+    const result = runIsolatedAutoSync({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "more-coming");
+
+    assert.deepEqual(result.calls, ["cycle"]);
+    assert.equal(result.due.lastResult.status, "remote-more-coming");
+    assert.equal(result.due.lastResult.nextAction, "continue-pull");
+    assert.equal(result.after.nextRunAt, 1700000000000 + 60 * 1000);
+    assert.equal(result.due.cycle.upload, undefined);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

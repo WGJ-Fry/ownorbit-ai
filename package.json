@@ -43,6 +43,7 @@
     "icloud:acceptance": "node --import tsx scripts/icloud-data-sync-acceptance-runbook.mjs",
     "mobile:simulator:smoke": "node scripts/mobile-ios-simulator-smoke.mjs",
     "mobile:native:build": "node scripts/build-ios-mobile-shell.mjs",
+    "mobile:native:device:build": "node scripts/build-ios-mobile-shell.mjs --device",
     "mobile:native:smoke": "node scripts/mobile-ios-native-shell-smoke.mjs",
     "remote:acceptance": "node scripts/remote-acceptance-runbook.mjs",
     "calendar:acceptance": "node --import tsx scripts/calendar-acceptance-runbook.mjs",
