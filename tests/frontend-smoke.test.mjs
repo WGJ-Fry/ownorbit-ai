@@ -620,6 +620,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /simpleIcloudPairingConfirmed/);
   assert.match(onboardingSource, /simpleIcloudLongTestActionKey/);
   assert.match(onboardingSource, /onboarding-icloud-quick-one-step/);
+  assert.match(onboardingSource, /getPrimaryIcloudInstructionKeys/);
+  assert.match(onboardingSource, /simpleIcloudInstructionKeys/);
+  assert.match(onboardingSource, /onboarding-icloud-quick-action-split/);
+  assert.match(onboardingSource, /onboarding-icloud-quick-action-split-remote/);
   assert.match(onboardingSource, /data-onboarding-icloud-primary-step/);
   assert.match(onboardingSource, /data-onboarding-icloud-desktop-action/);
   assert.match(onboardingSource, /data-onboarding-icloud-phone-action/);
@@ -690,6 +694,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Apple devices start with the simplest default flow/);
   assert.match(translationsSource, /手机打开文件后，这里会自动跳到二维码绑定/);
   assert.match(translationsSource, /this page will move to QR pairing automatically/);
+  assert.match(translationsSource, /打开相机扫描这台 Mac 上的二维码/);
+  assert.match(translationsSource, /Open Camera and scan the QR shown on this Mac/);
   assert.match(translationsSource, /备用：直接扫码绑定/);
   assert.match(translationsSource, /Backup: pair directly by QR/);
   const onboardingRecoverySource = await readFile(path.join(rootDir, "src", "pages", "admin", "OnboardingRecoveryCard.tsx"), "utf8");

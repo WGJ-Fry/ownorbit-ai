@@ -228,6 +228,16 @@ test("Apple CloudKit helper source implements the native JSON stdio contract", a
   assert.doesNotMatch(swiftSource, /deviceCredential|sessionCookie|providerApiKey|sqliteBlob/);
   assert.match(buildScript, /CloudKit\.framework/);
   assert.match(buildScript, /build\/native\/LifeOSCloudKitHelper/);
+  assert.match(buildScript, /LIFEOS_CLOUDKIT_SIGN_HELPER/);
+  assert.match(buildScript, /LIFEOS_CLOUDKIT_SIGN_IDENTITY/);
+  assert.match(buildScript, /LIFEOS_CLOUDKIT_CONTAINER_ID/);
+  assert.match(buildScript, /com\.apple\.developer\.icloud-container-identifiers/);
+  assert.match(buildScript, /com\.apple\.developer\.icloud-services/);
+  assert.match(buildScript, /codesign/);
+  assert.match(buildScript, /--entitlements/);
+  assert.match(buildScript, /--verify/);
+  assert.match(buildScript, /launchCheck/);
+  assert.match(buildScript, /matching Apple provisioning profile/);
   assert.match(packageJson.scripts["icloud:helper:build"], /build-cloudkit-helper\.mjs/);
 });
 

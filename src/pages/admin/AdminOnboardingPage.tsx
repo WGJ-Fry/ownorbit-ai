@@ -12,7 +12,7 @@ import OnboardingHandoffCard from "./OnboardingHandoffCard";
 import OnboardingRecoveryCard from "./OnboardingRecoveryCard";
 import { buildOnboardingHandoffSummary } from "../../services/onboardingHandoffSummary";
 import { appendIcloudAutoRefreshStatus } from "./icloudAutoRefreshStatus";
-import { getIcloudActionFollowupKey, getPrimaryIcloudAction, isIcloudEntrySameWifiOnly } from "./appleRemoteIcloudPrimaryAction";
+import { getIcloudActionFollowupKey, getPrimaryIcloudAction, getPrimaryIcloudInstructionKeys, isIcloudEntrySameWifiOnly } from "./appleRemoteIcloudPrimaryAction";
 import { getIcloudPhonePickupStatus } from "./icloudPhonePickupStatus";
 import { formatDevicePairingCreateError } from "../../services/devicePairingErrors";
 
@@ -138,6 +138,16 @@ export default function AdminOnboardingPage() {
   const showSimpleIcloudFilesFirst = simpleIcloudEntryReady && !simpleIcloudPhoneConfirmed;
   const showSimpleIcloudQrAfterPickup = simpleIcloudEntryReady && simpleIcloudPhoneConfirmed && !simpleIcloudPairingConfirmed;
   const showSimpleIcloudLongTest = simpleIcloudEntryReady && simpleIcloudPhoneConfirmed && Boolean(simpleIcloudLongTestActionKey);
+  const simpleIcloudPrimaryInstructionKeys = getPrimaryIcloudInstructionKeys(simpleIcloudAction);
+  const simpleIcloudInstructionKeys = showSimpleIcloudQrAfterPickup
+    ? getPrimaryIcloudInstructionKeys({ desktopAction: "regenerate-qr", phoneAction: "scan-qr", remoteRequired: false })
+    : simpleIcloudLongTestActionKey
+    ? {
+        desktopKey: "onboarding.appleRemoteIcloudDesktopInstructionNone" as TranslationKey,
+        phoneKey: simpleIcloudLongTestActionKey,
+        remoteKey: null,
+      }
+    : simpleIcloudPrimaryInstructionKeys;
   const simpleIcloudOneStepActionText = simpleIcloudLongTestActionKey
     ? t(simpleIcloudLongTestActionKey)
     : showSimpleIcloudQrAfterPickup
@@ -868,6 +878,21 @@ export default function AdminOnboardingPage() {
                       <div data-testid="onboarding-icloud-quick-followup" className="mt-3 border-t border-cyan-100/10 pt-3 text-xs text-cyan-50/75">
                         <span className="font-bold text-cyan-50">{t("onboarding.appleRemoteIcloudThenLabel")}</span>{" "}
                         {simpleIcloudOneStepFollowupText}
+                      </div>
+                      <div data-testid="onboarding-icloud-quick-action-split" className="mt-3 grid gap-2 rounded-xl border border-cyan-100/10 bg-black/15 p-3 text-xs leading-relaxed sm:grid-cols-2">
+                        <div>
+                          <div className="font-bold text-cyan-50">{t("onboarding.appleRemoteIcloudDesktopInstructionLabel")}</div>
+                          <div className="mt-1 text-cyan-50/75">{t(simpleIcloudInstructionKeys.desktopKey)}</div>
+                        </div>
+                        <div>
+                          <div className="font-bold text-cyan-50">{t("onboarding.appleRemoteIcloudPhoneInstructionLabel")}</div>
+                          <div className="mt-1 text-cyan-50/75">{t(simpleIcloudInstructionKeys.phoneKey)}</div>
+                        </div>
+                        {simpleIcloudInstructionKeys.remoteKey ? (
+                          <div data-testid="onboarding-icloud-quick-action-split-remote" className="rounded-lg border border-amber-300/20 bg-amber-500/10 p-2 text-amber-50 sm:col-span-2">
+                            {t(simpleIcloudInstructionKeys.remoteKey)}
+                          </div>
+                        ) : null}
                       </div>
                       {simpleIcloudHumanRecoveryTipText ? (
                         <div data-testid="onboarding-icloud-quick-human-tip" className="mt-2 rounded-xl border border-cyan-100/10 bg-black/15 p-2 text-xs leading-relaxed text-cyan-50/75">

@@ -30,6 +30,7 @@ export type IcloudPrimaryPhoneAction =
   | "open-files-app"
   | "open-files-app-after-sync"
   | "open-latest-entry"
+  | "scan-qr"
   | "same-wifi-only";
 
 export type IcloudPrimaryAction = {
@@ -86,6 +87,7 @@ const phoneInstructionKeys: Record<IcloudPrimaryPhoneAction, TranslationKey> = {
   "open-files-app": "onboarding.appleRemoteIcloudPhoneInstructionOpenFiles",
   "open-files-app-after-sync": "onboarding.appleRemoteIcloudPhoneInstructionAfterSync",
   "open-latest-entry": "onboarding.appleRemoteIcloudPhoneInstructionLatest",
+  "scan-qr": "onboarding.appleRemoteIcloudPhoneInstructionScanQr",
   "same-wifi-only": "onboarding.appleRemoteIcloudPhoneInstructionSameWifi",
 };
 

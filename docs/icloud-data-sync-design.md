@@ -134,6 +134,18 @@ The first native helper scaffold lives at `native/apple/cloudkit-helper/LifeOSCl
 npm run icloud:helper:build
 ```
 
+That default command is a compile-only smoke. It proves the Swift source builds, but it does not grant CloudKit access. After the iCloud Container exists in the Apple Developer account, build and verify a locally signed helper with:
+
+```bash
+export LIFEOS_CLOUDKIT_SIGN_HELPER=1
+export LIFEOS_CLOUDKIT_CONTAINER_ID="iCloud.ai.lifeos.desktop"
+export LIFEOS_CLOUDKIT_TEAM_ID="YOUR_TEAM_ID"
+export LIFEOS_CLOUDKIT_BUNDLE_ID="ai.lifeos.cloudkit-helper"
+npm run icloud:helper:build
+```
+
+The build script selects a matching local Apple Development or Developer ID Application identity unless `LIFEOS_CLOUDKIT_SIGN_IDENTITY` is set, generates an ignored entitlement file under `build/native`, signs the helper, verifies the signature, confirms the requested CloudKit container is present in the signed entitlement, and launches a no-write startup check. It does not create an Apple Developer App ID, CloudKit container, or provisioning profile. If macOS reports `No matching profile found`, the build fails before a probe and the matching Apple provisioning profile must be created and installed first.
+
 The build output is intentionally local (`build/native/LifeOSCloudKitHelper`) and should not be committed. Configure it with:
 
 ```bash

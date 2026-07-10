@@ -220,6 +220,18 @@ test("iCloud primary action follow-up copy is shared by simple and advanced onbo
   );
 });
 
+test("iCloud instruction helper supports the inline phone QR step", () => {
+  const instructions = getPrimaryIcloudInstructionKeys({
+    desktopAction: "regenerate-qr",
+    phoneAction: "scan-qr",
+    remoteRequired: false,
+  });
+
+  assert.equal(instructions.desktopKey, "onboarding.appleRemoteIcloudDesktopInstructionQr");
+  assert.equal(instructions.phoneKey, "onboarding.appleRemoteIcloudPhoneInstructionScanQr");
+  assert.equal(instructions.remoteKey, null);
+});
+
 test("iCloud helper identifies same-Wi-Fi entries that cannot carry off-LAN realtime chat", () => {
   assert.equal(isIcloudEntrySameWifiOnly({
     recommendedMode: "lan",
