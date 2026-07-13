@@ -8,6 +8,7 @@ export default defineConfig({
   workers: 1,
   use: {
     baseURL: "http://127.0.0.1:3333",
+    serviceWorkers: "block",
     trace: "retain-on-failure",
   },
   projects: [
