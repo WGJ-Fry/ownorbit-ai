@@ -3,6 +3,7 @@
 ## 0.1.5-alpha.0
 
 - Added privacy-safe iOS local notifications for expiring iCloud phone entries and repeated connection failures, with automatic cleanup after recovery.
+- Corrected native iOS CloudKit background-fetch reporting so genuine failures return `failed` instead of being collapsed into `noData`.
 
 Release candidate for the next public alpha. Do not advertise as publicly available until the tag, packages, Docker image, and release notes are published.
 

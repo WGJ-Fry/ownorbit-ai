@@ -42,6 +42,20 @@ struct LifeOSCloudSyncReport: Codable, Equatable {
     let syncedAt: Date
 }
 
+enum LifeOSCloudSyncOutcome: Equatable {
+    case newData
+    case noData
+    case failed
+
+    var backgroundFetchResult: UIBackgroundFetchResult {
+        switch self {
+        case .newData: return .newData
+        case .noData: return .noData
+        case .failed: return .failed
+        }
+    }
+}
+
 enum LifeOSCloudSyncError: LocalizedError, Equatable {
     case noAccount
     case restricted
@@ -403,6 +417,7 @@ final class LifeOSCloudDataStore: ObservableObject {
     @Published private(set) var writingTaskRecordId: String?
     @Published private(set) var writingMemory = false
     @Published private(set) var enabled: Bool
+    private(set) var lastSyncOutcome: LifeOSCloudSyncOutcome = .noData
 
     var isWriting: Bool { writingTaskRecordId != nil || writingMemory }
 
@@ -443,8 +458,12 @@ final class LifeOSCloudDataStore: ObservableObject {
         ) { [weak self] notification in
             let request = notification.object as? LifeOSCloudKitPushRequest
             Task { @MainActor in
-                let synced = await self?.sync(reason: "push") ?? false
-                request?.finish(synced ? .newData : .noData)
+                guard let self else {
+                    request?.finish(.failed)
+                    return
+                }
+                _ = await self.sync(reason: "push")
+                request?.finish(self.lastSyncOutcome.backgroundFetchResult)
             }
         }
         accountObserver = NotificationCenter.default.addObserver(
@@ -472,11 +491,15 @@ final class LifeOSCloudDataStore: ObservableObject {
 
     @discardableResult
     func sync(reason: String = "manual") async -> Bool {
-        guard enabled, !isSyncing, !isWriting else { return false }
+        guard enabled, !isSyncing, !isWriting else {
+            lastSyncOutcome = .noData
+            return false
+        }
         if simulatorDemoMode {
             statusMessage = NSLocalizedString("cloud.status.ready", comment: "")
             statusTone = .success
             nextAction = .none
+            lastSyncOutcome = .noData
             return false
         }
         if reason == "retry" {
@@ -531,7 +554,12 @@ final class LifeOSCloudDataStore: ObservableObject {
                 statusTone = .success
                 retryAttempt = 0
             }
-            return nextReport.changed > 0 || nextReport.deleted > 0 || nextReport.accountChanged || nextReport.resetZoneCount > 0
+            let hasNewData = nextReport.changed > 0 ||
+                nextReport.deleted > 0 ||
+                nextReport.accountChanged ||
+                nextReport.resetZoneCount > 0
+            lastSyncOutcome = hasNewData ? .newData : .noData
+            return hasNewData
             #endif
         } catch {
             let userError = error as? LifeOSCloudSyncError ?? LifeOSCloudSyncError.userFacing(error)
@@ -547,6 +575,7 @@ final class LifeOSCloudDataStore: ObservableObject {
             }
             statusMessage = userError.errorDescription ?? NSLocalizedString("cloud.error.unavailable", comment: "")
             statusTone = .error
+            lastSyncOutcome = .failed
             return false
         }
     }
@@ -725,6 +754,7 @@ final class LifeOSCloudDataStore: ObservableObject {
         try? FileManager.default.removeItem(at: fileURL)
         snapshot = .empty
         report = nil
+        lastSyncOutcome = .noData
         statusMessage = NSLocalizedString("cloud.status.cleared", comment: "")
         statusTone = .neutral
         nextAction = .none

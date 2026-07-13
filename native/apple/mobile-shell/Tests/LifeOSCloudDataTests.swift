@@ -3,6 +3,25 @@ import XCTest
 @testable import LifeOSMobile
 
 final class LifeOSCloudDataTests: XCTestCase {
+    func testCloudSyncOutcomeMapsBackgroundFetchResultsWithoutCollapsingFailures() {
+        XCTAssertEqual(LifeOSCloudSyncOutcome.newData.backgroundFetchResult, .newData)
+        XCTAssertEqual(LifeOSCloudSyncOutcome.noData.backgroundFetchResult, .noData)
+        XCTAssertEqual(LifeOSCloudSyncOutcome.failed.backgroundFetchResult, .failed)
+    }
+
+    @MainActor
+    func testSimulatorCloudSyncDistinguishesNoDataFromFailure() async {
+        let demoStore = LifeOSCloudDataStore(demoModeOverride: true)
+        let foundNewData = await demoStore.sync(reason: "test-no-data")
+        XCTAssertFalse(foundNewData)
+        XCTAssertEqual(demoStore.lastSyncOutcome, .noData)
+
+        let unavailableStore = LifeOSCloudDataStore(demoModeOverride: false)
+        await unavailableStore.enableAndSync()
+        XCTAssertEqual(unavailableStore.lastSyncOutcome, .failed)
+        unavailableStore.disableAndClear()
+    }
+
     func testValidCloudKitPayloadBecomesOfflineRecord() throws {
         let payload = #"{"memoryId":"memory-1","title":"Weekly plan","text":"Prepare the week","updatedAt":1700000000000}"#
         let record = try LifeOSCloudRecordValidator.validate(input(

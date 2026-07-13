@@ -98,6 +98,9 @@ test("Apple native mobile shell has a guarded private CloudKit offline data path
   assert.match(cloudSync, /container\.userRecordID\(\)/);
   assert.match(cloudSync, /changeTokenExpired/);
   assert.match(cloudSync, /Notification\.Name\.CKAccountChanged/);
+  assert.match(cloudSync, /enum LifeOSCloudSyncOutcome/);
+  assert.match(cloudSync, /lastSyncOutcome\.backgroundFetchResult/);
+  assert.match(cloudSync, /lastSyncOutcome = \.failed/);
   assert.match(cloudSync, /maxCatchUpPasses = 3/);
   assert.match(cloudSync, /scheduleRetry\(after:/);
   assert.match(cloudSync, /completeTaskListItem/);

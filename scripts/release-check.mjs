@@ -398,6 +398,9 @@ function checkScripts() {
       nativeCloudSync.includes("recordZoneChanges") &&
       nativeCloudSync.includes("changeTokenExpired") &&
       nativeCloudSync.includes("Notification.Name.CKAccountChanged") &&
+      nativeCloudSync.includes("enum LifeOSCloudSyncOutcome") &&
+      nativeCloudSync.includes("lastSyncOutcome.backgroundFetchResult") &&
+      nativeCloudSync.includes("lastSyncOutcome = .failed") &&
       nativeCloudSync.includes("maxCatchUpPasses = 3") &&
       nativeCloudSync.includes("scheduleRetry(after:") &&
       nativeCloudSync.includes("completeTaskListItem") &&
