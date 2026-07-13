@@ -485,7 +485,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   });
   await onboardingContext.route("**/api/v1/admin/icloud-handoff/export", async (route) => {
     icloudExportAttempts += 1;
-    icloudPhase = "entry-ready";
+    if (icloudPhase !== "phone-confirmed") icloudPhase = "entry-ready";
     const diagnostics = makeIcloudOnboardingDiagnostics(icloudPhase);
     await route.fulfill({
       contentType: "application/json",
@@ -572,6 +572,9 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
     inlinePairingBaseUrl = posted.baseUrl;
     const baseUrl = inlinePairingBaseUrl || "https://lifeos-apple-e2e.example.test";
     inlinePairingStartAttempts += 1;
+    // Keep the response slower than one pickup poll so the confirmed-phone
+    // state cannot regress while an inline QR is being created.
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({

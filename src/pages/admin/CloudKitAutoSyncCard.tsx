@@ -88,7 +88,8 @@ export default function CloudKitAutoSyncCard({ dataSync, onDiagnostics }: Props)
       .then((result) => {
         if (cancelled) return;
         setSchedule(result.schedule);
-        onDiagnostics?.(result.diagnostics);
+        // A passive schedule read can finish after a fresher phone pickup poll.
+        // Keep its diagnostic snapshot from regressing the parent handoff state.
       })
       .catch((error: any) => {
         if (!cancelled) setMessage(error?.message || t("onboarding.appleRemoteIcloudDataSyncAutoLoadFailed"));
@@ -99,7 +100,7 @@ export default function CloudKitAutoSyncCard({ dataSync, onDiagnostics }: Props)
     return () => {
       cancelled = true;
     };
-  }, [onDiagnostics, t]);
+  }, [t]);
 
   const dataSyncReady = dataSync.ready;
   const privateSyncEnabled = dataSync.enabled;

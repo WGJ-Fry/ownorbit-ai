@@ -89,6 +89,7 @@ export default function AdminOnboardingPage() {
   const showSimpleIcloudEntry = primaryStep === "device" && Boolean(icloud?.platformSupported);
   const simpleIcloudNeedsDeviceRebind = showSimpleIcloudEntry && !hasDevice && Boolean(cloudKitDeviceTrustSummary?.needsRebind);
   const simpleIcloudBusy = busy === "icloud-handoff-auto" || busy === "icloud-handoff";
+  const simpleIcloudAutoExportBlocked = Boolean(busy && busy !== "icloud-handoff-auto");
   const simpleIcloudCanExport = Boolean(icloud?.canExport);
   const simpleIcloudAction = getPrimaryIcloudAction({
     icloud,
@@ -323,7 +324,7 @@ export default function AdminOnboardingPage() {
     const icloud = networkDiagnostics?.icloud;
     if (
       primaryStep !== "device" ||
-      busy ||
+      simpleIcloudAutoExportBlocked ||
       autoIcloudExportAttempted ||
       !icloud?.canExport ||
       (simpleIcloudAction.desktopAction !== "export-icloud-entry" && simpleIcloudAction.desktopAction !== "refresh-icloud-entry")
@@ -349,7 +350,7 @@ export default function AdminOnboardingPage() {
     return () => {
       cancelled = true;
     };
-  }, [primaryStep, networkDiagnostics?.icloud?.canExport, simpleIcloudAction.desktopAction, t]);
+  }, [primaryStep, simpleIcloudAutoExportBlocked, networkDiagnostics?.icloud?.canExport, simpleIcloudAction.desktopAction, t]);
 
   useEffect(() => {
     if (!simpleIcloudShouldPollPickup) return;
