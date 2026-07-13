@@ -31,6 +31,14 @@ import { saveIcloudRepairImportAnalysis } from "../icloudRepairImports";
 import { checkReleaseUpdate } from "../releaseUpdateCheck";
 import { buildNativeAutomationPlan, executeNativeAutomation } from "../nativeAutomationBridge";
 import { getIcloudDataSyncReadiness } from "../icloudDataSyncReadiness";
+import {
+  CLOUDKIT_DATA_SYNC_DISABLE_CONFIRMATION,
+  CLOUDKIT_DATA_SYNC_ENABLE_CONFIRMATION,
+  getBlockedCloudKitDataTypes,
+  getCloudKitDataSyncConfig,
+  normalizeCloudKitDataTypes,
+  updateCloudKitDataSyncConfig,
+} from "../cloudKitDataSyncConfig";
 import { runCloudKitNativeHelper, type CloudKitNativeHelperOperation } from "../cloudKitNativeHelper";
 import { buildCloudKitSyncBatchPreview, buildCloudKitSyncExportPackage, CLOUDKIT_SYNC_EXPORT_CONFIRMATION, summarizeCloudKitSyncExportPackage } from "../cloudKitSyncBatch";
 import { CLOUDKIT_SYNC_IMPORT_CONFIRMATION, getCloudKitSyncQuarantineSummary, getCloudKitSyncStateSnapshot, listCloudKitSyncCheckpoints, publicCloudKitHelperResult, saveCloudKitSyncChangesPreview, saveCloudKitSyncImportQuarantine } from "../cloudKitSyncState";
@@ -1378,8 +1386,142 @@ export function registerAdminRoutes(app: express.Express) {
     });
   });
 
+  app.put("/api/v1/admin/icloud-data-sync/config", requireAdmin, rateLimit({ keyPrefix: "admin-cloudkit-data-sync-config", windowMs: 60_000, max: 6 }), async (req, res) => {
+    const actor = { type: (req as any).actor?.type || "admin", id: (req as any).actor?.id || "admin" };
+    const enabled = req.body?.enabled === true;
+    const expectedConfirmation = enabled ? CLOUDKIT_DATA_SYNC_ENABLE_CONFIRMATION : CLOUDKIT_DATA_SYNC_DISABLE_CONFIRMATION;
+    const confirmation = String(req.body?.confirmation || "").trim();
+    if (confirmation !== expectedConfirmation) {
+      insertAuditLog("icloud_cloudkit_data_sync_config_blocked", "network", "cloudkit-data-sync", {
+        requestedEnabled: enabled,
+        reason: "confirmation-required",
+        rawPayloadStored: false,
+      }, actor.type, actor.id);
+      return res.status(400).json({
+        error: enabled
+          ? "Enabling private iCloud data sync requires explicit confirmation."
+          : "Disabling private iCloud data sync requires explicit confirmation.",
+        expectedConfirmation,
+        diagnostics: getAdminNetworkDiagnostics(),
+      });
+    }
+
+    try {
+      const current = getCloudKitDataSyncConfig();
+      if (current.environmentLocked) {
+        return res.status(409).json({
+          error: "CloudKit data sync is managed by environment variables. Remove the override before changing it in the admin console.",
+          diagnostics: getAdminNetworkDiagnostics(),
+        });
+      }
+
+      const requestedDataTypes = req.body?.selectedDataTypes === undefined ? current.selectedDataTypes : req.body.selectedDataTypes;
+      const blockedDataTypes = getBlockedCloudKitDataTypes(requestedDataTypes);
+      const selectedDataTypes = normalizeCloudKitDataTypes(requestedDataTypes);
+      if (blockedDataTypes.length || !selectedDataTypes.length) {
+        return res.status(400).json({
+          error: blockedDataTypes.length
+            ? "CloudKit data sync includes unsupported or sensitive data types."
+            : "Choose at least one safe CloudKit data type.",
+          blockedDataTypes,
+          diagnostics: getAdminNetworkDiagnostics(),
+        });
+      }
+
+      if (enabled) {
+        const diagnostics = getAdminNetworkDiagnostics();
+        const preflight = getIcloudDataSyncReadiness({
+          platformSupported: diagnostics.icloud.platformSupported,
+          config: {
+            ...current,
+            enabled: true,
+            selectedDataTypes,
+            enabledSource: "sqlite",
+            dataTypesSource: "sqlite",
+            environmentLocked: false,
+          },
+        });
+        if (!preflight.setupReady) {
+          insertAuditLog("icloud_cloudkit_data_sync_config_blocked", "network", "cloudkit-data-sync", {
+            requestedEnabled: true,
+            reason: preflight.setupStatus,
+            selectedDataTypes,
+            rawPayloadStored: false,
+          }, actor.type, actor.id);
+          return res.status(409).json({
+            error: "Native CloudKit prerequisites are not ready yet.",
+            setupStatus: preflight.setupStatus,
+            diagnostics,
+          });
+        }
+
+        const backup = createDatabaseBackup();
+        const configuration = updateCloudKitDataSyncConfig({ enabled: true, selectedDataTypes }, actor);
+        const schedule = updateCloudKitAutoSyncSchedule({ enabled: true, intervalMinutes: 15 }, actor);
+        const initialSync = await runCloudKitAutoSyncNow("manual", actor);
+        insertAuditLog("icloud_cloudkit_data_sync_enabled", "network", "cloudkit-data-sync", {
+          selectedDataTypes,
+          backupFile: backup.file,
+          backupRedacted: true,
+          autoSyncEnabled: schedule.enabled,
+          initialSyncStatus: initialSync.lastResult.status,
+          initialSyncNextAction: initialSync.lastResult.nextAction,
+          rawPayloadStored: false,
+          localBackupPathReturnedToAdmin: false,
+        }, actor.type, actor.id);
+        return res.json({
+          configuration,
+          schedule: initialSync.schedule,
+          initialSync: {
+            skipped: initialSync.skipped,
+            reason: initialSync.reason,
+            lastResult: initialSync.lastResult,
+          },
+          backup: {
+            file: backup.file,
+            size: backup.size,
+            createdAt: backup.createdAt,
+            redaction: backup.redaction,
+          },
+          diagnostics: getAdminNetworkDiagnostics(),
+        });
+      }
+
+      const configuration = updateCloudKitDataSyncConfig({ enabled: false, selectedDataTypes }, actor);
+      const schedule = updateCloudKitAutoSyncSchedule({ enabled: false }, actor);
+      insertAuditLog("icloud_cloudkit_data_sync_disabled", "network", "cloudkit-data-sync", {
+        selectedDataTypes,
+        autoSyncEnabled: false,
+        rawPayloadStored: false,
+      }, actor.type, actor.id);
+      return res.json({
+        configuration,
+        schedule,
+        initialSync: null,
+        backup: null,
+        diagnostics: getAdminNetworkDiagnostics(),
+      });
+    } catch (error: any) {
+      res.status(Number(error?.statusCode || 400)).json({
+        error: error?.message || "CloudKit data sync configuration could not be updated",
+        blockedDataTypes: error?.blockedDataTypes || [],
+        diagnostics: getAdminNetworkDiagnostics(),
+      });
+    }
+  });
+
   app.put("/api/v1/admin/icloud-data-sync/auto-sync", requireAdmin, rateLimit({ keyPrefix: "admin-cloudkit-auto-sync-update", windowMs: 60_000, max: 8 }), (req, res) => {
     try {
+      if (Boolean(req.body?.enabled)) {
+        const diagnostics = getAdminNetworkDiagnostics();
+        if (!diagnostics.icloud.dataSync.ready) {
+          return res.status(409).json({
+            error: "Enable private iCloud data sync and finish native CloudKit setup before turning on auto-sync.",
+            schedule: getCloudKitAutoSyncSchedule(),
+            diagnostics,
+          });
+        }
+      }
       const schedule = updateCloudKitAutoSyncSchedule({
         enabled: Boolean(req.body?.enabled),
         intervalMinutes: Number.parseInt(String(req.body?.intervalMinutes || ""), 10),

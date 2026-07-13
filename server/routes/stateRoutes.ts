@@ -1,7 +1,7 @@
 import type express from "express";
 import { insertAuditLog } from "../audit";
 import { requireActor } from "../auth";
-import { getClientState, isAllowedClientStateKey, publicClientState, setClientState } from "../clientState";
+import { getClientState, isAllowedClientStateKey, isWritableClientStateKey, publicClientState, setClientState } from "../clientState";
 import { noteCloudKitLocalChange } from "../cloudKitAutoSyncSchedule";
 import { broadcastRealtime } from "../realtime";
 
@@ -22,6 +22,7 @@ export function registerStateRoutes(app: express.Express) {
   app.put("/api/v1/state/:key", requireActor, (req, res) => {
     const key = req.params.key;
     if (!isAllowedClientStateKey(key)) return res.status(400).json({ error: "Invalid state key" });
+    if (!isWritableClientStateKey(key)) return res.status(403).json({ error: "State key is managed by a protected server API" });
     let state;
     try {
       state = setClientState(key, req.body?.value, (req as any).actor);

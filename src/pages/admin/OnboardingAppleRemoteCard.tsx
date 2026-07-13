@@ -1446,7 +1446,7 @@ export default function OnboardingAppleRemoteCard({ diagnostics, busy, onExportI
                     {t(icloudDataSyncPrimaryNextKeys[dataSync.status])}
                   </div>
                 </div>
-                <CloudKitAutoSyncCard dataSyncReady={dataSync.ready} onDiagnostics={onDiagnostics} />
+                <CloudKitAutoSyncCard dataSync={dataSync} onDiagnostics={onDiagnostics} />
                 <div data-testid="onboarding-icloud-data-sync-cycle" className="mt-2 rounded-lg border border-emerald-300/20 bg-emerald-500/10 p-3 text-emerald-50">
                   <div className="flex items-start gap-2">
                     <RefreshCw className="mt-0.5 h-4 w-4 shrink-0 text-emerald-200" />

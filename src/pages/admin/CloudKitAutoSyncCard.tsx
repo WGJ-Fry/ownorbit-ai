@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, Clock3, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import {
+  CLOUDKIT_DATA_SYNC_DISABLE_CONFIRMATION,
+  CLOUDKIT_DATA_SYNC_ENABLE_CONFIRMATION,
   getCloudKitAutoSyncSchedule,
   runCloudKitAutoSyncNow,
+  updateCloudKitDataSyncConfig,
   updateCloudKitAutoSyncSchedule,
   type CloudKitAutoSyncSchedule,
   type NetworkDiagnostics,
@@ -10,7 +13,7 @@ import {
 import { useI18n } from "../../i18n/I18nProvider";
 
 type Props = {
-  dataSyncReady: boolean;
+  dataSync: NetworkDiagnostics["icloud"]["dataSync"];
   onDiagnostics?: (diagnostics: NetworkDiagnostics) => void;
 };
 
@@ -73,10 +76,10 @@ function formatTime(value?: number) {
   }
 }
 
-export default function CloudKitAutoSyncCard({ dataSyncReady, onDiagnostics }: Props) {
+export default function CloudKitAutoSyncCard({ dataSync, onDiagnostics }: Props) {
   const { t } = useI18n();
   const [schedule, setSchedule] = useState<CloudKitAutoSyncSchedule | null>(null);
-  const [busy, setBusy] = useState<"load" | "save" | "run" | null>("load");
+  const [busy, setBusy] = useState<"load" | "save" | "run" | "activation" | null>("load");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -98,6 +101,11 @@ export default function CloudKitAutoSyncCard({ dataSyncReady, onDiagnostics }: P
     };
   }, [onDiagnostics, t]);
 
+  const dataSyncReady = dataSync.ready;
+  const privateSyncEnabled = dataSync.enabled;
+  const setupReady = dataSync.setupReady ?? dataSync.ready;
+  const environmentLocked = dataSync.configuration?.environmentLocked ?? false;
+  const selectedDataTypes = dataSync.selectedDataTypes || [];
   const enabled = Boolean(schedule?.enabled);
   const intervalMinutes = schedule?.intervalMinutes || 15;
   const lastResult = schedule?.lastResult;
@@ -113,9 +121,37 @@ export default function CloudKitAutoSyncCard({ dataSyncReady, onDiagnostics }: P
     : "";
   const statusTone = enabled
     ? "border-emerald-300/20 bg-emerald-500/10 text-emerald-50"
-    : dataSyncReady
+    : setupReady
     ? "border-cyan-300/20 bg-cyan-500/10 text-cyan-50"
     : "border-amber-300/20 bg-amber-500/10 text-amber-50";
+
+  const updatePrivateSync = async (nextEnabled: boolean) => {
+    const confirmed = window.confirm(t(nextEnabled
+      ? "onboarding.appleRemoteIcloudDataSyncActivateConfirm"
+      : "onboarding.appleRemoteIcloudDataSyncDeactivateConfirm"));
+    if (!confirmed) return;
+    setBusy("activation");
+    setMessage("");
+    try {
+      const result = await updateCloudKitDataSyncConfig({
+        enabled: nextEnabled,
+        selectedDataTypes,
+        confirmation: nextEnabled ? CLOUDKIT_DATA_SYNC_ENABLE_CONFIRMATION : CLOUDKIT_DATA_SYNC_DISABLE_CONFIRMATION,
+      });
+      setSchedule(result.schedule);
+      onDiagnostics?.(result.diagnostics);
+      setMessage(t(nextEnabled
+        ? "onboarding.appleRemoteIcloudDataSyncActivateDone"
+        : "onboarding.appleRemoteIcloudDataSyncDeactivateDone"));
+    } catch (error: any) {
+      const payload = error?.payload as { schedule?: CloudKitAutoSyncSchedule; diagnostics?: NetworkDiagnostics } | undefined;
+      if (payload?.schedule) setSchedule(payload.schedule);
+      if (payload?.diagnostics) onDiagnostics?.(payload.diagnostics);
+      setMessage(t("onboarding.appleRemoteIcloudDataSyncActivationFailed"));
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const saveSchedule = async (next: { enabled: boolean; intervalMinutes: number }) => {
     setBusy("save");
@@ -174,103 +210,146 @@ export default function CloudKitAutoSyncCard({ dataSyncReady, onDiagnostics }: P
             </span>
           </div>
           <div className="mt-1 opacity-85">
-            {dataSyncReady ? t("onboarding.appleRemoteIcloudDataSyncAutoBodyReady") : t("onboarding.appleRemoteIcloudDataSyncAutoBodyBlocked")}
-          </div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-            <label className="grid gap-1">
-              <span className="text-[10px] font-bold uppercase tracking-normal opacity-70">
-                {t("onboarding.appleRemoteIcloudDataSyncAutoInterval")}
-              </span>
-              <select
-                data-testid="onboarding-icloud-data-sync-auto-interval"
-                value={intervalMinutes}
-                disabled={busy === "load" || busy === "save"}
-                onChange={(event) => saveSchedule({ enabled, intervalMinutes: Number(event.target.value) })}
-                className="rounded-lg border border-current/15 bg-[#060a10]/60 px-3 py-2 text-[11px] font-bold text-inherit outline-none"
-              >
-                {intervals.map((value) => (
-                  <option key={value} value={value}>
-                    {t("onboarding.appleRemoteIcloudDataSyncAutoEveryMinutes", { minutes: value })}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              type="button"
-              data-testid="onboarding-icloud-data-sync-auto-toggle"
-              onClick={() => saveSchedule({ enabled: !enabled, intervalMinutes })}
-              disabled={!dataSyncReady || busy === "load" || busy === "save"}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-300 px-3 py-2 text-[11px] font-bold text-slate-950 disabled:opacity-50 sm:w-auto"
-            >
-              {busy === "save" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-              {enabled ? t("onboarding.appleRemoteIcloudDataSyncAutoDisable") : t("onboarding.appleRemoteIcloudDataSyncAutoEnable")}
-            </button>
-          </div>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <button
-              type="button"
-              data-testid="onboarding-icloud-data-sync-auto-run-now"
-              onClick={runNow}
-              disabled={!dataSyncReady || busy === "load" || busy === "run"}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-current/15 bg-black/15 px-3 py-2 text-[11px] font-bold disabled:opacity-50"
-            >
-              {busy === "run" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Clock3 className="h-3.5 w-3.5" />}
-              {t("onboarding.appleRemoteIcloudDataSyncAutoRunNow")}
-            </button>
-            {nextRunAt ? (
-              <span className="inline-flex items-center rounded-lg border border-current/10 bg-black/10 px-3 py-2 text-[10px] font-bold opacity-85">
-                {t("onboarding.appleRemoteIcloudDataSyncAutoNextRun", { time: nextRunAt })}
-              </span>
-            ) : null}
+            {privateSyncEnabled
+              ? t("onboarding.appleRemoteIcloudDataSyncAutoBodyReady")
+              : setupReady
+              ? t("onboarding.appleRemoteIcloudDataSyncActivateBody")
+              : t("onboarding.appleRemoteIcloudDataSyncAutoBodyBlocked")}
           </div>
           {message ? (
             <div className="mt-2 rounded-lg border border-current/10 bg-black/10 px-2 py-1 font-bold">
               {message}
             </div>
           ) : null}
-          {pendingLocalChanges?.total ? (
-            <div data-testid="onboarding-icloud-data-sync-auto-pending-local" className="mt-2 rounded-lg border border-current/10 bg-black/10 p-2 text-[10px] font-bold">
-              <div>{t("onboarding.appleRemoteIcloudDataSyncAutoPendingLocal", { count: pendingLocalChanges.total, types: pendingTypeSummary || "-" })}</div>
-              {pendingNextRunAt ? <div className="mt-1 opacity-80">{t("onboarding.appleRemoteIcloudDataSyncAutoPendingNext", { time: pendingNextRunAt })}</div> : null}
-            </div>
-          ) : null}
-          {lastResult ? (
-            <div data-testid="onboarding-icloud-data-sync-auto-last-result" className="mt-2 grid gap-1 rounded-lg border border-current/10 bg-black/10 p-2 font-mono text-[10px] opacity-85">
-              <div className="font-sans text-[11px] font-bold">{t("onboarding.appleRemoteIcloudDataSyncAutoLastTitle")}</div>
-              <div>{t("onboarding.appleRemoteIcloudDataSyncAutoLastStatus", { status: lastResult.status, action: lastResult.nextAction })}</div>
-              <div>{t("onboarding.appleRemoteIcloudDataSyncAutoLastCounts", {
-                applied: lastResult.pullApplied || 0,
-                conflicts: lastResult.pullConflicts || 0,
-                uploaded: lastResult.uploadSaved || 0,
-              })}</div>
-              <div>{t("onboarding.appleRemoteIcloudDataSyncAutoLastRun", { time: lastRunAt || formatTime(lastResult.finishedAt) || "-" })}</div>
-            </div>
-          ) : null}
-          {lastResult && lastResultNextAction ? (
-            <div
-              data-testid="onboarding-icloud-data-sync-auto-next-action"
-              data-cloudkit-auto-sync-next-action={lastResult.nextAction}
-              className={`mt-2 rounded-lg border p-3 text-[11px] leading-relaxed ${lastResultNextAction.tone}`}
-            >
-              <div className="text-[10px] font-bold uppercase tracking-normal opacity-70">
-                {t("onboarding.appleRemoteIcloudDataSyncAutoNextLabel")}
-              </div>
-              <div className="mt-1 font-bold">{t(lastResultNextAction.titleKey as any)}</div>
-              <div className="mt-1 opacity-85">{t(lastResultNextAction.bodyKey as any)}</div>
-              {lastResultNextAction.ctaKey ? (
+          {!privateSyncEnabled ? (
+            <div className="mt-3 grid gap-2">
+              <button
+                type="button"
+                data-testid="onboarding-icloud-data-sync-activate"
+                onClick={() => updatePrivateSync(true)}
+                disabled={!setupReady || environmentLocked || busy === "load" || busy === "activation"}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-300 px-3 py-2.5 text-[11px] font-bold text-slate-950 disabled:opacity-50 sm:w-auto"
+              >
+                {busy === "activation" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+                {environmentLocked
+                  ? t("onboarding.appleRemoteIcloudDataSyncEnvironmentManaged")
+                  : setupReady
+                  ? t("onboarding.appleRemoteIcloudDataSyncActivate")
+                  : t("onboarding.appleRemoteIcloudDataSyncActivateBlocked")}
+              </button>
+              {!setupReady ? (
                 <button
                   type="button"
-                  data-testid="onboarding-icloud-data-sync-auto-next-action-button"
-                  onClick={handleLastResultNextAction}
-                  disabled={busy === "run" || (lastResultNextAction.retry && !dataSyncReady)}
-                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white/90 px-3 py-2 text-[11px] font-bold text-slate-950 disabled:opacity-50 sm:w-auto"
+                  onClick={() => document.querySelector('[data-testid="onboarding-icloud-data-sync-acceptance-gates"]')?.scrollIntoView({ block: "center", behavior: "smooth" })}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-current/15 bg-black/15 px-3 py-2 text-[11px] font-bold sm:w-auto"
                 >
-                  {busy === "run" && lastResultNextAction.retry ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                  {t(lastResultNextAction.ctaKey as any)}
+                  {t("onboarding.appleRemoteIcloudDataSyncViewRequirements")}
                 </button>
               ) : null}
             </div>
-          ) : null}
+          ) : (
+            <>
+              <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                <label className="grid gap-1">
+                  <span className="text-[10px] font-bold uppercase tracking-normal opacity-70">
+                    {t("onboarding.appleRemoteIcloudDataSyncAutoInterval")}
+                  </span>
+                  <select
+                    data-testid="onboarding-icloud-data-sync-auto-interval"
+                    value={intervalMinutes}
+                    disabled={busy === "load" || busy === "save"}
+                    onChange={(event) => saveSchedule({ enabled, intervalMinutes: Number(event.target.value) })}
+                    className="rounded-lg border border-current/15 bg-[#060a10]/60 px-3 py-2 text-[11px] font-bold text-inherit outline-none"
+                  >
+                    {intervals.map((value) => (
+                      <option key={value} value={value}>
+                        {t("onboarding.appleRemoteIcloudDataSyncAutoEveryMinutes", { minutes: value })}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  data-testid="onboarding-icloud-data-sync-auto-toggle"
+                  onClick={() => saveSchedule({ enabled: !enabled, intervalMinutes })}
+                  disabled={!dataSyncReady || busy === "load" || busy === "save"}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-300 px-3 py-2 text-[11px] font-bold text-slate-950 disabled:opacity-50 sm:w-auto"
+                >
+                  {busy === "save" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                  {enabled ? t("onboarding.appleRemoteIcloudDataSyncAutoDisable") : t("onboarding.appleRemoteIcloudDataSyncAutoEnable")}
+                </button>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  data-testid="onboarding-icloud-data-sync-auto-run-now"
+                  onClick={runNow}
+                  disabled={!dataSyncReady || busy === "load" || busy === "run"}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-current/15 bg-black/15 px-3 py-2 text-[11px] font-bold disabled:opacity-50"
+                >
+                  {busy === "run" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Clock3 className="h-3.5 w-3.5" />}
+                  {t("onboarding.appleRemoteIcloudDataSyncAutoRunNow")}
+                </button>
+                {nextRunAt ? (
+                  <span className="inline-flex items-center rounded-lg border border-current/10 bg-black/10 px-3 py-2 text-[10px] font-bold opacity-85">
+                    {t("onboarding.appleRemoteIcloudDataSyncAutoNextRun", { time: nextRunAt })}
+                  </span>
+                ) : null}
+              </div>
+              {pendingLocalChanges?.total ? (
+                <div data-testid="onboarding-icloud-data-sync-auto-pending-local" className="mt-2 rounded-lg border border-current/10 bg-black/10 p-2 text-[10px] font-bold">
+                  <div>{t("onboarding.appleRemoteIcloudDataSyncAutoPendingLocal", { count: pendingLocalChanges.total, types: pendingTypeSummary || "-" })}</div>
+                  {pendingNextRunAt ? <div className="mt-1 opacity-80">{t("onboarding.appleRemoteIcloudDataSyncAutoPendingNext", { time: pendingNextRunAt })}</div> : null}
+                </div>
+              ) : null}
+              {lastResult ? (
+                <div data-testid="onboarding-icloud-data-sync-auto-last-result" className="mt-2 grid gap-1 rounded-lg border border-current/10 bg-black/10 p-2 font-mono text-[10px] opacity-85">
+                  <div className="font-sans text-[11px] font-bold">{t("onboarding.appleRemoteIcloudDataSyncAutoLastTitle")}</div>
+                  <div>{t("onboarding.appleRemoteIcloudDataSyncAutoLastStatus", { status: lastResult.status, action: lastResult.nextAction })}</div>
+                  <div>{t("onboarding.appleRemoteIcloudDataSyncAutoLastCounts", {
+                    applied: lastResult.pullApplied || 0,
+                    conflicts: lastResult.pullConflicts || 0,
+                    uploaded: lastResult.uploadSaved || 0,
+                  })}</div>
+                  <div>{t("onboarding.appleRemoteIcloudDataSyncAutoLastRun", { time: lastRunAt || formatTime(lastResult.finishedAt) || "-" })}</div>
+                </div>
+              ) : null}
+              {lastResult && lastResultNextAction ? (
+                <div
+                  data-testid="onboarding-icloud-data-sync-auto-next-action"
+                  data-cloudkit-auto-sync-next-action={lastResult.nextAction}
+                  className={`mt-2 rounded-lg border p-3 text-[11px] leading-relaxed ${lastResultNextAction.tone}`}
+                >
+                  <div className="text-[10px] font-bold uppercase tracking-normal opacity-70">
+                    {t("onboarding.appleRemoteIcloudDataSyncAutoNextLabel")}
+                  </div>
+                  <div className="mt-1 font-bold">{t(lastResultNextAction.titleKey as any)}</div>
+                  <div className="mt-1 opacity-85">{t(lastResultNextAction.bodyKey as any)}</div>
+                  {lastResultNextAction.ctaKey ? (
+                    <button
+                      type="button"
+                      data-testid="onboarding-icloud-data-sync-auto-next-action-button"
+                      onClick={handleLastResultNextAction}
+                      disabled={busy === "run" || (lastResultNextAction.retry && !dataSyncReady)}
+                      className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white/90 px-3 py-2 text-[11px] font-bold text-slate-950 disabled:opacity-50 sm:w-auto"
+                    >
+                      {busy === "run" && lastResultNextAction.retry ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                      {t(lastResultNextAction.ctaKey as any)}
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+              <button
+                type="button"
+                data-testid="onboarding-icloud-data-sync-deactivate"
+                onClick={() => updatePrivateSync(false)}
+                disabled={environmentLocked || busy === "activation"}
+                className="mt-3 inline-flex items-center justify-center rounded-lg border border-current/15 bg-black/10 px-3 py-2 text-[10px] font-bold opacity-80 disabled:opacity-40"
+              >
+                {t("onboarding.appleRemoteIcloudDataSyncDeactivate")}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

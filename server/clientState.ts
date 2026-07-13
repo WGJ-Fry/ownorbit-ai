@@ -7,9 +7,17 @@ const SENSITIVE_CLIENT_STATE_KEY = /api[-_]?key|byok[-_]?key|token|password|pass
 const SENSITIVE_CLIENT_VALUE_KEY = /api[-_]?key|token|password|passphrase|secret|authorization|cookie|hash|ciphertext|auth[-_]?tag|private/i;
 const SENSITIVE_CLIENT_SHORT_VALUE_KEY = /(^|[-_])iv([-_]|$)/i;
 const SENSITIVE_CLIENT_QUERY_KEY = /api[-_]?key|token|password|passphrase|secret|authorization|cookie/i;
+const SERVER_MANAGED_CLIENT_STATE_KEYS = new Set([
+  "lifeos_cloudkit_data_sync_config",
+  "lifeos_cloudkit_auto_sync_schedule",
+]);
 
 export function isAllowedClientStateKey(key: string) {
   return /^lifeos_[a-z0-9_:-]{1,80}$/i.test(key);
+}
+
+export function isWritableClientStateKey(key: string) {
+  return isAllowedClientStateKey(key) && !SERVER_MANAGED_CLIENT_STATE_KEYS.has(key);
 }
 
 function invalidStatePayload(message: string) {

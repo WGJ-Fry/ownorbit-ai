@@ -634,18 +634,56 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     method: "POST",
   });
   assert.equal(blockedCloudKitAutoSyncRunNow.status, 401);
+  const blockedGenericCloudKitConfigWrite = await request(port, "/api/v1/state/lifeos_cloudkit_data_sync_config", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({ value: { enabled: true, selectedDataTypes: ["memory"] } }),
+  });
+  assert.equal(blockedGenericCloudKitConfigWrite.status, 403);
+  const blockedGenericCloudKitScheduleWrite = await request(port, "/api/v1/state/lifeos_cloudkit_auto_sync_schedule", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({ value: { enabled: true, intervalMinutes: 15 } }),
+  });
+  assert.equal(blockedGenericCloudKitScheduleWrite.status, 403);
+  const blockedCloudKitDataSyncConfigAuth = await request(port, "/api/v1/admin/icloud-data-sync/config", {
+    method: "PUT",
+    body: JSON.stringify({ enabled: true, selectedDataTypes: ["memory"], confirmation: "ENABLE_PRIVATE_ICLOUD_SYNC" }),
+  });
+  assert.equal(blockedCloudKitDataSyncConfigAuth.status, 401);
+  const blockedCloudKitDataSyncConfigConfirmation = await request(port, "/api/v1/admin/icloud-data-sync/config", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({ enabled: true, selectedDataTypes: ["memory"], confirmation: "wrong-confirmation" }),
+  });
+  assert.equal(blockedCloudKitDataSyncConfigConfirmation.status, 400);
+  const blockedCloudKitDataSyncConfigConfirmationJson = await blockedCloudKitDataSyncConfigConfirmation.json();
+  assert.equal(blockedCloudKitDataSyncConfigConfirmationJson.expectedConfirmation, "ENABLE_PRIVATE_ICLOUD_SYNC");
+  assertPublicApiResponse("cloudKitDataSyncConfigConfirmation", blockedCloudKitDataSyncConfigConfirmationJson);
+  const blockedCloudKitDataSyncConfigEnvironment = await request(port, "/api/v1/admin/icloud-data-sync/config", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({ enabled: true, selectedDataTypes: ["memory"], confirmation: "ENABLE_PRIVATE_ICLOUD_SYNC" }),
+  });
+  assert.equal(blockedCloudKitDataSyncConfigEnvironment.status, 409);
+  const blockedCloudKitDataSyncConfigEnvironmentJson = await blockedCloudKitDataSyncConfigEnvironment.json();
+  assert.match(blockedCloudKitDataSyncConfigEnvironmentJson.error, /prerequisites are not ready/i);
+  assert.equal(typeof blockedCloudKitDataSyncConfigEnvironmentJson.setupStatus, "string");
+  assertPublicApiResponse("cloudKitDataSyncConfigPrerequisites", blockedCloudKitDataSyncConfigEnvironmentJson);
   const cloudKitAutoSyncInitial = await request(port, "/api/v1/admin/icloud-data-sync/auto-sync", { headers: adminHeaders }).then((res) => res.json());
   assert.equal(cloudKitAutoSyncInitial.schedule.enabled, false);
   assert.equal(cloudKitAutoSyncInitial.schedule.intervalMinutes >= 15, true);
   assertPublicApiResponse("cloudKitAutoSyncInitial", cloudKitAutoSyncInitial);
-  const cloudKitAutoSyncSaved = await request(port, "/api/v1/admin/icloud-data-sync/auto-sync", {
+  const cloudKitAutoSyncSavedResponse = await request(port, "/api/v1/admin/icloud-data-sync/auto-sync", {
     method: "PUT",
     headers: adminHeaders,
     body: JSON.stringify({ enabled: true, intervalMinutes: 15 }),
-  }).then((res) => res.json());
-  assert.equal(cloudKitAutoSyncSaved.schedule.enabled, true);
+  });
+  assert.equal(cloudKitAutoSyncSavedResponse.status, 409);
+  const cloudKitAutoSyncSaved = await cloudKitAutoSyncSavedResponse.json();
+  assert.equal(cloudKitAutoSyncSaved.schedule.enabled, false);
   assert.equal(cloudKitAutoSyncSaved.schedule.intervalMinutes, 15);
-  assert.equal(typeof cloudKitAutoSyncSaved.schedule.nextRunAt, "number");
+  assert.equal(cloudKitAutoSyncSaved.schedule.nextRunAt, undefined);
   assertPublicApiResponse("cloudKitAutoSyncSaved", cloudKitAutoSyncSaved);
   const cloudKitAutoSyncRunNow = await request(port, "/api/v1/admin/icloud-data-sync/auto-sync/run-now", {
     method: "POST",
@@ -1465,11 +1503,11 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(diagnosticBundle.icloudHandoff.boundary.cloudKitReadiness.requiresNativeAppleClient, true);
   assert.equal(diagnosticBundle.icloudHandoff.boundary.cloudKitReadiness.requiresExplicitUserOptIn, true);
   assert.equal(diagnosticBundle.icloudHandoff.boundary.cloudKitReadiness.containerConfigured, false);
-  assert.equal(diagnosticBundle.icloudHandoff.boundary.cloudKitAutoSync.enabled, true);
+  assert.equal(diagnosticBundle.icloudHandoff.boundary.cloudKitAutoSync.enabled, false);
   assert.equal(diagnosticBundle.icloudHandoff.boundary.cloudKitAutoSync.lastResult.status, "skipped");
   assert.equal(diagnosticBundle.icloudHandoff.boundary.chatMemoryTaskSync, false);
   assert.equal(diagnosticBundle.icloudHandoff.boundary.chatMemoryTaskSyncMode, "not-enabled");
-  assert.equal(diagnosticBundle.icloudHandoff.boundary.fullyAutomaticBackgroundSync, true);
+  assert.equal(diagnosticBundle.icloudHandoff.boundary.fullyAutomaticBackgroundSync, false);
   assert.equal(diagnosticBundle.icloudHandoff.boundary.cloudKitRequiredForDataSync, true);
   assert.deepEqual(diagnosticBundle.icloudHandoff.boundary.syncedDataTypes, ["mobile-entry-file"]);
   assert.equal(diagnosticBundle.icloudHandoff.boundary.notSyncedDataTypes.includes("chat-history"), true);
@@ -2288,7 +2326,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.byType["device-trust"], 5);
   assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.rawPayloadStored, false);
   assert.equal(typeof cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.nextSuggestedRunAt, "number");
-  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.nextRunAt <= cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.nextSuggestedRunAt, true);
+  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.enabled, false);
+  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.nextRunAt, undefined);
   assert.equal(JSON.stringify(cloudKitAutoSyncAfterLocalChanges).includes("Hello from mobile"), false);
   assert.equal(JSON.stringify(cloudKitAutoSyncAfterLocalChanges).includes("Updated memory"), false);
   assert.equal(JSON.stringify(cloudKitAutoSyncAfterLocalChanges).includes(credential.accessToken), false);

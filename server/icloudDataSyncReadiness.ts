@@ -1,11 +1,16 @@
 import { accessSync, constants, existsSync, readFileSync } from "fs";
 import path from "path";
 import { cloudKitNativeHelperContract } from "./cloudKitNativeHelper.ts";
+import {
+  getBlockedCloudKitDataTypes,
+  getCloudKitDataSyncConfig,
+  safeCloudKitDataTypes,
+  type CloudKitDataSyncConfig,
+  type SafeCloudKitDataType,
+} from "./cloudKitDataSyncConfig";
 
-const safeCloudKitDataTypes = ["chat-history", "memory", "tasks", "generated-app-state", "device-trust"] as const;
 const blockedCloudKitDataTypes = ["ai-keys", "device-credentials", "session-cookies", "raw-tokens", "sqlite-database"] as const;
 
-type SafeCloudKitDataType = typeof safeCloudKitDataTypes[number];
 type AcceptanceGateStatus = "passed" | "blocked" | "manual-required";
 
 export type IcloudDataSyncStatus =
@@ -109,13 +114,6 @@ function cleanIdentifier(value: unknown, limit = 120) {
   return cleanText(value, limit).replace(/[^a-zA-Z0-9._:-]+/g, "");
 }
 
-function splitDataTypes(value: unknown) {
-  return String(value || "")
-    .split(",")
-    .map((item) => item.trim().toLowerCase())
-    .filter(Boolean);
-}
-
 function executable(filePath: string) {
   try {
     accessSync(filePath, constants.X_OK);
@@ -157,8 +155,9 @@ function acceptanceGate(id: string, status: AcceptanceGateStatus, detail: string
   return { id, status, detail };
 }
 
-export function getIcloudDataSyncReadiness(options: { platformSupported?: boolean } = {}) {
-  const enabled = process.env.LIFEOS_ICLOUD_DATA_SYNC === "1";
+export function getIcloudDataSyncReadiness(options: { platformSupported?: boolean; config?: CloudKitDataSyncConfig } = {}) {
+  const config = options.config || getCloudKitDataSyncConfig();
+  const enabled = config.enabled;
   const containerId = cleanIdentifier(process.env.LIFEOS_CLOUDKIT_CONTAINER_ID);
   const teamId = cleanIdentifier(process.env.LIFEOS_CLOUDKIT_TEAM_ID || process.env.APPLE_TEAM_ID, 40);
   const bundleId = cleanIdentifier(process.env.LIFEOS_CLOUDKIT_BUNDLE_ID || process.env.LIFEOS_APP_BUNDLE_ID);
@@ -167,11 +166,10 @@ export function getIcloudDataSyncReadiness(options: { platformSupported?: boolea
   const helperDetected = Boolean(helperResolved && existsSync(helperResolved));
   const helperExecutable = helperDetected && executable(helperResolved);
   const entitlements = readEntitlements(cleanText(process.env.LIFEOS_CLOUDKIT_ENTITLEMENTS_PATH, 300), containerId);
-  const requestedDataTypes = splitDataTypes(process.env.LIFEOS_CLOUDKIT_SYNC_TYPES);
-  const selectedDataTypes = requestedDataTypes.filter((item): item is typeof safeCloudKitDataTypes[number] => (
-    safeCloudKitDataTypes.includes(item as typeof safeCloudKitDataTypes[number])
-  ));
-  const blockedDataTypes = requestedDataTypes.filter((item) => blockedCloudKitDataTypes.includes(item as typeof blockedCloudKitDataTypes[number]));
+  const selectedDataTypes = config.selectedDataTypes.filter((item): item is SafeCloudKitDataType => safeCloudKitDataTypes.includes(item));
+  const requestedEnvironmentDataTypes = String(process.env.LIFEOS_CLOUDKIT_SYNC_TYPES || "").trim();
+  const blockedDataTypes = getBlockedCloudKitDataTypes(requestedEnvironmentDataTypes)
+    .filter((item) => blockedCloudKitDataTypes.includes(item as typeof blockedCloudKitDataTypes[number]));
   const nativeHelper = {
     configured: Boolean(helperPath),
     detected: helperDetected,
@@ -180,18 +178,22 @@ export function getIcloudDataSyncReadiness(options: { platformSupported?: boolea
   };
   const selectedRecordPlan = enabled ? selectedDataTypes.map((dataType) => cloudKitRecordPlans[dataType]) : [];
 
-  let status: IcloudDataSyncStatus = "not-enabled";
-  if (enabled && options.platformSupported === false) status = "missing-apple-platform";
-  else if (enabled && !containerId) status = "missing-container";
-  else if (enabled && (!teamId || !bundleId)) status = "missing-apple-identity";
-  else if (enabled && !helperExecutable) status = "missing-native-helper";
-  else if (enabled && (!entitlements.detected || !entitlements.mentionsCloudKit || !entitlements.mentionsContainer)) status = "missing-entitlements";
-  else if (enabled && selectedDataTypes.length === 0) status = "no-data-types";
-  else if (enabled) status = "ready-to-test";
+  let setupStatus: Exclude<IcloudDataSyncStatus, "not-enabled"> = "ready-to-test";
+  if (options.platformSupported === false) setupStatus = "missing-apple-platform";
+  else if (!containerId) setupStatus = "missing-container";
+  else if (!teamId || !bundleId) setupStatus = "missing-apple-identity";
+  else if (!helperExecutable) setupStatus = "missing-native-helper";
+  else if (!entitlements.detected || !entitlements.mentionsCloudKit || !entitlements.mentionsContainer) setupStatus = "missing-entitlements";
+  else if (selectedDataTypes.length === 0) setupStatus = "no-data-types";
+
+  const setupReady = setupStatus === "ready-to-test";
+  const status: IcloudDataSyncStatus = enabled ? setupStatus : "not-enabled";
 
   const ready = status === "ready-to-test";
   const nextActionByStatus: Record<IcloudDataSyncStatus, string> = {
-    "not-enabled": "Keep using iCloud handoff for the phone entry, or opt in with LIFEOS_ICLOUD_DATA_SYNC=1 when native CloudKit work starts.",
+    "not-enabled": setupReady
+      ? "Native CloudKit prerequisites are ready. Enable private iCloud data sync from the admin console when the user opts in."
+      : "Finish the native CloudKit prerequisite shown by setupStatus, then enable private iCloud data sync from the admin console.",
     "missing-apple-platform": "Run the native CloudKit sync helper from macOS or iOS with iCloud entitlements.",
     "missing-container": "Create an iCloud Container in Apple Developer and set LIFEOS_CLOUDKIT_CONTAINER_ID.",
     "missing-apple-identity": "Set LIFEOS_CLOUDKIT_TEAM_ID and LIFEOS_CLOUDKIT_BUNDLE_ID for the signed Apple app.",
@@ -205,6 +207,8 @@ export function getIcloudDataSyncReadiness(options: { platformSupported?: boolea
   return {
     enabled,
     ready,
+    setupReady,
+    setupStatus,
     mode: enabled ? "cloudkit-native" as const : "handoff-only" as const,
     status,
     severity: ready ? "warning" as const : enabled ? "danger" as const : "warning" as const,
@@ -215,6 +219,12 @@ export function getIcloudDataSyncReadiness(options: { platformSupported?: boolea
     nativeHelper,
     entitlements,
     selectedDataTypes,
+    configuration: {
+      enabledSource: config.enabledSource,
+      dataTypesSource: config.dataTypesSource,
+      environmentLocked: config.environmentLocked,
+      updatedAt: config.updatedAt || null,
+    },
     blockedDataTypes,
     blockedDataTypePolicy: "Never sync AI keys, raw device credentials, session cookies, raw tokens, or whole SQLite databases through CloudKit user records.",
     notSyncedDataTypes: ["ai-keys", "device-credentials", "session-cookies", "raw-tokens", "sqlite-database"],
@@ -223,7 +233,7 @@ export function getIcloudDataSyncReadiness(options: { platformSupported?: boolea
     requiredNativeCapabilities: enabled ? [...requiredNativeCapabilities] : [],
     nativeHelperContract: cloudKitNativeHelperContract(),
     acceptanceGates: [
-      acceptanceGate("explicit-opt-in", enabled ? "passed" : "blocked", enabled ? "CloudKit data sync is explicitly enabled." : "Set LIFEOS_ICLOUD_DATA_SYNC=1 only after the user opts in."),
+      acceptanceGate("explicit-opt-in", enabled ? "passed" : "blocked", enabled ? "CloudKit data sync is explicitly enabled." : "Enable private iCloud data sync from the admin console only after the user opts in."),
       acceptanceGate("apple-platform", options.platformSupported === false ? "blocked" : "passed", options.platformSupported === false ? "CloudKit sync requires macOS or iOS native runtime." : "Apple native runtime is available or not blocked by this check."),
       acceptanceGate("cloudkit-container", containerId ? "passed" : "blocked", containerId ? "CloudKit container id is configured." : "Create an iCloud Container and set LIFEOS_CLOUDKIT_CONTAINER_ID."),
       acceptanceGate("apple-identity", teamId && bundleId ? "passed" : "blocked", teamId && bundleId ? "Team and bundle identifiers are configured." : "Set LIFEOS_CLOUDKIT_TEAM_ID and LIFEOS_CLOUDKIT_BUNDLE_ID."),
@@ -232,8 +242,8 @@ export function getIcloudDataSyncReadiness(options: { platformSupported?: boolea
       acceptanceGate("safe-data-types", selectedDataTypes.length ? "passed" : "blocked", selectedDataTypes.length ? "At least one safe data class is selected." : "Choose safe data types such as chat-history, memory, tasks, generated-app-state, or device-trust."),
       acceptanceGate("blocked-types-filtered", blockedDataTypes.length ? "manual-required" : "passed", blockedDataTypes.length ? "Unsafe requested data types were filtered and must be removed before release." : "No unsafe data type was requested."),
       acceptanceGate("credential-boundary", "passed", "Device credentials, access tokens, private keys, and session material are never synced; CloudKit device trust records are review-only metadata."),
-      acceptanceGate("backup-before-first-sync", ready ? "manual-required" : "blocked", ready ? "Create and verify a local SQLite backup before first CloudKit write." : "Backup gate opens only after native CloudKit readiness passes."),
-      acceptanceGate("helper-roundtrip", ready ? "manual-required" : "blocked", ready ? "Run a native helper create/fetch/delete roundtrip in the private CloudKit database." : "Roundtrip gate opens only after native CloudKit readiness passes."),
+      acceptanceGate("backup-before-first-sync", setupReady ? "manual-required" : "blocked", setupReady ? "A redacted local SQLite backup will be created automatically before first CloudKit write." : "Backup gate opens only after native CloudKit readiness passes."),
+      acceptanceGate("helper-roundtrip", setupReady ? "manual-required" : "blocked", setupReady ? "Run a native helper create/fetch/delete roundtrip in the private CloudKit database." : "Roundtrip gate opens only after native CloudKit readiness passes."),
       acceptanceGate("redaction-proof", selectedDataTypes.length ? "manual-required" : "blocked", selectedDataTypes.length ? "Prove selected records do not include keys, tokens, credentials, cookies, or SQLite blobs." : "Redaction proof requires at least one selected data class."),
     ],
     requiresNativeAppleClient: true,

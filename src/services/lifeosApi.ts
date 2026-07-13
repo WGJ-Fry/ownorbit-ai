@@ -927,6 +927,8 @@ export type NetworkDiagnostics = {
     dataSync: {
       enabled: boolean;
       ready: boolean;
+      setupReady: boolean;
+      setupStatus: "missing-apple-platform" | "missing-container" | "missing-apple-identity" | "missing-native-helper" | "missing-entitlements" | "no-data-types" | "ready-to-test";
       mode: "handoff-only" | "cloudkit-native";
       status: "not-enabled" | "missing-apple-platform" | "missing-container" | "missing-apple-identity" | "missing-native-helper" | "missing-entitlements" | "no-data-types" | "ready-to-test";
       severity: "ok" | "warning" | "danger";
@@ -945,6 +947,12 @@ export type NetworkDiagnostics = {
         mentionsContainer: boolean;
       };
       selectedDataTypes: string[];
+      configuration: {
+        enabledSource: "environment" | "sqlite" | "default";
+        dataTypesSource: "environment" | "sqlite" | "default";
+        environmentLocked: boolean;
+        updatedAt: number | null;
+      };
       blockedDataTypes: string[];
       blockedDataTypePolicy: string;
       notSyncedDataTypes: string[];
@@ -2782,6 +2790,47 @@ export function getCloudKitAutoSyncSchedule() {
     schedule: CloudKitAutoSyncSchedule;
     diagnostics: NetworkDiagnostics;
   }>("/api/v1/admin/icloud-data-sync/auto-sync");
+}
+
+export const CLOUDKIT_DATA_SYNC_ENABLE_CONFIRMATION = "ENABLE_PRIVATE_ICLOUD_SYNC";
+export const CLOUDKIT_DATA_SYNC_DISABLE_CONFIRMATION = "DISABLE_PRIVATE_ICLOUD_SYNC";
+
+export function updateCloudKitDataSyncConfig(input: {
+  enabled: boolean;
+  selectedDataTypes: string[];
+  confirmation: string;
+}) {
+  return requestJson<{
+    configuration: {
+      enabled: boolean;
+      selectedDataTypes: string[];
+      updatedAt?: number;
+      enabledSource: "environment" | "sqlite" | "default";
+      dataTypesSource: "environment" | "sqlite" | "default";
+      environmentLocked: boolean;
+    };
+    schedule: CloudKitAutoSyncSchedule;
+    initialSync: {
+      skipped: boolean;
+      reason: "scheduled" | "manual" | "not-ready" | "already-running" | "error";
+      lastResult: CloudKitAutoSyncLastResult;
+    } | null;
+    backup: {
+      file: string;
+      size: number;
+      createdAt: number;
+      redaction: {
+        appSecretsDeleted: number;
+        sensitiveClientStateDeleted: number;
+        adminSessionsDeleted: number;
+      };
+    } | null;
+    diagnostics: NetworkDiagnostics;
+  }>("/api/v1/admin/icloud-data-sync/config", {
+    method: "PUT",
+    timeoutMs: 120_000,
+    body: JSON.stringify(input),
+  });
 }
 
 export function updateCloudKitAutoSyncSchedule(input: { enabled: boolean; intervalMinutes: number }) {

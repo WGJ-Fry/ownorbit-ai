@@ -1099,12 +1099,17 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-credential-boundary/);
   assert.match(lifeosApiSource, /credentialBoundary: \{/);
   assert.match(onboardingAppleRemoteSource, /CloudKitAutoSyncCard/);
-  assert.match(onboardingAppleRemoteSource, /dataSyncReady=\{dataSync\.ready\}/);
+  assert.match(onboardingAppleRemoteSource, /dataSync=\{dataSync\}/);
   const cloudKitAutoSyncCardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "CloudKitAutoSyncCard.tsx"), "utf8");
   assert.match(cloudKitAutoSyncCardSource, /onboarding-icloud-data-sync-auto/);
   assert.match(cloudKitAutoSyncCardSource, /getCloudKitAutoSyncSchedule/);
   assert.match(cloudKitAutoSyncCardSource, /updateCloudKitAutoSyncSchedule/);
   assert.match(cloudKitAutoSyncCardSource, /runCloudKitAutoSyncNow/);
+  assert.match(cloudKitAutoSyncCardSource, /updateCloudKitDataSyncConfig/);
+  assert.match(cloudKitAutoSyncCardSource, /onboarding-icloud-data-sync-activate/);
+  assert.match(cloudKitAutoSyncCardSource, /CLOUDKIT_DATA_SYNC_ENABLE_CONFIRMATION/);
+  assert.match(cloudKitAutoSyncCardSource, /dataSync\.setupReady \?\? dataSync\.ready/);
+  assert.match(cloudKitAutoSyncCardSource, /dataSync\.configuration\?\.environmentLocked \?\? false/);
   assert.match(cloudKitAutoSyncCardSource, /disabled=\{!dataSyncReady/);
   assert.match(cloudKitAutoSyncCardSource, /autoSyncNextActionKeys/);
   assert.match(cloudKitAutoSyncCardSource, /onboarding-icloud-data-sync-auto-next-action/);

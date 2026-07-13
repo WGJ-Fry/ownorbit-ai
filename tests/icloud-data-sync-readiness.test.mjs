@@ -32,12 +32,24 @@ test("CloudKit data sync readiness stays handoff-only until explicitly enabled",
   try {
     for (const key of envKeys) delete process.env[key];
     const { getIcloudDataSyncReadiness } = await import(`../server/icloudDataSyncReadiness.ts?case=disabled-${Date.now()}`);
-    const readiness = getIcloudDataSyncReadiness({ platformSupported: true });
+    const readiness = getIcloudDataSyncReadiness({
+      platformSupported: true,
+      config: {
+        enabled: false,
+        selectedDataTypes: ["chat-history", "memory", "tasks", "generated-app-state", "device-trust"],
+        enabledSource: "default",
+        dataTypesSource: "default",
+        environmentLocked: false,
+      },
+    });
     assert.equal(readiness.enabled, false);
     assert.equal(readiness.mode, "handoff-only");
     assert.equal(readiness.status, "not-enabled");
     assert.equal(readiness.dataSyncScope, "entry-file-only");
     assert.equal(readiness.ready, false);
+    assert.equal(readiness.setupReady, false);
+    assert.equal(readiness.setupStatus, "missing-container");
+    assert.equal(readiness.configuration.environmentLocked, false);
     assert.equal(readiness.notSyncedDataTypes.includes("ai-keys"), true);
     assert.equal(readiness.credentialBoundary.safeDataType, "device-trust");
     assert.equal(readiness.credentialBoundary.neverSyncedFields.includes("device access token"), true);
@@ -80,6 +92,9 @@ test("CloudKit data sync readiness blocks unsafe types and requires native helpe
     assert.equal(readiness.enabled, true);
     assert.equal(readiness.status, "ready-to-test");
     assert.equal(readiness.ready, true);
+    assert.equal(readiness.setupReady, true);
+    assert.equal(readiness.setupStatus, "ready-to-test");
+    assert.equal(readiness.configuration.environmentLocked, true);
     assert.deepEqual(readiness.selectedDataTypes, ["chat-history", "memory", "device-trust"]);
     assert.deepEqual(readiness.blockedDataTypes, ["ai-keys", "device-credentials"]);
     assert.equal(readiness.nativeHelper.executable, true);
