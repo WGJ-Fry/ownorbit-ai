@@ -83,6 +83,8 @@ test("Electron desktop starts the local core and exposes admin health", async (t
   assert.match(desktopMainSource, /LIFEOS_PACKAGE_VERSION/);
   assert.match(desktopMainSource, /trustedHttpsProxy/);
   assert.match(desktopMainSource, /LIFEOS_TRUST_PROXY/);
+  assert.match(desktopMainSource, /resolveCloudKitHelperRuntime/);
+  assert.match(desktopMainSource, /applyCloudKitHelperRuntimeEnvironment/);
   const port = 6310 + Math.floor(Math.random() * 1000);
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-desktop-smoke-"));
   const userDataDir = await mkdtemp(path.join(tmpdir(), "lifeos-desktop-user-data-"));
@@ -353,6 +355,8 @@ test("Electron desktop exports a redacted desktop diagnostic bundle", async (t) 
       APP_URL: "",
       LIFEOS_ADMIN_PASSWORD: "",
       LIFEOS_DESKTOP_USER_DATA_DIR: userDataDir,
+      LIFEOS_CLOUDKIT_HELPER_BIN: "",
+      LIFEOS_CLOUDKIT_ENTITLEMENTS_PATH: "",
       LIFEOS_UPDATE_URL: "https://updates.example.com/lifeos-ai?token=should-not-leak",
       LIFEOS_RELEASE_DIR: releaseDir,
       LIFEOS_DESKTOP_EXPORT_DIAGNOSTIC_ON_START: diagnosticPath,
@@ -402,6 +406,10 @@ test("Electron desktop exports a redacted desktop diagnostic bundle", async (t) 
   assert.match(diagnostics.desktopShell.aiLabel, /AI 未配置|AI not configured/);
   assert.match(diagnostics.desktopShell.deviceLabel, /^(设备|Devices) \d+\/\d+ (在线|online)$/);
   assert.match(diagnostics.desktopShell.url, new RegExp(`^http://127\\.0\\.0\\.1:${actualPort}/admin/login`));
+  assert.equal(diagnostics.desktopShell.cloudKitHelper.available, false);
+  assert.equal(diagnostics.desktopShell.cloudKitHelper.source, "none");
+  assert.equal(diagnostics.desktopShell.cloudKitHelper.helperPathReturned, false);
+  assert.equal(diagnostics.desktopShell.cloudKitHelper.entitlementsPathReturned, false);
   assert.ok(diagnostics.mainWindow);
   assert.match(diagnostics.mainWindow.url, new RegExp(`^http://127\\.0\\.0\\.1:${actualPort}/admin/login`));
   assert.equal(diagnostics.mainWindow.visible, true);
@@ -432,6 +440,7 @@ test("Electron desktop exports a redacted desktop diagnostic bundle", async (t) 
   assert.equal(serialized.includes("dataDir=/"), false);
   assert.equal(serialized.includes("/Users/"), false);
   assert.equal(serialized.includes(dataDir), false);
+  assert.equal(serialized.includes("LifeOSCloudKitHelper.app/Contents/MacOS"), false);
 });
 
 test("Electron desktop keeps a startup failure window open when local core fails", async (t) => {

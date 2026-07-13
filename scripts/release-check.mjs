@@ -159,7 +159,7 @@ function checkSourceSizeBudgets() {
 }
 
 function checkScripts() {
-  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "icloud:helper:build", "icloud:helper:xcode:build", "icloud:helper:xcode:compile", "icloud:helper:smoke", "icloud:acceptance", "mobile:simulator:smoke", "mobile:native:build", "mobile:native:device:compile", "mobile:native:device:build", "mobile:native:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:apple-native", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
+  for (const script of ["build", "desktop", "desktop:resources:prepare", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "icloud:helper:build", "icloud:helper:xcode:build", "icloud:helper:xcode:compile", "icloud:helper:smoke", "icloud:acceptance", "mobile:simulator:smoke", "mobile:native:build", "mobile:native:device:compile", "mobile:native:device:build", "mobile:native:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:apple-native", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
     if (hasScript(script)) pass(`package script exists: ${script}`);
     else fail(`missing package script: ${script}`);
   }
@@ -597,6 +597,16 @@ function checkScripts() {
     ) pass("desktop artifact smoke verifies Electron runtime entitlements");
     else fail("desktop artifact smoke should verify Electron runtime entitlements");
     if (
+      artifactSmoke.includes("checkCloudKitHelperResourceManifest") &&
+      artifactSmoke.includes("lifeos-cloudkit-helper-bundle.v1") &&
+      artifactSmoke.includes("rawSecretsIncluded !== false") &&
+      artifactSmoke.includes("localSourcePathIncluded !== false") &&
+      artifactSmoke.includes("safePackagedResourcePath") &&
+      artifactSmoke.includes("verifyPackagedCloudKitHelperSignature") &&
+      artifactSmoke.includes("com.apple.developer.aps-environment")
+    ) pass("desktop artifact smoke verifies packaged CloudKit helper resources and redaction metadata");
+    else fail("desktop artifact smoke should verify CloudKit helper resource paths, files, and redaction metadata");
+    if (
       artifactSmoke.includes("/mobile/pair?token=") &&
       artifactSmoke.includes("/manifest.webmanifest?pairingToken=") &&
       artifactSmoke.includes("/mobile/install/") &&
@@ -639,6 +649,19 @@ function checkBuildConfig() {
   for (const pattern of ["dist", "desktop", "package.json"]) {
     if (hasBuildFile(pattern)) pass(`Electron files include ${pattern}`);
     else fail(`Electron files should include ${pattern}`);
+  }
+
+  const extraResources = packageJson.build?.extraResources || [];
+  if (
+    extraResources.some((resource) => resource?.from === "build/desktop-resources" && resource?.to === "lifeos-resources")
+  ) pass("Electron packages staged CloudKit helper resources outside app.asar");
+  else fail("Electron extraResources should package build/desktop-resources as lifeos-resources");
+
+  const packageScripts = ["desktop:pack", "desktop:pack:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux"];
+  if (packageScripts.every((script) => String(packageJson.scripts?.[script] || "").includes("desktop:resources:prepare"))) {
+    pass("every desktop package path prepares the guarded CloudKit helper manifest first");
+  } else {
+    fail("every desktop package path should run desktop:resources:prepare before electron-builder");
   }
 
   const configuredIcons = [packageJson.build?.mac?.icon, packageJson.build?.win?.icon, packageJson.build?.linux?.icon].filter(Boolean);
@@ -1630,6 +1653,30 @@ function checkAssets() {
   const icloudAutoRefreshStatusSource = exists("src/pages/admin/icloudAutoRefreshStatus.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/icloudAutoRefreshStatus.ts"), "utf8") : "";
   const mobileIcloudHandoffSource = exists("src/services/mobileIcloudHandoff.ts") ? fs.readFileSync(path.join(rootDir, "src/services/mobileIcloudHandoff.ts"), "utf8") : "";
   const diagnosticBundleSource = exists("server/diagnosticBundle.ts") ? fs.readFileSync(path.join(rootDir, "server/diagnosticBundle.ts"), "utf8") : "";
+  const cloudKitHelperBundleSource = exists("scripts/cloudkit-helper-bundle.mjs") ? fs.readFileSync(path.join(rootDir, "scripts/cloudkit-helper-bundle.mjs"), "utf8") : "";
+  const cloudKitHelperStageSource = exists("scripts/stage-cloudkit-helper.mjs") ? fs.readFileSync(path.join(rootDir, "scripts/stage-cloudkit-helper.mjs"), "utf8") : "";
+  const cloudKitHelperRuntimeSource = exists("desktop/cloudKitHelperRuntime.cjs") ? fs.readFileSync(path.join(rootDir, "desktop/cloudKitHelperRuntime.cjs"), "utf8") : "";
+  const cloudKitHelperBundleTestSource = exists("tests/cloudkit-helper-bundle.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-helper-bundle.test.mjs"), "utf8") : "";
+  const cloudKitHelperRuntimeTestSource = exists("tests/cloudkit-helper-runtime.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-helper-runtime.test.mjs"), "utf8") : "";
+  if (
+    cloudKitHelperBundleSource.includes('"--verify", "--strict", "--deep"') &&
+    cloudKitHelperBundleSource.includes("com.apple.developer.aps-environment") &&
+    cloudKitHelperBundleSource.includes("com.apple.developer.icloud-container-identifiers") &&
+    cloudKitHelperBundleSource.includes("rawSecretsIncluded: false") &&
+    cloudKitHelperBundleSource.includes("localSourcePathIncluded: false") &&
+    cloudKitHelperStageSource.includes('process.argv.includes("--require")') &&
+    cloudKitHelperBundleSource.includes("LIFEOS_REQUIRE_BUNDLED_CLOUDKIT_HELPER") &&
+    cloudKitHelperRuntimeSource.includes("safeChildPath") &&
+    cloudKitHelperRuntimeSource.includes("helperPathReturned: false") &&
+    cloudKitHelperRuntimeSource.includes("entitlementsPathReturned: false") &&
+    desktopMainSourceForRuntimeConfig.includes("resolveCloudKitHelperRuntime") &&
+    desktopMainSourceForRuntimeConfig.includes("applyCloudKitHelperRuntimeEnvironment") &&
+    cloudKitHelperBundleTestSource.includes("blocks required, mismatched, or invalid helpers") &&
+    cloudKitHelperRuntimeTestSource.includes("rejects traversal, secret flags, and absent helper manifests") &&
+    packageJson.scripts.test.includes("tests/cloudkit-helper-bundle.test.mjs") &&
+    packageJson.scripts["test:desktop"].includes("tests/cloudkit-helper-runtime.test.mjs")
+  ) pass("desktop packages only auto-discover verified CloudKit helpers through a redacted guarded resource manifest");
+  else fail("desktop CloudKit helper packaging must verify signatures/entitlements, block unsafe resources, redact diagnostics, and remain covered by tests");
   if (
     deviceRoutesSource.includes("pairingInstallUrl") &&
     deviceRoutesSource.includes("/mobile/install/") &&

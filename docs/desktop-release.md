@@ -173,6 +173,20 @@ LIFEOS_DISTRIBUTION=signed
 
 For an unsigned alpha feed test, use the same safe HTTPS directory and explicitly set `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`. For a private update host, use the HTTPS folder that contains `latest-mac.yml`, `latest.yml`, or `latest-linux.yml` next to the installer artifact. Keep `release-manifest.json` in the same folder so release checks and support diagnostics can verify exactly which files were published.
 
+## Optional Signed CloudKit Helper
+
+The persistent macOS CloudKit notification listener is a separately signed Xcode app. It is never copied into a desktop package merely because a local build folder exists. To include it in a signed macOS package:
+
+```bash
+LIFEOS_CLOUDKIT_HELPER_APP="/absolute/path/LifeOSCloudKitHelper.app" \
+LIFEOS_REQUIRE_BUNDLED_CLOUDKIT_HELPER=1 \
+npm run desktop:dist:mac
+```
+
+Before electron-builder starts, `desktop:resources:prepare` verifies the helper signature and requires signed CloudKit container, CloudKit service, Apple team, bundle ID, and APNs environment entitlements. It then writes a redacted resource manifest and stages the verified app outside `app.asar`. A required helper that is missing, unsigned, or configured for the wrong container stops the package build.
+
+Unsigned packages intentionally ship no native helper. They contain an `included: false` manifest, keep the 15-minute guarded polling and wake recovery path, and must not be described as push-delivery capable. `npm run desktop:artifact:smoke` verifies the packaged manifest, rejects unsafe relative paths, checks any declared helper files, and confirms that no local source path or raw secret flag entered the artifact.
+
 ## Startup Failure Experience
 
 If the desktop shell starts but the local core cannot become healthy, LifeOS AI opens a startup failure window instead of quitting silently. The window shows the log directory and the startup error. The app menu remains available with "打开日志目录" and "退出 LifeOS AI".

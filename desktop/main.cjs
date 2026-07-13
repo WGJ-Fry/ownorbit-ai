@@ -7,6 +7,7 @@ const net = require("net");
 const os = require("os");
 const path = require("path");
 const { createCloudKitPushListenerController } = require("./cloudKitPushListener.cjs");
+const { applyCloudKitHelperRuntimeEnvironment, resolveCloudKitHelperRuntime } = require("./cloudKitHelperRuntime.cjs");
 
 let mainWindow;
 let tray;
@@ -52,6 +53,18 @@ let cloudKitPushStatus = {
   rawPayloadReturned: false,
   deviceTokenReturned: false,
   changeTokenReturned: false,
+};
+let cloudKitHelperRuntimeStatus = {
+  available: false,
+  source: "none",
+  reason: "not-configured",
+  bundled: false,
+  manifestVerified: false,
+  containerConfigured: false,
+  identityConfigured: false,
+  entitlementsConfigured: false,
+  helperPathReturned: false,
+  entitlementsPathReturned: false,
 };
 let shutdownRequested = false;
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
@@ -314,6 +327,9 @@ function waitForEndpoint(url, options = {}) {
 async function startLocalCore() {
   desktopLogPath = path.join(app.getPath("logs"), "lifeos-desktop.log");
   process.env.LIFEOS_DATA_DIR = path.join(app.getPath("userData"), "data");
+  const helperRuntime = resolveCloudKitHelperRuntime({ environment: process.env, resourcesPath: process.resourcesPath });
+  cloudKitHelperRuntimeStatus = applyCloudKitHelperRuntimeEnvironment(helperRuntime, process.env);
+  writeDesktopLog("CloudKit helper runtime resolved", `available=${cloudKitHelperRuntimeStatus.available} source=${cloudKitHelperRuntimeStatus.source} reason=${cloudKitHelperRuntimeStatus.reason} manifestVerified=${cloudKitHelperRuntimeStatus.manifestVerified}`);
   ensureDesktopInternalToken();
   applyDesktopRuntimeConfig();
   serverPort = await findOpenPort(Number(process.env.LIFEOS_PORT || 3000));
@@ -657,6 +673,7 @@ function publicDesktopShellStatus() {
     updatedAt: desktopShellStatus.updatedAt,
     updateLabel: desktopUpdateLabel(),
     cloudKitPush: cloudKitPushListenerController.publicStatus(),
+    cloudKitHelper: { ...cloudKitHelperRuntimeStatus },
   };
 }
 

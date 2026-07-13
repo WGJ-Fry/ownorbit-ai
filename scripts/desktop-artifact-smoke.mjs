@@ -273,6 +273,113 @@ function checkPackagedPackageMetadata() {
   pass("packaged macOS app package metadata contains no unsafe Vite/esbuild build tooling");
 }
 
+function packagedCloudKitHelperManifests() {
+  return walk(releaseDir).filter((file) => {
+    const normalized = file.split(path.sep).join("/").toLowerCase();
+    return normalized.endsWith("/resources/lifeos-resources/cloudkit-helper.json");
+  });
+}
+
+function safePackagedResourcePath(root, relativePath) {
+  const relative = String(relativePath || "");
+  if (!relative || path.isAbsolute(relative) || relative.includes("..") || relative.includes("\\")) return "";
+  const resolvedRoot = path.resolve(root);
+  const resolved = path.resolve(resolvedRoot, relative);
+  return resolved.startsWith(`${resolvedRoot}${path.sep}`) ? resolved : "";
+}
+
+function plistXml(value) {
+  const source = String(value || "");
+  const start = source.indexOf("<?xml");
+  const end = source.lastIndexOf("</plist>");
+  return start >= 0 && end > start ? source.slice(start, end + "</plist>".length) : "";
+}
+
+function parsePlistXml(value, label) {
+  const xml = plistXml(value);
+  if (!xml) fail(`${label} did not contain a readable plist`);
+  const result = spawnSync("plutil", ["-convert", "json", "-o", "-", "--", "-"], {
+    cwd: rootDir,
+    encoding: "utf8",
+    input: xml,
+  });
+  if (result.status !== 0) fail(`${label} could not be parsed`);
+  return JSON.parse(result.stdout || "{}");
+}
+
+function verifyPackagedCloudKitHelperSignature(helperPath, entitlementsPath, manifest) {
+  if (process.platform !== "darwin") return;
+  const marker = `${path.sep}Contents${path.sep}MacOS${path.sep}`;
+  const markerIndex = helperPath.indexOf(marker);
+  if (markerIndex < 0) fail("packaged CloudKit helper executable is not inside a macOS app bundle");
+  const helperApp = helperPath.slice(0, markerIndex);
+  const signature = spawnSync("codesign", ["--verify", "--strict", "--deep", helperApp], {
+    cwd: rootDir,
+    encoding: "utf8",
+  });
+  if (signature.status !== 0) fail(`packaged CloudKit helper signature is invalid\n${signature.stdout || ""}${signature.stderr || ""}`);
+  const displayed = spawnSync("codesign", ["-d", "--entitlements", ":-", helperPath], {
+    cwd: rootDir,
+    encoding: "utf8",
+  });
+  if (displayed.status !== 0) fail("packaged CloudKit helper signed entitlements are unreadable");
+  const signedEntitlements = parsePlistXml(`${displayed.stdout || ""}\n${displayed.stderr || ""}`, "packaged CloudKit helper signed entitlements");
+  const stagedEntitlements = parsePlistXml(fs.readFileSync(entitlementsPath, "utf8"), "packaged CloudKit helper staged entitlements");
+  const signedContainers = Array.isArray(signedEntitlements["com.apple.developer.icloud-container-identifiers"])
+    ? signedEntitlements["com.apple.developer.icloud-container-identifiers"].map(String)
+    : [];
+  const signedServices = Array.isArray(signedEntitlements["com.apple.developer.icloud-services"])
+    ? signedEntitlements["com.apple.developer.icloud-services"].map(String)
+    : [];
+  const signedEnvironment = String(signedEntitlements["com.apple.developer.aps-environment"] || "").toLowerCase();
+  const expectedEnvironment = String(manifest.environment || "").toLowerCase();
+  if (!signedContainers.includes(manifest.containerId) || !signedServices.includes("CloudKit")) fail("packaged CloudKit helper lost its signed CloudKit entitlement");
+  if (String(signedEntitlements["com.apple.developer.team-identifier"] || "") !== manifest.teamId) fail("packaged CloudKit helper signed team does not match its manifest");
+  if (signedEnvironment !== expectedEnvironment) fail("packaged CloudKit helper signed APNs environment does not match its manifest");
+  for (const key of ["com.apple.developer.icloud-container-identifiers", "com.apple.developer.icloud-services", "com.apple.developer.team-identifier", "com.apple.developer.aps-environment"]) {
+    if (JSON.stringify(stagedEntitlements[key]) !== JSON.stringify(signedEntitlements[key])) fail(`packaged CloudKit helper staged entitlement drifted from the signed value: ${key}`);
+  }
+  const bundleId = spawnSync("plutil", ["-extract", "CFBundleIdentifier", "raw", "-o", "-", path.join(helperApp, "Contents", "Info.plist")], {
+    cwd: rootDir,
+    encoding: "utf8",
+  });
+  if (bundleId.status !== 0 || bundleId.stdout.trim() !== manifest.bundleId) fail("packaged CloudKit helper bundle id does not match its manifest");
+}
+
+function checkCloudKitHelperResourceManifest() {
+  const manifests = packagedCloudKitHelperManifests();
+  if (manifests.length === 0) fail("packaged app is missing the CloudKit helper resource manifest");
+  for (const manifestPath of manifests) {
+    const source = fs.readFileSync(manifestPath, "utf8");
+    const manifest = JSON.parse(source);
+    if (manifest.schema !== "lifeos-cloudkit-helper-bundle.v1") fail("packaged CloudKit helper manifest has an unknown schema");
+    if (manifest.rawSecretsIncluded !== false || manifest.localSourcePathIncluded !== false) {
+      fail("packaged CloudKit helper manifest does not prove secret and local-path redaction");
+    }
+    if (manifest.sourceApp || manifest.sourcePath || source.includes("/Users/") || /[A-Za-z]:\\\\Users\\/.test(source)) {
+      fail("packaged CloudKit helper manifest contains a local source path");
+    }
+    const resourceRoot = path.dirname(manifestPath);
+    if (!manifest.included) {
+      if (manifest.verified !== false || manifest.helperRelativePath || manifest.entitlementsRelativePath) {
+        fail("packaged CloudKit helper fallback manifest claims or references an unavailable helper");
+      }
+      continue;
+    }
+    if (manifest.verified !== true) fail("packaged CloudKit helper is included without verified metadata");
+    if (!/^iCloud\.[A-Za-z0-9.-]{3,150}$/.test(String(manifest.containerId || ""))) fail("packaged CloudKit helper container metadata is invalid");
+    if (!/^[A-Za-z0-9][A-Za-z0-9.-]{2,180}$/.test(String(manifest.bundleId || ""))) fail("packaged CloudKit helper bundle metadata is invalid");
+    if (!/^[A-Za-z0-9][A-Za-z0-9.-]{2,40}$/.test(String(manifest.teamId || ""))) fail("packaged CloudKit helper team metadata is invalid");
+    if (!["Development", "Production"].includes(manifest.environment)) fail("packaged CloudKit helper APNs environment is invalid");
+    const helperPath = safePackagedResourcePath(resourceRoot, manifest.helperRelativePath);
+    const entitlementsPath = safePackagedResourcePath(resourceRoot, manifest.entitlementsRelativePath);
+    if (!helperPath || !fs.statSync(helperPath, { throwIfNoEntry: false })?.isFile()) fail("packaged CloudKit helper executable is missing or outside its resource root");
+    if (!entitlementsPath || !fs.statSync(entitlementsPath, { throwIfNoEntry: false })?.isFile()) fail("packaged CloudKit helper entitlements are missing or outside their resource root");
+    verifyPackagedCloudKitHelperSignature(helperPath, entitlementsPath, manifest);
+  }
+  pass(`packaged CloudKit helper resource manifest verifies ${manifests.length} app bundle(s) without local paths or secrets`);
+}
+
 function checkPackagedMacSignature() {
   if (process.platform !== "darwin") {
     console.log("[SKIP] packaged macOS signature check is macOS-only");
@@ -734,6 +841,7 @@ checkUpdateFeed();
 checkUnsignedZip();
 checkPackagedAsar();
 checkPackagedPackageMetadata();
+checkCloudKitHelperResourceManifest();
 await checkPackagedMacSignature();
 await checkPackagedMacEntitlements();
 await launchPackagedMacApp();
