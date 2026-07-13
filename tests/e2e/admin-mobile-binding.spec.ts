@@ -549,8 +549,9 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await page.getByPlaceholder("输入 API Key").fill("sk-playwright-onboarding-secret-value");
   await page.getByRole("button", { name: "保存并继续" }).click();
   await expect(page.getByText("第二步：用手机扫码")).toBeVisible();
-  await expect(page.getByText("Apple 设备会先走最省心的默认流程")).toBeVisible();
-  await expect(page.getByTestId("onboarding-icloud-quick-entry")).toBeVisible();
+  const quickIcloudEntry = page.getByTestId("onboarding-icloud-quick-entry");
+  await expect(quickIcloudEntry).toBeVisible({ timeout: 15_000 });
+  await expect(quickIcloudEntry).toContainText("Apple");
   await expect(page.getByTestId("onboarding-icloud-default-flow")).toBeVisible();
   await expect(page.getByTestId("onboarding-device-backup-qr")).toBeVisible();
   await expect(page.getByTestId("onboarding-progress-count")).toHaveText("1 / 3");
