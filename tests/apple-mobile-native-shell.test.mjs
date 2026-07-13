@@ -7,10 +7,12 @@ const rootDir = process.cwd();
 const nativeDir = path.join(rootDir, "native", "apple", "mobile-shell");
 
 test("Apple native mobile shell validates safe iCloud entries without storing credentials", async () => {
-  const [project, entry, store, webView, content, buildScript, smokeScript, packageJson, nativeWorkflow] = await Promise.all([
+  const [project, entry, store, notifications, app, webView, content, buildScript, smokeScript, packageJson, nativeWorkflow] = await Promise.all([
     readFile(path.join(nativeDir, "project.yml"), "utf8"),
     readFile(path.join(nativeDir, "Sources", "LifeOSEntry.swift"), "utf8"),
     readFile(path.join(nativeDir, "Sources", "LifeOSEntryStore.swift"), "utf8"),
+    readFile(path.join(nativeDir, "Sources", "LifeOSEntryNotifications.swift"), "utf8"),
+    readFile(path.join(nativeDir, "Sources", "LifeOSMobileApp.swift"), "utf8"),
     readFile(path.join(nativeDir, "Sources", "LifeOSWebView.swift"), "utf8"),
     readFile(path.join(nativeDir, "Sources", "ContentView.swift"), "utf8"),
     readFile(path.join(rootDir, "scripts", "build-ios-mobile-shell.mjs"), "utf8"),
@@ -31,6 +33,17 @@ test("Apple native mobile shell validates safe iCloud entries without storing cr
   assert.match(store, /startAccessingSecurityScopedResource/);
   assert.match(store, /payload\["service"\] as\? String == "lifeos-local-core"/);
   assert.match(store, /lifeos\.native\.saved-entry\.v1/);
+  assert.match(store, /notifications\.entryDidConnect/);
+  assert.match(store, /notifications\.recordConnectionFailure/);
+  assert.match(notifications, /expirationWarningLeadTime: TimeInterval = 24 \* 60 \* 60/);
+  assert.match(notifications, /connectionFailureThreshold = 3/);
+  assert.match(notifications, /requestAuthorization\(options: \[\.alert, \.sound\]\)/);
+  assert.match(notifications, /--disable-local-notifications/);
+  assert.match(notifications, /LIFEOS_DISABLE_LOCAL_NOTIFICATIONS/);
+  assert.match(notifications, /removePendingNotificationRequests/);
+  assert.match(app, /UNUserNotificationCenter\.current\(\)\.delegate = self/);
+  assert.match(app, /\[\.banner, \.list, \.sound\]/);
+  assert.doesNotMatch(notifications, /baseURL|chatURL|pairURL|desktopName|checksum|accessToken|privateKey|apiKey/);
   assert.doesNotMatch(`${entry}\n${store}`, /accessToken|privateKey|adminPassword|apiKey/i);
   assert.match(webView, /WKNavigationDelegate/);
   assert.match(webView, /sameOrigin\(url, entry\.baseURL\)/);
@@ -43,6 +56,10 @@ test("Apple native mobile shell validates safe iCloud entries without storing cr
   assert.match(smokeScript, /native-entry-setup/);
   assert.match(smokeScript, /native-mobile-chat/);
   assert.match(smokeScript, /native-cloud-data/);
+  assert.match(smokeScript, /--disable-local-notifications/);
+  assert.match(smokeScript, /SIMCTL_CHILD_LIFEOS_DISABLE_LOCAL_NOTIFICATIONS/);
+  assert.match(smokeScript, /"privacy", device\.udid, "reset", "all", bundleId/);
+  assert.match(smokeScript, /"shutdown", device\.udid/);
   assert.match(smokeScript, /does not replace cellular/);
   assert.match(packageJson.scripts["mobile:native:build"], /build-ios-mobile-shell/);
   assert.match(packageJson.scripts["mobile:native:device:compile"], /--device-compile/);

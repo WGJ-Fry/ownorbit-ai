@@ -352,6 +352,8 @@ function checkScripts() {
   ) {
     const nativeEntry = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSEntry.swift"), "utf8");
     const nativeStore = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSEntryStore.swift"), "utf8");
+    const nativeNotifications = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSEntryNotifications.swift"), "utf8");
+    const nativeApp = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSMobileApp.swift"), "utf8");
     const nativeWebView = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSWebView.swift"), "utf8");
     const nativeCloudData = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSCloudData.swift"), "utf8");
     const nativeCloudSync = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSCloudKitSync.swift"), "utf8");
@@ -371,6 +373,17 @@ function checkScripts() {
       nativeEntry.includes("entryChecksumSha256 == checksum") &&
       nativeStore.includes("startAccessingSecurityScopedResource") &&
       nativeStore.includes('payload["service"] as? String == "lifeos-local-core"') &&
+      nativeStore.includes("notifications.entryDidConnect") &&
+      nativeStore.includes("notifications.recordConnectionFailure") &&
+      nativeNotifications.includes("expirationWarningLeadTime: TimeInterval = 24 * 60 * 60") &&
+      nativeNotifications.includes("connectionFailureThreshold = 3") &&
+      nativeNotifications.includes("requestAuthorization(options: [.alert, .sound])") &&
+      nativeNotifications.includes("--disable-local-notifications") &&
+      nativeNotifications.includes("LIFEOS_DISABLE_LOCAL_NOTIFICATIONS") &&
+      nativeNotifications.includes("removePendingNotificationRequests") &&
+      !/baseURL|chatURL|pairURL|desktopName|checksum|accessToken|privateKey|apiKey/.test(nativeNotifications) &&
+      nativeApp.includes("UNUserNotificationCenter.current().delegate = self") &&
+      nativeApp.includes("[.banner, .list, .sound]") &&
       nativeWebView.includes("WKNavigationDelegate") &&
       nativeWebView.includes("sameOrigin(url, entry.baseURL)") &&
       nativeCloudData.includes("maxPayloadBytes = 64 * 1024") &&
@@ -408,9 +421,13 @@ function checkScripts() {
       nativeCloudScreen.includes("cloudStore.createMemory") &&
       nativeBuild.includes("deviceCompile") &&
       nativeBuild.includes("CODE_SIGNING_ALLOWED=NO") &&
+      nativeSmoke.includes("--disable-local-notifications") &&
+      nativeSmoke.includes("SIMCTL_CHILD_LIFEOS_DISABLE_LOCAL_NOTIFICATIONS") &&
+      nativeSmoke.includes('"privacy", device.udid, "reset", "all", bundleId') &&
+      nativeSmoke.includes('"shutdown", device.udid') &&
       nativeSmoke.includes("does not replace cellular")
-    ) pass("Apple native iOS shell validates entries and CloudKit records, isolates Apple accounts, recovers expired cursors, retries bounded pulls, supports guarded memory creation and task completion write-back, protects offline snapshots, and has simulator/device build coverage");
-    else fail("Apple native iOS shell must validate iCloud entry and CloudKit data, isolate Apple accounts, recover expired cursors, retry bounded pulls, guard memory creation and task completion write-back, protect offline snapshots, restrict WebView navigation, and run through Xcode Simulator smoke coverage");
+    ) pass("Apple native iOS shell validates entries and CloudKit records, isolates Apple accounts, recovers expired cursors, retries bounded pulls, supports guarded memory creation and task completion write-back, schedules privacy-safe entry notifications, protects offline snapshots, and has simulator/device build coverage");
+    else fail("Apple native iOS shell must validate iCloud entry and CloudKit data, isolate Apple accounts, recover expired cursors, retry bounded pulls, guard memory creation and task completion write-back, schedule privacy-safe entry notifications, protect offline snapshots, restrict WebView navigation, and run through Xcode Simulator smoke coverage");
   } else {
     fail("missing Apple native iOS shell source or simulator smoke script");
   }

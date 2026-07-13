@@ -111,3 +111,7 @@
 "cloud.clear.title" = "从这台 iPhone 移除 iCloud 数据？";
 "cloud.clear.body" = "这里只移除受保护的离线副本和变更游标，不会删除 CloudKit 或 Mac 上的数据。";
 "cloud.clear.confirm" = "移除离线副本";
+"notification.entry.expiring.title" = "LifeOS 手机入口即将过期";
+"notification.entry.expiring.body" = "请在 Mac 上打开 LifeOS，并重新生成 iCloud 手机入口。";
+"notification.connection.failed.title" = "暂时连不上 LifeOS 电脑";
+"notification.connection.failed.body" = "请在 Mac 上打开 LifeOS，检查异地地址，然后刷新手机入口。";

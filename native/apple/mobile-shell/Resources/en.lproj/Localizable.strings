@@ -111,3 +111,7 @@
 "cloud.clear.title" = "Remove iCloud data from this iPhone?";
 "cloud.clear.body" = "This removes only the protected offline copy and change tokens. It does not delete CloudKit or Mac data.";
 "cloud.clear.confirm" = "Remove offline copy";
+"notification.entry.expiring.title" = "LifeOS phone entry expires soon";
+"notification.entry.expiring.body" = "Open LifeOS on the Mac and regenerate the iCloud phone entry.";
+"notification.connection.failed.title" = "LifeOS computer is not reachable";
+"notification.connection.failed.body" = "Open LifeOS on the Mac, check the remote address, then refresh the phone entry.";

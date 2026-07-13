@@ -21,6 +21,7 @@ async function xcrun(args, options = {}) {
     return await execFileAsync("xcrun", args, {
       timeout: options.timeoutMs || 180_000,
       maxBuffer: 16 * 1024 * 1024,
+      env: options.env ? { ...process.env, ...options.env } : process.env,
     });
   } catch (error) {
     if (options.allowFailure) return { stdout: "", stderr: String(error?.stderr || error?.message || "") };
@@ -59,11 +60,31 @@ async function screenshot(device, name) {
 }
 
 async function launchAndCapture(device, name, appArgs = []) {
-  await xcrun(["simctl", "launch", "--terminate-running-process", device.udid, bundleId, ...appArgs], { timeoutMs: 60_000 });
+  await xcrun([
+    "simctl",
+    "launch",
+    "--terminate-running-process",
+    device.udid,
+    bundleId,
+    "--disable-local-notifications",
+    ...appArgs,
+  ], {
+    timeoutMs: 60_000,
+    env: { SIMCTL_CHILD_LIFEOS_DISABLE_LOCAL_NOTIFICATIONS: "1" },
+  });
   await new Promise((resolve) => setTimeout(resolve, Number(process.env.LIFEOS_IOS_NATIVE_LAUNCH_WAIT_MS || "7000")));
   const imagePath = await screenshot(device, name);
   await xcrun(["simctl", "terminate", device.udid, bundleId], { timeoutMs: 30_000 });
   return imagePath;
+}
+
+async function resetSimulatorAppState(device) {
+  await xcrun(["simctl", "terminate", device.udid, bundleId], { allowFailure: true, timeoutMs: 30_000 });
+  await xcrun(["simctl", "privacy", device.udid, "reset", "all", bundleId], { allowFailure: true, timeoutMs: 30_000 });
+  await xcrun(["simctl", "uninstall", device.udid, bundleId], { allowFailure: true, timeoutMs: 30_000 });
+  await xcrun(["simctl", "shutdown", device.udid], { allowFailure: true, timeoutMs: 60_000 });
+  await xcrun(["simctl", "boot", device.udid], { allowFailure: true, timeoutMs: 60_000 });
+  await xcrun(["simctl", "bootstatus", device.udid, "-b"], { timeoutMs: 180_000 });
 }
 
 async function main() {
@@ -97,7 +118,7 @@ async function main() {
   });
   if (!fs.existsSync(appPath)) throw new Error(`Native iOS app was not built: ${appPath}`);
 
-  await xcrun(["simctl", "uninstall", device.udid, bundleId], { allowFailure: true, timeoutMs: 30_000 });
+  await resetSimulatorAppState(device);
   await xcrun(["simctl", "install", device.udid, appPath], { timeoutMs: 60_000 });
   const setupScreenshot = await launchAndCapture(device, "native-entry-setup");
   const connectedScreenshot = await launchAndCapture(device, "native-mobile-chat", ["--base-url", baseURL]);
@@ -126,6 +147,7 @@ async function main() {
       "The native memory composer renders a bilingual, size-bounded form with explicit private-iCloud safety guidance.",
     ],
     limits: [
+      "The smoke run resets this app's simulator permissions and suppresses the notification prompt; production launches still request permission after a successful entry connection.",
       "The simulator does not prove iCloud account document delivery on a physical iPhone.",
       "The simulator does not replace cellular, Wi-Fi switching, background push, or CloudKit provisioning acceptance.",
       "The native shell stores connection metadata only; LifeOS device credentials remain in the web session.",

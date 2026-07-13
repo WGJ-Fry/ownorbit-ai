@@ -9,6 +9,7 @@ This directory contains the source-only iOS native shell candidate. It is not an
 - Exact SHA-256 verification compatible with the desktop `JSON.stringify` packet contract. This detects accidental modification; it is not a server identity signature.
 - Version, expiry, endpoint-origin, HTTPS/private-LAN, and LifeOS health validation.
 - Persistent non-secret entry metadata and a restricted same-origin `WKWebView` for `/mobile/chat`.
+- Privacy-safe local notifications after opt-in: one warning 24 hours before an iCloud phone entry expires, plus one recovery reminder after three consecutive connection failures. Reconnecting or removing the entry clears pending reminders; notifications never contain a URL, desktop name, checksum, or credential.
 - Custom `lifeos://connect?baseUrl=...` deep link for future Shortcut-assisted setup. The address is validated and must prove `/api/v1/health` is a LifeOS local core.
 - Explicit opt-in private CloudKit pull for approved chat, memory, task, generated-app-state, and review-only device metadata records.
 - Incremental private-database change tokens, database push subscription, foreground recovery, payload SHA-256/size/schema validation, and a Data Protection-backed offline snapshot.
@@ -63,6 +64,6 @@ Generated Xcode projects, app bundles, test results, screenshots, and evidence s
 
 这里是 LifeOS iOS 原生壳的源码候选版本，目前不是 App Store 正式版本，也不会混入公开桌面安装包。
 
-当前可以从 iPhone“文件”App 选择 `lifeos-mobile-entry-*.json`，校验入口版本、SHA-256、有效期、地址安全边界和 LifeOS 健康接口，然后在受限的同源 `WKWebView` 中打开手机聊天。原生壳还加入了需要用户明确开启的 CloudKit 私有库增量拉取、变更游标、后台推送订阅、前台恢复、记录完整性校验和 Data Protection 离线快照。离线副本按匿名 Apple 账号指纹隔离；账号变化会先清除旧副本，游标过期会只重建对应 zone，多页与临时失败会自动续拉或退避重试。当前有两条受控写回：新建一条普通记忆，以及把现有任务标记完成。新建记忆会拦截凭证/私密路径，且不能覆盖 Mac 已有记忆；任务完成会提交基础内容哈希，Mac 只在本地版本仍一致时接受。已有记忆、聊天、生成程序和设备信息继续只读。AI Key、管理员密码、设备 token、私钥、会话 Cookie、SQLite、备份和 CloudKit 凭证都不会写入同步数据。
+当前可以从 iPhone“文件”App 选择 `lifeos-mobile-entry-*.json`，校验入口版本、SHA-256、有效期、地址安全边界和 LifeOS 健康接口，然后在受限的同源 `WKWebView` 中打开手机聊天。首次成功连接后可授权本地通知：入口到期前 24 小时提醒一次，连续三次连接失败后提醒一次；恢复连接或移除入口会清理提醒，通知里不会出现地址、电脑名、校验值或凭证。原生壳还加入了需要用户明确开启的 CloudKit 私有库增量拉取、变更游标、后台推送订阅、前台恢复、记录完整性校验和 Data Protection 离线快照。离线副本按匿名 Apple 账号指纹隔离；账号变化会先清除旧副本，游标过期会只重建对应 zone，多页与临时失败会自动续拉或退避重试。当前有两条受控写回：新建一条普通记忆，以及把现有任务标记完成。新建记忆会拦截凭证/私密路径，且不能覆盖 Mac 已有记忆；任务完成会提交基础内容哈希，Mac 只在本地版本仍一致时接受。已有记忆、聊天、生成程序和设备信息继续只读。AI Key、管理员密码、设备 token、私钥、会话 Cookie、SQLite、备份和 CloudKit 凭证都不会写入同步数据。
 
 代码和 entitlement 已经具备，但“真实 CloudKit 已跑通”仍需 Apple 账号持有人接受协议、创建共享 Container、生成匹配的 Mac/iPhone provisioning profile，并完成两台真实设备的数据往返、后台推送和长测证据。在这些证据完成前，项目仍只把它标为原生同步候选能力。

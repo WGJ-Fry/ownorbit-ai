@@ -155,6 +155,47 @@ final class LifeOSEntryTests: XCTestCase {
         }
     }
 
+    func testEntryNotificationPolicySchedulesOneDayBeforeExpiration() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let expiresAt = Int64(now.addingTimeInterval(3 * 24 * 60 * 60).timeIntervalSince1970 * 1_000)
+        let warning = LifeOSEntryNotificationPolicy.expirationWarningDate(
+            expiresAtMilliseconds: expiresAt,
+            now: now
+        )
+        XCTAssertNotNil(warning)
+        XCTAssertEqual(
+            warning!.timeIntervalSince1970,
+            now.addingTimeInterval(2 * 24 * 60 * 60).timeIntervalSince1970,
+            accuracy: 0.001
+        )
+    }
+
+    func testEntryNotificationPolicyUsesSafeMinimumDelayAndSkipsExpiredEntry() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let soon = Int64(now.addingTimeInterval(2 * 60 * 60).timeIntervalSince1970 * 1_000)
+        let warning = LifeOSEntryNotificationPolicy.expirationWarningDate(
+            expiresAtMilliseconds: soon,
+            now: now
+        )
+        XCTAssertNotNil(warning)
+        XCTAssertEqual(
+            warning!.timeIntervalSince1970,
+            now.addingTimeInterval(LifeOSEntryNotificationPolicy.minimumScheduleDelay).timeIntervalSince1970,
+            accuracy: 0.001
+        )
+        XCTAssertNil(LifeOSEntryNotificationPolicy.expirationWarningDate(
+            expiresAtMilliseconds: Int64(now.addingTimeInterval(30).timeIntervalSince1970 * 1_000),
+            now: now
+        ))
+    }
+
+    func testEntryNotificationPolicyNotifiesOnlyAtFailureThreshold() {
+        XCTAssertFalse(LifeOSEntryNotificationPolicy.shouldNotifyConnectionFailure(1))
+        XCTAssertFalse(LifeOSEntryNotificationPolicy.shouldNotifyConnectionFailure(2))
+        XCTAssertTrue(LifeOSEntryNotificationPolicy.shouldNotifyConnectionFailure(3))
+        XCTAssertFalse(LifeOSEntryNotificationPolicy.shouldNotifyConnectionFailure(4))
+    }
+
     private func samplePacket(expiresAt: Int64) -> LifeOSEntryPacket {
         let expectedChecksum = expiresAt == 1_700_000_000_000
             ? "3a2eb689256a278c26988b7aad9104670ef86a9f7e56839218d690ed78de9d2d"

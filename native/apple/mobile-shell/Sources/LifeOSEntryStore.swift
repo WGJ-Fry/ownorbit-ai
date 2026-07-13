@@ -16,8 +16,10 @@ final class LifeOSEntryStore: ObservableObject {
     @Published private(set) var statusTone: StatusTone = .neutral
 
     private let storageKey = "lifeos.native.saved-entry.v1"
+    private let notifications: LifeOSEntryNotificationCoordinator
 
-    init() {
+    init(notifications: LifeOSEntryNotificationCoordinator = LifeOSEntryNotificationCoordinator()) {
+        self.notifications = notifications
         loadSavedEntry()
         if let rawURL = Self.launchArgument("--base-url") {
             Task { await connect(manualURL: rawURL) }
@@ -74,6 +76,7 @@ final class LifeOSEntryStore: ObservableObject {
 
     func forgetEntry() {
         UserDefaults.standard.removeObject(forKey: storageKey)
+        notifications.clear()
         entry = nil
         statusMessage = NSLocalizedString("status.entryRemoved", comment: "")
         statusTone = .neutral
@@ -85,6 +88,7 @@ final class LifeOSEntryStore: ObservableObject {
         defer { isChecking = false }
         do {
             try await proveLifeOS(entry)
+            notifications.recordConnectionSuccess()
             statusMessage = NSLocalizedString("status.connectionReady", comment: "")
             statusTone = .success
         } catch let error as LifeOSEntryError {
@@ -126,6 +130,7 @@ final class LifeOSEntryStore: ObservableObject {
             UserDefaults.standard.set(data, forKey: storageKey)
         }
         self.entry = entry
+        notifications.entryDidConnect(entry)
     }
 
     private func loadSavedEntry() {
@@ -136,9 +141,13 @@ final class LifeOSEntryStore: ObservableObject {
             return
         }
         entry = saved
+        notifications.entryDidConnect(saved, requestAuthorization: false)
     }
 
     private func set(error: LifeOSEntryError) {
+        if error == .unavailable || error == .notLifeOS {
+            notifications.recordConnectionFailure()
+        }
         statusMessage = error.message
         statusTone = .error
     }
