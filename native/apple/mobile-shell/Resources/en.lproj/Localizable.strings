@@ -49,6 +49,7 @@
 "cloud.status.cleared" = "The offline iCloud copy was removed from this iPhone.";
 "cloud.error.noAccount" = "Sign in to iCloud on this iPhone, then try again.";
 "cloud.error.restricted" = "iCloud access is restricted on this iPhone.";
+"cloud.error.accountChanged" = "The iCloud account changed. This action was kept on the iPhone and was not sent to the new account.";
 "cloud.error.network" = "This iPhone is offline. LifeOS will try again when the connection returns.";
 "cloud.error.temporary" = "iCloud is busy right now. LifeOS will retry automatically.";
 "cloud.error.unavailable" = "iCloud data is temporarily unavailable. Keep the app open and try again.";
@@ -62,7 +63,9 @@
 "cloud.task.complete.accessibility" = "Mark task complete";
 "cloud.task.completed" = "Task completed";
 "cloud.task.status.writing" = "Saving this task completion to private iCloud...";
+"cloud.task.status.queued" = "Task completion is safe on this iPhone and will sync when private iCloud is available.";
 "cloud.task.status.completed" = "“%@” was marked complete. The Mac will accept it only if the base version still matches.";
+"cloud.task.queued" = "Task completion is waiting to sync";
 "cloud.task.status.savedCacheWarning" = "The task completion reached iCloud, but this iPhone could not refresh its offline copy. Sync again; do not submit it twice.";
 "cloud.task.error.stale" = "The task list changed on another device. Sync the latest copy, then try again.";
 "cloud.task.error.invalid" = "This task record cannot be safely changed from the iPhone.";
@@ -82,6 +85,7 @@
 "cloud.memory.confirm.body" = "LifeOS will create one new normal memory. It cannot overwrite an existing Mac memory.";
 "cloud.memory.confirm.confirm" = "Save memory";
 "cloud.memory.status.writing" = "Saving a new memory to private iCloud...";
+"cloud.memory.status.queued" = "Memory is safe on this iPhone and will sync when private iCloud is available.";
 "cloud.memory.status.saved" = "Memory saved to iCloud. The Mac will add it after the next safe sync.";
 "cloud.memory.status.savedCacheWarning" = "Memory saved to iCloud, but this iPhone could not refresh its offline copy. Sync again; do not create it twice.";
 "cloud.memory.error.title" = "Add a short title for this memory.";
@@ -90,6 +94,22 @@
 "cloud.memory.error.unsafe" = "This memory looks like it contains a credential or private local path, so it was not uploaded.";
 "cloud.memory.error.collision" = "A memory with this identifier already exists. Refresh iCloud data, then try again.";
 "cloud.memory.error.failed" = "LifeOS could not confirm whether iCloud saved this memory. Sync before retrying; this draft keeps the same identifier to prevent duplicates.";
+"cloud.outbox.section" = "Pending iCloud actions";
+"cloud.outbox.pending" = "%d action(s) waiting to sync";
+"cloud.outbox.review" = "%d action(s) need review before another attempt";
+"cloud.outbox.otherAccount" = "%d action(s) belong to a different iCloud account and are blocked";
+"cloud.outbox.retry" = "Retry pending actions";
+"cloud.outbox.clear.button" = "Remove pending actions";
+"cloud.outbox.clear.title" = "Remove all pending iCloud actions?";
+"cloud.outbox.clear.body" = "This removes actions that have not reached iCloud, including actions isolated from another iCloud account. Synced Mac and CloudKit data are not deleted.";
+"cloud.outbox.clear.confirm" = "Remove pending actions";
+"cloud.outbox.footer" = "Pending actions are encrypted by iOS Data Protection, excluded from backup, and tied to one anonymous iCloud account fingerprint.";
+"cloud.outbox.status.waiting" = "Some actions are safe on this iPhone and will retry automatically when iCloud recovers.";
+"cloud.outbox.status.review" = "A pending action needs review. LifeOS will not retry it automatically or send it to another iCloud account.";
+"cloud.outbox.status.cleared" = "Pending iCloud actions were removed from this iPhone.";
+"cloud.outbox.error.syncFirst" = "Sync iCloud data once before creating offline actions so LifeOS can bind them to the correct account.";
+"cloud.outbox.error.full" = "The protected pending-action queue is full. Reconnect iCloud or remove old pending actions before adding another.";
+"cloud.outbox.error.storage" = "LifeOS could not protect this action on the iPhone, so it was not submitted.";
 "cloud.demo.task.review" = "Review the iCloud sync plan";
 "cloud.demo.task.online" = "Keep the Mac online";
 "cloud.empty.title" = "No synced data yet";
@@ -109,7 +129,7 @@
 "cloud.readOnly" = "You can create a new normal memory and complete a task. Existing memories, chats, generated apps, and device metadata remain read-only; Mac-side version checks stay authoritative.";
 "cloud.clear.button" = "Turn off and remove offline copy";
 "cloud.clear.title" = "Remove iCloud data from this iPhone?";
-"cloud.clear.body" = "This removes only the protected offline copy and change tokens. It does not delete CloudKit or Mac data.";
+"cloud.clear.body" = "This removes the protected offline copy, change tokens, and unsent pending actions. It does not delete CloudKit or Mac data.";
 "cloud.clear.confirm" = "Remove offline copy";
 "notification.entry.expiring.title" = "LifeOS phone entry expires soon";
 "notification.entry.expiring.body" = "Open LifeOS on the Mac and regenerate the iCloud phone entry.";

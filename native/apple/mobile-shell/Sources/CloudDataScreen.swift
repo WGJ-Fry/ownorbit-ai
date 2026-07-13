@@ -4,6 +4,7 @@ struct CloudDataScreen: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var cloudStore: LifeOSCloudDataStore
     @State private var confirmClear = false
+    @State private var confirmClearPending = false
     @State private var pendingTaskCompletion: LifeOSPendingTaskCompletion?
     @State private var showMemoryComposer = ProcessInfo.processInfo.arguments.contains("--cloud-memory-compose-demo")
 
@@ -45,6 +46,16 @@ struct CloudDataScreen: View {
                 Button("common.cancel", role: .cancel) {}
             } message: {
                 Text("cloud.clear.body")
+            }
+            .confirmationDialog(
+                "cloud.outbox.clear.title",
+                isPresented: $confirmClearPending,
+                titleVisibility: .visible
+            ) {
+                Button("cloud.outbox.clear.confirm", role: .destructive) { cloudStore.clearPendingMutations() }
+                Button("common.cancel", role: .cancel) {}
+            } message: {
+                Text("cloud.outbox.clear.body")
             }
             .alert(
                 "cloud.task.complete.title",
@@ -128,6 +139,58 @@ struct CloudDataScreen: View {
                 cloudStatus
             }
 
+            if cloudStore.totalMutationCount > 0 {
+                Section {
+                    if cloudStore.pendingMutationCount > 0 {
+                        Label(
+                            String(
+                                format: NSLocalizedString("cloud.outbox.pending", comment: ""),
+                                cloudStore.pendingMutationCount
+                            ),
+                            systemImage: "arrow.triangle.2.circlepath.icloud"
+                        )
+                    }
+                    if cloudStore.reviewMutationCount > 0 {
+                        Label(
+                            String(
+                                format: NSLocalizedString("cloud.outbox.review", comment: ""),
+                                cloudStore.reviewMutationCount
+                            ),
+                            systemImage: "exclamationmark.triangle"
+                        )
+                        .foregroundStyle(.orange)
+                    }
+                    if cloudStore.otherAccountMutationCount > 0 {
+                        Label(
+                            String(
+                                format: NSLocalizedString("cloud.outbox.otherAccount", comment: ""),
+                                cloudStore.otherAccountMutationCount
+                            ),
+                            systemImage: "person.crop.circle.badge.exclamationmark"
+                        )
+                        .foregroundStyle(.orange)
+                    }
+                    if cloudStore.pendingMutationCount > 0 {
+                        Button {
+                            Task { await cloudStore.retryPendingMutations() }
+                        } label: {
+                            Label("cloud.outbox.retry", systemImage: "arrow.clockwise")
+                        }
+                        .disabled(cloudStore.isSyncing || cloudStore.isWriting)
+                    }
+                    Button(role: .destructive) {
+                        confirmClearPending = true
+                    } label: {
+                        Label("cloud.outbox.clear.button", systemImage: "trash")
+                    }
+                    .disabled(cloudStore.isSyncing || cloudStore.isWriting)
+                } header: {
+                    Text("cloud.outbox.section")
+                } footer: {
+                    Text("cloud.outbox.footer")
+                }
+            }
+
             ForEach(groupedRecords, id: \.dataType) { group in
                 Section(header: Text(sectionTitle(group.dataType))) {
                     ForEach(group.records.prefix(30)) { record in
@@ -170,19 +233,24 @@ struct CloudDataScreen: View {
                 Text(record.displayTitle)
                     .font(.body.weight(.semibold))
                 ForEach(record.taskItems) { item in
+                    let queued = cloudStore.isTaskCompletionQueued(record: record, item: item)
                     HStack(alignment: .top, spacing: 11) {
                         Button {
                             guard !item.completed else { return }
                             pendingTaskCompletion = LifeOSPendingTaskCompletion(record: record, item: item)
                         } label: {
-                            Image(systemName: item.completed ? "checkmark.circle.fill" : "circle")
+                            Image(systemName: item.completed ? "checkmark.circle.fill" : queued ? "clock.fill" : "circle")
                                 .font(.title3)
-                                .foregroundStyle(item.completed ? .mint : .cyan)
+                                .foregroundStyle(item.completed ? .mint : queued ? .orange : .cyan)
                                 .frame(width: 28, height: 28)
                         }
                         .buttonStyle(.plain)
-                        .disabled(item.completed || cloudStore.writingTaskRecordId != nil)
-                        .accessibilityLabel(Text(item.completed ? "cloud.task.completed" : "cloud.task.complete.accessibility"))
+                        .disabled(
+                            item.completed || queued || record.requiresUserReview || cloudStore.writingTaskRecordId != nil
+                        )
+                        .accessibilityLabel(Text(
+                            item.completed ? "cloud.task.completed" : queued ? "cloud.task.queued" : "cloud.task.complete.accessibility"
+                        ))
                         Text(item.text)
                             .font(.subheadline)
                             .foregroundStyle(item.completed ? .secondary : .primary)

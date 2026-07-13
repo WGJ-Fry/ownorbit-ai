@@ -123,6 +123,7 @@ async function main() {
   const setupScreenshot = await launchAndCapture(device, "native-entry-setup");
   const connectedScreenshot = await launchAndCapture(device, "native-mobile-chat", ["--base-url", baseURL]);
   const cloudDataScreenshot = await launchAndCapture(device, "native-cloud-data", ["--base-url", baseURL, "--show-cloud-data", "--cloud-data-demo"]);
+  const cloudOutboxScreenshot = await launchAndCapture(device, "native-cloud-pending-actions", ["--base-url", baseURL, "--show-cloud-data", "--cloud-data-demo", "--cloud-outbox-demo"]);
   const cloudMemoryScreenshot = await launchAndCapture(device, "native-cloud-memory-create", ["--base-url", baseURL, "--show-cloud-data", "--cloud-data-demo", "--cloud-memory-compose-demo"]);
 
   const evidence = {
@@ -138,12 +139,13 @@ async function main() {
       total: endpoint.total,
     },
     app: { bundleId, appPath },
-    screenshots: { setup: setupScreenshot, connected: connectedScreenshot, cloudData: cloudDataScreenshot, cloudMemory: cloudMemoryScreenshot },
+    screenshots: { setup: setupScreenshot, connected: connectedScreenshot, cloudData: cloudDataScreenshot, cloudOutbox: cloudOutboxScreenshot, cloudMemory: cloudMemoryScreenshot },
     proves: [
       "The native SwiftUI shell builds and its entry validator unit tests pass.",
       "The app installs and remains running on an iPhone Simulator.",
       "The app verifies a LifeOS local core and loads the mobile chat shell.",
       "The native iCloud data surface renders a simulator-only task snapshot and guarded completion control without exposing credentials or requiring CloudKit access.",
+      "The protected pending-action queue renders retry, review, account-isolation, and removal controls without exposing queued payloads.",
       "The native memory composer renders a bilingual, size-bounded form with explicit private-iCloud safety guidance.",
     ],
     limits: [
@@ -156,7 +158,7 @@ async function main() {
   const evidencePath = path.join(outDir, "latest.json");
   fs.writeFileSync(evidencePath, JSON.stringify(evidence, null, 2));
   log(`PASS. Evidence: ${evidencePath}`);
-  log(`Screenshots: ${setupScreenshot}, ${connectedScreenshot}, ${cloudDataScreenshot}, ${cloudMemoryScreenshot}`);
+  log(`Screenshots: ${setupScreenshot}, ${connectedScreenshot}, ${cloudDataScreenshot}, ${cloudOutboxScreenshot}, ${cloudMemoryScreenshot}`);
 }
 
 main().catch((error) => {

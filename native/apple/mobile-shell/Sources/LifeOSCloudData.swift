@@ -151,6 +151,7 @@ enum LifeOSCloudTaskMutationBuilder {
         guard record.zone == "LifeOSTaskZone",
               record.recordType == "LifeOSTaskListSnapshot",
               record.recordName == "task-list:lifeos_tasks_pro",
+              !record.requiresUserReview,
               let payloadData = record.payloadJson.data(using: .utf8),
               var payload = try JSONSerialization.jsonObject(with: payloadData) as? [String: Any],
               payload["taskListKey"] as? String == "lifeos_tasks_pro",

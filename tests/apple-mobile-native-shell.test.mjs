@@ -56,6 +56,8 @@ test("Apple native mobile shell validates safe iCloud entries without storing cr
   assert.match(smokeScript, /native-entry-setup/);
   assert.match(smokeScript, /native-mobile-chat/);
   assert.match(smokeScript, /native-cloud-data/);
+  assert.match(smokeScript, /native-cloud-pending-actions/);
+  assert.match(smokeScript, /--cloud-outbox-demo/);
   assert.match(smokeScript, /--disable-local-notifications/);
   assert.match(smokeScript, /SIMCTL_CHILD_LIFEOS_DISABLE_LOCAL_NOTIFICATIONS/);
   assert.match(smokeScript, /"privacy", device\.udid, "reset", "all", bundleId/);
@@ -70,11 +72,12 @@ test("Apple native mobile shell validates safe iCloud entries without storing cr
 });
 
 test("Apple native mobile shell has a guarded private CloudKit offline data path", async () => {
-  const [project, entitlements, cloudData, cloudSync, cloudScreen, buildScript] = await Promise.all([
+  const [project, entitlements, cloudData, cloudSync, cloudOutbox, cloudScreen, buildScript] = await Promise.all([
     readFile(path.join(nativeDir, "project.yml"), "utf8"),
     readFile(path.join(nativeDir, "Config", "LifeOSMobile.entitlements"), "utf8"),
     readFile(path.join(nativeDir, "Sources", "LifeOSCloudData.swift"), "utf8"),
     readFile(path.join(nativeDir, "Sources", "LifeOSCloudKitSync.swift"), "utf8"),
+    readFile(path.join(nativeDir, "Sources", "LifeOSCloudMutationOutbox.swift"), "utf8"),
     readFile(path.join(nativeDir, "Sources", "CloudDataScreen.swift"), "utf8"),
     readFile(path.join(rootDir, "scripts", "build-ios-mobile-shell.mjs"), "utf8"),
   ]);
@@ -117,18 +120,32 @@ test("Apple native mobile shell has a guarded private CloudKit offline data path
   assert.match(cloudSync, /completeUntilFirstUserAuthentication/);
   assert.match(cloudSync, /isExcludedFromBackup = true/);
   assert.match(cloudSync, /serverChangeTokens/);
+  assert.match(cloudOutbox, /maxEntries = 50/);
+  assert.match(cloudOutbox, /maxEncodedBytes = 512 \* 1024/);
+  assert.match(cloudOutbox, /accountFingerprint/);
+  assert.match(cloudOutbox, /completeUntilFirstUserAuthentication/);
+  assert.match(cloudOutbox, /isExcludedFromBackup = true/);
+  assert.match(cloudOutbox, /func due\(accountFingerprint:/);
+  assert.match(cloudOutbox, /func markNeedsReview/);
+  assert.match(cloudSync, /processPendingMutations/);
+  assert.match(cloudSync, /seedSimulatorMutationOutbox/);
+  assert.match(cloudSync, /currentAccountFingerprint/);
+  assert.match(cloudSync, /resolveMemoryCollision/);
+  assert.match(cloudSync, /isMatchingTaskCompletion/);
   assert.match(cloudScreen, /cloud\.enable\.safe/);
   assert.match(cloudScreen, /cloudStore\.performNextAction/);
   assert.match(cloudScreen, /LifeOSPendingTaskCompletion/);
   assert.match(cloudScreen, /cloudStore\.completeTaskListItem/);
   assert.match(cloudScreen, /LifeOSMemoryComposer/);
   assert.match(cloudScreen, /cloudStore\.createMemory/);
+  assert.match(cloudScreen, /cloudStore\.retryPendingMutations/);
+  assert.match(cloudScreen, /cloudStore\.clearPendingMutations/);
   assert.match(buildScript, /generic\/platform=iOS/);
   assert.match(buildScript, /deviceCompile/);
   assert.match(buildScript, /CODE_SIGNING_ALLOWED=NO/);
   assert.match(buildScript, /LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES/);
   assert.match(buildScript, /No matching iPhone provisioning profile is installed/);
-  assert.doesNotMatch(`${cloudData}\n${cloudSync}`, /accessToken|adminPassword|providerApiKey|sessionCookie|privateKey/);
+  assert.doesNotMatch(`${cloudData}\n${cloudSync}\n${cloudOutbox}`, /accessToken|adminPassword|providerApiKey|sessionCookie|privateKey/);
 });
 
 test("Apple native mobile shell localizations stay aligned", async () => {

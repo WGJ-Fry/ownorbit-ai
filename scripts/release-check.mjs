@@ -348,6 +348,7 @@ function checkScripts() {
     exists("native/apple/mobile-shell/Config/LifeOSMobile.entitlements") &&
     exists("native/apple/mobile-shell/Sources/LifeOSCloudData.swift") &&
     exists("native/apple/mobile-shell/Sources/LifeOSCloudKitSync.swift") &&
+    exists("native/apple/mobile-shell/Sources/LifeOSCloudMutationOutbox.swift") &&
     exists("scripts/mobile-ios-native-shell-smoke.mjs")
   ) {
     const nativeEntry = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSEntry.swift"), "utf8");
@@ -357,6 +358,7 @@ function checkScripts() {
     const nativeWebView = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSWebView.swift"), "utf8");
     const nativeCloudData = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSCloudData.swift"), "utf8");
     const nativeCloudSync = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSCloudKitSync.swift"), "utf8");
+    const nativeCloudOutbox = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSCloudMutationOutbox.swift"), "utf8");
     const nativeCloudScreen = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "CloudDataScreen.swift"), "utf8");
     const nativeEntitlements = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Config", "LifeOSMobile.entitlements"), "utf8");
     const nativeBuild = fs.readFileSync(path.join(rootDir, "scripts", "build-ios-mobile-shell.mjs"), "utf8");
@@ -409,6 +411,18 @@ function checkScripts() {
       nativeCloudSync.includes("savePolicy: .ifServerRecordUnchanged") &&
       nativeCloudSync.includes("completeUntilFirstUserAuthentication") &&
       nativeCloudSync.includes("isExcludedFromBackup = true") &&
+      nativeCloudOutbox.includes("maxEntries = 50") &&
+      nativeCloudOutbox.includes("maxEncodedBytes = 512 * 1024") &&
+      nativeCloudOutbox.includes("accountFingerprint") &&
+      nativeCloudOutbox.includes("completeUntilFirstUserAuthentication") &&
+      nativeCloudOutbox.includes("isExcludedFromBackup = true") &&
+      nativeCloudOutbox.includes("func due(accountFingerprint:") &&
+      nativeCloudOutbox.includes("func markNeedsReview") &&
+      !/accessToken|adminPassword|providerApiKey|sessionCookie|privateKey/.test(nativeCloudOutbox) &&
+      nativeCloudSync.includes("processPendingMutations") &&
+      nativeCloudSync.includes("seedSimulatorMutationOutbox") &&
+      nativeCloudSync.includes("resolveMemoryCollision") &&
+      nativeCloudSync.includes("isMatchingTaskCompletion") &&
       nativeEntitlements.includes("com.apple.developer.icloud-container-identifiers") &&
       nativeEntitlements.includes("CloudKit") &&
       nativeBuild.includes("CODE_SIGNING_ALLOWED=NO") &&
@@ -416,12 +430,16 @@ function checkScripts() {
       nativeSmoke.includes("native-entry-setup") &&
       nativeSmoke.includes("native-mobile-chat") &&
       nativeSmoke.includes("native-cloud-data") &&
+      nativeSmoke.includes("native-cloud-pending-actions") &&
+      nativeSmoke.includes("--cloud-outbox-demo") &&
       nativeSmoke.includes("--cloud-data-demo") &&
       nativeSmoke.includes("--cloud-memory-compose-demo") &&
       nativeCloudScreen.includes("LifeOSPendingTaskCompletion") &&
       nativeCloudScreen.includes("cloudStore.completeTaskListItem") &&
       nativeCloudScreen.includes("LifeOSMemoryComposer") &&
       nativeCloudScreen.includes("cloudStore.createMemory") &&
+      nativeCloudScreen.includes("cloudStore.retryPendingMutations") &&
+      nativeCloudScreen.includes("cloudStore.clearPendingMutations") &&
       nativeBuild.includes("deviceCompile") &&
       nativeBuild.includes("CODE_SIGNING_ALLOWED=NO") &&
       nativeSmoke.includes("--disable-local-notifications") &&
@@ -429,8 +447,8 @@ function checkScripts() {
       nativeSmoke.includes('"privacy", device.udid, "reset", "all", bundleId') &&
       nativeSmoke.includes('"shutdown", device.udid') &&
       nativeSmoke.includes("does not replace cellular")
-    ) pass("Apple native iOS shell validates entries and CloudKit records, isolates Apple accounts, recovers expired cursors, retries bounded pulls, supports guarded memory creation and task completion write-back, schedules privacy-safe entry notifications, protects offline snapshots, and has simulator/device build coverage");
-    else fail("Apple native iOS shell must validate iCloud entry and CloudKit data, isolate Apple accounts, recover expired cursors, retry bounded pulls, guard memory creation and task completion write-back, schedule privacy-safe entry notifications, protect offline snapshots, restrict WebView navigation, and run through Xcode Simulator smoke coverage");
+    ) pass("Apple native iOS shell validates entries and CloudKit records, isolates Apple accounts, recovers expired cursors, retries bounded pulls and protected mutation outboxes, supports idempotent memory creation and task completion write-back, schedules privacy-safe entry notifications, and has simulator/device build coverage");
+    else fail("Apple native iOS shell must validate iCloud entry and CloudKit data, isolate Apple accounts and queued mutations, recover expired cursors, retry bounded pulls and writes, guard idempotent memory creation and task completion, protect offline files, restrict WebView navigation, and run through Xcode Simulator smoke coverage");
   } else {
     fail("missing Apple native iOS shell source or simulator smoke script");
   }

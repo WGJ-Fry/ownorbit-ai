@@ -49,6 +49,7 @@
 "cloud.status.cleared" = "已从这台 iPhone 移除 iCloud 离线副本。";
 "cloud.error.noAccount" = "请先在这台 iPhone 登录 iCloud，然后重试。";
 "cloud.error.restricted" = "这台 iPhone 的 iCloud 访问受到限制。";
+"cloud.error.accountChanged" = "iCloud 账号已经变化；这项操作仍保留在手机上，没有发送到新账号。";
 "cloud.error.network" = "这台 iPhone 当前没有网络，恢复连接后 LifeOS 会自动重试。";
 "cloud.error.temporary" = "iCloud 现在比较忙，LifeOS 会自动重试。";
 "cloud.error.unavailable" = "暂时无法取得 iCloud 数据，请保持应用打开后重试。";
@@ -62,7 +63,9 @@
 "cloud.task.complete.accessibility" = "标记任务完成";
 "cloud.task.completed" = "任务已完成";
 "cloud.task.status.writing" = "正在把这条任务的完成状态保存到私有 iCloud...";
+"cloud.task.status.queued" = "任务完成状态已安全保存在这台 iPhone；私有 iCloud 恢复后会自动同步。";
 "cloud.task.status.completed" = "“%@”已标记完成；Mac 端只会在基础版本仍一致时接受。";
+"cloud.task.queued" = "任务完成状态正在等待同步";
 "cloud.task.status.savedCacheWarning" = "任务完成状态已到达 iCloud，但这台 iPhone 没能刷新离线副本。请重新同步，不要重复提交。";
 "cloud.task.error.stale" = "任务列表已在另一台设备变化。请先同步最新副本，再试一次。";
 "cloud.task.error.invalid" = "这条任务记录不能从 iPhone 安全修改。";
@@ -82,6 +85,7 @@
 "cloud.memory.confirm.body" = "LifeOS 只会新建一条普通记忆，不能覆盖 Mac 上已有的记忆。";
 "cloud.memory.confirm.confirm" = "保存记忆";
 "cloud.memory.status.writing" = "正在把新记忆保存到私有 iCloud...";
+"cloud.memory.status.queued" = "记忆已安全保存在这台 iPhone；私有 iCloud 恢复后会自动同步。";
 "cloud.memory.status.saved" = "记忆已保存到 iCloud；Mac 下次安全同步后会加入本地。";
 "cloud.memory.status.savedCacheWarning" = "记忆已保存到 iCloud，但这台 iPhone 没能刷新离线副本。请重新同步，不要重复新建。";
 "cloud.memory.error.title" = "请为这条记忆填写一个简短标题。";
@@ -90,6 +94,22 @@
 "cloud.memory.error.unsafe" = "这条记忆看起来包含凭证或本地私密路径，因此没有上传。";
 "cloud.memory.error.collision" = "已有相同标识的记忆，请刷新 iCloud 数据后重试。";
 "cloud.memory.error.failed" = "LifeOS 无法确认 iCloud 是否已保存这条记忆。请先同步再重试；当前草稿会保留同一标识，避免重复创建。";
+"cloud.outbox.section" = "待同步的 iCloud 操作";
+"cloud.outbox.pending" = "%d 项操作正在等待同步";
+"cloud.outbox.review" = "%d 项操作需要检查后才能再次尝试";
+"cloud.outbox.otherAccount" = "%d 项操作属于另一个 iCloud 账号，已阻止发送";
+"cloud.outbox.retry" = "重试待同步操作";
+"cloud.outbox.clear.button" = "移除待同步操作";
+"cloud.outbox.clear.title" = "移除全部待同步的 iCloud 操作？";
+"cloud.outbox.clear.body" = "这会移除尚未到达 iCloud 的操作，包括与其他 iCloud 账号隔离的操作；不会删除已经同步的 Mac 或 CloudKit 数据。";
+"cloud.outbox.clear.confirm" = "移除待同步操作";
+"cloud.outbox.footer" = "待同步操作受 iOS 数据保护、不会进入备份，并且只绑定一个匿名 iCloud 账号指纹。";
+"cloud.outbox.status.waiting" = "部分操作已安全保存在这台 iPhone，iCloud 恢复后会自动重试。";
+"cloud.outbox.status.review" = "有一项待同步操作需要检查；LifeOS 不会自动重试，也不会把它发送到其他 iCloud 账号。";
+"cloud.outbox.status.cleared" = "已从这台 iPhone 移除待同步的 iCloud 操作。";
+"cloud.outbox.error.syncFirst" = "请先完成一次 iCloud 数据同步，让 LifeOS 能把离线操作绑定到正确账号。";
+"cloud.outbox.error.full" = "受保护的待同步队列已满；请先恢复 iCloud 连接或移除旧操作。";
+"cloud.outbox.error.storage" = "LifeOS 无法在这台 iPhone 上安全保存该操作，因此没有提交。";
 "cloud.demo.task.review" = "检查 iCloud 同步计划";
 "cloud.demo.task.online" = "保持 Mac 在线";
 "cloud.empty.title" = "还没有同步数据";
@@ -109,7 +129,7 @@
 "cloud.readOnly" = "现在可以新建普通记忆和完成任务；已有记忆、聊天、生成程序和设备信息仍只读，并继续以 Mac 端安全校验为准。";
 "cloud.clear.button" = "关闭并移除离线副本";
 "cloud.clear.title" = "从这台 iPhone 移除 iCloud 数据？";
-"cloud.clear.body" = "这里只移除受保护的离线副本和变更游标，不会删除 CloudKit 或 Mac 上的数据。";
+"cloud.clear.body" = "这里只移除受保护的离线副本、变更游标和未发送操作，不会删除 CloudKit 或 Mac 上的数据。";
 "cloud.clear.confirm" = "移除离线副本";
 "notification.entry.expiring.title" = "LifeOS 手机入口即将过期";
 "notification.entry.expiring.body" = "请在 Mac 上打开 LifeOS，并重新生成 iCloud 手机入口。";

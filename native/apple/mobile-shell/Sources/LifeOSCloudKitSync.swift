@@ -59,6 +59,7 @@ enum LifeOSCloudSyncOutcome: Equatable {
 enum LifeOSCloudSyncError: LocalizedError, Equatable {
     case noAccount
     case restricted
+    case accountChanged
     case networkUnavailable
     case temporarilyUnavailable
     case unavailable
@@ -68,6 +69,7 @@ enum LifeOSCloudSyncError: LocalizedError, Equatable {
         switch self {
         case .noAccount: return NSLocalizedString("cloud.error.noAccount", comment: "")
         case .restricted: return NSLocalizedString("cloud.error.restricted", comment: "")
+        case .accountChanged: return NSLocalizedString("cloud.error.accountChanged", comment: "")
         case .networkUnavailable: return NSLocalizedString("cloud.error.network", comment: "")
         case .temporarilyUnavailable: return NSLocalizedString("cloud.error.temporary", comment: "")
         case .unavailable: return NSLocalizedString("cloud.error.unavailable", comment: "")
@@ -125,19 +127,22 @@ final class LifeOSCloudKitClient {
         return value.hasPrefix("iCloud.") ? value : "iCloud.ai.lifeos.desktop"
     }
 
-    func sync(snapshot: LifeOSCloudSnapshot, now: Date = Date()) async throws -> (LifeOSCloudSnapshot, LifeOSCloudSyncReport) {
+    func currentAccountFingerprint() async throws -> String {
         let account = try await container.accountStatus()
         guard account == .available else {
             if account == .noAccount { throw LifeOSCloudSyncError.noAccount }
             if account == .restricted { throw LifeOSCloudSyncError.restricted }
             throw LifeOSCloudSyncError.unavailable
         }
-
         let userRecordId = try await container.userRecordID()
-        let accountFingerprint = LifeOSCloudAccountIdentity.fingerprint(
+        return LifeOSCloudAccountIdentity.fingerprint(
             containerIdentifier: containerIdentifier,
             userRecordName: userRecordId.recordName
         )
+    }
+
+    func sync(snapshot: LifeOSCloudSnapshot, now: Date = Date()) async throws -> (LifeOSCloudSnapshot, LifeOSCloudSyncReport) {
+        let accountFingerprint = try await currentAccountFingerprint()
         let scoped = snapshot.scoped(to: accountFingerprint)
         let currentSnapshot = scoped.snapshot
 
@@ -240,20 +245,33 @@ final class LifeOSCloudKitClient {
     func completeTaskListItem(
         snapshotRecord: LifeOSCloudRecord,
         itemId: String,
+        mutationId: String,
+        expectedAccountFingerprint: String,
         now: Date = Date()
     ) async throws -> LifeOSCloudRecord {
         guard snapshotRecord.zone == "LifeOSTaskZone",
               snapshotRecord.recordType == "LifeOSTaskListSnapshot",
-              snapshotRecord.recordName == "task-list:lifeos_tasks_pro" else {
+              snapshotRecord.recordName == "task-list:lifeos_tasks_pro",
+              !snapshotRecord.requiresUserReview else {
+            throw LifeOSCloudTaskWriteError.invalidRecord
+        }
+        let currentFingerprint = try await currentAccountFingerprint()
+        guard currentFingerprint == expectedAccountFingerprint else { throw LifeOSCloudSyncError.accountChanged }
+        guard mutationId.range(of: "^ios-task-complete:[0-9a-f]{64}$", options: .regularExpression) != nil else {
             throw LifeOSCloudTaskWriteError.invalidRecord
         }
         let zoneId = CKRecordZone.ID(zoneName: snapshotRecord.zone, ownerName: CKCurrentUserDefaultName)
         let recordId = CKRecord.ID(recordName: snapshotRecord.recordName, zoneID: zoneId)
         let cloudRecord = try await database.record(for: recordId)
         let current = try validatedRecord(cloudRecord, zone: snapshotRecord.zone)
-        guard current.contentHash == snapshotRecord.contentHash else { throw LifeOSCloudTaskWriteError.stale }
+        if current.contentHash != snapshotRecord.contentHash {
+            if isMatchingTaskCompletion(current, itemId: itemId, baseContentHash: snapshotRecord.contentHash) {
+                return current
+            }
+            throw LifeOSCloudTaskWriteError.stale
+        }
         let mutation = try LifeOSCloudTaskMutationBuilder.complete(record: current, itemId: itemId, now: now)
-        cloudRecord["mutationId"] = "ios-task-complete:\(UUID().uuidString)" as CKRecordValue
+        cloudRecord["mutationId"] = mutationId as CKRecordValue
         cloudRecord["logicalClock"] = NSNumber(value: mutation.logicalClock)
         cloudRecord["contentHash"] = mutation.contentHash as CKRecordValue
         cloudRecord["payloadByteSize"] = NSNumber(value: mutation.payloadByteSize)
@@ -273,12 +291,20 @@ final class LifeOSCloudKitClient {
             case .success(let saved):
                 return try validatedRecord(saved, zone: snapshotRecord.zone)
             case .failure(let error as CKError) where error.code == .serverRecordChanged:
-                throw LifeOSCloudTaskWriteError.stale
-            case .failure:
-                throw LifeOSCloudTaskWriteError.saveFailed
+                return try await resolveTaskConflict(
+                    recordId: recordId,
+                    snapshotRecord: snapshotRecord,
+                    itemId: itemId
+                )
+            case .failure(let error):
+                throw error
             }
         } catch let error as CKError where error.code == .serverRecordChanged {
-            throw LifeOSCloudTaskWriteError.stale
+            return try await resolveTaskConflict(
+                recordId: recordId,
+                snapshotRecord: snapshotRecord,
+                itemId: itemId
+            )
         }
     }
 
@@ -288,23 +314,29 @@ final class LifeOSCloudKitClient {
         memoryId: String,
         now: Date = Date()
     ) async throws -> (record: LifeOSCloudRecord, accountFingerprint: String) {
-        let account = try await container.accountStatus()
-        guard account == .available else {
-            if account == .noAccount { throw LifeOSCloudSyncError.noAccount }
-            if account == .restricted { throw LifeOSCloudSyncError.restricted }
-            throw LifeOSCloudSyncError.unavailable
-        }
-        let userRecordId = try await container.userRecordID()
-        let accountFingerprint = LifeOSCloudAccountIdentity.fingerprint(
-            containerIdentifier: containerIdentifier,
-            userRecordName: userRecordId.recordName
-        )
+        let accountFingerprint = try await currentAccountFingerprint()
         let candidate = try LifeOSCloudMemoryMutationBuilder.create(
             title: title,
             text: text,
             memoryId: memoryId,
             now: now
         )
+        let record = try await saveMemoryRecord(
+            candidate,
+            expectedAccountFingerprint: accountFingerprint,
+            now: now
+        )
+        return (record, accountFingerprint)
+    }
+
+    func saveMemoryRecord(
+        _ input: LifeOSCloudRecord,
+        expectedAccountFingerprint: String,
+        now: Date = Date()
+    ) async throws -> LifeOSCloudRecord {
+        let accountFingerprint = try await currentAccountFingerprint()
+        guard accountFingerprint == expectedAccountFingerprint else { throw LifeOSCloudSyncError.accountChanged }
+        let candidate = try LifeOSCloudPendingMutation.validateMemoryRecord(input)
         let zoneId = CKRecordZone.ID(zoneName: candidate.zone, ownerName: CKCurrentUserDefaultName)
         try await ensureZone(zoneId)
         let recordId = CKRecord.ID(recordName: candidate.recordName, zoneID: zoneId)
@@ -332,15 +364,54 @@ final class LifeOSCloudKitClient {
             guard let saveResult = result.saveResults[recordId] else { throw LifeOSCloudMemoryWriteError.saveFailed }
             switch saveResult {
             case .success(let saved):
-                return (try validatedRecord(saved, zone: candidate.zone), accountFingerprint)
+                return try validatedRecord(saved, zone: candidate.zone)
             case .failure(let error as CKError) where error.code == .serverRecordChanged:
-                throw LifeOSCloudMemoryWriteError.collision
-            case .failure:
-                throw LifeOSCloudMemoryWriteError.saveFailed
+                return try await resolveMemoryCollision(recordId: recordId, candidate: candidate)
+            case .failure(let error):
+                throw error
             }
         } catch let error as CKError where error.code == .serverRecordChanged {
+            return try await resolveMemoryCollision(recordId: recordId, candidate: candidate)
+        }
+    }
+
+    private func resolveMemoryCollision(
+        recordId: CKRecord.ID,
+        candidate: LifeOSCloudRecord
+    ) async throws -> LifeOSCloudRecord {
+        let existing = try validatedRecord(try await database.record(for: recordId), zone: candidate.zone)
+        guard existing.mutationId == candidate.mutationId,
+              existing.contentHash == candidate.contentHash else {
             throw LifeOSCloudMemoryWriteError.collision
         }
+        return existing
+    }
+
+    private func resolveTaskConflict(
+        recordId: CKRecord.ID,
+        snapshotRecord: LifeOSCloudRecord,
+        itemId: String
+    ) async throws -> LifeOSCloudRecord {
+        let current = try validatedRecord(try await database.record(for: recordId), zone: snapshotRecord.zone)
+        guard isMatchingTaskCompletion(
+            current,
+            itemId: itemId,
+            baseContentHash: snapshotRecord.contentHash
+        ) else { throw LifeOSCloudTaskWriteError.stale }
+        return current
+    }
+
+    private func isMatchingTaskCompletion(
+        _ record: LifeOSCloudRecord,
+        itemId: String,
+        baseContentHash: String
+    ) -> Bool {
+        guard record.taskItems.contains(where: { $0.id == itemId && $0.completed }),
+              let payload = try? JSONSerialization.jsonObject(with: Data(record.payloadJson.utf8)) as? [String: Any],
+              let metadata = payload["syncMutation"] as? [String: Any] else { return false }
+        return metadata["kind"] as? String == "task-list-item-complete" &&
+            metadata["itemId"] as? String == itemId &&
+            metadata["baseContentHash"] as? String == baseContentHash
     }
 
     private func validatedRecord(_ record: CKRecord, zone: String) throws -> LifeOSCloudRecord {
@@ -416,13 +487,19 @@ final class LifeOSCloudDataStore: ObservableObject {
     @Published private(set) var nextAction: NextAction = .none
     @Published private(set) var writingTaskRecordId: String?
     @Published private(set) var writingMemory = false
+    @Published private(set) var isProcessingPendingMutations = false
+    @Published private(set) var pendingMutationCount = 0
+    @Published private(set) var reviewMutationCount = 0
+    @Published private(set) var otherAccountMutationCount = 0
     @Published private(set) var enabled: Bool
     private(set) var lastSyncOutcome: LifeOSCloudSyncOutcome = .noData
 
-    var isWriting: Bool { writingTaskRecordId != nil || writingMemory }
+    var isWriting: Bool { writingTaskRecordId != nil || writingMemory || isProcessingPendingMutations }
+    var totalMutationCount: Int { pendingMutationCount + reviewMutationCount + otherAccountMutationCount }
 
     private let enabledKey = "lifeos.native.cloud-data-enabled.v1"
     private let fileURL: URL
+    private var mutationOutbox: LifeOSCloudMutationOutbox
     private var notificationObserver: NSObjectProtocol?
     private var accountObserver: NSObjectProtocol?
     private var retryTask: Task<Void, Never>?
@@ -431,8 +508,11 @@ final class LifeOSCloudDataStore: ObservableObject {
     private let simulatorDemoMode: Bool
     private lazy var client = LifeOSCloudKitClient()
 
-    init(demoModeOverride: Bool? = nil) {
+    init(demoModeOverride: Bool? = nil, mutationOutboxURLOverride: URL? = nil) {
         fileURL = Self.snapshotFileURL()
+        mutationOutbox = LifeOSCloudMutationOutbox(
+            fileURL: mutationOutboxURLOverride ?? Self.mutationOutboxFileURL()
+        )
         #if targetEnvironment(simulator)
         let demoMode = demoModeOverride ?? ProcessInfo.processInfo.arguments.contains("--cloud-data-demo")
         #else
@@ -449,8 +529,12 @@ final class LifeOSCloudDataStore: ObservableObject {
         if demoMode {
             statusMessage = NSLocalizedString("cloud.status.ready", comment: "")
             statusTone = .success
+            if ProcessInfo.processInfo.arguments.contains("--cloud-outbox-demo") {
+                seedSimulatorMutationOutbox()
+            }
         }
         #endif
+        refreshMutationSummary()
         notificationObserver = NotificationCenter.default.addObserver(
             forName: .lifeOSCloudKitPush,
             object: nil,
@@ -558,8 +642,10 @@ final class LifeOSCloudDataStore: ObservableObject {
                 nextReport.deleted > 0 ||
                 nextReport.accountChanged ||
                 nextReport.resetZoneCount > 0
-            lastSyncOutcome = hasNewData ? .newData : .noData
-            return hasNewData
+            let uploaded = await processPendingMutations(accountFingerprint: currentSnapshot.accountFingerprint)
+            let changedAnything = hasNewData || uploaded > 0
+            lastSyncOutcome = changedAnything ? .newData : .noData
+            return changedAnything
             #endif
         } catch {
             let userError = error as? LifeOSCloudSyncError ?? LifeOSCloudSyncError.userFacing(error)
@@ -627,37 +713,47 @@ final class LifeOSCloudDataStore: ObservableObject {
             )
             statusTone = .success
             #else
-            let updatedRecord = try await client.completeTaskListItem(snapshotRecord: record, itemId: item.id)
             guard let accountFingerprint = snapshot.accountFingerprint else {
-                throw LifeOSCloudTaskWriteError.invalidRecord
-            }
-            let next = snapshot.merging(
-                changed: [updatedRecord],
-                deletedRecordIds: [],
-                serverChangeTokens: [:],
-                accountFingerprint: accountFingerprint,
-                moreComing: snapshot.moreComing,
-                now: Date()
-            )
-            snapshot = next
-            do {
-                try save(next)
-            } catch {
-                statusMessage = NSLocalizedString("cloud.task.status.savedCacheWarning", comment: "")
+                statusMessage = NSLocalizedString("cloud.outbox.error.syncFirst", comment: "")
                 statusTone = .warning
                 nextAction = .continueSync
                 return
             }
-            statusMessage = String(
-                format: NSLocalizedString("cloud.task.status.completed", comment: ""),
-                item.text
+            let pending = try LifeOSCloudPendingMutation.taskCompletion(
+                record: record,
+                itemId: item.id,
+                accountFingerprint: accountFingerprint,
+                now: Date()
             )
-            statusTone = .success
+            _ = try mutationOutbox.enqueue(pending)
+            refreshMutationSummary()
+            statusMessage = NSLocalizedString("cloud.task.status.queued", comment: "")
+            statusTone = .warning
+            _ = await processPendingMutations(accountFingerprint: accountFingerprint)
+            if let retained = mutationOutbox.entries.first(where: { $0.id == pending.id }) {
+                statusMessage = NSLocalizedString(
+                    retained.state == .needsReview ? "cloud.outbox.status.review" : "cloud.task.status.queued",
+                    comment: ""
+                )
+                statusTone = .warning
+            } else {
+                statusMessage = String(
+                    format: NSLocalizedString("cloud.task.status.completed", comment: ""),
+                    item.text
+                )
+                statusTone = .success
+            }
             #endif
         } catch let error as LifeOSCloudTaskWriteError {
             statusMessage = error.errorDescription ?? NSLocalizedString("cloud.task.error.failed", comment: "")
             statusTone = .error
             if error == .stale { nextAction = .continueSync }
+        } catch let error as LifeOSCloudMutationOutboxError {
+            statusMessage = NSLocalizedString(
+                error == .full ? "cloud.outbox.error.full" : "cloud.outbox.error.storage",
+                comment: ""
+            )
+            statusTone = .error
         } catch let error as LifeOSCloudSyncError {
             statusMessage = error.errorDescription ?? NSLocalizedString("cloud.task.error.failed", comment: "")
             statusTone = .error
@@ -701,29 +797,39 @@ final class LifeOSCloudDataStore: ObservableObject {
                 now: Date()
             )
             #else
-            let created = try await client.createMemory(
-                title: title,
-                text: text,
-                memoryId: memoryId
-            )
-            let accountSnapshot = snapshot.scoped(to: created.accountFingerprint).snapshot
-            let next = accountSnapshot.merging(
-                changed: [created.record],
-                deletedRecordIds: [],
-                serverChangeTokens: [:],
-                accountFingerprint: created.accountFingerprint,
-                moreComing: accountSnapshot.moreComing,
-                now: Date()
-            )
-            snapshot = next
-            do {
-                try save(next)
-            } catch {
-                statusMessage = NSLocalizedString("cloud.memory.status.savedCacheWarning", comment: "")
+            guard let accountFingerprint = snapshot.accountFingerprint else {
+                statusMessage = NSLocalizedString("cloud.outbox.error.syncFirst", comment: "")
                 statusTone = .warning
                 nextAction = .continueSync
-                return true
+                return false
             }
+            let candidate = try LifeOSCloudMemoryMutationBuilder.create(
+                title: title,
+                text: text,
+                memoryId: memoryId,
+                now: Date()
+            )
+            let pending = try LifeOSCloudPendingMutation.memory(
+                record: candidate,
+                accountFingerprint: accountFingerprint,
+                now: Date()
+            )
+            _ = try mutationOutbox.enqueue(pending)
+            refreshMutationSummary()
+            statusMessage = NSLocalizedString("cloud.memory.status.queued", comment: "")
+            statusTone = .warning
+            _ = await processPendingMutations(accountFingerprint: accountFingerprint)
+            if let retained = mutationOutbox.entries.first(where: { $0.id == pending.id }) {
+                statusMessage = NSLocalizedString(
+                    retained.state == .needsReview ? "cloud.outbox.status.review" : "cloud.memory.status.queued",
+                    comment: ""
+                )
+                statusTone = .warning
+            } else {
+                statusMessage = NSLocalizedString("cloud.memory.status.saved", comment: "")
+                statusTone = .success
+            }
+            return true
             #endif
             statusMessage = NSLocalizedString("cloud.memory.status.saved", comment: "")
             statusTone = .success
@@ -732,6 +838,13 @@ final class LifeOSCloudDataStore: ObservableObject {
             statusMessage = error.errorDescription ?? NSLocalizedString("cloud.memory.error.failed", comment: "")
             statusTone = .error
             if error == .collision { nextAction = .continueSync }
+            return false
+        } catch let error as LifeOSCloudMutationOutboxError {
+            statusMessage = NSLocalizedString(
+                error == .full ? "cloud.outbox.error.full" : "cloud.outbox.error.storage",
+                comment: ""
+            )
+            statusTone = .error
             return false
         } catch let error as LifeOSCloudSyncError {
             statusMessage = error.errorDescription ?? NSLocalizedString("cloud.memory.error.failed", comment: "")
@@ -752,12 +865,166 @@ final class LifeOSCloudDataStore: ObservableObject {
         enabled = false
         UserDefaults.standard.removeObject(forKey: enabledKey)
         try? FileManager.default.removeItem(at: fileURL)
+        let clearedPendingActions = (try? mutationOutbox.clear()) != nil
         snapshot = .empty
         report = nil
         lastSyncOutcome = .noData
-        statusMessage = NSLocalizedString("cloud.status.cleared", comment: "")
-        statusTone = .neutral
+        statusMessage = NSLocalizedString(
+            clearedPendingActions ? "cloud.status.cleared" : "cloud.outbox.error.storage",
+            comment: ""
+        )
+        statusTone = clearedPendingActions ? .neutral : .error
         nextAction = .none
+        refreshMutationSummary()
+    }
+
+    func retryPendingMutations() async {
+        guard enabled, !isSyncing, !isWriting else { return }
+        guard let accountFingerprint = snapshot.accountFingerprint else {
+            await sync(reason: "outbox-account-check")
+            return
+        }
+        do {
+            try mutationOutbox.makeDue(accountFingerprint: accountFingerprint)
+            refreshMutationSummary()
+            await sync(reason: "outbox-manual")
+        } catch {
+            statusMessage = NSLocalizedString("cloud.outbox.error.storage", comment: "")
+            statusTone = .error
+        }
+    }
+
+    func clearPendingMutations() {
+        do {
+            try mutationOutbox.clear()
+            refreshMutationSummary()
+            statusMessage = NSLocalizedString("cloud.outbox.status.cleared", comment: "")
+            statusTone = .neutral
+        } catch {
+            statusMessage = NSLocalizedString("cloud.outbox.error.storage", comment: "")
+            statusTone = .error
+        }
+    }
+
+    func isTaskCompletionQueued(record: LifeOSCloudRecord, item: LifeOSCloudTaskItem) -> Bool {
+        guard let accountFingerprint = snapshot.accountFingerprint else { return false }
+        return mutationOutbox.entries.contains {
+            $0.kind == .taskComplete &&
+                $0.accountFingerprint == accountFingerprint &&
+                $0.taskRecord?.id == record.id &&
+                $0.taskItemId == item.id
+        }
+    }
+
+    private func processPendingMutations(accountFingerprint: String?) async -> Int {
+        guard let accountFingerprint else {
+            refreshMutationSummary()
+            return 0
+        }
+        let due = mutationOutbox.due(accountFingerprint: accountFingerprint)
+        guard !due.isEmpty else {
+            refreshMutationSummary()
+            return 0
+        }
+        isProcessingPendingMutations = true
+        defer { isProcessingPendingMutations = false }
+        var uploaded = 0
+
+        for entry in due {
+            do {
+                let savedRecord: LifeOSCloudRecord
+                switch entry.kind {
+                case .memoryCreate:
+                    guard let memoryRecord = entry.memoryRecord else {
+                        throw LifeOSCloudMutationOutboxError.invalidMutation
+                    }
+                    savedRecord = try await client.saveMemoryRecord(
+                        memoryRecord,
+                        expectedAccountFingerprint: accountFingerprint
+                    )
+                case .taskComplete:
+                    guard let taskRecord = entry.taskRecord, let taskItemId = entry.taskItemId else {
+                        throw LifeOSCloudMutationOutboxError.invalidMutation
+                    }
+                    savedRecord = try await client.completeTaskListItem(
+                        snapshotRecord: taskRecord,
+                        itemId: taskItemId,
+                        mutationId: entry.id,
+                        expectedAccountFingerprint: accountFingerprint
+                    )
+                }
+                let next = snapshot.merging(
+                    changed: [savedRecord],
+                    deletedRecordIds: [],
+                    serverChangeTokens: [:],
+                    accountFingerprint: accountFingerprint,
+                    moreComing: snapshot.moreComing,
+                    now: Date()
+                )
+                try save(next)
+                try mutationOutbox.remove(id: entry.id)
+                snapshot = next
+                uploaded += 1
+            } catch {
+                if mutationRequiresReview(error) {
+                    try? mutationOutbox.markNeedsReview(id: entry.id)
+                    statusMessage = NSLocalizedString("cloud.outbox.status.review", comment: "")
+                    statusTone = .warning
+                    continue
+                }
+                let delay = mutationRetryDelay(for: entry, error: error)
+                do {
+                    try mutationOutbox.markAttempt(id: entry.id, retryAt: Date().addingTimeInterval(delay))
+                    scheduleRetry(after: delay)
+                    statusMessage = NSLocalizedString("cloud.outbox.status.waiting", comment: "")
+                    statusTone = .warning
+                } catch {
+                    statusMessage = NSLocalizedString("cloud.outbox.error.storage", comment: "")
+                    statusTone = .error
+                }
+                break
+            }
+        }
+        refreshMutationSummary()
+        if !mutationOutbox.due(accountFingerprint: accountFingerprint, limit: 1).isEmpty {
+            scheduleRetry(after: 1)
+        }
+        if reviewMutationCount > 0 && statusTone != .error {
+            statusMessage = NSLocalizedString("cloud.outbox.status.review", comment: "")
+            statusTone = .warning
+        }
+        return uploaded
+    }
+
+    private func mutationRequiresReview(_ error: Error) -> Bool {
+        if let syncError = error as? LifeOSCloudSyncError {
+            return syncError == .accountChanged
+        }
+        if let taskError = error as? LifeOSCloudTaskWriteError {
+            return taskError != .saveFailed
+        }
+        if let memoryError = error as? LifeOSCloudMemoryWriteError {
+            return memoryError != .saveFailed
+        }
+        if let outboxError = error as? LifeOSCloudMutationOutboxError {
+            return outboxError == .invalidMutation
+        }
+        return error is LifeOSCloudRecordError
+    }
+
+    private func mutationRetryDelay(for entry: LifeOSCloudPendingMutation, error: Error) -> TimeInterval {
+        if let cloudError = error as? CKError,
+           let retryAfter = cloudError.userInfo[CKErrorRetryAfterKey] as? NSNumber {
+            return max(1, min(retryAfter.doubleValue, 300))
+        }
+        return min(5 * pow(2, Double(entry.attempts)), 300)
+    }
+
+    private func refreshMutationSummary() {
+        let summary = mutationOutbox.summary(accountFingerprint: snapshot.accountFingerprint)
+        pendingMutationCount = summary.pending
+        reviewMutationCount = summary.needsReview
+        otherAccountMutationCount = summary.otherAccount
     }
 
     private func combine(_ current: LifeOSCloudSyncReport?, with next: LifeOSCloudSyncReport) -> LifeOSCloudSyncReport {
@@ -792,6 +1059,7 @@ final class LifeOSCloudDataStore: ObservableObject {
         try? FileManager.default.removeItem(at: fileURL)
         snapshot = .empty
         report = nil
+        refreshMutationSummary()
     }
 
     private func scheduleRetry(after seconds: TimeInterval) {
@@ -833,6 +1101,12 @@ final class LifeOSCloudDataStore: ObservableObject {
         return base.appendingPathComponent("LifeOS", isDirectory: true).appendingPathComponent("cloud-snapshot-v1.json")
     }
 
+    private static func mutationOutboxFileURL() -> URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        return base.appendingPathComponent("LifeOS", isDirectory: true)
+            .appendingPathComponent("cloud-mutation-outbox-v1.json")
+    }
+
     private static func loadSnapshot(from url: URL) -> LifeOSCloudSnapshot {
         guard let data = try? Data(contentsOf: url),
               let snapshot = try? JSONDecoder().decode(LifeOSCloudSnapshot.self, from: data),
@@ -841,6 +1115,19 @@ final class LifeOSCloudDataStore: ObservableObject {
     }
 
     #if targetEnvironment(simulator)
+    private func seedSimulatorMutationOutbox() {
+        guard let accountFingerprint = snapshot.accountFingerprint,
+              let record = snapshot.records.first(where: { $0.recordType == "LifeOSTaskListSnapshot" }),
+              let item = record.taskItems.first(where: { !$0.completed }),
+              let pending = try? LifeOSCloudPendingMutation.taskCompletion(
+                  record: record,
+                  itemId: item.id,
+                  accountFingerprint: accountFingerprint,
+                  now: Date()
+              ) else { return }
+        _ = try? mutationOutbox.enqueue(pending)
+    }
+
     private static func simulatorDemoSnapshot() -> LifeOSCloudSnapshot {
         let payload: [String: Any] = [
             "taskListKey": "lifeos_tasks_pro",
@@ -878,9 +1165,13 @@ final class LifeOSCloudDataStore: ObservableObject {
             payloadJson: payloadJson,
             modifiedAt: Date(timeIntervalSince1970: 1_700_000_002)
         )
+        let accountFingerprint = LifeOSCloudAccountIdentity.fingerprint(
+            containerIdentifier: "iCloud.ai.lifeos.desktop",
+            userRecordName: "simulator-demo"
+        )
         return LifeOSCloudSnapshot(
             schemaVersion: 1,
-            accountFingerprint: "simulator-demo",
+            accountFingerprint: accountFingerprint,
             updatedAt: Date(),
             records: [record],
             serverChangeTokens: [:],

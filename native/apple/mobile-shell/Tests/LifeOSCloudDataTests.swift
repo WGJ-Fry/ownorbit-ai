@@ -273,6 +273,38 @@ final class LifeOSCloudDataTests: XCTestCase {
         XCTAssertEqual((metadata["mutatedAt"] as? NSNumber)?.int64Value, mutation.logicalClock)
     }
 
+    func testTaskCompletionRejectsRecordsThatNeedManualReview() throws {
+        let record = try LifeOSCloudRecordValidator.validate(input(
+            zone: "LifeOSTaskZone",
+            recordType: "LifeOSTaskListSnapshot",
+            dataType: "tasks",
+            recordName: "task-list:lifeos_tasks_pro",
+            sourceIdHash: "tasks:0123456789abcdef",
+            payload: #"{"taskListKey":"lifeos_tasks_pro","items":[{"id":"task-1","text":"Review first","completed":false,"priority":"high","createdAt":1}],"updatedAt":10}"#,
+            requiresUserReview: true
+        ))
+        let fingerprint = LifeOSCloudAccountIdentity.fingerprint(
+            containerIdentifier: "iCloud.ai.lifeos.desktop",
+            userRecordName: "account-a"
+        )
+
+        XCTAssertThrowsError(try LifeOSCloudTaskMutationBuilder.complete(
+            record: record,
+            itemId: "task-1",
+            now: Date(timeIntervalSince1970: 1_700_000_000)
+        )) { error in
+            XCTAssertEqual(error as? LifeOSCloudTaskWriteError, .invalidRecord)
+        }
+        XCTAssertThrowsError(try LifeOSCloudPendingMutation.taskCompletion(
+            record: record,
+            itemId: "task-1",
+            accountFingerprint: fingerprint,
+            now: Date(timeIntervalSince1970: 1_700_000_000)
+        )) { error in
+            XCTAssertEqual(error as? LifeOSCloudTaskWriteError, .invalidRecord)
+        }
+    }
+
     func testMemoryCreateMutationBuildsAValidatedNormalMemoryRecord() throws {
         let memoryId = "ios-memory-123e4567-e89b-42d3-a456-426614174000"
         let record = try LifeOSCloudMemoryMutationBuilder.create(
@@ -321,6 +353,167 @@ final class LifeOSCloudDataTests: XCTestCase {
         }
     }
 
+    func testMutationOutboxPersistsDeduplicatesAndNeverCrossesAppleAccounts() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("lifeos-outbox-\(UUID().uuidString)", isDirectory: true)
+        let fileURL = directory.appendingPathComponent("outbox.json")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let firstFingerprint = LifeOSCloudAccountIdentity.fingerprint(
+            containerIdentifier: "iCloud.ai.lifeos.desktop",
+            userRecordName: "account-a"
+        )
+        let secondFingerprint = LifeOSCloudAccountIdentity.fingerprint(
+            containerIdentifier: "iCloud.ai.lifeos.desktop",
+            userRecordName: "account-b"
+        )
+        let memoryId = "ios-memory-123e4567-e89b-42d3-a456-426614174000"
+        let record = try LifeOSCloudMemoryMutationBuilder.create(
+            title: "Offline memory",
+            text: "Keep this safe until iCloud returns.",
+            memoryId: memoryId,
+            now: now
+        )
+        let pending = try LifeOSCloudPendingMutation.memory(
+            record: record,
+            accountFingerprint: firstFingerprint,
+            now: now
+        )
+        var outbox = LifeOSCloudMutationOutbox(fileURL: fileURL, now: now)
+
+        XCTAssertTrue(try outbox.enqueue(pending, now: now))
+        XCTAssertFalse(try outbox.enqueue(pending, now: now))
+        XCTAssertEqual(outbox.summary(accountFingerprint: firstFingerprint).pending, 1)
+        XCTAssertEqual(outbox.summary(accountFingerprint: secondFingerprint).otherAccount, 1)
+        XCTAssertEqual(outbox.due(accountFingerprint: secondFingerprint, now: now).count, 0)
+
+        let reloaded = LifeOSCloudMutationOutbox(fileURL: fileURL, now: now)
+        XCTAssertEqual(reloaded.entries, [pending])
+        XCTAssertEqual(reloaded.due(accountFingerprint: firstFingerprint, now: now), [pending])
+        XCTAssertEqual(try fileURL.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup, true)
+    }
+
+    func testTaskMutationOutboxSupportsRetryReviewAndExplicitClear() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("lifeos-outbox-\(UUID().uuidString)", isDirectory: true)
+        let fileURL = directory.appendingPathComponent("outbox.json")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let fingerprint = LifeOSCloudAccountIdentity.fingerprint(
+            containerIdentifier: "iCloud.ai.lifeos.desktop",
+            userRecordName: "account-a"
+        )
+        let record = try LifeOSCloudRecordValidator.validate(input(
+            zone: "LifeOSTaskZone",
+            recordType: "LifeOSTaskListSnapshot",
+            dataType: "tasks",
+            recordName: "task-list:lifeos_tasks_pro",
+            sourceIdHash: "tasks:0123456789abcdef",
+            payload: #"{"taskListKey":"lifeos_tasks_pro","items":[{"id":"task-1","text":"Retry safely","completed":false,"priority":"high","createdAt":1}],"updatedAt":10}"#
+        ))
+        let pending = try LifeOSCloudPendingMutation.taskCompletion(
+            record: record,
+            itemId: "task-1",
+            accountFingerprint: fingerprint,
+            now: now
+        )
+        var outbox = LifeOSCloudMutationOutbox(fileURL: fileURL, now: now)
+        try outbox.enqueue(pending, now: now)
+
+        try outbox.markAttempt(id: pending.id, retryAt: now.addingTimeInterval(60))
+        XCTAssertTrue(outbox.due(accountFingerprint: fingerprint, now: now).isEmpty)
+        try outbox.makeDue(accountFingerprint: fingerprint)
+        XCTAssertEqual(outbox.due(accountFingerprint: fingerprint, now: now).count, 1)
+        try outbox.markNeedsReview(id: pending.id)
+        XCTAssertTrue(outbox.due(accountFingerprint: fingerprint, now: now).isEmpty)
+        XCTAssertEqual(outbox.summary(accountFingerprint: fingerprint).needsReview, 1)
+
+        try outbox.clear()
+        XCTAssertTrue(outbox.entries.isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fileURL.path))
+    }
+
+    func testMutationOutboxDropsTamperedPersistedPayloadsBeforeProcessing() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("lifeos-outbox-\(UUID().uuidString)", isDirectory: true)
+        let fileURL = directory.appendingPathComponent("outbox.json")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let fingerprint = LifeOSCloudAccountIdentity.fingerprint(
+            containerIdentifier: "iCloud.ai.lifeos.desktop",
+            userRecordName: "account-a"
+        )
+        let record = try LifeOSCloudMemoryMutationBuilder.create(
+            title: "Offline memory",
+            text: "Original queue payload",
+            memoryId: "ios-memory-123e4567-e89b-42d3-a456-426614174000",
+            now: now
+        )
+        let pending = try LifeOSCloudPendingMutation.memory(
+            record: record,
+            accountFingerprint: fingerprint,
+            now: now
+        )
+        var outbox = LifeOSCloudMutationOutbox(fileURL: fileURL, now: now)
+        try outbox.enqueue(pending, now: now)
+        let stored = try String(contentsOf: fileURL, encoding: .utf8)
+        let tampered = stored.replacingOccurrences(of: "Original queue payload", with: "Tampered queue payload")
+        XCTAssertNotEqual(stored, tampered)
+        try Data(tampered.utf8).write(to: fileURL, options: [.atomic])
+
+        let reloaded = LifeOSCloudMutationOutbox(fileURL: fileURL, now: now)
+        XCTAssertTrue(reloaded.entries.isEmpty)
+    }
+
+    func testMutationOutboxEnforcesBoundedEntryCount() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("lifeos-outbox-\(UUID().uuidString)", isDirectory: true)
+        let fileURL = directory.appendingPathComponent("outbox.json")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let fingerprint = LifeOSCloudAccountIdentity.fingerprint(
+            containerIdentifier: "iCloud.ai.lifeos.desktop",
+            userRecordName: "account-a"
+        )
+        var outbox = LifeOSCloudMutationOutbox(fileURL: fileURL, now: now)
+
+        for index in 0..<LifeOSCloudMutationOutbox.maxEntries {
+            let memoryId = String(
+                format: "ios-memory-%08x-0000-4000-8000-%012x",
+                index,
+                index
+            )
+            let record = try LifeOSCloudMemoryMutationBuilder.create(
+                title: "Queued \(index)",
+                text: "Bounded offline action \(index)",
+                memoryId: memoryId,
+                now: now
+            )
+            let pending = try LifeOSCloudPendingMutation.memory(
+                record: record,
+                accountFingerprint: fingerprint,
+                now: now
+            )
+            XCTAssertTrue(try outbox.enqueue(pending, now: now))
+        }
+        let overflowRecord = try LifeOSCloudMemoryMutationBuilder.create(
+            title: "Overflow",
+            text: "This action must stay out of a full queue.",
+            memoryId: "ios-memory-ffffffff-0000-4000-8000-ffffffffffff",
+            now: now
+        )
+        let overflow = try LifeOSCloudPendingMutation.memory(
+            record: overflowRecord,
+            accountFingerprint: fingerprint,
+            now: now
+        )
+
+        XCTAssertThrowsError(try outbox.enqueue(overflow, now: now)) { error in
+            XCTAssertEqual(error as? LifeOSCloudMutationOutboxError, .full)
+        }
+        XCTAssertEqual(outbox.entries.count, LifeOSCloudMutationOutbox.maxEntries)
+    }
+
     @MainActor
     func testSimulatorDataStoreCreatesMemoryAndRejectsUnsafeDraftWithoutCloudKit() async {
         let store = LifeOSCloudDataStore(demoModeOverride: true)
@@ -364,7 +557,8 @@ final class LifeOSCloudDataTests: XCTestCase {
         recordName: String,
         sourceIdHash: String,
         payload: String,
-        logicalClock: Int64 = 1
+        logicalClock: Int64 = 1,
+        requiresUserReview: Bool = false
     ) -> LifeOSCloudRecordInput {
         let data = Data(payload.utf8)
         let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
@@ -379,7 +573,7 @@ final class LifeOSCloudDataTests: XCTestCase {
             logicalClock: logicalClock,
             contentHash: hash,
             payloadByteSize: data.count,
-            requiresUserReview: false,
+            requiresUserReview: requiresUserReview,
             payloadJson: payload,
             modifiedAt: Date(timeIntervalSince1970: TimeInterval(logicalClock))
         )
