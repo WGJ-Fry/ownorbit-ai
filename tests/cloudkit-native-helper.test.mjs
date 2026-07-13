@@ -421,7 +421,11 @@ process.stdin.on("end", () => {
       "--strict",
     ], {
       cwd: rootDir,
-      env: { ...process.env },
+      env: {
+        ...process.env,
+        NODE_ENV: "test",
+        LIFEOS_CLOUDKIT_TEST_PLATFORM_SUPPORTED: "1",
+      },
       encoding: "utf8",
       maxBuffer: 1024 * 1024,
     });

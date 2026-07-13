@@ -2,6 +2,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { isCloudKitPlatformSupported } from "../server/cloudKitPlatform.ts";
 import { getIcloudDataSyncReadiness } from "../server/icloudDataSyncReadiness.ts";
 import { runCloudKitNativeHelper } from "../server/cloudKitNativeHelper.ts";
 
@@ -255,7 +256,7 @@ export async function runIcloudDataSyncAcceptanceRunbook(options = {}) {
   return await withTemporaryEnv(options.env, async () => {
     const operations = selectedOperations(options);
     const readiness = options.readiness || getIcloudDataSyncReadiness({
-      platformSupported: options.platformSupported ?? process.platform === "darwin",
+      platformSupported: options.platformSupported ?? isCloudKitPlatformSupported(),
     });
     const runHelper = options.runHelper || runCloudKitNativeHelper;
     const automatedSteps = [];

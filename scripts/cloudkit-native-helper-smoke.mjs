@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { getIcloudDataSyncReadiness } from "../server/icloudDataSyncReadiness.ts";
 import { runCloudKitNativeHelper } from "../server/cloudKitNativeHelper.ts";
+import { isCloudKitPlatformSupported } from "../server/cloudKitPlatform.ts";
 
 function parseArgs(argv) {
   const result = { operation: "probe", strict: false };
@@ -16,7 +17,7 @@ function parseArgs(argv) {
 }
 
 const args = parseArgs(process.argv.slice(2));
-const readiness = getIcloudDataSyncReadiness({ platformSupported: process.platform === "darwin" });
+const readiness = getIcloudDataSyncReadiness({ platformSupported: isCloudKitPlatformSupported() });
 const result = await runCloudKitNativeHelper(readiness, { operation: args.operation });
 
 console.log(JSON.stringify(result, null, 2));

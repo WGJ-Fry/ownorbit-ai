@@ -162,6 +162,8 @@ test("iCloud data sync acceptance CLI writes redacted evidence", async (t) => {
     cwd: rootDir,
     env: {
       PATH: process.env.PATH || "",
+      NODE_ENV: "test",
+      LIFEOS_CLOUDKIT_TEST_PLATFORM_SUPPORTED: "1",
       ...env,
     },
     encoding: "utf8",

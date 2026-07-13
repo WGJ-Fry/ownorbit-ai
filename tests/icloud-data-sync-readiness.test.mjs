@@ -3,6 +3,10 @@ import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import {
+  CLOUDKIT_TEST_PLATFORM_ENV,
+  isCloudKitPlatformSupported,
+} from "../server/cloudKitPlatform.ts";
 
 const envKeys = [
   "LIFEOS_ICLOUD_DATA_SYNC",
@@ -26,6 +30,18 @@ function restoreEnv(snapshot) {
     else process.env[key] = snapshot[key];
   }
 }
+
+test("CloudKit platform simulation is restricted to explicit test processes", () => {
+  assert.equal(isCloudKitPlatformSupported({ platform: "darwin", env: {} }), true);
+  assert.equal(isCloudKitPlatformSupported({
+    platform: "linux",
+    env: { NODE_ENV: "production", [CLOUDKIT_TEST_PLATFORM_ENV]: "1" },
+  }), false);
+  assert.equal(isCloudKitPlatformSupported({
+    platform: "linux",
+    env: { NODE_ENV: "test", [CLOUDKIT_TEST_PLATFORM_ENV]: "1" },
+  }), true);
+});
 
 test("CloudKit data sync readiness stays handoff-only until explicitly enabled", async () => {
   const env = snapshotEnv();
