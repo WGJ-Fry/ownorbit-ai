@@ -474,6 +474,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   let icloudExportAttempts = 0;
   let networkDiagnosticsAttempts = 0;
   let inlinePairingStartAttempts = 0;
+  let inlinePairingStartFulfilled = 0;
   const onboardingContext = page.context();
   await onboardingContext.route("**/api/v1/admin/network-diagnostics", async (route) => {
     networkDiagnosticsAttempts += 1;
@@ -582,9 +583,10 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
         localName: "LifeOS Test",
       }),
     });
+    inlinePairingStartFulfilled += 1;
   };
-  await page.route("**/api/v1/devices/bind/start", inlinePairingStartHandler);
-  await page.route("**/api/v1/devices/bind/icloud-inline-e2e", async (route) => {
+  await onboardingContext.route("**/api/v1/devices/bind/start", inlinePairingStartHandler);
+  await onboardingContext.route("**/api/v1/devices/bind/icloud-inline-e2e", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -598,9 +600,10 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await page.reload();
   await expect(page.getByTestId("onboarding-icloud-qr-after-pickup")).toBeVisible({ timeout: 15_000 });
   await expect.poll(() => inlinePairingStartAttempts, { timeout: 15_000 }).toBe(1);
+  await expect.poll(() => inlinePairingStartFulfilled, { timeout: 15_000 }).toBe(1);
   expect(inlinePairingBaseUrl).toBe("https://lifeos-apple-e2e.example.test");
   await expect(page.getByTestId("onboarding-icloud-inline-qr")).toBeVisible({ timeout: 15_000 });
-  await page.unroute("**/api/v1/devices/bind/start", inlinePairingStartHandler);
+  await onboardingContext.unroute("**/api/v1/devices/bind/start", inlinePairingStartHandler);
   await page.unroute("**/api/v1/admin/ai-providers/openai/test");
   await page.getByText("高级功能、备份和诊断").click();
   await expect(page.getByText("首次启动检查表")).toBeVisible();
