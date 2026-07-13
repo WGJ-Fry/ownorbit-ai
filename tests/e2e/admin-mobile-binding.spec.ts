@@ -472,14 +472,17 @@ function makeIcloudOnboardingDiagnostics(phase: IcloudOnboardingPhase) {
 test("admin setup, mobile binding, chat shell, and device revoke flow", async ({ browser, page }) => {
   let icloudPhase: IcloudOnboardingPhase = "missing-entry";
   let icloudExportAttempts = 0;
+  let networkDiagnosticsAttempts = 0;
   let inlinePairingStartAttempts = 0;
-  await page.route("**/api/v1/admin/network-diagnostics", async (route) => {
+  const onboardingContext = page.context();
+  await onboardingContext.route("**/api/v1/admin/network-diagnostics", async (route) => {
+    networkDiagnosticsAttempts += 1;
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify(makeIcloudOnboardingDiagnostics(icloudPhase)),
     });
   });
-  await page.route("**/api/v1/admin/icloud-handoff/export", async (route) => {
+  await onboardingContext.route("**/api/v1/admin/icloud-handoff/export", async (route) => {
     icloudExportAttempts += 1;
     icloudPhase = "entry-ready";
     const diagnostics = makeIcloudOnboardingDiagnostics(icloudPhase);
@@ -547,8 +550,10 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await page.getByText("高级：指定模型 ID").click();
   await page.getByLabel("OpenAI 模型").fill("gpt-4o");
   await page.getByPlaceholder("输入 API Key").fill("sk-playwright-onboarding-secret-value");
+  networkDiagnosticsAttempts = 0;
   await page.getByRole("button", { name: "保存并继续" }).click();
   await expect(page.getByText("第二步：用手机扫码")).toBeVisible();
+  await expect.poll(() => networkDiagnosticsAttempts, { timeout: 15_000 }).toBeGreaterThan(0);
   const quickIcloudEntry = page.getByTestId("onboarding-icloud-quick-entry");
   await expect(quickIcloudEntry).toBeVisible({ timeout: 15_000 });
   await expect(quickIcloudEntry).toContainText("Apple");
