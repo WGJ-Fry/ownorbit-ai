@@ -290,17 +290,19 @@ export default function AdminOnboardingPage() {
     // before slower backup, network, iCloud, and device diagnostics finish.
     const providerData = await listAiProviders();
     setProviders(providerData.providers);
-    const [diagnosticsData, backupData, scheduleData, deviceData, onboardingData, networkData, deviceTrustData] = await Promise.all([
+    // The device step depends on this result. Commit it independently so an
+    // unrelated backup or onboarding request cannot hide the Apple handoff UI.
+    const networkData = await getNetworkDiagnostics().catch(() => null);
+    setNetworkDiagnostics(networkData);
+    const [diagnosticsData, backupData, scheduleData, deviceData, onboardingData, deviceTrustData] = await Promise.all([
       getConfigDiagnostics(),
       listBackups(),
       getBackupSchedule(),
       listDevices(),
       getOnboardingStatus(),
-      getNetworkDiagnostics().catch(() => null),
       getCloudKitDeviceTrustMetadata(10).catch(() => null),
     ]);
     setDiagnostics(diagnosticsData);
-    setNetworkDiagnostics(networkData);
     setBackups(backupData.backups);
     setBackupSchedule(scheduleData.schedule);
     setDevices(deviceData.devices);
