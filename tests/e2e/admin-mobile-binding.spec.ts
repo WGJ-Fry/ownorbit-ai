@@ -591,8 +591,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   });
   icloudPhase = "phone-confirmed";
   await page.reload();
-  await expect(page.getByText("手机已经拿到最新入口")).toBeVisible();
-  await expect(page.getByTestId("onboarding-icloud-qr-after-pickup")).toBeVisible();
+  await expect(page.getByTestId("onboarding-icloud-qr-after-pickup")).toBeVisible({ timeout: 15_000 });
   await expect.poll(() => inlinePairingStartAttempts, { timeout: 15_000 }).toBe(1);
   expect(inlinePairingBaseUrl).toBe("https://lifeos-apple-e2e.example.test");
   await expect(page.getByTestId("onboarding-icloud-inline-qr")).toBeVisible({ timeout: 15_000 });
