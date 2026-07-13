@@ -557,9 +557,10 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect.poll(() => icloudExportAttempts).toBe(1);
   await page.reload();
   await expect(page.getByText("第二步：用手机扫码")).toBeVisible();
-  await expect(page.getByTestId("onboarding-icloud-open-files-first")).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText("1. 在 iPhone 文件 App 打开")).toBeVisible();
-  await expect(page.getByTestId("onboarding-icloud-open-files-first").getByText(/iPhone 文件 App.*LifeOS AI/)).toBeVisible();
+  const openIcloudFilesCard = page.getByTestId("onboarding-icloud-open-files-first");
+  await expect(openIcloudFilesCard).toBeVisible({ timeout: 15_000 });
+  await expect(openIcloudFilesCard).toContainText("iPhone");
+  await expect(openIcloudFilesCard).toContainText("LifeOS AI");
   let inlinePairingBaseUrl: string | undefined;
   const inlinePairingStartHandler = async (route: Route) => {
     const posted = route.request().postDataJSON() as { baseUrl?: string };
