@@ -18,7 +18,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "rm -rf .playwright-data && npm run build && LIFEOS_PORT=3333 LIFEOS_DATA_DIR=.playwright-data node dist/server.cjs",
+    command: "rm -rf .playwright-data && mkdir -p .playwright-data/icloud-drive && npm run build && LIFEOS_PORT=3333 LIFEOS_DATA_DIR=.playwright-data LIFEOS_FORCE_ICLOUD_HANDOFF=1 LIFEOS_ICLOUD_DRIVE_DIR=.playwright-data/icloud-drive LIFEOS_ICLOUD_ACCOUNT_STATUS=ready LIFEOS_ICLOUD_SYNC_SERVICE_STATUS=running node dist/server.cjs",
     url: "http://127.0.0.1:3333/api/v1/health",
     reuseExistingServer: false,
     timeout: 120_000,
