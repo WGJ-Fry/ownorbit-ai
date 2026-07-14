@@ -18,7 +18,9 @@ struct ContentView: View {
 
 private struct ConnectScreen: View {
     @EnvironmentObject private var entryStore: LifeOSEntryStore
+    @EnvironmentObject private var cloudStore: LifeOSCloudDataStore
     @State private var showImporter = false
+    @State private var showCloudData = false
     @State private var showManual = false
     @State private var manualURL = ""
 
@@ -42,7 +44,10 @@ private struct ConnectScreen: View {
                 }
 
                 Button {
-                    showImporter = true
+                    Task {
+                        await cloudStore.enableAndSync()
+                        showImporter = true
+                    }
                 } label: {
                     Label("connect.icloudButton", systemImage: "icloud.and.arrow.down")
                         .frame(maxWidth: .infinity)
@@ -50,7 +55,16 @@ private struct ConnectScreen: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.cyan)
-                .disabled(entryStore.isChecking)
+                .disabled(entryStore.isChecking || cloudStore.isSyncing)
+
+                Button {
+                    showCloudData = true
+                } label: {
+                    Label("connect.cloudDataButton", systemImage: "checkmark.icloud")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(cloudStore.isSyncing || cloudStore.isWriting)
 
                 HStack(alignment: .top, spacing: 12) {
                     Image(systemName: "lock.shield")
@@ -88,6 +102,14 @@ private struct ConnectScreen: View {
                     .foregroundStyle(.secondary)
                 }
 
+                if cloudStore.isSyncing {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                        Text("cloud.status.syncing")
+                    }
+                    .foregroundStyle(.secondary)
+                }
+
                 StatusBand(message: entryStore.statusMessage, tone: entryStore.statusTone)
                 Spacer(minLength: 32)
             }
@@ -101,6 +123,9 @@ private struct ConnectScreen: View {
             case .failure:
                 break
             }
+        }
+        .sheet(isPresented: $showCloudData) {
+            CloudDataScreen()
         }
     }
 }

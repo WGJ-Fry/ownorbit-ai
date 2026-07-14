@@ -1,6 +1,6 @@
 {
-  "name": "JARVIS Studio",
-  "description": "An intelligent multi-modal micro-app workshop and visual workspace powered by JARVIS that parses any code or UI screenshots to automatically compile and run reactive widgets.",
+  "name": "LifeOS AI",
+  "description": "Open-source, self-hosted, local-first personal AI assistant with a private desktop core, paired mobile companion, memory, remote access, and generated problem-solving tools.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

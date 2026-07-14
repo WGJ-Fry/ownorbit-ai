@@ -1,9 +1,10 @@
 "common.cancel" = "取消";
 "common.done" = "完成";
 "connect.title" = "连接你的 LifeOS";
-"connect.body" = "从 iCloud 云盘选择 LifeOS 入口文件。应用会先校验文件和电脑，再打开手机聊天。";
-"connect.icloudButton" = "选择 iCloud 入口";
-"connect.security" = "文件校验只能发现意外改动，不能证明电脑身份。请继续用绑定二维码确认；入口文件不保存设备凭证。";
+"connect.body" = "只需继续一次：先启用私有 iCloud 数据副本，再从“文件”选择 LifeOS 入口。暂时连不上 Mac 时，已同步的数据仍可查看。";
+"connect.icloudButton" = "使用 iCloud 继续";
+"connect.cloudDataButton" = "打开已同步的 iCloud 数据";
+"connect.security" = "iCloud 不会复制 AI Key、密码、设备凭证、Cookie 或整个 SQLite 数据库；手机聊天仍需通过绑定确认这台电脑。";
 "connect.manualDisclosure" = "高级：手动输入地址";
 "connect.manualPlaceholder" = "https://你的-LifeOS-地址";
 "connect.manualButton" = "测试并连接";
@@ -37,6 +38,7 @@
 "cloud.enable.title" = "在手机保留一份私密离线副本";
 "cloud.enable.body" = "通过你的私有 CloudKit 数据库，同步已允许的聊天、记忆、任务、生成程序状态和仅供审核的设备元数据；还可以从这台 iPhone 新建普通记忆或完成任务。";
 "cloud.enable.safe" = "AI Key、管理员密码、设备凭证、会话 Cookie、私钥和整个 SQLite 数据库永远不会被复制。";
+"cloud.enable.connectionBoundary" = "iCloud 只保留离线数据副本，不会让手机自动连回 Mac。离家使用手机聊天仍需要可信 HTTPS、Tailscale 或 Cloudflare 地址。";
 "cloud.enable.button" = "启用 iCloud 数据";
 "cloud.status.syncing" = "正在等 iCloud 同步...";
 "cloud.status.ready" = "iCloud 数据已是最新。";

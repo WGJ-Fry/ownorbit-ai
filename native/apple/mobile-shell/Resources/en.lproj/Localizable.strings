@@ -1,9 +1,10 @@
 "common.cancel" = "Cancel";
 "common.done" = "Done";
 "connect.title" = "Connect your LifeOS";
-"connect.body" = "Choose the LifeOS entry file from iCloud Drive. The app verifies the file and your computer before opening mobile chat.";
-"connect.icloudButton" = "Choose iCloud entry";
-"connect.security" = "The file checksum detects accidental changes; it is not identity proof. Confirm this computer with the pairing QR. No credential is stored in the entry file.";
+"connect.body" = "Continue once to turn on your private iCloud data copy, then choose the LifeOS entry from Files. You can still read synced data when the Mac connection is unavailable.";
+"connect.icloudButton" = "Continue with iCloud";
+"connect.cloudDataButton" = "Open synced iCloud data";
+"connect.security" = "iCloud sync never copies AI keys, passwords, device credentials, cookies, or the SQLite database. Pairing still confirms the computer before mobile chat signs in.";
 "connect.manualDisclosure" = "Advanced: enter an address";
 "connect.manualPlaceholder" = "https://your-lifeos-address";
 "connect.manualButton" = "Test and connect";
@@ -37,6 +38,7 @@
 "cloud.enable.title" = "Keep a private offline copy";
 "cloud.enable.body" = "Sync approved LifeOS chats, memories, tasks, generated app state, and review-only device metadata through your private CloudKit database. You can add a normal memory or complete a task from this iPhone.";
 "cloud.enable.safe" = "AI keys, admin passwords, device credentials, session cookies, private keys, and the SQLite database are never copied.";
+"cloud.enable.connectionBoundary" = "iCloud keeps an offline data copy, but it does not make your Mac reachable. Mobile chat away from home still needs a trusted HTTPS, Tailscale, or Cloudflare address.";
 "cloud.enable.button" = "Enable iCloud data";
 "cloud.status.syncing" = "Waiting for iCloud...";
 "cloud.status.ready" = "iCloud data is up to date.";

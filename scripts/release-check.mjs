@@ -210,14 +210,18 @@ function checkScripts() {
     const githubPublicState = fs.readFileSync(path.join(rootDir, "scripts/github-public-state.mjs"), "utf8");
     if (
       githubPublicState.includes("desiredDescription") &&
+      githubPublicState.includes("desiredTopics") &&
+      githubPublicState.includes("repository topics need discoverability update") &&
+      githubPublicState.includes("cloudflare-tunnel") &&
+      githubPublicState.includes("cloudkit") &&
       githubPublicState.includes("has_discussions") &&
       githubPublicState.includes("v0.1.0") &&
       githubPublicState.includes("v0.0.0") &&
       githubPublicState.includes("Deprecated / 已废弃") &&
       githubPublicState.includes("staleStableReleases") &&
       githubPublicState.includes("LIFEOS_GITHUB_API_BASE_URL")
-    ) pass("GitHub public state checker covers description, Discussions, stale Latest, and deprecated releases");
-    else fail("GitHub public state checker must cover repository description, Discussions, stale Latest release, and deprecated old releases");
+    ) pass("GitHub public state checker covers description, searchable Topics, Discussions, stale Latest, and deprecated releases");
+    else fail("GitHub public state checker must cover repository description, searchable Topics, Discussions, stale Latest release, and deprecated old releases");
   } else {
     fail("missing GitHub public state checker: scripts/github-public-state.mjs");
   }

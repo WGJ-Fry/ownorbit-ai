@@ -2,9 +2,32 @@
   "name": "lifeos-ai",
   "private": false,
   "version": "0.1.5-alpha.0",
-  "description": "Local-first personal AI assistant for memory, mobile companion, remote access, and generated problem-solving tools.",
+  "description": "Open-source, self-hosted, local-first personal AI assistant with private memory, a mobile companion, remote access, and generated problem-solving tools.",
   "author": "LifeOS",
   "license": "MIT",
+  "keywords": [
+    "ai",
+    "ai-assistant",
+    "personal-ai",
+    "personal-assistant",
+    "local-first",
+    "self-hosted",
+    "life-os",
+    "ollama",
+    "electron",
+    "pwa",
+    "remote-access",
+    "cloudkit",
+    "icloud"
+  ],
+  "homepage": "https://github.com/WGJ-Fry/lifeos-ai#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WGJ-Fry/lifeos-ai.git"
+  },
+  "bugs": {
+    "url": "https://github.com/WGJ-Fry/lifeos-ai/issues"
+  },
   "type": "module",
   "main": "desktop/main.cjs",
   "scripts": {

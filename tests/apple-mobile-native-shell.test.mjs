@@ -49,6 +49,10 @@ test("Apple native mobile shell validates safe iCloud entries without storing cr
   assert.match(webView, /sameOrigin\(url, entry\.baseURL\)/);
   assert.match(content, /fileImporter/);
   assert.match(content, /allowedContentTypes: \[\.json\]/);
+  assert.match(content, /@EnvironmentObject private var cloudStore: LifeOSCloudDataStore/);
+  assert.match(content, /await cloudStore\.enableAndSync\(\)/);
+  assert.match(content, /connect\.cloudDataButton/);
+  assert.match(content, /CloudDataScreen\(\)/);
   assert.match(buildScript, /xcodegen/);
   assert.match(buildScript, /xcodebuild/);
   assert.match(buildScript, /CODE_SIGNING_ALLOWED=NO/);
@@ -133,6 +137,7 @@ test("Apple native mobile shell has a guarded private CloudKit offline data path
   assert.match(cloudSync, /resolveMemoryCollision/);
   assert.match(cloudSync, /isMatchingTaskCompletion/);
   assert.match(cloudScreen, /cloud\.enable\.safe/);
+  assert.match(cloudScreen, /cloud\.enable\.connectionBoundary/);
   assert.match(cloudScreen, /cloudStore\.performNextAction/);
   assert.match(cloudScreen, /LifeOSPendingTaskCompletion/);
   assert.match(cloudScreen, /cloudStore\.completeTaskListItem/);

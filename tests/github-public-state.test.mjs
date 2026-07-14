@@ -16,7 +16,29 @@ const publicMacZipName = `LifeOS.AI-${packageJson.version}-arm64-unsigned.zip`;
 const publicWinInstallerName = `LifeOS.AI.Setup.${packageJson.version}.exe`;
 const publicLinuxAppImageName = `LifeOS.AI-${packageJson.version}.AppImage`;
 const desiredDescription =
-  "Local-first personal AI assistant for memory, mobile companion, remote access, and generated problem-solving tools.";
+  "Open-source, self-hosted, local-first personal AI assistant with private memory, a mobile companion, remote access, and generated problem-solving tools.";
+const desiredTopics = [
+  "ai",
+  "ai-assistant",
+  "personal-ai",
+  "personal-assistant",
+  "local-first",
+  "self-hosted",
+  "privacy",
+  "life-os",
+  "productivity",
+  "ollama",
+  "electron",
+  "pwa",
+  "sqlite",
+  "typescript",
+  "mobile-app",
+  "remote-access",
+  "tailscale",
+  "cloudflare-tunnel",
+  "cloudkit",
+  "icloud",
+];
 
 function currentRelease(overrides = {}) {
   return {
@@ -46,6 +68,7 @@ async function withMockGitHubApi({ releases, latest, repository = {} }, fn) {
       res.end(JSON.stringify({
         description: desiredDescription,
         has_discussions: true,
+        topics: desiredTopics,
         ...repository,
       }));
       return;
@@ -119,5 +142,21 @@ test("GitHub public state check accepts prerelease-only alpha when Latest is abs
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
     assert.match(result.stdout, /no older stable release can steal GitHub Latest/);
     assert.match(result.stdout, /GitHub Latest has no stable release/);
+  });
+});
+
+test("GitHub public state check blocks incomplete discoverability topics", async () => {
+  await withMockGitHubApi({
+    releases: [currentRelease()],
+    latest: null,
+    repository: {
+      topics: desiredTopics.filter((topic) => topic !== "icloud"),
+    },
+  }, async (apiBaseUrl) => {
+    const result = await runGithubPublicState(apiBaseUrl);
+    const output = `${result.stdout}\n${result.stderr}`;
+    assert.notEqual(result.status, 0, output);
+    assert.match(output, /repository topics need discoverability update/);
+    assert.match(output, /missing=icloud/);
   });
 });

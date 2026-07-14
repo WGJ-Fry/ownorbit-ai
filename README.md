@@ -1,8 +1,10 @@
-# LifeOS AI
+# LifeOS AI - Open-Source, Local-First Personal AI Assistant
 
-> **A local-first personal AI system for memory, action, and problem-solving tools.**
+> **A self-hosted personal AI assistant for private memory, everyday action, and generated problem-solving tools.**
 >
-> Your computer runs the private AI core. Your phone becomes the everyday companion.
+> Your computer runs the private AI core. Your phone becomes the paired mobile companion.
+
+LifeOS AI is an open-source personal AI assistant that combines local Markdown memory, user-selected LLM providers, a desktop admin core, a mobile PWA, safer remote access through LAN/Tailscale/Cloudflare Tunnel, and runnable tools generated for the problem you are solving. It is built for macOS, Windows, and Linux, with an experimental native Apple/CloudKit data-sync path under active development.
 
 [中文说明](README.zh-CN.md) | [Release Status](#release-status) | [Setup](#2-minute-setup) | [Generated Programs](#generated-problem-solving-programs) | [Remote Access](#remote--vpn-access) | [Current Limits](#current-alpha-limits)
 
@@ -25,6 +27,7 @@ It reads local Markdown notes, runs with local Ollama in the alpha demo, and sur
 
 ## 10-Second Summary
 
+- **Open-source and self-hosted:** run the private core on hardware you control.
 - **Local Markdown memory:** reads `.md` files from a folder you control.
 - **Fastest demo path:** Docker Compose + Ollama `llama3.2`.
 - **Desktop admin:** setup, AI provider settings, backup/restore, diagnostics, and device pairing.

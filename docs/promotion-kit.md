@@ -29,26 +29,37 @@ The Studio workshop turns the user's current problem into a runnable offline pro
 ## GitHub 仓库描述
 
 ```text
-Local-first personal AI assistant for memory, mobile companion, remote access, and generated problem-solving tools.
+Open-source, self-hosted, local-first personal AI assistant with private memory, a mobile companion, remote access, and generated problem-solving tools.
 ```
 
 ## GitHub Topics
 
 ```text
-personal-ai
+ai
 ai-assistant
+personal-ai
+personal-assistant
 local-first
-pwa
-electron
-sqlite
-desktop-app
-mobile-pwa
-ai-companion
+self-hosted
 privacy
+life-os
+productivity
+ollama
+electron
+pwa
+sqlite
+typescript
+mobile-app
+remote-access
 tailscale
 cloudflare-tunnel
-generated-apps
+cloudkit
+icloud
 ```
+
+## GitHub Social Preview
+
+上传 `docs/assets/readme/lifeos-social-preview.png`。该图片固定为 GitHub 推荐的 `1280 x 640`，并只展示当前已经发布的真实能力。
 
 ## Release 标题
 
@@ -245,7 +256,7 @@ Your private AI core on desktop. Your personal AI assistant on phone.
 - Release 页面只写真实已上传资产；当前公开版本是 macOS Apple Silicon unsigned ZIP、Windows x64 NSIS installer、Linux x64 AppImage、SHA256SUMS 和 update feed 文件。
 - DMG 和 signed Windows installer 只有在真实签名、校验并上传后才能写成正式可下载资产。
 - 截图使用 `public/screenshots/real-*.jpg`，不要使用概念图。
-- GitHub Topics 已包含 `personal-ai`、`local-first`、`pwa`、`electron`、`sqlite`、`tailscale`、`cloudflare-tunnel`。
+- GitHub Topics 与 `scripts/github-public-state.mjs` 中的 20 个搜索主题完全一致；不要在网页端单独维护另一套列表。
 - Issues 已开启，建议同时开启 Discussions 收集使用反馈。
 - macOS 未签名公证、Windows 未 Authenticode 签名、当前公开 unsigned alpha 默认手动更新、仓库使用 MIT License，这几点要主动说明。
 

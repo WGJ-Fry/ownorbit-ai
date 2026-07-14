@@ -14,7 +14,29 @@ const publicLinuxAppImageName = `LifeOS.AI-${packageJson.version}.AppImage`;
 const oldStableTag = "v0.1.0";
 const deprecatedTag = "v0.0.0";
 const desiredDescription =
-  "Local-first personal AI assistant for memory, mobile companion, remote access, and generated problem-solving tools.";
+  "Open-source, self-hosted, local-first personal AI assistant with private memory, a mobile companion, remote access, and generated problem-solving tools.";
+const desiredTopics = [
+  "ai",
+  "ai-assistant",
+  "personal-ai",
+  "personal-assistant",
+  "local-first",
+  "self-hosted",
+  "privacy",
+  "life-os",
+  "productivity",
+  "ollama",
+  "electron",
+  "pwa",
+  "sqlite",
+  "typescript",
+  "mobile-app",
+  "remote-access",
+  "tailscale",
+  "cloudflare-tunnel",
+  "cloudkit",
+  "icloud",
+];
 const args = new Set(process.argv.slice(2));
 const shouldFix = args.has("--fix");
 const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "";
@@ -87,6 +109,14 @@ async function patchJson(url, body) {
   });
 }
 
+async function putJson(url, body) {
+  return requestJson(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 async function safePatch(label, url, body) {
   if (!shouldFix) return null;
   if (!token) {
@@ -95,6 +125,22 @@ async function safePatch(label, url, body) {
   }
   try {
     const result = await patchJson(url, body);
+    record(true, `${label} updated`);
+    return result;
+  } catch (error) {
+    record(false, `${label} update failed`, `${error.status || ""} ${error.message}`.trim());
+    return null;
+  }
+}
+
+async function safePut(label, url, body) {
+  if (!shouldFix) return null;
+  if (!token) {
+    record(false, `${label} needs --fix token`, "Set GITHUB_TOKEN to apply this change.");
+    return null;
+  }
+  try {
+    const result = await putJson(url, body);
     record(true, `${label} updated`);
     return result;
   } catch (error) {
@@ -202,6 +248,18 @@ async function main() {
   } else {
     record(false, "GitHub Discussions are disabled", "Support links point to Discussions.");
     await safePatch("GitHub Discussions", baseUrl, { has_discussions: true });
+  }
+
+  const currentTopics = Array.isArray(repository.topics) ? repository.topics : [];
+  const topicsMatch =
+    currentTopics.length === desiredTopics.length &&
+    desiredTopics.every((topic) => currentTopics.includes(topic));
+  if (topicsMatch) {
+    record(true, "repository topics cover the searchable product surface");
+  } else {
+    const missingTopics = desiredTopics.filter((topic) => !currentTopics.includes(topic));
+    record(false, "repository topics need discoverability update", `missing=${missingTopics.join(",") || "none"}`);
+    await safePut("repository topics", `${baseUrl}/topics`, { names: desiredTopics });
   }
 
   const releases = await requestJson(`${baseUrl}/releases?per_page=20`);

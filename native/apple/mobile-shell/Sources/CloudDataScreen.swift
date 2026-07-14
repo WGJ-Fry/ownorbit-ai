@@ -100,6 +100,9 @@ struct CloudDataScreen: View {
                 Label("cloud.enable.safe", systemImage: "lock.shield")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                Label("cloud.enable.connectionBoundary", systemImage: "network.slash")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
                 Button {
                     Task { await cloudStore.enableAndSync() }
                 } label: {
