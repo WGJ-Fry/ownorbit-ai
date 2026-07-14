@@ -53,7 +53,7 @@ GITHUB_TOKEN="github_pat_..." npm run github:public:fix
 1. 把仓库描述改成：
 
    ```text
-   Open-source, self-hosted, local-first personal AI assistant with private memory, a mobile companion, remote access, and generated problem-solving tools.
+   Open-source, self-hosted, local-first personal AI assistant and private second brain with memory, mobile access, and generated problem-solving tools.
    ```
 
 2. 开启 Discussions，让普通安装/使用问题不要全部进入 Issues。
@@ -258,7 +258,7 @@ GITHUB_TOKEN="github_pat_..." npm run github:public:fix
 1. Set the repository description to:
 
    ```text
-   Open-source, self-hosted, local-first personal AI assistant with private memory, a mobile companion, remote access, and generated problem-solving tools.
+   Open-source, self-hosted, local-first personal AI assistant and private second brain with memory, mobile access, and generated problem-solving tools.
    ```
 
 2. Enable Discussions so user support does not all land in Issues.

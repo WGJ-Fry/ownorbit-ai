@@ -212,8 +212,9 @@ function checkScripts() {
       githubPublicState.includes("desiredDescription") &&
       githubPublicState.includes("desiredTopics") &&
       githubPublicState.includes("repository topics need discoverability update") &&
-      githubPublicState.includes("cloudflare-tunnel") &&
-      githubPublicState.includes("cloudkit") &&
+      githubPublicState.includes("ai-agent") &&
+      githubPublicState.includes("second-brain") &&
+      githubPublicState.includes("personal-knowledge-management") &&
       githubPublicState.includes("has_discussions") &&
       githubPublicState.includes("v0.1.0") &&
       githubPublicState.includes("v0.0.0") &&

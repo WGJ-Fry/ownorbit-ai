@@ -4,7 +4,7 @@
 >
 > 电脑端运行私有 AI 核心，手机端成为安全绑定后的随身入口。
 
-LifeOS AI 是一个开源、自托管、本地优先的个人 AI 助手。它把本地 Markdown 记忆、用户自选大语言模型、电脑管理端、手机 PWA、LAN/Tailscale/Cloudflare Tunnel 安全异地连接，以及根据当前问题生成的可运行程序放在一起；支持 macOS、Windows 和 Linux，并正在完善 Apple/CloudKit 原生数据同步路径。
+LifeOS AI 是一个开源、自托管、本地优先的个人 AI 助手与私有第二大脑。它把本地 Markdown 知识和记忆、用户自选大语言模型、电脑管理端、手机 PWA、LAN/Tailscale/Cloudflare Tunnel 安全异地连接，以及根据当前问题生成的可运行程序放在一起；支持 macOS、Windows 和 Linux，并正在完善 Apple/CloudKit 原生数据同步路径。
 
 [English](README.md) | [发布状态](#发布状态) | [快速配置](#2-分钟配置) | [自动生成程序](#自动生成解决问题的程序) | [远程访问](#远程与-vpn-访问) | [当前限制](#当前-alpha-限制)
 

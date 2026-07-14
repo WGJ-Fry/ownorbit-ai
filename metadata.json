@@ -1,6 +1,6 @@
 {
   "name": "LifeOS AI",
-  "description": "Open-source, self-hosted, local-first personal AI assistant with a private desktop core, paired mobile companion, memory, remote access, and generated problem-solving tools.",
+  "description": "Open-source, self-hosted, local-first personal AI assistant and private second brain with a desktop core, mobile companion, remote access, and generated problem-solving tools.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -16,28 +16,28 @@ const publicMacZipName = `LifeOS.AI-${packageJson.version}-arm64-unsigned.zip`;
 const publicWinInstallerName = `LifeOS.AI.Setup.${packageJson.version}.exe`;
 const publicLinuxAppImageName = `LifeOS.AI-${packageJson.version}.AppImage`;
 const desiredDescription =
-  "Open-source, self-hosted, local-first personal AI assistant with private memory, a mobile companion, remote access, and generated problem-solving tools.";
+  "Open-source, self-hosted, local-first personal AI assistant and private second brain with memory, mobile access, and generated problem-solving tools.";
 const desiredTopics = [
   "ai",
+  "ai-agent",
   "ai-assistant",
   "personal-ai",
   "personal-assistant",
+  "local-ai",
   "local-first",
   "self-hosted",
+  "self-hosted-ai",
   "privacy",
+  "second-brain",
+  "knowledge-management",
+  "personal-knowledge-management",
   "life-os",
   "productivity",
+  "llm",
   "ollama",
   "electron",
   "pwa",
-  "sqlite",
-  "typescript",
-  "mobile-app",
   "remote-access",
-  "tailscale",
-  "cloudflare-tunnel",
-  "cloudkit",
-  "icloud",
 ];
 
 function currentRelease(overrides = {}) {
@@ -150,13 +150,13 @@ test("GitHub public state check blocks incomplete discoverability topics", async
     releases: [currentRelease()],
     latest: null,
     repository: {
-      topics: desiredTopics.filter((topic) => topic !== "icloud"),
+      topics: desiredTopics.filter((topic) => topic !== "personal-knowledge-management"),
     },
   }, async (apiBaseUrl) => {
     const result = await runGithubPublicState(apiBaseUrl);
     const output = `${result.stdout}\n${result.stderr}`;
     assert.notEqual(result.status, 0, output);
     assert.match(output, /repository topics need discoverability update/);
-    assert.match(output, /missing=icloud/);
+    assert.match(output, /missing=personal-knowledge-management/);
   });
 });

@@ -29,32 +29,32 @@ The Studio workshop turns the user's current problem into a runnable offline pro
 ## GitHub 仓库描述
 
 ```text
-Open-source, self-hosted, local-first personal AI assistant with private memory, a mobile companion, remote access, and generated problem-solving tools.
+Open-source, self-hosted, local-first personal AI assistant and private second brain with memory, mobile access, and generated problem-solving tools.
 ```
 
 ## GitHub Topics
 
 ```text
 ai
+ai-agent
 ai-assistant
 personal-ai
 personal-assistant
+local-ai
 local-first
 self-hosted
+self-hosted-ai
 privacy
+second-brain
+knowledge-management
+personal-knowledge-management
 life-os
 productivity
+llm
 ollama
 electron
 pwa
-sqlite
-typescript
-mobile-app
 remote-access
-tailscale
-cloudflare-tunnel
-cloudkit
-icloud
 ```
 
 ## GitHub Social Preview

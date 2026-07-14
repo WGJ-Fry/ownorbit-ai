@@ -14,28 +14,28 @@ const publicLinuxAppImageName = `LifeOS.AI-${packageJson.version}.AppImage`;
 const oldStableTag = "v0.1.0";
 const deprecatedTag = "v0.0.0";
 const desiredDescription =
-  "Open-source, self-hosted, local-first personal AI assistant with private memory, a mobile companion, remote access, and generated problem-solving tools.";
+  "Open-source, self-hosted, local-first personal AI assistant and private second brain with memory, mobile access, and generated problem-solving tools.";
 const desiredTopics = [
   "ai",
+  "ai-agent",
   "ai-assistant",
   "personal-ai",
   "personal-assistant",
+  "local-ai",
   "local-first",
   "self-hosted",
+  "self-hosted-ai",
   "privacy",
+  "second-brain",
+  "knowledge-management",
+  "personal-knowledge-management",
   "life-os",
   "productivity",
+  "llm",
   "ollama",
   "electron",
   "pwa",
-  "sqlite",
-  "typescript",
-  "mobile-app",
   "remote-access",
-  "tailscale",
-  "cloudflare-tunnel",
-  "cloudkit",
-  "icloud",
 ];
 const args = new Set(process.argv.slice(2));
 const shouldFix = args.has("--fix");
