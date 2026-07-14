@@ -863,7 +863,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
 
   await page.goto("/admin/onboarding");
   await expect(page.getByTestId("onboarding-progress-count")).toHaveText("3 / 3");
-  await expect(page.getByText("已准备好")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "已准备好", exact: true })).toBeVisible();
 
   await phone.goto(`${phoneBaseUrl}/mobile/chat`);
   await expect(phone.getByText(/已连接电脑|正在连接电脑|连接中断，正在重试/)).toBeVisible();

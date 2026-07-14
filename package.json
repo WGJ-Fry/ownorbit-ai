@@ -44,7 +44,7 @@
     "desktop": "npm run build && electron desktop/main.cjs",
     "desktop:resources:prepare": "node scripts/stage-cloudkit-helper.mjs",
     "desktop:pack": "npm run desktop:resources:prepare && npm run build && electron-builder --dir",
-    "desktop:pack:unsigned": "npm run desktop:resources:prepare && npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --dir -c.mac.identity=- -c.mac.entitlements=build/entitlements.mac.plist -c.mac.entitlementsInherit=build/entitlements.mac.plist",
+    "desktop:pack:unsigned": "npm run desktop:resources:prepare && npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false CSC_FOR_PULL_REQUEST=true electron-builder --dir -c.mac.identity=- -c.mac.entitlements=build/entitlements.mac.plist -c.mac.entitlementsInherit=build/entitlements.mac.plist",
     "desktop:zip:unsigned": "npm run desktop:pack:unsigned && node scripts/package-unsigned-mac.mjs && npm run release:feed",
     "desktop:dist": "npm run desktop:resources:prepare && npm run build && electron-builder --publish never",
     "desktop:dist:mac": "npm run desktop:resources:prepare && npm run build && electron-builder --mac --publish never",
