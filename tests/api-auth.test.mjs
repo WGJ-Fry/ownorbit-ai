@@ -175,14 +175,14 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const releaseApiFixture = `data:application/json,${encodeURIComponent(JSON.stringify([
     {
       tag_name: "v0.1.4-alpha",
-      name: "LifeOS AI v0.1.4-alpha",
-      html_url: "https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.4-alpha",
+      name: "OwnOrbit AI v0.1.4-alpha",
+      html_url: "https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/v0.1.4-alpha",
       draft: false,
       prerelease: true,
       published_at: "2026-06-27T00:00:00.000Z",
       assets: [
-        { name: "SHA256SUMS", size: 308, browser_download_url: "https://github.com/WGJ-Fry/lifeos-ai/releases/download/v0.1.4-alpha/SHA256SUMS" },
-        { name: "LifeOS.AI.Setup.0.1.4-alpha.0.exe", size: 1000, browser_download_url: "https://github.com/WGJ-Fry/lifeos-ai/releases/download/v0.1.4-alpha/LifeOS.AI.Setup.0.1.4-alpha.0.exe" },
+        { name: "SHA256SUMS", size: 308, browser_download_url: "https://github.com/WGJ-Fry/ownorbit-ai/releases/download/v0.1.4-alpha/SHA256SUMS" },
+        { name: "LifeOS.AI.Setup.0.1.4-alpha.0.exe", size: 1000, browser_download_url: "https://github.com/WGJ-Fry/ownorbit-ai/releases/download/v0.1.4-alpha/LifeOS.AI.Setup.0.1.4-alpha.0.exe" },
       ],
     },
   ]))}`;
@@ -890,13 +890,13 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(blockedIcloudAcceptance.status, 401);
   const blockedIcloudRepairPacket = await request(port, "/api/v1/admin/icloud-handoff/repair-packet", {
     method: "POST",
-    body: JSON.stringify({ packet: "LifeOS iCloud Mobile Entry Recovery\nentryBaseUrl=https://old.example.test" }),
+    body: JSON.stringify({ packet: "OwnOrbit iCloud Mobile Entry Recovery\nentryBaseUrl=https://old.example.test" }),
   });
   assert.equal(blockedIcloudRepairPacket.status, 401);
   const invalidIcloudRepairPacket = await request(port, "/api/v1/admin/icloud-handoff/repair-packet", {
     method: "POST",
     headers: adminHeaders,
-    body: JSON.stringify({ packet: "not a LifeOS repair packet" }),
+    body: JSON.stringify({ packet: "not a OwnOrbit repair packet" }),
   });
   assert.equal(invalidIcloudRepairPacket.status, 400);
   const icloudRepairPacket = await request(port, "/api/v1/admin/icloud-handoff/repair-packet", {
@@ -904,7 +904,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     headers: adminHeaders,
     body: JSON.stringify({
       packet: [
-        "LifeOS iCloud Mobile Entry Recovery",
+        "OwnOrbit iCloud Mobile Entry Recovery",
         "status=stale",
         "oneNextAction=setup-remote-entry",
         "entryBaseUrl=https://old.example.test",
@@ -2459,7 +2459,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
       issue: "Fix the ledger crash with github_pat_debugRequestSecret_1234567890 and /Users/example/debug.txt",
     }),
   }).then((res) => res.json());
-  assert.match(customAppDebugRequest.suggestedInstruction, /本月预算提醒面板|LifeOS/);
+  assert.match(customAppDebugRequest.suggestedInstruction, /本月预算提醒面板|OwnOrbit/);
   assert.equal(customAppDebugRequest.repairProposal.appId, "custom-ledger-1");
   assert.equal(customAppDebugRequest.repairProposal.suspectedArea, "runtime-error");
   assert.equal(customAppDebugRequest.repairProposal.risk, "medium");

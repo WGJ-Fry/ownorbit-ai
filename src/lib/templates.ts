@@ -1,4 +1,4 @@
-// Interactive Sandboxed Boilerplate Templates for LifeOS Custom Apps
+// Interactive Sandboxed Boilerplate Templates for OwnOrbit Custom Apps
 
 export const TEMPLATES = {
   todo: `<!-- Smart Task Board (Alpine.js Task Tracker) -->
@@ -64,7 +64,7 @@ export const TEMPLATES = {
   </div>
 
   <div class="text-[9px] text-zinc-600 text-center font-mono mt-4 pt-3 border-t border-zinc-900">
-    LifeOS Sanboxed Terminal Standard Spec Container
+    OwnOrbit Sanboxed Terminal Standard Spec Container
   </div>
 </div>`,
 

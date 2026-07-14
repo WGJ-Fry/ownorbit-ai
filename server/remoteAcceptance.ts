@@ -508,14 +508,14 @@ export function buildRemoteAcceptanceChecklist(input: {
       id: "tailscale-https-serve",
       status: diagnostics.tailscale?.serveRunning && tailscaleUrl && stableHealthPassed && sameUrl(runtimeUrl, tailscaleUrl) ? "passed" : "needs-action",
       evidence: diagnostics.tailscale?.serveRunning && tailscaleUrl ? tailscaleUrl : "Tailscale HTTPS Serve has not been proven as the saved healthy entry.",
-      action: "Start Tailscale HTTPS Serve, save it as the desktop remote entry, restart LifeOS AI, then run remote health.",
+      action: "Start Tailscale HTTPS Serve, save it as the desktop remote entry, restart OwnOrbit AI, then run remote health.",
       command: "tailscale serve --bg https:443 http://127.0.0.1:3000",
     },
     {
       id: "cloudflare-named-tunnel",
       status: diagnostics.cloudflareNamedTunnel?.ready && namedUrl && stableHealthPassed && sameUrl(runtimeUrl, namedUrl) ? "passed" : "needs-action",
       evidence: diagnostics.cloudflareNamedTunnel?.ready && namedUrl ? namedUrl : "Cloudflare Named Tunnel is not configured and verified as the saved healthy entry.",
-      action: "Generate the Named Tunnel config, start it, save its HTTPS hostname, restart LifeOS AI, then run remote health.",
+      action: "Generate the Named Tunnel config, start it, save its HTTPS hostname, restart OwnOrbit AI, then run remote health.",
       command: "cloudflared tunnel run <name>",
     },
     {
@@ -528,7 +528,7 @@ export function buildRemoteAcceptanceChecklist(input: {
     {
       id: "restart-restore",
       status: restored || restartRecord ? "passed" : "manual-required",
-      evidence: restored ? report!.label : restartRecord ? `Manually accepted at ${new Date(restartRecord.createdAt).toISOString()}: ${manualEvidence(restartRecord)}` : staleManualEvidence(restartLatestRecord, "Restart LifeOS AI and confirm the saved Tailscale/Named Tunnel entry is restored automatically."),
+      evidence: restored ? report!.label : restartRecord ? `Manually accepted at ${new Date(restartRecord.createdAt).toISOString()}: ${manualEvidence(restartRecord)}` : staleManualEvidence(restartLatestRecord, "Restart OwnOrbit AI and confirm the saved Tailscale/Named Tunnel entry is restored automatically."),
       action: "Quit and reopen the desktop app, then run the remote health check again.",
       acceptedAt: restartRecord?.createdAt,
       expiresAt: restartRecord ? restartRecord.createdAt + MANUAL_ACCEPTANCE_MAX_AGE_MS : undefined,

@@ -54,7 +54,7 @@ function icloudOneNextTone(tone: "ok" | "warning" | "danger" | "info") {
 }
 
 function mobileIcloudDesktopNameKey(entry: MobileIcloudHandoffEntry) {
-  return String(entry.desktopName || entry.label || "LifeOS desktop").trim().toLowerCase() || "lifeos desktop";
+  return String(entry.desktopName || entry.label || "OwnOrbit desktop").trim().toLowerCase() || "lifeos desktop";
 }
 
 function getMobileIcloudDesktopShortId(entry: MobileIcloudHandoffEntry) {

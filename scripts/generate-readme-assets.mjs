@@ -31,7 +31,7 @@ function write(name, svg) {
 
 function hero(lang) {
   const zh = lang === "zh";
-  const title = zh ? "LifeOS AI" : "LifeOS AI";
+  const title = zh ? "OwnOrbit AI" : "OwnOrbit AI";
   const subtitle = zh
     ? "本地优先的个人 AI 管家"
     : "Local-first personal AI assistant";
@@ -52,8 +52,8 @@ function hero(lang) {
       ];
 
   return `<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">${zh ? "LifeOS AI 首屏图" : "LifeOS AI hero"}</title>
-  <desc id="desc">${zh ? "LifeOS AI 本地优先个人 AI 管家，包含记忆提醒、自动生成解决问题程序和手机异地连接。" : "LifeOS AI local-first personal AI assistant with memory recall, generated problem-solving programs, and remote mobile access."}</desc>
+  <title id="title">${zh ? "OwnOrbit AI 首屏图" : "OwnOrbit AI hero"}</title>
+  <desc id="desc">${zh ? "OwnOrbit AI 本地优先个人 AI 管家，包含记忆提醒、自动生成解决问题程序和手机异地连接。" : "OwnOrbit AI local-first personal AI assistant with memory recall, generated problem-solving programs, and remote mobile access."}</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="720" gradientUnits="userSpaceOnUse">
       <stop stop-color="#08111F"/>
@@ -96,10 +96,10 @@ function hero(lang) {
 
 function featureMap(lang) {
   const zh = lang === "zh";
-  const title = zh ? "LifeOS 功能地图" : "LifeOS Feature Map";
+  const title = zh ? "OwnOrbit 功能地图" : "OwnOrbit Feature Map";
   const subtitle = zh
     ? "先解决真实问题，再扩展成长期自用的私有 AI 系统。"
-    : "Solve real problems first, then grow into a private long-term LifeOS.";
+    : "Solve real problems first, then grow into a private long-term AI home.";
   const center = zh ? ["私有电脑核心", "认证 / SQLite / AI Provider", "备份 / 诊断 / 设备绑定"] : ["Private Desktop Core", "Auth / SQLite / AI Providers", "Backups / Diagnostics / Device Pairing"];
   const items = zh
     ? [
@@ -158,8 +158,8 @@ function generatedPrograms(lang) {
     ? ["真实需求", "记账", "规划", "查询", "整理", "打卡", "计算", "表单", "流程面板"]
     : ["Real needs", "Budgeting", "Planning", "Lookup", "Sorting", "Check-ins", "Calculation", "Forms", "Workflow panels"];
   const middle = zh
-    ? ["LifeOS Studio", "描述问题，而不是写需求文档", "AI 生成可运行程序", "继续调试和调整", "保留 HTML / CSS / JS 可编辑性"]
-    : ["LifeOS Studio", "Describe the problem", "AI generates a runnable program", "Keep debugging and refining", "HTML / CSS / JS remains editable"];
+    ? ["OwnOrbit Studio", "描述问题，而不是写需求文档", "AI 生成可运行程序", "继续调试和调整", "保留 HTML / CSS / JS 可编辑性"]
+    : ["OwnOrbit Studio", "Describe the problem", "AI generates a runnable program", "Keep debugging and refining", "HTML / CSS / JS remains editable"];
   const right = zh
     ? ["结果", "可运行工具", "可编辑面板", "问题处理流程"]
     : ["Result", "Runnable tool", "Editable panel", "Problem workflow"];

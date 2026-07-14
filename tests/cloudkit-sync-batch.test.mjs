@@ -43,7 +43,7 @@ function runIsolatedCloudKitBatch(env) {
     db.prepare("INSERT INTO tasks (id, type, status, input_json, result_json, error, created_by_device_id, created_at, started_at, finished_at) VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, NULL, ?)")
       .run("task-sync-1", "planning", "ready", JSON.stringify({ title: "Review tasks" }), JSON.stringify({ ok: true }), 1700000000000, 1700000001000);
     db.prepare("INSERT INTO client_state (key, value_json, updated_at, updated_by_type, updated_by_id) VALUES (?, ?, ?, 'device', 'phone')")
-      .run("lifeos_tasks_pro", JSON.stringify([{ id: 1, text: "Finish the LifeOS task list", completed: false, priority: "high", createdAt: 1700000000000 }]), 1700000002000);
+      .run("lifeos_tasks_pro", JSON.stringify([{ id: 1, text: "Finish the OwnOrbit task list", completed: false, priority: "high", createdAt: 1700000000000 }]), 1700000002000);
     db.prepare("INSERT INTO devices (id, name, type, status, public_key, access_token_hash, access_token_expires_at, created_at, last_seen_at, revoked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)")
       .run("device-sync-1", "Alice iPhone", "mobile", "online", "RAW_PUBLIC_KEY_SHOULD_NOT_SYNC", "ACCESS_TOKEN_HASH_SHOULD_NOT_SYNC", 1700000099999, 1700000000000, 1700000003000);
     db.prepare("INSERT INTO custom_apps (id, name, description, visibility, status, source, code, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
@@ -159,7 +159,7 @@ test("CloudKit sync batch preview builds safe records and blocks sensitive paylo
     const serialized = JSON.stringify(preview);
     assert.equal(serialized.includes("Plan the family budget safely"), false);
     assert.equal(serialized.includes("Buy milk and plan the week"), false);
-    assert.equal(serialized.includes("Finish the LifeOS task list"), false);
+    assert.equal(serialized.includes("Finish the OwnOrbit task list"), false);
     assert.equal(serialized.includes("sk-secret-value"), false);
     assert.equal(serialized.includes("passport token"), false);
     assert.equal(serialized.includes("deleted-secret"), false);

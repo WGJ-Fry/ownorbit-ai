@@ -4,7 +4,7 @@
 
 ## 先说清楚许可证
 
-LifeOS AI 使用 MIT License。你可以查看、复制、修改、再分发和基于本项目继续开发，但需要保留原始版权和许可证声明。
+OwnOrbit AI 使用 MIT License。你可以查看、复制、修改、再分发和基于本项目继续开发，但需要保留原始版权和许可证声明。
 
 贡献代码即表示你同意你的贡献按 MIT License 授权进入本项目。不要提交你无权授权的第三方代码、私有数据、商业素材或受限制资产。
 
@@ -82,7 +82,7 @@ npm run desktop
 
 ## License First
 
-LifeOS AI is licensed under the MIT License. You may inspect, copy, modify, redistribute, and build on this project as long as the original copyright and license notice are preserved.
+OwnOrbit AI is licensed under the MIT License. You may inspect, copy, modify, redistribute, and build on this project as long as the original copyright and license notice are preserved.
 
 By contributing code, you agree that your contribution is licensed under the MIT License. Do not submit third-party code, private data, commercial assets, or restricted materials that you do not have the right to license.
 

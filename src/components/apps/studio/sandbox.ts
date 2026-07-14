@@ -61,7 +61,7 @@ export function buildStudioSandboxSrcDoc(code: string) {
                 window.setTimeout(function() {
                   if (!pendingLifeosRequests.has(requestId)) return;
                   pendingLifeosRequests.delete(requestId);
-                  reject(new Error('LifeOS app state request timed out'));
+                  reject(new Error('OwnOrbit app state request timed out'));
                 }, 8000);
               });
             }
@@ -86,7 +86,7 @@ export function buildStudioSandboxSrcDoc(code: string) {
               if (!pending) return;
               pendingLifeosRequests.delete(data.requestId);
               if (data.ok === false) {
-                pending.reject(new Error(data.error || 'LifeOS app state request failed'));
+                pending.reject(new Error(data.error || 'OwnOrbit app state request failed'));
               } else {
                 pending.resolve(data.result === undefined ? data.state : data.result);
               }

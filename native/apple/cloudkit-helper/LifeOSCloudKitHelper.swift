@@ -167,7 +167,7 @@ private func validatedPayloadJson(record: CKRecord) -> Result<String, PayloadVal
   }
   let payloadBytes = payloadJson.lengthOfBytes(using: .utf8)
   guard payloadBytes > 0, payloadBytes <= maxPayloadBytes else {
-    return .failure(.rejected("CloudKit record payloadJson exceeds the LifeOS size limit."))
+    return .failure(.rejected("CloudKit record payloadJson exceeds the OwnOrbit size limit."))
   }
   let declaredBytes = (record["payloadByteSize"] as? NSNumber)?.intValue ?? -1
   guard declaredBytes == payloadBytes else {
@@ -197,7 +197,7 @@ private func validatedExportFields(item: [String: Any]) -> Result<[String: Any],
   }
   let payloadBytes = payloadJson.lengthOfBytes(using: .utf8)
   guard payloadBytes > 0, payloadBytes <= maxPayloadBytes else {
-    return .failure(.rejected("CloudKit export payload exceeds the LifeOS size limit."))
+    return .failure(.rejected("CloudKit export payload exceeds the OwnOrbit size limit."))
   }
   let declaredBytes = (fields["payloadByteSize"] as? NSNumber)?.intValue ?? -1
   guard declaredBytes == payloadBytes else {
@@ -471,7 +471,7 @@ private func runSyncExport(container: CKContainer, request: [String: Any]) async
     response["containerReachable"] = false
     response["capabilitiesVerified"] = ["account-status"]
     response["warnings"] = []
-    response["errors"] = ["CloudKit sync export requires an approved LifeOS batch schema and confirmation."]
+    response["errors"] = ["CloudKit sync export requires an approved OwnOrbit batch schema and confirmation."]
     response["syncExport"] = ["attempted": 0, "saved": 0, "created": 0, "updated": 0, "unchanged": 0, "conflicts": 0, "failed": 0, "recordPlanHash": "", "zones": [], "recordTypes": []]
     response["evidenceId"] = ""
     return response
@@ -808,7 +808,7 @@ private func runSyncChangesPreview(container: CKContainer, request: [String: Any
         cursorToken = nil
         page = 0
         changeTokenReset = true
-        warnings.append("CloudKit expired the saved cursor for \(redact(zone, limit: 80)); LifeOS restarted a full, review-only baseline.")
+        warnings.append("CloudKit expired the saved cursor for \(redact(zone, limit: 80)); OwnOrbit restarted a full, review-only baseline.")
         continue
       } catch {
         failed += 1
@@ -1004,7 +1004,7 @@ private func runSyncImportQuarantine(container: CKContainer, request: [String: A
         cursorToken = nil
         page = 0
         changeTokenReset = true
-        warnings.append("CloudKit expired the saved cursor for \(redact(zone, limit: 80)); LifeOS restarted a full baseline and marked every record for review.")
+        warnings.append("CloudKit expired the saved cursor for \(redact(zone, limit: 80)); OwnOrbit restarted a full baseline and marked every record for review.")
         continue
       } catch {
         failed += 1
@@ -1187,7 +1187,7 @@ struct LifeOSCloudKitHelper {
     let operation = compact(request["operation"], limit: 40)
     guard request["protocolVersion"] as? Int == protocolVersion, compact(request["schema"], limit: 80) == requestSchema else {
       emit(responseBase(operation: operation.isEmpty ? "unknown" : operation, ok: false).merging([
-        "errors": ["Request protocol or schema did not match LifeOS CloudKit helper v1."],
+        "errors": ["Request protocol or schema did not match OwnOrbit CloudKit helper v1."],
         "warnings": [],
       ]) { _, new in new }, exitCode: 2)
     }

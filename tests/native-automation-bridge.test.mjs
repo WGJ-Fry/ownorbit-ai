@@ -54,12 +54,12 @@ test("native automation bridge executes only after enable flag, allowlist, and c
 test("native automation bridge can run an allowlisted Shortcut through the command runner", async () => {
   const env = {
     [NATIVE_AUTOMATION_ENABLE_ENV]: "1",
-    [NATIVE_AUTOMATION_ALLOWLIST_ENV]: "shortcut:LifeOS Safe Shortcut",
+    [NATIVE_AUTOMATION_ALLOWLIST_ENV]: "shortcut:OwnOrbit Safe Shortcut",
   };
   const calls = [];
   const result = await executeNativeAutomation({
     kind: "shortcut",
-    shortcutName: "LifeOS Safe Shortcut",
+    shortcutName: "OwnOrbit Safe Shortcut",
     explicitConsent: true,
     confirmationText: NATIVE_AUTOMATION_CONFIRMATION_TEXT,
   }, {
@@ -73,7 +73,7 @@ test("native automation bridge can run an allowlisted Shortcut through the comma
 
   assert.equal(result.ok, true);
   assert.equal(result.plan.status, "ready");
-  assert.deepEqual(calls[0].args, ["run", "LifeOS Safe Shortcut"]);
+  assert.deepEqual(calls[0].args, ["run", "OwnOrbit Safe Shortcut"]);
   assert.equal(calls[0].options.timeoutMs, 8000);
 });
 

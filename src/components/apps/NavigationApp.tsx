@@ -40,10 +40,10 @@ function buildMapUrl(provider: NavigationProvider, start: string, destination: s
 
   if (provider === "amap") {
     if (isIOS()) {
-      return `iosamap://path?sourceApplication=LifeOS&sid=BGVIS1&slat=&slon=&sname=${encodedStart}&did=BGVIS2&dlat=&dlon=&dname=${encodedDestination}&dev=0&t=${amapMode === "bus" ? 1 : amapMode === "bike" ? 3 : 0}`;
+      return `iosamap://path?sourceApplication=OwnOrbit&sid=BGVIS1&slat=&slon=&sname=${encodedStart}&did=BGVIS2&dlat=&dlon=&dname=${encodedDestination}&dev=0&t=${amapMode === "bus" ? 1 : amapMode === "bike" ? 3 : 0}`;
     }
     if (isAndroid()) {
-      return `androidamap://route?sourceApplication=LifeOS&sname=${encodedStart}&dname=${encodedDestination}&dev=0&t=${amapMode === "bus" ? 1 : amapMode === "bike" ? 3 : 0}`;
+      return `androidamap://route?sourceApplication=OwnOrbit&sname=${encodedStart}&dname=${encodedDestination}&dev=0&t=${amapMode === "bus" ? 1 : amapMode === "bike" ? 3 : 0}`;
     }
     return `https://uri.amap.com/search?keyword=${encodedDestination}&src=lifeos&coordinate=gaode&callnative=1`;
   }

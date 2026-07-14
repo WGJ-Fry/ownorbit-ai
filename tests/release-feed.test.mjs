@@ -15,9 +15,9 @@ const currentVersion = JSON.parse(await readFile(path.join(rootDir, "package.jso
 const currentVersionPattern = currentVersion.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const currentPublicTag = `v${currentVersion.includes("-") && currentVersion.endsWith(".0") ? currentVersion.slice(0, -2) : currentVersion}`;
 const currentDockerImage = `ghcr.io/wgj-fry/lifeos-ai:${currentPublicTag}`;
-const currentMacZipName = `LifeOS AI-${currentVersion}-arm64-unsigned.zip`;
-const currentWinInstallerName = `LifeOS AI Setup ${currentVersion}.exe`;
-const currentLinuxAppImageName = `LifeOS AI-${currentVersion}.AppImage`;
+const currentMacZipName = `OwnOrbit AI-${currentVersion}-arm64-unsigned.zip`;
+const currentWinInstallerName = `OwnOrbit AI Setup ${currentVersion}.exe`;
+const currentLinuxAppImageName = `OwnOrbit AI-${currentVersion}.AppImage`;
 const publicWinInstallerName = `LifeOS.AI.Setup.${currentVersion}.exe`;
 const publicLinuxAppImageName = `LifeOS.AI-${currentVersion}.AppImage`;
 const packagedDesktopMain = [
@@ -61,7 +61,7 @@ async function fileExists(file) {
 
 async function createPackagedMacApp(releaseDir, entries) {
   const sourceDir = path.join(releaseDir, "asar-source");
-  const resourcesDir = path.join(releaseDir, "mac-arm64", "LifeOS AI.app", "Contents", "Resources");
+  const resourcesDir = path.join(releaseDir, "mac-arm64", "OwnOrbit AI.app", "Contents", "Resources");
   await mkdir(sourceDir, { recursive: true });
   await mkdir(resourcesDir, { recursive: true });
   const zipName = currentMacZipName;
@@ -71,7 +71,7 @@ async function createPackagedMacApp(releaseDir, entries) {
   await writeFile(path.join(releaseDir, zipName), zipContent);
   await writeFile(path.join(releaseDir, "SHA256SUMS"), `${zipSha256}  ${zipName}\n`);
   await writeFile(path.join(releaseDir, "INSTALL-unsigned-mac.md"), [
-    "# LifeOS AI unsigned macOS install",
+    "# OwnOrbit AI unsigned macOS install",
     "If macOS Gatekeeper reports an unidentified developer, open System Settings > Privacy & Security and choose Open Anyway.",
     "On first launch, set the admin password, configure AI, create a backup, enable daily automatic backups, and bind the mobile PWA.",
     "Use Export Diagnostics from the app menu if startup fails.",
@@ -157,7 +157,7 @@ test("release feed generator writes electron-updater metadata for packaged artif
     await rm(releaseDir, { recursive: true, force: true });
   });
 
-  await writeFile(path.join(releaseDir, "LifeOS AI.dmg"), "fake dmg bytes for feed smoke");
+  await writeFile(path.join(releaseDir, "OwnOrbit AI.dmg"), "fake dmg bytes for feed smoke");
   const result = spawnSync(process.execPath, ["scripts/prepare-update-feed.mjs"], {
     cwd: rootDir,
     env: {
@@ -170,19 +170,19 @@ test("release feed generator writes electron-updater metadata for packaged artif
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   const feed = await readFile(path.join(releaseDir, "update-feed", "latest-mac.yml"), "utf8");
   assert.match(feed, /version:/);
-  assert.match(feed, /LifeOS AI\.dmg/);
+  assert.match(feed, /OwnOrbit AI\.dmg/);
   assert.match(feed, /sha512:/);
   assert.match(feed, /releaseDate:/);
   const checksums = await readFile(path.join(releaseDir, "SHA256SUMS"), "utf8");
-  assert.match(checksums, new RegExp(`${crypto.createHash("sha256").update("fake dmg bytes for feed smoke").digest("hex")}  LifeOS AI\\.dmg`));
+  assert.match(checksums, new RegExp(`${crypto.createHash("sha256").update("fake dmg bytes for feed smoke").digest("hex")}  OwnOrbit AI\\.dmg`));
 
   const manifest = JSON.parse(await readFile(path.join(releaseDir, "update-feed", "release-manifest.json"), "utf8"));
   assert.equal(manifest.version, currentVersion);
   assert.equal(manifest.artifacts.length, 1);
   assert.equal(manifest.artifacts[0].platform, "mac");
   assert.equal(manifest.artifacts[0].feedFile, "latest-mac.yml");
-  assert.equal(manifest.artifacts[0].fileName, "LifeOS AI.dmg");
-  assert.equal(manifest.artifacts[0].size, (await stat(path.join(releaseDir, "LifeOS AI.dmg"))).size);
+  assert.equal(manifest.artifacts[0].fileName, "OwnOrbit AI.dmg");
+  assert.equal(manifest.artifacts[0].size, (await stat(path.join(releaseDir, "OwnOrbit AI.dmg"))).size);
   assert.equal(manifest.artifacts[0].sha256, crypto.createHash("sha256").update("fake dmg bytes for feed smoke").digest("hex"));
   assert.match(feed, new RegExp(manifest.artifacts[0].sha512.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
@@ -222,8 +222,8 @@ test("release feed generator rejects stale versioned artifacts", async (t) => {
     await rm(releaseDir, { recursive: true, force: true });
   });
 
-  await writeFile(path.join(releaseDir, "LifeOS AI-0.0.0-arm64.dmg"), "old dmg bytes");
-  await writeFile(path.join(releaseDir, "LifeOS AI-0.0.0-arm64.dmg.blockmap"), "old blockmap bytes");
+  await writeFile(path.join(releaseDir, "OwnOrbit AI-0.0.0-arm64.dmg"), "old dmg bytes");
+  await writeFile(path.join(releaseDir, "OwnOrbit AI-0.0.0-arm64.dmg.blockmap"), "old blockmap bytes");
   await writeFile(path.join(releaseDir, currentWinInstallerName), "current nsis bytes");
   const result = spawnSync(process.execPath, ["scripts/prepare-update-feed.mjs"], {
     cwd: rootDir,
@@ -236,8 +236,8 @@ test("release feed generator rejects stale versioned artifacts", async (t) => {
 
   assert.notEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
   assert.match(result.stderr, new RegExp(`Release artifacts do not match package version ${currentVersionPattern}`));
-  assert.match(result.stderr, /LifeOS AI-0\.0\.0-arm64\.dmg contains 0\.0\.0/);
-  assert.match(result.stderr, /LifeOS AI-0\.0\.0-arm64\.dmg\.blockmap contains 0\.0\.0/);
+  assert.match(result.stderr, /OwnOrbit AI-0\.0\.0-arm64\.dmg contains 0\.0\.0/);
+  assert.match(result.stderr, /OwnOrbit AI-0\.0\.0-arm64\.dmg\.blockmap contains 0\.0\.0/);
   assert.match(result.stderr, /Rebuild the desktop packages or remove stale release artifacts/);
   assert.equal(await fileExists(path.join(releaseDir, "update-feed", "release-manifest.json")), false);
   assert.equal(await fileExists(path.join(releaseDir, "SHA256SUMS")), false);
@@ -251,7 +251,7 @@ test("release feed generator ignores unpacked app internals", async (t) => {
 
   await mkdir(path.join(releaseDir, "win-unpacked"), { recursive: true });
   await writeFile(path.join(releaseDir, currentMacZipName), "fake mac zip bytes");
-  await writeFile(path.join(releaseDir, "win-unpacked", "LifeOS AI.exe"), "unpacked executable should not be a release asset");
+  await writeFile(path.join(releaseDir, "win-unpacked", "OwnOrbit AI.exe"), "unpacked executable should not be a release asset");
 
   const result = spawnSync(process.execPath, ["scripts/prepare-update-feed.mjs"], {
     cwd: rootDir,
@@ -265,9 +265,9 @@ test("release feed generator ignores unpacked app internals", async (t) => {
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   const manifest = JSON.parse(await readFile(path.join(releaseDir, "update-feed", "release-manifest.json"), "utf8"));
   assert.deepEqual(manifest.artifacts.map((artifact) => artifact.fileName), [currentMacZipName]);
-  assert.equal(await fileExists(path.join(releaseDir, "update-feed", "LifeOS AI.exe")), false);
+  assert.equal(await fileExists(path.join(releaseDir, "update-feed", "OwnOrbit AI.exe")), false);
   const checksums = await readFile(path.join(releaseDir, "SHA256SUMS"), "utf8");
-  assert.doesNotMatch(checksums, /LifeOS AI\.exe/);
+  assert.doesNotMatch(checksums, /OwnOrbit AI\.exe/);
 });
 
 test("release artifact version checker blocks and explicitly cleans stale installers", async (t) => {
@@ -276,8 +276,8 @@ test("release artifact version checker blocks and explicitly cleans stale instal
     await rm(releaseDir, { recursive: true, force: true });
   });
 
-  const staleDmg = path.join(releaseDir, "LifeOS AI-0.0.0-arm64.dmg");
-  const staleBlockmap = path.join(releaseDir, "LifeOS AI-0.0.0-arm64.dmg.blockmap");
+  const staleDmg = path.join(releaseDir, "OwnOrbit AI-0.0.0-arm64.dmg");
+  const staleBlockmap = path.join(releaseDir, "OwnOrbit AI-0.0.0-arm64.dmg.blockmap");
   const currentExe = path.join(releaseDir, currentWinInstallerName);
   const feedDir = path.join(releaseDir, "update-feed");
   const staleFeed = path.join(feedDir, "latest-mac.yml");
@@ -289,14 +289,14 @@ test("release artifact version checker blocks and explicitly cleans stale instal
   await mkdir(feedDir, { recursive: true });
   await writeFile(staleFeed, [
     'version: "0.0.0"',
-    'path: "LifeOS AI-0.0.0-arm64.dmg"',
+    'path: "OwnOrbit AI-0.0.0-arm64.dmg"',
     "",
   ].join("\n"));
   await writeFile(staleManifest, JSON.stringify({
     version: "0.0.0",
-    artifacts: [{ fileName: "LifeOS AI-0.0.0-arm64.dmg", feedFile: "latest-mac.yml" }],
+    artifacts: [{ fileName: "OwnOrbit AI-0.0.0-arm64.dmg", feedFile: "latest-mac.yml" }],
   }, null, 2));
-  await writeFile(staleChecksums, `deadbeef  LifeOS AI-0.0.0-arm64.dmg\n`);
+  await writeFile(staleChecksums, `deadbeef  OwnOrbit AI-0.0.0-arm64.dmg\n`);
 
   const check = spawnSync(process.execPath, ["scripts/check-release-artifact-versions.mjs"], {
     cwd: rootDir,
@@ -305,8 +305,8 @@ test("release artifact version checker blocks and explicitly cleans stale instal
   });
   assert.notEqual(check.status, 0, `${check.stdout}\n${check.stderr}`);
   assert.match(check.stderr, new RegExp(`Release artifacts do not match package version ${currentVersionPattern}`));
-  assert.match(check.stderr, /LifeOS AI-0\.0\.0-arm64\.dmg \(artifact\) contains 0\.0\.0/);
-  assert.match(check.stderr, /LifeOS AI-0\.0\.0-arm64\.dmg\.blockmap \(artifact\) contains 0\.0\.0/);
+  assert.match(check.stderr, /OwnOrbit AI-0\.0\.0-arm64\.dmg \(artifact\) contains 0\.0\.0/);
+  assert.match(check.stderr, /OwnOrbit AI-0\.0\.0-arm64\.dmg\.blockmap \(artifact\) contains 0\.0\.0/);
   assert.match(check.stderr, /latest-mac\.yml \(metadata\) contains 0\.0\.0/);
   assert.match(check.stderr, /release-manifest\.json \(metadata\) contains 0\.0\.0/);
   assert.match(check.stderr, /SHA256SUMS \(metadata\) contains 0\.0\.0/);
@@ -561,7 +561,7 @@ test("release check verifies packaged macOS app contains runtime entrypoints", a
     "package.json": JSON.stringify({ name: "lifeos-ai", main: "desktop/main.cjs" }),
   });
   await mkdir(path.join(releaseDir, "win-unpacked"), { recursive: true });
-  await writeFile(path.join(releaseDir, "win-unpacked", "LifeOS AI.exe"), "unpacked executable is not a release asset");
+  await writeFile(path.join(releaseDir, "win-unpacked", "OwnOrbit AI.exe"), "unpacked executable is not a release asset");
 
   const result = runReleaseCheck({
     LIFEOS_RELEASE_DIR: releaseDir,
@@ -744,12 +744,12 @@ test("release check rejects manifests that reference unpacked app internals", as
     "package.json": JSON.stringify({ name: "lifeos-ai", main: "desktop/main.cjs" }),
   });
   await mkdir(path.join(releaseDir, "win-unpacked"), { recursive: true });
-  await writeFile(path.join(releaseDir, "win-unpacked", "LifeOS AI.exe"), "unpacked executable is not a release asset");
+  await writeFile(path.join(releaseDir, "win-unpacked", "OwnOrbit AI.exe"), "unpacked executable is not a release asset");
   const manifestPath = path.join(releaseDir, "update-feed", "release-manifest.json");
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-  manifest.artifacts[0].fileName = "win-unpacked/LifeOS AI.exe";
+  manifest.artifacts[0].fileName = "win-unpacked/OwnOrbit AI.exe";
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-  await writeFile(path.join(releaseDir, "SHA256SUMS"), "abc123  win-unpacked/LifeOS AI.exe\n");
+  await writeFile(path.join(releaseDir, "SHA256SUMS"), "abc123  win-unpacked/OwnOrbit AI.exe\n");
 
   const result = runReleaseCheck({
     LIFEOS_RELEASE_DIR: releaseDir,
@@ -776,10 +776,10 @@ test("release check rejects update feed metadata that drifts from the manifest",
   await writeFile(path.join(releaseDir, "update-feed", "latest-mac.yml"), [
     `version: "${currentVersion}"`,
     "files:",
-    `  - url: "LifeOS AI-${currentVersion}-stale.zip"`,
+    `  - url: "OwnOrbit AI-${currentVersion}-stale.zip"`,
     `    sha512: "stale-hash"`,
     "    size: 1",
-    `path: "LifeOS AI-${currentVersion}-stale.zip"`,
+    `path: "OwnOrbit AI-${currentVersion}-stale.zip"`,
     `sha512: "stale-hash"`,
     `releaseDate: "${new Date(0).toISOString()}"`,
     "",

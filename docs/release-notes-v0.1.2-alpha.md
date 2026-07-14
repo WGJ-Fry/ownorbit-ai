@@ -1,6 +1,6 @@
 # LifeOS v0.1.2-alpha
 
-LifeOS v0.1.2-alpha is a previous public cold-launch alpha. It is superseded by [`v0.1.4-alpha`](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.4-alpha).
+LifeOS v0.1.2-alpha is a previous public cold-launch alpha. It is superseded by [`v0.1.4-alpha`](https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/v0.1.4-alpha).
 
 It keeps the one-minute Docker Compose path focused:
 
@@ -31,8 +31,8 @@ Note: the source line now includes additional local memory and Studio blueprint 
 ## Try It
 
 ```bash
-git clone https://github.com/WGJ-Fry/lifeos-ai.git
-cd lifeos-ai
+git clone https://github.com/WGJ-Fry/ownorbit-ai.git
+cd ownorbit-ai
 
 mkdir -p lifeos_vault lifeos_data
 

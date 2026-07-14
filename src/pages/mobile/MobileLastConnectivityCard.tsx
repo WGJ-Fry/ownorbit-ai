@@ -23,7 +23,7 @@ function buildLastConnectivityRepairPacket({
     ["mobileDevice.connectivityRealtime", report.websocketOk],
   ] as const;
   return [
-    "LifeOS AI last mobile connectivity repair packet",
+    "OwnOrbit AI last mobile connectivity repair packet",
     `${translate("mobileDevice.currentEntry")}: ${report.currentBaseUrl || "-"}`,
     `${translate("mobileDevice.connectivityTestedAt", { time: new Date(report.createdAt).toLocaleString() })}`,
     `${translate("mobileDevice.lastConnectivityStatus")}: ${report.ok ? translate("mobileDevice.pass") : translate("mobileDevice.fail")}`,

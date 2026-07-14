@@ -231,14 +231,14 @@ export function registerDeviceRoutes(app: express.Express) {
         expiresAt: session.expiresAt,
         baseUrl,
         pairingUrl: pairingInstallUrl(baseUrl, token),
-        localName: process.env.LIFEOS_DEVICE_NAME || "LifeOS Local Core",
+        localName: process.env.LIFEOS_DEVICE_NAME || "OwnOrbit Local Core",
         icloudRefresh,
       });
     } catch (error: any) {
       console.error("Failed to create binding session:", error?.message || error);
       return res.status(500).json({
         code: "binding_session_create_failed",
-        error: "Failed to generate the mobile pairing QR code. Restart LifeOS AI to finish the local data upgrade, then try again.",
+        error: "Failed to generate the mobile pairing QR code. Restart OwnOrbit AI to finish the local data upgrade, then try again.",
       });
     }
   });

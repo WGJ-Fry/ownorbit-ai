@@ -93,7 +93,7 @@ function taskBody(input: CalendarSyncExecuteInput, title: string, completed?: bo
   const dueText = compact(input.dueAt || input.startsAt || "");
   const body: GoogleTask = {
     title,
-    notes: compact(input.notes, "Created by LifeOS AI after explicit admin confirmation."),
+    notes: compact(input.notes, "Created by OwnOrbit AI after explicit admin confirmation."),
   };
   if (dueText) {
     const due = new Date(dueText);
@@ -163,7 +163,7 @@ export async function executeGoogleTaskOperation(
       previousState: ["update", "complete", "delete"].includes(normalized.action) ? {
         title: input.title ? `Previous ${input.title}` : "Previous Google task",
         scheduledAt: input.dueAt || input.startsAt,
-        notes: "Mock previous state captured before LifeOS wrote to Google Tasks.",
+        notes: "Mock previous state captured before OwnOrbit wrote to Google Tasks.",
         completed: normalized.action === "complete" ? false : undefined,
       } : undefined,
     };

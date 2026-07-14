@@ -1002,7 +1002,7 @@ export function createCustomApp(input: Record<string, unknown>, actor?: { type: 
   const now = Date.now();
   const id = normalizeId(input.id);
   const name = sanitizeText(input.name, "name", MAX_APP_NAME_LENGTH, "Untitled Tool");
-  const description = sanitizeText(input.description, "description", MAX_APP_DESCRIPTION_LENGTH, "Generated LifeOS tool");
+  const description = sanitizeText(input.description, "description", MAX_APP_DESCRIPTION_LENGTH, "Generated OwnOrbit tool");
   const visibility = normalizeVisibility(input.visibility);
   const status = normalizeStatus(input.status);
   const source = normalizeSource(input.source);
@@ -1466,7 +1466,7 @@ function buildDebugInstruction(app: StoredCustomApp, issue: string, recentEvents
     .join("；");
   const context = recentErrors ? `最近运行错误：${recentErrors}。` : "最近没有捕获到明确错误，请检查交互、状态保存和边界输入。";
   return sanitizeActionText(
-    `请修复这个 LifeOS 生成程序“${app.name}”的问题：${issue}。${context} 保留现有核心功能和本地状态；如果需要新能力，请通过 lifeosApp.requestCapability 申请，不要绕过权限；输出完整可运行 HTML/CSS/JS。`,
+    `请修复这个 OwnOrbit 生成程序“${app.name}”的问题：${issue}。${context} 保留现有核心功能和本地状态；如果需要新能力，请通过 lifeosApp.requestCapability 申请，不要绕过权限；输出完整可运行 HTML/CSS/JS。`,
     1200,
   );
 }
@@ -1509,7 +1509,7 @@ function buildRepairProposal(
     "Run the main user flow once, then save as a new version instead of overwriting history.",
   ];
   const permissionReview = [
-    "Do not bypass the LifeOS capability manifest, action policy, URL Scheme whitelist, or confirmation dialogs.",
+    "Do not bypass the OwnOrbit capability manifest, action policy, URL Scheme whitelist, or confirmation dialogs.",
     "Keep phone, SMS, Shortcuts, file import, clipboard, and external network actions behind explicit user confirmation.",
     risk === "high" ? "Review the mobile action permission center before applying this repair." : "Confirm no new high-risk action surface was introduced.",
   ];
@@ -1857,7 +1857,7 @@ function maybeAutoRollbackFailedStaticSmoke(
     return {
       attempted: true,
       status: "rolled-back",
-      reason: "Static smoke failed, so LifeOS automatically restored the recorded rollback version.",
+      reason: "Static smoke failed, so OwnOrbit automatically restored the recorded rollback version.",
       fromVersion: result.toVersion,
       rollbackVersion: result.rollbackVersion,
       toVersion: rollback?.version.version ?? null,

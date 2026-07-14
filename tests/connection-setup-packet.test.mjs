@@ -19,7 +19,7 @@ test("connection setup packet includes remote entry, env, restart, and next step
     notes: ["Use this after Tailscale HTTPS Serve is running."],
   }, Date.UTC(2026, 5, 23, 0, 0, 0));
 
-  assert.match(packet, /LifeOS AI remote connection setup/);
+  assert.match(packet, /OwnOrbit AI remote connection setup/);
   assert.match(packet, /Generated: 2026-06-23T00:00:00\.000Z/);
   assert.match(packet, /Mode: tailscale/);
   assert.match(packet, /Base URL: https:\/\/lifeos\.tailnet\.example\.ts\.net/);

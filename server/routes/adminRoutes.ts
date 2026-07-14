@@ -524,7 +524,7 @@ function buildDesktopInternalNetworkSummary(reason = "desktop-summary") {
       id: "icloud-entry-repair",
       severity: latestRepair.severity === "danger" ? "danger" : "warning",
       action: latestRepair.action,
-      title: latestRepair.needsQr ? "Phone opened an old LifeOS entry" : "Refresh the iCloud phone entry",
+      title: latestRepair.needsQr ? "Phone opened an old OwnOrbit entry" : "Refresh the iCloud phone entry",
       body: latestRepair.needsQr
         ? "Refresh the iCloud entry and generate a new QR code before pairing again."
         : "Refresh the iCloud entry so the phone opens the current desktop address.",
@@ -540,7 +540,7 @@ function buildDesktopInternalNetworkSummary(reason = "desktop-summary") {
       severity: icloud.pairingSession.severity === "danger" ? "danger" : "warning",
       action: icloud.pairingSession.action,
       title: icloud.pairingSession.action === "regenerate-qr" ? "Phone QR needs to be regenerated" : "Phone QR is not ready yet",
-      body: "Open the LifeOS first launch guide and generate a fresh phone binding QR code.",
+      body: "Open the OwnOrbit first launch guide and generate a fresh phone binding QR code.",
       actionLabel: "Open Phone Pairing",
       path: "/admin/devices/pair",
       updatedAt: Number(icloud.pairingSession.expiresAt || icloud.pairingSession.createdAt || now),
@@ -568,7 +568,7 @@ function buildDesktopInternalNetworkSummary(reason = "desktop-summary") {
       severity: "danger",
       action: "configure-cloudkit",
       title: "Finish iCloud data sync setup",
-      body: "Open the Apple connection guide and complete the one missing setup step before LifeOS syncs personal data.",
+      body: "Open the Apple connection guide and complete the one missing setup step before OwnOrbit syncs personal data.",
       actionLabel: "Open iCloud Data Setup",
       path: "/admin/onboarding",
       updatedAt: now,
@@ -587,8 +587,8 @@ function buildDesktopInternalNetworkSummary(reason = "desktop-summary") {
       action: cloudKitAutoSync.lastResult.nextAction,
       title: reviewRequired ? "Review iCloud data changes" : "Retry iCloud data sync",
       body: reviewRequired
-        ? "LifeOS stopped before overwriting local data. Review the pending changes on this Mac."
-        : "LifeOS could not finish the latest data sync. Open the guide for the next safe step.",
+        ? "OwnOrbit stopped before overwriting local data. Review the pending changes on this Mac."
+        : "OwnOrbit could not finish the latest data sync. Open the guide for the next safe step.",
       actionLabel: reviewRequired ? "Review iCloud Changes" : "Open iCloud Data Sync",
       path: "/admin/onboarding",
       updatedAt: cloudKitAutoSync.lastResult.finishedAt || now,
@@ -740,12 +740,12 @@ export function registerAdminRoutes(app: express.Express) {
         recommendations: aiStatus.configured
           ? [
             aiStatus.source === "environment"
-              ? "AI service is configured by environment variables. Restart LifeOS AI after changing them."
+              ? "AI service is configured by environment variables. Restart OwnOrbit AI after changing them."
               : `AI Key has been saved to ${aiStatus.secureStorage.label}.`,
           ]
           : [
             aiStatus.secureStorage.systemAvailable ? "The desktop app will prefer system secure storage for AI Keys." : "This environment will store AI Keys with local AES-GCM encryption.",
-            "You can also set GEMINI_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, or LOCAL_MODEL_BASE_URL in .env.local and restart LifeOS AI.",
+            "You can also set GEMINI_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, or LOCAL_MODEL_BASE_URL in .env.local and restart OwnOrbit AI.",
           ],
       },
       network: {
@@ -1738,7 +1738,7 @@ export function registerAdminRoutes(app: express.Express) {
       res.json({
         handoff,
         diagnostics: getAdminNetworkDiagnostics(),
-        message: "LifeOS mobile entry was exported to iCloud Drive.",
+        message: "OwnOrbit mobile entry was exported to iCloud Drive.",
       });
     } catch (error: any) {
       const code = error instanceof IcloudHandoffExportError ? error.code : "icloud_handoff_export_failed";
@@ -2222,7 +2222,7 @@ export function registerAdminRoutes(app: express.Express) {
         icloudRefresh,
         diagnostics: getAdminNetworkDiagnostics(),
         restartRequired: true,
-        message: "Desktop connection configuration saved. Quit and reopen LifeOS AI for it to take effect.",
+        message: "Desktop connection configuration saved. Quit and reopen OwnOrbit AI for it to take effect.",
       });
     } catch (error: any) {
       res.status(400).json({ error: error.message || "Desktop connection configuration is invalid" });

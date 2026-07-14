@@ -1,6 +1,6 @@
 # Desktop Release Plan / 桌面发布说明
 
-LifeOS AI desktop uses Electron to start the local core and open the admin console.
+OwnOrbit AI desktop uses Electron to start the local core and open the admin console.
 
 ## Current Scripts
 
@@ -41,10 +41,10 @@ Current verified path:
 - `electron-builder` is upgraded to `26.15.2`.
 - `npm audit` reports `0 vulnerabilities`.
 - `npm run electron:install` verifies or installs `node_modules/electron/dist`.
-- when signing variables are configured, `desktop:dist:mac` can produce `release/LifeOS AI-0.1.5-alpha.0-arm64.dmg`.
+- when signing variables are configured, `desktop:dist:mac` can produce `release/OwnOrbit AI-0.1.5-alpha.0-arm64.dmg`.
 - the signed macOS target is intended to be Developer ID signed, Apple notarized, and stapled; unsigned local builds still need the Gatekeeper fallback path.
-- Windows x64 NSIS succeeds and creates `release/LifeOS AI Setup 0.1.5-alpha.0.exe`.
-- Linux x64 AppImage succeeds and creates `release/LifeOS AI-0.1.5-alpha.0.AppImage`.
+- Windows x64 NSIS succeeds and creates `release/OwnOrbit AI Setup 0.1.5-alpha.0.exe`.
+- Linux x64 AppImage succeeds and creates `release/OwnOrbit AI-0.1.5-alpha.0.AppImage`.
 - `package.json` sets `build.electronDist=node_modules/electron/dist` for macOS local builds. Windows/Linux scripts override it with `-c.electronDist=` so electron-builder downloads the correct target runtime.
 - `npm run release:check` provides an automated pre-release gate. Use `LIFEOS_RELEASE_STRICT=1 npm run release:check` when warnings should fail CI.
 - `npm run desktop:release:smoke` provides a current-platform packaging smoke. The GitHub Actions workflow `.github/workflows/desktop-release-smoke.yml` runs it on macOS, Windows, and Linux with `LIFEOS_RELEASE_SMOKE_FAST=1`. The release check verifies that this workflow and script still cover macOS zip, Windows NSIS, Linux AppImage, and update-feed regeneration.
@@ -82,7 +82,7 @@ npm run desktop:zip:unsigned
 npm run release:check:unsigned
 ```
 
-Upload the generated zip. Users can unzip it, move `LifeOS AI.app` to Applications, and open it manually. macOS may show a Gatekeeper warning because the app is unsigned.
+Upload the generated zip. Users can unzip it, move `OwnOrbit AI.app` to Applications, and open it manually. macOS may show a Gatekeeper warning because the app is unsigned.
 
 For signed distribution:
 
@@ -189,7 +189,7 @@ Unsigned packages intentionally ship no native helper. They contain an `included
 
 ## Startup Failure Experience
 
-If the desktop shell starts but the local core cannot become healthy, LifeOS AI opens a startup failure window instead of quitting silently. The window shows the log directory and the startup error. The app menu remains available with "打开日志目录" and "退出 LifeOS AI".
+If the desktop shell starts but the local core cannot become healthy, OwnOrbit AI opens a startup failure window instead of quitting silently. The window shows the log directory and the startup error. The app menu remains available with "打开日志目录" and "退出 OwnOrbit AI".
 
 The smoke test forces this path with:
 
@@ -207,7 +207,7 @@ Before handing a macOS zip to a user, run the launch smoke once on a real macOS 
 npm run desktop:artifact:smoke:launch
 ```
 
-This mounts the signed DMG, installs `LifeOS AI.app` with `ditto`, removes transient provenance metadata if needed, opens the installed app through LaunchServices, waits for the local core health endpoint, and verifies that the mobile install manifest still preserves the pairing token inside the packaged desktop app. The default `npm run desktop:artifact:smoke` keeps launch optional so CI can still run on hosts where GUI app launch is unavailable.
+This mounts the signed DMG, installs `OwnOrbit AI.app` with `ditto`, removes transient provenance metadata if needed, opens the installed app through LaunchServices, waits for the local core health endpoint, and verifies that the mobile install manifest still preserves the pairing token inside the packaged desktop app. The default `npm run desktop:artifact:smoke` keeps launch optional so CI can still run on hosts where GUI app launch is unavailable.
 
 ## Desktop Diagnostics
 
@@ -238,7 +238,7 @@ The user sets the admin password, then binds the mobile PWA from:
 SQLite data is stored in Electron `userData`:
 
 ```text
-<system app data>/LifeOS AI/data/lifeos.db
+<system app data>/OwnOrbit AI/data/lifeos.db
 ```
 
 Backups can be created through the admin API:

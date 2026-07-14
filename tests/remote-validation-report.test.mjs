@@ -74,7 +74,7 @@ test("remote health monitor persists the saved stable remote entry report", asyn
       }
       if (req.url === "/lifeos/mobile/chat") {
         res.writeHead(200, { "content-type": "text/html" });
-        res.end("<!doctype html><title>LifeOS AI</title><div id=\\\"root\\\"></div>");
+        res.end("<!doctype html><title>OwnOrbit AI</title><div id=\\\"root\\\"></div>");
         return;
       }
       res.writeHead(404);
@@ -133,7 +133,7 @@ test("remote health monitor checks configured PUBLIC_BASE_URL without a saved ru
       }
       if (req.url === "/lifeos/mobile/chat") {
         res.writeHead(200, { "content-type": "text/html" });
-        res.end("<!doctype html><title>LifeOS AI</title><div id=\\\"root\\\"></div>");
+        res.end("<!doctype html><title>OwnOrbit AI</title><div id=\\\"root\\\"></div>");
         return;
       }
       res.writeHead(404);
@@ -184,7 +184,7 @@ test("remote health monitor exposes scheduler status", async (t) => {
       }
       if (req.url === "/lifeos/mobile/chat") {
         res.writeHead(200, { "content-type": "text/html" });
-        res.end("<!doctype html><title>LifeOS AI</title><div id=\\\"root\\\"></div>");
+        res.end("<!doctype html><title>OwnOrbit AI</title><div id=\\\"root\\\"></div>");
         return;
       }
       res.writeHead(404);
@@ -290,7 +290,7 @@ while true; do sleep 1; done
       }
       if (req.url === "/mobile/chat") {
         res.writeHead(200, { "content-type": "text/html" });
-        res.end("<!doctype html><title>LifeOS AI</title><div id=\\\"root\\\"></div>");
+        res.end("<!doctype html><title>OwnOrbit AI</title><div id=\\\"root\\\"></div>");
         return;
       }
       res.writeHead(404);

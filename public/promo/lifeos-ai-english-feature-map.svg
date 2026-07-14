@@ -3,7 +3,7 @@
   <rect x="28" y="28" width="1544" height="1144" rx="30" fill="white" stroke="#E5E7EB" stroke-width="2"/>
 
   <rect x="56" y="56" width="154" height="44" rx="20" fill="#DBEAFE"/>
-  <text x="78" y="84" fill="#2563EB" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700">LifeOS AI</text>
+  <text x="78" y="84" fill="#2563EB" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700">OwnOrbit AI</text>
   <text x="56" y="160" fill="#101828" font-family="Arial, Helvetica, sans-serif" font-size="52" font-weight="700">Feature Map</text>
   <text x="56" y="212" fill="#475467" font-family="Arial, Helvetica, sans-serif" font-size="24">A local-first personal AI assistant with a desktop private core,</text>
   <text x="56" y="246" fill="#475467" font-family="Arial, Helvetica, sans-serif" font-size="24">mobile PWA companion, generated solution apps, and remote access.</text>

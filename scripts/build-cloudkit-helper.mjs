@@ -181,7 +181,7 @@ if (!build.ok) {
 
 const signature = signCloudKitHelper();
 
-console.log(`Built LifeOS CloudKit helper: ${output}`);
+console.log(`Built OwnOrbit CloudKit helper: ${output}`);
 if (signature) {
   console.log(`Signed CloudKit helper for ${signature.environment} with container ${signature.containerId}.`);
   console.log(`Use entitlements: LIFEOS_CLOUDKIT_ENTITLEMENTS_PATH="${signature.entitlementsPath}"`);

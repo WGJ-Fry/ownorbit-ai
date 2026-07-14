@@ -427,12 +427,14 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.equal(result.ok, true);
   assert.equal(result.available, true);
   assert.equal(result.canExport, true);
+  assert.equal(result.appFolderPath, appDir);
+  assert.match(result.openInstruction, /iCloud Drive > LifeOS AI/);
   assert.equal(result.realtimeTransport, false);
   assert.equal(result.recommendedBaseUrl, "https://lifeos.example.com");
 
   const html = await readFile(result.handoffFilePath, "utf8");
   const packet = JSON.parse(await readFile(result.packetFilePath, "utf8"));
-  assert.match(html, /LifeOS AI Mobile Entry/);
+  assert.match(html, /OwnOrbit AI Mobile Entry/);
   assert.match(html, /name="lifeos-entry-generated-at"/);
   assert.match(html, /name="lifeos-entry-checksum"/);
   assert.match(html, /绑定这台设备/);
@@ -465,7 +467,7 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
   assert.match(html, /高级排障/);
   assert.match(html, /Advanced recovery/);
   assert.match(html, /Copy Recovery Info/);
-  assert.match(html, /LifeOS iCloud Mobile Entry Recovery/);
+  assert.match(html, /OwnOrbit iCloud Mobile Entry Recovery/);
   assert.match(html, /entryBaseUrl=https:\/\/lifeos\.example\.com/);
   assert.match(html, /desktopName=/);
   assert.match(html, /entryChecksumSha256=[a-f0-9]{64}/);
@@ -561,7 +563,7 @@ test("iCloud handoff export writes mobile entry files without requiring Tailscal
 
 test("iCloud desktop chooser prefers off-LAN entries over same-Wi-Fi current entries", async (t) => {
   const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-remote-entry-preferred-"));
-  const appDir = path.join(icloudDir, "LifeOS AI");
+  const appDir = path.join(icloudDir, "OwnOrbit AI");
   fs.mkdirSync(appDir, { recursive: true });
   const oldPort = process.env.LIFEOS_PORT;
   const oldPublicBaseUrl = process.env.PUBLIC_BASE_URL;
@@ -640,8 +642,8 @@ test("iCloud desktop chooser prefers off-LAN entries over same-Wi-Fi current ent
   assert.match(indexHtml, /name="lifeos-entry-index-recommended-html-file" content="lifeos-mobile-entry-remote-mac\.html"/);
   assert.match(indexHtml, /class="entry primary" href="lifeos-mobile-entry-remote-mac\.html"/);
   assert.match(indexHtml, /异地可用入口 \/ Off-LAN entry/);
-  assert.match(indexHtml, /LifeOS 优先推荐了可异地访问的 HTTPS\/VPN 入口/);
-  assert.match(indexHtml, /LifeOS picked an off-LAN HTTPS\/VPN entry/);
+  assert.match(indexHtml, /OwnOrbit 优先推荐了可异地访问的 HTTPS\/VPN 入口/);
+  assert.match(indexHtml, /OwnOrbit picked an off-LAN HTTPS\/VPN entry/);
   assert.match(indexHtml, /高级：其他电脑或旧入口 \/ Advanced: other or older entries \(1\)/);
   assert.match(indexHtml, /data-lifeos-entry-same-wifi-only="1"/);
   assert.match(indexHtml, /data-lifeos-entry-status="usable"/);
@@ -711,7 +713,7 @@ test("iCloud handoff entry page warns when the exported address only works on th
 
 test("iCloud handoff export prunes expired entries from other desktops", async (t) => {
   const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-cleanup-"));
-  const appDir = path.join(icloudDir, "LifeOS AI");
+  const appDir = path.join(icloudDir, "OwnOrbit AI");
   fs.mkdirSync(appDir, { recursive: true });
   const oldPort = process.env.LIFEOS_PORT;
   const oldPublicBaseUrl = process.env.PUBLIC_BASE_URL;
@@ -1624,7 +1626,7 @@ test("iCloud repair packet analysis compares phone entry with current desktop en
 
   const { analyzeIcloudHandoffRepairPacket } = await import(`../server/networkDiagnostics.ts?icloud-repair-analysis=${Date.now()}`);
   const analysis = analyzeIcloudHandoffRepairPacket([
-    "LifeOS iCloud Mobile Entry Recovery",
+    "OwnOrbit iCloud Mobile Entry Recovery",
     "status=stale",
     "action=mobileDevice.icloudHandoffActionRefresh",
     "oneNextAction=refresh-icloud-entry",
@@ -1651,7 +1653,7 @@ test("iCloud repair packet analysis compares phone entry with current desktop en
   assert.equal(JSON.stringify(analysis).includes("should-not-survive"), false);
 
   const cleanupAnalysis = analyzeIcloudHandoffRepairPacket([
-    "LifeOS iCloud Mobile Entry Recovery",
+    "OwnOrbit iCloud Mobile Entry Recovery",
     "status=fresh",
     "action=mobileDevice.icloudHandoffActionReady",
     "oneNextAction=cleanup-old-entry",
@@ -1666,7 +1668,7 @@ test("iCloud repair packet analysis compares phone entry with current desktop en
 
 test("iCloud availability detects placeholder files that are still syncing", async (t) => {
   const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-placeholder-"));
-  const appFolder = path.join(icloudDir, "LifeOS AI");
+  const appFolder = path.join(icloudDir, "OwnOrbit AI");
   fs.mkdirSync(appFolder, { recursive: true });
   await writeFile(path.join(appFolder, ".lifeos-mobile-entry-placeholder.html.icloud"), "placeholder");
   const oldPort = process.env.LIFEOS_PORT;
@@ -1912,7 +1914,7 @@ test("iCloud availability blocks export when Apple ID or iCloud Drive is disable
 
 test("iCloud availability flags entry files that appear stuck syncing", async (t) => {
   const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-stuck-"));
-  const appFolder = path.join(icloudDir, "LifeOS AI");
+  const appFolder = path.join(icloudDir, "OwnOrbit AI");
   fs.mkdirSync(appFolder, { recursive: true });
   const placeholderPath = path.join(appFolder, ".lifeos-mobile-entry-stuck.html.icloud");
   await writeFile(placeholderPath, "placeholder");
@@ -1983,7 +1985,7 @@ test("iCloud availability flags entry files that appear stuck syncing", async (t
 
 test("iCloud handoff diagnostics mark modified entry invalid when checksum mismatches", async (t) => {
   const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-invalid-"));
-  const appDir = path.join(icloudDir, "LifeOS AI");
+  const appDir = path.join(icloudDir, "OwnOrbit AI");
   fs.mkdirSync(appDir, { recursive: true });
   const generatedAt = Date.now() - 60_000;
   await writeFile(path.join(appDir, "lifeos-mobile-entry.json"), JSON.stringify({
@@ -2052,7 +2054,7 @@ test("iCloud handoff diagnostics mark modified entry invalid when checksum misma
 
 test("iCloud handoff diagnostics request refresh for legacy entries without checksum", async (t) => {
   const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-legacy-"));
-  const appDir = path.join(icloudDir, "LifeOS AI");
+  const appDir = path.join(icloudDir, "OwnOrbit AI");
   fs.mkdirSync(appDir, { recursive: true });
   const generatedAt = Date.now() - 60_000;
   await writeFile(path.join(appDir, "lifeos-mobile-entry.json"), JSON.stringify({
@@ -2105,12 +2107,12 @@ test("iCloud handoff diagnostics request refresh for legacy entries without chec
   assert.equal(diagnostics.icloud.handoffHealth.checksumOk, null);
   assert.equal(diagnostics.icloud.handoffHealth.entryChecksumSha256, "");
   assert.match(diagnostics.icloud.handoffHealth.expectedChecksumSha256, /^[a-f0-9]{64}$/);
-  assert.match(diagnostics.icloud.handoffHealth.reason, /older LifeOS version/);
+  assert.match(diagnostics.icloud.handoffHealth.reason, /older OwnOrbit version/);
 });
 
 test("iCloud handoff diagnostics mark exported entry stale when the recommended address changes", async (t) => {
   const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-stale-"));
-  const appDir = path.join(icloudDir, "LifeOS AI");
+  const appDir = path.join(icloudDir, "OwnOrbit AI");
   fs.mkdirSync(appDir, { recursive: true });
   await writeFile(path.join(appDir, "lifeos-mobile-entry.json"), JSON.stringify({
     kind: "lifeos-mobile-entry",
@@ -2399,7 +2401,7 @@ test("connection URL tests strip credentials, query secrets, and fragments from 
       status: 200,
       text: async () => urlString.endsWith("/api/v1/health")
         ? JSON.stringify({ service: "lifeos-local-core", publicAccessWarning: true })
-        : "<!doctype html><title>LifeOS AI</title>",
+        : "<!doctype html><title>OwnOrbit AI</title>",
     };
   };
   t.after(() => {
@@ -2432,7 +2434,7 @@ test("connection URL tests health, mobile shell, and websocket under a remote ba
     }
     if (req.url === "/lifeos/mobile/chat") {
       res.writeHead(200, { "content-type": "text/html" });
-      res.end("<!doctype html><html><title>LifeOS AI</title></html>");
+      res.end("<!doctype html><html><title>OwnOrbit AI</title></html>");
       return;
     }
     res.writeHead(404);
@@ -2475,7 +2477,7 @@ test("connection URL returns structured repair hints for blocked websocket and u
     }
     if (req.url === "/lifeos/mobile/chat") {
       res.writeHead(200, { "content-type": "text/html" });
-      res.end("<!doctype html><html><title>LifeOS AI</title></html>");
+      res.end("<!doctype html><html><title>OwnOrbit AI</title></html>");
       return;
     }
     res.writeHead(404);

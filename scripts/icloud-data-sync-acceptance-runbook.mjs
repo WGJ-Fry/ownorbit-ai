@@ -176,7 +176,7 @@ function manualAcceptanceSteps() {
   return [
     {
       id: "mac-a-cloudkit-upload",
-      title: "Mac A uploads selected LifeOS data through CloudKit",
+      title: "Mac A uploads selected OwnOrbit data through CloudKit",
       instruction: "On the primary Mac, create a small chat, memory, task, generated app state, and device-trust seed; create a SQLite backup; run the guarded CloudKit upload/sync cycle; export diagnostic evidence without raw payloads.",
       required: true,
     },
@@ -189,7 +189,7 @@ function manualAcceptanceSteps() {
     {
       id: "iphone-cellular-entry-boundary",
       title: "iPhone cellular entry and remote-transport boundary",
-      instruction: "Turn off iPhone Wi-Fi, open the iCloud entry from Files, and confirm LifeOS explains whether the saved URL is LAN-only or a trusted HTTPS/Tailscale/Cloudflare entry. iCloud entry sync alone must not be counted as remote connectivity.",
+      instruction: "Turn off iPhone Wi-Fi, open the iCloud entry from Files, and confirm OwnOrbit explains whether the saved URL is LAN-only or a trusted HTTPS/Tailscale/Cloudflare entry. iCloud entry sync alone must not be counted as remote connectivity.",
       required: true,
     },
     {
@@ -201,7 +201,7 @@ function manualAcceptanceSteps() {
     {
       id: "mac-restart-recovery",
       title: "Mac restart restores iCloud entry and CloudKit readiness",
-      instruction: "Restart the Mac, reopen LifeOS, confirm the iCloud mobile entry is refreshed automatically, run helper probe/subscription checks again, and verify stale QR codes are invalidated.",
+      instruction: "Restart the Mac, reopen OwnOrbit, confirm the iCloud mobile entry is refreshed automatically, run helper probe/subscription checks again, and verify stale QR codes are invalidated.",
       required: true,
     },
     {
@@ -225,13 +225,13 @@ function manualAcceptanceSteps() {
     {
       id: "cloudkit-background-push",
       title: "Native Apple background push and wakeup evidence",
-      instruction: "Run the signed persistent Mac listener, change a selected record on another Apple device, and confirm LifeOS records a matched CloudKit notification plus an immediate safe sync cycle. A saved subscription alone does not pass this step.",
+      instruction: "Run the signed persistent Mac listener, change a selected record on another Apple device, and confirm OwnOrbit records a matched CloudKit notification plus an immediate safe sync cycle. A saved subscription alone does not pass this step.",
       required: true,
     },
     {
       id: "offline-conflict-review",
       title: "Offline conflict review protects user data",
-      instruction: "Edit the same memory/task/generated app state on two Apple devices while offline, reconnect, and confirm LifeOS routes conflicts to review instead of overwriting newer local state.",
+      instruction: "Edit the same memory/task/generated app state on two Apple devices while offline, reconnect, and confirm OwnOrbit routes conflicts to review instead of overwriting newer local state.",
       required: true,
     },
   ];

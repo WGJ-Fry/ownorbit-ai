@@ -485,7 +485,7 @@ function buildCalendarSyncPlan(
       scheduledAt: item.scheduledAt,
       externalId: item.externalId,
       externalSource: item.source,
-      reason: "External item is available as read-only LifeOS memory and can be reviewed before any write-back.",
+      reason: "External item is available as read-only OwnOrbit memory and can be reviewed before any write-back.",
       risk: "low",
     });
   }
@@ -571,7 +571,7 @@ function buildRollbackPlan(
     return {
       available: Boolean(execution.externalId),
       requiresManualReview: false,
-      hint: `To roll back this create, delete ${label} item ${execution.externalId} after confirming it is the item LifeOS created.`,
+      hint: `To roll back this create, delete ${label} item ${execution.externalId} after confirming it is the item OwnOrbit created.`,
     };
   }
   if (normalized.action === "update") {
@@ -580,7 +580,7 @@ function buildRollbackPlan(
       requiresManualReview: true,
       hint: execution.previousState
         ? "To roll back this update, review the captured previous state and restore the old title, time, and notes manually or through a future rollback action."
-        : "To roll back this update, use the external app history or a calendar/reminders backup; LifeOS could not capture the previous state.",
+        : "To roll back this update, use the external app history or a calendar/reminders backup; OwnOrbit could not capture the previous state.",
       previousState: execution.previousState,
     };
   }
@@ -713,12 +713,12 @@ function executeMacosOperation(input: CalendarSyncExecuteInput, normalized: Retu
       previousState: ["update", "complete", "delete"].includes(normalized.action) ? {
         title: input.title ? `Previous ${input.title}` : "Previous external item",
         scheduledAt: input.startsAt || input.dueAt,
-        notes: "Mock previous state captured before LifeOS wrote to the external system.",
+        notes: "Mock previous state captured before OwnOrbit wrote to the external system.",
         completed: normalized.action === "complete" ? false : undefined,
       } : undefined,
     };
   }
-  const notes = compact(input.notes, "Created by LifeOS AI after explicit admin confirmation.");
+  const notes = compact(input.notes, "Created by OwnOrbit AI after explicit admin confirmation.");
   const dateValue = normalized.kind === "task" ? input.dueAt : input.startsAt;
   const listName = compact(input.reminderListName || input.calendarName || "");
   const externalId = compact(input.externalId || "");
@@ -925,7 +925,7 @@ function buildCalendarSyncPreviewWithExternalRead(
       source: `ics:${item.relativePath}`,
       writesExternalSystem: false,
       risk: "low",
-      reason: "Read-only local .ics memory item. LifeOS will not modify this file.",
+      reason: "Read-only local .ics memory item. OwnOrbit will not modify this file.",
     });
   });
 
@@ -943,7 +943,7 @@ function buildCalendarSyncPreviewWithExternalRead(
       source: item.source,
       writesExternalSystem: false,
       risk: "low",
-      reason: "Read-only macOS connector preview. LifeOS will not modify this external item unless a separate write operation is explicitly confirmed and audited.",
+      reason: "Read-only macOS connector preview. OwnOrbit will not modify this external item unless a separate write operation is explicitly confirmed and audited.",
     });
   });
 

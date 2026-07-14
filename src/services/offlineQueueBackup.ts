@@ -15,7 +15,7 @@ function sourceText(item: OfflineQueuedMessage) {
 
 export function buildOfflineQueueBackupText(summary: OfflineMessageQueueSummary, items: OfflineQueuedMessage[], now = Date.now()) {
   const lines = [
-    "LifeOS AI offline queue backup",
+    "OwnOrbit AI offline queue backup",
     `Created at: ${new Date(now).toISOString()}`,
     `Total: ${summary.count}`,
     `Pending: ${summary.pending}`,

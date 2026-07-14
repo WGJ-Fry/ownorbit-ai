@@ -126,7 +126,7 @@ test("Electron desktop starts the local core and exposes admin health", async (t
   assert.equal(status.nextPath, null);
 
   const loginPage = await fetch(`http://127.0.0.1:${actualPort}/admin/login`).then((response) => response.text());
-  assert.match(loginPage, /LifeOS AI/);
+  assert.match(loginPage, /OwnOrbit AI/);
   const mobilePairPageResponse = await fetch(`http://127.0.0.1:${actualPort}/mobile/pair?token=bind_desktop_install_smoke_123`);
   assert.equal(mobilePairPageResponse.status, 200);
   assert.match(mobilePairPageResponse.headers.get("cache-control") || "", /no-store/);
@@ -329,14 +329,14 @@ test("Electron desktop exports a redacted desktop diagnostic bundle", async (t) 
   const releaseDir = path.join(dataDir, "release");
   const artifactSha256 = "a".repeat(64);
   await mkdir(path.join(releaseDir, "update-feed"), { recursive: true });
-  await writeFile(path.join(releaseDir, "SHA256SUMS"), `${artifactSha256}  LifeOS AI-0.1.0-arm64-unsigned.zip\n`);
+  await writeFile(path.join(releaseDir, "SHA256SUMS"), `${artifactSha256}  OwnOrbit AI-0.1.0-arm64-unsigned.zip\n`);
   await writeFile(path.join(releaseDir, "update-feed", "release-manifest.json"), `${JSON.stringify({
     version: "0.1.0",
     generatedAt: new Date(0).toISOString(),
     artifacts: [{
       platform: "mac",
       feedFile: "latest-mac.yml",
-      fileName: "LifeOS AI-0.1.0-arm64-unsigned.zip",
+      fileName: "OwnOrbit AI-0.1.0-arm64-unsigned.zip",
       size: 123456,
       sha512: "fake-sha512",
       sha256: artifactSha256,
@@ -425,7 +425,7 @@ test("Electron desktop exports a redacted desktop diagnostic bundle", async (t) 
   assert.equal(diagnostics.release.artifactCount, 1);
   assert.deepEqual(diagnostics.release.artifacts[0], {
     platform: "mac",
-    fileName: "LifeOS AI-0.1.0-arm64-unsigned.zip",
+    fileName: "OwnOrbit AI-0.1.0-arm64-unsigned.zip",
     feedFile: "latest-mac.yml",
     size: 123456,
     sha512Present: true,
@@ -477,7 +477,7 @@ test("Electron desktop keeps a startup failure window open when local core fails
   const desktopMain = await readFile(path.join(rootDir, "desktop", "main.cjs"), "utf8");
   assert.match(desktopMain, /First Launch Guide/);
   assert.match(desktopMain, /\/admin\/onboarding/);
-  assert.match(desktopMain, /Retry LifeOS AI/);
+  assert.match(desktopMain, /Retry OwnOrbit AI/);
   assert.match(desktopMain, /Open Local Console In Browser/);
   assert.match(desktopMain, /Copy Local Address/);
   assert.match(desktopMain, /Export Desktop Diagnostics/);
@@ -496,6 +496,9 @@ test("Electron desktop keeps a startup failure window open when local core fails
   assert.match(desktopMain, /Remote status unknown/);
   assert.match(desktopMain, /lifeos:open-icloud-folder/);
   assert.match(desktopMain, /openIcloudFolder/);
+  assert.match(desktopMain, /legacyUserDataPath/);
+  assert.match(desktopMain, /getOwnOrbitIcloudFolder/);
+  assert.match(desktopMain, /LifeOS AI/);
   assert.match(desktopMain, /lifeos:open-icloud-settings/);
   assert.match(desktopMain, /openIcloudSettings/);
   const desktopPreload = await readFile(path.join(rootDir, "desktop", "preload.cjs"), "utf8");

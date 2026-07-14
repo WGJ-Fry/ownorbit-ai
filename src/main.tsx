@@ -94,7 +94,7 @@ if ("serviceWorker" in navigator && (import.meta as any).env?.PROD) {
         return registration.update();
       })
       .catch((error) => {
-        console.warn("LifeOS service worker registration failed", error);
+        console.warn("OwnOrbit service worker registration failed", error);
       });
   });
 }

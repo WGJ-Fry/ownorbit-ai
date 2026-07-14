@@ -14,7 +14,7 @@
   <path d="M500 340L522 360L500 380" stroke="#64748B" stroke-width="5" fill="none"/>
   <g transform="translate(544 166)">
     <rect width="384" height="390" rx="30" fill="#0F172A" stroke="#38BDF8" stroke-width="2"/>
-    <text x="32" y="62" fill="#67E8F9" font-family="Inter, Arial, Helvetica, sans-serif" font-size="29" font-weight="900">LifeOS Studio</text>
+    <text x="32" y="62" fill="#67E8F9" font-family="Inter, Arial, Helvetica, sans-serif" font-size="29" font-weight="900">OwnOrbit Studio</text>
     <rect x="32" y="96" width="320" height="68" rx="17" fill="#172554" stroke="#2563EB"/>
     <text x="52" y="136" fill="#DBEAFE" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">描述问题，而不是写需求文档</text>
     <rect x="32" y="190" width="320" height="126" rx="17" fill="#020617" stroke="#334155"/>

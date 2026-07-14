@@ -497,7 +497,7 @@ export function saveCloudKitSyncImportQuarantine(result: CloudKitNativeHelperRes
         markerHash,
         evidenceId,
         now,
-        "CloudKit cursor expired. Review this rebuilt baseline before LifeOS advances the checkpoint.",
+        "CloudKit cursor expired. Review this rebuilt baseline before OwnOrbit advances the checkpoint.",
       );
     }
     const tokenSaved = savePendingTokensFromZones(importResult.zones || [], evidenceId, now);

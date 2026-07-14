@@ -32,9 +32,9 @@ release-manifest.json
 `SHA256SUMS` 或本地 electron-builder 输出可能使用空格文件名。它们对应同一批资产：
 
 ```text
-LifeOS AI-0.1.5-alpha.0-arm64-unsigned.zip
-LifeOS AI Setup 0.1.5-alpha.0.exe
-LifeOS AI-0.1.5-alpha.0.AppImage
+OwnOrbit AI-0.1.5-alpha.0-arm64-unsigned.zip
+OwnOrbit AI Setup 0.1.5-alpha.0.exe
+OwnOrbit AI-0.1.5-alpha.0.AppImage
 ```
 
 ## 仍待正式签名后再上传
@@ -42,7 +42,7 @@ LifeOS AI-0.1.5-alpha.0.AppImage
 下面这些是正式分发目标，不是当前公开 alpha 资产。只有在签名、公证或签名策略确认后再作为正式下载入口：
 
 ```text
-LifeOS AI-0.1.5-alpha.0-arm64.dmg
+OwnOrbit AI-0.1.5-alpha.0-arm64.dmg
 signed LifeOS.AI.Setup.0.1.5-alpha.0.exe
 ```
 
@@ -81,7 +81,7 @@ release/*-unpacked/
 ## 上传后检查
 
 1. GitHub Release 页面能看到 macOS unsigned ZIP、Windows EXE、Linux AppImage、`SHA256SUMS`、安装说明和 `release-manifest.json`。
-2. 下载 macOS ZIP 后可以解压出 `LifeOS AI.app`。
+2. 下载 macOS ZIP 后可以解压出 `OwnOrbit AI.app`。
 3. `SHA256SUMS` 与下载文件校验一致。
 4. `release-manifest.json` 里的文件名、大小和 sha256 与 Release 资产一致。
 5. Windows/Linux 下载说明指向真实存在的 `v0.1.5-alpha` 资产。
@@ -120,9 +120,9 @@ release-manifest.json
 `SHA256SUMS` or local electron-builder output may use filenames with spaces. They refer to the same assets:
 
 ```text
-LifeOS AI-0.1.5-alpha.0-arm64-unsigned.zip
-LifeOS AI Setup 0.1.5-alpha.0.exe
-LifeOS AI-0.1.5-alpha.0.AppImage
+OwnOrbit AI-0.1.5-alpha.0-arm64-unsigned.zip
+OwnOrbit AI Setup 0.1.5-alpha.0.exe
+OwnOrbit AI-0.1.5-alpha.0.AppImage
 ```
 
 ## Upload Later After Formal Signing
@@ -130,7 +130,7 @@ LifeOS AI-0.1.5-alpha.0.AppImage
 These are formal distribution targets, not the current public alpha assets. Upload them only after signing, notarization, or signing-policy review:
 
 ```text
-LifeOS AI-0.1.5-alpha.0-arm64.dmg
+OwnOrbit AI-0.1.5-alpha.0-arm64.dmg
 signed LifeOS.AI.Setup.0.1.5-alpha.0.exe
 ```
 
@@ -169,7 +169,7 @@ release/*-unpacked/
 ## Post-Upload Check
 
 1. The GitHub Release shows the macOS unsigned ZIP, Windows EXE, Linux AppImage, `SHA256SUMS`, install guides, and `release-manifest.json`.
-2. The macOS ZIP downloads and extracts to `LifeOS AI.app`.
+2. The macOS ZIP downloads and extracts to `OwnOrbit AI.app`.
 3. `SHA256SUMS` verifies the downloaded file.
 4. `release-manifest.json` file names, sizes, and sha256 values match the uploaded assets.
 5. Windows/Linux download instructions point to real `v0.1.5-alpha` assets.

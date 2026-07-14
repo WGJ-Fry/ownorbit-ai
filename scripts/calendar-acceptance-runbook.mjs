@@ -250,8 +250,8 @@ async function runGoogleCalendarAcceptance(options = {}) {
         requestPath: `/calendars/${encodeURIComponent(calendarId)}/events`,
         method: "POST",
         body: {
-          summary: `LifeOS acceptance ${stamp}`,
-          description: "Created and removed by LifeOS calendar acceptance runbook after explicit maintainer confirmation.",
+          summary: `OwnOrbit acceptance ${stamp}`,
+          description: "Created and removed by OwnOrbit calendar acceptance runbook after explicit maintainer confirmation.",
           start: { dateTime: stamp },
           end: { dateTime: new Date(Date.now() + 15 * 60 * 1000).toISOString() },
         },
@@ -286,8 +286,8 @@ async function runGoogleCalendarAcceptance(options = {}) {
         requestPath: `/lists/${encodeURIComponent(taskListId)}/tasks`,
         method: "POST",
         body: {
-          title: `LifeOS acceptance ${stamp}`,
-          notes: "Created and removed by LifeOS calendar acceptance runbook after explicit maintainer confirmation.",
+          title: `OwnOrbit acceptance ${stamp}`,
+          notes: "Created and removed by OwnOrbit calendar acceptance runbook after explicit maintainer confirmation.",
         },
         timeoutMs,
       });
@@ -399,9 +399,9 @@ async function runMacosCalendarAcceptance(options = {}) {
         providerId: "apple-calendar",
         kind: "event",
         action: "create",
-        title: `LifeOS acceptance ${stamp}`,
+        title: `OwnOrbit acceptance ${stamp}`,
         startsAt: stamp,
-        notes: "Created and removed by LifeOS calendar acceptance runbook after explicit maintainer confirmation.",
+        notes: "Created and removed by OwnOrbit calendar acceptance runbook after explicit maintainer confirmation.",
         calendarName: env.LIFEOS_MACOS_ACCEPTANCE_CALENDAR_NAME || undefined,
       }));
       createdEventId = result.externalId || "";
@@ -414,7 +414,7 @@ async function runMacosCalendarAcceptance(options = {}) {
           providerId: "apple-calendar",
           kind: "event",
           action: "delete",
-          title: `LifeOS acceptance ${stamp}`,
+          title: `OwnOrbit acceptance ${stamp}`,
           externalId: createdEventId,
         }));
         return { externalId: redactedId(result.externalId), rollbackAvailable: Boolean(result.rollbackPlan?.available) };
@@ -428,9 +428,9 @@ async function runMacosCalendarAcceptance(options = {}) {
         providerId: "system-reminders",
         kind: "task",
         action: "create",
-        title: `LifeOS acceptance ${stamp}`,
+        title: `OwnOrbit acceptance ${stamp}`,
         dueAt: stamp,
-        notes: "Created and removed by LifeOS calendar acceptance runbook after explicit maintainer confirmation.",
+        notes: "Created and removed by OwnOrbit calendar acceptance runbook after explicit maintainer confirmation.",
         reminderListName: env.LIFEOS_MACOS_ACCEPTANCE_REMINDER_LIST_NAME || undefined,
       }));
       createdReminderId = result.externalId || "";
@@ -443,7 +443,7 @@ async function runMacosCalendarAcceptance(options = {}) {
           providerId: "system-reminders",
           kind: "task",
           action: "complete",
-          title: `LifeOS acceptance ${stamp}`,
+          title: `OwnOrbit acceptance ${stamp}`,
           externalId: createdReminderId,
         }));
         return { externalId: redactedId(result.externalId), rollbackAvailable: Boolean(result.rollbackPlan?.available) };
@@ -454,7 +454,7 @@ async function runMacosCalendarAcceptance(options = {}) {
           providerId: "system-reminders",
           kind: "task",
           action: "delete",
-          title: `LifeOS acceptance ${stamp}`,
+          title: `OwnOrbit acceptance ${stamp}`,
           externalId: createdReminderId,
         }));
         return { externalId: redactedId(result.externalId), rollbackAvailable: Boolean(result.rollbackPlan?.available) };

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#060a10" />
-    <title>LifeOS AI Offline</title>
+    <title>OwnOrbit AI Offline</title>
     <style>
       :root {
         color-scheme: dark;
@@ -90,14 +90,14 @@
     <main>
       <div class="icon">AI</div>
       <h1>You are offline</h1>
-      <p>LifeOS mobile has opened the offline shell. Unsynced messages stay in the local queue and will be written back to desktop SQLite after the network returns.</p>
+      <p>OwnOrbit mobile has opened the offline shell. Unsynced messages stay in the local queue and will be written back to desktop SQLite after the network returns.</p>
       <div id="offline-queue-status" class="queue" hidden></div>
       <div class="actions">
         <a class="primary" href="/mobile/chat">Back to Chat</a>
         <a class="secondary" href="/mobile/device">Device & Offline Queue</a>
         <button type="button" onclick="location.reload()">Reconnect</button>
       </div>
-      <div class="hint">If you are using LifeOS remotely, make sure the desktop core is still running and check Cloudflare Tunnel, Tailscale, or same-LAN connectivity.</div>
+      <div class="hint">If you are using OwnOrbit remotely, make sure the desktop core is still running and check Cloudflare Tunnel, Tailscale, or same-LAN connectivity.</div>
     </main>
     <script>
       (function () {

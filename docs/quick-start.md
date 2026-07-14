@@ -1,4 +1,4 @@
-# LifeOS AI Quick Start / 快速开始
+# OwnOrbit AI Quick Start / 快速开始
 
 中文 | [English](#english)
 
@@ -16,7 +16,7 @@ flowchart LR
 
 ## 第 1 步：下载电脑端
 
-打开 [GitHub Releases](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.5-alpha)，按系统下载：
+打开 [GitHub Releases](https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/v0.1.5-alpha)，按系统下载：
 
 | 系统 | 下载 |
 | --- | --- |
@@ -30,14 +30,14 @@ flowchart LR
 
 ## 第 2 步：首次打开
 
-打开 LifeOS AI 后，先完成首次启动：
+打开 OwnOrbit AI 后，先完成首次启动：
 
 1. 设置管理员密码。
 2. 查看安全自检。
 3. 配置 AI Key、创建备份、绑定手机。
 4. 完成向导后直接进入第一次聊天。
 
-如果本地核心启动失败，桌面失败页现在会直接提供 `Retry LifeOS AI`、`Open Local Console In Browser`、`Copy Local Address`、`Open Logs Folder`、`Copy Logs Path`、`Export Desktop Diagnostics`，不用先自己找日志位置；如果只是桌面窗口异常，本地核心仍然可用时，可以先用浏览器继续完成管理员设置和手机绑定。
+如果本地核心启动失败，桌面失败页现在会直接提供 `Retry OwnOrbit AI`、`Open Local Console In Browser`、`Copy Local Address`、`Open Logs Folder`、`Copy Logs Path`、`Export Desktop Diagnostics`，不用先自己找日志位置；如果只是桌面窗口异常，本地核心仍然可用时，可以先用浏览器继续完成管理员设置和手机绑定。
 
 管理员密码只保存在电脑端。异地连接前建议使用较长的短语密码。
 
@@ -130,7 +130,7 @@ flowchart LR
 
 ## Step 1: Download The Desktop App
 
-Open [GitHub Releases](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.5-alpha) and download the file for your system:
+Open [GitHub Releases](https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/v0.1.5-alpha) and download the file for your system:
 
 | System | Download |
 | --- | --- |
@@ -144,14 +144,14 @@ Use the versioned `v0.1.5-alpha` link above; if GitHub's Latest release label sh
 
 ## Step 2: First Launch
 
-After opening LifeOS AI:
+After opening OwnOrbit AI:
 
 1. Set the administrator password.
 2. Review the safety checks.
 3. Configure the AI key, create a backup, and pair the phone.
 4. Finish the guide and go straight into the first chat.
 
-If the local core fails to start, the desktop failure page now gives direct recovery actions: `Retry LifeOS AI`, `Open Local Console In Browser`, `Copy Local Address`, `Open Logs Folder`, `Copy Logs Path`, and `Export Desktop Diagnostics`. If the desktop window is the only thing that failed, you can keep going in the browser and still finish admin setup and phone pairing.
+If the local core fails to start, the desktop failure page now gives direct recovery actions: `Retry OwnOrbit AI`, `Open Local Console In Browser`, `Copy Local Address`, `Open Logs Folder`, `Copy Logs Path`, and `Export Desktop Diagnostics`. If the desktop window is the only thing that failed, you can keep going in the browser and still finish admin setup and phone pairing.
 
 The admin password is stored only on the desktop. Use a longer passphrase before enabling remote access.
 

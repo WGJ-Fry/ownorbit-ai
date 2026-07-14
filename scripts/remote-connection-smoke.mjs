@@ -208,7 +208,7 @@ export async function runRemoteConnectionSmoke(inputUrl, options = {}) {
         const parsed = JSON.parse(text);
         return parsed?.service === "lifeos-local-core"
           ? { ok: true }
-          : { ok: false, error: "Health response is not LifeOS local core." };
+          : { ok: false, error: "Health response is not OwnOrbit local core." };
       } catch {
         return { ok: false, error: "Health response is not JSON." };
       }
@@ -220,8 +220,8 @@ export async function runRemoteConnectionSmoke(inputUrl, options = {}) {
     baseUrl,
     "/mobile/chat",
     (_response, text) => {
-      const looksLikeShell = /<div id=["']root["']/.test(text) || /LifeOS AI/i.test(text);
-      return looksLikeShell ? { ok: true } : { ok: false, error: "Mobile shell did not render LifeOS." };
+      const looksLikeShell = /<div id=["']root["']/.test(text) || /OwnOrbit AI/i.test(text);
+      return looksLikeShell ? { ok: true } : { ok: false, error: "Mobile shell did not render OwnOrbit." };
     },
     timeoutMs,
   ));

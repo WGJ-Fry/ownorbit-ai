@@ -70,10 +70,10 @@ export function mobileManifest(pairingToken = "", basePath = getConfiguredPublic
   const startUrl = pairingToken ? withBasePath(pairingInstallPath(pairingToken), basePath) : withBasePath("/mobile/chat", basePath);
   const icon = (path: string) => withBasePath(path, basePath);
   return {
-    name: "LifeOS AI",
-    short_name: "LifeOS",
+    name: "OwnOrbit AI",
+    short_name: "OwnOrbit",
     id: withBasePath("/mobile/chat", basePath),
-    description: "Personal AI mobile client connected to your LifeOS desktop core.",
+    description: "Personal AI mobile client connected to your OwnOrbit desktop core.",
     start_url: startUrl,
     scope: withBasePath("/", basePath),
     display: "standalone",

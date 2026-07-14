@@ -38,7 +38,7 @@ export function buildOnboardingHandoffSummary(input: OnboardingHandoffSummaryInp
   ].filter(Boolean);
 
   return [
-    "LifeOS AI first-launch handoff",
+    "OwnOrbit AI first-launch handoff",
     `Generated: ${new Date().toISOString()}`,
     "",
     `Onboarding complete: ${yesNo(Boolean(input.onboarding?.completed))}`,

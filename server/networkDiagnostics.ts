@@ -66,6 +66,8 @@ const ICLOUD_HANDOFF_EXPIRES_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
 const ICLOUD_HANDOFF_EXPIRED_CLEANUP_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
 const ICLOUD_HANDOFF_ENTRY_RETENTION_LIMIT = 12;
 const ICLOUD_SYNC_STUCK_AFTER_MS = 10 * 60 * 1000;
+const ICLOUD_APP_FOLDER_NAME = "OwnOrbit AI";
+const LEGACY_ICLOUD_APP_FOLDER_NAME = "LifeOS AI";
 const ICLOUD_MDLS_ATTRIBUTES = [
   "kMDItemUbiquitousItemIsDownloaded",
   "kMDItemUbiquitousItemIsDownloading",
@@ -103,7 +105,7 @@ function icloudHandoffExportError(code: IcloudHandoffExportErrorCode, message: s
 function normalizeIcloudHandoffWriteError(error: any): IcloudHandoffExportError {
   const nodeCode = String(error?.code || "").toUpperCase();
   if (["EACCES", "EPERM"].includes(nodeCode)) {
-    return icloudHandoffExportError("icloud_handoff_write_denied", "LifeOS cannot write to the iCloud Drive folder. Check Files/iCloud permissions, then try again.");
+    return icloudHandoffExportError("icloud_handoff_write_denied", "OwnOrbit cannot write to the iCloud Drive folder. Check Files/iCloud permissions, then try again.");
   }
   if (["ENOSPC", "EDQUOT"].includes(nodeCode)) {
     return icloudHandoffExportError("icloud_handoff_no_space", "iCloud Drive or this Mac does not have enough free space. Free some space, then try again.");
@@ -114,7 +116,7 @@ function normalizeIcloudHandoffWriteError(error: any): IcloudHandoffExportError 
   if (nodeCode === "EROFS") {
     return icloudHandoffExportError("icloud_handoff_read_only", "The iCloud Drive folder is read-only. Check iCloud Drive permissions, then try again.");
   }
-  return icloudHandoffExportError("icloud_handoff_write_failed", error?.message || "LifeOS could not write the iCloud mobile entry. Reopen iCloud Drive, then try again.");
+  return icloudHandoffExportError("icloud_handoff_write_failed", error?.message || "OwnOrbit could not write the iCloud mobile entry. Reopen iCloud Drive, then try again.");
 }
 
 function runCommand(command: string, args: string[] = []): CommandResult {
@@ -343,7 +345,7 @@ function safeIcloudSlug(value: string) {
 }
 
 function getIcloudDesktopIdentity() {
-  const name = String(process.env.LIFEOS_DEVICE_NAME || os.hostname() || "LifeOS Desktop").trim().slice(0, 80) || "LifeOS Desktop";
+  const name = String(process.env.LIFEOS_DEVICE_NAME || os.hostname() || "OwnOrbit Desktop").trim().slice(0, 80) || "OwnOrbit Desktop";
   const rawId = String(process.env.LIFEOS_DESKTOP_ID || "").trim();
   const id = rawId || crypto
     .createHash("sha256")
@@ -402,7 +404,7 @@ function buildIcloudHtmlConsistency(input: {
   const packetGeneratedAt = Number(input.packet?.generatedAt || 0);
   if (!input.packet) return { status: "missing" as const, ok: false, ...html, reason: "No JSON packet is available." };
   if (!html.exists) return { status: "missing" as const, ok: false, ...html, reason: "The iCloud HTML entry file is missing." };
-  if (!html.checksumSha256 || !html.generatedAt) return { status: "legacy" as const, ok: false, ...html, reason: "The iCloud HTML entry was created by an older LifeOS version." };
+  if (!html.checksumSha256 || !html.generatedAt) return { status: "legacy" as const, ok: false, ...html, reason: "The iCloud HTML entry was created by an older OwnOrbit version." };
   if (html.checksumSha256 !== packetChecksum || html.generatedAt !== packetGeneratedAt) {
     return { status: "mismatch" as const, ok: false, ...html, reason: "The iCloud HTML entry does not match the JSON packet." };
   }
@@ -447,7 +449,7 @@ function buildIcloudHandoffHealth(input: {
       reason = "The best phone entry changed after the last iCloud export.";
     } else if (!exportedChecksum) {
       status = "legacy";
-      reason = "The iCloud mobile entry was created by an older LifeOS version and should be refreshed.";
+      reason = "The iCloud mobile entry was created by an older OwnOrbit version and should be refreshed.";
     } else if (fallbackCandidatesChanged) {
       status = "address-changed";
       reason = "The phone fallback entry list changed after the last iCloud export.";
@@ -541,7 +543,7 @@ function summarizeIcloudEntryPacket(packet: Record<string, unknown>, fileName: s
   if (!generatedAt || !baseUrl) return null;
   return {
     desktopId: String(packet.desktopId || "legacy"),
-    desktopName: String(packet.desktopName || packet.label || "LifeOS Desktop").slice(0, 80),
+    desktopName: String(packet.desktopName || packet.label || "OwnOrbit Desktop").slice(0, 80),
     desktopSlug: String(packet.desktopSlug || "").slice(0, 80),
     fileName,
     htmlFileName: String(packet.htmlFileName || fileName.replace(/\.json$/, ".html")),
@@ -580,7 +582,7 @@ function readIcloudEntrySummaries(appFolderPath: string) {
 }
 
 function icloudDesktopNameKey(value: string) {
-  return String(value || "LifeOS Desktop").trim().toLowerCase() || "lifeos desktop";
+  return String(value || "OwnOrbit Desktop").trim().toLowerCase() || "lifeos desktop";
 }
 
 function getIcloudDesktopShortId(entry: {
@@ -618,7 +620,7 @@ function formatIcloudDesktopDisplayName(
   entry: NonNullable<ReturnType<typeof summarizeIcloudEntryPacket>>,
   duplicateNames: Set<string>,
 ) {
-  const baseName = entry.desktopName || "LifeOS Desktop";
+  const baseName = entry.desktopName || "OwnOrbit Desktop";
   return duplicateNames.has(icloudDesktopNameKey(baseName))
     ? `${baseName} · ${getIcloudDesktopShortId(entry)}`
     : baseName;
@@ -720,7 +722,7 @@ function buildIcloudIndexConsistency(input: {
       expectedChecksumSha256: expectedChecksum,
       expectedEntryCount: input.entries.length,
       expectedLatestEntryGeneratedAt: latestEntryGeneratedAt,
-      reason: "The iCloud desktop chooser was created by an older LifeOS version.",
+      reason: "The iCloud desktop chooser was created by an older OwnOrbit version.",
     };
   }
   if (
@@ -862,7 +864,7 @@ function readIcloudHandoffHistory(historyFilePath: string) {
       .filter((item) => item && typeof item === "object")
       .map((item) => ({
         desktopId: String(item.desktopId || "legacy").slice(0, 80),
-        desktopName: String(item.desktopName || "LifeOS Desktop").slice(0, 80),
+        desktopName: String(item.desktopName || "OwnOrbit Desktop").slice(0, 80),
         reason: String(item.reason || "manual").slice(0, 120),
         changeType: String(item.changeType || "unknown").slice(0, 80),
         previousBaseUrl: String(item.previousBaseUrl || ""),
@@ -895,7 +897,7 @@ function writeIcloudHandoffHistory(historyFilePath: string, record: Record<strin
   const next = [
     {
       desktopId: String(record.desktopId || "legacy"),
-      desktopName: String(record.desktopName || "LifeOS Desktop"),
+      desktopName: String(record.desktopName || "OwnOrbit Desktop"),
       reason: String(record.reason || "manual"),
       changeType: String(record.changeType || "unknown"),
       previousBaseUrl: String(record.previousBaseUrl || ""),
@@ -1029,7 +1031,7 @@ function buildIcloudHandoffIndexHtml(input: {
     <meta name="lifeos-entry-index-writer-desktop-id" content="${htmlEscape(input.currentDesktopId)}" />
     <meta name="lifeos-entry-index-recommended-desktop-id" content="${htmlEscape(recommendedEntry?.desktopId || "")}" />
     <meta name="lifeos-entry-index-recommended-html-file" content="${htmlEscape(recommendedEntry?.htmlFileName || "")}" />
-    <title>LifeOS AI Mobile Entries</title>
+    <title>OwnOrbit AI Mobile Entries</title>
     <style>
       body { margin: 0; min-height: 100vh; background: #060a10; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: grid; place-items: center; padding: 20px; }
       main { width: min(620px, 100%); border: 1px solid rgba(255,255,255,.1); background: #101722; border-radius: 28px; padding: 24px; box-shadow: 0 24px 80px rgba(0,0,0,.35); }
@@ -1058,7 +1060,7 @@ function buildIcloudHandoffIndexHtml(input: {
       <p>通常只点第一个入口即可。其他电脑入口已经放到高级区，避免误连旧电脑。</p>
       <p>Usually open the first entry only. Other desktop entries are tucked into Advanced so stale desktops are harder to pick by mistake.</p>
       ${duplicateDesktopNames.size ? `<div class="hint">如果两台电脑名字一样，请看短 ID 和更新时间。/ If two desktops share a name, use the short ID and update time.</div>` : ""}
-      ${recommendedRemoteFromOtherDesktop ? `<div class="hint">LifeOS 优先推荐了可异地访问的 HTTPS/VPN 入口，而不是当前电脑的同 Wi-Fi 地址。/ LifeOS picked an off-LAN HTTPS/VPN entry instead of this Mac's same-Wi-Fi address.</div>` : ""}
+      ${recommendedRemoteFromOtherDesktop ? `<div class="hint">OwnOrbit 优先推荐了可异地访问的 HTTPS/VPN 入口，而不是当前电脑的同 Wi-Fi 地址。/ OwnOrbit picked an off-LAN HTTPS/VPN entry instead of this Mac's same-Wi-Fi address.</div>` : ""}
       ${recommendedSameWifiOnly ? `<div class="hint warning">这个入口只适合同一 Wi-Fi。离家使用请先在电脑端切换 Tailscale 或 Cloudflare。/ This entry only works on the same Wi-Fi. Away from home, switch to Tailscale or Cloudflare on the desktop first.</div>` : ""}
       ${rows}
       <div class="warn">iCloud 只同步入口文件，不是实时网络隧道；异地实时聊天仍需要 Tailscale、Cloudflare Tunnel 或可信 HTTPS 入口。</div>
@@ -1078,7 +1080,7 @@ function parseIcloudRepairPacket(text: unknown) {
     const value = line.slice(index + 1).trim();
     if (/^[a-zA-Z][a-zA-Z0-9]+$/.test(key)) fields[key] = value.slice(0, 500);
   }
-  const valid = lines[0] === "LifeOS iCloud Mobile Entry Recovery" || Boolean(fields.entryBaseUrl || fields.currentBaseUrl);
+  const valid = lines[0] === "OwnOrbit iCloud Mobile Entry Recovery" || Boolean(fields.entryBaseUrl || fields.currentBaseUrl);
   return { rawLength: raw.length, valid, fields };
 }
 
@@ -1810,7 +1812,7 @@ export function analyzeIcloudHandoffRepairPacket(text: unknown) {
     addRecommendation("refresh-icloud", "warning", "The phone entry is older than the refresh window.");
   } else if (phoneStatus === "legacy") {
     reason = "phone-entry-legacy";
-    addRecommendation("refresh-icloud", "warning", "The phone entry was generated by an older LifeOS version.");
+    addRecommendation("refresh-icloud", "warning", "The phone entry was generated by an older OwnOrbit version.");
   } else if (phoneStatus === "address-mismatch" || phoneAction.includes("Mismatch")) {
     reason = "phone-entry-mismatch";
     addRecommendation("open-latest-entry", "warning", "The phone is not using the same base URL as the iCloud entry.");
@@ -1894,7 +1896,14 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
   const platformSupported = isApplePlatform();
   const drivePath = iCloudDrivePath();
   const available = platformSupported && existsSync(drivePath);
-  const appFolderPath = path.join(drivePath, "LifeOS AI");
+  const currentAppFolderPath = path.join(drivePath, ICLOUD_APP_FOLDER_NAME);
+  const legacyAppFolderPath = path.join(drivePath, LEGACY_ICLOUD_APP_FOLDER_NAME);
+  const appFolderPath = existsSync(currentAppFolderPath)
+    ? currentAppFolderPath
+    : existsSync(legacyAppFolderPath)
+      ? legacyAppFolderPath
+      : currentAppFolderPath;
+  const appFolderName = path.basename(appFolderPath);
   const desktop = getIcloudDesktopIdentity();
   const handoffFilePath = path.join(appFolderPath, desktop.htmlFileName);
   const packetFilePath = path.join(appFolderPath, desktop.packetFileName);
@@ -1960,8 +1969,8 @@ function getIcloudHandoffStatus(candidates: ConnectionCandidate[]) {
     realtimeTransport: false,
     transport: "handoff-only" as const,
     openInstruction: available
-      ? `Open Files on iPhone or iPad, go to iCloud Drive > LifeOS AI, then open lifeos-mobile-entry.html and choose ${desktop.name}.`
-      : "Enable iCloud Drive on this Mac, then retry the LifeOS iCloud handoff export.",
+      ? `Open Files on iPhone or iPad, go to iCloud Drive > ${appFolderName}, then open lifeos-mobile-entry.html and choose ${desktop.name}.`
+      : "Enable iCloud Drive on this Mac, then retry the OwnOrbit iCloud handoff export.",
     notes: [
       "iCloud Handoff syncs the current mobile entry file between Apple devices.",
       `This desktop writes its own entry file: ${desktop.htmlFileName}.`,
@@ -1996,7 +2005,7 @@ function publicIcloudDataSyncReadiness(readiness: ReturnType<typeof getIcloudDat
 }
 
 function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: ConnectionCandidate; packet: Record<string, unknown> }) {
-  const title = "LifeOS AI Mobile Entry";
+  const title = "OwnOrbit AI Mobile Entry";
   const generatedAt = new Date(input.generatedAt).toLocaleString();
   const refreshAfter = typeof input.packet.refreshAfter === "number" ? new Date(input.packet.refreshAfter).toLocaleString() : "-";
   const expiresAt = typeof input.packet.expiresAt === "number" ? new Date(input.packet.expiresAt).toLocaleString() : "-";
@@ -2011,7 +2020,7 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
     ? "只适合同一 Wi-Fi / Same Wi-Fi only"
     : "可先打开，换网后请刷新 / Refresh after network changes";
   const recoverySummary = [
-    "LifeOS iCloud Mobile Entry Recovery",
+    "OwnOrbit iCloud Mobile Entry Recovery",
     `status=${remoteReady ? "ready" : "needs-refresh-after-network-change"}`,
     `entryBaseUrl=${input.candidate.baseUrl}`,
     `mode=${input.candidate.mode}`,
@@ -2070,10 +2079,10 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
   </head>
   <body>
     <main>
-      <h1>LifeOS AI</h1>
-      <div class="pill">${htmlEscape(String(input.packet.desktopName || "LifeOS Desktop"))}</div>
-      <p>这是通过 iCloud Drive 同步到这台 Apple 设备的 LifeOS 手机入口。先点“绑定这台设备”；已经绑定过时，可以直接打开手机聊天。</p>
-      <p class="en">This LifeOS mobile entry was synced through iCloud Drive. Pair this device first, or open mobile chat if it is already paired.</p>
+      <h1>OwnOrbit AI</h1>
+      <div class="pill">${htmlEscape(String(input.packet.desktopName || "OwnOrbit Desktop"))}</div>
+      <p>这是通过 iCloud Drive 同步到这台 Apple 设备的 OwnOrbit 手机入口。先点“绑定这台设备”；已经绑定过时，可以直接打开手机聊天。</p>
+      <p class="en">This OwnOrbit mobile entry was synced through iCloud Drive. Pair this device first, or open mobile chat if it is already paired.</p>
       <div class="pill">${reachabilityLabel}</div>
       <div class="age age-ok" id="entry-age-status">正在确认这个入口是否可用 / Checking whether this entry is usable...</div>
       <div class="next-action" id="lifeos-next-action">
@@ -2101,7 +2110,7 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
         备用入口 / Fallback entries: ${htmlEscape(fallbackCount)}
       </div>
       <ol class="steps">
-        <li>如果绑定失败，回到电脑端 LifeOS，重新导出 iCloud 手机入口。</li>
+        <li>如果绑定失败，回到电脑端 OwnOrbit，重新导出 iCloud 手机入口。</li>
         <li>如果同一 Wi-Fi 能打开、离家后打不开，请在电脑端启用 Tailscale HTTPS Serve 或 Cloudflare Tunnel。</li>
         <li>如果旧二维码过期或打开了错误地址，请从电脑端重新生成二维码。</li>
       </ol>
@@ -2205,7 +2214,7 @@ function connectionCandidate(input: {
     stability: input.stability,
     envTemplate,
     restartInstruction: input.requiresRestart
-      ? "Copy the startup environment, quit LifeOS AI, then restart with it so this address is used for QR codes and mobile entry."
+      ? "Copy the startup environment, quit OwnOrbit AI, then restart with it so this address is used for QR codes and mobile entry."
       : "This address is already active. You can copy the pairing entry or test connectivity.",
     mobilePairUrl: `${normalizedBaseUrl}/mobile/pair`,
     mobileChatUrl: `${normalizedBaseUrl}/mobile/chat`,
@@ -2249,7 +2258,7 @@ function buildConnectionCandidates(input: {
           savedIsTemporaryCloudflare
             ? "Saved temporary Cloudflare Tunnel is currently running and detected. If it stops resolving, restart the Tunnel and generate a fresh entry."
             : input.desktopRuntimeConfig.publicBaseUrl
-            ? "Saved desktop startup config. Quit and reopen LifeOS AI to make this address authoritative for pairing QR codes."
+            ? "Saved desktop startup config. Quit and reopen OwnOrbit AI to make this address authoritative for pairing QR codes."
             : "Saved local/LAN startup config. Use only on the same trusted network.",
         ],
       }));
@@ -2445,7 +2454,7 @@ function getCloudflareTunnelStatus(port: string) {
     notes: installed
       ? [
         running ? "A running cloudflared process was detected." : "cloudflared is installed. Run the command below to create a temporary HTTPS tunnel.",
-        detectedUrls[0] ? `Temporary tunnel detected: ${detectedUrls[0]}` : "The temporary tunnel will output a trycloudflare.com address. Put it into PUBLIC_BASE_URL and restart LifeOS AI.",
+        detectedUrls[0] ? `Temporary tunnel detected: ${detectedUrls[0]}` : "The temporary tunnel will output a trycloudflare.com address. Put it into PUBLIC_BASE_URL and restart OwnOrbit AI.",
       ]
       : [
         "cloudflared CLI was not detected. Install it to create a temporary HTTPS tunnel.",
@@ -2540,7 +2549,7 @@ function getTailscaleStatus(portOverride = String(process.env.LIFEOS_PORT || pro
       ? [
         online ? "Tailscale is signed in and online. Prefer HTTPS Serve for phone PWA/WebCrypto support." : `Tailscale is installed, but no online status was detected. Run: ${loginCommand}`,
         !magicDnsEnabled
-          ? "MagicDNS suffix was not detected. Enable MagicDNS in Tailscale admin so LifeOS can create a stable HTTPS Serve hostname."
+          ? "MagicDNS suffix was not detected. Enable MagicDNS in Tailscale admin so OwnOrbit can create a stable HTTPS Serve hostname."
           : httpsServeUrl
           ? serveRunning
             ? `HTTPS Serve appears active at ${httpsServeUrl}.`
@@ -2583,7 +2592,7 @@ export function installTailscaleClient(confirm: unknown, port = String(process.e
     `${shellQuote(brewBin)} install --cask tailscale-app`,
     "open -a Tailscale",
     "echo ''",
-    "echo 'Tailscale install finished. Return to LifeOS AI and click refresh, then sign in to Tailscale.'",
+    "echo 'Tailscale install finished. Return to OwnOrbit AI and click refresh, then sign in to Tailscale.'",
   ].join(" && ");
   const terminal = openTerminalWithCommand(terminalCommand);
   return {
@@ -2597,7 +2606,7 @@ export function installTailscaleClient(confirm: unknown, port = String(process.e
     output: terminal.output.slice(-4000),
     status: before,
     message: terminal.ok
-      ? "A Terminal window was opened with the Tailscale installer command. Enter your Mac password there, then return to LifeOS AI."
+      ? "A Terminal window was opened with the Tailscale installer command. Enter your Mac password there, then return to OwnOrbit AI."
       : "Tailscale requires a Mac password in Terminal. Copy the command and run it in Terminal.",
   };
 }
@@ -2739,11 +2748,11 @@ export function exportIcloudHandoff(reason = "manual") {
     throw icloudHandoffExportError("icloud_handoff_account_unavailable", "iCloud account or iCloud Drive is not enabled on this Mac. Sign in to Apple ID, enable iCloud Drive, then try again.");
   }
   if (status.availability.status === "read-only") {
-    throw icloudHandoffExportError("icloud_handoff_read_only", "LifeOS cannot write to iCloud Drive. Check iCloud Drive permissions, then try again.");
+    throw icloudHandoffExportError("icloud_handoff_read_only", "OwnOrbit cannot write to iCloud Drive. Check iCloud Drive permissions, then try again.");
   }
   const candidate = preferredHandoffCandidate(diagnostics.connectionCandidates);
   if (!candidate) {
-    throw icloudHandoffExportError("icloud_handoff_no_phone_entry", "No phone-reachable LifeOS entry is available yet. Use same Wi-Fi, Cloudflare, Tailscale, or another trusted HTTPS entry first.");
+    throw icloudHandoffExportError("icloud_handoff_no_phone_entry", "No phone-reachable OwnOrbit entry is available yet. Use same Wi-Fi, Cloudflare, Tailscale, or another trusted HTTPS entry first.");
   }
 
   try {
@@ -3101,7 +3110,7 @@ export async function testConnectionUrl(baseUrl: string, options: { includeWebSo
         return false;
       }
     }, controller.signal);
-    const mobileShell = await probeFetchStep("mobile-shell", mobileShellUrl, (_response, body) => body.includes("LifeOS AI") || body.includes("lifeos"), controller.signal);
+    const mobileShell = await probeFetchStep("mobile-shell", mobileShellUrl, (_response, body) => body.includes("OwnOrbit AI") || body.includes("lifeos"), controller.signal);
     const steps = [health, mobileShell];
     if (options.includeWebSocket !== false) {
       steps.push(await probeWebSocketStep(wsUrl, 3000));

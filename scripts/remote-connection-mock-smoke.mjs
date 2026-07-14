@@ -13,7 +13,7 @@ const server = createServer((req, res) => {
   }
   if (req.url === `${basePath}/mobile/chat`) {
     res.writeHead(200, { "content-type": "text/html" });
-    res.end("<!doctype html><title>LifeOS AI</title><div id=\"root\"></div>");
+    res.end("<!doctype html><title>OwnOrbit AI</title><div id=\"root\"></div>");
     return;
   }
   res.writeHead(404);

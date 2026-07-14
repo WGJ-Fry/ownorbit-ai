@@ -11,13 +11,13 @@ The default iCloud Drive handoff does not sync chat history, memory, tasks, devi
 
 ## Why iCloud Drive Is Not Enough
 
-iCloud Drive is useful for handing a small entry file from Mac to iPhone. It is not a safe database or realtime transport for LifeOS data because:
+iCloud Drive is useful for handing a small entry file from Mac to iPhone. It is not a safe database or realtime transport for OwnOrbit data because:
 
 - sync timing is controlled by the OS and can be delayed;
 - web/PWA code cannot reliably observe CloudKit identity, record zones, conflict state, or background pushes;
 - file-based sync can create partial, stale, duplicated, or placeholder files;
 - device credentials and AI keys must not be copied into casual files;
-- realtime chat still needs LAN, Tailscale, Cloudflare Tunnel, trusted HTTPS, or a future LifeOS Relay.
+- realtime chat still needs LAN, Tailscale, Cloudflare Tunnel, trusted HTTPS, or a future OwnOrbit Relay.
 
 ## Required Native Architecture
 
@@ -49,7 +49,7 @@ Minimum architecture:
 
 ## Device Credential Boundary
 
-CloudKit may mirror `device-trust` metadata so another Apple device can see that a phone or desktop was previously known to LifeOS. That metadata is review-only. It is not a login credential and it must never grant access by itself.
+CloudKit may mirror `device-trust` metadata so another Apple device can see that a phone or desktop was previously known to OwnOrbit. That metadata is review-only. It is not a login credential and it must never grant access by itself.
 
 Safe device-trust fields are limited to hashed or descriptive metadata such as `deviceIdHash`, `displayName`, `deviceType`, `trustState`, `publicKeyFingerprint`, `accessExpiresAt`, `lastSeenAt`, and `revokedAt`.
 
@@ -63,7 +63,7 @@ The following fields are never allowed in iCloud Drive files, CloudKit records, 
 - `privateKey`;
 - `rawPublicKey`.
 
-If a phone loses its local credential, LifeOS must create a new pairing QR and rotate/revoke the old token. It must not restore login material from iCloud.
+If a phone loses its local credential, OwnOrbit must create a new pairing QR and rotate/revoke the old token. It must not restore login material from iCloud.
 
 ## Safety Rules
 
@@ -128,7 +128,7 @@ The native macOS/iOS CloudKit helper is invoked through a fixed JSON-over-stdio 
 - operations: `probe`, `roundtrip`, `subscription-probe`, `sync-export`, `sync-import-preview`, `sync-changes-preview`, and `sync-import-quarantine`;
 - default timeout: 15 seconds.
 
-The first native helper scaffold lives at `native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift`. It links `CloudKit.framework`, reads the LifeOS JSON request from stdin, and writes the JSON response to stdout. Build it on macOS with:
+The first native helper scaffold lives at `native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift`. It links `CloudKit.framework`, reads the OwnOrbit JSON request from stdin, and writes the JSON response to stdout. Build it on macOS with:
 
 ```bash
 npm run icloud:helper:build
@@ -164,9 +164,9 @@ The source-only SwiftUI shell lives at `native/apple/mobile-shell`. It is separa
 - select `lifeos-mobile-entry-*.json` through the iOS Files picker, including iCloud Drive;
 - verify the desktop-compatible SHA-256 packet checksum, packet version, expiry, exact endpoint path/origin, HTTPS/private-LAN policy, and `/api/v1/health` service shape;
 - store only non-secret entry metadata in `UserDefaults`;
-- load `/mobile/chat` in a same-origin restricted `WKWebView`, where the normal LifeOS device binding keeps its credential in web storage;
+- load `/mobile/chat` in a same-origin restricted `WKWebView`, where the normal OwnOrbit device binding keeps its credential in web storage;
 - accept a validated `lifeos://connect?baseUrl=...` deep link for a future Shortcut-assisted setup flow.
-- explicitly opt in to the same private CloudKit container used by the Mac helper, validate approved LifeOS record schema/zone/type/size/SHA-256 before persistence, and keep an incremental offline snapshot under iOS Data Protection;
+- explicitly opt in to the same private CloudKit container used by the Mac helper, validate approved OwnOrbit record schema/zone/type/size/SHA-256 before persistence, and keep an incremental offline snapshot under iOS Data Protection;
 - subscribe to private-database changes, retry on foreground or silent push, and present a bilingual offline view of synced chats, memories, tasks, generated app state, and review-only device metadata;
 - allow two native write mutations after explicit confirmation: `memory-create` creates one new normal memory after client-side secret/path checks and can never overwrite an existing Mac memory; `task-list-item-complete` fetches the current CKRecord, requires an unchanged server change tag, embeds the previous payload hash, and changes exactly one incomplete task to complete. The Mac validates each mutation contract and rejects stale, colliding, or wider mutations into quarantine.
 - scope every protected snapshot to a one-way hash of the CloudKit account and container, clear it on `CKAccountChanged`, rebuild only an affected zone when a server change token expires, and automatically continue bounded pages with retry backoff.
@@ -200,7 +200,7 @@ Build output is intentionally local and should not be committed. The plain `swif
 export LIFEOS_CLOUDKIT_HELPER_BIN="$PWD/build/native/LifeOSCloudKitHelper"
 ```
 
-Persistent push listening requires the provisioned Xcode `.app` target because macOS remote-notification registration needs an application bundle identity plus CloudKit and APNs entitlements. Build it with `npm run icloud:helper:xcode:build`, then use the executable path printed by that command. If LifeOS is configured with the plain binary, guarded polling and wake recovery continue, but the desktop correctly reports push-listener fallback instead of claiming notification delivery.
+Persistent push listening requires the provisioned Xcode `.app` target because macOS remote-notification registration needs an application bundle identity plus CloudKit and APNs entitlements. Build it with `npm run icloud:helper:xcode:build`, then use the executable path printed by that command. If OwnOrbit is configured with the plain binary, guarded polling and wake recovery continue, but the desktop correctly reports push-listener fallback instead of claiming notification delivery.
 
 Desktop packaging has a separate verification boundary. A signed helper can be staged for a macOS package with `LIFEOS_CLOUDKIT_HELPER_APP=/absolute/path/LifeOSCloudKitHelper.app`; `npm run desktop:resources:prepare` verifies the app signature and extracts the signed CloudKit container, team, bundle, and APNs environment before copying it outside `app.asar`. Release builds that require the helper must also set `LIFEOS_REQUIRE_BUNDLED_CLOUDKIT_HELPER=1`, so a missing or invalid helper fails packaging instead of silently shipping. Every desktop package path runs this preparation step. Unsigned and cross-platform packages contain only a redacted `included: false` resource manifest and continue with guarded polling. The manifest and desktop diagnostics never include the source path, helper path, entitlement path, APNs token, Apple password, signing credential, or raw notification payload.
 
@@ -230,7 +230,7 @@ The preview can produce:
 - blocked records for sensitive memories, malformed JSON, unsafe fields, and secret-like content;
 - a `lifeos-cloudkit-sync-batch-preview.v1` helper payload plan that remains preview-only until helper probe and disposable roundtrip evidence pass.
 
-This is still not real continuous sync. It is the safety gate that proves LifeOS can select syncable records from SQLite without leaking raw payloads into the admin response. A future export operation must use the same filtering, require backup evidence, call the native helper, and write only approved CloudKit record fields.
+This is still not real continuous sync. It is the safety gate that proves OwnOrbit can select syncable records from SQLite without leaking raw payloads into the admin response. A future export operation must use the same filtering, require backup evidence, call the native helper, and write only approved CloudKit record fields.
 
 ## Controlled Sync Export
 
@@ -246,7 +246,7 @@ The endpoint only runs when all of these are true:
 - the safe batch preview status is `ready`;
 - no sensitive, malformed, or secret-like record is blocked;
 - the request carries the explicit `SYNC_APPROVED_RECORDS` confirmation;
-- LifeOS creates a local SQLite backup before invoking the helper.
+- OwnOrbit creates a local SQLite backup before invoking the helper.
 
 The admin response still returns only a summary: preview status, record counts, zones, record plan hash, helper evidence, and backup metadata. It does not return raw chat text, memory text, task payloads, generated-app state, or helper stdin. The filtered payload is sent only from the local desktop server to the configured native helper through JSON stdin.
 
@@ -266,7 +266,7 @@ The safest product-facing loop is:
 POST /api/v1/admin/icloud-data-sync/cycle
 ```
 
-It requires explicit `SYNC_CLOUDKIT_CYCLE` confirmation and always pulls first. The backend runs `sync-now` to read CloudKit changes, import them into quarantine, and apply only conflict-free records. If the pull fails, rejects an integrity check, leaves conflicts, or reports `moreComing`, the cycle stops and does not upload local records. Only after every fetched page is clean does LifeOS run the guarded upload path. This prevents a local upload from racing ahead of unread remote changes.
+It requires explicit `SYNC_CLOUDKIT_CYCLE` confirmation and always pulls first. The backend runs `sync-now` to read CloudKit changes, import them into quarantine, and apply only conflict-free records. If the pull fails, rejects an integrity check, leaves conflicts, or reports `moreComing`, the cycle stops and does not upload local records. Only after every fetched page is clean does OwnOrbit run the guarded upload path. This prevents a local upload from racing ahead of unread remote changes.
 
 Run the contract smoke with:
 
@@ -302,7 +302,7 @@ The next read-side guard is a summary-only CloudKit query:
 POST /api/v1/admin/icloud-data-sync/import-preview
 ```
 
-This endpoint invokes the native helper with `sync-import-preview`. It queries the private CloudKit database for LifeOS record summaries using the configured record plan and returns only safe metadata:
+This endpoint invokes the native helper with `sync-import-preview`. It queries the private CloudKit database for OwnOrbit record summaries using the configured record plan and returns only safe metadata:
 
 - zone and record type;
 - record name;
@@ -313,13 +313,13 @@ This endpoint invokes the native helper with `sync-import-preview`. It queries t
 - modified timestamp;
 - review flag.
 
-The helper intentionally excludes `payloadJson` from the requested CloudKit keys, and the admin API does not write anything into SQLite. This proves the desktop can read LifeOS CloudKit records without importing raw user content or merging remote state too early.
+The helper intentionally excludes `payloadJson` from the requested CloudKit keys, and the admin API does not write anything into SQLite. This proves the desktop can read OwnOrbit CloudKit records without importing raw user content or merging remote state too early.
 
 This is still not background two-way sync. The next steps are change-token persistence, raw helper-to-backend import under a redacted local-only channel, conflict review UI, tombstone/delete handling, retries, and two-device Apple testing.
 
 ## Incremental Changes Preview
 
-LifeOS now has the first change-token shaped read path:
+OwnOrbit now has the first change-token shaped read path:
 
 ```text
 POST /api/v1/admin/icloud-data-sync/changes-preview
@@ -392,7 +392,7 @@ The apply endpoint requires explicit confirmation:
 APPLY_CLOUDKIT_QUARANTINE
 ```
 
-With confirmation, LifeOS creates a local SQLite backup when there are pending items, applies only recognized LifeOS record types, and leaves unsupported, dangerous, destructive, newer-local, malformed, sensitive, overwriting, or secret-like records in quarantine as conflicts. Supported apply targets are:
+With confirmation, OwnOrbit creates a local SQLite backup when there are pending items, applies only recognized OwnOrbit record types, and leaves unsupported, dangerous, destructive, newer-local, malformed, sensitive, overwriting, or secret-like records in quarantine as conflicts. Supported apply targets are:
 
 - `LifeOSConversation` into `chat_sessions`;
 - `LifeOSMessage` into `messages` with stable remote message ids and mutation ids;
@@ -405,7 +405,7 @@ CloudKit hard deletes and tombstones are not applied automatically. They become 
 
 Checkpoint promotion is conservative. A zone's `pending_server_change_token` is promoted to `applied_server_change_token` only after all quarantine rows for that zone have no unresolved `pending-review`, `conflict`, or `failed` status. If any row remains unresolved, that zone stays blocked and the next import can safely continue from the previous applied token.
 
-This still is not unattended background two-way sync. It is the first safe SQLite merge path that proves LifeOS can import private CloudKit changes, review them locally, apply non-conflicting records, preserve rollback evidence, and avoid losing remote changes by advancing tokens too early.
+This still is not unattended background two-way sync. It is the first safe SQLite merge path that proves OwnOrbit can import private CloudKit changes, review them locally, apply non-conflicting records, preserve rollback evidence, and avoid losing remote changes by advancing tokens too early.
 
 ## Safe One-Step Sync
 
@@ -472,7 +472,7 @@ Do not claim end-user-ready, fully automatic iCloud data sync until all of this 
 
 ## 中文说明
 
-这份文档定义 iCloud 入口同步和受控 CloudKit 数据同步候选能力的边界。默认 LifeOS 只用 iCloud Drive 同步手机入口文件，不同步聊天记录、记忆、任务、设备凭证、SQLite 数据库、AI Key、审计日志、备份或生成程序状态。显式开启的 CloudKit 原生候选路径可以在 helper、Container、entitlement、确认短语、隔离区预览和本地安全闸门都通过后，同步部分聊天、记忆、任务、生成程序状态和设备信任元数据记录。
+这份文档定义 iCloud 入口同步和受控 CloudKit 数据同步候选能力的边界。默认 OwnOrbit 只用 iCloud Drive 同步手机入口文件，不同步聊天记录、记忆、任务、设备凭证、SQLite 数据库、AI Key、审计日志、备份或生成程序状态。显式开启的 CloudKit 原生候选路径可以在 helper、Container、entitlement、确认短语、隔离区预览和本地安全闸门都通过后，同步部分聊天、记忆、任务、生成程序状态和设备信任元数据记录。
 
 真正可长期使用的数据同步不能靠继续往 `mobile-entry.html/json` 文件里塞数据来完成。它需要 Apple Developer iCloud entitlement、CloudKit Container、macOS/iOS 原生客户端或原生桥，以及明确的数据权限、冲突处理、备份、审计和回滚。
 
@@ -487,19 +487,19 @@ Do not claim end-user-ready, fully automatic iCloud data sync until all of this 
 
 当前已经有第一版原生 helper 源码：`native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift`。它可以在 macOS 上通过 `npm run icloud:helper:build` 编译，输出到 `build/native/LifeOSCloudKitHelper`。这个 helper 表示 CloudKit 原生桥已经有受控落脚点；当前只应宣称“受控 alpha 候选同步”，不能宣称完整后台 macOS/iOS 原生同步。
 
-这里必须区分两种产物：`npm run icloud:helper:build` 生成的普通二进制用于 JSON 契约编译、前台探测和受控同步；常驻推送监听必须使用 `npm run icloud:helper:xcode:build` 生成并完成 provisioning 的 `.app` 可执行文件，因为 macOS 远程通知注册依赖应用 Bundle ID、CloudKit entitlement 和 APNs entitlement。若只配置普通二进制，LifeOS 会继续使用安全轮询与唤醒恢复，并明确显示“推送监听降级”，不会把它误写成真实通知投递。
+这里必须区分两种产物：`npm run icloud:helper:build` 生成的普通二进制用于 JSON 契约编译、前台探测和受控同步；常驻推送监听必须使用 `npm run icloud:helper:xcode:build` 生成并完成 provisioning 的 `.app` 可执行文件，因为 macOS 远程通知注册依赖应用 Bundle ID、CloudKit entitlement 和 APNs entitlement。若只配置普通二进制，OwnOrbit 会继续使用安全轮询与唤醒恢复，并明确显示“推送监听降级”，不会把它误写成真实通知投递。
 
 桌面打包另有一层强制校验。macOS 正式构建可以通过 `LIFEOS_CLOUDKIT_HELPER_APP=/绝对路径/LifeOSCloudKitHelper.app` 指定签名 Helper；`npm run desktop:resources:prepare` 会先验证代码签名，并从签名 entitlement 中核对 CloudKit Container、Team、Bundle 与 APNs 环境，再将 Helper 放到 `app.asar` 之外。要求随包发布时还必须设置 `LIFEOS_REQUIRE_BUNDLED_CLOUDKIT_HELPER=1`，缺失或校验失败会直接终止打包。unsigned 与跨平台包只包含 `included: false` 的脱敏清单，并继续使用安全轮询。清单和桌面诊断都不会写入本机来源路径、Helper/entitlement 完整路径、APNs token、Apple 密码、签名凭证或通知正文。
 
-当前还新增了源码级 iOS SwiftUI 原生壳候选版本：`native/apple/mobile-shell`。它可以通过 iPhone“文件”选择 iCloud Drive 中的 `lifeos-mobile-entry-*.json`，校验与电脑端一致的 SHA-256、版本、有效期、地址来源和 LifeOS 健康接口，然后在限制同源跳转的 `WKWebView` 中打开 `/mobile/chat`。它也加入了用户明确开启的 CloudKit 私有库增量拉取、变更游标、后台推送订阅、前台恢复、账号隔离、游标过期 zone 重建、自动续页与退避重试、记录 schema/zone/type/大小/SHA-256 校验和 Data Protection 离线快照。当前已形成两条真实双向写回候选路径：用户确认后，iPhone 可以新建一条通过敏感内容检测的普通记忆，Mac 仅在记录全新时写入 SQLite；也可以把一条未完成任务改为完成，并通过 CKRecord change tag 与基础内容哈希做双重乐观并发。已有记忆、聊天、生成程序和设备元数据仍只读。`npm run mobile:native:build`、`LIFEOS_IOS_NATIVE_RUN_TESTS=1 npm run mobile:native:build` 和 `npm run mobile:native:smoke -- http://127.0.0.1:3000` 可以在未签名的 iPhone 模拟器完成构建、单测、安装、启动和截图证据；`npm run mobile:native:device:build` 提供带 CloudKit entitlement 的真机签名入口。它还不是公开 iOS 安装包；在 Apple 协议、Container、provisioning 和真实双设备数据往返证据完成前，也不能宣称 CloudKit 已真实跑通。
+当前还新增了源码级 iOS SwiftUI 原生壳候选版本：`native/apple/mobile-shell`。它可以通过 iPhone“文件”选择 iCloud Drive 中的 `lifeos-mobile-entry-*.json`，校验与电脑端一致的 SHA-256、版本、有效期、地址来源和 OwnOrbit 健康接口，然后在限制同源跳转的 `WKWebView` 中打开 `/mobile/chat`。它也加入了用户明确开启的 CloudKit 私有库增量拉取、变更游标、后台推送订阅、前台恢复、账号隔离、游标过期 zone 重建、自动续页与退避重试、记录 schema/zone/type/大小/SHA-256 校验和 Data Protection 离线快照。当前已形成两条真实双向写回候选路径：用户确认后，iPhone 可以新建一条通过敏感内容检测的普通记忆，Mac 仅在记录全新时写入 SQLite；也可以把一条未完成任务改为完成，并通过 CKRecord change tag 与基础内容哈希做双重乐观并发。已有记忆、聊天、生成程序和设备元数据仍只读。`npm run mobile:native:build`、`LIFEOS_IOS_NATIVE_RUN_TESTS=1 npm run mobile:native:build` 和 `npm run mobile:native:smoke -- http://127.0.0.1:3000` 可以在未签名的 iPhone 模拟器完成构建、单测、安装、启动和截图证据；`npm run mobile:native:device:build` 提供带 CloudKit entitlement 的真机签名入口。它还不是公开 iOS 安装包；在 Apple 协议、Container、provisioning 和真实双设备数据往返证据完成前，也不能宣称 CloudKit 已真实跑通。
 
 用户明确开启 CloudKit 数据自动同步后，Mac 安全同步循环会保留每 15 分钟一次的兜底轮询；本机安全数据发生变化后 15 秒内排队，远端还有分页时 15 秒内续拉，临时失败 5 分钟后重试，并在本地核心启动或桌面唤醒后额外检查。现在还增加了源码级常驻 macOS 推送监听：使用 Xcode 构建且带正确 provisioning、CloudKit 与 APNs entitlement 的 `.app` helper，由 Electron 守护运行；收到匹配的 `CKDatabaseNotification` 后，只向本机核心发送固定事件名、原因、匹配标记和时间，再排队现有安全同步循环。APNs device token、通知正文和 CloudKit change token 都不会经过这个接口或写入 SQLite。桌面托盘会区分监听就绪、轮询降级和待配置状态。源码编译、订阅保存和监听启动都不等于真实投递完成；仍需双设备、重启、换网和长时间运行证据后，才能称为实时或完全无人值守同步。
 
 helper 探测通过不等于真实同步完成。API 会返回已验证能力、必需能力和未验证能力；`subscription-registration` 只代表订阅已保存，`subscription-push` 只有收到匹配的真实数据库变更通知后才有投递证据。如果推送投递、`change-token-fetch`、自定义 zone、写入 roundtrip 等证据缺失，UI 必须继续显示为候选/待验证，而不能写成已完成的 iCloud 数据同步。
 
-每个 helper 操作也必须通过自己的能力闸门。例如 `sync-changes-preview` 必须证明 `change-token-fetch`，`sync-export` 必须证明 `sync-export-save`，`roundtrip` 必须证明临时写入、读取和删除。即使 helper 返回 `ok=true`，缺少本次操作的能力证明也会被 LifeOS 判为失败。
+每个 helper 操作也必须通过自己的能力闸门。例如 `sync-changes-preview` 必须证明 `change-token-fetch`，`sync-export` 必须证明 `sync-export-save`，`roundtrip` 必须证明临时写入、读取和删除。即使 helper 返回 `ok=true`，缺少本次操作的能力证明也会被 OwnOrbit 判为失败。
 
-`subscription-probe` 只验证私有 CloudKit 数据库能创建或确认 content-available 后台推送订阅，并只返回 `subscription-registration`。只有 Xcode 构建的常驻 `.app` listener 收到匹配的 CloudKit 数据库通知，LifeOS 才记录脱敏的投递证据；这仍不证明无冲突合并或完整无人值守同步已经完成。
+`subscription-probe` 只验证私有 CloudKit 数据库能创建或确认 content-available 后台推送订阅，并只返回 `subscription-registration`。只有 Xcode 构建的常驻 `.app` listener 收到匹配的 CloudKit 数据库通知，OwnOrbit 才记录脱敏的投递证据；这仍不证明无冲突合并或完整无人值守同步已经完成。
 
 真实 Apple 设备验收时，应在临时写入 roundtrip 之后运行 `npm run icloud:helper:smoke -- --subscription-probe --strict`。这一步只能证明 CloudKit 私有库能保存后台推送订阅前置条件；后续仍要继续做 iPhone/macOS 后台投递、应用唤醒、重启、换网和冲突测试。
 
@@ -513,7 +513,7 @@ helper 探测通过不等于真实同步完成。API 会返回已验证能力、
 
 当前还新增了面向默认 UI 的安全同步循环接口：`POST /api/v1/admin/icloud-data-sync/cycle`。它要求显式确认 `SYNC_CLOUDKIT_CYCLE`，并且永远先执行“读取远端变化 → 导入隔离区 → 应用无冲突记录”。如果远端读取失败或出现冲突，循环会停止，不会继续上传本机记录；只有远端拉取干净后，才会调用一键安全上传。这个接口让普通用户只需要点“同步这台电脑和 iCloud”，但仍保留冲突审核、敏感内容阻断和本地备份边界。
 
-当前还新增了安全读取预览接口：`/api/v1/admin/icloud-data-sync/import-preview`。它只从私有 CloudKit 读取 LifeOS 记录的摘要字段，例如 zone、record type、hash、logical clock、payload 大小和更新时间；不会请求 `payloadJson`，也不会导入 SQLite。这个能力代表“已具备第一条受控 CloudKit 读取摘要路径”，但仍不是完整双向同步。
+当前还新增了安全读取预览接口：`/api/v1/admin/icloud-data-sync/import-preview`。它只从私有 CloudKit 读取 OwnOrbit 记录的摘要字段，例如 zone、record type、hash、logical clock、payload 大小和更新时间；不会请求 `payloadJson`，也不会导入 SQLite。这个能力代表“已具备第一条受控 CloudKit 读取摘要路径”，但仍不是完整双向同步。
 
 当前还新增了增量变更预览接口：`/api/v1/admin/icloud-data-sync/changes-preview`。它会把本地已应用的 CloudKit server change token 传给原生 helper，helper 使用 `recordZoneChanges` 读取每个 zone 的变更摘要和删除摘要，并把新的 token 作为候选 checkpoint 存在 `cloudkit_sync_checkpoints`。注意：候选 token 不会直接变成已应用 token，因为还没有把远端变更真正导入并合并到 SQLite；这样可以避免“预览一次就丢掉未导入变更”的风险。
 

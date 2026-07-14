@@ -1,6 +1,6 @@
 # Release Checklist
 
-LifeOS AI can be packaged locally as an unsigned desktop app. There are two distribution strategies:
+OwnOrbit AI can be packaged locally as an unsigned desktop app. There are two distribution strategies:
 
 - `unsigned`: simplest GitHub Release/private download. No signing, notarization, or update host is required, but macOS can show a Gatekeeper warning.
 - `signed`: public polished distribution. Requires platform signing certificates, macOS notarization, and optionally an HTTPS update host.
@@ -110,13 +110,13 @@ npm run calendar:acceptance -- --provider macos --write --out macos-calendar-acc
 The unsigned app directory is expected at:
 
 ```text
-release/mac-arm64/LifeOS AI.app
+release/mac-arm64/OwnOrbit AI.app
 ```
 
 The unsigned download package and mac update feed are expected at:
 
 ```text
-release/LifeOS AI-<version>-<arch>-unsigned.zip
+release/OwnOrbit AI-<version>-<arch>-unsigned.zip
 release/update-feed/latest-mac.yml
 release/update-feed/release-manifest.json
 ```
@@ -143,7 +143,7 @@ The repository also includes `.github/workflows/desktop-release-smoke.yml`, whic
 
 The smoke script builds a platform artifact on each runner:
 
-- macOS: unsigned `.app` plus `LifeOS AI-<version>-<arch>-unsigned.zip`, then `latest-mac.yml`.
+- macOS: unsigned `.app` plus `OwnOrbit AI-<version>-<arch>-unsigned.zip`, then `latest-mac.yml`.
 - Windows: NSIS `.exe`, then `latest.yml`.
 - Linux: AppImage, then `latest-linux.yml`.
 
@@ -166,7 +166,7 @@ If `release:artifacts:check` reports stale installers from an older package vers
 Upload these files to a GitHub Release or private HTTPS download page:
 
 ```text
-release/LifeOS AI-<version>-<arch>-unsigned.zip
+release/OwnOrbit AI-<version>-<arch>-unsigned.zip
 release/USER-INSTALL.md
 release/SHA256SUMS
 release/update-feed/latest-mac.yml

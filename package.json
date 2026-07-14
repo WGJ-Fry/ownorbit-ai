@@ -1,9 +1,9 @@
 {
-  "name": "lifeos-ai",
+  "name": "ownorbit-ai",
   "private": false,
   "version": "0.1.5-alpha.0",
-  "description": "Open-source, self-hosted, local-first personal AI assistant and private second brain with memory, mobile access, and generated problem-solving tools.",
-  "author": "LifeOS",
+  "description": "OwnOrbit AI is an open-source, self-hosted, local-first personal AI assistant and private second brain with memory, mobile access, and generated problem-solving tools.",
+  "author": "OwnOrbit",
   "license": "MIT",
   "keywords": [
     "ai",
@@ -25,15 +25,16 @@
     "ollama",
     "electron",
     "pwa",
-    "remote-access"
+    "remote-access",
+    "ownorbit-ai"
   ],
-  "homepage": "https://github.com/WGJ-Fry/lifeos-ai#readme",
+  "homepage": "https://github.com/WGJ-Fry/ownorbit-ai#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/WGJ-Fry/lifeos-ai.git"
+    "url": "git+https://github.com/WGJ-Fry/ownorbit-ai.git"
   },
   "bugs": {
-    "url": "https://github.com/WGJ-Fry/lifeos-ai/issues"
+    "url": "https://github.com/WGJ-Fry/ownorbit-ai/issues"
   },
   "type": "module",
   "main": "desktop/main.cjs",
@@ -125,7 +126,7 @@
   },
   "build": {
     "appId": "ai.lifeos.desktop",
-    "productName": "LifeOS AI",
+    "productName": "OwnOrbit AI",
     "asar": true,
     "npmRebuild": false,
     "directories": {

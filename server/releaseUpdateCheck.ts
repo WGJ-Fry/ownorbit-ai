@@ -1,7 +1,7 @@
 import { getPackageVersion } from "./version";
 
 const DEFAULT_OWNER = "WGJ-Fry";
-const DEFAULT_REPO = "lifeos-ai";
+const DEFAULT_REPO = "ownorbit-ai";
 const RELEASE_CHECK_TIMEOUT_MS = Number(process.env.LIFEOS_RELEASE_CHECK_TIMEOUT_MS || 5000);
 
 export type ReleaseUpdateAsset = {
@@ -190,7 +190,7 @@ function checksumCommandForPlatform(platform: ReleaseUpdatePlatform, assetName: 
 function installCommandForPlatform(platform: ReleaseUpdatePlatform, assetName: string | null) {
   const name = assetName || "downloaded package";
   if (platform === "macos") {
-    return `Unzip "${name}", move LifeOS AI.app to /Applications, then open it after SHA256 verification.`;
+    return `Unzip "${name}", move OwnOrbit AI.app to /Applications, then open it after SHA256 verification.`;
   }
   if (platform === "windows") {
     return `Run "${name}" only after SHA256 verification. SmartScreen may warn because this alpha is unsigned.`;
@@ -287,7 +287,7 @@ function buildManualUpdatePlan(latest: NonNullable<ReleaseUpdateCheck["latest"]>
       { id: "download", label: assetName ? `Download ${assetName} from GitHub Releases.` : "Download the matching package from GitHub Releases.", required: true, url: asset?.downloadUrl || latest.url },
       { id: "checksum", label: "Verify the package against SHA256SUMS before opening it.", required: true, command: checksumCommand, url: latest.checksumAsset?.downloadUrl },
       { id: "install", label: "Install the verified package for this computer.", required: true, command: installCommand },
-      { id: "restart", label: "Restart LifeOS AI and confirm the version in Settings.", required: true },
+      { id: "restart", label: "Restart OwnOrbit AI and confirm the version in Settings.", required: true },
     ],
   };
 }
@@ -329,7 +329,7 @@ export async function checkReleaseUpdate(options: { fetchImpl?: typeof fetch; no
     const response = await fetchImpl(url, {
       headers: {
         "Accept": "application/vnd.github+json",
-        "User-Agent": "LifeOS-AI-Update-Check",
+        "User-Agent": "OwnOrbit-AI-Update-Check",
       },
       signal: controller.signal,
     });

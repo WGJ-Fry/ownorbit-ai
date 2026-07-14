@@ -1,6 +1,6 @@
 <svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">LifeOS AI hero</title>
-  <desc id="desc">LifeOS AI local-first personal AI assistant with memory recall, generated problem-solving programs, and remote mobile access.</desc>
+  <title id="title">OwnOrbit AI hero</title>
+  <desc id="desc">OwnOrbit AI local-first personal AI assistant with memory recall, generated problem-solving programs, and remote mobile access.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="720" gradientUnits="userSpaceOnUse">
       <stop stop-color="#08111F"/>
@@ -19,7 +19,7 @@
     <rect x="72" y="72" width="408" height="38" rx="19" fill="#102033" stroke="#2DD4BF"/>
     <text x="89" y="97" fill="#CCFBF1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="16" font-weight="800">Private AI core + mobile companion</text>
   </g>
-  <text x="72" y="164" fill="#F8FAFC" font-family="Inter, Arial, Helvetica, sans-serif" font-size="70" font-weight="900">LifeOS AI</text>
+  <text x="72" y="164" fill="#F8FAFC" font-family="Inter, Arial, Helvetica, sans-serif" font-size="70" font-weight="900">OwnOrbit AI</text>
   <text x="72" y="218" fill="#A7F3D0" font-family="Inter, Arial, Helvetica, sans-serif" font-size="34" font-weight="850">Local-first personal AI assistant</text>
   <text x="72" y="274" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="23">Your computer runs the private core.</text>
   <text x="72" y="308" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="23">Your phone becomes the everyday assistant.</text>

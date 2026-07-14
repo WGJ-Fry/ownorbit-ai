@@ -431,7 +431,7 @@ function formatHandoffTime(value?: number) {
 }
 
 function icloudDesktopNameKey(value?: string) {
-  return String(value || "LifeOS Desktop").trim().toLowerCase() || "lifeos desktop";
+  return String(value || "OwnOrbit Desktop").trim().toLowerCase() || "lifeos desktop";
 }
 
 function getIcloudDesktopShortId(entry: Pick<IcloudAvailableEntry, "desktopSlug" | "desktopId" | "packetFileName" | "htmlFileName" | "fileName">) {

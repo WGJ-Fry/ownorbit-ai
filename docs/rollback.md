@@ -1,6 +1,6 @@
 # Rollback Guide
 
-Use this when a packaged LifeOS AI desktop build starts but behaves incorrectly after upgrade.
+Use this when a packaged OwnOrbit AI desktop build starts but behaves incorrectly after upgrade.
 
 ## Before Upgrade
 
@@ -11,9 +11,9 @@ Use this when a packaged LifeOS AI desktop build starts but behaves incorrectly 
 
 ## Roll Back The App
 
-1. Quit LifeOS AI from the menu bar or tray.
+1. Quit OwnOrbit AI from the menu bar or tray.
 2. Install the previous unsigned zip, DMG, NSIS installer, AppImage, or app directory from the previous GitHub Release.
-3. Start LifeOS AI.
+3. Start OwnOrbit AI.
 4. Open Admin Settings and confirm the service health, version, device count, and backup count.
 
 ## Roll Back Data
@@ -21,7 +21,7 @@ Use this when a packaged LifeOS AI desktop build starts but behaves incorrectly 
 1. Open Admin Settings.
 2. Preview the backup you want to restore.
 3. Schedule restore.
-4. Restart LifeOS AI.
+4. Restart OwnOrbit AI.
 5. Confirm the restored chat sessions, memories, devices, and audit logs.
 
 Restore never overwrites the live database immediately. It creates a pre-restore backup and applies the selected SQLite file before the next process opens the database.

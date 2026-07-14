@@ -86,6 +86,18 @@ const cloudKitPushListenerController = createCloudKitPushListenerController({
 
 if (process.env.LIFEOS_DESKTOP_USER_DATA_DIR) {
   app.setPath("userData", path.resolve(process.env.LIFEOS_DESKTOP_USER_DATA_DIR));
+} else {
+  const currentUserDataPath = app.getPath("userData");
+  const legacyUserDataPath = path.join(app.getPath("appData"), "LifeOS AI");
+  const currentDataPath = path.join(currentUserDataPath, "data");
+  const legacyDataPath = path.join(legacyUserDataPath, "data");
+  if (
+    path.resolve(currentUserDataPath) !== path.resolve(legacyUserDataPath)
+    && fs.existsSync(legacyDataPath)
+    && !fs.existsSync(currentDataPath)
+  ) {
+    app.setPath("userData", legacyUserDataPath);
+  }
 }
 
 function writeDesktopLog(message, details) {
@@ -116,8 +128,8 @@ async function loadDesktopWindow(targetWindow, pathname, attempts = 3) {
     try {
       await waitForEndpoint(localUrl(pathname), {
         attempts: 8,
-        description: `LifeOS page ${pathname} did not become available in time.`,
-        validate: (res, body) => res.statusCode === 200 && /LifeOS AI/i.test(body || ""),
+        description: `OwnOrbit page ${pathname} did not become available in time.`,
+        validate: (res, body) => res.statusCode === 200 && /OwnOrbit AI/i.test(body || ""),
       });
       await targetWindow.loadURL(localUrl(pathname));
       return;
@@ -266,7 +278,7 @@ function applyDesktopRuntimeConfig() {
 function waitForHealth(port, attempts = 60) {
   return waitForEndpoint(`http://127.0.0.1:${port}/api/v1/health`, {
     attempts,
-    description: "LifeOS local server did not start in time.",
+    description: "OwnOrbit local server did not start in time.",
     validate: (res, body) => {
       if (res.statusCode !== 200) return false;
       try {
@@ -282,8 +294,8 @@ function waitForHealth(port, attempts = 60) {
 function waitForAdminShell(port, attempts = 60) {
   return waitForEndpoint(`http://127.0.0.1:${port}/admin/login`, {
     attempts,
-    description: "LifeOS admin console did not become available in time.",
-    validate: (res, body) => res.statusCode === 200 && /LifeOS AI/i.test(body || "") && /<script/i.test(body || ""),
+    description: "OwnOrbit admin console did not become available in time.",
+    validate: (res, body) => res.statusCode === 200 && /OwnOrbit AI/i.test(body || "") && /<script/i.test(body || ""),
   });
 }
 
@@ -341,15 +353,15 @@ async function startLocalCore() {
   const appPath = app.isPackaged ? app.getAppPath() : process.cwd();
   const runtimeCwd = app.isPackaged ? path.dirname(appPath) : appPath;
   process.chdir(runtimeCwd);
-  writeDesktopLog("Starting LifeOS local core", `port=${serverPort} dataDirConfigured=${Boolean(process.env.LIFEOS_DATA_DIR)} packaged=${app.isPackaged}`);
+  writeDesktopLog("Starting OwnOrbit local core", `port=${serverPort} dataDirConfigured=${Boolean(process.env.LIFEOS_DATA_DIR)} packaged=${app.isPackaged}`);
   if (process.env.LIFEOS_DESKTOP_FORCE_CORE_FAILURE === "1") {
     throw new Error("Forced desktop startup failure for smoke testing.");
   }
   require(path.join(appPath, "dist", "server.cjs"));
   await waitForHealth(serverPort);
   await waitForAdminShell(serverPort);
-  writeDesktopLog("LifeOS local core is healthy", localUrl("/api/v1/health"));
-  writeDesktopLog("LifeOS admin console shell is ready", localUrl("/admin/login"));
+  writeDesktopLog("OwnOrbit local core is healthy", localUrl("/api/v1/health"));
+  writeDesktopLog("OwnOrbit admin console shell is ready", localUrl("/admin/login"));
 }
 
 function showMainWindow(pathname = "/admin/login") {
@@ -384,7 +396,7 @@ async function createWindow(pathname = "/admin/login") {
     height: 820,
     minWidth: 980,
     minHeight: 680,
-    title: "LifeOS AI",
+    title: "OwnOrbit AI",
     backgroundColor: "#060a10",
     webPreferences: {
       contextIsolation: true,
@@ -413,9 +425,17 @@ function getIcloudDriveRoot() {
   return override ? path.resolve(override) : path.join(os.homedir(), "Library", "Mobile Documents", "com~apple~CloudDocs");
 }
 
+function getOwnOrbitIcloudFolder(root = getIcloudDriveRoot()) {
+  const currentFolder = path.join(root, "OwnOrbit AI");
+  const legacyFolder = path.join(root, "LifeOS AI");
+  if (fs.existsSync(currentFolder)) return currentFolder;
+  if (fs.existsSync(legacyFolder)) return legacyFolder;
+  return currentFolder;
+}
+
 function openIcloudFolder() {
   const root = getIcloudDriveRoot();
-  const appFolder = path.join(root, "LifeOS AI");
+  const appFolder = getOwnOrbitIcloudFolder(root);
   let target = appFolder;
   try {
     if (!fs.existsSync(target) && fs.existsSync(root)) fs.mkdirSync(target, { recursive: true });
@@ -808,7 +828,7 @@ async function exportDesktopDiagnosticBundle(targetPath) {
   let outputPath = targetPath;
   if (!outputPath) {
     const result = await dialog.showSaveDialog({
-      title: "Export LifeOS AI Desktop Diagnostic Bundle",
+      title: "Export OwnOrbit AI Desktop Diagnostic Bundle",
       defaultPath: `lifeos-desktop-diagnostics-${stamp}.json`,
       filters: [{ name: "JSON", extensions: ["json"] }],
     });
@@ -829,7 +849,7 @@ function showStartupFailureWindow(error) {
     height: 560,
     minWidth: 640,
     minHeight: 480,
-    title: "LifeOS AI Startup Failed",
+    title: "OwnOrbit AI Startup Failed",
     backgroundColor: "#060a10",
     webPreferences: {
       contextIsolation: true,
@@ -842,7 +862,7 @@ function showStartupFailureWindow(error) {
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
-    <title>LifeOS AI Startup Failed</title>
+    <title>OwnOrbit AI Startup Failed</title>
     <style>
       body { margin: 0; min-height: 100vh; background: #060a10; color: #e4e4e7; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: grid; place-items: center; }
       main { width: min(640px, calc(100vw - 48px)); border: 1px solid rgba(255,255,255,.08); background: #101722; border-radius: 24px; padding: 28px; box-shadow: 0 24px 80px rgba(0,0,0,.35); }
@@ -861,12 +881,12 @@ function showStartupFailureWindow(error) {
   </head>
   <body>
     <main>
-      <h1>LifeOS AI local core failed to start</h1>
-      <p>The desktop shell opened, but the local service did not start successfully. Open the log directory and inspect <code>lifeos-desktop.log</code>, then restart LifeOS AI after fixing the issue.</p>
+      <h1>OwnOrbit AI local core failed to start</h1>
+      <p>The desktop shell opened, but the local service did not start successfully. Open the log directory and inspect <code>lifeos-desktop.log</code>, then restart OwnOrbit AI after fixing the issue.</p>
       <div class="path">${htmlEscape(logsDir)}</div>
       <p class="hint">Common causes: port already in use, data directory permissions, missing packaged files, or incomplete security environment variables.</p>
       <div class="actions">
-        <button class="primary" id="retry">Retry LifeOS AI</button>
+        <button class="primary" id="retry">Retry OwnOrbit AI</button>
         <button class="secondary" id="browser">Open Local Console In Browser</button>
         <button class="secondary" id="copyAddress">Copy Local Address</button>
         <button class="secondary" id="logs">Open Logs Folder</button>
@@ -880,7 +900,7 @@ function showStartupFailureWindow(error) {
         const api = window.lifeosDesktopFailure;
         const setStatus = (value) => { status.textContent = value; };
         document.getElementById("retry").addEventListener("click", async () => {
-          setStatus("Relaunching LifeOS AI...");
+          setStatus("Relaunching OwnOrbit AI...");
           await api.retryStartup();
         });
         document.getElementById("browser").addEventListener("click", async () => {
@@ -918,7 +938,7 @@ function copyLocalAddress() {
 function buildTrayMenu() {
   const statusAlert = desktopShellStatus.statusAlert;
   return Menu.buildFromTemplate([
-    { label: "LifeOS AI", enabled: false },
+    { label: "OwnOrbit AI", enabled: false },
     { label: desktopShellStatus.coreLabel, enabled: false },
     { label: desktopShellStatus.adminLabel, enabled: false },
     { label: desktopShellStatus.aiLabel, enabled: false },
@@ -950,7 +970,7 @@ function buildTrayMenu() {
 
 function updateTrayPresentation() {
   if (!tray) return;
-  tray.setToolTip(`LifeOS AI: ${desktopShellStatus.coreLabel} · ${desktopShellStatus.aiLabel} · ${desktopShellStatus.icloudLabel} · ${desktopUpdateLabel()} · ${localUrl("/admin/login")}`);
+  tray.setToolTip(`OwnOrbit AI: ${desktopShellStatus.coreLabel} · ${desktopShellStatus.aiLabel} · ${desktopShellStatus.icloudLabel} · ${desktopUpdateLabel()} · ${localUrl("/admin/login")}`);
   tray.setContextMenu(buildTrayMenu());
 }
 
@@ -964,8 +984,8 @@ function maybeNotifyDesktopStatus(statusAlert) {
   lastDesktopStatusNotificationKey = key;
   lastDesktopStatusNotificationAt = now;
   const notification = new Notification({
-    title: statusAlert.title || "LifeOS needs attention",
-    body: statusAlert.body || "Open LifeOS to repair the phone connection.",
+    title: statusAlert.title || "OwnOrbit needs attention",
+    body: statusAlert.body || "Open OwnOrbit to repair the phone connection.",
     silent: true,
   });
   notification.on("click", () => showPreferredAdminWindow(statusAlert.path || "/admin/onboarding"));
@@ -1030,7 +1050,7 @@ function registerDesktopPowerMonitorRefresh() {
 function buildMenuTemplate() {
   return [
     {
-      label: "LifeOS AI",
+      label: "OwnOrbit AI",
       submenu: [
         { label: "Open Console", click: () => showPreferredAdminWindow("/admin/dashboard") },
         { label: "First Launch Guide", click: () => showMainWindow("/admin/onboarding") },
@@ -1041,7 +1061,7 @@ function buildMenuTemplate() {
         { label: "Export Desktop Diagnostics", click: () => exportDesktopDiagnosticBundle().catch((error) => writeDesktopLog("Failed to export desktop diagnostics", error?.message || String(error))) },
         { label: "Open Logs Folder", click: openLogsFolder },
         { type: "separator" },
-        { role: "quit", label: "Quit LifeOS AI" },
+        { role: "quit", label: "Quit OwnOrbit AI" },
       ],
     },
     {
@@ -1097,7 +1117,7 @@ function configureUpdates() {
   autoUpdater.autoDownload = false;
   autoUpdater.setFeedURL({ provider: "generic", url: desktopUpdateStatus.url });
   autoUpdater.checkForUpdates().catch((error) => {
-    console.warn("LifeOS update check failed:", error?.message || error);
+    console.warn("OwnOrbit update check failed:", error?.message || error);
   });
 }
 
@@ -1162,15 +1182,15 @@ if (!hasSingleInstanceLock) {
         await exportDesktopDiagnosticBundle(process.env.LIFEOS_DESKTOP_EXPORT_DIAGNOSTIC_ON_START);
       }
     } catch (error) {
-      writeDesktopLog("LifeOS startup failed", error?.stack || error?.message || String(error));
-      console.error("LifeOS startup failed:", error?.message || error);
+      writeDesktopLog("OwnOrbit startup failed", error?.stack || error?.message || String(error));
+      console.error("OwnOrbit startup failed:", error?.message || error);
       Menu.setApplicationMenu(Menu.buildFromTemplate([
         {
-          label: "LifeOS AI",
+          label: "OwnOrbit AI",
           submenu: [
             { label: "Export Desktop Diagnostics", click: () => exportDesktopDiagnosticBundle().catch((exportError) => writeDesktopLog("Failed to export desktop diagnostics", exportError?.message || String(exportError))) },
             { label: "Open Logs Folder", click: openLogsFolder },
-            { role: "quit", label: "Quit LifeOS AI" },
+            { role: "quit", label: "Quit OwnOrbit AI" },
           ],
         },
       ]));

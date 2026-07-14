@@ -92,7 +92,7 @@ GITHUB_TOKEN="github_pat_..." npm run github:public:fix
 6. Title 填：
 
    ```text
-   LifeOS AI 0.1.3 Alpha
+   OwnOrbit AI 0.1.3 Alpha
    ```
 
 7. 上传 [release-assets.md](release-assets.md) 里列出的文件。
@@ -101,9 +101,9 @@ GITHUB_TOKEN="github_pat_..." npm run github:public:fix
 ## Release 正文模板
 
 ```markdown
-## LifeOS AI 0.1.3 Alpha
+## OwnOrbit AI 0.1.3 Alpha
 
-LifeOS AI is a desktop local core plus mobile PWA personal AI system.
+OwnOrbit AI is a desktop local core plus mobile PWA personal AI system.
 
 ### Downloads
 
@@ -116,7 +116,7 @@ LifeOS AI is a desktop local core plus mobile PWA personal AI system.
 
 ### Install
 
-macOS: download the unsigned ZIP, unzip it, drag `LifeOS AI.app` to Applications, then follow `INSTALL-unsigned-mac.md` if Gatekeeper blocks the first launch.
+macOS: download the unsigned ZIP, unzip it, drag `OwnOrbit AI.app` to Applications, then follow `INSTALL-unsigned-mac.md` if Gatekeeper blocks the first launch.
 
 Windows: download the NSIS `.exe` and follow the SmartScreen warning guidance in `USER-INSTALL.md`.
 
@@ -150,7 +150,7 @@ Do not reuse hashes from v0.1.2-alpha or earlier releases.
 git init
 git add .
 git status
-git commit -m "Initial LifeOS AI release"
+git commit -m "Initial OwnOrbit AI release"
 git branch -M main
 git remote add origin git@github.com:<owner>/<repo>.git
 git push -u origin main
@@ -297,7 +297,7 @@ Before public promotion, the repository should satisfy:
 6. Title:
 
    ```text
-   LifeOS AI 0.1.3 Alpha
+   OwnOrbit AI 0.1.3 Alpha
    ```
 
 7. Upload the files listed in [release-assets.md](release-assets.md).
@@ -309,7 +309,7 @@ Before public promotion, the repository should satisfy:
 git init
 git add .
 git status
-git commit -m "Initial LifeOS AI release"
+git commit -m "Initial OwnOrbit AI release"
 git branch -M main
 git remote add origin git@github.com:<owner>/<repo>.git
 git push -u origin main

@@ -11,7 +11,7 @@ const releaseDir = process.env.LIFEOS_RELEASE_DIR ? path.resolve(process.env.LIF
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
 const require = createRequire(import.meta.url);
 const asar = require("@electron/asar");
-const productName = packageJson.build?.productName || "LifeOS AI";
+const productName = packageJson.build?.productName || "OwnOrbit AI";
 
 function fail(message) {
   console.error(`[FAIL] ${message}`);
@@ -781,7 +781,7 @@ async function launchPackagedWindowsApp() {
     const { health, port: actualPort } = await waitForHealth(port, child, output, { allowEarlyExit: true });
     if (health.networkMode !== "local") fail("packaged Windows app launch smoke did not start in local mode");
     const loginPage = await fetchText(actualPort, "/admin/login");
-    if (loginPage.status !== 200 || !loginPage.body.includes("LifeOS")) fail("packaged Windows app did not expose the admin login shell");
+    if (loginPage.status !== 200 || !loginPage.body.includes("OwnOrbit")) fail("packaged Windows app did not expose the admin login shell");
     pass("packaged Windows app launches and exposes local core health");
   } finally {
     child.kill("SIGTERM");
@@ -826,7 +826,7 @@ async function launchPackagedLinuxApp() {
     const { health, port: actualPort } = await waitForHealth(port, child, output, { allowEarlyExit: true });
     if (health.networkMode !== "local") fail("packaged Linux app launch smoke did not start in local mode");
     const loginPage = await fetchText(actualPort, "/admin/login");
-    if (loginPage.status !== 200 || !loginPage.body.includes("LifeOS")) fail("packaged Linux app did not expose the admin login shell");
+    if (loginPage.status !== 200 || !loginPage.body.includes("OwnOrbit")) fail("packaged Linux app did not expose the admin login shell");
     pass("packaged Linux app launches and exposes local core health");
   } finally {
     child.kill("SIGTERM");

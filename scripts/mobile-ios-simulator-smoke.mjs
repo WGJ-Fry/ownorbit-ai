@@ -104,7 +104,7 @@ function buildSimulatorPacket(baseUrl) {
     refreshAfter: now + 24 * 60 * 60 * 1000,
     expiresAt: now + 7 * 24 * 60 * 60 * 1000,
     candidateId: isHttps ? "simulator-https" : "simulator-local",
-    label: "LifeOS iOS Simulator Smoke",
+    label: "OwnOrbit iOS Simulator Smoke",
     baseUrl,
     mobilePairUrl: `${baseUrl}/mobile/pair`,
     mobileChatUrl: `${baseUrl}/mobile/chat`,
@@ -159,7 +159,7 @@ async function main() {
   });
   if (!remoteSmoke.ok) {
     console.error(JSON.stringify(remoteSmoke, null, 2));
-    throw new Error("Desktop/mobile endpoint is not reachable from the Mac. Start LifeOS first, then rerun this smoke.");
+    throw new Error("Desktop/mobile endpoint is not reachable from the Mac. Start OwnOrbit first, then rerun this smoke.");
   }
 
   const device = await selectSimulator();

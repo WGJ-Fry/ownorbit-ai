@@ -1,23 +1,26 @@
-# LifeOS AI - Open-Source, Local-First Personal AI Assistant
+# OwnOrbit AI - Open-Source, Local-First Personal AI Assistant
 
 > **A self-hosted personal AI assistant for private memory, everyday action, and generated problem-solving tools.**
 >
 > Your computer runs the private AI core. Your phone becomes the paired mobile companion.
 
-LifeOS AI is an open-source, self-hosted, local-first personal AI assistant and private second brain. It combines local Markdown knowledge, user-selected LLM providers, a desktop admin core, a mobile PWA, safer remote access through LAN/Tailscale/Cloudflare Tunnel, and runnable tools generated for the problem you are solving. It is built for macOS, Windows, and Linux, with an experimental native Apple/CloudKit data-sync path under active development.
+OwnOrbit AI is an open-source, self-hosted, local-first personal AI assistant and private second brain. It combines local Markdown knowledge, user-selected LLM providers, a desktop admin core, a mobile PWA, safer remote access through LAN/Tailscale/Cloudflare Tunnel, and runnable tools generated for the problem you are solving. It is built for macOS, Windows, and Linux, with an experimental native Apple/CloudKit data-sync path under active development.
 
 [中文说明](README.zh-CN.md) | [Release Status](#release-status) | [Setup](#2-minute-setup) | [Generated Programs](#generated-problem-solving-programs) | [Remote Access](#remote--vpn-access) | [Current Limits](#current-alpha-limits)
 
-[![Quality Gate](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/quality.yml/badge.svg)](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/quality.yml)
-[![Docker Image](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/docker.yml/badge.svg)](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/docker.yml)
-[![Release](https://img.shields.io/github/v/release/WGJ-Fry/lifeos-ai?include_prereleases&label=release)](https://github.com/WGJ-Fry/lifeos-ai/releases)
+[![Quality Gate](https://github.com/WGJ-Fry/ownorbit-ai/actions/workflows/quality.yml/badge.svg)](https://github.com/WGJ-Fry/ownorbit-ai/actions/workflows/quality.yml)
+[![Docker Image](https://github.com/WGJ-Fry/ownorbit-ai/actions/workflows/docker.yml/badge.svg)](https://github.com/WGJ-Fry/ownorbit-ai/actions/workflows/docker.yml)
+[![Release](https://img.shields.io/github/v/release/WGJ-Fry/ownorbit-ai?include_prereleases&label=release)](https://github.com/WGJ-Fry/ownorbit-ai/releases)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
+> [!NOTE]
+> **LifeOS AI is now OwnOrbit AI.** The public `v0.1.5-alpha` files and GHCR image still use the former name. Existing `LIFEOS_*` settings, app identity, local data, device bindings, and iCloud handoff files remain compatible. See the [brand migration notes](docs/brand-migration.md).
+
 <p align="center">
-  <img src="docs/assets/readme/lifeos-readme-hero-en.svg" alt="LifeOS AI local-first personal AI assistant" width="100%">
+  <img src="docs/assets/readme/lifeos-readme-hero-en.svg" alt="OwnOrbit AI local-first personal AI assistant" width="100%">
 </p>
 
-LifeOS starts with one small but useful workflow:
+OwnOrbit starts with one small but useful workflow:
 
 ```text
 What am I forgetting?
@@ -35,16 +38,16 @@ It reads local Markdown notes, runs with local Ollama in the alpha demo, and sur
 - **Connection guide:** LAN, Tailscale, and Cloudflare Tunnel diagnostics with safety checks.
 - **Studio tools:** generate and refine runnable problem-solving programs with state storage, runtime logs, and rollback.
 
-Current release promise: put Markdown notes in a folder, run LifeOS locally, and ask what you may have missed.
+Current release promise: put Markdown notes in a folder, run OwnOrbit locally, and ask what you may have missed.
 
 ## Release Status
 
-Public release tag: [`v0.1.5-alpha`](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.5-alpha)<br>
+Public release tag: [`v0.1.5-alpha`](https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/v0.1.5-alpha)<br>
 Source package version: `0.1.5-alpha.0`
 
 This README is written for the public `v0.1.5-alpha` downloads. The `main` branch may contain later source-only changes; use those only if you are comfortable building from source.
 
-Important: use the explicit [`v0.1.5-alpha` Release page](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.5-alpha). If GitHub's generic **Latest release** label ever points to an older build, ignore it and use this versioned link.
+Important: use the explicit [`v0.1.5-alpha` Release page](https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/v0.1.5-alpha). If GitHub's generic **Latest release** label ever points to an older build, ignore it and use this versioned link.
 
 | Track | What to expect |
 | --- | --- |
@@ -57,13 +60,13 @@ Important: use the explicit [`v0.1.5-alpha` Release page](https://github.com/WGJ
 | Path | Use this when | Current public status |
 | --- | --- | --- |
 | **Docker Compose alpha** | You want the fastest local demo with Ollama and Markdown notes. | Recommended first try. Uses `ghcr.io/wgj-fry/lifeos-ai:v0.1.5-alpha`. |
-| **macOS desktop ZIP** | You want to try the early desktop shell on Apple Silicon. | Available in the [`v0.1.5-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.5-alpha): `LifeOS.AI-0.1.5-alpha.0-arm64-unsigned.zip`. |
-| **Windows desktop installer** | You want a native Windows x64 installer. | Available in the [`v0.1.5-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.5-alpha): `LifeOS.AI.Setup.0.1.5-alpha.0.exe`. |
-| **Linux AppImage** | You want a portable Linux x64 desktop package. | Available in the [`v0.1.5-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.5-alpha): `LifeOS.AI-0.1.5-alpha.0.AppImage`. |
+| **macOS desktop ZIP** | You want to try the early desktop shell on Apple Silicon. | Available in the [`v0.1.5-alpha` Release](https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/v0.1.5-alpha): `LifeOS.AI-0.1.5-alpha.0-arm64-unsigned.zip`. |
+| **Windows desktop installer** | You want a native Windows x64 installer. | Available in the [`v0.1.5-alpha` Release](https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/v0.1.5-alpha): `LifeOS.AI.Setup.0.1.5-alpha.0.exe`. |
+| **Linux AppImage** | You want a portable Linux x64 desktop package. | Available in the [`v0.1.5-alpha` Release](https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/v0.1.5-alpha): `LifeOS.AI-0.1.5-alpha.0.AppImage`. |
 
 If you are new, start with Docker Compose below. If you specifically want the desktop app, use the `v0.1.5-alpha` Release and verify downloads with `SHA256SUMS` before first launch. GitHub asset URLs use dot-separated filenames, while `SHA256SUMS` may list the original builder filenames with spaces; compare the SHA256 value if the local filename differs.
 
-Filename mapping for checksum checks: GitHub may show `LifeOS.AI-0.1.5-alpha.0-arm64-unsigned.zip`, `LifeOS.AI.Setup.0.1.5-alpha.0.exe`, and `LifeOS.AI-0.1.5-alpha.0.AppImage`; builder metadata may show `LifeOS AI-0.1.5-alpha.0-arm64-unsigned.zip`, `LifeOS AI Setup 0.1.5-alpha.0.exe`, and `LifeOS AI-0.1.5-alpha.0.AppImage`.
+The `v0.1.5-alpha` filenames above are the real historical download names from before the rename. Future OwnOrbit-branded builds use `OwnOrbit AI` filenames. Always compare the SHA256 value when a browser or upload step changes spaces to dots.
 
 ## Real Product Screens
 
@@ -71,9 +74,11 @@ These are real screens from the current project, not concept art.
 
 ### 30-Second Product Video
 
+The current video records the real `v0.1.5-alpha` interface and therefore shows the former LifeOS AI name. The workflow is unchanged; an OwnOrbit-branded recording will accompany the next packaged release.
+
 <p align="center">
   <a href="docs/assets/promo/lifeos-ai-30s-en.mp4">
-    <img src="docs/assets/promo/lifeos-ai-30s-en.gif" alt="LifeOS AI 30-second product video preview" width="100%">
+    <img src="docs/assets/promo/lifeos-ai-30s-en.gif" alt="OwnOrbit AI 30-second product video preview" width="100%">
   </a>
 </p>
 
@@ -84,19 +89,19 @@ These are real screens from the current project, not concept art.
 </p>
 
 <p align="center">
-  <img src="public/screenshots/en-admin-onboarding.jpg" alt="LifeOS desktop first launch guide and security check" width="49%">
-  <img src="public/screenshots/en-mobile-device.jpg" alt="LifeOS mobile device and connection page" width="24%">
+  <img src="public/screenshots/en-admin-onboarding.jpg" alt="OwnOrbit desktop first launch guide and security check" width="49%">
+  <img src="public/screenshots/en-mobile-device.jpg" alt="OwnOrbit mobile device and connection page" width="24%">
 </p>
 
 <p align="center">
-  <img src="public/screenshots/en-connection-tunnel-vpn.jpg" alt="LifeOS remote connection guide with Cloudflare Tunnel and Tailscale VPN" width="74%">
+  <img src="public/screenshots/en-connection-tunnel-vpn.jpg" alt="OwnOrbit remote connection guide with Cloudflare Tunnel and Tailscale VPN" width="74%">
 </p>
 
-## Why LifeOS AI
+## Why OwnOrbit AI
 
-Most AI tools wait for you to remember the right prompt. LifeOS starts from the mess you already have: scattered notes, dates, promises, renewals, ideas, and unfinished work.
+Most AI tools wait for you to remember the right prompt. OwnOrbit starts from the mess you already have: scattered notes, dates, promises, renewals, ideas, and unfinished work.
 
-LifeOS is interesting because the current alpha already combines three working pieces:
+OwnOrbit is interesting because the current alpha already combines three working pieces:
 
 1. **Memory discovery:** find forgotten commitments and deadlines from your own data.
 2. **Local-first AI:** keep the first useful workflow on your machine with a local Ollama model.
@@ -105,7 +110,7 @@ LifeOS is interesting because the current alpha already combines three working p
 ## Feature Map
 
 <p align="center">
-  <img src="docs/assets/readme/lifeos-feature-map-en.svg" alt="LifeOS AI feature map from personal memory to useful action" width="100%">
+  <img src="docs/assets/readme/lifeos-feature-map-en.svg" alt="OwnOrbit AI feature map from personal memory to useful action" width="100%">
 </p>
 
 | Area | Current status |
@@ -122,14 +127,14 @@ LifeOS is interesting because the current alpha already combines three working p
 ## Generated Problem-Solving Programs
 
 <p align="center">
-  <img src="docs/assets/readme/lifeos-generated-programs-en.svg" alt="LifeOS generates runnable programs for concrete problems" width="100%">
+  <img src="docs/assets/readme/lifeos-generated-programs-en.svg" alt="OwnOrbit generates runnable programs for concrete problems" width="100%">
 </p>
 
-LifeOS Studio turns a concrete need into a small runnable program.
+OwnOrbit Studio turns a concrete need into a small runnable program.
 
 This is not just “generate an app from a prompt.” The goal is more practical:
 
-> In Studio, enter a concrete problem. LifeOS generates a focused tool that helps you work through it.
+> In Studio, enter a concrete problem. OwnOrbit generates a focused tool that helps you work through it.
 
 The current source also shows the generated-program blueprint before creation: what the user should confirm, what permissions/boundaries the helper should keep, and how to repair or regenerate when the first version misses the task.
 
@@ -152,8 +157,8 @@ Requirements:
 - Docker Compose
 
 ```bash
-git clone https://github.com/WGJ-Fry/lifeos-ai.git
-cd lifeos-ai
+git clone https://github.com/WGJ-Fry/ownorbit-ai.git
+cd ownorbit-ai
 
 mkdir -p lifeos_vault lifeos_data
 
@@ -188,12 +193,12 @@ Ask:
 What am I forgetting?
 ```
 
-Expected result: LifeOS should mention the passport expiry, Tom’s proposal, and the tax filing deadline from `lifeos_vault/demo.md`.
+Expected result: OwnOrbit should mention the passport expiry, Tom’s proposal, and the tax filing deadline from `lifeos_vault/demo.md`.
 
 The command setup is short, but first startup can take several minutes because Ollama downloads `llama3.2`.
 
 <p align="center">
-  <img src="docs/assets/real-demo-en.gif" alt="LifeOS local Markdown demo asking what am I forgetting" width="420">
+  <img src="docs/assets/real-demo-en.gif" alt="OwnOrbit local Markdown demo asking what am I forgetting" width="420">
 </p>
 
 ## What Starts In Docker
@@ -201,10 +206,10 @@ The command setup is short, but first startup can take several minutes because O
 | Service | Purpose |
 | --- | --- |
 | `ollama` | Runs the local model server. |
-| `ollama-pull` | Downloads `llama3.2` once before LifeOS starts. |
-| `lifeos` | Runs the LifeOS web UI and API server. |
+| `ollama-pull` | Downloads `llama3.2` once before OwnOrbit starts. |
+| `lifeos` | Runs the OwnOrbit web UI and API server. |
 
-The default Compose file binds LifeOS to the local computer:
+The default Compose file binds OwnOrbit to the local computer:
 
 ```text
 127.0.0.1:8080 -> lifeos:3000
@@ -217,10 +222,10 @@ Do not remove the `127.0.0.1` host binding unless you have already set a strong 
 ## Remote & VPN Access
 
 <p align="center">
-  <img src="docs/assets/readme/lifeos-remote-access-en.svg" alt="LifeOS remote phone access with LAN, Tailscale VPN, and Cloudflare Tunnel" width="100%">
+  <img src="docs/assets/readme/lifeos-remote-access-en.svg" alt="OwnOrbit remote phone access with LAN, Tailscale VPN, and Cloudflare Tunnel" width="100%">
 </p>
 
-LifeOS is designed for this model:
+OwnOrbit is designed for this model:
 
 ```text
 Your computer = private AI core
@@ -241,7 +246,7 @@ Safety rule: before remote access, enable admin auth, use HTTPS or a private VPN
 
 Entry point: desktop admin -> device pairing / connection guide.
 
-1. Start LifeOS on the computer and finish the admin setup.
+1. Start OwnOrbit on the computer and finish the admin setup.
 2. Use the connection guide to pick a private VPN URL, LAN URL, or carefully configured HTTPS tunnel URL.
 3. Generate the pairing QR from that selected URL, scan it on the phone, then run the built-in reachability check before relying on it outside the local network.
 
@@ -249,7 +254,7 @@ Recommended long-term path: Tailscale or another private VPN. Cloudflare Tunnel 
 
 ## Local Memory Contract
 
-LifeOS reads your mounted Markdown folder and, optionally, local `.ics` calendar/task files. It does not write back to the vault, calendar files, or task files in this alpha path.
+OwnOrbit reads your mounted Markdown folder and, optionally, local `.ics` calendar/task files. It does not write back to the vault, calendar files, or task files in this alpha path.
 
 | Item | Current behavior |
 | --- | --- |
@@ -291,14 +296,14 @@ The desktop/admin path includes provider settings for Mainland China and interna
 
 ## Current Alpha Limits
 
-LifeOS is alpha software. The Docker quickstart is the most stable demo path; desktop, mobile, remote access, and Studio are usable alpha paths with more moving parts.
+OwnOrbit is alpha software. The Docker quickstart is the most stable demo path; desktop, mobile, remote access, and Studio are usable alpha paths with more moving parts.
 
 - Automatic updates are not enabled yet; update manually from GitHub Releases and verify `SHA256SUMS`.
 - The public desktop packages are unsigned alpha builds. macOS Developer ID signing/notarization and Windows Authenticode signing are not part of this release, so Gatekeeper or SmartScreen may warn.
 - Remote diagnostics can verify configuration, but long-term remote stability still needs real-device evidence: cellular data, Wi-Fi switching, desktop restart recovery, stale QR repair, and tunnel interruption recovery.
 - iCloud Drive still syncs only mobile entry files by default. The opt-in CloudKit native candidate can mirror selected chat, memory, task, generated-app-state, and device-trust metadata records through explicit confirmations, quarantine review, and conservative apply rules; it does not sync raw device credentials, AI keys, SQLite databases, or backups. See [iCloud data sync design boundary](docs/icloud-data-sync-design.md).
 - Local memory reads Markdown plus optional read-only `.ics` calendar/task files in the Docker/local path.
-- Broad Apple Calendar, Google Calendar, and system reminders account sync is not shipped yet. `v0.1.5-alpha` only adds narrow Apple Calendar, Google Calendar/Tasks, and system reminders connector paths that must be explicitly enabled and confirmed by an admin before writing outside LifeOS; writes are audited, recorded in SQLite history, and expose guarded rollback status.
+- Broad Apple Calendar, Google Calendar, and system reminders account sync is not shipped yet. `v0.1.5-alpha` only adds narrow Apple Calendar, Google Calendar/Tasks, and system reminders connector paths that must be explicitly enabled and confirmed by an admin before writing outside OwnOrbit; writes are audited, recorded in SQLite history, and expose guarded rollback status.
 - `.ics` support is read-only local ingestion, not two-way calendar/task management.
 - Calendar/task write-back is limited to the guarded connector paths and is not advertised as unattended background sync.
 - Not a perfect deadline detector.

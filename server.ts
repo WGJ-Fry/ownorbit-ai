@@ -141,7 +141,7 @@ async function startServer() {
       const sendSpaIndex = (pairingToken = "") => {
         fs.readFile(indexPath, "utf8", (error, html) => {
           if (error) {
-            res.status(500).send("LifeOS web shell is unavailable.");
+            res.status(500).send("OwnOrbit web shell is unavailable.");
             return;
           }
           if (pairingToken) {

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Renamed the user-facing product from **LifeOS AI** to **OwnOrbit AI**, including the desktop shell, mobile PWA, native Apple shell, bilingual UI, documentation, repository metadata, and README visuals.
+- Added upgrade compatibility for the former desktop user-data directory and iCloud Drive handoff folder so existing SQLite data, device bindings, settings, and phone entries remain usable after the rename.
+- Kept published compatibility identifiers such as `LIFEOS_*`, `ai.lifeos.desktop`, `lifeos-mobile-entry.*`, CloudKit record identifiers, and the existing `ghcr.io/wgj-fry/lifeos-ai` image path stable.
+- Added bilingual brand migration documentation and clearly labeled the public `v0.1.5-alpha` package filenames and product videos as pre-rename assets.
+
 ## 0.1.5-alpha.0
 
 - Added privacy-safe iOS local notifications for expiring iCloud phone entries and repeated connection failures, with automatic cleanup after recovery.

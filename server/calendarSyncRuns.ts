@@ -275,7 +275,7 @@ function nextStepsForRun(preview: CalendarSyncPreview, conflicts: CalendarSyncRu
     steps.push("Type the fixed confirmation phrase only for the selected item you intend to write, then verify the external app and rollback record.");
   }
   if (preview.syncPlan.pullExternal > 0) {
-    steps.push("Review pulled external items as LifeOS memory before using them to generate new write proposals.");
+    steps.push("Review pulled external items as OwnOrbit memory before using them to generate new write proposals.");
   }
   if (!summary.twoWayEvidence.acceptanceReady) {
     steps.push(`Two-way acceptance evidence is incomplete: ${summary.twoWayEvidence.missing.join(", ") || "unknown"}.`);

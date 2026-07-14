@@ -25,6 +25,7 @@ services:
     restart: "no"
 
   lifeos:
+    # Compatibility image path: kept until the first OwnOrbit-branded GHCR release is published.
     image: ghcr.io/wgj-fry/lifeos-ai:v0.1.5-alpha
     container_name: lifeos-app
     depends_on:

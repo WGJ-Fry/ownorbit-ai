@@ -16,13 +16,12 @@ const publicMacZipName = `LifeOS.AI-${packageJson.version}-arm64-unsigned.zip`;
 const publicWinInstallerName = `LifeOS.AI.Setup.${packageJson.version}.exe`;
 const publicLinuxAppImageName = `LifeOS.AI-${packageJson.version}.AppImage`;
 const desiredDescription =
-  "Open-source, self-hosted, local-first personal AI assistant and private second brain with memory, mobile access, and generated problem-solving tools.";
+  "OwnOrbit AI is an open-source, self-hosted, local-first personal AI assistant and private second brain with memory, mobile access, and generated problem-solving tools.";
 const desiredTopics = [
   "ai",
   "ai-agent",
   "ai-assistant",
   "personal-ai",
-  "personal-assistant",
   "local-ai",
   "local-first",
   "self-hosted",
@@ -38,12 +37,13 @@ const desiredTopics = [
   "electron",
   "pwa",
   "remote-access",
+  "ownorbit-ai",
 ];
 
 function currentRelease(overrides = {}) {
   return {
     tag_name: currentTag,
-    name: `LifeOS AI ${currentTag}`,
+    name: `OwnOrbit AI ${currentTag}`,
     draft: false,
     prerelease: true,
     url: "/release/current",
@@ -64,7 +64,7 @@ function currentRelease(overrides = {}) {
 async function withMockGitHubApi({ releases, latest, repository = {} }, fn) {
   const server = createServer((req, res) => {
     res.setHeader("content-type", "application/json");
-    if (req.method === "GET" && req.url === "/repos/WGJ-Fry/lifeos-ai") {
+    if (req.method === "GET" && req.url === "/repos/WGJ-Fry/ownorbit-ai") {
       res.end(JSON.stringify({
         description: desiredDescription,
         has_discussions: true,
@@ -73,11 +73,11 @@ async function withMockGitHubApi({ releases, latest, repository = {} }, fn) {
       }));
       return;
     }
-    if (req.method === "GET" && req.url?.startsWith("/repos/WGJ-Fry/lifeos-ai/releases?")) {
+    if (req.method === "GET" && req.url?.startsWith("/repos/WGJ-Fry/ownorbit-ai/releases?")) {
       res.end(JSON.stringify(releases));
       return;
     }
-    if (req.method === "GET" && req.url === "/repos/WGJ-Fry/lifeos-ai/releases/latest") {
+    if (req.method === "GET" && req.url === "/repos/WGJ-Fry/ownorbit-ai/releases/latest") {
       if (latest) {
         res.end(JSON.stringify(latest));
       } else {
@@ -93,7 +93,7 @@ async function withMockGitHubApi({ releases, latest, repository = {} }, fn) {
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   try {
     const { port } = server.address();
-    return await fn(`http://127.0.0.1:${port}/repos/WGJ-Fry/lifeos-ai`);
+    return await fn(`http://127.0.0.1:${port}/repos/WGJ-Fry/ownorbit-ai`);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

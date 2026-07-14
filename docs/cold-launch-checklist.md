@@ -1,4 +1,4 @@
-# LifeOS v0.1.5-alpha Cold Launch Checklist
+# OwnOrbit v0.1.5-alpha Cold Launch Checklist
 
 This checklist is intentionally narrow. The alpha launch only needs to prove one path:
 

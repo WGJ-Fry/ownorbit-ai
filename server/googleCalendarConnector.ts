@@ -145,7 +145,7 @@ function eventBody(input: CalendarSyncExecuteInput, title: string) {
   const end = new Date(safeStart.getTime() + 30 * 60 * 1000);
   return {
     summary: title,
-    description: compact(input.notes, "Created by LifeOS AI after explicit admin confirmation."),
+    description: compact(input.notes, "Created by OwnOrbit AI after explicit admin confirmation."),
     start: { dateTime: safeStart.toISOString() },
     end: { dateTime: end.toISOString() },
   };
@@ -211,7 +211,7 @@ export async function executeGoogleCalendarOperation(
       previousState: ["update", "delete"].includes(normalized.action) ? {
         title: input.title ? `Previous ${input.title}` : "Previous Google Calendar event",
         scheduledAt: input.startsAt || input.dueAt,
-        notes: "Mock previous state captured before LifeOS wrote to Google Calendar.",
+        notes: "Mock previous state captured before OwnOrbit wrote to Google Calendar.",
       } : undefined,
     };
   }

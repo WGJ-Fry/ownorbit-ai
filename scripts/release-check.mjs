@@ -18,9 +18,9 @@ const currentDockerImage = `ghcr.io/wgj-fry/lifeos-ai:${currentReleaseTag}`;
 const publicMacZipName = `LifeOS.AI-${packageJson.version}-arm64-unsigned.zip`;
 const publicWinInstallerName = `LifeOS.AI.Setup.${packageJson.version}.exe`;
 const publicLinuxAppImageName = `LifeOS.AI-${packageJson.version}.AppImage`;
-const builderMacZipName = `LifeOS AI-${packageJson.version}-arm64-unsigned.zip`;
-const builderWinInstallerName = `LifeOS AI Setup ${packageJson.version}.exe`;
-const builderLinuxAppImageName = `LifeOS AI-${packageJson.version}.AppImage`;
+const builderMacZipName = `OwnOrbit AI-${packageJson.version}-arm64-unsigned.zip`;
+const builderWinInstallerName = `OwnOrbit AI Setup ${packageJson.version}.exe`;
+const builderLinuxAppImageName = `OwnOrbit AI-${packageJson.version}.AppImage`;
 const translationsSource = exists("src/i18n/translations.ts") ? fs.readFileSync(path.join(rootDir, "src/i18n/translations.ts"), "utf8") : "";
 const require = createRequire(import.meta.url);
 const results = [];
@@ -999,8 +999,8 @@ function checkAssets() {
     translationsSource.includes("Apple phone entry is ready (same Wi-Fi)") &&
     translationsSource.includes("同一 Wi-Fi 可以继续绑定") &&
     translationsSource.includes("Same Wi-Fi can continue pairing") &&
-    translationsSource.includes("iPhone 文件 App：iCloud Drive > LifeOS AI > lifeos-mobile-entry.html") &&
-    translationsSource.includes("iPhone Files app: iCloud Drive > LifeOS AI > lifeos-mobile-entry.html") &&
+    translationsSource.includes("iPhone 文件 App：iCloud Drive > OwnOrbit AI > lifeos-mobile-entry.html") &&
+    translationsSource.includes("iPhone Files app: iCloud Drive > OwnOrbit AI > lifeos-mobile-entry.html") &&
     translationsSource.includes("onboarding.simpleAdvancedSummary") &&
     translationsSource.includes("onboarding.handoffSummaryCopied") &&
     translationsSource.includes("onboarding.handoffTitle") &&
@@ -1099,7 +1099,7 @@ function checkAssets() {
     connectionRecommendedEntrySource.includes("buildConnectionSetupPacket") &&
     connectionRecommendedEntrySource.includes("recommended-setup") &&
     connectionRecommendedEntrySource.includes("connection.copySetupPacket") &&
-    connectionSetupPacketSource.includes("LifeOS AI remote connection setup") &&
+    connectionSetupPacketSource.includes("OwnOrbit AI remote connection setup") &&
     connectionSetupPacketSource.includes("Requires restart") &&
     connectionRecommendedEntrySource.includes("connection.copyMobileEntry") &&
     connectionRecommendedEntrySource.includes("/admin/devices/pair") &&
@@ -1967,7 +1967,7 @@ function checkAssets() {
     networkDiagnosticsSource.includes("This entry only works on the same Wi-Fi") &&
     networkDiagnosticsSource.includes("If two desktops share a name") &&
     networkDiagnosticsSource.includes("recommendedRemoteFromOtherDesktop") &&
-    networkDiagnosticsSource.includes("LifeOS picked an off-LAN HTTPS/VPN entry") &&
+    networkDiagnosticsSource.includes("OwnOrbit picked an off-LAN HTTPS/VPN entry") &&
     networkDiagnosticsSource.includes("Open the Recommended Entry") &&
     networkDiagnosticsSource.includes("Other desktop entries") &&
     networkDiagnosticsSource.includes("lifeos-entry-index-recommended-html-file") &&
@@ -1980,7 +1980,7 @@ function checkAssets() {
     networkDiagnosticsTestSource.includes("Advanced: other or older entries") &&
     networkDiagnosticsTestSource.includes("iCloud desktop chooser prefers off-LAN entries over same-Wi-Fi current entries") &&
     networkDiagnosticsTestSource.includes("lifeos-entry-index-recommended-desktop-id\" content=\"remote-mac") &&
-    networkDiagnosticsTestSource.includes("LifeOS 优先推荐了可异地访问的 HTTPS\\/VPN 入口") &&
+    networkDiagnosticsTestSource.includes("OwnOrbit 优先推荐了可异地访问的 HTTPS\\/VPN 入口") &&
     networkDiagnosticsTestSource.includes("iCloud handoff entry page warns when the exported address only works on the same Wi-Fi") &&
     networkDiagnosticsTestSource.includes("packet.sameWifiOnly") &&
     networkDiagnosticsTestSource.includes("lifeos-same-wifi-warning") &&
@@ -2371,7 +2371,7 @@ function checkAssets() {
     cloudKitSyncApplyTestSource.includes("device trust apply stores metadata without granting device access") &&
     cloudKitSyncApplyTestSource.includes("device trust apply rejects raw public key payloads") &&
     cloudKitDeviceTrustMetadataSource.includes("listCloudKitDeviceTrustMetadata") &&
-    cloudKitDeviceTrustMetadataSource.includes("Bind this device again before it can access this LifeOS computer") &&
+    cloudKitDeviceTrustMetadataSource.includes("Bind this device again before it can access this OwnOrbit computer") &&
     cloudKitDeviceTrustMetadataSource.includes("rawCredentialReturnedToAdmin: false") &&
     cloudKitDeviceTrustMetadataSource.includes("deviceAccessGrantedFromCloudKit: false") &&
     cloudKitDeviceTrustMetadataTestSource.includes("shows rebind guidance without granting access") &&
@@ -3357,7 +3357,7 @@ function checkAssets() {
     offlineQueueTestSource.includes("formatOfflineMessageQueueBytes") &&
     offlineQueueTestSource.includes("getOfflineMessageQueueStorageLabel") &&
     offlineQueueTestSource.includes("getOfflineMessageQueueUsageLabel") &&
-    offlineQueueBackupSource.includes("LifeOS AI offline queue backup") &&
+    offlineQueueBackupSource.includes("OwnOrbit AI offline queue backup") &&
     offlineQueueBackupSource.includes("Failure reason") &&
     offlineQueueBackupSource.includes("Sync identity") &&
     lifeosApiSource.includes("ChatMessageSaveMetadata") &&
@@ -4214,8 +4214,8 @@ function checkSecurityConfig() {
   else warn("desktop diagnostic does not include main window state");
   if (desktopMain.includes("openLogsFolder") && desktopMain.includes("Open Logs Folder")) pass("desktop logs folder menu action is implemented");
   else warn("desktop logs folder menu action is not implemented");
-  if (desktopMain.includes("lifeos:open-icloud-folder") && desktopMain.includes("openIcloudFolder") && desktopPreload.includes("openIcloudFolder")) pass("desktop bridge can open the LifeOS iCloud folder");
-  else warn("desktop bridge cannot open the LifeOS iCloud folder");
+  if (desktopMain.includes("lifeos:open-icloud-folder") && desktopMain.includes("openIcloudFolder") && desktopPreload.includes("openIcloudFolder")) pass("desktop bridge can open the OwnOrbit iCloud folder");
+  else warn("desktop bridge cannot open the OwnOrbit iCloud folder");
   if (desktopMain.includes("lifeos:open-icloud-settings") && desktopMain.includes("openIcloudSettings") && desktopPreload.includes("openIcloudSettings")) pass("desktop bridge can open iCloud settings");
   else warn("desktop bridge cannot open iCloud settings");
   if (desktopMain.includes("lifeos-desktop.log") && desktopMain.includes("tail: readLogTail()")) pass("desktop diagnostic includes redacted log tail");
@@ -4272,7 +4272,7 @@ function checkSecurityConfig() {
   else warn("desktop tray does not expose refreshed health/admin/AI/device status");
   if (desktopMain.includes("showStartupFailureWindow") && desktopMain.includes("lifeos-desktop.log")) pass("desktop startup failure page points users to logs");
   else warn("desktop startup failure page does not point users to logs");
-  if (desktopMain.includes("LifeOS startup failed") && desktopMain.includes("Export Desktop Diagnostics") && desktopMain.includes("Open Logs Folder")) pass("desktop startup failure menu exposes diagnostics and logs");
+  if (desktopMain.includes("OwnOrbit startup failed") && desktopMain.includes("Export Desktop Diagnostics") && desktopMain.includes("Open Logs Folder")) pass("desktop startup failure menu exposes diagnostics and logs");
   else warn("desktop startup failure menu does not expose diagnostics and logs");
 }
 
@@ -4384,10 +4384,10 @@ function checkUpdateFeed() {
     .map((entry) => entry.name);
   const unpackedArtifactRefs = artifacts
     .map((artifact) => String(artifact.fileName || ""))
-    .filter((fileName) => /(?:^|\/)(?:[^/]+-)?unpacked(?:\/|$)/i.test(fileName) || /(?:^|\/)(?:LifeOS AI\.exe|lifeos-ai)$/i.test(fileName));
+    .filter((fileName) => /(?:^|\/)(?:[^/]+-)?unpacked(?:\/|$)/i.test(fileName) || /(?:^|\/)(?:OwnOrbit AI\.exe|lifeos-ai)$/i.test(fileName));
   const checksumUnpackedRefs = checksums
     .split(/\r?\n/)
-    .filter((line) => /(?:^|\/)(?:[^/]+-)?unpacked(?:\/|$)/i.test(line) || /(?:^|\/)(?:LifeOS AI\.exe|lifeos-ai)$/i.test(line));
+    .filter((line) => /(?:^|\/)(?:[^/]+-)?unpacked(?:\/|$)/i.test(line) || /(?:^|\/)(?:OwnOrbit AI\.exe|lifeos-ai)$/i.test(line));
   if (unpackedArtifactRefs.length === 0 && checksumUnpackedRefs.length === 0) {
     pass(unpackedReleaseDirs.length > 0
       ? `release manifest/checksums exclude unpacked build directories: ${unpackedReleaseDirs.join(", ")}`
@@ -4575,8 +4575,8 @@ function checkReleaseDocs() {
   if (exists("docs/promotion-kit.md")) {
     const promotionKit = fs.readFileSync(path.join(rootDir, "docs/promotion-kit.md"), "utf8");
     if (
-      promotionKit.includes(`Cold launch release: \`https://github.com/WGJ-Fry/lifeos-ai/releases/tag/${currentReleaseTag}\``)
-      && promotionKit.includes(`Desktop package release: \`https://github.com/WGJ-Fry/lifeos-ai/releases/tag/${currentReleaseTag}\``)
+      promotionKit.includes(`Cold launch release: \`https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/${currentReleaseTag}\``)
+      && promotionKit.includes(`Desktop package release: \`https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/${currentReleaseTag}\``)
       && promotionKit.includes("Windows x64 NSIS installer")
       && promotionKit.includes("Linux x64 AppImage")
     ) {
@@ -4637,8 +4637,8 @@ function checkReleaseDocs() {
     .filter((relativePath) => exists(relativePath))
     .map((relativePath) => [relativePath, fs.readFileSync(path.join(rootDir, relativePath), "utf8")]);
   const staleCurrentReleaseMarkers = [
-    "Download `LifeOS AI-0.1.0-arm64.dmg`",
-    "下载 `LifeOS AI-0.1.0-arm64.dmg`",
+    "Download `OwnOrbit AI-0.1.0-arm64.dmg`",
+    "下载 `OwnOrbit AI-0.1.0-arm64.dmg`",
     "macOS: open the DMG",
     "macOS：打开 DMG",
     "The current DMG is signed and notarized",
@@ -4741,8 +4741,8 @@ function checkReleaseDocs() {
   if (exists("CONTRIBUTING.md")) {
     const contributing = fs.readFileSync(path.join(rootDir, "CONTRIBUTING.md"), "utf8");
     if (
-      contributing.includes("LifeOS AI 使用 MIT License")
-      && contributing.includes("LifeOS AI is licensed under the MIT License")
+      contributing.includes("OwnOrbit AI 使用 MIT License")
+      && contributing.includes("OwnOrbit AI is licensed under the MIT License")
       && !contributing.includes("UNLICENSED")
       && !contributing.includes("no open-source license")
     ) {
@@ -4966,8 +4966,8 @@ function checkUnsignedPackage() {
     return;
   }
   const entries = fs.readdirSync(releaseDir, { recursive: true }).map(String);
-  const hasUnsignedMacZip = entries.some((entry) => /LifeOS AI-.+-unsigned\.zip$/.test(entry));
-  if (entries.some((entry) => entry.endsWith("LifeOS AI.app") || entry.endsWith(".dmg") || entry.endsWith(".zip") || entry.endsWith(".exe") || entry.endsWith(".AppImage"))) {
+  const hasUnsignedMacZip = entries.some((entry) => /OwnOrbit AI-.+-unsigned\.zip$/.test(entry));
+  if (entries.some((entry) => entry.endsWith("OwnOrbit AI.app") || entry.endsWith(".dmg") || entry.endsWith(".zip") || entry.endsWith(".exe") || entry.endsWith(".AppImage"))) {
     pass("release/ contains a desktop package artifact");
   } else {
     warn("release/ exists but no desktop app/installer artifact was found");
@@ -5002,7 +5002,7 @@ function checkUnsignedPackage() {
 function findPackagedMacApp() {
   if (!fs.existsSync(releaseDir)) return null;
   const entries = fs.readdirSync(releaseDir, { recursive: true }).map(String);
-  const appEntry = entries.find((entry) => entry.endsWith("LifeOS AI.app/Contents/Resources/app.asar"));
+  const appEntry = entries.find((entry) => entry.endsWith("OwnOrbit AI.app/Contents/Resources/app.asar"));
   return appEntry ? path.join(releaseDir, appEntry) : null;
 }
 

@@ -856,7 +856,7 @@ test("offline queue backup text preserves queued messages before clearing", asyn
     },
   ], queuedAt);
 
-  assert.match(text, /LifeOS AI offline queue backup/);
+  assert.match(text, /OwnOrbit AI offline queue backup/);
   assert.match(text, /Total: 2/);
   assert.match(text, /Failed: 1/);
   assert.match(text, /Last error: WebSocket offline/);

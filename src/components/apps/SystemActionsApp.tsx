@@ -106,7 +106,7 @@ export default function SystemActionsApp({ initialAction }: SystemActionsAppProp
   const [messageText, setMessageText] = useState(() => safeString(initialAction?.text));
   const [email, setEmail] = useState(() => safeString(initialAction?.email));
   const [subject, setSubject] = useState(() => safeString(initialAction?.subject));
-  const [shortcutName, setShortcutName] = useState(() => safeString(initialAction?.shortcutName) || "LifeOS Bridge");
+  const [shortcutName, setShortcutName] = useState(() => safeString(initialAction?.shortcutName) || "OwnOrbit Bridge");
   const [shortcutInput, setShortcutInput] = useState(() => safeString(initialAction?.text));
   const [customName, setCustomName] = useState("");
   const [customUrl, setCustomUrl] = useState(() => safeString(initialAction?.targetUrl));

@@ -33,7 +33,7 @@ export default function MobileConnectivityCard({
   const showTailscale = entryKind === "tailscale";
   const copyRepairPacket = async () => {
     const lines = [
-      "LifeOS AI mobile connectivity repair packet",
+      "OwnOrbit AI mobile connectivity repair packet",
       `${t("mobileDevice.currentEntry")}: ${result.currentBase || "-"}`,
       `${t("mobileDevice.remoteVerdict")}: ${t(primaryIssue as any)}`,
       `${t("mobileDevice.connectivityTestedAt", { time: result.testedAt ? new Date(result.testedAt).toLocaleString() : "-" })}`,

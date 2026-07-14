@@ -93,10 +93,10 @@ async function main() {
   const endpoint = await runRemoteConnectionSmoke(baseURL, { timeoutMs: 8_000 });
   if (!endpoint.ok) {
     const health = endpoint.steps.find((step) => step.url.endsWith("/api/v1/health"));
-    const wrongService = health?.status === 200 && /not JSON|not LifeOS/i.test(health.error || "");
+    const wrongService = health?.status === 200 && /not JSON|not OwnOrbit/i.test(health.error || "");
     throw new Error(wrongService
-      ? `The selected port is serving another application, not LifeOS: ${baseURL}`
-      : `LifeOS is not reachable at ${baseURL}`);
+      ? `The selected port is serving another application, not OwnOrbit: ${baseURL}`
+      : `OwnOrbit is not reachable at ${baseURL}`);
   }
 
   const device = await selectSimulator();
@@ -143,7 +143,7 @@ async function main() {
     proves: [
       "The native SwiftUI shell builds and its entry validator unit tests pass.",
       "The app installs and remains running on an iPhone Simulator.",
-      "The app verifies a LifeOS local core and loads the mobile chat shell.",
+      "The app verifies a OwnOrbit local core and loads the mobile chat shell.",
       "The native iCloud data surface renders a simulator-only task snapshot and guarded completion control without exposing credentials or requiring CloudKit access.",
       "The protected pending-action queue renders retry, review, account-isolation, and removal controls without exposing queued payloads.",
       "The native memory composer renders a bilingual, size-bounded form with explicit private-iCloud safety guidance.",
@@ -152,7 +152,7 @@ async function main() {
       "The smoke run resets this app's simulator permissions and suppresses the notification prompt; production launches still request permission after a successful entry connection.",
       "The simulator does not prove iCloud account document delivery on a physical iPhone.",
       "The simulator does not replace cellular, Wi-Fi switching, background push, or CloudKit provisioning acceptance.",
-      "The native shell stores connection metadata only; LifeOS device credentials remain in the web session.",
+      "The native shell stores connection metadata only; OwnOrbit device credentials remain in the web session.",
     ],
   };
   const evidencePath = path.join(outDir, "latest.json");

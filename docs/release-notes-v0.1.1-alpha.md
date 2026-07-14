@@ -19,8 +19,8 @@ It does one thing:
 ## Try It
 
 ```bash
-git clone https://github.com/WGJ-Fry/lifeos-ai.git
-cd lifeos-ai
+git clone https://github.com/WGJ-Fry/ownorbit-ai.git
+cd ownorbit-ai
 
 mkdir -p lifeos_vault lifeos_data
 

@@ -1,9 +1,9 @@
 <svg width="1280" height="900" viewBox="0 0 1280 900" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">LifeOS 功能地图</title>
+  <title id="title">OwnOrbit 功能地图</title>
   <desc id="desc">先解决真实问题，再扩展成长期自用的私有 AI 系统。</desc>
   <rect width="1280" height="900" rx="34" fill="#071019"/>
   <rect x="34" y="34" width="1212" height="832" rx="30" fill="#0A1420" stroke="#223449"/>
-  <text x="64" y="94" fill="#F8FAFC" font-family="Inter, Arial, Helvetica, sans-serif" font-size="48" font-weight="900">LifeOS 功能地图</text>
+  <text x="64" y="94" fill="#F8FAFC" font-family="Inter, Arial, Helvetica, sans-serif" font-size="48" font-weight="900">OwnOrbit 功能地图</text>
   <text x="64" y="134" fill="#94A3B8" font-family="Inter, Arial, Helvetica, sans-serif" font-size="21">先解决真实问题，再扩展成长期自用的私有 AI 系统。</text>
   <g transform="translate(438 310)">
     <rect width="404" height="250" rx="32" fill="#102033" stroke="#38BDF8" stroke-width="2"/>

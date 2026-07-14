@@ -32,14 +32,14 @@ targets:
     info:
       path: Generated/Info.plist
       properties:
-        CFBundleDisplayName: LifeOS Mobile
+        CFBundleDisplayName: OwnOrbit Mobile
         CFBundleShortVersionString: "0.1.5"
         CFBundleVersion: "1"
         UILaunchScreen: {}
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
           NSAllowsArbitraryLoadsInWebContent: true
-        NSLocalNetworkUsageDescription: LifeOS connects to your own computer on the local network.
+        NSLocalNetworkUsageDescription: OwnOrbit connects to your own computer on the local network.
         LifeOSCloudKitContainerIdentifier: $(LIFEOS_CLOUDKIT_CONTAINER_ID)
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

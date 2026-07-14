@@ -167,8 +167,8 @@ test("version truth release asset guard requires all desktop platforms", async (
   }
 
   await mkdir(path.join(releaseDir, "update-feed"), { recursive: true });
-  const mac = await writeAsset("mac", `LifeOS AI-${packageJson.version}-arm64-unsigned.zip`, "latest-mac.yml", "mac bytes");
-  const windows = await writeAsset("windows", `LifeOS AI Setup ${packageJson.version}.exe`, "latest.yml", "windows bytes");
+  const mac = await writeAsset("mac", `OwnOrbit AI-${packageJson.version}-arm64-unsigned.zip`, "latest-mac.yml", "mac bytes");
+  const windows = await writeAsset("windows", `OwnOrbit AI Setup ${packageJson.version}.exe`, "latest.yml", "windows bytes");
   await writeFile(path.join(releaseDir, "SHA256SUMS"), [
     `${mac.sha256}  ${mac.fileName}`,
     `${windows.sha256}  ${windows.fileName}`,
@@ -191,7 +191,7 @@ test("version truth release asset guard requires all desktop platforms", async (
   assert.notEqual(missingLinux.status, 0, `${missingLinux.stdout}\n${missingLinux.stderr}`);
   assert.match(missingLinux.stderr, /release artifacts are missing platform\(s\): linux/);
 
-  const linux = await writeAsset("linux", `LifeOS AI-${packageJson.version}.AppImage`, "latest-linux.yml", "linux bytes");
+  const linux = await writeAsset("linux", `OwnOrbit AI-${packageJson.version}.AppImage`, "latest-linux.yml", "linux bytes");
   await writeFile(path.join(releaseDir, "SHA256SUMS"), [
     `${mac.sha256}  ${mac.fileName}`,
     `${windows.sha256}  ${windows.fileName}`,

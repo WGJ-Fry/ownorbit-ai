@@ -33,7 +33,7 @@ test("remote connection smoke verifies health, mobile shell, and websocket", asy
     }
     if (req.url === "/lifeos/mobile/chat") {
       res.writeHead(200, { "content-type": "text/html" });
-      res.end("<!doctype html><title>LifeOS AI</title><div id=\"root\"></div>");
+      res.end("<!doctype html><title>OwnOrbit AI</title><div id=\"root\"></div>");
       return;
     }
     res.writeHead(404);
@@ -164,7 +164,7 @@ test("remote acceptance runbook writes long-term evidence and manual steps", asy
     }
     if (req.url === "/lifeos/mobile/chat") {
       res.writeHead(200, { "content-type": "text/html" });
-      res.end("<!doctype html><title>LifeOS AI</title><div id=\"root\"></div>");
+      res.end("<!doctype html><title>OwnOrbit AI</title><div id=\"root\"></div>");
       return;
     }
     res.writeHead(404);

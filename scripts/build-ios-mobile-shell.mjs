@@ -101,7 +101,7 @@ if (deviceBuild) {
   if (deviceResult.status !== 0) {
     const output = `${deviceResult.stdout || ""}\n${deviceResult.stderr || ""}`;
     if (/PLA Update available|Program License Agreement/i.test(output)) {
-      console.error("The Apple Developer Program License Agreement must be accepted by the account holder before Xcode can provision LifeOS Mobile.");
+      console.error("The Apple Developer Program License Agreement must be accepted by the account holder before Xcode can provision OwnOrbit Mobile.");
     } else if (/No profiles for|provisioning profiles matching/i.test(output)) {
       console.error("No matching iPhone provisioning profile is installed. After reviewing the App ID and iCloud Container, set LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES=1 and rerun.");
     }
@@ -136,4 +136,4 @@ if (!existsSync(appPath)) {
 }
 
 const buildKind = deviceBuild ? "signed device" : deviceCompile ? "unsigned device compile" : "simulator";
-console.log(`Built LifeOS native iOS shell (${buildKind}): ${appPath}`);
+console.log(`Built OwnOrbit native iOS shell (${buildKind}): ${appPath}`);

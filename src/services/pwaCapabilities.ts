@@ -320,7 +320,7 @@ async function probeMobileShell(basePath: string, signal: AbortSignal): Promise<
   try {
     const response = await fetch(url, { credentials: "same-origin", signal });
     const body = await response.text().catch(() => "");
-    const ok = response.ok && /(<div id="root"|<div id=root|LifeOS AI|生命操作系统)/i.test(body);
+    const ok = response.ok && /(<div id="root"|<div id=root|OwnOrbit AI|生命操作系统)/i.test(body);
     return {
       id: "mobile-shell",
       ok,
@@ -506,7 +506,7 @@ export function getPwaCapabilityStatus(): PwaCapabilityStatus {
   };
 
   if (!status.standalone) {
-    status.recommendations.push("After pairing, add LifeOS to the home screen so it opens like a regular app.");
+    status.recommendations.push("After pairing, add OwnOrbit to the home screen so it opens like a regular app.");
   }
   if (!status.serviceWorkerSupported) {
     status.recommendations.push("This browser does not support the offline shell. Try Safari, Chrome, or Edge.");

@@ -23,6 +23,9 @@ const weakPasswordSamples = new Set([
   "lifeos123",
   "lifeos-ai",
   "lifeos-local-demo",
+  "ownorbit",
+  "ownorbit123",
+  "ownorbit-ai",
   "admin123",
   "changeme",
 ]);
@@ -143,7 +146,7 @@ export function getSecurityDiagnostics() {
         : publicBaseUrlInput.unsafe
           ? "The original public URL setting contains credentials, tokens, query parameters, fragments, or an invalid URL."
           : "The original public URL setting does not contain embedded credentials or query tokens.",
-      action: publicBaseUrlInput.unsafe ? "Set PUBLIC_BASE_URL to a clean HTTPS origin/path only, then restart LifeOS AI." : "No action needed.",
+      action: publicBaseUrlInput.unsafe ? "Set PUBLIC_BASE_URL to a clean HTTPS origin/path only, then restart OwnOrbit AI." : "No action needed.",
     },
     {
       id: "publicOptIn",

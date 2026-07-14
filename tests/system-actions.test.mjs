@@ -100,10 +100,10 @@ test("system action source summary redacts and aggregates risky origins", () => 
 });
 
 test("system action shortcut URL builder encodes name and optional text", () => {
-  assert.equal(buildShortcutUrl("LifeOS Bridge", ""), "shortcuts://run-shortcut?name=LifeOS+Bridge");
+  assert.equal(buildShortcutUrl("OwnOrbit Bridge", ""), "shortcuts://run-shortcut?name=OwnOrbit+Bridge");
   assert.equal(
-    buildShortcutUrl("LifeOS Bridge", "open sesame"),
-    "shortcuts://run-shortcut?name=LifeOS+Bridge&input=text&text=open+sesame",
+    buildShortcutUrl("OwnOrbit Bridge", "open sesame"),
+    "shortcuts://run-shortcut?name=OwnOrbit+Bridge&input=text&text=open+sesame",
   );
 });
 

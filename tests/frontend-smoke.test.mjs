@@ -143,7 +143,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.equal(manifestResponse.status, 200);
   assert.match(manifestResponse.headers.get("content-type") || "", /json|manifest/);
   const manifest = await manifestResponse.json();
-  assert.equal(manifest.name, "LifeOS AI");
+  assert.equal(manifest.name, "OwnOrbit AI");
+  assert.equal(manifest.short_name, "OwnOrbit");
   assert.equal(manifest.id, "/mobile/chat");
   assert.equal(manifest.start_url, "/mobile/chat");
   assert.equal(manifest.display, "standalone");
@@ -1164,8 +1165,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Review sync conflicts first/);
   assert.match(translationsSource, /重新同步一次/);
   assert.match(translationsSource, /Run sync again/);
-  assert.match(translationsSource, /继续使用 LifeOS/);
-  assert.match(translationsSource, /Keep using LifeOS/);
+  assert.match(translationsSource, /继续使用 OwnOrbit/);
+  assert.match(translationsSource, /Keep using OwnOrbit/);
   assert.match(onboardingAppleRemoteSource, /onboarding-icloud-data-sync-quarantine-next/);
   assert.match(onboardingAppleRemoteSource, /data-cloudkit-quarantine-next/);
   assert.match(onboardingAppleRemoteSource, /cloudKitQuarantineNextAction/);
@@ -1696,7 +1697,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /这是临时入口/);
   assert.match(translationsSource, /添加到手机主屏幕/);
   assert.match(translationsSource, /IndexedDB 不可用/);
-  assert.match(translationsSource, /add LifeOS to the home screen/);
+  assert.match(translationsSource, /add OwnOrbit to the home screen/);
 
   const pwaCapabilitiesSource = await readFile(path.join(rootDir, "src", "services", "pwaCapabilities.ts"), "utf8");
   assert.match(pwaCapabilitiesSource, /serviceWorkerControlled/);
@@ -1725,7 +1726,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /最近手机异地自检通过/);
   assert.match(pwaCapabilitiesSource, /temporary-cloudflare/);
   assert.match(pwaCapabilitiesSource, /configured-mismatch/);
-  assert.match(pwaCapabilitiesSource, /After pairing, add LifeOS to the home screen/);
+  assert.match(pwaCapabilitiesSource, /After pairing, add OwnOrbit to the home screen/);
   assert.match(pwaCapabilitiesSource, /background sync is unavailable/);
 
   const sensitiveMainSource = await readFile(path.join(rootDir, "src", "main.tsx"), "utf8");
@@ -2016,7 +2017,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.doesNotMatch(offlineQueueBannerSource, /\{item\.status\}/);
 
   const offlineQueueSource = await readFile(path.join(rootDir, "src", "services", "offlineMessageQueue.ts"), "utf8");
-  assert.match(offlineQueueBackupSource, /LifeOS AI offline queue backup/);
+  assert.match(offlineQueueBackupSource, /OwnOrbit AI offline queue backup/);
   assert.match(offlineQueueBackupSource, /Failure reason/);
   assert.match(offlineQueueBackupSource, /Sync identity/);
   assert.match(offlineQueueSource, /getOfflineMessageStatusLabel/);
@@ -2132,7 +2133,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(connectionRecommendedEntrySource, /recommended-setup/);
   assert.match(connectionRecommendedEntrySource, /connection\.copySetupPacket/);
   const connectionSetupPacketSource = await readFile(path.join(rootDir, "src", "services", "connectionSetupPacket.ts"), "utf8");
-  assert.match(connectionSetupPacketSource, /LifeOS AI remote connection setup/);
+  assert.match(connectionSetupPacketSource, /OwnOrbit AI remote connection setup/);
   assert.match(connectionSetupPacketSource, /Requires restart/);
   assert.match(connectionRecommendedEntrySource, /connection\.copyMobileEntry/);
   assert.match(connectionRecommendedEntrySource, /connection\.openPairingQr/);
@@ -2174,7 +2175,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /复制启动环境/);
   assert.match(translationsSource, /保存到桌面启动配置/);
   assert.match(translationsSource, /安装包用户/);
-  assert.match(translationsSource, /退出并重新打开 LifeOS AI/);
+  assert.match(translationsSource, /退出并重新打开 OwnOrbit AI/);
   assert.match(translationsSource, /绑定手机端”二维码都会自动使用这个入口/);
   assert.match(translationsSource, /Pair Phone QR code will automatically use this entry/);
   assert.match(translationsSource, /去重新生成绑定二维码/);
@@ -2608,8 +2609,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(adminOnboardingSource, /onboarding\.simpleAdvancedSummary/);
   assert.match(adminOnboardingSource, /<details/);
   assert.doesNotMatch(adminOnboardingSource, /OnboardingQuickStartCard/);
-  assert.match(translationsSource, /先把 LifeOS AI 用起来/);
-  assert.match(translationsSource, /Get LifeOS AI usable first/);
+  assert.match(translationsSource, /先把 OwnOrbit AI 用起来/);
+  assert.match(translationsSource, /Get OwnOrbit AI usable first/);
 });
 
 test("development server injects pairing manifest before Vite serves mobile install pages", async (t) => {

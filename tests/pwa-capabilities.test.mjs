@@ -75,7 +75,7 @@ test("PWA capability status reports a complete installed mobile entry", async (t
   assert.equal(status.backgroundSyncSupported, true);
   assert.equal(status.indexedDbSupported, true);
   assert.equal(status.online, true);
-  assert.deepEqual(status.recommendations, ["After pairing, add LifeOS to the home screen so it opens like a regular app."]);
+  assert.deepEqual(status.recommendations, ["After pairing, add OwnOrbit to the home screen so it opens like a regular app."]);
 });
 
 test("PWA capability status explains degraded offline sync support", async (t) => {
@@ -218,7 +218,7 @@ test("mobile remote connectivity probes health, mobile chat shell, and websocket
       return {
         ok: true,
         status: 200,
-        text: async () => '<!doctype html><title>LifeOS AI</title><div id="root"></div>',
+        text: async () => '<!doctype html><title>OwnOrbit AI</title><div id="root"></div>',
       };
     }
     return {
@@ -262,7 +262,7 @@ test("mobile remote connectivity reports websocket failures", async (t) => {
     ok: true,
     status: 200,
     json: async () => ({ service: "lifeos-local-core" }),
-    text: async () => '<!doctype html><title>LifeOS AI</title><div id="root"></div>',
+    text: async () => '<!doctype html><title>OwnOrbit AI</title><div id="root"></div>',
   });
   globalThis.WebSocket = class MockWebSocket {
     constructor() {
@@ -463,7 +463,7 @@ test("mobile iCloud handoff stores non-sensitive entry metadata and detects stal
   assert.match(buildMobileIcloudHandoffRecoveryPacket(fresh, { currentSameWifiOnly: true }), /oneNextAction=setup-remote-entry/);
   assert.match(buildMobileIcloudHandoffRecoveryPacket({ ...fresh, entry: { ...fresh.entry, lastConnectivityTestedAt: now + 1_500, lastConnectivityOk: true } }, { archivedEntryCount: 2 }), /oneNextAction=cleanup-old-entry/);
   const packet = buildMobileIcloudHandoffRecoveryPacket(mismatch);
-  assert.match(packet, /LifeOS iCloud Mobile Entry Recovery/);
+  assert.match(packet, /OwnOrbit iCloud Mobile Entry Recovery/);
   assert.match(packet, /entryBaseUrl=https:\/\/lifeos\.example\.com/);
   assert.match(packet, /currentBaseUrl=https:\/\/new-lifeos\.example\.com/);
   assert.match(packet, /desktopId=mac-001/);

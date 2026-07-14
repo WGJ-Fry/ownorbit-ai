@@ -106,7 +106,7 @@ def background():
 
 
 def header(d, subtitle):
-    d.text((52, 46), "LifeOS AI", fill="#ECFEFF", font=FONT["hero"])
+    d.text((52, 46), "OwnOrbit AI", fill="#ECFEFF", font=FONT["hero"])
     d.text((54, 116), "Personal AI assistant that runs from your own computer", fill="#A7F3D0", font=FONT["small"])
     rounded(d, (52, 168, 306, 210), 21, "#0F766E", "#5EEAD4", 1)
     d.text((74, 177), subtitle, fill="#F0FDFA", font=FONT["tiny"])
@@ -139,7 +139,7 @@ def frame(stage):
         chat_bubble(d, 258, "user", "What am I forgetting?", "#67E8F9")
         chat_bubble(d, 410, "assistant", "You mentioned shipping the GitHub release today. The missing pieces are the Windows package, the release notes, and the phone pairing check.", "#6EE7B7")
         rounded(d, (52, 620, 848, 890), 30, "#0B1F33", "#38BDF8", 1)
-        d.text((86, 650), "Evidence from your local LifeOS vault", fill="#E0F2FE", font=FONT["body_bold"])
+        d.text((86, 650), "Evidence from your local OwnOrbit vault", fill="#E0F2FE", font=FONT["body_bold"])
         bullets = [
             "release-check report from yesterday",
             "desktop packaging notes",
@@ -172,7 +172,7 @@ def frame(stage):
         paste_card(base, mobile, (52, 252, 366, 932), 30)
         rounded(d, (400, 252, 848, 932), 30, "#111827", "#38BDF8", 1)
         d.text((430, 292), "Generate a program", fill="#F8FAFC", font=FONT["title"])
-        text(d, (430, 364), "When you need budgeting, planning, lookup, forms, check-ins, calculations, or workflow panels, LifeOS can generate a runnable program for the current problem.", "#CBD5E1", FONT["small"], max_width=362, line_gap=9)
+        text(d, (430, 364), "When you need budgeting, planning, lookup, forms, check-ins, calculations, or workflow panels, OwnOrbit can generate a runnable program for the current problem.", "#CBD5E1", FONT["small"], max_width=362, line_gap=9)
         y = 614
         for label in ["HTML", "CSS", "JS", "offline-first"]:
             rounded(d, (430, y, 730, y + 48), 18, "#0F766E", "#5EEAD4", 1)

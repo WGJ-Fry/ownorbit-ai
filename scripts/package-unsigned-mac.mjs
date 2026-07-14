@@ -6,7 +6,7 @@ const rootDir = process.cwd();
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
 const releaseDir = path.join(rootDir, "release");
 const arch = process.env.npm_config_arch || process.arch;
-const productName = packageJson.build?.productName || "LifeOS AI";
+const productName = packageJson.build?.productName || "OwnOrbit AI";
 const appPath = path.join(releaseDir, `mac-${arch}`, `${productName}.app`);
 const rootAppPath = path.join(releaseDir, `${productName}.app`);
 const outputPath = path.join(releaseDir, `${productName}-${packageJson.version}-${arch}-unsigned.zip`);
@@ -62,7 +62,7 @@ if (path.resolve(rootAppPath) !== path.resolve(appPath)) {
   }
 }
 
-fs.writeFileSync(installGuidePath, `# LifeOS AI unsigned macOS install
+fs.writeFileSync(installGuidePath, `# OwnOrbit AI unsigned macOS install
 
 Version: ${packageJson.version}
 Artifact: ${path.basename(outputPath)}
@@ -70,14 +70,14 @@ Artifact: ${path.basename(outputPath)}
 ## Install
 
 1. Unzip ${path.basename(outputPath)}.
-2. Move \`${packageJson.build?.productName || "LifeOS AI"}.app\` to Applications.
+2. Move \`${packageJson.build?.productName || "OwnOrbit AI"}.app\` to Applications.
 3. Open the app from Finder.
 4. If macOS says the app cannot be opened because it is from an unidentified developer, open System Settings > Privacy & Security and choose Open Anyway, or right-click the app and choose Open.
 5. On first launch, set the admin password, configure an AI provider, create a backup, enable daily automatic backups, and bind the mobile PWA.
 
 ## Data and recovery
 
-- App data is stored in the macOS user data folder for ${packageJson.build?.productName || "LifeOS AI"}.
+- App data is stored in the macOS user data folder for ${packageJson.build?.productName || "OwnOrbit AI"}.
 - Use Admin Settings to create backups before upgrading, and keep daily automatic backups enabled for long-term use.
 - Use Export Diagnostics from the app menu if startup or binding fails.
 

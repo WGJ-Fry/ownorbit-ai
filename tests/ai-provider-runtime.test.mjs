@@ -77,7 +77,7 @@ test("AI runtime routes OpenAI-compatible providers with safe headers and select
     assert.equal(calls[0].headers.Authorization, "Bearer sk-openai-test");
     assert.equal(calls[1].url, "https://openrouter.ai/api/v1/chat/completions");
     assert.equal(calls[1].headers.Authorization, "Bearer sk-openrouter-test");
-    assert.equal(calls[1].headers["X-Title"], "LifeOS AI");
+    assert.equal(calls[1].headers["X-Title"], "OwnOrbit AI");
     assert.equal(calls[2].url, "http://127.0.0.1:11434/v1/chat/completions");
     assert.equal(calls[2].headers.Authorization, undefined);
   });

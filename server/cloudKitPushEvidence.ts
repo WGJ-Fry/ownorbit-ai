@@ -100,7 +100,7 @@ export function recordCloudKitPushEvent(
 ) {
   const event = normalizeEvent(input.event);
   const reason = normalizeReason(input.reason);
-  if (!event || !reason || !isCloudKitPushEventPair(event, reason)) throw new Error("CloudKit push event did not match the LifeOS listener contract.");
+  if (!event || !reason || !isCloudKitPushEventPair(event, reason)) throw new Error("CloudKit push event did not match the OwnOrbit listener contract.");
   const previous = getCloudKitPushEvidence();
   const isRemoteChange = event === "remote-change" && Boolean(input.subscriptionMatched);
   const next: CloudKitPushEvidence = {

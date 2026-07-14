@@ -228,7 +228,7 @@ for (const [label, content] of [
 }
 
 check(compose.includes(`image: ${dockerImage}`), "docker-compose image matches the package-derived release tag", `docker-compose.yml must use image: ${dockerImage}`);
-check(mentionedLifeosTags(compose).every((tag) => tag === releaseTag), "docker-compose does not contain stale LifeOS image tags");
+check(mentionedLifeosTags(compose).every((tag) => tag === releaseTag), "docker-compose does not contain stale OwnOrbit image tags");
 
 const requiredEnglishLimits = [
   "Automatic updates are not enabled",

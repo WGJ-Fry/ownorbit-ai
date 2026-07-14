@@ -216,7 +216,7 @@ async function generateOpenAiCompatible(input: GenerateAiContentInput, credentia
     headers: {
       "Content-Type": "application/json",
       ...(isLocal ? {} : { Authorization: `Bearer ${credential}` }),
-      ...(providerId === "openrouter" ? { "HTTP-Referer": "https://lifeos.local", "X-Title": "LifeOS AI" } : {}),
+      ...(providerId === "openrouter" ? { "HTTP-Referer": "https://lifeos.local", "X-Title": "OwnOrbit AI" } : {}),
     },
     body: JSON.stringify({
       model,
@@ -337,6 +337,6 @@ export function sendMissingAiConfig(res: express.Response, providerId: AiProvide
     provider: status.provider,
     envVar: status.envVar,
     setupPath: "/admin/settings",
-    message: `Configure ${status.provider} in the desktop admin console, or set ${status.envVar} and restart LifeOS AI.`,
+    message: `Configure ${status.provider} in the desktop admin console, or set ${status.envVar} and restart OwnOrbit AI.`,
   });
 }

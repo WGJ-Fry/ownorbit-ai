@@ -1,30 +1,30 @@
-# LifeOS AI Promotion Kit / 推广素材包
+# OwnOrbit AI Promotion Kit / 推广素材包
 
 中文 | [English](#english)
 
 ## 一句话
 
-LifeOS AI 是一个本地优先的个人 AI 管家：电脑端运行私有核心，手机端成为随身 AI 助手。
+OwnOrbit AI 是一个本地优先的个人 AI 管家：电脑端运行私有核心，手机端成为随身 AI 助手。
 
 ## 短介绍
 
-LifeOS AI 把电脑端做成你的个人 AI 核心，用来连接 AI、网络、本地数据和安全设置；手机端通过 PWA 扫码绑定后，成为随时可用的私人 AI 管家。它支持 SQLite 本地存储、AI 多 provider 配置、VPN/隧道连接向导、根据当前问题自动生成解决程序、备份恢复、离线队列、设备绑定、URL Scheme 白名单和危险动作确认。
+OwnOrbit AI 把电脑端做成你的个人 AI 核心，用来连接 AI、网络、本地数据和安全设置；手机端通过 PWA 扫码绑定后，成为随时可用的私人 AI 管家。它支持 SQLite 本地存储、AI 多 provider 配置、VPN/隧道连接向导、根据当前问题自动生成解决程序、备份恢复、离线队列、设备绑定、URL Scheme 白名单和危险动作确认。
 
 ## 更完整介绍
 
-LifeOS AI 是一个本地优先的个人 AI 管家/助手。它把“电脑端”和“手机端”分成两个角色：电脑端是私有核心，负责保存数据、连接 AI provider、管理手机设备、生成备份、做安全自检，并通过 LAN、Tailscale、Cloudflare Tunnel 或可信 HTTPS 反向代理提供连接入口；手机端是日常入口，扫码绑定后像 App 一样添加到主屏幕，用来聊天、查看连接状态、处理离线消息和确认本地动作。
+OwnOrbit AI 是一个本地优先的个人 AI 管家/助手。它把“电脑端”和“手机端”分成两个角色：电脑端是私有核心，负责保存数据、连接 AI provider、管理手机设备、生成备份、做安全自检，并通过 LAN、Tailscale、Cloudflare Tunnel 或可信 HTTPS 反向代理提供连接入口；手机端是日常入口，扫码绑定后像 App 一样添加到主屏幕，用来聊天、查看连接状态、处理离线消息和确认本地动作。
 
-它还内置 Studio 工坊：当用户遇到具体问题时，AI 可以把问题转成可运行的离线程序，用来辅助处理记账、规划、整理、打卡、计算、表单、流程面板等需求，并继续调整 HTML/CSS/JS。对于需要打开导航、网页、电话、短信、邮件、快捷指令等本地能力的动作，LifeOS AI 使用 URL Scheme 白名单、危险动作二次确认和审计日志，避免任意 scheme 注入。
+它还内置 Studio 工坊：当用户遇到具体问题时，AI 可以把问题转成可运行的离线程序，用来辅助处理记账、规划、整理、打卡、计算、表单、流程面板等需求，并继续调整 HTML/CSS/JS。对于需要打开导航、网页、电话、短信、邮件、快捷指令等本地能力的动作，OwnOrbit AI 使用 URL Scheme 白名单、危险动作二次确认和审计日志，避免任意 scheme 注入。
 
 ## 英文短介绍
 
-LifeOS AI is a local-first personal AI assistant. The desktop app runs the private core for AI providers, local data, device management, VPN/tunnel connectivity, generated solution apps, backups, and security; the phone connects as a paired mobile PWA companion for everyday use.
+OwnOrbit AI is a local-first personal AI assistant. The desktop app runs the private core for AI providers, local data, device management, VPN/tunnel connectivity, generated solution apps, backups, and security; the phone connects as a paired mobile PWA companion for everyday use.
 
 ## Longer English Description
 
-LifeOS AI is a local-first personal AI assistant with a desktop private core and a mobile PWA companion. The desktop app stores SQLite data, manages AI providers and keys, pairs phones, creates backups, runs safety checks, and helps expose the service through LAN, Tailscale, Cloudflare Tunnel, or a trusted HTTPS reverse proxy. The phone becomes the everyday assistant: chat, offline queue, device state, connection status, and local-action confirmations.
+OwnOrbit AI is a local-first personal AI assistant with a desktop private core and a mobile PWA companion. The desktop app stores SQLite data, manages AI providers and keys, pairs phones, creates backups, runs safety checks, and helps expose the service through LAN, Tailscale, Cloudflare Tunnel, or a trusted HTTPS reverse proxy. The phone becomes the everyday assistant: chat, offline queue, device state, connection status, and local-action confirmations.
 
-The Studio workshop turns the user's current problem into a runnable offline program. It can help with accounting, planning, organizing, habit tracking, calculators, forms, and workflow panels, then let the user refine HTML/CSS/JS. For local actions such as maps, web pages, phone, SMS, mail, and shortcuts, LifeOS AI uses a URL Scheme allowlist, dangerous-action confirmation, and redacted audit logs.
+The Studio workshop turns the user's current problem into a runnable offline program. It can help with accounting, planning, organizing, habit tracking, calculators, forms, and workflow panels, then let the user refine HTML/CSS/JS. For local actions such as maps, web pages, phone, SMS, mail, and shortcuts, OwnOrbit AI uses a URL Scheme allowlist, dangerous-action confirmation, and redacted audit logs.
 
 ## GitHub 仓库描述
 
@@ -64,15 +64,15 @@ remote-access
 ## Release 标题
 
 ```text
-LifeOS AI v0.1.5-alpha - Desktop core + mobile personal AI assistant
+OwnOrbit AI v0.1.5-alpha - Desktop core + mobile personal AI assistant
 ```
 
 ## Release 描述
 
 ```markdown
-LifeOS AI v0.1.5-alpha is the first public desktop alpha with Docker quickstart plus macOS, Windows, and Linux desktop packages.
+OwnOrbit AI v0.1.5-alpha is the first public desktop alpha with Docker quickstart plus macOS, Windows, and Linux desktop packages.
 
-LifeOS AI turns your desktop into a private AI core and your phone into an always-available personal AI assistant. The desktop app manages AI providers, local SQLite data, device pairing, VPN/tunnel access, generated solution apps, backups, diagnostics, and safer local actions. The phone connects as a paired PWA for chat, offline queue, device status, and action permissions.
+OwnOrbit AI turns your desktop into a private AI core and your phone into an always-available personal AI assistant. The desktop app manages AI providers, local SQLite data, device pairing, VPN/tunnel access, generated solution apps, backups, diagnostics, and safer local actions. The phone connects as a paired PWA for chat, offline queue, device status, and action permissions.
 
 Downloads:
 
@@ -93,7 +93,7 @@ Notes:
 ## 中文发布帖
 
 ```text
-我做了一个本地优先的个人 AI 管家：LifeOS AI。
+我做了一个本地优先的个人 AI 管家：OwnOrbit AI。
 
 它的思路是：电脑端运行私有核心，负责连接 AI、网络、本地数据、备份和安全设置；手机端作为随身入口，用 PWA 的方式扫码绑定后使用。
 
@@ -112,7 +112,7 @@ Notes:
 - 诊断包和审计日志脱敏
 
 项目地址：
-https://github.com/WGJ-Fry/lifeos-ai
+https://github.com/WGJ-Fry/ownorbit-ai
 
 欢迎试用、提 issue、给 star。
 ```
@@ -120,7 +120,7 @@ https://github.com/WGJ-Fry/lifeos-ai
 ## 中文长帖
 
 ```text
-我做了一个本地优先的个人 AI 管家/助手：LifeOS AI。
+我做了一个本地优先的个人 AI 管家/助手：OwnOrbit AI。
 
 它不是单纯的聊天网页，而是一个“电脑端私有核心 + 手机端随身入口”的个人 AI 系统。
 
@@ -143,13 +143,13 @@ https://github.com/WGJ-Fry/lifeos-ai
 当前公开版本提供 macOS Apple Silicon unsigned ZIP、Windows x64 NSIS 安装包和 Linux x64 AppImage。macOS 当前包不是正式签名公证版，首次打开可能需要按 Release 里的 Gatekeeper 说明操作。
 
 项目地址：
-https://github.com/WGJ-Fry/lifeos-ai
+https://github.com/WGJ-Fry/ownorbit-ai
 ```
 
 ## 英文发布帖
 
 ```text
-I built LifeOS AI, a local-first personal AI assistant.
+I built OwnOrbit AI, a local-first personal AI assistant.
 
 The desktop app runs the private core: AI providers, local SQLite data, device pairing, VPN/tunnel access, generated solution apps, backups, diagnostics, and safer local actions. The phone works as a paired mobile PWA companion for everyday use.
 
@@ -170,7 +170,7 @@ Current release includes:
 Windows is not Authenticode signed yet, and macOS is not notarized yet, so users should download only from GitHub Releases and verify `SHA256SUMS`.
 
 Repo:
-https://github.com/WGJ-Fry/lifeos-ai
+https://github.com/WGJ-Fry/ownorbit-ai
 
 Feedback, issues, and stars are welcome.
 ```
@@ -178,7 +178,7 @@ Feedback, issues, and stars are welcome.
 ## English Long Post
 
 ```text
-I built LifeOS AI, a local-first personal AI assistant.
+I built OwnOrbit AI, a local-first personal AI assistant.
 
 It is not just another chat page. It is a desktop private core plus a mobile PWA companion.
 
@@ -201,7 +201,7 @@ There is also a Studio workshop for generated solution apps: explain the current
 The current public release provides a macOS Apple Silicon unsigned ZIP, a Windows x64 NSIS installer, and a Linux x64 AppImage. The macOS package is not signed/notarized yet, and the Windows installer is not Authenticode signed yet, so users should verify `SHA256SUMS` and may see Gatekeeper or SmartScreen warnings.
 
 Repo:
-https://github.com/WGJ-Fry/lifeos-ai
+https://github.com/WGJ-Fry/ownorbit-ai
 ```
 
 ## V2EX 标题
@@ -213,7 +213,7 @@ https://github.com/WGJ-Fry/lifeos-ai
 ## Hacker News 标题
 
 ```text
-Show HN: LifeOS AI - A local-first personal AI assistant with desktop core and mobile PWA
+Show HN: OwnOrbit AI - A local-first personal AI assistant with desktop core and mobile PWA
 ```
 
 ## Product Hunt 标语
@@ -273,11 +273,11 @@ Your private AI core on desktop. Your personal AI assistant on phone.
 
 ## One-liner
 
-LifeOS AI is a local-first personal AI assistant: your desktop runs the private core, and your phone becomes the daily AI companion.
+OwnOrbit AI is a local-first personal AI assistant: your desktop runs the private core, and your phone becomes the daily AI companion.
 
 ## Short Description
 
-LifeOS AI turns your desktop into a private AI core for providers, local SQLite data, VPN/tunnel access, generated solution apps, backups, device pairing, diagnostics, and security. Your phone connects as a paired PWA companion for chat, offline queue, device status, and safer local actions.
+OwnOrbit AI turns your desktop into a private AI core for providers, local SQLite data, VPN/tunnel access, generated solution apps, backups, device pairing, diagnostics, and security. Your phone connects as a paired PWA companion for chat, offline queue, device status, and safer local actions.
 
 ## English Visual Asset
 
@@ -291,7 +291,7 @@ LifeOS AI turns your desktop into a private AI core for providers, local SQLite 
 
 ## Links
 
-- Repository: `https://github.com/WGJ-Fry/lifeos-ai`
-- Cold launch release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.5-alpha`
-- Desktop package release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.5-alpha`
+- Repository: `https://github.com/WGJ-Fry/ownorbit-ai`
+- Cold launch release: `https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/v0.1.5-alpha`
+- Desktop package release: `https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/v0.1.5-alpha`
 - Install guide: `docs/user-install-guide.md`

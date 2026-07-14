@@ -68,10 +68,10 @@ async function checkGithubRelease() {
     return;
   }
 
-  const response = await fetch(`https://api.github.com/repos/WGJ-Fry/lifeos-ai/releases/tags/${releaseTag}`, {
+  const response = await fetch(`https://api.github.com/repos/WGJ-Fry/ownorbit-ai/releases/tags/${releaseTag}`, {
     headers: {
       Accept: "application/vnd.github+json",
-      "User-Agent": "lifeos-cold-launch-check",
+      "User-Agent": "ownorbit-cold-launch-check",
     },
   });
   if (!response.ok) {

@@ -1,23 +1,26 @@
-# LifeOS AI - 本地优先的开源个人 AI 助手
+# OwnOrbit AI - 本地优先的开源个人 AI 助手
 
 > **一个可自托管的个人 AI 管家：管理私有记忆、辅助日常行动，并自动生成解决问题的程序。**
 >
 > 电脑端运行私有 AI 核心，手机端成为安全绑定后的随身入口。
 
-LifeOS AI 是一个开源、自托管、本地优先的个人 AI 助手与私有第二大脑。它把本地 Markdown 知识和记忆、用户自选大语言模型、电脑管理端、手机 PWA、LAN/Tailscale/Cloudflare Tunnel 安全异地连接，以及根据当前问题生成的可运行程序放在一起；支持 macOS、Windows 和 Linux，并正在完善 Apple/CloudKit 原生数据同步路径。
+OwnOrbit AI 是一个开源、自托管、本地优先的个人 AI 助手与私有第二大脑。它把本地 Markdown 知识和记忆、用户自选大语言模型、电脑管理端、手机 PWA、LAN/Tailscale/Cloudflare Tunnel 安全异地连接，以及根据当前问题生成的可运行程序放在一起；支持 macOS、Windows 和 Linux，并正在完善 Apple/CloudKit 原生数据同步路径。
 
 [English](README.md) | [发布状态](#发布状态) | [快速配置](#2-分钟配置) | [自动生成程序](#自动生成解决问题的程序) | [远程访问](#远程与-vpn-访问) | [当前限制](#当前-alpha-限制)
 
-[![Quality Gate](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/quality.yml/badge.svg)](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/quality.yml)
-[![Docker Image](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/docker.yml/badge.svg)](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/docker.yml)
-[![Release](https://img.shields.io/github/v/release/WGJ-Fry/lifeos-ai?include_prereleases&label=release)](https://github.com/WGJ-Fry/lifeos-ai/releases)
+[![Quality Gate](https://github.com/WGJ-Fry/ownorbit-ai/actions/workflows/quality.yml/badge.svg)](https://github.com/WGJ-Fry/ownorbit-ai/actions/workflows/quality.yml)
+[![Docker Image](https://github.com/WGJ-Fry/ownorbit-ai/actions/workflows/docker.yml/badge.svg)](https://github.com/WGJ-Fry/ownorbit-ai/actions/workflows/docker.yml)
+[![Release](https://img.shields.io/github/v/release/WGJ-Fry/ownorbit-ai?include_prereleases&label=release)](https://github.com/WGJ-Fry/ownorbit-ai/releases)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
+> [!NOTE]
+> **LifeOS AI 已正式更名为 OwnOrbit AI。** 公开的 `v0.1.5-alpha` 安装文件和 GHCR 镜像仍使用旧名称；已有 `LIFEOS_*` 配置、应用身份、本地数据、设备绑定和 iCloud 接力文件保持兼容。详见[品牌迁移说明](docs/brand-migration.md)。
+
 <p align="center">
-  <img src="docs/assets/readme/lifeos-readme-hero-zh.svg" alt="LifeOS AI 本地优先个人 AI 管家" width="100%">
+  <img src="docs/assets/readme/lifeos-readme-hero-zh.svg" alt="OwnOrbit AI 本地优先个人 AI 管家" width="100%">
 </p>
 
-LifeOS 先从一个很小但有用的工作流开始：
+OwnOrbit 先从一个很小但有用的工作流开始：
 
 ```text
 我是不是忘了什么？
@@ -35,16 +38,16 @@ LifeOS 先从一个很小但有用的工作流开始：
 - **连接向导：** LAN、Tailscale、Cloudflare Tunnel 诊断与安全检查。
 - **Studio 工具：** 生成并改写可运行程序，支持状态存储、运行日志和回滚。
 
-当前公开版本的承诺很克制：把 Markdown 笔记放进文件夹，本地启动 LifeOS，然后问它你可能漏掉了什么。
+当前公开版本的承诺很克制：把 Markdown 笔记放进文件夹，本地启动 OwnOrbit，然后问它你可能漏掉了什么。
 
 ## 发布状态
 
-公开 Release tag：[`v0.1.5-alpha`](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.5-alpha)<br>
+公开 Release tag：[`v0.1.5-alpha`](https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/v0.1.5-alpha)<br>
 源码 package version：`0.1.5-alpha.0`
 
 这份 README 面向 `v0.1.5-alpha` 公开下载包。`main` 分支可能包含后续源码改动；只有你愿意从源码构建时，才需要关注它。
 
-重要：请使用明确的 [`v0.1.5-alpha` Release 页面](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.5-alpha)。如果 GitHub 通用的 **Latest release** 标签仍指向旧版本，请忽略它，使用这个带版本号的链接。
+重要：请使用明确的 [`v0.1.5-alpha` Release 页面](https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/v0.1.5-alpha)。如果 GitHub 通用的 **Latest release** 标签仍指向旧版本，请忽略它，使用这个带版本号的链接。
 
 | 轨道 | 可以期待什么 |
 | --- | --- |
@@ -57,13 +60,13 @@ LifeOS 先从一个很小但有用的工作流开始：
 | 路径 | 适合你在什么时候用 | 当前公开状态 |
 | --- | --- | --- |
 | **Docker Compose alpha** | 想最快体验 Ollama + Markdown 本地记忆演示。 | 推荐第一次体验使用。镜像是 `ghcr.io/wgj-fry/lifeos-ai:v0.1.5-alpha`。 |
-| **macOS 桌面 ZIP** | 想在 Apple Silicon Mac 上试用早期桌面端壳。 | 已在 [`v0.1.5-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.5-alpha) 提供：`LifeOS.AI-0.1.5-alpha.0-arm64-unsigned.zip`。 |
-| **Windows 桌面安装包** | 想要 Windows x64 原生安装器。 | 已在 [`v0.1.5-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.5-alpha) 提供：`LifeOS.AI.Setup.0.1.5-alpha.0.exe`。 |
-| **Linux AppImage** | 想要 Linux x64 便携桌面包。 | 已在 [`v0.1.5-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.5-alpha) 提供：`LifeOS.AI-0.1.5-alpha.0.AppImage`。 |
+| **macOS 桌面 ZIP** | 想在 Apple Silicon Mac 上试用早期桌面端壳。 | 已在 [`v0.1.5-alpha` Release](https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/v0.1.5-alpha) 提供：`LifeOS.AI-0.1.5-alpha.0-arm64-unsigned.zip`。 |
+| **Windows 桌面安装包** | 想要 Windows x64 原生安装器。 | 已在 [`v0.1.5-alpha` Release](https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/v0.1.5-alpha) 提供：`LifeOS.AI.Setup.0.1.5-alpha.0.exe`。 |
+| **Linux AppImage** | 想要 Linux x64 便携桌面包。 | 已在 [`v0.1.5-alpha` Release](https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/v0.1.5-alpha) 提供：`LifeOS.AI-0.1.5-alpha.0.AppImage`。 |
 
 如果你是第一次看这个项目，建议从下面的 Docker Compose 开始。如果你明确想试桌面 App，请使用 `v0.1.5-alpha` Release，并在首次启动前用 `SHA256SUMS` 校验下载文件。GitHub 下载资产名使用点号，`SHA256SUMS` 里可能保留构建器生成的空格文件名；如果本地文件名不同，直接比对 SHA256 值即可。
 
-校验文件名对照：GitHub 可能显示 `LifeOS.AI-0.1.5-alpha.0-arm64-unsigned.zip`、`LifeOS.AI.Setup.0.1.5-alpha.0.exe`、`LifeOS.AI-0.1.5-alpha.0.AppImage`；构建器元数据可能显示 `LifeOS AI-0.1.5-alpha.0-arm64-unsigned.zip`、`LifeOS AI Setup 0.1.5-alpha.0.exe`、`LifeOS AI-0.1.5-alpha.0.AppImage`。
+上面的 `v0.1.5-alpha` 文件名是更名前已经公开的真实下载名称。后续 OwnOrbit 品牌构建会使用 `OwnOrbit AI` 文件名；如果浏览器或上传步骤把空格改成点号，请以 SHA256 值为准。
 
 ## 真实产品界面
 
@@ -71,9 +74,11 @@ LifeOS 先从一个很小但有用的工作流开始：
 
 ### 30 秒产品视频
 
+当前视频记录的是 `v0.1.5-alpha` 真实界面，因此仍显示旧名称 LifeOS AI；产品流程没有变化，下一个桌面打包版本会同步更新为 OwnOrbit 品牌视频。
+
 <p align="center">
   <a href="docs/assets/promo/lifeos-ai-30s-zh.mp4">
-    <img src="docs/assets/promo/lifeos-ai-30s-zh.gif" alt="LifeOS AI 30 秒产品视频预览" width="100%">
+    <img src="docs/assets/promo/lifeos-ai-30s-zh.gif" alt="OwnOrbit AI 30 秒产品视频预览" width="100%">
   </a>
 </p>
 
@@ -84,19 +89,19 @@ LifeOS 先从一个很小但有用的工作流开始：
 </p>
 
 <p align="center">
-  <img src="public/screenshots/real-admin-onboarding.jpg" alt="LifeOS 电脑端首次启动与安全检查" width="49%">
-  <img src="public/screenshots/real-mobile-device.jpg" alt="LifeOS 手机端设备与连接页面" width="24%">
+  <img src="public/screenshots/real-admin-onboarding.jpg" alt="OwnOrbit 电脑端首次启动与安全检查" width="49%">
+  <img src="public/screenshots/real-mobile-device.jpg" alt="OwnOrbit 手机端设备与连接页面" width="24%">
 </p>
 
 <p align="center">
-  <img src="public/screenshots/real-connection-tunnel-vpn.jpg" alt="LifeOS 远程连接向导，包含 Cloudflare Tunnel 与 Tailscale VPN" width="74%">
+  <img src="public/screenshots/real-connection-tunnel-vpn.jpg" alt="OwnOrbit 远程连接向导，包含 Cloudflare Tunnel 与 Tailscale VPN" width="74%">
 </p>
 
-## 为什么是 LifeOS AI
+## 为什么是 OwnOrbit AI
 
-很多 AI 工具等你想起正确的问题。LifeOS 面向的是你已经拥有的混乱现实：散落的笔记、日期、承诺、续期、想法和未完成事项。
+很多 AI 工具等你想起正确的问题。OwnOrbit 面向的是你已经拥有的混乱现实：散落的笔记、日期、承诺、续期、想法和未完成事项。
 
-LifeOS 有意思的地方在于当前 alpha 已经把三件事放在一起：
+OwnOrbit 有意思的地方在于当前 alpha 已经把三件事放在一起：
 
 1. **记忆发现：** 从你自己的数据里找出可能忘掉的承诺和截止日期。
 2. **本地优先 AI：** 第一个可用工作流在你自己的电脑上用 Ollama 本地模型运行。
@@ -105,7 +110,7 @@ LifeOS 有意思的地方在于当前 alpha 已经把三件事放在一起：
 ## 功能地图
 
 <p align="center">
-  <img src="docs/assets/readme/lifeos-feature-map-zh.svg" alt="LifeOS AI 从个人记忆到可执行行动的功能地图" width="100%">
+  <img src="docs/assets/readme/lifeos-feature-map-zh.svg" alt="OwnOrbit AI 从个人记忆到可执行行动的功能地图" width="100%">
 </p>
 
 | 模块 | 当前状态 |
@@ -122,14 +127,14 @@ LifeOS 有意思的地方在于当前 alpha 已经把三件事放在一起：
 ## 自动生成解决问题的程序
 
 <p align="center">
-  <img src="docs/assets/readme/lifeos-generated-programs-zh.svg" alt="LifeOS 自动生成解决问题的程序" width="100%">
+  <img src="docs/assets/readme/lifeos-generated-programs-zh.svg" alt="OwnOrbit 自动生成解决问题的程序" width="100%">
 </p>
 
-LifeOS Studio 可以把一个具体需求变成一个小型可运行程序。
+OwnOrbit Studio 可以把一个具体需求变成一个小型可运行程序。
 
 这不只是“根据一句话生成一个 app”。目标更实际：
 
-> 在 Studio 里输入一个具体问题，LifeOS 会生成一个聚焦的小工具，帮你把这件事处理下去。
+> 在 Studio 里输入一个具体问题，OwnOrbit 会生成一个聚焦的小工具，帮你把这件事处理下去。
 
 当前源码会在生成前展示蓝图：用户需要确认什么、这个辅助程序应该遵守哪些权限边界，以及第一版跑偏时如何修复或重新生成。
 
@@ -152,8 +157,8 @@ LifeOS Studio 可以把一个具体需求变成一个小型可运行程序。
 - Docker Compose
 
 ```bash
-git clone https://github.com/WGJ-Fry/lifeos-ai.git
-cd lifeos-ai
+git clone https://github.com/WGJ-Fry/ownorbit-ai.git
+cd ownorbit-ai
 
 mkdir -p lifeos_vault lifeos_data
 
@@ -188,12 +193,12 @@ lifeos-local-demo
 What am I forgetting?
 ```
 
-预期结果：LifeOS 应该从 `lifeos_vault/demo.md` 中提到护照过期、Tom 的项目提案和报税截止日期。
+预期结果：OwnOrbit 应该从 `lifeos_vault/demo.md` 中提到护照过期、Tom 的项目提案和报税截止日期。
 
 命令配置很短，但首次启动可能需要几分钟，因为 Ollama 会下载 `llama3.2`。
 
 <p align="center">
-  <img src="docs/assets/real-demo.gif" alt="LifeOS 本地 Markdown 演示，询问我是不是忘了什么" width="420">
+  <img src="docs/assets/real-demo.gif" alt="OwnOrbit 本地 Markdown 演示，询问我是不是忘了什么" width="420">
 </p>
 
 ## Docker 会启动什么
@@ -202,7 +207,7 @@ What am I forgetting?
 | --- | --- |
 | `ollama` | 运行本地模型服务。 |
 | `ollama-pull` | 启动前下载一次 `llama3.2`。 |
-| `lifeos` | 运行 LifeOS Web UI 和 API server。 |
+| `lifeos` | 运行 OwnOrbit Web UI 和 API server。 |
 
 默认 Compose 只绑定到本机电脑：
 
@@ -217,10 +222,10 @@ What am I forgetting?
 ## 远程与 VPN 访问
 
 <p align="center">
-  <img src="docs/assets/readme/lifeos-remote-access-zh.svg" alt="LifeOS 手机异地连接：局域网、Tailscale VPN、Cloudflare Tunnel" width="100%">
+  <img src="docs/assets/readme/lifeos-remote-access-zh.svg" alt="OwnOrbit 手机异地连接：局域网、Tailscale VPN、Cloudflare Tunnel" width="100%">
 </p>
 
-LifeOS 设计的连接模型是：
+OwnOrbit 设计的连接模型是：
 
 ```text
 你的电脑 = 私有 AI 核心
@@ -241,7 +246,7 @@ LifeOS 设计的连接模型是：
 
 入口：电脑端管理页 -> 设备绑定 / 连接向导。
 
-1. 在电脑上启动 LifeOS，并完成管理员首次设置。
+1. 在电脑上启动 OwnOrbit，并完成管理员首次设置。
 2. 在连接向导里选择私有 VPN 地址、局域网地址，或谨慎配置后的 HTTPS Tunnel 地址。
 3. 用这个地址生成绑定二维码，在手机上扫码，然后先跑内置可达性检查，再拿到外网长期使用。
 
@@ -249,7 +254,7 @@ LifeOS 设计的连接模型是：
 
 ## 本地记忆读取规则
 
-LifeOS 会读取你挂载的 Markdown 文件夹，也可以读取本地 `.ics` 日历/任务文件。当前 alpha 路径不会写回你的 vault、日历文件或任务文件。
+OwnOrbit 会读取你挂载的 Markdown 文件夹，也可以读取本地 `.ics` 日历/任务文件。当前 alpha 路径不会写回你的 vault、日历文件或任务文件。
 
 | 项目 | 当前行为 |
 | --- | --- |
@@ -291,14 +296,14 @@ LOCAL_MODEL_BASE_URL=http://ollama:11434/v1
 
 ## 当前 Alpha 限制
 
-LifeOS 仍是 alpha 软件。Docker quickstart 是目前最稳定的演示路径；桌面端、手机端、远程访问和 Studio 都是可用的 alpha 路径，但变量更多。
+OwnOrbit 仍是 alpha 软件。Docker quickstart 是目前最稳定的演示路径；桌面端、手机端、远程访问和 Studio 都是可用的 alpha 路径，但变量更多。
 
 - 默认不启用自动更新；升级需要从 GitHub Releases 手动下载，并校验 `SHA256SUMS`。
 - 当前公开桌面包仍是 unsigned alpha。macOS Developer ID 签名/公证 和 Windows Authenticode 签名不在本版本内，所以 Gatekeeper 或 SmartScreen 可能提示。
 - 远程诊断可以验证配置，但长期稳定性仍需要用户自己完成真实设备长测：手机蜂窝网络、Wi-Fi 切换、电脑重启恢复、旧二维码修复和隧道断开恢复。
 - 默认 iCloud Drive 仍只同步手机入口文件。opt-in CloudKit 原生候选能力可以在显式确认、隔离区审核和保守 apply 规则下同步部分聊天、记忆、任务、生成程序状态和设备信任元数据记录；不会同步原始设备凭证、AI Key、完整 SQLite 数据库或备份。见 [iCloud 数据同步设计边界](docs/icloud-data-sync-design.md)。
 - Docker/local 路径可以读取 Markdown，也可以读取本地 `.ics` 日历/任务文件。
-- Apple Calendar、Google Calendar、系统提醒事项的完整后台账号同步还没发布。`v0.1.5-alpha` 只新增很窄的 Apple Calendar、Google Calendar/Tasks、系统提醒事项连接器路径，必须显式开启并由管理员确认后才会写入 LifeOS 之外的系统；写入会进入 SQLite 历史、审计日志，并显示受控回滚状态。
+- Apple Calendar、Google Calendar、系统提醒事项的完整后台账号同步还没发布。`v0.1.5-alpha` 只新增很窄的 Apple Calendar、Google Calendar/Tasks、系统提醒事项连接器路径，必须显式开启并由管理员确认后才会写入 OwnOrbit 之外的系统；写入会进入 SQLite 历史、审计日志，并显示受控回滚状态。
 - `.ics` 只是本地只读读取，不是双向日历/任务管理。
 - 日历/任务写回只限于受控连接器路径，不会作为无人值守后台同步运行。
 - 它不是完美的截止日期检测器。

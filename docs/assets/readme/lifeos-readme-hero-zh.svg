@@ -1,6 +1,6 @@
 <svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">LifeOS AI 首屏图</title>
-  <desc id="desc">LifeOS AI 本地优先个人 AI 管家，包含记忆提醒、自动生成解决问题程序和手机异地连接。</desc>
+  <title id="title">OwnOrbit AI 首屏图</title>
+  <desc id="desc">OwnOrbit AI 本地优先个人 AI 管家，包含记忆提醒、自动生成解决问题程序和手机异地连接。</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="720" gradientUnits="userSpaceOnUse">
       <stop stop-color="#08111F"/>
@@ -19,7 +19,7 @@
     <rect x="72" y="72" width="408" height="38" rx="19" fill="#102033" stroke="#2DD4BF"/>
     <text x="89" y="97" fill="#CCFBF1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="16" font-weight="800">Private AI core + mobile companion</text>
   </g>
-  <text x="72" y="164" fill="#F8FAFC" font-family="Inter, Arial, Helvetica, sans-serif" font-size="70" font-weight="900">LifeOS AI</text>
+  <text x="72" y="164" fill="#F8FAFC" font-family="Inter, Arial, Helvetica, sans-serif" font-size="70" font-weight="900">OwnOrbit AI</text>
   <text x="72" y="218" fill="#A7F3D0" font-family="Inter, Arial, Helvetica, sans-serif" font-size="34" font-weight="850">本地优先的个人 AI 管家</text>
   <text x="72" y="274" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="23">电脑端是私有 AI 核心，手机端是随身入口。</text>
   <text x="72" y="308" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="23">从笔记、记忆和真实需求里发现下一步行动。</text>

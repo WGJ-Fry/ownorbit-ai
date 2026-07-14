@@ -30,7 +30,7 @@ function buildRepairPacket(result: ConnectionTestResult, translate: (key: Transl
   const passed = result.steps?.filter((step) => step.ok).length || 0;
   const total = result.steps?.length || 0;
   const lines = [
-    "LifeOS AI mobile pairing connection repair packet",
+    "OwnOrbit AI mobile pairing connection repair packet",
     `URL: ${result.url}`,
     `Result: ${result.ok ? "PASS" : "FAIL"} (${passed}/${total})`,
     `Latency: ${result.latencyMs}ms`,

@@ -522,7 +522,7 @@ function decryptSecret(row: any) {
   if (row.secret_storage === "electron_safe_storage") {
     const safeStorage = getElectronSafeStorage();
     if (!safeStorage) {
-      throw new Error("System secure storage is unavailable. Open LifeOS AI from the desktop app on this computer.");
+      throw new Error("System secure storage is unavailable. Open OwnOrbit AI from the desktop app on this computer.");
     }
     return safeStorage.decryptString(Buffer.from(row.ciphertext, "base64url"));
   }

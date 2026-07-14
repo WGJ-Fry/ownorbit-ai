@@ -1,7 +1,7 @@
 import { devices, expect, test, type Route } from "@playwright/test";
 
 const password = "correct horse battery staple";
-const rotatedPassword = "LifeOS remote passphrase 2026!";
+const rotatedPassword = "OwnOrbit remote passphrase 2026!";
 
 async function csrfHeaders(page: import("@playwright/test").Page) {
   const csrf = (await page.context().cookies()).find((cookie) => cookie.name === "lifeos_csrf")?.value;
@@ -63,9 +63,9 @@ function makeIcloudOnboardingDiagnostics(phase: IcloudOnboardingPhase) {
   const phoneConfirmed = phase === "phone-confirmed";
   const entryGeneratedAt = hasEntry ? now - 5_000 : 0;
   const baseUrl = "https://lifeos-apple-e2e.example.test";
-  const handoffFilePath = "/Users/test/Library/Mobile Documents/com~apple~CloudDocs/LifeOS AI/lifeos-mobile-entry.html";
-  const packetFilePath = "/Users/test/Library/Mobile Documents/com~apple~CloudDocs/LifeOS AI/lifeos-mobile-entry.json";
-  const indexFilePath = "/Users/test/Library/Mobile Documents/com~apple~CloudDocs/LifeOS AI/lifeos-mobile-entry-index.html";
+  const handoffFilePath = "/Users/test/Library/Mobile Documents/com~apple~CloudDocs/OwnOrbit AI/lifeos-mobile-entry.html";
+  const packetFilePath = "/Users/test/Library/Mobile Documents/com~apple~CloudDocs/OwnOrbit AI/lifeos-mobile-entry.json";
+  const indexFilePath = "/Users/test/Library/Mobile Documents/com~apple~CloudDocs/OwnOrbit AI/lifeos-mobile-entry-index.html";
   const entryChecksum = "a".repeat(64);
   const icloudFile = makeIcloudFileAvailability(hasEntry);
   const syncReadiness = hasEntry
@@ -185,11 +185,11 @@ function makeIcloudOnboardingDiagnostics(phase: IcloudOnboardingPhase) {
       desktopName: "Playwright Mac",
       desktopSlug: "playwright-mac",
       drivePath: "/Users/test/Library/Mobile Documents/com~apple~CloudDocs",
-      appFolderPath: "/Users/test/Library/Mobile Documents/com~apple~CloudDocs/LifeOS AI",
+      appFolderPath: "/Users/test/Library/Mobile Documents/com~apple~CloudDocs/OwnOrbit AI",
       handoffFilePath: hasEntry ? handoffFilePath : "",
       packetFilePath: hasEntry ? packetFilePath : "",
       indexFilePath: hasEntry ? indexFilePath : "",
-      historyFilePath: "/Users/test/Library/Mobile Documents/com~apple~CloudDocs/LifeOS AI/lifeos-mobile-entry-history.json",
+      historyFilePath: "/Users/test/Library/Mobile Documents/com~apple~CloudDocs/OwnOrbit AI/lifeos-mobile-entry-history.json",
       availableEntries: hasEntry ? [{
         desktopId: "desktop-e2e",
         desktopName: "Playwright Mac",
@@ -301,7 +301,7 @@ function makeIcloudOnboardingDiagnostics(phase: IcloudOnboardingPhase) {
           neverSyncedFields: ["device access token", "device token hash", "raw device credential", "device private key", "session cookie", "private key", "raw public key"],
           importedDeviceAction: "Imported Apple device records stay review-only until the user rebinds the phone or explicitly approves local trust.",
           phoneRecoveryAction: "Create a new pairing QR and rotate the old device token instead of restoring credentials from iCloud.",
-          userFacingSummary: "iCloud can help LifeOS remember which Apple device was seen, but it cannot silently log that device in.",
+          userFacingSummary: "iCloud can help OwnOrbit remember which Apple device was seen, but it cannot silently log that device in.",
         },
         recordPlan: [],
         requiredNativeCapabilities: ["CloudKit container", "native helper"],
@@ -356,7 +356,7 @@ function makeIcloudOnboardingDiagnostics(phase: IcloudOnboardingPhase) {
       },
       realtimeTransport: false,
       transport: "handoff-only",
-      openInstruction: "Open iPhone Files app: iCloud Drive > LifeOS AI > lifeos-mobile-entry.html",
+      openInstruction: "Open iPhone Files app: iCloud Drive > OwnOrbit AI > lifeos-mobile-entry.html",
       notes: ["E2E fixture for Apple first launch."],
       latestEntryOpenEvent: phoneConfirmed ? {
         id: "event-current-e2e",
@@ -504,7 +504,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
           },
         },
         diagnostics,
-        message: "LifeOS mobile entry was exported to iCloud Drive.",
+        message: "OwnOrbit mobile entry was exported to iCloud Drive.",
       }),
     });
   });
@@ -518,7 +518,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await page.getByLabel("确认密码", { exact: true }).fill(password);
   await page.getByRole("button", { name: "完成初始化" }).click();
   await expect(page).toHaveURL(/\/admin\/onboarding/);
-  await expect(page.getByText("先把 LifeOS AI 用起来")).toBeVisible();
+  await expect(page.getByText("先把 OwnOrbit AI 用起来")).toBeVisible();
   await expect(page.getByText("每一步只做一件事")).toBeVisible();
   await expect(page.getByText("第一步：接上一个模型")).toBeVisible();
   await expect(page.getByLabel("选择模型服务")).toBeVisible();
@@ -583,7 +583,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
         expiresAt: Date.now() + 120_000,
         baseUrl,
         pairingUrl: `${baseUrl}/mobile/install/bind_icloud_inline_e2e`,
-        localName: "LifeOS Test",
+        localName: "OwnOrbit Test",
       }),
     });
     inlinePairingStartFulfilled += 1;
@@ -617,12 +617,12 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(page.getByTestId("onboarding-progress-count")).toHaveText("1 / 3");
   await expect(page.getByText("已有备份：1 份")).toBeVisible();
   await page.getByRole("button", { name: "开启每日自动备份" }).click();
-  await expect(page.getByText("已开启每日自动备份。之后 LifeOS AI 会定期创建 SQLite 快照。")).toBeVisible();
+  await expect(page.getByText("已开启每日自动备份。之后 OwnOrbit AI 会定期创建 SQLite 快照。")).toBeVisible();
   await expect(page.getByText("自动备份：已开启，每 24 小时")).toBeVisible();
   await expect(page.getByText(/下次自动备份：/)).toBeVisible();
   await page.getByRole("link", { name: "进入控制台" }).click();
   await expect(page).toHaveURL(/\/admin\/dashboard/);
-  await expect(page.getByText("LifeOS Local Core")).toBeVisible();
+  await expect(page.getByText("OwnOrbit Local Core")).toBeVisible();
 
   await page.route("**/api/v1/admin/network-diagnostics", async (route) => {
     await route.fulfill({
@@ -647,7 +647,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
             mobilePairUrl: "https://pair.example.test/mobile/pair",
             mobileChatUrl: "https://pair.example.test/mobile/chat",
             envTemplate: "LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=https://pair.example.test npm run start",
-            restartInstruction: "复制环境变量后重启 LifeOS AI。",
+            restartInstruction: "复制环境变量后重启 OwnOrbit AI。",
             notes: ["适合异地访问。复制启动环境并重启后，绑定二维码会使用这个 HTTPS 地址。"],
           },
         ],
@@ -716,7 +716,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
         expiresAt: Date.now() + 120_000,
         baseUrl: "https://pair.example.test",
         pairingUrl: "https://pair.example.test/mobile/install/bind_recommended_e2e",
-        localName: "LifeOS Test",
+        localName: "OwnOrbit Test",
       }),
     });
   });
@@ -753,7 +753,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   });
   await page.goto("/admin/devices/pair");
   await expect(page.getByText("检测到地址，但二维码还没生成")).toBeVisible();
-  await expect(page.getByText(/二维码没有生成。下一步：重启 LifeOS AI/)).toBeVisible();
+  await expect(page.getByText(/二维码没有生成。下一步：重启 OwnOrbit AI/)).toBeVisible();
   await expect(page.getByText("当前检测到的地址")).toBeVisible();
   await page.getByRole("button", { name: "测试这个地址" }).click();
   await expect(page.getByText("连接测试通过：3/3 项通过，18ms，手机可访问 https://pair.example.test")).toBeVisible();
@@ -1036,7 +1036,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
             mobilePairUrl: "https://amber-lifeos.trycloudflare.com/mobile/pair",
             mobileChatUrl: "https://amber-lifeos.trycloudflare.com/mobile/chat",
             envTemplate: "LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=https://amber-lifeos.trycloudflare.com npm run start",
-            restartInstruction: "复制环境变量后重启 LifeOS AI。",
+            restartInstruction: "复制环境变量后重启 OwnOrbit AI。",
             notes: ["适合异地访问。复制启动环境并重启后，绑定二维码会使用这个 HTTPS 地址。"],
           },
           {
@@ -1050,7 +1050,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
             mobilePairUrl: "http://lifeos-mac.tailnet.example.ts.net:3333/mobile/pair",
             mobileChatUrl: "http://lifeos-mac.tailnet.example.ts.net:3333/mobile/chat",
             envTemplate: "LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 PUBLIC_BASE_URL=http://lifeos-mac.tailnet.example.ts.net:3333 npm run start",
-            restartInstruction: "复制环境变量后重启 LifeOS AI。",
+            restartInstruction: "复制环境变量后重启 OwnOrbit AI。",
             notes: ["适合自己的手机和电脑异地连接。手机需登录同一个 Tailnet。"],
           },
           {
@@ -1064,7 +1064,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
             mobilePairUrl: "http://192.168.31.10:3333/mobile/pair",
             mobileChatUrl: "http://192.168.31.10:3333/mobile/chat",
             envTemplate: "LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 npm run start",
-            restartInstruction: "复制环境变量后重启 LifeOS AI。",
+            restartInstruction: "复制环境变量后重启 OwnOrbit AI。",
             notes: ["适合同一 Wi-Fi。离开当前网络后通常不可用。"],
           },
         ],

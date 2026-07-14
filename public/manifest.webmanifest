@@ -1,8 +1,8 @@
 {
-  "name": "LifeOS AI",
-  "short_name": "LifeOS",
+  "name": "OwnOrbit AI",
+  "short_name": "OwnOrbit",
   "id": "/mobile/chat",
-  "description": "Personal AI mobile client connected to your LifeOS desktop core.",
+  "description": "Personal AI mobile client connected to your OwnOrbit desktop core.",
   "start_url": "/mobile/chat",
   "scope": "/",
   "display": "standalone",

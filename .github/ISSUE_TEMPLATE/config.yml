@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Installation and quick start / 安装与快速开始
-    url: https://github.com/WGJ-Fry/lifeos-ai/blob/main/docs/user-install-guide.md
+    url: https://github.com/WGJ-Fry/ownorbit-ai/blob/main/docs/user-install-guide.md
     about: Start here before opening an issue. / 提 Issue 前请先看这里。
   - name: Support discussions / 支持讨论
-    url: https://github.com/WGJ-Fry/lifeos-ai/discussions/categories/support
+    url: https://github.com/WGJ-Fry/ownorbit-ai/discussions/categories/support
     about: Ask setup, pairing, connection, and usage questions without pasting secrets. / 提安装、绑定、连接和使用问题，请勿粘贴密钥。

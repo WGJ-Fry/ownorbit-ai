@@ -103,7 +103,7 @@ const credentialBoundary = {
   neverSyncedFields: ["device access token", "device token hash", "raw device credential", "device private key", "session cookie", "private key", "raw public key"],
   importedDeviceAction: "Imported Apple device records stay review-only until the user rebinds the phone or explicitly approves local trust.",
   phoneRecoveryAction: "If a phone loses its local credential, create a new pairing QR and rotate the old device token instead of restoring credentials from iCloud.",
-  userFacingSummary: "iCloud can help LifeOS remember which Apple device was seen, but it cannot silently log that device in.",
+  userFacingSummary: "iCloud can help OwnOrbit remember which Apple device was seen, but it cannot silently log that device in.",
 } as const;
 
 function cleanText(value: unknown, limit = 160) {

@@ -18,8 +18,8 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-LABEL org.opencontainers.image.source="https://github.com/WGJ-Fry/lifeos-ai"
-LABEL org.opencontainers.image.description="LifeOS - A local AI that answers what you're forgetting from Markdown notes."
+LABEL org.opencontainers.image.source="https://github.com/WGJ-Fry/ownorbit-ai"
+LABEL org.opencontainers.image.description="OwnOrbit - A local AI that answers what you're forgetting from Markdown notes."
 LABEL org.opencontainers.image.licenses="MIT"
 
 COPY --from=builder /app/package*.json ./

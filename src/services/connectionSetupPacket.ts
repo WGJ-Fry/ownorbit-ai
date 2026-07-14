@@ -4,7 +4,7 @@ type ConnectionCandidate = NetworkDiagnostics["connectionCandidates"][number];
 
 export function buildConnectionSetupPacket(candidate: ConnectionCandidate, now = Date.now()) {
   const lines = [
-    "LifeOS AI remote connection setup",
+    "OwnOrbit AI remote connection setup",
     `Generated: ${new Date(now).toISOString()}`,
     "",
     `Label: ${candidate.label}`,
@@ -22,7 +22,7 @@ export function buildConnectionSetupPacket(candidate: ConnectionCandidate, now =
     candidate.restartInstruction || "-",
     "",
     "Next steps:",
-    "1. Save this entry as the desktop startup config in LifeOS AI.",
+    "1. Save this entry as the desktop startup config in OwnOrbit AI.",
     "2. Restart the desktop app if the entry says it requires restart.",
     "3. Generate a fresh phone pairing QR code after the entry is saved.",
     "4. Run the remote health check and pair the phone with this entry.",

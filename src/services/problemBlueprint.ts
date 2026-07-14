@@ -900,15 +900,15 @@ function buildAutoRepairLoop(
 function buildSummary(language: ProblemBlueprint["language"], profile: CategoryProfile, problem: string) {
   if (!problem) {
     return language === "en-US"
-      ? "Describe a real task and LifeOS will turn it into a runnable helper app."
-      : "描述一个真实问题，LifeOS 会把它转成可运行的解决程序。";
+      ? "Describe a real task and OwnOrbit will turn it into a runnable helper app."
+      : "描述一个真实问题，OwnOrbit 会把它转成可运行的解决程序。";
   }
 
   if (language === "en-US") {
-    return `LifeOS recognized this as a ${profile.labelEn.toLowerCase()} task and prepared a runnable app plan for the current problem.`;
+    return `OwnOrbit recognized this as a ${profile.labelEn.toLowerCase()} task and prepared a runnable app plan for the current problem.`;
   }
 
-  return `LifeOS 已将这个需求识别为「${profile.labelZh}」问题，并准备好生成一个解决当前问题的可运行程序。`;
+  return `OwnOrbit 已将这个需求识别为「${profile.labelZh}」问题，并准备好生成一个解决当前问题的可运行程序。`;
 }
 
 function buildAppPrompt(language: ProblemBlueprint["language"], profile: CategoryProfile, contract: TemplateContract, problem: string, templateLibrary: ProblemBlueprintTemplateOption[]) {

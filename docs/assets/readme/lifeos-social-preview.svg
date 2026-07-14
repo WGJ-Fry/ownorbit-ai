@@ -1,5 +1,5 @@
 <svg width="1280" height="640" viewBox="0 0 1280 640" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">LifeOS AI social preview</title>
+  <title id="title">OwnOrbit AI social preview</title>
   <desc id="desc">Open-source, local-first personal AI assistant with private memory, generated tools, and a remote mobile companion.</desc>
   <defs>
     <linearGradient id="background" x1="0" y1="0" x2="1280" y2="640" gradientUnits="userSpaceOnUse">
@@ -17,7 +17,7 @@
 
   <rect x="74" y="70" width="377" height="40" rx="20" fill="#102A35" stroke="#2DD4BF"/>
   <text x="94" y="96" fill="#CCFBF1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="17" font-weight="800">OPEN-SOURCE + SELF-HOSTED</text>
-  <text x="74" y="190" fill="#F8FAFC" font-family="Inter, Arial, Helvetica, sans-serif" font-size="82" font-weight="900">LifeOS AI</text>
+  <text x="74" y="190" fill="#F8FAFC" font-family="Inter, Arial, Helvetica, sans-serif" font-size="82" font-weight="900">OwnOrbit AI</text>
   <text x="74" y="244" fill="#A7F3D0" font-family="Inter, Arial, Helvetica, sans-serif" font-size="34" font-weight="800">Local-first personal AI assistant</text>
   <text x="74" y="300" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="23">Private desktop core. Everyday mobile companion.</text>
 
@@ -46,7 +46,7 @@
   <g transform="translate(860 82)">
     <rect width="310" height="466" rx="38" fill="url(#phone)" stroke="#3B5169" stroke-width="2"/>
     <rect x="90" y="18" width="130" height="24" rx="12" fill="#050B13"/>
-    <text x="34" y="92" fill="#94A3B8" font-family="Inter, Arial, Helvetica, sans-serif" font-size="15" font-weight="700">LIFEOS MOBILE</text>
+    <text x="34" y="92" fill="#94A3B8" font-family="Inter, Arial, Helvetica, sans-serif" font-size="15" font-weight="700">OWNORBIT MOBILE</text>
     <rect x="28" y="116" width="254" height="82" rx="18" fill="#0A1523" stroke="#2DD4BF"/>
     <text x="50" y="150" fill="#F8FAFC" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18" font-weight="800">What am I forgetting?</text>
     <text x="50" y="177" fill="#94A3B8" font-family="Inter, Arial, Helvetica, sans-serif" font-size="15">Search private memory</text>

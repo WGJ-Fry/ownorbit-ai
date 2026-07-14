@@ -63,7 +63,7 @@ test("CloudKit push listener accepts only redacted fixed-schema events", () => {
   assert.equal(parseCloudKitPushEventLine(eventLine("remote-change", "database-change", { emittedAt: "not-a-date" })), null);
 });
 
-test("CloudKit push listener child environment excludes LifeOS credentials", () => {
+test("CloudKit push listener child environment excludes OwnOrbit credentials", () => {
   const env = minimalListenerEnvironment({
     HOME: "/Users/test",
     PATH: "/usr/bin",

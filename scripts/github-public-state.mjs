@@ -1,7 +1,7 @@
 import fs from "node:fs";
 
 const owner = "WGJ-Fry";
-const repo = "lifeos-ai";
+const repo = "ownorbit-ai";
 const baseUrl = process.env.LIFEOS_GITHUB_API_BASE_URL || `https://api.github.com/repos/${owner}/${repo}`;
 const packageJson = JSON.parse(fs.readFileSync("package.json", "utf8"));
 const currentPublicVersion = packageJson.version.includes("-") && packageJson.version.endsWith(".0")
@@ -14,13 +14,12 @@ const publicLinuxAppImageName = `LifeOS.AI-${packageJson.version}.AppImage`;
 const oldStableTag = "v0.1.0";
 const deprecatedTag = "v0.0.0";
 const desiredDescription =
-  "Open-source, self-hosted, local-first personal AI assistant and private second brain with memory, mobile access, and generated problem-solving tools.";
+  "OwnOrbit AI is an open-source, self-hosted, local-first personal AI assistant and private second brain with memory, mobile access, and generated problem-solving tools.";
 const desiredTopics = [
   "ai",
   "ai-agent",
   "ai-assistant",
   "personal-ai",
-  "personal-assistant",
   "local-ai",
   "local-first",
   "self-hosted",
@@ -36,6 +35,7 @@ const desiredTopics = [
   "electron",
   "pwa",
   "remote-access",
+  "ownorbit-ai",
 ];
 const args = new Set(process.argv.slice(2));
 const shouldFix = args.has("--fix");
@@ -150,9 +150,9 @@ async function safePut(label, url, body) {
 }
 
 function releaseBody() {
-  return `## LifeOS AI ${currentTag}
+  return `## OwnOrbit AI ${currentTag}
 
-LifeOS AI turns your desktop into a private AI core and your phone into a paired personal AI companion.
+OwnOrbit AI turns your desktop into a private AI core and your phone into a paired personal AI companion.
 
 ### What this public alpha includes
 
@@ -176,7 +176,7 @@ LifeOS AI turns your desktop into a private AI core and your phone into a paired
 
 ### Install
 
-macOS: download the unsigned ZIP, unzip it, drag \`LifeOS AI.app\` to Applications, then follow \`INSTALL-unsigned-mac.md\` if Gatekeeper blocks the first launch.
+macOS: download the unsigned ZIP, unzip it, drag \`OwnOrbit AI.app\` to Applications, then follow \`INSTALL-unsigned-mac.md\` if Gatekeeper blocks the first launch.
 
 Windows: download the NSIS \`.exe\` and follow the SmartScreen guidance in \`USER-INSTALL.md\`.
 
@@ -204,7 +204,7 @@ Do not reuse hashes from v0.1.2-alpha or earlier releases.
 
 ## 中文说明
 
-LifeOS AI 把电脑端变成私有 AI 核心，把手机端变成扫码绑定后的随身 AI 助手。
+OwnOrbit AI 把电脑端变成私有 AI 核心，把手机端变成扫码绑定后的随身 AI 助手。
 
 当前公开 alpha 包含 Docker Compose + Ollama 本地 Markdown 演示、macOS unsigned ZIP、Windows NSIS 安装包、Linux AppImage、电脑端管理、手机 PWA、备份恢复、连接诊断和 Studio 自动生成解决问题的程序。
 
@@ -215,9 +215,9 @@ function deprecatedBody(existingBody = "") {
   const warning = `> [!WARNING]
 > Deprecated / 已废弃
 >
-> This early release is kept only for historical reference. New users should use [LifeOS AI ${currentTag}](https://github.com/${owner}/${repo}/releases/tag/${currentTag}).
+> This early release is kept only for historical reference. New users should use [OwnOrbit AI ${currentTag}](https://github.com/${owner}/${repo}/releases/tag/${currentTag}).
 >
-> 这个早期版本仅保留作历史记录。新用户请使用 [LifeOS AI ${currentTag}](https://github.com/${owner}/${repo}/releases/tag/${currentTag})。
+> 这个早期版本仅保留作历史记录。新用户请使用 [OwnOrbit AI ${currentTag}](https://github.com/${owner}/${repo}/releases/tag/${currentTag})。
 `;
   if (existingBody.includes("Deprecated / 已废弃")) return existingBody;
   return `${warning}\n---\n\n${existingBody}`.trim();
@@ -292,7 +292,7 @@ async function main() {
     } else {
       record(false, `${currentTag} release body needs launch wording`);
       await safePatch(`${currentTag} release body`, currentRelease.url, {
-        name: `LifeOS AI ${currentTag} - Desktop core + mobile personal AI assistant`,
+        name: `OwnOrbit AI ${currentTag} - Desktop core + mobile personal AI assistant`,
         body: releaseBody(),
         prerelease: true,
       });
@@ -325,7 +325,7 @@ async function main() {
     } else {
       record(false, `${deprecatedTag} needs deprecated labeling`);
       await safePatch(`${deprecatedTag} deprecated release`, deprecatedRelease.url, {
-        name: "Deprecated: LifeOS AI 0.0.0",
+        name: "Deprecated: OwnOrbit AI 0.0.0",
         body: deprecatedBody(deprecatedRelease.body || ""),
         prerelease: true,
         make_latest: "false",

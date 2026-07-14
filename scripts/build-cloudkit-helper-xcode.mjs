@@ -61,7 +61,7 @@ targets:
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: ${yamlString(teamId)}
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: LifeOS CloudKit Helper
+        INFOPLIST_KEY_CFBundleDisplayName: OwnOrbit CloudKit Helper
         INFOPLIST_KEY_LSBackgroundOnly: YES
         CODE_SIGN_ENTITLEMENTS: LifeOSCloudKitHelper.entitlements
     entitlements:
@@ -144,7 +144,7 @@ if (!build.ok) {
   if (build.stderr) process.stderr.write(build.stderr);
   const buildOutput = `${build.stdout}\n${build.stderr}`;
   if (!compileOnly && (buildOutput.includes("PLA Update available") || buildOutput.includes("Program License Agreement"))) {
-    console.error("Apple Developer Program License Agreement must be accepted by the account holder before Xcode can create the LifeOS provisioning profile.");
+    console.error("Apple Developer Program License Agreement must be accepted by the account holder before Xcode can create the OwnOrbit provisioning profile.");
   }
   if (!compileOnly && !allowProvisioningUpdates) {
     console.error("Xcode could not find a matching local profile. After reviewing the App ID and iCloud Container, rerun with LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES=1.");

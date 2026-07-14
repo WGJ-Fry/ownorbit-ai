@@ -5,7 +5,7 @@ import type { PwaServiceWorkerLifecycleStatus } from "../../services/pwaServiceW
 import { CapabilityRow } from "./MobileDeviceStatusCards";
 
 function pwaRecommendationKey(recommendation: string) {
-  if (recommendation.includes("add LifeOS to the home screen")) return "mobileDevice.pwaRecommendation.addToHome";
+  if (recommendation.includes("add OwnOrbit to the home screen")) return "mobileDevice.pwaRecommendation.addToHome";
   if (recommendation.includes("does not support the offline shell")) return "mobileDevice.pwaRecommendation.offlineShellUnsupported";
   if (recommendation.includes("offline shell is taking control")) return "mobileDevice.pwaRecommendation.refreshForShell";
   if (recommendation.includes("background sync is unavailable")) return "mobileDevice.pwaRecommendation.openChatToSync";

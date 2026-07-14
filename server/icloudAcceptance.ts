@@ -151,7 +151,7 @@ function buildRealtimeEntryItem(icloud: IcloudLike, baseUrl: string): IcloudAcce
       id: "realtime-entry-ready",
       status: "needs-action",
       severity: "warning",
-      evidence: "No phone-reachable address is available yet. iCloud can sync an entry file only after LifeOS has a usable LAN, VPN, or HTTPS address.",
+      evidence: "No phone-reachable address is available yet. iCloud can sync an entry file only after OwnOrbit has a usable LAN, VPN, or HTTPS address.",
       action: "choose-live-network-entry",
     };
   }

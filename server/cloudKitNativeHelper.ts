@@ -469,7 +469,7 @@ export async function runCloudKitNativeHelper(
     : [
         ...payloadErrors,
         ...(payload ? [] : ["Helper stdout was not valid JSON."]),
-        ...(protocolMatches ? [] : ["Helper protocol response did not match LifeOS CloudKit helper v1."]),
+        ...(protocolMatches ? [] : ["Helper protocol response did not match OwnOrbit CloudKit helper v1."]),
         ...(operationMatches ? [] : ["Helper operation did not match the request."]),
         ...(operationCapabilityCoverage.complete ? [] : [`Helper did not verify required operation capabilities: ${operationCapabilityCoverage.missing.join(", ")}.`]),
         ...(command.timedOut ? ["Helper timed out."] : []),

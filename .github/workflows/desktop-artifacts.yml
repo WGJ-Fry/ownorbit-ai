@@ -71,7 +71,7 @@ jobs:
       - name: Upload package and update metadata
         uses: actions/upload-artifact@v4
         with:
-          name: lifeos-ai-${{ matrix.platform }}-${{ github.run_number }}
+          name: ownorbit-ai-${{ matrix.platform }}-${{ github.run_number }}
           if-no-files-found: error
           retention-days: 14
           path: |
@@ -98,7 +98,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: release-artifacts
-          pattern: lifeos-ai-*-${{ github.run_number }}
+          pattern: ownorbit-ai-*-${{ github.run_number }}
 
       - name: Assemble release draft assets
         run: node scripts/assemble-release-draft-assets.mjs
@@ -109,7 +109,7 @@ jobs:
         with:
           draft: true
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
-          name: LifeOS AI ${{ github.ref_name }}
+          name: OwnOrbit AI ${{ github.ref_name }}
           generate_release_notes: true
           files: |
             release-draft/*.dmg

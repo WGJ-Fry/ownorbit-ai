@@ -80,7 +80,7 @@ export default function AdminDashboardPage() {
       <div className="max-w-6xl mx-auto">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold">LifeOS Local Core</h1>
+            <h1 className="text-2xl font-bold">OwnOrbit Local Core</h1>
             <p className="text-sm text-zinc-400 mt-1">{t("dashboard.subtitle")}</p>
           </div>
           <div className="flex flex-wrap gap-2">

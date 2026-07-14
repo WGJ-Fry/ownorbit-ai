@@ -76,7 +76,7 @@ test("onboarding handoff summary is actionable and excludes sensitive values", a
     },
   });
 
-  assert.match(summary, /LifeOS AI first-launch handoff/);
+  assert.match(summary, /OwnOrbit AI first-launch handoff/);
   assert.match(summary, /AI provider: OpenAI \(gpt-4o-mini\)/);
   assert.match(summary, /Automatic backups: disabled/);
   assert.match(summary, /Remote access readiness: ready/);

@@ -144,10 +144,10 @@ export default function CustomAppFrame({ app }: CustomAppFrameProps) {
           respondToFrame(data.requestId, { ok: true, result: { status: "approved", request: decided.request } });
           return;
         }
-        respondToFrame(data.requestId, { ok: false, error: "Unsupported LifeOS app request" });
+        respondToFrame(data.requestId, { ok: false, error: "Unsupported OwnOrbit app request" });
       } catch (error: any) {
-        recordRuntimeEvent("error", "error", "Host request failed", error?.message || "LifeOS app request failed", { requestType: data.type });
-        respondToFrame(data.requestId, { ok: false, error: error?.message || "LifeOS app request failed" });
+        recordRuntimeEvent("error", "error", "Host request failed", error?.message || "OwnOrbit app request failed", { requestType: data.type });
+        respondToFrame(data.requestId, { ok: false, error: error?.message || "OwnOrbit app request failed" });
       }
     };
 

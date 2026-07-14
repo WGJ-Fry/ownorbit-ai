@@ -33,7 +33,7 @@ async function cacheBuildAssets(cache) {
     const buildAssets = extractBuildAssets(html);
     if (buildAssets.length) await cache.addAll(buildAssets);
   } catch (error) {
-    console.warn("LifeOS service worker could not pre-cache build assets", error);
+    console.warn("OwnOrbit service worker could not pre-cache build assets", error);
   }
 }
 

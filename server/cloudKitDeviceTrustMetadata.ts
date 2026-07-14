@@ -54,7 +54,7 @@ function publicItem(row: CloudKitDeviceTrustMetadataRow): CloudKitDeviceTrustMet
     nextAction,
     guidance: revoked
       ? "This iCloud device record is revoked. Keep it for review or bind the device again if it should be active."
-      : "Bind this device again before it can access this LifeOS computer.",
+      : "Bind this device again before it can access this OwnOrbit computer.",
   };
 }
 
