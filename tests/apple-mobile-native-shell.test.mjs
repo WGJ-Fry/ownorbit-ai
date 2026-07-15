@@ -76,9 +76,21 @@ test("Apple native mobile shell validates safe iCloud entries without storing cr
 });
 
 test("Apple native mobile shell has a guarded private CloudKit offline data path", async () => {
-  const [project, entitlements, cloudData, cloudSync, cloudOutbox, cloudScreen, buildScript] = await Promise.all([
+  const [
+    project,
+    entitlements,
+    app,
+    backgroundRefresh,
+    cloudData,
+    cloudSync,
+    cloudOutbox,
+    cloudScreen,
+    buildScript,
+  ] = await Promise.all([
     readFile(path.join(nativeDir, "project.yml"), "utf8"),
     readFile(path.join(nativeDir, "Config", "LifeOSMobile.entitlements"), "utf8"),
+    readFile(path.join(nativeDir, "Sources", "LifeOSMobileApp.swift"), "utf8"),
+    readFile(path.join(nativeDir, "Sources", "LifeOSCloudBackgroundRefresh.swift"), "utf8"),
     readFile(path.join(nativeDir, "Sources", "LifeOSCloudData.swift"), "utf8"),
     readFile(path.join(nativeDir, "Sources", "LifeOSCloudKitSync.swift"), "utf8"),
     readFile(path.join(nativeDir, "Sources", "LifeOSCloudMutationOutbox.swift"), "utf8"),
@@ -87,7 +99,9 @@ test("Apple native mobile shell has a guarded private CloudKit offline data path
   ]);
 
   assert.match(project, /CODE_SIGN_ENTITLEMENTS: Config\/LifeOSMobile\.entitlements/);
-  assert.match(project, /UIBackgroundModes:[\s\S]*remote-notification/);
+  assert.match(project, /LifeOSCloudKitBackgroundRefreshIdentifier: \$\(PRODUCT_BUNDLE_IDENTIFIER\)\.cloudkit-refresh/);
+  assert.match(project, /BGTaskSchedulerPermittedIdentifiers:[\s\S]*\$\(PRODUCT_BUNDLE_IDENTIFIER\)\.cloudkit-refresh/);
+  assert.match(project, /UIBackgroundModes:[\s\S]*- fetch[\s\S]*- remote-notification/);
   assert.match(project, /UISupportedInterfaceOrientations/);
   assert.match(entitlements, /com\.apple\.developer\.icloud-container-identifiers/);
   assert.match(entitlements, /com\.apple\.developer\.icloud-services/);
@@ -110,6 +124,20 @@ test("Apple native mobile shell has a guarded private CloudKit offline data path
   assert.match(cloudSync, /lastSyncOutcome = \.failed/);
   assert.match(cloudSync, /maxCatchUpPasses = 3/);
   assert.match(cloudSync, /scheduleRetry\(after:/);
+  assert.match(app, /LifeOSCloudBackgroundRefreshCoordinator\.register\(\)/);
+  assert.match(app, /LifeOSCloudBackgroundRefreshCoordinator\.scheduleIfEnabled\(\)/);
+  assert.match(app, /CKNotification\(fromRemoteNotificationDictionary: userInfo\)/);
+  assert.match(app, /databaseNotification\.databaseScope == \.private/);
+  assert.match(backgroundRefresh, /import BackgroundTasks/);
+  assert.match(backgroundRefresh, /BGTaskScheduler\.shared\.register/);
+  assert.match(backgroundRefresh, /BGAppRefreshTaskRequest/);
+  assert.match(backgroundRefresh, /earliestDelay: TimeInterval = 30 \* 60/);
+  assert.match(backgroundRefresh, /lifeos\.native\.cloud-data-enabled\.v1/);
+  assert.match(backgroundRefresh, /cancel\(taskRequestWithIdentifier:/);
+  assert.match(backgroundRefresh, /request\.finish\(success: false\)/);
+  assert.match(cloudSync, /lifeOSCloudKitBackgroundRefresh/);
+  assert.match(cloudSync, /sync\(reason: "background-refresh"\)/);
+  assert.match(cloudSync, /LifeOSCloudBackgroundRefreshCoordinator\.cancel\(\)/);
   assert.match(cloudSync, /completeTaskListItem/);
   assert.match(cloudData, /task-list-item-complete/);
   assert.match(cloudData, /LifeOSCloudMemoryMutationBuilder/);

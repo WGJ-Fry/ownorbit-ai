@@ -497,10 +497,10 @@ final class LifeOSCloudDataStore: ObservableObject {
     var isWriting: Bool { writingTaskRecordId != nil || writingMemory || isProcessingPendingMutations }
     var totalMutationCount: Int { pendingMutationCount + reviewMutationCount + otherAccountMutationCount }
 
-    private let enabledKey = "lifeos.native.cloud-data-enabled.v1"
     private let fileURL: URL
     private var mutationOutbox: LifeOSCloudMutationOutbox
     private var notificationObserver: NSObjectProtocol?
+    private var backgroundRefreshObserver: NSObjectProtocol?
     private var accountObserver: NSObjectProtocol?
     private var retryTask: Task<Void, Never>?
     private var retryAttempt = 0
@@ -519,7 +519,7 @@ final class LifeOSCloudDataStore: ObservableObject {
         let demoMode = false
         #endif
         simulatorDemoMode = demoMode
-        enabled = demoMode || UserDefaults.standard.bool(forKey: enabledKey)
+        enabled = demoMode || LifeOSCloudBackgroundRefreshPolicy.isEnabled()
         #if targetEnvironment(simulator)
         snapshot = demoMode ? Self.simulatorDemoSnapshot() : Self.loadSnapshot(from: fileURL)
         #else
@@ -550,6 +550,25 @@ final class LifeOSCloudDataStore: ObservableObject {
                 request?.finish(self.lastSyncOutcome.backgroundFetchResult)
             }
         }
+        backgroundRefreshObserver = NotificationCenter.default.addObserver(
+            forName: .lifeOSCloudKitBackgroundRefresh,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            let request = notification.object as? LifeOSCloudBackgroundRefreshRequest
+            Task { @MainActor in
+                guard let self else {
+                    request?.finish(success: false)
+                    return
+                }
+                guard self.enabled else {
+                    request?.finish(success: true)
+                    return
+                }
+                _ = await self.sync(reason: "background-refresh")
+                request?.finish(success: self.lastSyncOutcome != .failed)
+            }
+        }
         accountObserver = NotificationCenter.default.addObserver(
             forName: Notification.Name.CKAccountChanged,
             object: nil,
@@ -563,13 +582,15 @@ final class LifeOSCloudDataStore: ObservableObject {
 
     deinit {
         if let notificationObserver { NotificationCenter.default.removeObserver(notificationObserver) }
+        if let backgroundRefreshObserver { NotificationCenter.default.removeObserver(backgroundRefreshObserver) }
         if let accountObserver { NotificationCenter.default.removeObserver(accountObserver) }
         retryTask?.cancel()
     }
 
     func enableAndSync() async {
         enabled = true
-        UserDefaults.standard.set(true, forKey: enabledKey)
+        UserDefaults.standard.set(true, forKey: LifeOSCloudBackgroundRefreshPolicy.enabledDefaultsKey)
+        LifeOSCloudBackgroundRefreshCoordinator.scheduleIfEnabled()
         await sync(reason: "enable")
     }
 
@@ -863,7 +884,8 @@ final class LifeOSCloudDataStore: ObservableObject {
         retryTask?.cancel()
         retryTask = nil
         enabled = false
-        UserDefaults.standard.removeObject(forKey: enabledKey)
+        UserDefaults.standard.removeObject(forKey: LifeOSCloudBackgroundRefreshPolicy.enabledDefaultsKey)
+        LifeOSCloudBackgroundRefreshCoordinator.cancel()
         try? FileManager.default.removeItem(at: fileURL)
         let clearedPendingActions = (try? mutationOutbox.clear()) != nil
         snapshot = .empty

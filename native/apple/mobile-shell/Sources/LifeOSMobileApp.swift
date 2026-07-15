@@ -1,3 +1,4 @@
+import CloudKit
 import SwiftUI
 import UIKit
 import UserNotifications
@@ -9,7 +10,12 @@ final class LifeOSAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificati
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
         application.registerForRemoteNotifications()
+        _ = LifeOSCloudBackgroundRefreshCoordinator.register()
         return true
+    }
+
+    func applicationDidEnterBackground(_ application: UIApplication) {
+        LifeOSCloudBackgroundRefreshCoordinator.scheduleIfEnabled()
     }
 
     func userNotificationCenter(
@@ -24,6 +30,12 @@ final class LifeOSAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificati
         didReceiveRemoteNotification userInfo: [AnyHashable: Any],
         fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
     ) {
+        guard let notification = CKNotification(fromRemoteNotificationDictionary: userInfo),
+              let databaseNotification = notification as? CKDatabaseNotification,
+              databaseNotification.databaseScope == .private else {
+            completionHandler(.noData)
+            return
+        }
         let request = LifeOSCloudKitPushRequest(completion: completionHandler)
         NotificationCenter.default.post(name: .lifeOSCloudKitPush, object: request)
         DispatchQueue.main.asyncAfter(deadline: .now() + 25) {

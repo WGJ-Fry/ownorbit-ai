@@ -41,6 +41,9 @@ targets:
           NSAllowsArbitraryLoadsInWebContent: true
         NSLocalNetworkUsageDescription: OwnOrbit connects to your own computer on the local network.
         LifeOSCloudKitContainerIdentifier: $(LIFEOS_CLOUDKIT_CONTAINER_ID)
+        LifeOSCloudKitBackgroundRefreshIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER).cloudkit-refresh
+        BGTaskSchedulerPermittedIdentifiers:
+          - $(PRODUCT_BUNDLE_IDENTIFIER).cloudkit-refresh
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
@@ -51,6 +54,7 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         UIBackgroundModes:
+          - fetch
           - remote-notification
         CFBundleURLTypes:
           - CFBundleURLName: ai.lifeos.mobile.entry

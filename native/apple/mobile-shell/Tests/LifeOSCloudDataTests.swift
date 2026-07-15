@@ -9,6 +9,41 @@ final class LifeOSCloudDataTests: XCTestCase {
         XCTAssertEqual(LifeOSCloudSyncOutcome.failed.backgroundFetchResult, .failed)
     }
 
+    func testBackgroundRefreshPolicyRequiresOptInAndKeepsIdentifierInsideBundleScope() {
+        let suiteName = "LifeOSCloudBackgroundRefreshPolicy-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        XCTAssertFalse(LifeOSCloudBackgroundRefreshPolicy.isEnabled(defaults: defaults))
+        defaults.set(true, forKey: LifeOSCloudBackgroundRefreshPolicy.enabledDefaultsKey)
+        XCTAssertTrue(LifeOSCloudBackgroundRefreshPolicy.isEnabled(defaults: defaults))
+        XCTAssertEqual(LifeOSCloudBackgroundRefreshPolicy.earliestDelay, 30 * 60)
+        XCTAssertEqual(
+            LifeOSCloudBackgroundRefreshPolicy.resolvedIdentifier(
+                configuredIdentifier: "ai.example.ownorbit.cloudkit-refresh",
+                bundleIdentifier: "ai.example.ownorbit"
+            ),
+            "ai.example.ownorbit.cloudkit-refresh"
+        )
+        XCTAssertEqual(
+            LifeOSCloudBackgroundRefreshPolicy.resolvedIdentifier(
+                configuredIdentifier: "com.untrusted.refresh",
+                bundleIdentifier: "ai.example.ownorbit"
+            ),
+            "ai.example.ownorbit.cloudkit-refresh"
+        )
+    }
+
+    func testBackgroundRefreshRequestFinishesExactlyOnce() {
+        var results: [Bool] = []
+        let request = LifeOSCloudBackgroundRefreshRequest { results.append($0) }
+
+        request.finish(success: true)
+        request.finish(success: false)
+
+        XCTAssertEqual(results, [true])
+    }
+
     @MainActor
     func testSimulatorCloudSyncDistinguishesNoDataFromFailure() async {
         let demoStore = LifeOSCloudDataStore(demoModeOverride: true)
