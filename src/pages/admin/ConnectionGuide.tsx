@@ -150,47 +150,49 @@ export default function ConnectionGuide({ health }: { health: Health | null }) {
 
   return (
     <section id="mobile-connect" className="mb-6 scroll-mt-6 rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
-      <div className="mb-4 flex items-center gap-2 font-bold">
-        <Router className="h-4 w-4 text-cyan-300" />
-        {t("connection.title")}
-      </div>
-      <div className="grid gap-4 md:grid-cols-3">
-        <GuideCard
-          icon={<ShieldCheck className="h-4 w-4" />}
-          title={t("connection.localTitle")}
-          status={health?.networkMode === "local" && !health?.publicBaseUrl ? t("connection.currentMode") : t("connection.optional")}
-          rows={[
-            [t("connection.purpose"), t("connection.localPurpose")],
-            [t("connection.listen"), "LIFEOS_HOST=127.0.0.1"],
-            [t("connection.risk"), t("connection.lowestRisk")],
-          ]}
-          notes={[t("connection.localNote")]}
-          tone="green"
-        />
-        <GuideCard
-          icon={<Router className="h-4 w-4" />}
-          title={t("connection.lanTitle")}
-          status={health?.networkMode === "lan" && !health?.publicBaseUrl ? t("connection.currentMode") : t("connection.needsRestart")}
-          rows={[
-            [t("connection.purpose"), t("connection.lanPurpose")],
-            [t("connection.listen"), "LIFEOS_HOST=0.0.0.0"],
-            [t("connection.authorization"), "LIFEOS_ALLOW_PUBLIC=1"],
-          ]}
-          notes={diagnostics?.lanUrls.length ? [t("connection.availableAddress", { url: diagnostics.lanUrls[0] }), t("connection.trustedOnly")] : [t("connection.lanFallback")]}
-          tone="blue"
-        />
-        <GuideCard
-          icon={<Globe2 className="h-4 w-4" />}
-          title={t("connection.publicTitle")}
-          status={health?.publicBaseUrl ? t("connection.currentMode") : t("connection.needsDomain")}
-          rows={[
-            [t("connection.purpose"), t("connection.publicPurpose")],
-            [t("connection.address"), diagnostics?.publicBaseUrl || health?.publicBaseUrl || "PUBLIC_BASE_URL=https://..."],
-            [t("connection.authorization"), "LIFEOS_ALLOW_PUBLIC=1"],
-          ]}
-          notes={diagnostics?.tailscale.mobileUrls?.length ? [t("connection.tailscaleUrl", { url: diagnostics.tailscale.mobileUrls[0] }), t("connection.tunnelRecommendation")] : [t("connection.tunnelRecommendation")]}
-          tone={health?.publicBaseUrl ? "amber" : "blue"}
-        />
+      <div data-testid="connection-mode-overview">
+        <div className="mb-4 flex items-center gap-2 font-bold">
+          <Router className="h-4 w-4 text-cyan-300" />
+          {t("connection.title")}
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <GuideCard
+            icon={<ShieldCheck className="h-4 w-4" />}
+            title={t("connection.localTitle")}
+            status={health?.networkMode === "local" && !health?.publicBaseUrl ? t("connection.currentMode") : t("connection.optional")}
+            rows={[
+              [t("connection.purpose"), t("connection.localPurpose")],
+              [t("connection.listen"), t("connection.localListen")],
+              [t("connection.risk"), t("connection.lowestRisk")],
+            ]}
+            notes={[t("connection.localNote")]}
+            tone="green"
+          />
+          <GuideCard
+            icon={<Router className="h-4 w-4" />}
+            title={t("connection.lanTitle")}
+            status={health?.networkMode === "lan" && !health?.publicBaseUrl ? t("connection.currentMode") : t("connection.needsRestart")}
+            rows={[
+              [t("connection.purpose"), t("connection.lanPurpose")],
+              [t("connection.listen"), t("connection.lanListen")],
+              [t("connection.authorization"), t("connection.trustedNetworkAccess")],
+            ]}
+            notes={diagnostics?.lanUrls.length ? [t("connection.lanAddressReady"), t("connection.trustedOnly")] : [t("connection.lanFallback")]}
+            tone="blue"
+          />
+          <GuideCard
+            icon={<Globe2 className="h-4 w-4" />}
+            title={t("connection.publicTitle")}
+            status={health?.publicBaseUrl ? t("connection.currentMode") : t("connection.needsDomain")}
+            rows={[
+              [t("connection.purpose"), t("connection.publicPurpose")],
+              [t("connection.address"), diagnostics?.publicBaseUrl || health?.publicBaseUrl || "PUBLIC_BASE_URL=https://..."],
+              [t("connection.authorization"), t("connection.secureRemoteAccess")],
+            ]}
+            notes={diagnostics?.tailscale.mobileUrls?.length ? [t("connection.tailscaleUrl", { url: diagnostics.tailscale.mobileUrls[0] }), t("connection.tunnelRecommendation")] : [t("connection.tunnelRecommendation")]}
+            tone={health?.publicBaseUrl ? "amber" : "blue"}
+          />
+        </div>
       </div>
       {diagnostics ? (
         <>

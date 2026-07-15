@@ -130,6 +130,43 @@ check(exists("docs/assets/real-demo-en.gif"), "English README demo GIF exists");
 check(exists("docs/assets/real-demo.gif"), "Chinese README demo GIF exists");
 check(readme.includes("docs/assets/real-demo-en.gif"), "English README uses the English demo GIF", "README.md must use docs/assets/real-demo-en.gif");
 check(readmeZh.includes("docs/assets/real-demo.gif"), "Chinese README uses the Chinese demo GIF", "README.zh-CN.md must use docs/assets/real-demo.gif");
+const ownOrbitVisualAssets = [
+  "docs/assets/promo/ownorbit-ai-30s-en-cover.png",
+  "docs/assets/promo/ownorbit-ai-30s-en.gif",
+  "docs/assets/promo/ownorbit-ai-30s-en.mp4",
+  "docs/assets/promo/ownorbit-ai-30s-zh-cover.png",
+  "docs/assets/promo/ownorbit-ai-30s-zh.gif",
+  "docs/assets/promo/ownorbit-ai-30s-zh.mp4",
+  "docs/assets/readme/ownorbit-readme-hero-en.svg",
+  "docs/assets/readme/ownorbit-readme-hero-zh.svg",
+  "docs/assets/readme/ownorbit-feature-map-en.svg",
+  "docs/assets/readme/ownorbit-feature-map-zh.svg",
+];
+const legacyBrandVisualAssets = [
+  "docs/assets/promo/lifeos-ai-30s-en-cover.png",
+  "docs/assets/promo/lifeos-ai-30s-en.gif",
+  "docs/assets/promo/lifeos-ai-30s-en.mp4",
+  "docs/assets/promo/lifeos-ai-30s-zh-cover.png",
+  "docs/assets/promo/lifeos-ai-30s-zh.gif",
+  "docs/assets/promo/lifeos-ai-30s-zh.mp4",
+  "public/promo/lifeos-ai-jike-cover.jpg",
+  "public/promo/lifeos-ai-jike-demo.gif",
+];
+check(
+  ownOrbitVisualAssets.every(exists),
+  "OwnOrbit bilingual README and 30-second visual assets exist",
+  `Missing OwnOrbit visual assets: ${ownOrbitVisualAssets.filter((asset) => !exists(asset)).join(", ")}`,
+);
+check(
+  ownOrbitVisualAssets.every((asset) => readme.includes(asset) || readmeZh.includes(asset)),
+  "README files reference OwnOrbit-branded visual asset paths",
+  "README files must reference every current OwnOrbit visual asset path",
+);
+check(
+  legacyBrandVisualAssets.every((asset) => !exists(asset)),
+  "Legacy LifeOS-branded promo files are absent",
+  `Remove legacy promo files: ${legacyBrandVisualAssets.filter(exists).join(", ")}`,
+);
 check(readmeZh.includes(image), "Chinese README exposes the same GHCR image tag", `README.zh-CN.md must mention ${image}`);
 check(readmeZh.includes(`release tag 是 \`${releaseTag}\``), "Chinese README explains release tag versus package version", `README.zh-CN.md must explain release tag ${releaseTag}`);
 check(readmeZh.includes(`package version 是 \`${version}\``), "Chinese README explains the package version", `README.zh-CN.md must explain package version ${version}`);

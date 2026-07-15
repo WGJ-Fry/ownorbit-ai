@@ -17,7 +17,7 @@ OwnOrbit AI is an open-source, self-hosted, local-first personal AI assistant an
 > **LifeOS AI is now OwnOrbit AI.** The public `v0.1.5-alpha` files and GHCR image still use the former name. Existing `LIFEOS_*` settings, app identity, local data, device bindings, and iCloud handoff files remain compatible. See the [brand migration notes](docs/brand-migration.md).
 
 <p align="center">
-  <img src="docs/assets/readme/lifeos-readme-hero-en.svg" alt="OwnOrbit AI local-first personal AI assistant" width="100%">
+  <img src="docs/assets/readme/ownorbit-readme-hero-en.svg" alt="OwnOrbit AI local-first personal AI assistant" width="100%">
 </p>
 
 OwnOrbit starts with one small but useful workflow:
@@ -74,18 +74,18 @@ These are real screens from the current project, not concept art.
 
 ### 30-Second Product Video
 
-The current video records the real `v0.1.5-alpha` interface and therefore shows the former LifeOS AI name. The workflow is unchanged; an OwnOrbit-branded recording will accompany the next packaged release.
+This bilingual visual walkthrough was regenerated from the current `main` source UI and now uses the OwnOrbit brand throughout. The public `v0.1.5-alpha` installers still keep their historical filenames until the next desktop package is published.
 
 <p align="center">
-  <a href="docs/assets/promo/lifeos-ai-30s-en.mp4">
-    <img src="docs/assets/promo/lifeos-ai-30s-en.gif" alt="OwnOrbit AI 30-second product video preview" width="100%">
+  <a href="docs/assets/promo/ownorbit-ai-30s-en.mp4">
+    <img src="docs/assets/promo/ownorbit-ai-30s-en.gif" alt="OwnOrbit AI 30-second product video preview" width="100%">
   </a>
 </p>
 
 <p align="center">
-  <a href="docs/assets/promo/lifeos-ai-30s-en.mp4">Watch MP4 video</a>
+  <a href="docs/assets/promo/ownorbit-ai-30s-en.mp4">Watch MP4 video</a>
   ·
-  <a href="docs/assets/promo/lifeos-ai-30s-en-cover.png">Download cover image</a>
+  <a href="docs/assets/promo/ownorbit-ai-30s-en-cover.png">Download cover image</a>
 </p>
 
 <p align="center">
@@ -110,7 +110,7 @@ OwnOrbit is interesting because the current alpha already combines three working
 ## Feature Map
 
 <p align="center">
-  <img src="docs/assets/readme/lifeos-feature-map-en.svg" alt="OwnOrbit AI feature map from personal memory to useful action" width="100%">
+  <img src="docs/assets/readme/ownorbit-feature-map-en.svg" alt="OwnOrbit AI feature map from personal memory to useful action" width="100%">
 </p>
 
 | Area | Current status |
@@ -127,7 +127,7 @@ OwnOrbit is interesting because the current alpha already combines three working
 ## Generated Problem-Solving Programs
 
 <p align="center">
-  <img src="docs/assets/readme/lifeos-generated-programs-en.svg" alt="OwnOrbit generates runnable programs for concrete problems" width="100%">
+  <img src="docs/assets/readme/ownorbit-generated-programs-en.svg" alt="OwnOrbit generates runnable programs for concrete problems" width="100%">
 </p>
 
 OwnOrbit Studio turns a concrete need into a small runnable program.
@@ -222,7 +222,7 @@ Do not remove the `127.0.0.1` host binding unless you have already set a strong 
 ## Remote & VPN Access
 
 <p align="center">
-  <img src="docs/assets/readme/lifeos-remote-access-en.svg" alt="OwnOrbit remote phone access with LAN, Tailscale VPN, and Cloudflare Tunnel" width="100%">
+  <img src="docs/assets/readme/ownorbit-remote-access-en.svg" alt="OwnOrbit remote phone access with LAN, Tailscale VPN, and Cloudflare Tunnel" width="100%">
 </p>
 
 OwnOrbit is designed for this model:

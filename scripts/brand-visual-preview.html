@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OwnOrbit AI brand visual renderer</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #080d13;
+      color: #f8fafc;
+    }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body { background: #080d13; }
+    .canvas {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #080d13;
+      border: 1px solid #14202d;
+    }
+    .grid {
+      position: absolute;
+      inset: 0;
+      opacity: .32;
+      background-image:
+        linear-gradient(#162433 1px, transparent 1px),
+        linear-gradient(90deg, #162433 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+    .topbar {
+      position: absolute;
+      z-index: 3;
+      top: 34px;
+      left: 48px;
+      right: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand { display: flex; align-items: center; gap: 14px; font-weight: 800; font-size: 25px; }
+    .mark {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      border: 1px solid #16c4d9;
+      color: #6ee7f2;
+      background: #0b2730;
+      font-size: 22px;
+    }
+    .badge {
+      border: 1px solid #2d4658;
+      border-radius: 999px;
+      padding: 9px 15px;
+      color: #b8cad8;
+      background: #0f1822;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .layout {
+      position: absolute;
+      z-index: 2;
+      inset: 112px 48px 48px;
+      display: grid;
+      grid-template-columns: minmax(330px, .88fr) minmax(560px, 1.45fr);
+      gap: 42px;
+      align-items: center;
+    }
+    .copy { min-width: 0; }
+    .eyebrow { margin: 0 0 16px; color: #4de3ef; font-size: 17px; font-weight: 800; }
+    h1 { margin: 0; font-size: 48px; line-height: 1.08; letter-spacing: 0; }
+    .stage-3 h1, .stage-4 h1 { font-size: 44px; }
+    .lead { margin: 22px 0 0; max-width: 520px; color: #c5d1dc; font-size: 22px; line-height: 1.55; }
+    .pills { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+    .pill {
+      padding: 10px 14px;
+      border-radius: 6px;
+      border: 1px solid #274255;
+      background: #0f1924;
+      color: #cfe8ef;
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .url { margin-top: 30px; color: #86a6b8; font-size: 16px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .screen-wrap {
+      position: relative;
+      width: 100%;
+      min-width: 0;
+      border: 1px solid #2b4254;
+      border-radius: 8px;
+      background: #0d141d;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, .45);
+      padding: 12px;
+    }
+    .screen-chrome { display: flex; gap: 7px; height: 21px; align-items: center; padding-left: 3px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #355267; }
+    .screen {
+      display: block;
+      width: 100%;
+      height: 488px;
+      object-fit: cover;
+      object-position: top center;
+      border-radius: 5px;
+      border: 1px solid #1e2b39;
+      background: #070c12;
+    }
+    .screen.connection-screen { height: 360px; object-fit: contain; object-position: center; }
+    .phone-stage { display: flex; align-items: center; justify-content: center; gap: 24px; min-height: 520px; }
+    .phone {
+      width: 238px;
+      height: 514px;
+      object-fit: cover;
+      object-position: top;
+      border: 7px solid #202d3a;
+      border-radius: 28px;
+      background: #070c12;
+      box-shadow: 0 20px 55px rgba(0, 0, 0, .42);
+    }
+    .phone-note {
+      width: 300px;
+      border: 1px solid #274255;
+      border-radius: 8px;
+      background: #0f1924;
+      padding: 24px;
+    }
+    .phone-note strong { display: block; color: #6ee7f2; font-size: 20px; margin-bottom: 12px; }
+    .phone-note p { color: #b8cad8; font-size: 17px; line-height: 1.55; margin: 0; }
+    .feature-map { object-fit: contain; background: #0c131c; }
+    .cta {
+      grid-column: 1 / -1;
+      text-align: center;
+      align-self: center;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    .cta h1 { font-size: 67px; }
+    .cta .lead { max-width: 820px; margin-left: auto; margin-right: auto; }
+    .cta .url { display: inline-block; padding: 16px 22px; border: 1px solid #2f6170; border-radius: 7px; background: #0a222a; color: #79e4ef; }
+    .canvas.portrait .topbar { top: 40px; left: 42px; right: 42px; }
+    .canvas.portrait .layout {
+      inset: 118px 42px 42px;
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+    .canvas.portrait h1 { font-size: 46px; }
+    .canvas.portrait .lead { font-size: 20px; margin-top: 14px; max-width: none; }
+    .canvas.portrait .pills { margin-top: 16px; }
+    .canvas.portrait .url { margin-top: 18px; }
+    .canvas.portrait .screen { height: 625px; }
+    .canvas.portrait .screen.connection-screen { height: 430px; }
+    .canvas.portrait .phone-stage { min-height: 650px; }
+    .canvas.portrait .phone { width: 270px; height: 585px; }
+    .canvas.portrait .phone-note { width: 410px; }
+    .canvas.portrait .cta { grid-column: 1; margin-top: 210px; }
+    .canvas.portrait .cta h1 { font-size: 57px; }
+  </style>
+</head>
+<body>
+  <main class="canvas" id="canvas">
+    <div class="grid"></div>
+    <header class="topbar">
+      <div class="brand"><span class="mark">◎</span><span>OwnOrbit AI</span></div>
+      <span class="badge" id="badge"></span>
+    </header>
+    <section class="layout" id="layout"></section>
+  </main>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const lang = params.get("lang") === "zh" ? "zh" : "en";
+    const stage = Math.max(0, Math.min(5, Number(params.get("stage") || 0)));
+    const portrait = params.get("mode") === "portrait";
+    const root = document.getElementById("canvas");
+    const layout = document.getElementById("layout");
+    const badge = document.getElementById("badge");
+    if (portrait) root.classList.add("portrait");
+
+    const content = {
+      en: {
+        badge: "Current main-source preview",
+        stages: [
+          ["YOUR AI, ON YOUR COMPUTER", "A personal AI assistant that remembers, connects, and builds tools for real problems.", ["Local-first", "Mobile companion", "Remote-ready", "Open source"]],
+          ["ONE CLEAN FIRST RUN", "Add one model key, scan one QR code, and start talking. Advanced controls stay out of the way until you need them.", ["One task per step", "21 AI providers", "No key in browser storage"]],
+          ["YOUR PHONE, SAME MEMORY", "Pair the mobile companion once, then carry the same private assistant between your desk and your pocket.", ["Signed device credential", "Offline queue", "Revocable access"]],
+          ["STAY CONNECTED AWAY FROM HOME", "Use LAN, Tailscale, Cloudflare Tunnel, or your own HTTPS endpoint.", ["Safe pairing QR", "Connection health", "Clear repair guidance"]],
+          ["IT BUILDS THE TOOL THE PROBLEM NEEDS", "Generate runnable tools for planning, tracking, forms, calculations, lookup, and workflows.", ["Runnable output", "Version rollback", "Permission review"]],
+          ["OWN YOUR CONTEXT. KEEP MOVING.", "Explore the source, run it locally, and help shape a personal AI assistant that works around your life.", ["MIT licensed", "macOS · Windows · Linux", "Docker"]],
+        ],
+        phoneTitle: "Pair once",
+        phoneBody: "The phone stores its device credential locally. The desktop owner can revoke it at any time.",
+      },
+      zh: {
+        badge: "当前 main 源码真实预览",
+        stages: [
+          ["你的 AI，运行在自己的电脑上", "一位能记住上下文、连接手机，并为眼前问题生成工具的个人 AI 助手。", ["本地优先", "手机伴侣", "支持异地连接", "开源"]],
+          ["第一次打开，也只做三件事", "配置一个模型 Key、扫描一个二维码、直接开始聊天。高级功能等你需要时再探索。", ["每步只配置一项", "支持 21 家模型服务", "Key 不进入浏览器存储"]],
+          ["电脑与手机，共用同一份记忆", "绑定一次后，在书桌前或出门时都能继续使用自己的 AI 助手。", ["设备签名凭证", "离线消息队列", "可随时撤销"]],
+          ["离开家，也能保持连接", "系统会从可信局域网、Tailscale、Cloudflare Tunnel 或自有 HTTPS 入口中选择可用方式。", ["安全绑定二维码", "连接健康检查", "明确修复建议"]],
+          ["问题需要什么程序，就生成什么程序", "面对规划、记录、表单、计算、查询和流程需求，OwnOrbit 会生成可运行工具并继续修好它。", ["可运行结果", "版本回滚", "权限确认"]],
+          ["掌握自己的上下文，继续向前", "从源码开始、本地运行，一起把个人 AI 助手变成真正能长期使用的工具。", ["MIT 开源", "macOS · Windows · Linux", "Docker"]],
+        ],
+        phoneTitle: "一次绑定",
+        phoneBody: "手机凭证只保存在设备本地；电脑端管理员可以随时撤销访问权限。",
+      },
+    }[lang];
+
+    badge.textContent = content.badge;
+    document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+    root.classList.add(`stage-${stage}`);
+
+    const assets = {
+      admin: lang === "zh" ? "/public/screenshots/real-admin-onboarding.jpg" : "/public/screenshots/en-admin-onboarding.jpg",
+      mobile: lang === "zh" ? "/public/screenshots/real-mobile-device.jpg" : "/public/screenshots/en-mobile-device.jpg",
+      connection: lang === "zh" ? "/build/brand-visuals/connection-crop-zh.jpg" : "/build/brand-visuals/connection-crop-en.jpg",
+      map: lang === "zh" ? "/docs/assets/readme/ownorbit-feature-map-zh.svg" : "/docs/assets/readme/ownorbit-feature-map-en.svg",
+    };
+    const [eyebrow, title, pills] = content.stages[stage];
+    const copy = `
+      <div class="copy">
+        <p class="eyebrow">${eyebrow}</p>
+        <h1>${title}</h1>
+        <div class="pills">${pills.map((item) => `<span class="pill">${item}</span>`).join("")}</div>
+        <div class="url">github.com/WGJ-Fry/ownorbit-ai</div>
+      </div>`;
+    const screen = (src, className = "") => `
+      <div class="screen-wrap">
+        <div class="screen-chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i></div>
+        <img class="screen ${className}" src="${src}" alt="" />
+      </div>`;
+
+    if (stage === 5) {
+      layout.innerHTML = `<div class="cta"><p class="eyebrow">${eyebrow}</p><h1>${title}</h1><div class="pills" style="justify-content:center">${pills.map((item) => `<span class="pill">${item}</span>`).join("")}</div><div class="url">github.com/WGJ-Fry/ownorbit-ai</div></div>`;
+    } else if (stage === 2) {
+      layout.innerHTML = `${copy}<div class="phone-stage"><img class="phone" src="${assets.mobile}" alt="" /><div class="phone-note"><strong>${content.phoneTitle}</strong><p>${content.phoneBody}</p></div></div>`;
+    } else if (stage === 4) {
+      layout.innerHTML = `${copy}${screen(assets.map, "feature-map")}`;
+    } else {
+      const source = stage === 3 ? assets.connection : assets.admin;
+      layout.innerHTML = `${copy}${screen(source, stage === 3 ? "connection-screen" : "")}`;
+    }
+  </script>
+</body>
+</html>

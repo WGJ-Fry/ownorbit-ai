@@ -245,13 +245,13 @@ function remoteAccess(lang) {
 </svg>`;
 }
 
-write("lifeos-readme-hero-en.svg", hero("en"));
-write("lifeos-readme-hero-zh.svg", hero("zh"));
-write("lifeos-feature-map-en.svg", featureMap("en"));
-write("lifeos-feature-map-zh.svg", featureMap("zh"));
-write("lifeos-generated-programs-en.svg", generatedPrograms("en"));
-write("lifeos-generated-programs-zh.svg", generatedPrograms("zh"));
-write("lifeos-remote-access-en.svg", remoteAccess("en"));
-write("lifeos-remote-access-zh.svg", remoteAccess("zh"));
+write("ownorbit-readme-hero-en.svg", hero("en"));
+write("ownorbit-readme-hero-zh.svg", hero("zh"));
+write("ownorbit-feature-map-en.svg", featureMap("en"));
+write("ownorbit-feature-map-zh.svg", featureMap("zh"));
+write("ownorbit-generated-programs-en.svg", generatedPrograms("en"));
+write("ownorbit-generated-programs-zh.svg", generatedPrograms("zh"));
+write("ownorbit-remote-access-en.svg", remoteAccess("en"));
+write("ownorbit-remote-access-zh.svg", remoteAccess("zh"));
 
 console.log("Generated README assets in docs/assets/readme");

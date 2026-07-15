@@ -59,7 +59,7 @@ remote-access
 
 ## GitHub Social Preview
 
-上传 `docs/assets/readme/lifeos-social-preview.png`。该图片固定为 GitHub 推荐的 `1280 x 640`，并只展示当前已经发布的真实能力。
+上传 `docs/assets/readme/ownorbit-social-preview.png`。该图片固定为 GitHub 推荐的 `1280 x 640`，并只展示当前已经发布的真实能力。
 
 ## Release 标题
 
@@ -238,7 +238,11 @@ Your private AI core on desktop. Your personal AI assistant on phone.
 - 真实手机端未绑定状态：`public/screenshots/real-mobile-chat.jpg`
 - 中文动图演示：`docs/assets/real-demo.gif`
 - English demo GIF: `docs/assets/real-demo-en.gif`
-- 英文功能总览图：`public/promo/lifeos-ai-english-feature-map.svg`
+- 中文 30 秒视频：`docs/assets/promo/ownorbit-ai-30s-zh.mp4`
+- English 30-second video: `docs/assets/promo/ownorbit-ai-30s-en.mp4`
+- 即刻/中文社区封面：`public/promo/ownorbit-ai-jike-cover.jpg`
+- 即刻/中文社区动图：`public/promo/ownorbit-ai-jike-demo.gif`
+- 英文功能总览图：`public/promo/ownorbit-ai-english-feature-map.svg`
 
 这些截图来自本地真实运行页面，不是概念图。
 
@@ -281,7 +285,7 @@ OwnOrbit AI turns your desktop into a private AI core for providers, local SQLit
 
 ## English Visual Asset
 
-- English feature map image: `public/promo/lifeos-ai-english-feature-map.svg`
+- English feature map image: `public/promo/ownorbit-ai-english-feature-map.svg`
 - Real English screenshots:
   - `public/screenshots/en-admin-onboarding.jpg`
   - `public/screenshots/en-connection-tunnel-vpn.jpg`
