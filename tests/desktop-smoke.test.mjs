@@ -18,6 +18,10 @@ function electronLaunchArgs() {
   return process.platform === "linux" ? ["--no-sandbox", "desktop/main.cjs"] : ["desktop/main.cjs"];
 }
 
+function electronProjectLaunchArgs() {
+  return process.platform === "linux" ? ["--no-sandbox", rootDir] : [rootDir];
+}
+
 async function waitForHealth(port, child, output) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < 20_000) {
@@ -191,6 +195,41 @@ test("Electron desktop starts the local core and exposes admin health", async (t
   assert.equal(authenticatedStatus.authenticated, true);
   assert.equal(authenticatedStatus.onboardingRequired, true);
   assert.equal(authenticatedStatus.nextPath, "/admin/onboarding");
+});
+
+test("Electron desktop resolves runtime files from the app path outside the project cwd", async (t) => {
+  const packageJson = JSON.parse(await readFile(path.join(rootDir, "package.json"), "utf8"));
+  const port = 6310 + Math.floor(Math.random() * 1000);
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-desktop-app-path-smoke-"));
+  const userDataDir = await mkdtemp(path.join(tmpdir(), "lifeos-desktop-app-path-user-data-"));
+  const child = spawn(electronBinaryPath(), electronProjectLaunchArgs(), {
+    cwd: path.parse(rootDir).root,
+    env: {
+      ...process.env,
+      ELECTRON_DISABLE_SECURITY_WARNINGS: "true",
+      LIFEOS_PORT: String(port),
+      LIFEOS_DATA_DIR: dataDir,
+      LIFEOS_HOST: "127.0.0.1",
+      PUBLIC_BASE_URL: "",
+      APP_URL: "",
+      LIFEOS_ADMIN_PASSWORD: "",
+      LIFEOS_DESKTOP_USER_DATA_DIR: userDataDir,
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const output = [];
+  child.stdout.on("data", (chunk) => output.push(chunk.toString()));
+  child.stderr.on("data", (chunk) => output.push(chunk.toString()));
+
+  t.after(async () => {
+    await stop(child);
+    await cleanupDir(dataDir);
+    await cleanupDir(userDataDir);
+  });
+
+  const { health } = await waitForHealth(port, child, output);
+  assert.equal(health.ok, true);
+  assert.equal(health.version, packageJson.version);
 });
 
 test("Electron desktop loads saved connection config before starting local core", async (t) => {

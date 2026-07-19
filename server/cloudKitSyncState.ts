@@ -8,11 +8,11 @@ export const CLOUDKIT_SYNC_IMPORT_CONFIRMATION = "IMPORT_CLOUDKIT_CHANGES";
 const forbiddenValuePattern = /\b(?:github_pat_[A-Za-z0-9_]+|ghp_[A-Za-z0-9_]+|sk-[A-Za-z0-9_-]{12,}|sk-or-[A-Za-z0-9_-]{12,}|AIza[0-9A-Za-z_-]{20,}|Bearer\s+[A-Za-z0-9._~+/=-]+)\b|\/Users\/[^/\s]+|[A-Z]:\\Users\\[^\\\s]+/i;
 const forbiddenFieldPattern = /api[-_]?key|provider[-_]?key|token|password|passphrase|secret|authorization|cookie|private[-_]?key|credential|sqlite|local[-_]?path|file[-_]?path/i;
 const allowedCloudKitRecordPlan = {
-  LifeOSChatZone: { dataType: "chat-history", recordTypes: new Set(["LifeOSConversation", "LifeOSMessage", "LifeOSSyncCheckpoint"]) },
+  LifeOSChatZone: { dataType: "chat-history", recordTypes: new Set(["LifeOSConversation", "LifeOSMessage", "LifeOSChatRequest", "LifeOSChatResponse", "LifeOSSyncCheckpoint"]) },
   LifeOSMemoryZone: { dataType: "memory", recordTypes: new Set(["LifeOSMemory", "LifeOSMemoryTombstone", "LifeOSSyncCheckpoint"]) },
   LifeOSTaskZone: { dataType: "tasks", recordTypes: new Set(["LifeOSTask", "LifeOSTaskTombstone", "LifeOSTaskListSnapshot", "LifeOSSyncCheckpoint"]) },
   LifeOSGeneratedAppZone: { dataType: "generated-app-state", recordTypes: new Set(["LifeOSGeneratedAppState", "LifeOSGeneratedAppMutation", "LifeOSSyncCheckpoint"]) },
-  LifeOSDeviceTrustZone: { dataType: "device-trust", recordTypes: new Set(["LifeOSDeviceTrust", "LifeOSSyncCheckpoint"]) },
+  LifeOSDeviceTrustZone: { dataType: "device-trust", recordTypes: new Set(["LifeOSDeviceTrust", "LifeOSDeviceKey", "LifeOSSyncCheckpoint"]) },
 } as const;
 
 export type CloudKitSyncCheckpoint = {

@@ -83,7 +83,7 @@ const commonArgs = [
 
 if (deviceBuild) {
   const teamId = String(process.env.LIFEOS_CLOUDKIT_TEAM_ID || process.env.APPLE_TEAM_ID || "").trim();
-  const bundleId = String(process.env.LIFEOS_CLOUDKIT_MOBILE_BUNDLE_ID || "ai.lifeos.mobile").trim();
+  const bundleId = String(process.env.LIFEOS_CLOUDKIT_MOBILE_BUNDLE_ID || "com.wgjfry.ownorbit.mobile").trim();
   if (!teamId || !cloudKitContainerId.startsWith("iCloud.")) {
     console.error("A signed iPhone build requires LIFEOS_CLOUDKIT_TEAM_ID (or APPLE_TEAM_ID) and LIFEOS_CLOUDKIT_CONTAINER_ID.");
     process.exit(2);
@@ -95,15 +95,21 @@ if (deviceBuild) {
     `DEVELOPMENT_TEAM=${teamId}`,
     `PRODUCT_BUNDLE_IDENTIFIER=${bundleId}`,
     "CODE_SIGN_STYLE=Automatic",
-    ...(allowProvisioningUpdates ? ["-allowProvisioningUpdates"] : []),
+    ...(allowProvisioningUpdates
+      ? ["-allowProvisioningUpdates", "-allowProvisioningDeviceRegistration"]
+      : []),
     "build",
-  ], { allowFailure: true });
+  ], { allowFailure: true, print: false });
   if (deviceResult.status !== 0) {
     const output = `${deviceResult.stdout || ""}\n${deviceResult.stderr || ""}`;
     if (/PLA Update available|Program License Agreement/i.test(output)) {
       console.error("The Apple Developer Program License Agreement must be accepted by the account holder before Xcode can provision OwnOrbit Mobile.");
+      console.error("Open https://developer.apple.com/account/, accept the current agreement, then rerun this command.");
     } else if (/No profiles for|provisioning profiles matching/i.test(output)) {
       console.error("No matching iPhone provisioning profile is installed. After reviewing the App ID and iCloud Container, set LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES=1 and rerun.");
+    } else {
+      if (deviceResult.stdout) process.stdout.write(deviceResult.stdout);
+      if (deviceResult.stderr) process.stderr.write(deviceResult.stderr);
     }
     process.exit(deviceResult.status || 1);
   }

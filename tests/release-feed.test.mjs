@@ -12,14 +12,17 @@ const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const require = createRequire(import.meta.url);
 const asar = require("@electron/asar");
 const currentVersion = JSON.parse(await readFile(path.join(rootDir, "package.json"), "utf8")).version;
+const releaseState = JSON.parse(await readFile(path.join(rootDir, "docs", "release-state.json"), "utf8"));
+const publicPackageVersion = String(releaseState.publicPackageVersion || "");
 const currentVersionPattern = currentVersion.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const currentPublicTag = `v${currentVersion.includes("-") && currentVersion.endsWith(".0") ? currentVersion.slice(0, -2) : currentVersion}`;
+const currentPublicTag = String(releaseState.publicTag || "");
 const currentDockerImage = `ghcr.io/wgj-fry/lifeos-ai:${currentPublicTag}`;
 const currentMacZipName = `OwnOrbit AI-${currentVersion}-arm64-unsigned.zip`;
 const currentWinInstallerName = `OwnOrbit AI Setup ${currentVersion}.exe`;
 const currentLinuxAppImageName = `OwnOrbit AI-${currentVersion}.AppImage`;
-const publicWinInstallerName = `LifeOS.AI.Setup.${currentVersion}.exe`;
-const publicLinuxAppImageName = `LifeOS.AI-${currentVersion}.AppImage`;
+const publicMacZipName = `LifeOS.AI-${publicPackageVersion}-arm64-unsigned.zip`;
+const publicWinInstallerName = `LifeOS.AI.Setup.${publicPackageVersion}.exe`;
+const publicLinuxAppImageName = `LifeOS.AI-${publicPackageVersion}.AppImage`;
 const packagedDesktopMain = [
   "function fetchLocalJson() {}",
   "const bundle = {",
@@ -106,7 +109,7 @@ async function createPackagedMacApp(releaseDir, entries) {
     "Create a backup before updating, and keep daily automatic backups enabled.",
     "## Updates",
     "Verify SHA256SUMS before opening the download.",
-    `Run shasum -a 256 "${currentMacZipName}" or shasum -a 256 "${publicLinuxAppImageName}" on macOS or Linux.`,
+    `Run shasum -a 256 "${publicMacZipName}" or shasum -a 256 "${publicLinuxAppImageName}" on macOS or Linux.`,
     "If SHA256SUMS uses a different builder filename, compare the SHA256 value directly.",
     "Run Get-FileHash on Windows and compare it with SHA256SUMS.",
     "## Troubleshooting",

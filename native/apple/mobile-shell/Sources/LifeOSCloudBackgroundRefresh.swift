@@ -29,7 +29,7 @@ final class LifeOSCloudBackgroundRefreshRequest {
 enum LifeOSCloudBackgroundRefreshPolicy {
     static let enabledDefaultsKey = "lifeos.native.cloud-data-enabled.v1"
     static let identifierInfoKey = "LifeOSCloudKitBackgroundRefreshIdentifier"
-    static let fallbackIdentifier = "ai.lifeos.mobile.cloudkit-refresh"
+    static let fallbackIdentifier = "com.wgjfry.ownorbit.mobile.cloudkit-refresh"
     static let earliestDelay: TimeInterval = 30 * 60
 
     static func resolvedIdentifier(

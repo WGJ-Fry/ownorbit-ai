@@ -7,8 +7,8 @@ import { publicCloudKitHelperResult } from "./cloudKitSyncState";
 export const CLOUDKIT_SYNC_UPLOAD_NOW_CONFIRMATION = "UPLOAD_CLOUDKIT_NOW";
 
 type IcloudDataSyncReadiness = ReturnType<typeof getIcloudDataSyncReadiness>;
-type UploadNowStatus = "needs-setup" | "empty" | "blocked" | "uploaded" | "failed";
-type UploadNowNextAction = "configure-cloudkit" | "add-local-data" | "review-blocked-records" | "retry" | "done";
+type UploadNowStatus = "needs-setup" | "empty" | "blocked" | "uploaded" | "conflicts" | "failed";
+type UploadNowNextAction = "configure-cloudkit" | "add-local-data" | "review-blocked-records" | "review-conflicts" | "retry" | "done";
 type BackupSummary = { stage: "export-cloudkit"; created: true; size: number; createdAt: number; redaction?: ReturnType<typeof createDatabaseBackup>["redaction"] };
 
 type UploadNowOptions = {
@@ -86,11 +86,15 @@ export async function runCloudKitSyncUploadNow(readiness: IcloudDataSyncReadines
   });
   const publicResult = publicCloudKitHelperResult(result);
   const uploaded = result.status === "passed";
+  const syncExport = result.syncExport;
+  const conflictOnly = !uploaded && syncExport.attempted > 0 && syncExport.saved > 0 &&
+    syncExport.conflicts > 0 && syncExport.failed === syncExport.conflicts &&
+    syncExport.saved + syncExport.failed === syncExport.attempted;
 
   return {
     ok: uploaded,
-    status: uploaded ? "uploaded" as const : "failed" as const,
-    nextAction: uploaded ? "done" as const : "retry" as const,
+    status: uploaded ? "uploaded" as const : conflictOnly ? "conflicts" as const : "failed" as const,
+    nextAction: uploaded ? "done" as const : conflictOnly ? "review-conflicts" as const : "retry" as const,
     startedAt: now,
     finishedAt: Date.now(),
     limit,

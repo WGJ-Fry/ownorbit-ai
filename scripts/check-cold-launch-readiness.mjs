@@ -3,9 +3,9 @@ import path from "node:path";
 
 const rootDir = process.cwd();
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
-const version = packageJson.version;
-const publicTag = version.includes("-") && version.endsWith(".0") ? version.slice(0, -2) : version;
-const releaseTag = `v${publicTag}`;
+const releaseState = JSON.parse(fs.readFileSync(path.join(rootDir, "docs", "release-state.json"), "utf8"));
+const version = String(releaseState.publicPackageVersion || "");
+const releaseTag = String(releaseState.publicTag || "");
 const image = `ghcr.io/wgj-fry/lifeos-ai:${releaseTag}`;
 const failures = [];
 const passes = [];

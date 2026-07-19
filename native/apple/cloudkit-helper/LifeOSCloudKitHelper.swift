@@ -58,6 +58,28 @@ private func redact(_ value: Any?, limit: Int = 800) -> String {
   return text
 }
 
+private func describeCloudKitError(_ error: Error, limit: Int = 240) -> String {
+  guard let cloudError = error as? CKError else {
+    return redact(error.localizedDescription, limit: limit)
+  }
+
+  var details = [
+    redact(error.localizedDescription, limit: 140),
+    "code=\(cloudError.code.rawValue)",
+  ]
+  if let retryAfter = cloudError.retryAfterSeconds {
+    details.append("retryAfter=\(Int(retryAfter))s")
+  }
+  if let partialErrors = cloudError.partialErrorsByItemID, !partialErrors.isEmpty {
+    let codes = partialErrors.values.compactMap { ($0 as? CKError)?.code.rawValue }
+    let counts = Dictionary(grouping: codes, by: { $0 })
+      .map { "\($0.key):\($0.value.count)" }
+      .sorted()
+    details.append("partialCodes=\(counts.isEmpty ? "unknown" : counts.joined(separator: ","))")
+  }
+  return redact(details.joined(separator: "; "), limit: limit)
+}
+
 private func emit(_ response: [String: Any], exitCode: Int32) -> Never {
   let data = (try? JSONSerialization.data(withJSONObject: response, options: [.prettyPrinted, .sortedKeys])) ?? Data("{}".utf8)
   FileHandle.standardOutput.write(data)
@@ -112,6 +134,12 @@ private func dictList(_ value: Any?, limit: Int = 16) -> [[String: Any]] {
 private func safeRecordFieldName(_ value: String) -> String {
   let cleaned = value.replacingOccurrences(of: "[^A-Za-z0-9_]", with: "_", options: .regularExpression)
   return String(cleaned.prefix(64))
+}
+
+private let disposableHelperRecordPrefix = "LifeOSHelperRoundtrip-"
+
+private func isDisposableHelperRecord(_ recordName: String) -> Bool {
+  recordName.hasPrefix(disposableHelperRecordPrefix)
 }
 
 private func encodeChangeToken(_ token: CKServerChangeToken?) -> String {
@@ -329,7 +357,7 @@ private func runRoundtrip(container: CKContainer, request: [String: Any]) async 
   do {
     _ = try await database.save(CKRecordZone(zoneID: zoneId))
   } catch {
-    warnings.append("CloudKit zone save did not complete cleanly; continuing in case it already exists: \(redact(error.localizedDescription, limit: 240))")
+    warnings.append("CloudKit zone save did not complete cleanly; continuing in case it already exists: \(describeCloudKitError(error))")
   }
 
   let record = CKRecord(recordType: plan.recordType, recordID: recordId)
@@ -341,7 +369,7 @@ private func runRoundtrip(container: CKContainer, request: [String: Any]) async 
     _ = try await database.save(record)
     created = true
   } catch {
-    errors.append("CloudKit disposable record create failed: \(redact(error.localizedDescription, limit: 240))")
+    errors.append("CloudKit disposable record create failed: \(describeCloudKitError(error))")
   }
 
   if created {
@@ -349,7 +377,7 @@ private func runRoundtrip(container: CKContainer, request: [String: Any]) async 
       _ = try await database.record(for: recordId)
       fetched = true
     } catch {
-      errors.append("CloudKit disposable record fetch failed: \(redact(error.localizedDescription, limit: 240))")
+      errors.append("CloudKit disposable record fetch failed: \(describeCloudKitError(error))")
     }
   }
 
@@ -358,7 +386,7 @@ private func runRoundtrip(container: CKContainer, request: [String: Any]) async 
       _ = try await database.deleteRecord(withID: recordId)
       deleted = true
     } catch {
-      errors.append("CloudKit disposable record delete failed: \(redact(error.localizedDescription, limit: 240))")
+      errors.append("CloudKit disposable record delete failed: \(describeCloudKitError(error))")
     }
   }
 
@@ -402,7 +430,7 @@ private func runSubscriptionProbe(container: CKContainer) async -> [String: Any]
     _ = try await database.save(subscription)
     saved = true
   } catch {
-    errors.append("CloudKit subscription save failed: \(redact(error.localizedDescription, limit: 240))")
+    errors.append("CloudKit subscription save failed: \(describeCloudKitError(error))")
   }
 
   var response = responseBase(operation: "subscription-probe", ok: saved && errors.isEmpty)
@@ -639,6 +667,7 @@ private func runSyncImportPreview(container: CKContainer, request: [String: Any]
   var fetched = 0
   var failed = 0
   var truncated = false
+  var missingZones = Set<String>()
 
   for plan in recordPlan {
     let zone = compact(plan["zone"], limit: 80)
@@ -646,6 +675,7 @@ private func runSyncImportPreview(container: CKContainer, request: [String: Any]
     scannedZones.insert(zone)
     let zoneId = CKRecordZone.ID(zoneName: zone, ownerName: CKCurrentUserDefaultName)
     for recordType in stringList(plan["recordTypes"], limit: 16) {
+      if missingZones.contains(zone) { break }
       if recordType.isEmpty { continue }
       scannedRecordTypes.insert(recordType)
       let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))
@@ -671,6 +701,10 @@ private func runSyncImportPreview(container: CKContainer, request: [String: Any]
             errors.append("CloudKit import preview could not fetch one \(redact(recordType, limit: 80)) record: \(redact(error.localizedDescription, limit: 240))")
           }
         }
+      } catch let error as CKError where error.code == .zoneNotFound {
+        missingZones.insert(zone)
+        warnings.append("CloudKit zone \(redact(zone, limit: 80)) has not been created yet; OwnOrbit treated it as empty.")
+        break
       } catch {
         failed += 1
         errors.append("CloudKit import preview query failed for \(redact(recordType, limit: 80)): \(redact(error.localizedDescription, limit: 240))")
@@ -770,6 +804,7 @@ private func runSyncChangesPreview(container: CKContainer, request: [String: Any
         for (_, recordResult) in result.modificationResultsByID {
           switch recordResult {
           case .success(let modification):
+            if isDisposableHelperRecord(modification.record.recordID.recordName) { continue }
             changed += 1
             zoneChanged += 1
             if changedRecords.count < maxChangedRecords {
@@ -782,6 +817,7 @@ private func runSyncChangesPreview(container: CKContainer, request: [String: Any
           }
         }
         for deletion in result.deletions {
+          if isDisposableHelperRecord(deletion.recordID.recordName) { continue }
           deleted += 1
           zoneDeleted += 1
           if deletedRecords.count < maxChangedRecords {
@@ -810,6 +846,9 @@ private func runSyncChangesPreview(container: CKContainer, request: [String: Any
         changeTokenReset = true
         warnings.append("CloudKit expired the saved cursor for \(redact(zone, limit: 80)); OwnOrbit restarted a full, review-only baseline.")
         continue
+      } catch let error as CKError where error.code == .zoneNotFound {
+        zoneMoreComing = false
+        warnings.append("CloudKit zone \(redact(zone, limit: 80)) has not been created yet; OwnOrbit treated it as an empty baseline.")
       } catch {
         failed += 1
         zoneFailed += 1
@@ -957,6 +996,7 @@ private func runSyncImportQuarantine(container: CKContainer, request: [String: A
         for (_, recordResult) in result.modificationResultsByID {
           switch recordResult {
           case .success(let modification):
+            if isDisposableHelperRecord(modification.record.recordID.recordName) { continue }
             switch validatedPayloadJson(record: modification.record) {
             case .success(let payloadJson):
               changed += 1
@@ -980,6 +1020,7 @@ private func runSyncImportQuarantine(container: CKContainer, request: [String: A
           }
         }
         for deletion in result.deletions {
+          if isDisposableHelperRecord(deletion.recordID.recordName) { continue }
           deleted += 1
           zoneDeleted += 1
           deletedRecords.append([
@@ -1006,6 +1047,9 @@ private func runSyncImportQuarantine(container: CKContainer, request: [String: A
         changeTokenReset = true
         warnings.append("CloudKit expired the saved cursor for \(redact(zone, limit: 80)); OwnOrbit restarted a full baseline and marked every record for review.")
         continue
+      } catch let error as CKError where error.code == .zoneNotFound {
+        zoneMoreComing = false
+        warnings.append("CloudKit zone \(redact(zone, limit: 80)) has not been created yet; OwnOrbit kept the local checkpoint empty.")
       } catch {
         failed += 1
         zoneFailed += 1

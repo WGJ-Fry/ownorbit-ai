@@ -39,6 +39,12 @@ struct LifeOSCloudRecord: Codable, Equatable, Identifiable {
             return string(payload["title"], fallback: NSLocalizedString("cloud.item.conversation", comment: ""))
         case "LifeOSMessage":
             return string(payload["conversationTitle"], fallback: NSLocalizedString("cloud.item.message", comment: ""))
+        case "LifeOSChatRequest":
+            return NSLocalizedString("cloud.item.chatRequest", comment: "")
+        case "LifeOSChatResponse":
+            return NSLocalizedString("cloud.item.chatResponse", comment: "")
+        case "LifeOSDeviceKey":
+            return NSLocalizedString("cloud.item.deviceKey", comment: "")
         case "LifeOSMemory", "LifeOSMemoryTombstone":
             return string(payload["title"], fallback: NSLocalizedString("cloud.item.memory", comment: ""))
         case "LifeOSTask", "LifeOSTaskTombstone":
@@ -60,6 +66,10 @@ struct LifeOSCloudRecord: Codable, Equatable, Identifiable {
             if let content = payload["contentJson"] as? [String: Any], let parts = content["parts"] as? [[String: Any]] {
                 return parts.compactMap { $0["text"] as? String }.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
             }
+        case "LifeOSChatRequest":
+            return string(payload["prompt"])
+        case "LifeOSChatResponse":
+            return string(payload["text"], fallback: string(payload["status"]))
         case "LifeOSMemory", "LifeOSMemoryTombstone":
             return string(payload["text"])
         case "LifeOSTask", "LifeOSTaskTombstone":
@@ -95,6 +105,16 @@ struct LifeOSCloudRecord: Codable, Equatable, Identifiable {
         }
     }
 
+    var chatRequestId: String? {
+        guard recordType == "LifeOSChatRequest" || recordType == "LifeOSChatResponse" else { return nil }
+        return decodedPayload["requestId"] as? String
+    }
+
+    var chatStatus: String? { decodedPayload["status"] as? String }
+    var chatSafeErrorCode: String? { decodedPayload["safeErrorCode"] as? String }
+    var chatCreatedAt: Int64 { (decodedPayload["createdAt"] as? NSNumber)?.int64Value ?? logicalClock }
+    var chatExpiresAt: Int64 { (decodedPayload["expiresAt"] as? NSNumber)?.int64Value ?? 0 }
+
     private var decodedPayload: [String: Any] {
         guard let data = payloadJson.data(using: .utf8),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [:] }
@@ -106,6 +126,65 @@ struct LifeOSCloudRecord: Codable, Equatable, Identifiable {
         let compact = text.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return compact.isEmpty ? fallback : String(compact.prefix(500))
+    }
+}
+
+struct LifeOSCloudChatItem: Identifiable, Equatable {
+    enum State: Equatable {
+        case waitingForMac
+        case macUnavailable
+        case processing
+        case retrying
+        case completed
+        case failed
+        case timedOut
+    }
+
+    let requestId: String
+    let prompt: String
+    let responseText: String
+    let safeErrorCode: String?
+    let createdAt: Date
+    let state: State
+
+    var id: String { requestId }
+}
+
+extension LifeOSCloudSnapshot {
+    func chatItems(now: Date = Date()) -> [LifeOSCloudChatItem] {
+        let responses = Dictionary(
+            uniqueKeysWithValues: records
+                .filter { $0.recordType == "LifeOSChatResponse" }
+                .compactMap { record in record.chatRequestId.map { ($0, record) } }
+        )
+        let nowValue = Int64(now.timeIntervalSince1970 * 1000)
+        return records
+            .filter { $0.recordType == "LifeOSChatRequest" }
+            .compactMap { request -> LifeOSCloudChatItem? in
+                guard let requestId = request.chatRequestId else { return nil }
+                let response = responses[requestId]
+                let state: LifeOSCloudChatItem.State
+                switch response?.chatStatus {
+                case "processing": state = .processing
+                case "retrying": state = .retrying
+                case "completed": state = .completed
+                case "failed": state = .failed
+                case "expired": state = .timedOut
+                default:
+                    if request.chatExpiresAt > 0 && request.chatExpiresAt <= nowValue { state = .timedOut }
+                    else if nowValue - request.chatCreatedAt >= 90_000 { state = .macUnavailable }
+                    else { state = .waitingForMac }
+                }
+                return LifeOSCloudChatItem(
+                    requestId: requestId,
+                    prompt: request.displayBody,
+                    responseText: response?.displayBody ?? "",
+                    safeErrorCode: response?.chatSafeErrorCode,
+                    createdAt: Date(timeIntervalSince1970: TimeInterval(request.chatCreatedAt) / 1000),
+                    state: state
+                )
+            }
+            .sorted { $0.createdAt > $1.createdAt }
     }
 }
 
@@ -281,6 +360,149 @@ enum LifeOSCloudMemoryMutationBuilder {
     }
 }
 
+enum LifeOSCloudChatWriteError: LocalizedError, Equatable {
+    case emptyPrompt
+    case tooLong
+    case unsafeContent
+    case invalidRequest
+    case collision
+    case saveFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .emptyPrompt: return NSLocalizedString("cloud.chat.error.empty", comment: "")
+        case .tooLong: return NSLocalizedString("cloud.chat.error.length", comment: "")
+        case .unsafeContent: return NSLocalizedString("cloud.chat.error.unsafe", comment: "")
+        case .invalidRequest: return NSLocalizedString("cloud.chat.error.invalid", comment: "")
+        case .collision: return NSLocalizedString("cloud.chat.error.collision", comment: "")
+        case .saveFailed: return NSLocalizedString("cloud.chat.error.failed", comment: "")
+        }
+    }
+}
+
+enum LifeOSCloudChatRequestMutationBuilder {
+    static let maxPromptLength = 8_000
+    static let requestTTL: TimeInterval = 24 * 60 * 60
+
+    private static let uuidPattern = #"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"#
+    private static let hashPattern = #"^[0-9a-f]{64}$"#
+    private static let secretLikePattern = try! NSRegularExpression(
+        pattern: #"(?:github_pat_[A-Za-z0-9_]+|ghp_[A-Za-z0-9_]+|sk-[A-Za-z0-9_-]{12,}|sk-or-[A-Za-z0-9_-]{12,}|AIza[0-9A-Za-z_-]{20,}|Bearer\s+[A-Za-z0-9._~+/=-]+|/Users/[^/\s]+|[A-Z]:\\Users\\[^\\\s]+)"#,
+        options: [.caseInsensitive]
+    )
+
+    static func create(
+        prompt: String,
+        identity: LifeOSCloudDeviceIdentity,
+        locale: String,
+        requestId: String = UUID().uuidString.lowercased(),
+        conversationId: String,
+        userMessageId: String = UUID().uuidString.lowercased(),
+        clientSequence: Int64,
+        now: Date = Date(),
+        expiresAt: Date? = nil
+    ) throws -> LifeOSCloudRecord {
+        let normalizedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedRequestId = requestId.lowercased()
+        let normalizedConversationId = conversationId.lowercased()
+        let normalizedUserMessageId = userMessageId.lowercased()
+        guard !normalizedPrompt.isEmpty else { throw LifeOSCloudChatWriteError.emptyPrompt }
+        guard normalizedPrompt.count <= maxPromptLength else { throw LifeOSCloudChatWriteError.tooLong }
+        guard !containsSecretLikeContent(normalizedPrompt) else { throw LifeOSCloudChatWriteError.unsafeContent }
+        guard normalizedRequestId.range(of: uuidPattern, options: .regularExpression) != nil,
+              normalizedConversationId.range(of: uuidPattern, options: .regularExpression) != nil,
+              normalizedUserMessageId.range(of: uuidPattern, options: .regularExpression) != nil,
+              identity.deviceIdHash.range(of: hashPattern, options: .regularExpression) != nil,
+              locale == "zh-CN" || locale == "en-US",
+              clientSequence >= 0 else {
+            throw LifeOSCloudChatWriteError.invalidRequest
+        }
+        let createdAt = Int64(now.timeIntervalSince1970 * 1000)
+        let resolvedExpiresAt = expiresAt ?? now.addingTimeInterval(requestTTL)
+        let expiresAtValue = Int64(resolvedExpiresAt.timeIntervalSince1970 * 1000)
+        guard createdAt > 0,
+              expiresAtValue > createdAt,
+              expiresAtValue - createdAt <= Int64(requestTTL * 1000),
+              identity.expiresAt > resolvedExpiresAt else {
+            throw LifeOSCloudChatWriteError.invalidRequest
+        }
+        let promptHash = LifeOSCloudDeviceIdentity.sha256Hex(normalizedPrompt)
+        let signatureText = [
+            "ownorbit-cloudkit-chat.v1",
+            normalizedRequestId,
+            normalizedConversationId,
+            normalizedUserMessageId,
+            identity.deviceId,
+            identity.deviceIdHash,
+            identity.publicKeyFingerprint,
+            promptHash,
+            locale,
+            String(clientSequence),
+            String(createdAt),
+            String(expiresAtValue),
+        ].joined(separator: "\n")
+        let payload: [String: Any] = [
+            "schemaVersion": 1,
+            "requestId": normalizedRequestId,
+            "conversationId": normalizedConversationId,
+            "userMessageId": normalizedUserMessageId,
+            "deviceId": identity.deviceId,
+            "sourceDeviceHash": identity.deviceIdHash,
+            "publicKeyFingerprint": identity.publicKeyFingerprint,
+            "signature": try identity.sign(signatureText),
+            "prompt": normalizedPrompt,
+            "locale": locale,
+            "status": "queued",
+            "clientSequence": NSNumber(value: clientSequence),
+            "createdAt": NSNumber(value: createdAt),
+            "expiresAt": NSNumber(value: expiresAtValue),
+            "syncMutation": [
+                "kind": "chat-request",
+                "origin": "ios-native",
+                "mutatedAt": NSNumber(value: createdAt),
+            ],
+        ]
+        guard JSONSerialization.isValidJSONObject(payload),
+              let payloadData = try? JSONSerialization.data(
+                withJSONObject: payload,
+                options: [.sortedKeys, .withoutEscapingSlashes]
+              ),
+              let payloadJson = String(data: payloadData, encoding: .utf8) else {
+            throw LifeOSCloudChatWriteError.invalidRequest
+        }
+        let contentHash = SHA256.hash(data: payloadData).map { String(format: "%02x", $0) }.joined()
+        let sourceHash = SHA256.hash(data: Data(normalizedRequestId.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+        do {
+            return try LifeOSCloudRecordValidator.validate(LifeOSCloudRecordInput(
+                zone: "LifeOSChatZone",
+                recordType: "LifeOSChatRequest",
+                recordName: "chat-request:\(normalizedRequestId)",
+                lifeosSchema: "lifeos-cloudkit-record.v1",
+                lifeosDataType: "chat-history",
+                sourceIdHash: "chat-history:\(sourceHash.prefix(16))",
+                mutationId: "ios-chat-request:\(normalizedRequestId)",
+                logicalClock: createdAt,
+                contentHash: contentHash,
+                payloadByteSize: payloadData.count,
+                requiresUserReview: false,
+                payloadJson: payloadJson,
+                modifiedAt: now
+            ))
+        } catch {
+            throw LifeOSCloudChatWriteError.invalidRequest
+        }
+    }
+
+    private static func containsSecretLikeContent(_ value: String) -> Bool {
+        secretLikePattern.firstMatch(
+            in: value,
+            range: NSRange(value.startIndex..., in: value)
+        ) != nil
+    }
+}
+
 struct LifeOSCloudSnapshot: Codable, Equatable {
     let schemaVersion: Int
     var accountFingerprint: String?
@@ -371,11 +593,11 @@ enum LifeOSCloudRecordValidator {
     static let maxPayloadBytes = 64 * 1024
 
     private static let plans: [String: (dataType: String, recordTypes: Set<String>)] = [
-        "LifeOSChatZone": ("chat-history", ["LifeOSConversation", "LifeOSMessage"]),
+        "LifeOSChatZone": ("chat-history", ["LifeOSConversation", "LifeOSMessage", "LifeOSChatRequest", "LifeOSChatResponse"]),
         "LifeOSMemoryZone": ("memory", ["LifeOSMemory", "LifeOSMemoryTombstone"]),
         "LifeOSTaskZone": ("tasks", ["LifeOSTask", "LifeOSTaskTombstone", "LifeOSTaskListSnapshot"]),
         "LifeOSGeneratedAppZone": ("generated-app-state", ["LifeOSGeneratedAppState", "LifeOSGeneratedAppMutation"]),
-        "LifeOSDeviceTrustZone": ("device-trust", ["LifeOSDeviceTrust"]),
+        "LifeOSDeviceTrustZone": ("device-trust", ["LifeOSDeviceTrust", "LifeOSDeviceKey"]),
     ]
 
     private static let forbiddenField = try! NSRegularExpression(

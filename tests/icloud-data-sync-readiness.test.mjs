@@ -185,6 +185,7 @@ test("CloudKit record plan never includes blocked data types", async () => {
     const readiness = getIcloudDataSyncReadiness({ platformSupported: true });
     assert.deepEqual(readiness.selectedDataTypes, ["tasks", "generated-app-state", "device-trust"]);
     assert.deepEqual(readiness.recordPlan.map((item) => item.dataType), ["tasks", "generated-app-state", "device-trust"]);
+    assert.equal(readiness.recordPlan.find((item) => item.zone === "LifeOSTaskZone")?.recordTypes.includes("LifeOSTaskListSnapshot"), true);
     assert.deepEqual(readiness.blockedDataTypes, ["raw-tokens", "sqlite-database", "session-cookies", "device-credentials"]);
     assert.equal(readiness.recordPlan.some((item) => item.dataType === "raw-tokens" || item.dataType === "sqlite-database"), false);
     assert.equal(readiness.recordPlan.some((item) => item.dataType === "device-trust"), true);

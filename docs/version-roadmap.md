@@ -38,21 +38,35 @@ These are not bugs hidden from users; they are the honest alpha boundary.
 | Native automation | Local actions are still mostly URL Scheme / browser / Shortcuts bridge flows, with only narrow opt-in native bridge paths. | It is safer and reviewable, but not a full native OS automation system yet. |
 | Release hygiene | Checks exist, including guards for stale Latest and old releases, but GitHub Release labels and old releases still require final human review before public promotion. | The maintainer must run public checks before broad announcements. |
 
-## Next Planned Alpha: v0.1.6-alpha
+## Current Source Candidate: v0.1.6-alpha
 
-`v0.1.6-alpha` should focus on proving long-term reliability instead of adding flashy claims.
+`v0.1.6-alpha` / package `0.1.6-alpha.0` is implemented on `main` but is not a public download yet.
 
-Scope:
+Implemented in source:
 
-- Publish a new tag instead of moving `v0.1.5-alpha`.
-- Keep README, Chinese README, release notes, Docker image, desktop asset names, and current alpha limits strictly aligned.
-- Add stronger in-product prompts for missing real-device remote evidence, especially cellular, network switch, restart recovery, stale QR repair, tunnel interruption, and diagnostic export.
-- Keep iCloud handoff and CloudKit data sync separate: document that default iCloud Drive only carries entry files, while the guarded CloudKit native candidate covers selected chat/memory/task/generated-app-state/device-trust metadata records and never syncs raw device credentials or AI keys.
-- Improve mobile weak-network background recovery and multi-device conflict review after phone restart, browser storage pressure, and stale remote entries.
-- Productize the calendar/reminders connector permission review: clearer setup steps, narrower scopes, conflict preview, rollback plan, and acceptance evidence export.
-- Continue Studio generated-program reliability: richer visual diff, template-specific repair recipes, stricter smoke checks, and clearer recovery when a repair worker fails mid-run.
-- Keep native automation disabled by default with exact allowlists, confirmation phrases, audit logging, and sensitive-payload blocking.
-- Do not claim signed desktop packages, automatic updates, full two-way calendar/task sync, full native OS automation, or fully automatic unattended Studio repair until they are actually shipped and verified.
+- A three-step normal first launch: administrator password, one AI provider key, then phone QR plus first chat. Advanced safety, backup, and connection diagnostics remain available without blocking the main path.
+- A private CloudKit `LifeOSChatRequest` / `LifeOSChatResponse` channel between the native iPhone shell and the Mac local core.
+- A dedicated `LifeOSDeviceKey` identity using P-256 signatures. The private key remains in device-only Keychain storage; CloudKit receives only the scoped public key.
+- Durable SQLite chat jobs with leases, expiry, bounded retries, idempotent response export, safe errors, and visible waiting/offline/processing/retrying/completed/failed/timeout states.
+- A text-only Mac AI worker that rejects tool calls and cannot invoke local/native actions through the CloudKit channel.
+- CloudKit schema, migrations, quarantine validation, native Swift coverage, server roundtrip tests, and the `iphone-cloudkit-chat-roundtrip` acceptance item.
+- One signed real-iPhone 5G CloudKit request -> Mac text-only AI worker -> exactly one iPhone response roundtrip, with background/locked push evidence and a redacted local-only acceptance summary.
+- A machine-readable release state that keeps the source candidate separate from the existing `v0.1.5-alpha` public downloads.
+
+Still required before public release:
+
+- Deploy the reviewed CloudKit Development schema to Production.
+- Rebuild macOS, Windows, and Linux assets from the same commit, regenerate `SHA256SUMS` and release metadata, and publish a new immutable tag plus GHCR image.
+- Change `docs/release-state.json` to `published` only in the exact release commit; never move `v0.1.5-alpha`.
+
+## Next Planned Alpha After the Candidate: v0.1.7-alpha
+
+After `v0.1.6-alpha` is published, the next alpha should productize long-running synchronization evidence instead of broadening claims:
+
+- Multi-day CloudKit/chat recovery evidence across cellular, Wi-Fi switching, Mac sleep/restart, expired jobs, and push/poll fallback.
+- Clearer native mobile device/key rotation and recovery controls.
+- Better multi-device conflict review and background recovery after storage pressure or stale entries.
+- Continue the narrow, audited calendar/reminders and native-action boundaries without claiming unattended account sync or unrestricted OS automation.
 
 Release gate:
 
@@ -84,8 +98,8 @@ These capabilities should not be described as current release features until the
 
 | Version | Theme | Planned work |
 | --- | --- | --- |
-| `v0.1.6-alpha` | Remote and mobile reliability | Real-device evidence prompts, better weak-network recovery, multi-device conflict review, remote health long-run evidence, and stale-entry recovery. |
-| `v0.1.7-alpha` | Calendar and tasks | Productized Google Calendar/Tasks sync, Apple Calendar / system Reminders sync, explicit permission prompts, write-back audit log, conflict preview, and rollback path. |
+| `v0.1.6-alpha` | Signed CloudKit mobile chat candidate | Simplified first run, P-256 phone identity, text-only Mac AI worker, durable retry states, schema/migrations, and one required real-iPhone roundtrip before publication. |
+| `v0.1.7-alpha` | Remote and mobile reliability | Multi-day real-device recovery evidence, device-key rotation/recovery, better weak-network recovery, multi-device conflict review, and stale-entry recovery. |
 | `v0.1.8-alpha` | Studio product loop | Template marketplace polish, multi-version visual comparison, automatic repair proposal flow, capability review center, and stronger generated-tool quality scoring. |
 | `v0.1.9-alpha` | Native action safety | Safer local automation bridge beyond URL Scheme, OS-level permission explanations, action logs, and per-action revoke controls. |
 | `v0.2.0-beta` | Installer confidence | Better first-run desktop experience, clearer unsigned/signed tracks, diagnostic export, manual update ergonomics, and optional update feed trial. |
@@ -129,21 +143,35 @@ These capabilities should not be described as current release features until the
 | 原生自动化 | 本地动作仍主要是 URL Scheme / 浏览器 / Shortcuts 桥，只开放很窄的 opt-in 原生桥路径。 | 更安全、更容易审计，但还不是完整系统级自动化。 |
 | Release 卫生 | 已有检查和防旧 Latest 保护，但 GitHub Release 标签、旧版本标记仍需发布前人工复核。 | 维护者必须在公开宣传前跑公开检查。 |
 
-### 下一计划版本：v0.1.6-alpha
+### 当前源码候选：v0.1.6-alpha
 
-`v0.1.6-alpha` 应优先证明长期可靠性，而不是继续增加夸张宣传。
+`v0.1.6-alpha` / package `0.1.6-alpha.0` 已经在 `main` 实现，但还不是公开下载包。
 
-范围：
+源码已经完成：
 
-- 新打 tag，不移动旧的 `v0.1.5-alpha`。
-- README、中文 README、Release notes、Docker 镜像、桌面资产名和 alpha 限制必须严格一致。
-- 增强真实异地证据缺失提示，尤其是蜂窝网络、换网、重启恢复、旧二维码修复、隧道中断和诊断导出。
-- 继续区分 iCloud 入口同步和 CloudKit 数据同步：写清楚默认 iCloud Drive 只传入口文件，受控 CloudKit 原生候选能力只覆盖部分聊天/记忆/任务/生成程序状态/设备信任元数据记录；设备信任元数据只用于重新绑定前的安全盘点，永远不同步原始设备凭证或 AI Key。
-- 增强手机弱网后台恢复和多端冲突复核，覆盖手机重启、浏览器存储压力和过期远程入口。
-- 产品化日历/提醒事项连接器权限复核：更清楚的设置步骤、更窄授权范围、冲突预览、回滚计划和验收证据导出。
-- 继续增强 Studio 生成程序可靠性：更清楚的视觉 diff、模板级修复策略、更严格烟测和修复失败恢复。
-- 原生自动化继续默认关闭，必须有精确白名单、确认短语、审计日志和敏感 payload 阻断。
-- 未真正发布和验证前，不宣传签名桌面包、自动更新、完整双向日历/任务同步、完整原生系统自动化或完全无人值守 Studio 自修复。
+- 普通首次启动只有三步：管理员密码、一个 AI provider Key、手机二维码和第一次对话；高级安全、备份和连接诊断不再阻断主流程。
+- iPhone 原生壳与 Mac 本地核心之间的私有 CloudKit `LifeOSChatRequest` / `LifeOSChatResponse` 通道。
+- 独立 `LifeOSDeviceKey` P-256 签名身份；私钥只留在设备 Keychain，CloudKit 只保存有 scope 的公钥。
+- 带 lease、过期、有限重试、幂等 response、脱敏错误和等待/离线/处理/重试/完成/失败/超时状态的 SQLite 持久任务。
+- 禁止工具调用、不能通过 CloudKit 触发本地/原生动作的 text-only Mac AI worker。
+- CloudKit schema、migration、隔离区校验、Swift 测试、服务端往返测试和 `iphone-cloudkit-chat-roundtrip` 验收项。
+- 一次真实签名 iPhone 5G CloudKit 请求 -> Mac text-only AI worker -> 恰好一条 iPhone 回复已经通过，同时取得后台/锁屏推送证据和仅本地保存的脱敏验收摘要。
+- 机器可读的版本事实文件，确保源码候选不会覆盖现有 `v0.1.5-alpha` 公开下载说明。
+
+公开发布前仍必须完成：
+
+- 把复核后的 CloudKit Development schema 部署到 Production。
+- 从同一提交重建 macOS、Windows、Linux 资产，重新生成 `SHA256SUMS` 和发布元数据，再发布不可移动的新 tag 与 GHCR 镜像。
+- 只有在准确 Release 提交中才把 `docs/release-state.json` 改为 `published`；绝不移动 `v0.1.5-alpha`。
+
+### 候选版之后的下一计划版本：v0.1.7-alpha
+
+`v0.1.6-alpha` 正式发布后，下一版优先产品化长期同步证据，不扩大宣传边界：
+
+- 覆盖蜂窝网络、Wi-Fi 切换、Mac 睡眠/重启、任务过期和 push/poll fallback 的多日 CloudKit 对话恢复证据。
+- 更清楚的原生手机设备/密钥轮换与恢复入口。
+- 浏览器存储压力或入口过期后的多端冲突复核和后台恢复。
+- 继续维持窄范围、可审计的日历/提醒事项和原生动作边界，不宣传无人值守账号同步或无限制 OS 自动化。
 
 ### 尚未发布
 

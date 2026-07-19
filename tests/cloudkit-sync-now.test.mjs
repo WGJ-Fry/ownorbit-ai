@@ -38,7 +38,8 @@ function runIsolatedCloudKitSyncNow(env, scenario) {
     const requiresReview = ${JSON.stringify(scenario)} === "manual-review";
     const fullResync = ${JSON.stringify(scenario)} === "full-resync" || ${JSON.stringify(scenario)} === "full-resync-empty";
     const fullResyncEmpty = ${JSON.stringify(scenario)} === "full-resync-empty";
-    const remoteChangedCount = fullResyncEmpty ? 0 : (${JSON.stringify(scenario)} === "apply" || ${JSON.stringify(scenario)} === "tampered" ? 1 : 2);
+    const historicalNoChanges = ${JSON.stringify(scenario)} === "historical-no-changes";
+    const remoteChangedCount = fullResyncEmpty || historicalNoChanges ? 0 : (${JSON.stringify(scenario)} === "apply" || ${JSON.stringify(scenario)} === "tampered" ? 1 : 2);
     const remoteConversationPayload = { conversationId: "remote-convo", title: "Remote synced", createdAt: now, updatedAt: now + 1 };
     const remoteMessagePayload = { conversationId: "remote-convo", conversationTitle: "Remote synced", messageId: "remote-message", role: "user", contentJson: { parts: [{ text: "hello from cloudkit" }] }, createdAt: now + 2, mutationId: "mut-message", logicalClock: now + 2 };
     const integrityFields = (dataType, sourceId, payload) => {
@@ -52,6 +53,15 @@ function runIsolatedCloudKitSyncNow(env, scenario) {
         payloadJson,
       };
     };
+
+    if (historicalNoChanges) {
+      db.prepare(
+        "INSERT INTO cloudkit_sync_quarantine (" +
+        "id, zone, record_type, record_name, change_type, status, " +
+        "payload_byte_size, requires_user_review, imported_at, applied_at" +
+        ") VALUES (?, ?, ?, ?, 'changed', 'applied', 0, 0, ?, ?)"
+      ).run("historical-applied", "LifeOSChatZone", "LifeOSMessage", "message:historical", now - 10, now - 5);
+    }
 
     const skippedResult = (operation, reason) => ({
       ok: false,
@@ -255,6 +265,25 @@ test("CloudKit safe sync now leaves manual-review records in quarantine instead 
     assert.deepEqual(messages, []);
     assert.equal(JSON.stringify(result).includes("payloadJson"), false);
     assert.equal(JSON.stringify(result).includes("hello from cloudkit"), false);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit safe sync now reports no changes when only historical imports exist", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-now-history-"));
+  try {
+    const { result } = runIsolatedCloudKitSyncNow({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "historical-no-changes");
+
+    assert.equal(result.status, "no-changes");
+    assert.equal(result.nextAction, "done");
+    assert.equal(result.import, undefined);
+    assert.equal(result.apply.applied, 0);
+    assert.equal(result.quarantine.summary.applied, 1);
+    assert.equal(result.backups.length, 0);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

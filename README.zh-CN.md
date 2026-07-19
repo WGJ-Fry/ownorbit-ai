@@ -43,17 +43,20 @@ OwnOrbit 先从一个很小但有用的工作流开始：
 ## 发布状态
 
 公开 Release tag：[`v0.1.5-alpha`](https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/v0.1.5-alpha)<br>
-源码 package version：`0.1.5-alpha.0`
+公开 package version：`0.1.5-alpha.0`<br>
+当前 `main` 源码候选：`0.1.6-alpha.0` / `v0.1.6-alpha`（**不是公开下载包**）
 
-这份 README 面向 `v0.1.5-alpha` 公开下载包。`main` 分支可能包含后续源码改动；只有你愿意从源码构建时，才需要关注它。
+这份 README 面向 `v0.1.5-alpha` 公开下载包。`main` 分支已经包含 `v0.1.6-alpha` 源码改动；只有你愿意从源码构建时，才需要关注它。候选版目前还没有公开桌面安装包或公开 GHCR tag。
 
 重要：请使用明确的 [`v0.1.5-alpha` Release 页面](https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/v0.1.5-alpha)。如果 GitHub 通用的 **Latest release** 标签仍指向旧版本，请忽略它，使用这个带版本号的链接。
 
 | 轨道 | 可以期待什么 |
 | --- | --- |
 | `v0.1.5-alpha` 公开发布版 | Docker Compose 本地 Markdown + 只读 `.ics` 记忆演示、GHCR 镜像路径、macOS unsigned ZIP、Windows NSIS 安装包、Linux AppImage、管理员认证、AI provider 设置、手机 PWA 绑定、带幂等重放和冲突复核提示的离线队列、SQLite migration、备份恢复、诊断包、发布检查、连接诊断、Studio 蓝图确认/模板/权限/修复提示和就绪/质量评分，以及由管理员显式确认的 Apple Calendar、Google Calendar/Tasks、系统提醒事项连接器路径、审计日志、写入历史和回滚状态。 |
-| 当前 `main` 源码 | 仅面向开发者。它可能包含 tag 发布之后的源码变化；只有你愿意从源码构建时才需要关注。 |
+| `v0.1.6-alpha` 当前 `main` 源码候选 | 仅面向开发者。已经加入简化的“密码/Key/二维码”首次启动、P-256 签名 iPhone CloudKit 请求、仅设备 Keychain 身份、Mac 持久 AI 任务、text-only/禁用工具执行、有限重试/超时状态和请求/响应 schema 测试。一次真实签名 iPhone 5G CloudKit 请求 -> Mac AI -> iPhone 回复已经通过，脱敏证据仅保存在本地。它不是公开下载包；还需要部署 Production schema 和生成全新 Release 资产。 |
 | 更早基础版本 | `0.1.1-alpha.0` 增加 Docker quickstart/Ollama/Markdown vault 默认路径。`0.1.0` 建立桌面/PWA 底座。 |
+
+源码候选与公开下载的区分由 [`docs/release-state.json`](docs/release-state.json) 自动校验；候选版详情和剩余门槛见 [`docs/release-notes-v0.1.6-alpha.md`](docs/release-notes-v0.1.6-alpha.md)。
 
 ## 选择你的体验路径
 

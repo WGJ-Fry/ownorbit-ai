@@ -6,7 +6,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.9"
-    MARKETING_VERSION: "0.1.5"
+    MARKETING_VERSION: "0.1.6"
     CURRENT_PROJECT_VERSION: "1"
 targets:
   LifeOSMobile:
@@ -20,7 +20,7 @@ targets:
         buildPhase: none
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: ai.lifeos.mobile
+        PRODUCT_BUNDLE_IDENTIFIER: com.wgjfry.ownorbit.mobile
         PRODUCT_NAME: LifeOSMobile
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_ENTITLEMENTS: Config/LifeOSMobile.entitlements
@@ -33,7 +33,7 @@ targets:
       path: Generated/Info.plist
       properties:
         CFBundleDisplayName: OwnOrbit Mobile
-        CFBundleShortVersionString: "0.1.5"
+        CFBundleShortVersionString: "0.1.6"
         CFBundleVersion: "1"
         UILaunchScreen: {}
         NSAppTransportSecurity:
@@ -57,7 +57,7 @@ targets:
           - fetch
           - remote-notification
         CFBundleURLTypes:
-          - CFBundleURLName: ai.lifeos.mobile.entry
+          - CFBundleURLName: com.wgjfry.ownorbit.mobile.entry
             CFBundleURLSchemes:
               - lifeos
   LifeOSMobileTests:
@@ -69,7 +69,7 @@ targets:
       - target: LifeOSMobile
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: ai.lifeos.mobile.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.wgjfry.ownorbit.mobile.tests
         CODE_SIGNING_ALLOWED: NO
 schemes:
   LifeOSMobile:

@@ -3,6 +3,14 @@ import { db } from "./db";
 import { buildCloudKitTaskListPayload, cloudKitPayloadContentHash } from "./cloudKitSyncBatch";
 import { getCloudKitSyncQuarantineSummary, listCloudKitSyncCheckpoints } from "./cloudKitSyncState";
 import { setClientState, setClientStateAt } from "./clientState";
+import { enqueueCloudKitChatRequest, getCloudKitChatJob } from "./cloudKitChatJobs";
+import {
+  cloudKitChatResponseRecordName,
+  parseCloudKitChatRequestPayload,
+  parseCloudKitChatResponsePayload,
+  verifyCloudKitChatRequestSignature,
+} from "./cloudKitChatProtocol";
+import { parseCloudKitDeviceKeyPayload } from "./cloudKitDeviceKeyProtocol";
 
 export const CLOUDKIT_SYNC_APPLY_CONFIRMATION = "APPLY_CLOUDKIT_QUARANTINE";
 
@@ -183,7 +191,16 @@ function listRows(limit: number, status?: string | string[]) {
       error
     FROM cloudkit_sync_quarantine
     ${where}
-    ORDER BY imported_at ASC, record_type ASC, record_name ASC
+    ORDER BY
+      CASE
+        WHEN record_type = 'LifeOSDeviceKey' THEN 0
+        WHEN record_type = 'LifeOSConversation' THEN 1
+        WHEN record_type = 'LifeOSChatRequest' THEN 2
+        ELSE 3
+      END ASC,
+      imported_at ASC,
+      record_type ASC,
+      record_name ASC
     LIMIT ?
   `).all(...params) as QuarantineRow[];
 }
@@ -258,6 +275,122 @@ function applyMessage(payload: Record<string, unknown>, row: QuarantineRow) {
     VALUES (?, ?, ?, ?, 'cloudkit', ?, ?, NULL, ?, ?, ?)
   `).run(messageId, conversationId, role, jsonValue(contentJson), mutationId, `cloudkit:${mutationId}`, logicalClock, queuedAt, createdAt);
   db.prepare("UPDATE chat_sessions SET updated_at = MAX(updated_at, ?) WHERE id = ?").run(createdAt, conversationId);
+}
+
+function applyChatRequest(payload: Record<string, unknown>, row: QuarantineRow, now: number) {
+  if (row.requiresUserReview) throw new Error("CloudKit chat request cannot run while marked for manual review.");
+  if (!row.contentHash || !/^[a-f0-9]{64}$/i.test(row.contentHash)) throw new Error("CloudKit chat request content hash is invalid.");
+  const request = parseCloudKitChatRequestPayload(payload, {
+    now,
+    recordName: row.recordName,
+    mutationId: row.mutationId || undefined,
+    logicalClock: Number(row.logicalClock || 0),
+  });
+  const deviceKey = db.prepare(`
+    SELECT
+      public_key as publicKey,
+      public_key_fingerprint as publicKeyFingerprint,
+      status,
+      expires_at as expiresAt,
+      revoked_at as revokedAt
+    FROM cloudkit_device_keys
+    WHERE device_id = ? AND device_id_hash = ? AND channel_scope = 'cloudkit-chat'
+  `).get(request.deviceId, request.sourceDeviceHash) as {
+    publicKey?: string;
+    publicKeyFingerprint?: string;
+    status?: string;
+    expiresAt?: number;
+    revokedAt?: number | null;
+  } | undefined;
+  if (
+    !deviceKey || deviceKey.status !== "active" || Number(deviceKey.expiresAt || 0) <= now ||
+    Number(deviceKey.revokedAt || 0) > 0 || deviceKey.publicKeyFingerprint !== request.publicKeyFingerprint ||
+    !deviceKey.publicKey
+  ) throw new Error("CloudKit chat request is not signed by an active paired device.");
+  verifyCloudKitChatRequestSignature(request, deviceKey.publicKey);
+  enqueueCloudKitChatRequest(request, {
+    recordName: row.recordName,
+    contentHash: row.contentHash,
+    importedAt: row.importedAt,
+    now,
+  });
+}
+
+function applyDeviceKey(payload: Record<string, unknown>, row: QuarantineRow, now: number) {
+  if (row.requiresUserReview) throw new Error("CloudKit device key registration cannot be marked for manual review.");
+  const deviceKey = parseCloudKitDeviceKeyPayload(payload, {
+    now,
+    recordName: row.recordName,
+    mutationId: row.mutationId || undefined,
+    logicalClock: Number(row.logicalClock || 0),
+  });
+  const existing = db.prepare(`
+    SELECT logical_clock as logicalClock, public_key_fingerprint as publicKeyFingerprint
+    FROM cloudkit_device_keys
+    WHERE device_id = ?
+  `).get(deviceKey.deviceId) as { logicalClock?: number; publicKeyFingerprint?: string } | undefined;
+  if (existing && Number(existing.logicalClock || 0) > deviceKey.createdAt) {
+    throw new Error("A newer CloudKit device key is already registered.");
+  }
+  db.prepare(`
+    INSERT INTO cloudkit_device_keys (
+      device_id, device_id_hash, display_name, device_type, channel_scope,
+      public_key, public_key_fingerprint, status, created_at, expires_at,
+      logical_clock, mutation_id, source_record_name, source_evidence_id,
+      imported_at, applied_at, revoked_at
+    ) VALUES (?, ?, ?, 'ios', 'cloudkit-chat', ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+    ON CONFLICT(device_id) DO UPDATE SET
+      device_id_hash = excluded.device_id_hash,
+      display_name = excluded.display_name,
+      device_type = 'ios',
+      channel_scope = 'cloudkit-chat',
+      public_key = excluded.public_key,
+      public_key_fingerprint = excluded.public_key_fingerprint,
+      status = 'active',
+      created_at = excluded.created_at,
+      expires_at = excluded.expires_at,
+      logical_clock = excluded.logical_clock,
+      mutation_id = excluded.mutation_id,
+      source_record_name = excluded.source_record_name,
+      source_evidence_id = excluded.source_evidence_id,
+      imported_at = excluded.imported_at,
+      applied_at = excluded.applied_at,
+      revoked_at = NULL
+    WHERE cloudkit_device_keys.logical_clock <= excluded.logical_clock
+  `).run(
+    deviceKey.deviceId,
+    deviceKey.deviceIdHash,
+    deviceKey.displayName,
+    deviceKey.publicKey,
+    deviceKey.publicKeyFingerprint,
+    deviceKey.createdAt,
+    deviceKey.expiresAt,
+    deviceKey.createdAt,
+    `ios-device-key:${deviceKey.deviceId}`,
+    row.recordName,
+    row.sourceEvidenceId || null,
+    row.importedAt,
+    now,
+  );
+}
+
+function applyChatResponse(payload: Record<string, unknown>, row: QuarantineRow) {
+  if (row.requiresUserReview) throw new Error("CloudKit chat response cannot be auto-applied while marked for manual review.");
+  const response = parseCloudKitChatResponsePayload(payload);
+  if (row.recordName !== cloudKitChatResponseRecordName(response.requestId)) {
+    throw new Error("CloudKit chat response id does not match its record name.");
+  }
+  const job = getCloudKitChatJob(response.requestId);
+  if (!job || job.requestContentHash !== response.requestContentHash) {
+    throw new Error("CloudKit chat response does not match a local request.");
+  }
+  const expectedStatus = response.status === "retrying" ? "queued" : response.status;
+  if (job.status !== expectedStatus || job.responseId !== response.responseId) {
+    throw new Error("CloudKit chat response conflicts with the local job state.");
+  }
+  if ((job.assistantMessageId || undefined) !== response.assistantMessageId) {
+    throw new Error("CloudKit chat response message does not match the local job.");
+  }
 }
 
 function validateNativeMemoryCreateMutation(
@@ -571,6 +704,9 @@ function applyChangedRow(row: QuarantineRow, now: number) {
   const payload = parsePayload(row);
   if (row.recordType === "LifeOSConversation") return ensureConversation(payload, row);
   if (row.recordType === "LifeOSMessage") return applyMessage(payload, row);
+  if (row.recordType === "LifeOSDeviceKey") return applyDeviceKey(payload, row, now);
+  if (row.recordType === "LifeOSChatRequest") return applyChatRequest(payload, row, now);
+  if (row.recordType === "LifeOSChatResponse") return applyChatResponse(payload, row);
   if (row.recordType === "LifeOSMemory" || row.recordType === "LifeOSMemoryTombstone") return applyMemory(payload, row, now);
   if (row.recordType === "LifeOSTask" || row.recordType === "LifeOSTaskTombstone") return applyTask(payload, row);
   if (row.recordType === "LifeOSTaskListSnapshot") return applyTaskListSnapshot(payload, row);

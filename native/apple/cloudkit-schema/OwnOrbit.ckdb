@@ -1,0 +1,270 @@
+DEFINE SCHEMA
+
+// OwnOrbit stores only reviewable, non-credential payloads in the private database.
+// Public database grants are intentionally omitted.
+
+RECORD TYPE LifeOSConversation (
+    "___recordID" REFERENCE QUERYABLE,
+    lifeosSchema STRING,
+    lifeosDataType STRING,
+    lifeosRecordType STRING,
+    lifeosRecordName STRING,
+    sourceIdHash STRING,
+    mutationId STRING,
+    logicalClock INT64,
+    contentHash STRING,
+    payloadJson STRING,
+    payloadByteSize INT64,
+    requiresUserReview INT64,
+    lifeosSyncedAt TIMESTAMP,
+    lifeosKind STRING,
+    createdAt TIMESTAMP,
+    expiresAt TIMESTAMP
+);
+
+RECORD TYPE LifeOSMessage (
+    "___recordID" REFERENCE QUERYABLE,
+    lifeosSchema STRING,
+    lifeosDataType STRING,
+    lifeosRecordType STRING,
+    lifeosRecordName STRING,
+    sourceIdHash STRING,
+    mutationId STRING,
+    logicalClock INT64,
+    contentHash STRING,
+    payloadJson STRING,
+    payloadByteSize INT64,
+    requiresUserReview INT64,
+    lifeosSyncedAt TIMESTAMP,
+    lifeosKind STRING,
+    createdAt TIMESTAMP,
+    expiresAt TIMESTAMP
+);
+
+RECORD TYPE LifeOSChatRequest (
+    "___recordID" REFERENCE QUERYABLE,
+    lifeosSchema STRING,
+    lifeosDataType STRING,
+    lifeosRecordType STRING,
+    lifeosRecordName STRING,
+    sourceIdHash STRING,
+    mutationId STRING,
+    logicalClock INT64,
+    contentHash STRING,
+    payloadJson STRING,
+    payloadByteSize INT64,
+    requiresUserReview INT64,
+    lifeosSyncedAt TIMESTAMP,
+    lifeosKind STRING,
+    createdAt TIMESTAMP,
+    expiresAt TIMESTAMP
+);
+
+RECORD TYPE LifeOSChatResponse (
+    "___recordID" REFERENCE QUERYABLE,
+    lifeosSchema STRING,
+    lifeosDataType STRING,
+    lifeosRecordType STRING,
+    lifeosRecordName STRING,
+    sourceIdHash STRING,
+    mutationId STRING,
+    logicalClock INT64,
+    contentHash STRING,
+    payloadJson STRING,
+    payloadByteSize INT64,
+    requiresUserReview INT64,
+    lifeosSyncedAt TIMESTAMP,
+    lifeosKind STRING,
+    createdAt TIMESTAMP,
+    expiresAt TIMESTAMP
+);
+
+RECORD TYPE LifeOSSyncCheckpoint (
+    "___recordID" REFERENCE QUERYABLE,
+    lifeosSchema STRING,
+    lifeosDataType STRING,
+    lifeosRecordType STRING,
+    lifeosRecordName STRING,
+    sourceIdHash STRING,
+    mutationId STRING,
+    logicalClock INT64,
+    contentHash STRING,
+    payloadJson STRING,
+    payloadByteSize INT64,
+    requiresUserReview INT64,
+    lifeosSyncedAt TIMESTAMP,
+    lifeosKind STRING,
+    createdAt TIMESTAMP,
+    expiresAt TIMESTAMP
+);
+
+RECORD TYPE LifeOSMemory (
+    "___recordID" REFERENCE QUERYABLE,
+    lifeosSchema STRING,
+    lifeosDataType STRING,
+    lifeosRecordType STRING,
+    lifeosRecordName STRING,
+    sourceIdHash STRING,
+    mutationId STRING,
+    logicalClock INT64,
+    contentHash STRING,
+    payloadJson STRING,
+    payloadByteSize INT64,
+    requiresUserReview INT64,
+    lifeosSyncedAt TIMESTAMP,
+    lifeosKind STRING,
+    createdAt TIMESTAMP,
+    expiresAt TIMESTAMP
+);
+
+RECORD TYPE LifeOSMemoryTombstone (
+    "___recordID" REFERENCE QUERYABLE,
+    lifeosSchema STRING,
+    lifeosDataType STRING,
+    lifeosRecordType STRING,
+    lifeosRecordName STRING,
+    sourceIdHash STRING,
+    mutationId STRING,
+    logicalClock INT64,
+    contentHash STRING,
+    payloadJson STRING,
+    payloadByteSize INT64,
+    requiresUserReview INT64,
+    lifeosSyncedAt TIMESTAMP,
+    lifeosKind STRING,
+    createdAt TIMESTAMP,
+    expiresAt TIMESTAMP
+);
+
+RECORD TYPE LifeOSTask (
+    "___recordID" REFERENCE QUERYABLE,
+    lifeosSchema STRING,
+    lifeosDataType STRING,
+    lifeosRecordType STRING,
+    lifeosRecordName STRING,
+    sourceIdHash STRING,
+    mutationId STRING,
+    logicalClock INT64,
+    contentHash STRING,
+    payloadJson STRING,
+    payloadByteSize INT64,
+    requiresUserReview INT64,
+    lifeosSyncedAt TIMESTAMP,
+    lifeosKind STRING,
+    createdAt TIMESTAMP,
+    expiresAt TIMESTAMP
+);
+
+RECORD TYPE LifeOSTaskTombstone (
+    "___recordID" REFERENCE QUERYABLE,
+    lifeosSchema STRING,
+    lifeosDataType STRING,
+    lifeosRecordType STRING,
+    lifeosRecordName STRING,
+    sourceIdHash STRING,
+    mutationId STRING,
+    logicalClock INT64,
+    contentHash STRING,
+    payloadJson STRING,
+    payloadByteSize INT64,
+    requiresUserReview INT64,
+    lifeosSyncedAt TIMESTAMP,
+    lifeosKind STRING,
+    createdAt TIMESTAMP,
+    expiresAt TIMESTAMP
+);
+
+RECORD TYPE LifeOSTaskListSnapshot (
+    "___recordID" REFERENCE QUERYABLE,
+    lifeosSchema STRING,
+    lifeosDataType STRING,
+    lifeosRecordType STRING,
+    lifeosRecordName STRING,
+    sourceIdHash STRING,
+    mutationId STRING,
+    logicalClock INT64,
+    contentHash STRING,
+    payloadJson STRING,
+    payloadByteSize INT64,
+    requiresUserReview INT64,
+    lifeosSyncedAt TIMESTAMP,
+    lifeosKind STRING,
+    createdAt TIMESTAMP,
+    expiresAt TIMESTAMP
+);
+
+RECORD TYPE LifeOSGeneratedAppState (
+    "___recordID" REFERENCE QUERYABLE,
+    lifeosSchema STRING,
+    lifeosDataType STRING,
+    lifeosRecordType STRING,
+    lifeosRecordName STRING,
+    sourceIdHash STRING,
+    mutationId STRING,
+    logicalClock INT64,
+    contentHash STRING,
+    payloadJson STRING,
+    payloadByteSize INT64,
+    requiresUserReview INT64,
+    lifeosSyncedAt TIMESTAMP,
+    lifeosKind STRING,
+    createdAt TIMESTAMP,
+    expiresAt TIMESTAMP
+);
+
+RECORD TYPE LifeOSGeneratedAppMutation (
+    "___recordID" REFERENCE QUERYABLE,
+    lifeosSchema STRING,
+    lifeosDataType STRING,
+    lifeosRecordType STRING,
+    lifeosRecordName STRING,
+    sourceIdHash STRING,
+    mutationId STRING,
+    logicalClock INT64,
+    contentHash STRING,
+    payloadJson STRING,
+    payloadByteSize INT64,
+    requiresUserReview INT64,
+    lifeosSyncedAt TIMESTAMP,
+    lifeosKind STRING,
+    createdAt TIMESTAMP,
+    expiresAt TIMESTAMP
+);
+
+RECORD TYPE LifeOSDeviceTrust (
+    "___recordID" REFERENCE QUERYABLE,
+    lifeosSchema STRING,
+    lifeosDataType STRING,
+    lifeosRecordType STRING,
+    lifeosRecordName STRING,
+    sourceIdHash STRING,
+    mutationId STRING,
+    logicalClock INT64,
+    contentHash STRING,
+    payloadJson STRING,
+    payloadByteSize INT64,
+    requiresUserReview INT64,
+    lifeosSyncedAt TIMESTAMP,
+    lifeosKind STRING,
+    createdAt TIMESTAMP,
+    expiresAt TIMESTAMP
+);
+
+RECORD TYPE LifeOSDeviceKey (
+    "___recordID" REFERENCE QUERYABLE,
+    lifeosSchema STRING,
+    lifeosDataType STRING,
+    lifeosRecordType STRING,
+    lifeosRecordName STRING,
+    sourceIdHash STRING,
+    mutationId STRING,
+    logicalClock INT64,
+    contentHash STRING,
+    payloadJson STRING,
+    payloadByteSize INT64,
+    requiresUserReview INT64,
+    lifeosSyncedAt TIMESTAMP,
+    lifeosKind STRING,
+    createdAt TIMESTAMP,
+    expiresAt TIMESTAMP
+);

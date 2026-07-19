@@ -49,6 +49,7 @@ import { CLOUDKIT_SYNC_UPLOAD_NOW_CONFIRMATION, runCloudKitSyncUploadNow } from 
 import { CLOUDKIT_SYNC_CYCLE_CONFIRMATION, runCloudKitSyncCycle } from "../cloudKitSyncCycle";
 import { clearCloudKitLocalChanges, getCloudKitAutoSyncSchedule, runCloudKitAutoSyncNow, updateCloudKitAutoSyncSchedule } from "../cloudKitAutoSyncSchedule";
 import { getCloudKitPushEvidence, isCloudKitPushEventPair, recordCloudKitPushEvent } from "../cloudKitPushEvidence";
+import { requeueCloudKitChatJobsAfterAiConfiguration } from "../cloudKitChatJobs";
 
 const loginFailures = new Map<string, { count: number; lockedUntil: number }>();
 
@@ -1360,7 +1361,7 @@ export function registerAdminRoutes(app: express.Express) {
         serverChangeTokenReturnedToAdmin: false,
         localBackupPathReturnedToAdmin: false,
       }, (req as any).actor?.type, (req as any).actor?.id);
-      res.status(cycle.status === "remote-failed" || cycle.status === "remote-conflicts" || cycle.status === "upload-blocked" || cycle.status === "upload-failed" ? 400 : 200).json({
+      res.status(cycle.status === "remote-failed" || cycle.status === "remote-conflicts" || cycle.status === "upload-blocked" || cycle.status === "upload-conflicts" || cycle.status === "upload-failed" ? 400 : 200).json({
         cycle,
         schedule: pendingClear.schedule,
         diagnostics: getAdminNetworkDiagnostics(),
@@ -2314,6 +2315,7 @@ export function registerAdminRoutes(app: express.Express) {
     try {
       const previousActiveProvider = getActiveAiProviderId();
       saveActiveAiProvider(providerId, { type: "admin", id: "owner" });
+      const cloudKitChatRetry = requeueCloudKitChatJobsAfterAiConfiguration();
       const status = getAiProviderStatus(providerId);
       insertAuditLog("ai_provider_default_updated", "config", providerId, {
         ...aiStatusAuditMetadata(status),
@@ -2321,7 +2323,7 @@ export function registerAdminRoutes(app: express.Express) {
         previousActiveProvider,
         changed: previousActiveProvider !== providerId,
       });
-      res.json({ provider: status, providers: listAiProviderStatuses() });
+      res.json({ provider: status, providers: listAiProviderStatuses(), cloudKitChatRetry });
     } catch (error: any) {
       res.status(400).json({ error: error.message || "Could not update default AI provider" });
     }
@@ -2382,6 +2384,7 @@ export function registerAdminRoutes(app: express.Express) {
 
     const previousStatus = getAiProviderStatus(provider.id);
     saveAiApiKey(apiKey, provider.id);
+    const cloudKitChatRetry = requeueCloudKitChatJobsAfterAiConfiguration();
     const status = getAiProviderStatus(provider.id);
     insertAuditLog("ai_key_saved", "config", "google_gemini", {
       ...aiStatusAuditMetadata(status),
@@ -2389,7 +2392,7 @@ export function registerAdminRoutes(app: express.Express) {
       ...aiCredentialAuditMetadata(provider.id, apiKey),
       compatibilityEndpoint: true,
     });
-    res.json({ ai: status });
+    res.json({ ai: status, cloudKitChatRetry });
   });
 
   app.put("/api/v1/admin/ai-providers/:providerId/key", requireAdmin, (req, res) => {
@@ -2407,13 +2410,14 @@ export function registerAdminRoutes(app: express.Express) {
     try {
       const previousStatus = getAiProviderStatus(providerId);
       saveAiApiKey(apiKey, providerId);
+      const cloudKitChatRetry = requeueCloudKitChatJobsAfterAiConfiguration();
       const status = getAiProviderStatus(providerId);
       insertAuditLog("ai_key_saved", "config", providerId, {
         ...aiStatusAuditMetadata(status),
         ...aiProviderChangeAuditMetadata(previousStatus, status),
         ...aiCredentialAuditMetadata(providerId, apiKey),
       });
-      res.json({ provider: status });
+      res.json({ provider: status, cloudKitChatRetry });
     } catch (error: any) {
       res.status(400).json({ error: error.message || "AI provider configuration is invalid" });
     }

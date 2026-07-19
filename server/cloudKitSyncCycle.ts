@@ -3,11 +3,12 @@ import { createDatabaseBackup } from "./db";
 import { runCloudKitNativeHelper } from "./cloudKitNativeHelper";
 import { runCloudKitSyncNow } from "./cloudKitSyncNow";
 import { runCloudKitSyncUploadNow } from "./cloudKitSyncUploadNow";
+import { runCloudKitChatWorkerQueue } from "./cloudKitChatWorker";
 
 export const CLOUDKIT_SYNC_CYCLE_CONFIRMATION = "SYNC_CLOUDKIT_CYCLE";
 
 type IcloudDataSyncReadiness = ReturnType<typeof getIcloudDataSyncReadiness>;
-type SyncCycleStatus = "needs-setup" | "remote-failed" | "remote-conflicts" | "remote-more-coming" | "upload-blocked" | "upload-failed" | "local-empty" | "completed";
+type SyncCycleStatus = "needs-setup" | "remote-failed" | "remote-conflicts" | "remote-more-coming" | "upload-blocked" | "upload-conflicts" | "upload-failed" | "local-empty" | "completed";
 type SyncCycleNextAction = "configure-cloudkit" | "review-conflicts" | "review-blocked-records" | "continue-pull" | "retry" | "use-lifeos" | "done";
 
 type SyncCycleOptions = {
@@ -15,6 +16,7 @@ type SyncCycleOptions = {
   now?: number;
   runHelper?: typeof runCloudKitNativeHelper;
   createBackup?: typeof createDatabaseBackup;
+  runChatWorker?: typeof runCloudKitChatWorkerQueue;
 };
 
 function normalizeLimit(value: unknown) {
@@ -45,6 +47,9 @@ function finalStatus(status: Awaited<ReturnType<typeof runCloudKitSyncUploadNow>
   }
   if (status === "blocked") {
     return { status: "upload-blocked" as SyncCycleStatus, nextAction: "review-blocked-records" as SyncCycleNextAction, ok: false };
+  }
+  if (status === "conflicts") {
+    return { status: "upload-conflicts" as SyncCycleStatus, nextAction: "review-conflicts" as SyncCycleNextAction, ok: false };
   }
   if (status === "failed") {
     return { status: "upload-failed" as SyncCycleStatus, nextAction: "retry" as SyncCycleNextAction, ok: false };
@@ -88,16 +93,22 @@ export async function runCloudKitSyncCycle(readiness: IcloudDataSyncReadiness, o
       finishedAt: Date.now(),
       limit,
       pull: publicPull,
+      chatWorker: undefined,
       upload: undefined,
       safety: {
         rawPayloadReturnedToAdmin: false,
         cloudKitChangeTokenReturnedToAdmin: false,
         localBackupPathReturnedToAdmin: false,
         uploadRunsOnlyAfterConflictFreePull: true,
+        remoteChatToolsEnabled: false,
       },
     };
   }
 
+  const chatWorker = await (options.runChatWorker || runCloudKitChatWorkerQueue)({
+    now,
+    limit: Math.min(3, limit),
+  });
   const upload = await runCloudKitSyncUploadNow(readiness, dependencies);
   const status = finalStatus(upload.status);
 
@@ -109,12 +120,14 @@ export async function runCloudKitSyncCycle(readiness: IcloudDataSyncReadiness, o
     finishedAt: Date.now(),
     limit,
     pull: publicPull,
+    chatWorker,
     upload,
     safety: {
       rawPayloadReturnedToAdmin: false,
       cloudKitChangeTokenReturnedToAdmin: false,
       localBackupPathReturnedToAdmin: false,
       uploadRunsOnlyAfterConflictFreePull: true,
+      remoteChatToolsEnabled: false,
     },
   };
 }

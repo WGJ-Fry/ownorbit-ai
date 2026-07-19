@@ -8,19 +8,27 @@ const rootDir = process.cwd();
 const releaseDir = process.env.LIFEOS_RELEASE_DIR || path.join(rootDir, "release");
 const strict = process.env.LIFEOS_RELEASE_STRICT === "1";
 const distribution = process.env.LIFEOS_DISTRIBUTION || "";
-const skipReleaseArtifacts = process.env.LIFEOS_RELEASE_SKIP_ARTIFACTS === "1";
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
-const currentPublicVersion = packageJson.version.includes("-") && packageJson.version.endsWith(".0")
+const releaseState = JSON.parse(fs.readFileSync(path.join(rootDir, "docs", "release-state.json"), "utf8"));
+const sourcePublicVersion = packageJson.version.includes("-") && packageJson.version.endsWith(".0")
   ? packageJson.version.slice(0, -2)
   : packageJson.version;
-const currentReleaseTag = `v${currentPublicVersion}`;
+const sourceReleaseTag = `v${sourcePublicVersion}`;
+const publicPackageVersion = String(releaseState.publicPackageVersion || "");
+const currentPublicVersion = publicPackageVersion.includes("-") && publicPackageVersion.endsWith(".0")
+  ? publicPackageVersion.slice(0, -2)
+  : publicPackageVersion;
+const currentReleaseTag = String(releaseState.publicTag || `v${currentPublicVersion}`);
 const currentDockerImage = `ghcr.io/wgj-fry/lifeos-ai:${currentReleaseTag}`;
-const publicMacZipName = `LifeOS.AI-${packageJson.version}-arm64-unsigned.zip`;
-const publicWinInstallerName = `LifeOS.AI.Setup.${packageJson.version}.exe`;
-const publicLinuxAppImageName = `LifeOS.AI-${packageJson.version}.AppImage`;
-const builderMacZipName = `OwnOrbit AI-${packageJson.version}-arm64-unsigned.zip`;
-const builderWinInstallerName = `OwnOrbit AI Setup ${packageJson.version}.exe`;
-const builderLinuxAppImageName = `OwnOrbit AI-${packageJson.version}.AppImage`;
+const publicMacZipName = `LifeOS.AI-${publicPackageVersion}-arm64-unsigned.zip`;
+const publicWinInstallerName = `LifeOS.AI.Setup.${publicPackageVersion}.exe`;
+const publicLinuxAppImageName = `LifeOS.AI-${publicPackageVersion}.AppImage`;
+const builderMacZipName = `OwnOrbit AI-${publicPackageVersion}-arm64-unsigned.zip`;
+const builderWinInstallerName = `OwnOrbit AI Setup ${publicPackageVersion}.exe`;
+const builderLinuxAppImageName = `OwnOrbit AI-${publicPackageVersion}.AppImage`;
+const sourceCandidateAhead = publicPackageVersion !== packageJson.version;
+const skipReleaseArtifacts = process.env.LIFEOS_RELEASE_SKIP_ARTIFACTS === "1" ||
+  (sourceCandidateAhead && !process.env.LIFEOS_RELEASE_DIR);
 const translationsSource = exists("src/i18n/translations.ts") ? fs.readFileSync(path.join(rootDir, "src/i18n/translations.ts"), "utf8") : "";
 const require = createRequire(import.meta.url);
 const results = [];
@@ -159,7 +167,7 @@ function checkSourceSizeBudgets() {
 }
 
 function checkScripts() {
-  for (const script of ["build", "desktop", "desktop:resources:prepare", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "icloud:helper:build", "icloud:helper:xcode:build", "icloud:helper:xcode:compile", "icloud:helper:smoke", "icloud:acceptance", "mobile:simulator:smoke", "mobile:native:build", "mobile:native:device:compile", "mobile:native:device:build", "mobile:native:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:apple-native", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
+  for (const script of ["build", "desktop", "desktop:resources:prepare", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "icloud:helper:build", "icloud:helper:xcode:build", "icloud:helper:xcode:compile", "icloud:helper:smoke", "icloud:acceptance", "mobile:simulator:smoke", "mobile:native:build", "mobile:native:device:compile", "mobile:native:device:build", "mobile:native:device:install", "mobile:native:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:apple-native", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
     if (hasScript(script)) pass(`package script exists: ${script}`);
     else fail(`missing package script: ${script}`);
   }
@@ -172,7 +180,7 @@ function checkScripts() {
     });
     if (
       versionTruthCheck.status === 0 &&
-      versionTruthCheck.stdout.includes(`Version truth passed for ${currentReleaseTag}`) &&
+      versionTruthCheck.stdout.includes(`Version truth passed for ${sourceReleaseTag}`) &&
       versionTruthCheck.stdout.includes("full release asset guard is available") &&
       versionTruthCheck.stdout.includes("remote acceptance evidence guard is available") &&
       versionTruthSource.includes("--require-remote-acceptance") &&
@@ -354,6 +362,7 @@ function checkScripts() {
     exists("native/apple/mobile-shell/Sources/LifeOSCloudData.swift") &&
     exists("native/apple/mobile-shell/Sources/LifeOSCloudKitSync.swift") &&
     exists("native/apple/mobile-shell/Sources/LifeOSCloudMutationOutbox.swift") &&
+    exists("scripts/install-ios-mobile-shell.mjs") &&
     exists("scripts/mobile-ios-native-shell-smoke.mjs")
   ) {
     const nativeEntry = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "LifeOSEntry.swift"), "utf8");
@@ -367,12 +376,14 @@ function checkScripts() {
     const nativeCloudScreen = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Sources", "CloudDataScreen.swift"), "utf8");
     const nativeEntitlements = fs.readFileSync(path.join(rootDir, "native", "apple", "mobile-shell", "Config", "LifeOSMobile.entitlements"), "utf8");
     const nativeBuild = fs.readFileSync(path.join(rootDir, "scripts", "build-ios-mobile-shell.mjs"), "utf8");
+    const nativeInstall = fs.readFileSync(path.join(rootDir, "scripts", "install-ios-mobile-shell.mjs"), "utf8");
     const nativeSmoke = fs.readFileSync(path.join(rootDir, "scripts", "mobile-ios-native-shell-smoke.mjs"), "utf8");
     if (
       packageJson.scripts?.["mobile:native:build"]?.includes("build-ios-mobile-shell.mjs") &&
       packageJson.scripts?.["mobile:native:smoke"]?.includes("mobile-ios-native-shell-smoke.mjs") &&
       packageJson.scripts?.["mobile:native:device:compile"]?.includes("--device-compile") &&
       packageJson.scripts?.["mobile:native:device:build"]?.includes("--device") &&
+      packageJson.scripts?.["mobile:native:device:install"]?.includes("install-ios-mobile-shell.mjs") &&
       packageJson.scripts?.["test:apple-native"]?.includes("apple-mobile-native-shell.test.mjs") &&
       packageJson.scripts?.["quality:gate"]?.includes("test:apple-native") &&
       nativeEntry.includes("SHA256.hash") &&
@@ -432,6 +443,9 @@ function checkScripts() {
       nativeEntitlements.includes("CloudKit") &&
       nativeBuild.includes("CODE_SIGNING_ALLOWED=NO") &&
       nativeBuild.includes("No matching iPhone provisioning profile is installed") &&
+      nativeInstall.includes("devicectl") &&
+      nativeInstall.includes("cloudKitEntitlementsVerified") &&
+      nativeInstall.includes("identifierReturned: false") &&
       nativeSmoke.includes("native-entry-setup") &&
       nativeSmoke.includes("native-mobile-chat") &&
       nativeSmoke.includes("native-cloud-data") &&
@@ -491,6 +505,8 @@ function checkScripts() {
       icloudAcceptance.includes("mac-a-cloudkit-upload") &&
       icloudAcceptance.includes("mac-b-cloudkit-import") &&
       icloudAcceptance.includes("iphone-cellular-entry-boundary") &&
+      icloudAcceptance.includes("iphone-native-cloudkit-roundtrip") &&
+      icloudAcceptance.includes("iphone-background-refresh") &&
       icloudAcceptance.includes("wifi-cellular-switch") &&
       icloudAcceptance.includes("mac-restart-recovery") &&
       icloudAcceptance.includes("icloud-delay-human-copy") &&
@@ -1691,6 +1707,17 @@ function checkAssets() {
   const cloudKitPushEvidenceSource = exists("server/cloudKitPushEvidence.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitPushEvidence.ts"), "utf8") : "";
   const cloudKitPushListenerTestSource = exists("tests/cloudkit-push-listener.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-push-listener.test.mjs"), "utf8") : "";
   const cloudKitPushEvidenceTestSource = exists("tests/cloudkit-push-evidence.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-push-evidence.test.mjs"), "utf8") : "";
+  const cloudKitChatProtocolSource = exists("server/cloudKitChatProtocol.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitChatProtocol.ts"), "utf8") : "";
+  const cloudKitDeviceKeyProtocolSource = exists("server/cloudKitDeviceKeyProtocol.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitDeviceKeyProtocol.ts"), "utf8") : "";
+  const cloudKitChatJobsSource = exists("server/cloudKitChatJobs.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitChatJobs.ts"), "utf8") : "";
+  const cloudKitChatWorkerSource = exists("server/cloudKitChatWorker.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudKitChatWorker.ts"), "utf8") : "";
+  const cloudKitChatProtocolTestSource = exists("tests/cloudkit-chat-protocol.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-chat-protocol.test.mjs"), "utf8") : "";
+  const cloudKitDeviceKeyProtocolTestSource = exists("tests/cloudkit-device-key-protocol.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-device-key-protocol.test.mjs"), "utf8") : "";
+  const cloudKitChatJobsTestSource = exists("tests/cloudkit-chat-jobs.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-chat-jobs.test.mjs"), "utf8") : "";
+  const cloudKitChatWorkerTestSource = exists("tests/cloudkit-chat-worker.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudkit-chat-worker.test.mjs"), "utf8") : "";
+  const nativeDeviceIdentitySource = exists("native/apple/mobile-shell/Sources/LifeOSCloudDeviceIdentity.swift") ? fs.readFileSync(path.join(rootDir, "native/apple/mobile-shell/Sources/LifeOSCloudDeviceIdentity.swift"), "utf8") : "";
+  const nativeCloudDataSource = exists("native/apple/mobile-shell/Sources/LifeOSCloudData.swift") ? fs.readFileSync(path.join(rootDir, "native/apple/mobile-shell/Sources/LifeOSCloudData.swift"), "utf8") : "";
+  const cloudKitSchemaSource = exists("native/apple/cloudkit-schema/OwnOrbit.ckdb") ? fs.readFileSync(path.join(rootDir, "native/apple/cloudkit-schema/OwnOrbit.ckdb"), "utf8") : "";
   const appleRemoteIcloudPrimaryActionSource = exists("src/pages/admin/appleRemoteIcloudPrimaryAction.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/appleRemoteIcloudPrimaryAction.ts"), "utf8") : "";
   const icloudPhonePickupStatusSource = exists("src/pages/admin/icloudPhonePickupStatus.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/icloudPhonePickupStatus.ts"), "utf8") : "";
   const icloudAutoRefreshStatusSource = exists("src/pages/admin/icloudAutoRefreshStatus.ts") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/icloudAutoRefreshStatus.ts"), "utf8") : "";
@@ -1720,6 +1747,31 @@ function checkAssets() {
     packageJson.scripts["test:desktop"].includes("tests/cloudkit-helper-runtime.test.mjs")
   ) pass("desktop packages only auto-discover verified CloudKit helpers through a redacted guarded resource manifest");
   else fail("desktop CloudKit helper packaging must verify signatures/entitlements, block unsafe resources, redact diagnostics, and remain covered by tests");
+  if (
+    cloudKitChatProtocolSource.includes("LifeOSChatRequest") &&
+    cloudKitChatProtocolSource.includes("LifeOSChatResponse") &&
+    cloudKitChatProtocolSource.includes('dsaEncoding: "ieee-p1363"') &&
+    cloudKitDeviceKeyProtocolSource.includes("LifeOSDeviceKey") &&
+    cloudKitDeviceKeyProtocolSource.includes('namedCurve !== "prime256v1"') &&
+    cloudKitDeviceKeyProtocolSource.includes('channelScope: "cloudkit-chat"') &&
+    cloudKitChatJobsSource.includes("claimNextCloudKitChatJob") &&
+    cloudKitChatJobsSource.includes('responseStatus = job.status === "queued" ? "retrying"') &&
+    cloudKitChatWorkerSource.includes("Remote CloudKit chat cannot execute tools") &&
+    cloudKitChatWorkerSource.includes("toolExecutionEnabled: false") &&
+    nativeDeviceIdentitySource.includes("kSecAttrAccessibleWhenUnlockedThisDeviceOnly") &&
+    nativeCloudDataSource.includes("waitingForMac") &&
+    nativeCloudDataSource.includes("macUnavailable") &&
+    nativeCloudDataSource.includes("timedOut") &&
+    cloudKitSchemaSource.includes("RECORD TYPE LifeOSChatRequest") &&
+    cloudKitSchemaSource.includes("RECORD TYPE LifeOSChatResponse") &&
+    cloudKitSchemaSource.includes("RECORD TYPE LifeOSDeviceKey") &&
+    cloudKitChatProtocolTestSource.includes("canonical safe phone payloads") &&
+    cloudKitDeviceKeyProtocolTestSource.includes("P-256 possession without private material") &&
+    cloudKitChatJobsTestSource.includes("CloudKit quarantine imports a phone chat request and exports the completed Mac response") &&
+    cloudKitChatWorkerTestSource.includes("text-only response without exposing tools") &&
+    packageJson.scripts.test.includes("tests/cloudkit-device-key-protocol.test.mjs")
+  ) pass("CloudKit phone chat uses device-only P-256 signing, durable jobs, text-only Mac AI, safe status states, and schema/test gates");
+  else fail("CloudKit phone chat must keep signed requests, device-only keys, no-tool AI execution, durable retry states, schema records, and tests together");
   if (
     deviceRoutesSource.includes("pairingInstallUrl") &&
     deviceRoutesSource.includes("/mobile/install/") &&
@@ -2329,7 +2381,7 @@ function checkAssets() {
     cloudKitSyncBatchTestSource.includes("Safe export conversation") &&
     cloudKitSyncBatchTestSource.includes("serializedSummary.includes(\"Safe export conversation\"), false") &&
     cloudKitSyncBatchTestSource.includes("recordType === \"LifeOSMessage\" && record.requiresUserReview === false") &&
-    cloudKitSyncBatchTestSource.includes("recordType === \"LifeOSConversation\" && record.requiresUserReview === true") &&
+    cloudKitSyncBatchTestSource.includes("recordType === \"LifeOSConversation\" && record.requiresUserReview === false") &&
     cloudKitSyncBatchTestSource.includes("recordType === \"LifeOSMemory\" && record.requiresUserReview === false") &&
     cloudKitSyncBatchTestSource.includes("recordType === \"LifeOSTask\" && record.requiresUserReview === false") &&
     cloudKitSyncBatchTestSource.includes("recordType === \"LifeOSDeviceTrust\" && record.requiresUserReview === true") &&
@@ -4456,6 +4508,47 @@ function checkUpdateFeed() {
 }
 
 function checkReleaseDocs() {
+  if (
+    releaseState.schema === "ownorbit-release-state.v1" &&
+    releaseState.sourcePackageVersion === packageJson.version &&
+    releaseState.sourceTag === sourceReleaseTag &&
+    releaseState.publicPackageVersion === publicPackageVersion &&
+    releaseState.publicTag === currentReleaseTag &&
+    ["candidate", "published"].includes(releaseState.sourceStatus)
+  ) {
+    pass("release state separates the source candidate from current public downloads");
+  } else {
+    fail("docs/release-state.json must match package.json and declare valid source/public release facts");
+  }
+
+  const sourceReleaseNotesPath = `docs/release-notes-${sourceReleaseTag}.md`;
+  if (exists(sourceReleaseNotesPath)) {
+    const sourceReleaseNotes = fs.readFileSync(path.join(rootDir, sourceReleaseNotesPath), "utf8");
+    const requiredSourceReleaseMarkers = [
+      packageJson.version,
+      sourceReleaseTag,
+      "Source candidate",
+      "not a public download",
+      "源码候选",
+      "不是公开下载包",
+      "LifeOSChatRequest",
+      "LifeOSChatResponse",
+      "LifeOSDeviceKey",
+      "P-256",
+      "Keychain",
+      "text-only",
+      "iphone-cloudkit-chat-roundtrip",
+    ];
+    const missingSourceReleaseMarkers = requiredSourceReleaseMarkers.filter((marker) => !sourceReleaseNotes.includes(marker));
+    if (missingSourceReleaseMarkers.length === 0) {
+      pass(`source candidate release notes describe ${sourceReleaseTag} without claiming public assets`);
+    } else {
+      fail(`source candidate release notes are missing: ${missingSourceReleaseMarkers.join(", ")}`);
+    }
+  } else {
+    fail(`missing source candidate release notes: ${sourceReleaseNotesPath}`);
+  }
+
   if (!exists("CHANGELOG.md")) {
     warn("CHANGELOG.md is missing; releases should include user-visible changes");
   } else {
@@ -4598,7 +4691,7 @@ function checkReleaseDocs() {
       const source = fs.readFileSync(path.join(rootDir, relativePath), "utf8");
       const findings = [];
       if (source.includes('placeholder: "0.1.0"')) findings.push(`${relativePath}: stale 0.1.0 placeholder`);
-      if (!source.includes(`${packageJson.version} / ${currentReleaseTag}`)) findings.push(`${relativePath}: missing current alpha version placeholder`);
+      if (!source.includes(`${publicPackageVersion} / ${currentReleaseTag}`)) findings.push(`${relativePath}: missing current public alpha version placeholder`);
       return findings;
     });
   if (communityTemplateFindings.length === 0 && communityTemplatePaths.every((relativePath) => exists(relativePath))) {
@@ -4757,7 +4850,7 @@ function checkReleaseDocs() {
   if (exists("SECURITY.md")) {
     const securityPolicy = fs.readFileSync(path.join(rootDir, "SECURITY.md"), "utf8");
     const requiredSecurityMarkers = [
-      `\`${currentReleaseTag}\` / \`${packageJson.version}\``,
+      `\`${currentReleaseTag}\` / \`${publicPackageVersion}\``,
       "`v0.1.0` | 仅保留历史下载说明，建议升级",
       "GitHub 的私密漏洞报告功能",
       "不要附加原始数据库、未加密备份、未脱敏诊断包",
@@ -4852,7 +4945,7 @@ function checkReleaseDocs() {
       "Desktop Package Artifacts",
       "GitHub Release 草稿",
       "GitHub Release draft",
-      `git tag ${currentReleaseTag}`,
+      `git tag ${sourceReleaseTag}`,
       "LIFEOS_CHECK_GHCR=1 LIFEOS_CHECK_GITHUB_RELEASE=1 npm run check:cold-launch",
       "Manual workflow runs still produce Actions artifacts only",
       "只有 `v*` tag 触发时才会写入 GitHub Release 草稿",
@@ -5007,6 +5100,7 @@ function findPackagedMacApp() {
 }
 
 function checkPackagedAppContents() {
+  if (skipReleaseArtifacts) return;
   const asarPath = findPackagedMacApp();
   if (!asarPath) return;
 

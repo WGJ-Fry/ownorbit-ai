@@ -193,6 +193,7 @@ test("CloudKit helper request carries an approved sync export batch only for nat
 
 test("Apple CloudKit helper source implements the native JSON stdio contract", async () => {
   const swiftSource = await readFile(path.join(rootDir, "native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift"), "utf8");
+  const cloudKitSchema = await readFile(path.join(rootDir, "native/apple/cloudkit-schema/OwnOrbit.ckdb"), "utf8");
   const buildScript = await readFile(path.join(rootDir, "scripts/build-cloudkit-helper.mjs"), "utf8");
   const xcodeBuildScript = await readFile(path.join(rootDir, "scripts/build-cloudkit-helper-xcode.mjs"), "utf8");
   const packageJson = JSON.parse(await readFile(path.join(rootDir, "package.json"), "utf8"));
@@ -204,6 +205,8 @@ test("Apple CloudKit helper source implements the native JSON stdio contract", a
   assert.match(swiftSource, /CKContainer\(identifier: containerId\)/);
   assert.match(swiftSource, /accountStatus\(\)/);
   assert.match(swiftSource, /privateCloudDatabase/);
+  assert.match(swiftSource, /describeCloudKitError/);
+  assert.match(swiftSource, /partialCodes=/);
   assert.match(swiftSource, /DELETE_DISPOSABLE_RECORDS/);
   assert.match(swiftSource, /SYNC_APPROVED_RECORDS/);
   assert.match(swiftSource, /runSyncExport/);
@@ -225,6 +228,10 @@ test("Apple CloudKit helper source implements the native JSON stdio contract", a
   assert.match(swiftSource, /maxChangePages/);
   assert.match(swiftSource, /run another pull before uploading local data/);
   assert.match(swiftSource, /changeTokenExpired/);
+  assert.match(swiftSource, /zoneNotFound/);
+  assert.match(swiftSource, /treated it as empty/);
+  assert.match(swiftSource, /LifeOSHelperRoundtrip-/);
+  assert.match(swiftSource, /isDisposableHelperRecord/);
   assert.match(swiftSource, /full, review-only baseline/);
   assert.match(swiftSource, /requiresFullReview/);
   assert.match(swiftSource, /runSubscriptionProbe/);
@@ -245,6 +252,25 @@ test("Apple CloudKit helper source implements the native JSON stdio contract", a
   assert.match(swiftSource, /database\.records\(/);
   assert.match(swiftSource, /database\.deleteRecord\(withID: recordId\)/);
   assert.match(swiftSource, /rawPayloadIncluded/);
+  for (const recordType of [
+    "LifeOSConversation",
+    "LifeOSMessage",
+    "LifeOSMemory",
+    "LifeOSMemoryTombstone",
+    "LifeOSTask",
+    "LifeOSTaskTombstone",
+    "LifeOSTaskListSnapshot",
+    "LifeOSGeneratedAppState",
+    "LifeOSGeneratedAppMutation",
+    "LifeOSDeviceTrust",
+    "LifeOSSyncCheckpoint",
+  ]) {
+    assert.match(cloudKitSchema, new RegExp(`RECORD TYPE ${recordType} \\(`));
+  }
+  for (const field of ["lifeosSchema", "mutationId", "logicalClock", "contentHash", "payloadJson", "payloadByteSize", "requiresUserReview"]) {
+    assert.match(cloudKitSchema, new RegExp(`\\b${field}\\b`));
+  }
+  assert.doesNotMatch(cloudKitSchema, /GRANT (?:READ|CREATE|WRITE)/);
   assert.doesNotMatch(swiftSource, /deviceCredential|sessionCookie|providerApiKey|sqliteBlob/);
   assert.match(buildScript, /CloudKit\.framework/);
   assert.match(buildScript, /AppKit/);
@@ -266,6 +292,7 @@ test("Apple CloudKit helper source implements the native JSON stdio contract", a
   assert.match(xcodeBuildScript, /CODE_SIGN_STYLE: Automatic/);
   assert.match(xcodeBuildScript, /LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES/);
   assert.match(xcodeBuildScript, /-allowProvisioningUpdates/);
+  assert.match(xcodeBuildScript, /-allowProvisioningDeviceRegistration/);
   assert.match(xcodeBuildScript, /PLA Update available/);
   assert.match(xcodeBuildScript, /Program License Agreement must be accepted/);
   assert.match(xcodeBuildScript, /com\.apple\.developer\.icloud-container-identifiers/);

@@ -5,14 +5,23 @@ import { spawnSync } from "node:child_process";
 const rootDir = process.cwd();
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
 const version = String(packageJson.version || "");
-const publicVersion = version.includes("-") && version.endsWith(".0") ? version.slice(0, -2) : version;
-const releaseTag = `v${publicVersion}`;
-const nextPublicVersion = publicVersion.replace(/(\d+\.\d+\.)(\d+)(-.+)/, (_match, prefix, patch, suffix) => `${prefix}${Number(patch) + 1}${suffix}`);
+const releaseStatePath = path.join(rootDir, "docs", "release-state.json");
+const releaseState = fs.existsSync(releaseStatePath)
+  ? JSON.parse(fs.readFileSync(releaseStatePath, "utf8"))
+  : {};
+const sourcePublicVersion = version.includes("-") && version.endsWith(".0") ? version.slice(0, -2) : version;
+const releaseTag = `v${sourcePublicVersion}`;
+const publishedPackageVersion = String(releaseState.publicPackageVersion || "");
+const publishedPublicVersion = publishedPackageVersion.includes("-") && publishedPackageVersion.endsWith(".0")
+  ? publishedPackageVersion.slice(0, -2)
+  : publishedPackageVersion;
+const publishedReleaseTag = String(releaseState.publicTag || "");
+const nextPublicVersion = sourcePublicVersion.replace(/(\d+\.\d+\.)(\d+)(-.+)/, (_match, prefix, patch, suffix) => `${prefix}${Number(patch) + 1}${suffix}`);
 const nextReleaseTag = `v${nextPublicVersion}`;
-const dockerImage = `ghcr.io/wgj-fry/lifeos-ai:${releaseTag}`;
-const macZip = `LifeOS.AI-${version}-arm64-unsigned.zip`;
-const winInstaller = `LifeOS.AI.Setup.${version}.exe`;
-const linuxAppImage = `LifeOS.AI-${version}.AppImage`;
+const publishedDockerImage = `ghcr.io/wgj-fry/lifeos-ai:${publishedReleaseTag}`;
+const publishedMacZip = `LifeOS.AI-${publishedPackageVersion}-arm64-unsigned.zip`;
+const publishedWinInstaller = `LifeOS.AI.Setup.${publishedPackageVersion}.exe`;
+const publishedLinuxAppImage = `LifeOS.AI-${publishedPackageVersion}.AppImage`;
 const failures = [];
 const passes = [];
 const args = new Set(process.argv.slice(2));
@@ -204,9 +213,35 @@ const userInstall = read("docs/user-install-guide.md");
 const roadmap = read("docs/version-roadmap.md");
 const releaseNotesPath = `docs/release-notes-${releaseTag}.md`;
 const releaseNotes = read(releaseNotesPath);
+const publishedReleaseNotesPath = `docs/release-notes-${publishedReleaseTag}.md`;
+const publishedReleaseNotes = read(publishedReleaseNotesPath);
+
+function alphaVersionParts(value) {
+  const match = String(value || "").match(/^(\d+)\.(\d+)\.(\d+)-alpha\.0$/);
+  return match ? match.slice(1).map(Number) : null;
+}
+
+const sourceVersionParts = alphaVersionParts(version);
+const publishedVersionParts = alphaVersionParts(publishedPackageVersion);
+const publishedNotNewerThanSource = Boolean(
+  sourceVersionParts &&
+  publishedVersionParts &&
+  publishedVersionParts[0] === sourceVersionParts[0] &&
+  publishedVersionParts[1] === sourceVersionParts[1] &&
+  publishedVersionParts[2] <= sourceVersionParts[2]
+);
 
 check(/^0\.\d+\.\d+-alpha\.0$/.test(version), "package version uses the alpha package format", `package version should use 0.x.y-alpha.0 while this channel is alpha, got ${version}`);
+check(exists("docs/release-state.json"), "release state truth file exists", "docs/release-state.json is required to separate public downloads from source candidates");
+check(releaseState.schema === "ownorbit-release-state.v1", "release state schema is supported", `unsupported release state schema: ${releaseState.schema || "(missing)"}`);
+check(releaseState.channel === "alpha", "release state channel is alpha", `release state channel must be alpha, got ${releaseState.channel || "(missing)"}`);
+check(["candidate", "published"].includes(releaseState.sourceStatus), "release state source status is valid", `release state sourceStatus must be candidate or published, got ${releaseState.sourceStatus || "(missing)"}`);
+check(releaseState.sourcePackageVersion === version, "release state source package version matches package.json", `release state sourcePackageVersion must be ${version}`);
+check(releaseState.sourceTag === releaseTag, "release state source tag matches package.json", `release state sourceTag must be ${releaseTag}`);
+check(publishedReleaseTag === `v${publishedPublicVersion}`, "release state public tag matches its package version", `release state publicTag must be v${publishedPublicVersion}`);
+check(publishedNotNewerThanSource, "public release is not newer than the source candidate", `public release ${publishedPackageVersion || "(missing)"} cannot be newer than source ${version}`);
 check(exists(releaseNotesPath), "release notes exist for the derived public tag", `missing ${releaseNotesPath}`);
+check(exists(publishedReleaseNotesPath), "release notes exist for the current public download", `missing ${publishedReleaseNotesPath}`);
 check(Boolean(readme), "English README exists");
 check(Boolean(readmeZh), "Chinese README exists");
 check(Boolean(compose), "docker-compose.yml exists");
@@ -217,18 +252,35 @@ for (const [label, content] of [
   ["README.md", readme],
   ["README.zh-CN.md", readmeZh],
   ["docs/user-install-guide.md", userInstall],
-  [releaseNotesPath, releaseNotes],
+  [publishedReleaseNotesPath, publishedReleaseNotes],
 ]) {
   if (!content) continue;
-  const missing = includesEvery(content, [releaseTag, version, dockerImage, macZip, winInstaller, linuxAppImage]);
+  const missing = includesEvery(content, [publishedReleaseTag, publishedPackageVersion, publishedDockerImage, publishedMacZip, publishedWinInstaller, publishedLinuxAppImage]);
   check(missing.length === 0, `${label} uses the current public version, image, and asset names`, `${label} is missing current version markers: ${missing.join(", ")}`);
   const tags = mentionedLifeosTags(content);
-  const staleTags = tags.filter((tag) => tag !== releaseTag);
+  const staleTags = tags.filter((tag) => tag !== publishedReleaseTag);
   check(staleTags.length === 0, `${label} does not point Docker users at stale image tags`, `${label} mentions stale GHCR tag(s): ${staleTags.join(", ")}`);
 }
 
-check(compose.includes(`image: ${dockerImage}`), "docker-compose image matches the package-derived release tag", `docker-compose.yml must use image: ${dockerImage}`);
-check(mentionedLifeosTags(compose).every((tag) => tag === releaseTag), "docker-compose does not contain stale OwnOrbit image tags");
+check(compose.includes(`image: ${publishedDockerImage}`), "docker-compose image matches the current public release", `docker-compose.yml must use image: ${publishedDockerImage}`);
+check(mentionedLifeosTags(compose).every((tag) => tag === publishedReleaseTag), "docker-compose does not contain stale OwnOrbit image tags");
+
+const missingCandidateMarkers = includesEvery(releaseNotes, [
+  releaseTag,
+  version,
+  "Source candidate",
+  "not a public download",
+  "源码候选",
+  "不是公开下载包",
+  "LifeOSChatRequest",
+  "LifeOSChatResponse",
+  "LifeOSDeviceKey",
+  "P-256",
+  "Keychain",
+  "text-only",
+  "iphone-cloudkit-chat-roundtrip",
+]);
+check(missingCandidateMarkers.length === 0, "source candidate release notes describe implemented CloudKit chat and its release boundary", `${releaseNotesPath} is missing source-candidate markers: ${missingCandidateMarkers.join(", ")}`);
 
 const requiredEnglishLimits = [
   "Automatic updates are not enabled",
@@ -268,10 +320,12 @@ check(missingChineseLimits.length === 0, "Chinese README keeps the current alpha
 check(missingReleaseLimits.length === 0, "release notes keep the current alpha limits visible", `${releaseNotesPath} is missing current-limit markers: ${missingReleaseLimits.join(", ")}`);
 
 const requiredRoadmapMarkers = [
+  publishedReleaseTag,
   releaseTag,
   nextReleaseTag,
   "Shipped in the Current Public Release",
-  "Next Planned Alpha",
+  "Current Source Candidate",
+  "Next Planned Alpha After the Candidate",
   "Not Shipped Yet",
   "Unsigned desktop packages",
   "Manual update",
@@ -287,9 +341,15 @@ check(missingRoadmapMarkers.length === 0, "version roadmap separates shipped, ne
 
 check(
   readme.includes("source-only changes") &&
-    readmeZh.includes("源码改动"),
-  "README files warn that main can be ahead of public downloads",
-  "README files must warn that main can contain source-only changes after the tagged public release",
+    readme.includes(version) &&
+    readme.includes(releaseTag) &&
+    readme.includes("not a public download") &&
+    readmeZh.includes("源码改动") &&
+    readmeZh.includes(version) &&
+    readmeZh.includes(releaseTag) &&
+    readmeZh.includes("不是公开下载包"),
+  "README files separate the source candidate from public downloads",
+  "README files must show the source candidate version and say that it is not a public download",
 );
 
 check(
@@ -312,6 +372,14 @@ if (requireRemoteAcceptanceEvidence) {
 }
 
 if (promotionMode) {
+  check(
+    releaseState.sourceStatus === "published" &&
+      publishedPackageVersion === version &&
+      publishedReleaseTag === releaseTag,
+    "release promotion state points public downloads at the source version",
+    `release promotion requires docs/release-state.json to mark ${version} / ${releaseTag} as published before tagging`,
+  );
+
   const status = git(["status", "--porcelain"]);
   check(status.status === 0, "release promotion can read git status", `git status failed: ${status.stderr || status.stdout}`);
   check(
@@ -360,4 +428,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`Version truth passed for ${releaseTag}.`);
+console.log(`Version truth passed for ${releaseTag}. Public downloads remain ${publishedReleaseTag}.`);

@@ -49,7 +49,7 @@ export function getOnboardingStatus() {
           id: "security" as const,
           label: "Security Check",
           done: true,
-          required: true,
+          required: false,
           actionPath: "/chat",
           message: "Local-only quickstart mode.",
         },
@@ -101,9 +101,9 @@ export function getOnboardingStatus() {
       id: "security",
       label: "Security Check",
       done: securityReady,
-      required: true,
+      required: false,
       actionPath: "/admin/settings",
-      message: securityReady ? "No blocking security risks found." : "Blocking security risks still need attention.",
+      message: securityReady ? "No blocking security risks found." : "Review the advanced security recommendations before enabling public access.",
     },
   ];
 

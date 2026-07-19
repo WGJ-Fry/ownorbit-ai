@@ -14,6 +14,7 @@ import { readFileSync } from "node:fs";
 
 const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const packageJson = JSON.parse(readFileSync(path.join(rootDir, "package.json"), "utf8"));
+const packageReleaseTag = `v${packageJson.version.includes("-") && packageJson.version.endsWith(".0") ? packageJson.version.slice(0, -2) : packageJson.version}`;
 
 function request(port, pathname, options = {}) {
   return fetch(`http://127.0.0.1:${port}${pathname}`, {
@@ -259,7 +260,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(initialOnboarding.onboarding.steps.find((step) => step.id === "device").done, false);
   assert.equal(initialOnboarding.onboarding.steps.find((step) => step.id === "device").required, true);
   assert.equal(initialOnboarding.onboarding.steps.find((step) => step.id === "security").done, true);
-  assert.equal(initialOnboarding.onboarding.steps.find((step) => step.id === "security").required, true);
+  assert.equal(initialOnboarding.onboarding.steps.find((step) => step.id === "security").required, false);
 
   const incompleteOnboarding = await request(port, "/api/v1/admin/onboarding/complete", {
     method: "PUT",
@@ -295,7 +296,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(blockedReleaseUpdateCheck.status, 401);
   const releaseUpdateCheck = await request(port, "/api/v1/admin/release/update-check", { headers: adminHeaders }).then((res) => res.json());
   assert.equal(releaseUpdateCheck.status, "up-to-date");
-  assert.equal(releaseUpdateCheck.current.tag, "v0.1.5-alpha");
+  assert.equal(releaseUpdateCheck.current.tag, packageReleaseTag);
   assert.equal(releaseUpdateCheck.latest.tag, "v0.1.4-alpha");
   assert.equal(releaseUpdateCheck.latest.checksumAsset.name, "SHA256SUMS");
   assert.equal(releaseUpdateCheck.manualUpdateRequired, true);

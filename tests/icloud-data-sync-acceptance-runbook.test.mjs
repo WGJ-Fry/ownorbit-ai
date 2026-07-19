@@ -136,7 +136,7 @@ test("iCloud data sync acceptance runbook writes full helper evidence and real-d
   assert.equal(report.automatedChecks.steps.some((step) => step.operation === "subscription-probe" && step.subscriptionProbe.contentAvailable), true);
   assert.equal(report.automatedChecks.steps.some((step) => step.operation === "subscription-probe" && step.subscriptionProbe.deliveryVerified === false), true);
   assert.equal(report.automatedChecks.steps.some((step) => step.operation === "subscription-probe" && step.subscriptionProbe.listenerRequired), true);
-  for (const id of ["mac-a-cloudkit-upload", "mac-b-cloudkit-import", "iphone-cellular-entry-boundary", "wifi-cellular-switch", "mac-restart-recovery", "icloud-delay-human-copy", "old-entry-qr-expiry", "multi-desktop-default-entry", "cloudkit-background-push", "offline-conflict-review"]) {
+  for (const id of ["mac-a-cloudkit-upload", "mac-b-cloudkit-import", "iphone-cellular-entry-boundary", "iphone-native-cloudkit-roundtrip", "iphone-cloudkit-chat-roundtrip", "iphone-background-refresh", "wifi-cellular-switch", "mac-restart-recovery", "icloud-delay-human-copy", "old-entry-qr-expiry", "multi-desktop-default-entry", "cloudkit-background-push", "offline-conflict-review"]) {
     assert.equal(report.manualAcceptance.some((step) => step.id === id && step.required), true, `${id} should be required`);
   }
   assert.doesNotMatch(JSON.stringify(report), new RegExp(dir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));

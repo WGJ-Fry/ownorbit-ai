@@ -4,6 +4,7 @@ import Foundation
 enum LifeOSCloudPendingMutationKind: String, Codable, Equatable {
     case memoryCreate
     case taskComplete
+    case chatRequest
 }
 
 enum LifeOSCloudPendingMutationState: String, Codable, Equatable {
@@ -23,6 +24,8 @@ struct LifeOSCloudPendingMutation: Codable, Equatable, Identifiable {
     let memoryRecord: LifeOSCloudRecord?
     let taskRecord: LifeOSCloudRecord?
     let taskItemId: String?
+    let chatRequestRecord: LifeOSCloudRecord?
+    let deviceKeyRecord: LifeOSCloudRecord?
 
     static func memory(
         record: LifeOSCloudRecord,
@@ -41,7 +44,9 @@ struct LifeOSCloudPendingMutation: Codable, Equatable, Identifiable {
             state: .pending,
             memoryRecord: validatedRecord,
             taskRecord: nil,
-            taskItemId: nil
+            taskItemId: nil,
+            chatRequestRecord: nil,
+            deviceKeyRecord: nil
         ), now: now)
     }
 
@@ -67,7 +72,34 @@ struct LifeOSCloudPendingMutation: Codable, Equatable, Identifiable {
             state: .pending,
             memoryRecord: nil,
             taskRecord: record,
-            taskItemId: itemId
+            taskItemId: itemId,
+            chatRequestRecord: nil,
+            deviceKeyRecord: nil
+        ), now: now)
+    }
+
+    static func chatRequest(
+        record: LifeOSCloudRecord,
+        deviceKeyRecord: LifeOSCloudRecord,
+        accountFingerprint: String,
+        now: Date
+    ) throws -> LifeOSCloudPendingMutation {
+        let validatedDeviceKey = try validateDeviceKeyRecord(deviceKeyRecord, now: now)
+        let validatedRecord = try validateChatRequestRecord(record, deviceKeyRecord: validatedDeviceKey, now: now)
+        return try validated(LifeOSCloudPendingMutation(
+            schemaVersion: 1,
+            id: validatedRecord.mutationId,
+            accountFingerprint: accountFingerprint,
+            kind: .chatRequest,
+            createdAt: now,
+            attempts: 0,
+            nextRetryAt: nil,
+            state: .pending,
+            memoryRecord: nil,
+            taskRecord: nil,
+            taskItemId: nil,
+            chatRequestRecord: validatedRecord,
+            deviceKeyRecord: validatedDeviceKey
         ), now: now)
     }
 
@@ -86,7 +118,9 @@ struct LifeOSCloudPendingMutation: Codable, Equatable, Identifiable {
             guard mutation.id.hasPrefix("ios-memory-create:"),
                   let record = mutation.memoryRecord,
                   mutation.taskRecord == nil,
-                  mutation.taskItemId == nil else {
+                  mutation.taskItemId == nil,
+                  mutation.chatRequestRecord == nil,
+                  mutation.deviceKeyRecord == nil else {
                 throw LifeOSCloudMutationOutboxError.invalidMutation
             }
             _ = try validateMemoryRecord(record)
@@ -98,6 +132,8 @@ struct LifeOSCloudPendingMutation: Codable, Equatable, Identifiable {
                   mutation.memoryRecord == nil,
                   let record = mutation.taskRecord,
                   let itemId = mutation.taskItemId,
+                  mutation.chatRequestRecord == nil,
+                  mutation.deviceKeyRecord == nil,
                   !record.requiresUserReview,
                   !itemId.isEmpty,
                   itemId.utf8.count <= 256 else {
@@ -116,6 +152,20 @@ struct LifeOSCloudPendingMutation: Codable, Equatable, Identifiable {
                 itemId: itemId,
                 now: mutation.createdAt
             )
+        case .chatRequest:
+            guard mutation.id.hasPrefix("ios-chat-request:"),
+                  mutation.memoryRecord == nil,
+                  mutation.taskRecord == nil,
+                  mutation.taskItemId == nil,
+                  let record = mutation.chatRequestRecord,
+                  let deviceKeyRecord = mutation.deviceKeyRecord else {
+                throw LifeOSCloudMutationOutboxError.invalidMutation
+            }
+            let validatedDeviceKey = try validateDeviceKeyRecord(deviceKeyRecord, now: now)
+            let validatedRecord = try validateChatRequestRecord(record, deviceKeyRecord: validatedDeviceKey, now: now)
+            guard mutation.id == validatedRecord.mutationId else {
+                throw LifeOSCloudMutationOutboxError.invalidMutation
+            }
         }
         return mutation
     }
@@ -153,6 +203,130 @@ struct LifeOSCloudPendingMutation: Codable, Equatable, Identifiable {
               rebuilt.logicalClock == validated.logicalClock,
               rebuilt.contentHash == validated.contentHash,
               rebuilt.payloadJson == validated.payloadJson else {
+            throw LifeOSCloudMutationOutboxError.invalidMutation
+        }
+        return validated
+    }
+
+    static func validateDeviceKeyRecord(_ record: LifeOSCloudRecord, now: Date = Date()) throws -> LifeOSCloudRecord {
+        let validated = try validateRecord(record)
+        guard validated.zone == "LifeOSDeviceTrustZone",
+              validated.recordType == "LifeOSDeviceKey",
+              !validated.requiresUserReview,
+              let payload = try? JSONSerialization.jsonObject(with: Data(validated.payloadJson.utf8)) as? [String: Any],
+              Set(payload.keys) == Set([
+                "schemaVersion", "deviceId", "deviceIdHash", "displayName", "deviceType", "channelScope",
+                "publicKey", "publicKeyFingerprint", "proofSignature", "status", "createdAt", "expiresAt", "syncMutation",
+              ]),
+              (payload["schemaVersion"] as? NSNumber)?.intValue == 1,
+              let deviceId = payload["deviceId"] as? String,
+              let deviceIdHash = payload["deviceIdHash"] as? String,
+              let displayName = payload["displayName"] as? String,
+              payload["deviceType"] as? String == "ios",
+              payload["channelScope"] as? String == "cloudkit-chat",
+              let publicKeyValue = payload["publicKey"] as? String,
+              let publicKeyFingerprint = payload["publicKeyFingerprint"] as? String,
+              let proofSignatureValue = payload["proofSignature"] as? String,
+              payload["status"] as? String == "active",
+              let createdAt = (payload["createdAt"] as? NSNumber)?.int64Value,
+              let expiresAt = (payload["expiresAt"] as? NSNumber)?.int64Value,
+              let metadata = payload["syncMutation"] as? [String: Any],
+              Set(metadata.keys) == Set(["kind", "origin", "mutatedAt"]),
+              metadata["kind"] as? String == "device-key-register",
+              metadata["origin"] as? String == "ios-native",
+              (metadata["mutatedAt"] as? NSNumber)?.int64Value == createdAt,
+              deviceId == deviceId.lowercased(),
+              deviceIdHash == LifeOSCloudDeviceIdentity.sha256Hex(deviceId),
+              !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              displayName.count <= 80,
+              let publicKeyData = LifeOSCloudDeviceIdentity.decodeBase64URL(publicKeyValue),
+              publicKeyData.count == 91,
+              publicKeyFingerprint == LifeOSCloudDeviceIdentity.sha256Hex(publicKeyData),
+              let proofSignatureData = LifeOSCloudDeviceIdentity.decodeBase64URL(proofSignatureValue),
+              proofSignatureData.count == 64,
+              createdAt > 0,
+              expiresAt > createdAt,
+              expiresAt - createdAt <= Int64(LifeOSCloudDeviceIdentity.lifetime * 1000),
+              expiresAt > Int64(now.timeIntervalSince1970 * 1000),
+              validated.recordName == "device-key:\(deviceIdHash.prefix(24))",
+              validated.mutationId == "ios-device-key:\(deviceId)",
+              validated.logicalClock == createdAt,
+              publicKeyData.prefix(26) == Data([
+                0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
+                0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03, 0x42, 0x00,
+              ]),
+              let publicKey = try? P256.Signing.PublicKey(x963Representation: publicKeyData.dropFirst(26)),
+              let proofSignature = try? P256.Signing.ECDSASignature(rawRepresentation: proofSignatureData) else {
+            throw LifeOSCloudMutationOutboxError.invalidMutation
+        }
+        let proofText = [
+            "ownorbit-cloudkit-device-key.v1", deviceId, deviceIdHash, publicKeyFingerprint,
+            String(createdAt), String(expiresAt),
+        ].joined(separator: "\n")
+        guard publicKey.isValidSignature(proofSignature, for: Data(proofText.utf8)) else {
+            throw LifeOSCloudMutationOutboxError.invalidMutation
+        }
+        return validated
+    }
+
+    static func validateChatRequestRecord(
+        _ record: LifeOSCloudRecord,
+        deviceKeyRecord: LifeOSCloudRecord,
+        now: Date = Date()
+    ) throws -> LifeOSCloudRecord {
+        let validated = try validateRecord(record)
+        let validatedDeviceKey = try validateDeviceKeyRecord(deviceKeyRecord, now: now)
+        guard validated.zone == "LifeOSChatZone",
+              validated.recordType == "LifeOSChatRequest",
+              !validated.requiresUserReview,
+              let payload = try? JSONSerialization.jsonObject(with: Data(validated.payloadJson.utf8)) as? [String: Any],
+              let devicePayload = try? JSONSerialization.jsonObject(with: Data(validatedDeviceKey.payloadJson.utf8)) as? [String: Any],
+              Set(payload.keys) == Set([
+                "schemaVersion", "requestId", "conversationId", "userMessageId", "deviceId", "sourceDeviceHash",
+                "publicKeyFingerprint", "signature", "prompt", "locale", "status", "clientSequence", "createdAt",
+                "expiresAt", "syncMutation",
+              ]),
+              (payload["schemaVersion"] as? NSNumber)?.intValue == 1,
+              let requestId = payload["requestId"] as? String,
+              let conversationId = payload["conversationId"] as? String,
+              let userMessageId = payload["userMessageId"] as? String,
+              let deviceId = payload["deviceId"] as? String,
+              let sourceDeviceHash = payload["sourceDeviceHash"] as? String,
+              let publicKeyFingerprint = payload["publicKeyFingerprint"] as? String,
+              let signatureValue = payload["signature"] as? String,
+              let prompt = payload["prompt"] as? String,
+              let locale = payload["locale"] as? String,
+              payload["status"] as? String == "queued",
+              let clientSequence = (payload["clientSequence"] as? NSNumber)?.int64Value,
+              let createdAt = (payload["createdAt"] as? NSNumber)?.int64Value,
+              let expiresAt = (payload["expiresAt"] as? NSNumber)?.int64Value,
+              let metadata = payload["syncMutation"] as? [String: Any],
+              Set(metadata.keys) == Set(["kind", "origin", "mutatedAt"]),
+              metadata["kind"] as? String == "chat-request",
+              metadata["origin"] as? String == "ios-native",
+              (metadata["mutatedAt"] as? NSNumber)?.int64Value == createdAt,
+              deviceId == devicePayload["deviceId"] as? String,
+              sourceDeviceHash == devicePayload["deviceIdHash"] as? String,
+              publicKeyFingerprint == devicePayload["publicKeyFingerprint"] as? String,
+              let publicKeyValue = devicePayload["publicKey"] as? String,
+              let publicKeyData = LifeOSCloudDeviceIdentity.decodeBase64URL(publicKeyValue),
+              let publicKey = try? P256.Signing.PublicKey(x963Representation: publicKeyData.dropFirst(26)),
+              let signatureData = LifeOSCloudDeviceIdentity.decodeBase64URL(signatureValue),
+              signatureData.count == 64,
+              let signature = try? P256.Signing.ECDSASignature(rawRepresentation: signatureData),
+              expiresAt > createdAt,
+              expiresAt - createdAt <= Int64(LifeOSCloudChatRequestMutationBuilder.requestTTL * 1000),
+              validated.recordName == "chat-request:\(requestId.lowercased())",
+              validated.mutationId == "ios-chat-request:\(requestId.lowercased())",
+              validated.logicalClock == createdAt else {
+            throw LifeOSCloudMutationOutboxError.invalidMutation
+        }
+        let signatureText = [
+            "ownorbit-cloudkit-chat.v1", requestId.lowercased(), conversationId.lowercased(), userMessageId.lowercased(),
+            deviceId.lowercased(), sourceDeviceHash.lowercased(), publicKeyFingerprint.lowercased(),
+            LifeOSCloudDeviceIdentity.sha256Hex(prompt), locale, String(clientSequence), String(createdAt), String(expiresAt),
+        ].joined(separator: "\n")
+        guard publicKey.isValidSignature(signature, for: Data(signatureText.utf8)) else {
             throw LifeOSCloudMutationOutboxError.invalidMutation
         }
         return validated

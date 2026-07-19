@@ -9,7 +9,7 @@ const execFileAsync = promisify(execFile);
 const rootDir = process.cwd();
 const buildDir = path.resolve(process.env.LIFEOS_IOS_NATIVE_BUILD_DIR || path.join(rootDir, "build", "native", "mobile-shell"));
 const appPath = path.join(buildDir, "DerivedData", "Build", "Products", "Debug-iphonesimulator", "LifeOSMobile.app");
-const bundleId = "ai.lifeos.mobile";
+const bundleId = "com.wgjfry.ownorbit.mobile";
 const outDir = path.resolve(process.env.LIFEOS_IOS_NATIVE_SMOKE_OUT_DIR || path.join(rootDir, "tmp", "ios-native-shell-smoke"));
 
 function log(message) {

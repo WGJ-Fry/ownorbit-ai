@@ -178,8 +178,8 @@ Users unzip the app, move it to Applications, and open it manually. Share `relea
 Preferred GitHub Release path:
 
 ```bash
-git tag v0.1.5-alpha
-git push origin v0.1.5-alpha
+git tag v0.1.6-alpha
+git push origin v0.1.6-alpha
 ```
 
 Wait for `Desktop Package Artifacts`, open the generated GitHub Release draft, download the assets once for a clean install test, then publish the draft.

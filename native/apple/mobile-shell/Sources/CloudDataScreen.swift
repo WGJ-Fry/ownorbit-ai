@@ -2,11 +2,14 @@ import SwiftUI
 
 struct CloudDataScreen: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var cloudStore: LifeOSCloudDataStore
     @State private var confirmClear = false
     @State private var confirmClearPending = false
     @State private var pendingTaskCompletion: LifeOSPendingTaskCompletion?
     @State private var showMemoryComposer = ProcessInfo.processInfo.arguments.contains("--cloud-memory-compose-demo")
+    @State private var backgroundHealth = LifeOSCloudBackgroundHealth.pending
+    @State private var chatPrompt = ""
 
     var body: some View {
         NavigationStack {
@@ -80,6 +83,14 @@ struct CloudDataScreen: View {
                 LifeOSMemoryComposer()
                     .environmentObject(cloudStore)
             }
+            .task {
+                backgroundHealth = LifeOSCloudBackgroundHealth.capture()
+            }
+            .onChange(of: scenePhase) { phase in
+                if phase == .active {
+                    backgroundHealth = LifeOSCloudBackgroundHealth.capture()
+                }
+            }
         }
     }
 
@@ -140,6 +151,142 @@ struct CloudDataScreen: View {
                         .font(.title3.monospacedDigit().weight(.semibold))
                 }
                 cloudStatus
+            }
+
+            Section {
+                TextField("cloud.chat.prompt.placeholder", text: $chatPrompt, axis: .vertical)
+                    .lineLimit(2...6)
+                    .textInputAutocapitalization(.sentences)
+                    .disabled(cloudStore.isWriting || cloudStore.isSyncing)
+                HStack {
+                    Text(String(
+                        format: NSLocalizedString("cloud.chat.prompt.counter", comment: ""),
+                        chatPrompt.count,
+                        LifeOSCloudChatRequestMutationBuilder.maxPromptLength
+                    ))
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(
+                        chatPrompt.count > LifeOSCloudChatRequestMutationBuilder.maxPromptLength ? Color.red : Color.secondary
+                    )
+                    Spacer()
+                    Button {
+                        let prompt = chatPrompt
+                        Task {
+                            if await cloudStore.sendChatRequest(prompt: prompt) {
+                                chatPrompt = ""
+                            }
+                        }
+                    } label: {
+                        Label("cloud.chat.send", systemImage: "arrow.up.circle.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.cyan)
+                    .disabled(
+                        chatPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                            chatPrompt.count > LifeOSCloudChatRequestMutationBuilder.maxPromptLength ||
+                            cloudStore.isWriting || cloudStore.isSyncing
+                    )
+                }
+            } header: {
+                Text("cloud.chat.section")
+            } footer: {
+                Text("cloud.chat.footer")
+            }
+
+            if !cloudStore.snapshot.chatItems().isEmpty {
+                Section {
+                    ForEach(cloudStore.snapshot.chatItems().prefix(20)) { item in
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: chatStateIcon(item.state))
+                                .foregroundStyle(chatStateColor(item.state))
+                                .frame(width: 24, height: 24)
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(item.prompt)
+                                    .font(.body.weight(.semibold))
+                                    .lineLimit(3)
+                                HStack(spacing: 7) {
+                                    Text(LocalizedStringKey(chatStateKey(item)))
+                                        .font(.caption.weight(.medium))
+                                        .foregroundStyle(chatStateColor(item.state))
+                                    Text(item.createdAt, style: .relative)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                if item.state == .completed, !item.responseText.isEmpty {
+                                    Text(item.responseText)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                } header: {
+                    Text("cloud.chat.activity.section")
+                } footer: {
+                    Text("cloud.chat.activity.footer")
+                }
+            }
+
+            if let evidence = cloudStore.backgroundEvidence {
+                Section {
+                    Label {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(LocalizedStringKey(evidence.trigger.localizationKey))
+                                .font(.body.weight(.semibold))
+                            Text(evidence.recordedAt, style: .relative)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: evidence.outcome == .failed ? "exclamationmark.icloud" : "checkmark.icloud")
+                            .foregroundStyle(evidence.outcome == .failed ? .orange : .mint)
+                    }
+                    Text(LocalizedStringKey(evidence.outcome.localizationKey))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    if let deliveryAppState = evidence.deliveryAppState {
+                        LabeledContent("cloud.background.appState.label") {
+                            Text(LocalizedStringKey(deliveryAppState.localizationKey))
+                                .foregroundStyle(
+                                    deliveryAppState == .background ? Color.mint : Color.secondary
+                                )
+                        }
+                        .font(.footnote)
+                    }
+                } header: {
+                    Text("cloud.background.section")
+                } footer: {
+                    Text("cloud.background.footer")
+                }
+            }
+
+            Section {
+                LabeledContent("cloud.background.health.push.label") {
+                    Text(LocalizedStringKey(backgroundHealth.registrationLocalizationKey))
+                        .foregroundStyle(
+                            backgroundHealth.remoteNotificationsRegistered ? Color.mint : Color.orange
+                        )
+                }
+                LabeledContent("cloud.background.health.refresh.label") {
+                    Text(LocalizedStringKey(backgroundHealth.refreshAvailability.localizationKey))
+                        .foregroundStyle(
+                            backgroundHealth.refreshAvailability.isAvailable ? Color.mint : Color.orange
+                        )
+                }
+                LabeledContent("cloud.background.health.power.label") {
+                    Text(LocalizedStringKey(
+                        backgroundHealth.lowPowerModeEnabled
+                            ? "cloud.background.health.power.enabled"
+                            : "cloud.background.health.power.disabled"
+                    ))
+                    .foregroundStyle(backgroundHealth.lowPowerModeEnabled ? Color.orange : Color.mint)
+                }
+            } header: {
+                Text("cloud.background.health.section")
+            } footer: {
+                Text("cloud.background.health.footer")
             }
 
             if cloudStore.totalMutationCount > 0 {
@@ -317,7 +464,10 @@ struct CloudDataScreen: View {
     }
 
     private var groupedRecords: [(dataType: String, records: [LifeOSCloudRecord])] {
-        let groups = Dictionary(grouping: cloudStore.snapshot.records, by: \.dataType)
+        let records = cloudStore.snapshot.records.filter {
+            $0.recordType != "LifeOSChatRequest" && $0.recordType != "LifeOSChatResponse"
+        }
+        let groups = Dictionary(grouping: records, by: \.dataType)
         let order = ["chat-history", "memory", "tasks", "generated-app-state", "device-trust"]
         return order.compactMap { type in
             guard let records = groups[type], !records.isEmpty else { return nil }
@@ -350,6 +500,46 @@ struct CloudDataScreen: View {
         case .success: return "checkmark.circle"
         case .warning: return "exclamationmark.triangle"
         case .error: return "xmark.octagon"
+        }
+    }
+
+    private func chatStateKey(_ item: LifeOSCloudChatItem) -> String {
+        switch item.state {
+        case .waitingForMac: return "cloud.chat.state.waiting"
+        case .macUnavailable: return "cloud.chat.state.macUnavailable"
+        case .processing: return "cloud.chat.state.processing"
+        case .retrying: return "cloud.chat.state.retrying"
+        case .completed: return "cloud.chat.state.completed"
+        case .timedOut: return "cloud.chat.state.timedOut"
+        case .failed:
+            switch item.safeErrorCode {
+            case "ai-not-configured": return "cloud.chat.state.aiNotConfigured"
+            case "ai-credential-rejected": return "cloud.chat.state.aiCredentialRejected"
+            case "remote-action-blocked": return "cloud.chat.state.actionBlocked"
+            case "unsafe-ai-response": return "cloud.chat.state.unsafeResponse"
+            default: return "cloud.chat.state.failed"
+            }
+        }
+    }
+
+    private func chatStateIcon(_ state: LifeOSCloudChatItem.State) -> String {
+        switch state {
+        case .waitingForMac: return "clock"
+        case .macUnavailable: return "desktopcomputer"
+        case .processing: return "ellipsis.message"
+        case .retrying: return "arrow.clockwise.icloud"
+        case .completed: return "checkmark.circle.fill"
+        case .failed: return "xmark.octagon.fill"
+        case .timedOut: return "hourglass"
+        }
+    }
+
+    private func chatStateColor(_ state: LifeOSCloudChatItem.State) -> Color {
+        switch state {
+        case .waitingForMac, .processing: return .cyan
+        case .completed: return .mint
+        case .macUnavailable, .retrying, .timedOut: return .orange
+        case .failed: return .red
         }
     }
 }

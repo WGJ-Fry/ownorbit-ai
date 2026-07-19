@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
+
+const packageVersion = JSON.parse(readFileSync("package.json", "utf8")).version;
+const currentPackageTag = `v${packageVersion.includes("-") && packageVersion.endsWith(".0") ? packageVersion.slice(0, -2) : packageVersion}`;
+const nextPackageTag = currentPackageTag.replace(/(v\d+\.\d+\.)(\d+)(-.+)/, (_match, prefix, patch, suffix) => `${prefix}${Number(patch) + 1}${suffix}`);
+const nextPackageVersion = `${nextPackageTag.slice(1)}.0`;
 
 function jsonResponse(value, ok = true, status = ok ? 200 : 500) {
   return {
@@ -31,17 +37,17 @@ test("release update check detects newer public prerelease and checksum asset", 
           assets: [],
         },
         {
-          tag_name: "v0.1.6-alpha",
+          tag_name: nextPackageTag,
           name: "Next alpha",
-          html_url: "https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/v0.1.6-alpha",
+          html_url: `https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/${nextPackageTag}`,
           draft: false,
           prerelease: true,
           published_at: "2026-06-28T00:00:00.000Z",
           assets: [
             { name: "SHA256SUMS", size: 200, browser_download_url: "https://example.com/SHA256SUMS" },
-            { name: "OwnOrbit.AI-0.1.6-alpha.0-arm64-unsigned.zip", size: 1200, browser_download_url: "https://example.com/app.zip" },
-            { name: "OwnOrbit.AI.Setup.0.1.6-alpha.0.exe", size: 1000, browser_download_url: "https://example.com/app.exe" },
-            { name: "OwnOrbit.AI-0.1.6-alpha.0.AppImage", size: 1100, browser_download_url: "https://example.com/app.AppImage" },
+            { name: `OwnOrbit.AI-${nextPackageVersion}-arm64-unsigned.zip`, size: 1200, browser_download_url: "https://example.com/app.zip" },
+            { name: `OwnOrbit.AI.Setup.${nextPackageVersion}.exe`, size: 1000, browser_download_url: "https://example.com/app.exe" },
+            { name: `OwnOrbit.AI-${nextPackageVersion}.AppImage`, size: 1100, browser_download_url: "https://example.com/app.AppImage" },
           ],
         },
         {
@@ -58,15 +64,15 @@ test("release update check detects newer public prerelease and checksum asset", 
     assert.equal(module.compareReleaseTags("v0.1.6-alpha", "v0.1.5-alpha") > 0, true);
     assert.equal(result.status, "update-available");
     assert.equal(result.updateAvailable, true);
-    assert.equal(result.current.tag, "v0.1.5-alpha");
-    assert.equal(result.latest.tag, "v0.1.6-alpha");
+    assert.equal(result.current.tag, currentPackageTag);
+    assert.equal(result.latest.tag, nextPackageTag);
     assert.equal(result.latest.checksumAsset.name, "SHA256SUMS");
     assert.equal(result.manualUpdateRequired, true);
     assert.equal(result.autoUpdateEnabled, false);
     assert.equal(result.autoUpdate.mode, "manual");
     assert.equal(result.autoUpdate.reason, "not_configured");
     assert.equal(result.manualUpdatePlan.platform, "macos");
-    assert.equal(result.manualUpdatePlan.assetName, "OwnOrbit.AI-0.1.6-alpha.0-arm64-unsigned.zip");
+    assert.equal(result.manualUpdatePlan.assetName, `OwnOrbit.AI-${nextPackageVersion}-arm64-unsigned.zip`);
     assert.equal(result.manualUpdatePlan.assetUrl, "https://example.com/app.zip");
     assert.equal(result.manualUpdatePlan.checksumUrl, "https://example.com/SHA256SUMS");
     assert.match(result.manualUpdatePlan.checksumCommand, /shasum -a 256/);

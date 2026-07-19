@@ -77,9 +77,8 @@ export default function AdminOnboardingPage() {
   const hasBackup = backups.length > 0;
   const hasDevice = devices.some((device) => device.status !== "revoked");
   const onboardingSteps = Array.isArray(onboarding?.steps) ? onboarding.steps : [];
-  const securityReady = onboardingSteps.find((step) => step.id === "security")?.done ?? diagnostics?.securityCheck.overall !== "critical";
-  const primaryStep = !aiConfigured ? "ai" : !securityReady ? "security" : !hasDevice ? "device" : "chat";
-  const primaryStepNumber = primaryStep === "ai" ? 1 : primaryStep === "device" ? 2 : 3;
+  const primaryStep = !aiConfigured ? "ai" : !hasDevice ? "device" : "chat";
+  const primaryStepNumber = primaryStep === "ai" ? 2 : 3;
   const primaryStepsTotal = 3;
   const primaryProgress = primaryStep === "chat" ? 3 : primaryStepNumber - 1;
   const securityItems = diagnostics?.securityCheck.items || [];
@@ -775,29 +774,6 @@ export default function AdminOnboardingPage() {
           </section>
         ) : null}
 
-        {primaryStep === "security" ? (
-          <section className="rounded-[28px] border border-red-400/25 bg-red-500/10 p-5">
-            <StepHeader done={false} icon={<ShieldAlert className="h-5 w-5" />} title={t("onboarding.simpleSecurityTitle")} />
-            <p className="mt-3 text-sm leading-relaxed text-red-50/80">{t("onboarding.simpleSecurityBody")}</p>
-            <div className="mt-4 grid gap-2">
-              {securityItems.filter((item) => item.status !== "ok").slice(0, 3).map((item) => (
-                <div key={item.id} className="rounded-2xl border border-red-300/15 bg-[#060a10]/45 p-3 text-xs">
-                  <div className="font-bold text-zinc-100">{item.label}</div>
-                  <div className="mt-1 leading-relaxed text-zinc-300">{item.message}</div>
-                  <div className="mt-1 flex gap-2 leading-relaxed text-red-100/80">
-                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <span>{item.action}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <a href="/admin/settings" className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-[#061016]">
-              <ShieldAlert className="h-4 w-4" />
-              {t("onboarding.handleSecurity")}
-            </a>
-          </section>
-        ) : null}
-
         {primaryStep === "device" ? (
           <section className="rounded-[28px] border border-cyan-400/20 bg-[#101722] p-5 shadow-2xl shadow-cyan-950/20">
             <StepHeader done={hasDevice} icon={<QrCode className="h-5 w-5" />} title={t("onboarding.simpleDeviceTitle")} />
@@ -841,6 +817,11 @@ export default function AdminOnboardingPage() {
                   <div data-testid="onboarding-icloud-default-flow-status" className="mt-3 rounded-xl border border-cyan-100/10 bg-black/15 p-3 text-xs font-bold leading-relaxed text-cyan-50/90">
                     {t(simpleIcloudFlowStatusKey)}
                   </div>
+                  <details className="mt-3 rounded-xl border border-cyan-100/10 bg-black/10 p-3">
+                    <summary className="cursor-pointer text-xs font-bold text-cyan-50/80">
+                      {t("onboarding.simpleIcloudFlowDetailsTitle")}
+                    </summary>
+                    <div className="mt-3">
                   <div data-testid="onboarding-icloud-connection-mode" data-onboarding-icloud-connection-mode={simpleIcloudConnectionMode} className={`mt-3 rounded-xl border p-3 text-xs leading-relaxed ${simpleIcloudConnectionTone}`}>
                     <div className="flex items-start gap-2">
                       {simpleIcloudConnectionMode === "remote-ready" ? (
@@ -957,6 +938,8 @@ export default function AdminOnboardingPage() {
                       </div>
                     </div>
                   ) : null}
+                    </div>
+                  </details>
                 </div>
                 <div className="flex gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-current/15 bg-[#060a10]/40">

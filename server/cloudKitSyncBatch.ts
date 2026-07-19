@@ -1,6 +1,8 @@
 import crypto from "crypto";
 import { db } from "./db";
 import type { getIcloudDataSyncReadiness } from "./icloudDataSyncReadiness.ts";
+import { listCloudKitChatResponsePayloads } from "./cloudKitChatJobs";
+import { cloudKitChatResponseRecordName } from "./cloudKitChatProtocol";
 
 type IcloudDataSyncReadiness = ReturnType<typeof getIcloudDataSyncReadiness>;
 type CloudKitSyncStatus = "skipped" | "blocked" | "empty" | "needs-review" | "ready";
@@ -315,6 +317,7 @@ function collectChatRecords(limit: number) {
       recordName: `conversation:${session.id}`,
       payload,
       logicalClock: payload.updatedAt,
+      requiresUserReview: false,
     }), limit);
   }
 
@@ -360,6 +363,22 @@ function collectChatRecords(limit: number) {
       logicalClock: payload.logicalClock,
       requiresUserReview: false,
     }), limit);
+  }
+
+  const chatJobTable = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'cloudkit_chat_jobs'").get();
+  if (chatJobTable) {
+    for (const response of listCloudKitChatResponsePayloads(limit)) {
+      pushReady(records, blockedRecords, counts, buildRecord({
+        id: response.requestId,
+        dataType: "chat-history",
+        zone: "LifeOSChatZone",
+        recordType: "LifeOSChatResponse",
+        recordName: cloudKitChatResponseRecordName(response.requestId),
+        payload: response,
+        logicalClock: response.updatedAt,
+        requiresUserReview: false,
+      }), limit);
+    }
   }
 
   return { records, blockedRecords, counts };

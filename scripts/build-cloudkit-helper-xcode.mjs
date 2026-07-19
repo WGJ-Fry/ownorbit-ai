@@ -135,19 +135,28 @@ const xcodeArgs = [
   `PRODUCT_BUNDLE_IDENTIFIER=${bundleId}`,
   ...(compileOnly
     ? ["CODE_SIGNING_ALLOWED=NO", "CODE_SIGNING_REQUIRED=NO"]
-    : [`DEVELOPMENT_TEAM=${teamId}`, "CODE_SIGN_STYLE=Automatic", ...(allowProvisioningUpdates ? ["-allowProvisioningUpdates"] : [])]),
+    : [
+        `DEVELOPMENT_TEAM=${teamId}`,
+        "CODE_SIGN_STYLE=Automatic",
+        ...(allowProvisioningUpdates
+          ? ["-allowProvisioningUpdates", "-allowProvisioningDeviceRegistration"]
+          : []),
+      ]),
   "build",
 ];
 const build = run("xcodebuild", xcodeArgs);
 if (!build.ok) {
-  if (build.stdout) process.stdout.write(build.stdout);
-  if (build.stderr) process.stderr.write(build.stderr);
   const buildOutput = `${build.stdout}\n${build.stderr}`;
-  if (!compileOnly && (buildOutput.includes("PLA Update available") || buildOutput.includes("Program License Agreement"))) {
+  const agreementBlocked = !compileOnly && (buildOutput.includes("PLA Update available") || buildOutput.includes("Program License Agreement"));
+  const profileMissing = !compileOnly && /No profiles for|provisioning profiles matching/i.test(buildOutput);
+  if (agreementBlocked) {
     console.error("Apple Developer Program License Agreement must be accepted by the account holder before Xcode can create the OwnOrbit provisioning profile.");
-  }
-  if (!compileOnly && !allowProvisioningUpdates) {
+    console.error("Open https://developer.apple.com/account/, accept the current agreement, then rerun this command.");
+  } else if (profileMissing && !allowProvisioningUpdates) {
     console.error("Xcode could not find a matching local profile. After reviewing the App ID and iCloud Container, rerun with LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES=1.");
+  } else {
+    if (build.stdout) process.stdout.write(build.stdout);
+    if (build.stderr) process.stderr.write(build.stderr);
   }
   process.exit(build.status || 1);
 }

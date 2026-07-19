@@ -9,6 +9,7 @@ import test from "node:test";
 
 test("version truth check keeps public docs aligned with current release facts", () => {
   const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
+  const releaseState = JSON.parse(readFileSync("docs/release-state.json", "utf8"));
   const publicVersion = packageJson.version.includes("-") && packageJson.version.endsWith(".0")
     ? packageJson.version.slice(0, -2)
     : packageJson.version;
@@ -20,6 +21,10 @@ test("version truth check keeps public docs aligned with current release facts",
 
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   assert.match(result.stdout, new RegExp(`Version truth passed for ${releaseTag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+  assert.match(result.stdout, new RegExp(`Public downloads remain ${releaseState.publicTag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+  assert.match(result.stdout, /release state source package version matches package\.json/);
+  assert.match(result.stdout, /source candidate release notes describe implemented CloudKit chat/);
+  assert.match(result.stdout, /README files separate the source candidate from public downloads/);
   assert.match(result.stdout, /English README keeps the current alpha limits visible/);
   assert.match(result.stdout, /Chinese README keeps the current alpha limits visible/);
   assert.match(result.stdout, /version roadmap separates shipped, next, and future work/);

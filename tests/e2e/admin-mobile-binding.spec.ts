@@ -513,18 +513,18 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   });
   await page.goto("/admin/login");
   await expect(page.getByText("首次启动向导")).toBeVisible();
-  await expect(page.getByText("配置 AI Key，并创建第一份备份")).toBeVisible();
+  await expect(page.getByText("配置一个 AI Key")).toBeVisible();
   await page.getByLabel("密码", { exact: true }).fill(password);
   await page.getByLabel("确认密码", { exact: true }).fill(password);
   await page.getByRole("button", { name: "完成初始化" }).click();
   await expect(page).toHaveURL(/\/admin\/onboarding/);
   await expect(page.getByText("先把 OwnOrbit AI 用起来")).toBeVisible();
-  await expect(page.getByText("每一步只做一件事")).toBeVisible();
-  await expect(page.getByText("第一步：接上一个模型")).toBeVisible();
+  await expect(page.getByText("管理员密码已经设置好")).toBeVisible();
+  await expect(page.getByText("第二步：接上一个模型")).toBeVisible();
   await expect(page.getByLabel("选择模型服务")).toBeVisible();
   await expect(page.getByText("高级功能、备份和诊断")).toBeVisible();
   await expect(page.getByText("创建备份")).toBeHidden();
-  await expect(page.getByTestId("onboarding-progress-count")).toHaveText("0 / 3");
+  await expect(page.getByTestId("onboarding-progress-count")).toHaveText("1 / 3");
   await page.route("**/api/v1/admin/ai-providers/openai/test", async (route) => {
     expect(route.request().method()).toBe("POST");
     await route.fulfill({
@@ -553,17 +553,17 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await page.getByPlaceholder("输入 API Key").fill("sk-playwright-onboarding-secret-value");
   networkDiagnosticsAttempts = 0;
   await page.getByRole("button", { name: "保存并继续" }).click();
-  await expect(page.getByText("第二步：用手机扫码")).toBeVisible();
+  await expect(page.getByText("第三步：用手机扫码")).toBeVisible();
   await expect.poll(() => networkDiagnosticsAttempts, { timeout: 15_000 }).toBeGreaterThan(0);
   const quickIcloudEntry = page.getByTestId("onboarding-icloud-quick-entry");
   await expect(quickIcloudEntry).toBeVisible({ timeout: 15_000 });
   await expect(quickIcloudEntry).toContainText("Apple");
   await expect(page.getByTestId("onboarding-icloud-default-flow")).toBeVisible();
   await expect(page.getByTestId("onboarding-device-backup-qr")).toBeVisible();
-  await expect(page.getByTestId("onboarding-progress-count")).toHaveText("1 / 3");
+  await expect(page.getByTestId("onboarding-progress-count")).toHaveText("2 / 3");
   await expect.poll(() => icloudExportAttempts).toBe(1);
   await page.reload();
-  await expect(page.getByText("第二步：用手机扫码")).toBeVisible();
+  await expect(page.getByText("第三步：用手机扫码")).toBeVisible();
   const openIcloudFilesCard = page.getByTestId("onboarding-icloud-open-files-first");
   await expect(openIcloudFilesCard).toBeVisible({ timeout: 15_000 });
   let inlinePairingBaseUrl: string | undefined;
@@ -614,7 +614,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(page.getByRole("heading", { name: "启动安全自检" })).toBeVisible();
   await page.getByRole("button", { name: "创建备份" }).click();
   await expect(page.getByText(/已创建初始备份：lifeos-.*\.db/)).toBeVisible();
-  await expect(page.getByTestId("onboarding-progress-count")).toHaveText("1 / 3");
+  await expect(page.getByTestId("onboarding-progress-count")).toHaveText("2 / 3");
   await expect(page.getByText("已有备份：1 份")).toBeVisible();
   await page.getByRole("button", { name: "开启每日自动备份" }).click();
   await expect(page.getByText("已开启每日自动备份。之后 OwnOrbit AI 会定期创建 SQLite 快照。")).toBeVisible();

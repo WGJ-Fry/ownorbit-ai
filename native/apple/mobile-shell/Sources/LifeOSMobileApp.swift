@@ -18,6 +18,26 @@ final class LifeOSAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificati
         LifeOSCloudBackgroundRefreshCoordinator.scheduleIfEnabled()
     }
 
+    func application(
+        _ application: UIApplication,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    ) {
+        _ = deviceToken.count
+        LifeOSRemoteNotificationRegistrationEvidenceStore.save(
+            LifeOSRemoteNotificationRegistrationEvidence(state: .registered)
+        )
+    }
+
+    func application(
+        _ application: UIApplication,
+        didFailToRegisterForRemoteNotificationsWithError error: Error
+    ) {
+        _ = error
+        LifeOSRemoteNotificationRegistrationEvidenceStore.save(
+            LifeOSRemoteNotificationRegistrationEvidence(state: .failed)
+        )
+    }
+
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
@@ -36,7 +56,10 @@ final class LifeOSAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificati
             completionHandler(.noData)
             return
         }
-        let request = LifeOSCloudKitPushRequest(completion: completionHandler)
+        let request = LifeOSCloudKitPushRequest(
+            deliveryAppState: LifeOSCloudDeliveryAppState(applicationState: application.applicationState),
+            completion: completionHandler
+        )
         NotificationCenter.default.post(name: .lifeOSCloudKitPush, object: request)
         DispatchQueue.main.asyncAfter(deadline: .now() + 25) {
             request.finish(.failed)

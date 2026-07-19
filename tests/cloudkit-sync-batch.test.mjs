@@ -148,7 +148,7 @@ test("CloudKit sync batch preview builds safe records and blocks sensitive paylo
     assert.ok(preview.recordTypes.some((item) => item.recordType === "LifeOSGeneratedAppState"));
     assert.ok(preview.recordTypes.some((item) => item.recordType === "LifeOSDeviceTrust"));
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSMessage" && record.requiresUserReview === false), true);
-    assert.equal(preview.records.some((record) => record.recordType === "LifeOSConversation" && record.requiresUserReview === true), true);
+    assert.equal(preview.records.some((record) => record.recordType === "LifeOSConversation" && record.requiresUserReview === false), true);
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSMemory" && record.requiresUserReview === false), true);
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSMemory" && record.recordName === "memory:deleted-sensitive-memory" && record.requiresUserReview === true), true);
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSTask" && record.requiresUserReview === false), true);
@@ -213,7 +213,7 @@ test("CloudKit sync export package is ready only after confirmation and keeps ad
     assert.equal(exportPackage.helperSyncBatch.confirmation, "SYNC_APPROVED_RECORDS");
     assert.equal(exportPackage.helperSyncBatch.records.length >= 3, true);
     assert.equal(exportPackage.helperSyncBatch.records.some((record) => record.recordType === "LifeOSMessage" && record.fields.requiresUserReview === false), true);
-    assert.equal(exportPackage.helperSyncBatch.records.some((record) => record.recordType === "LifeOSConversation" && record.fields.requiresUserReview === true), true);
+    assert.equal(exportPackage.helperSyncBatch.records.some((record) => record.recordType === "LifeOSConversation" && record.fields.requiresUserReview === false), true);
     assert.equal(exportPackage.helperSyncBatch.records.some((record) => record.recordType === "LifeOSMemory" && record.fields.requiresUserReview === false), true);
     assert.equal(exportPackage.helperSyncBatch.records.some((record) => record.recordType === "LifeOSTask" && record.fields.requiresUserReview === false), true);
     assert.equal(exportPackage.helperSyncBatch.records.some((record) => (

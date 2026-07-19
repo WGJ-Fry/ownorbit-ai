@@ -31,7 +31,7 @@ function runIsolatedCloudKitUploadNow(env, scenario) {
     process.env.LIFEOS_CLOUDKIT_ENTITLEMENTS_PATH = entitlements;
     process.env.LIFEOS_CLOUDKIT_SYNC_TYPES = "chat-history";
 
-    if (${JSON.stringify(scenario)} === "upload") {
+    if (["upload", "conflicts"].includes(${JSON.stringify(scenario)})) {
       const session = createChatSession("Local upload conversation");
       insertMessage(session.id, "user", { parts: [{ text: "local text should only reach helper stdin" }] });
     }
@@ -44,18 +44,21 @@ function runIsolatedCloudKitUploadNow(env, scenario) {
     const fakeRunHelper = async (_readiness, options) => {
       if (options.operation !== "sync-export") throw new Error("unexpected operation " + options.operation);
       if (!options.syncExportPackage?.ok) throw new Error("missing export package");
+      const conflictOnly = ${JSON.stringify(scenario)} === "conflicts";
+      const attempted = options.syncExportPackage.helperSyncBatch.records.length;
       return {
-        ok: true,
-        status: "passed",
+        ok: !conflictOnly,
+        status: conflictOnly ? "failed" : "passed",
         operation: "sync-export",
         checkedAt: new Date(now).toISOString(),
         readinessStatus: "ready",
         requestHash: "sha256:uploadnow",
         evidenceId: "safe-upload-evidence",
         syncExport: {
-          attempted: options.syncExportPackage.helperSyncBatch.records.length,
-          saved: options.syncExportPackage.helperSyncBatch.records.length,
-          failed: 0,
+          attempted,
+          saved: conflictOnly ? attempted - 1 : attempted,
+          conflicts: conflictOnly ? 1 : 0,
+          failed: conflictOnly ? 1 : 0,
           recordPlanHash: options.syncExportPackage.helperSyncBatch.recordPlanHash,
           zones: options.syncExportPackage.helperSyncBatch.zones,
         },
@@ -64,7 +67,7 @@ function runIsolatedCloudKitUploadNow(env, scenario) {
         syncImportQuarantine: { scannedZones: [], changed: 0, deleted: 0, failed: 0, moreComing: false, rawPayloadIncluded: false, zones: [], changedRecords: [], deletedRecords: [] },
         roundtrip: { created: false, fetched: false, deleted: false },
         warnings: [],
-        errors: [],
+        errors: conflictOnly ? ["CloudKit kept one newer remote record for review."] : [],
       };
     };
 
@@ -123,6 +126,24 @@ test("CloudKit safe upload now gives one setup action when CloudKit is not enabl
     assert.equal(result.result, undefined);
     assert.equal(result.safety.rawPayloadReturnedToAdmin, false);
     assert.equal(result.safety.localBackupPathReturnedToAdmin, false);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit safe upload reports remote record conflicts without asking for a blind retry", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-upload-now-conflicts-"));
+  try {
+    const { result } = runIsolatedCloudKitUploadNow({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "conflicts");
+
+    assert.equal(result.ok, false);
+    assert.equal(result.status, "conflicts");
+    assert.equal(result.nextAction, "review-conflicts");
+    assert.equal(result.result.syncExport.conflicts, 1);
+    assert.equal(result.result.syncExport.saved > 0, true);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

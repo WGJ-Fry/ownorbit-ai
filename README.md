@@ -43,17 +43,20 @@ Current release promise: put Markdown notes in a folder, run OwnOrbit locally, a
 ## Release Status
 
 Public release tag: [`v0.1.5-alpha`](https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/v0.1.5-alpha)<br>
-Source package version: `0.1.5-alpha.0`
+Public package version: `0.1.5-alpha.0`<br>
+Current `main` source candidate: `0.1.6-alpha.0` / `v0.1.6-alpha` (**not a public download**)
 
-This README is written for the public `v0.1.5-alpha` downloads. The `main` branch may contain later source-only changes; use those only if you are comfortable building from source.
+This README is written for the public `v0.1.5-alpha` downloads. The `main` branch contains `v0.1.6-alpha` source-only changes; use those only if you are comfortable building from source. The candidate does not have public desktop packages or a public GHCR tag yet.
 
 Important: use the explicit [`v0.1.5-alpha` Release page](https://github.com/WGJ-Fry/ownorbit-ai/releases/tag/v0.1.5-alpha). If GitHub's generic **Latest release** label ever points to an older build, ignore it and use this versioned link.
 
 | Track | What to expect |
 | --- | --- |
 | `v0.1.5-alpha` public release | Docker Compose local Markdown + read-only `.ics` memory demo, GHCR image path, macOS unsigned ZIP, Windows NSIS installer, Linux AppImage, admin auth, AI provider settings, mobile PWA pairing, offline queue with idempotent replay and conflict-review guidance, SQLite migrations, backup/restore, diagnostics, release checks, connection diagnostics, Studio blueprint confirmation/template/permission/repair guidance plus readiness/quality scoring, and opt-in Apple Calendar, Google Calendar/Tasks, and system Reminders connector paths guarded by explicit admin confirmation, audit logs, write history, and rollback status. |
-| Current `main` source | Developer path only. It may contain later source changes after the tagged release; use it only if you are comfortable building from source. |
+| `v0.1.6-alpha` current `main` source candidate | Developer path only. Adds the simplified password/key/QR first run, signed P-256 iPhone CloudKit requests, device-only Keychain identity, durable Mac AI jobs, text-only/no-tool execution, bounded retry/timeout states, and request/response schema tests. One real signed-iPhone 5G CloudKit request -> Mac AI -> iPhone response roundtrip has passed with redacted local evidence. It is not a public download; Production schema deployment and fresh release assets are still required. |
 | Earlier base | `0.1.1-alpha.0` added Docker quickstart/Ollama/Markdown vault defaults. `0.1.0` started the desktop/PWA foundation. |
+
+The source/public distinction is machine-checked through [`docs/release-state.json`](docs/release-state.json). Candidate details and remaining gates are in [`docs/release-notes-v0.1.6-alpha.md`](docs/release-notes-v0.1.6-alpha.md).
 
 ## Choose Your Path
 

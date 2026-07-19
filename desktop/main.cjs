@@ -67,7 +67,6 @@ let cloudKitHelperRuntimeStatus = {
   entitlementsPathReturned: false,
 };
 let shutdownRequested = false;
-const hasSingleInstanceLock = app.requestSingleInstanceLock();
 const chromiumUnsafePorts = new Set([
   1, 7, 9, 11, 13, 15, 17, 19, 20, 21, 22, 23, 25, 37, 42, 43, 53, 69, 77, 79, 87, 95, 101, 102, 103, 104, 109, 110,
   111, 113, 115, 117, 119, 123, 135, 137, 139, 143, 161, 179, 389, 427, 465, 512, 513, 514, 515, 526, 530, 531, 532,
@@ -99,6 +98,8 @@ if (process.env.LIFEOS_DESKTOP_USER_DATA_DIR) {
     app.setPath("userData", legacyUserDataPath);
   }
 }
+
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
 
 function writeDesktopLog(message, details) {
   const line = `[${new Date().toISOString()}] ${message}${details ? ` ${details}` : ""}\n`;
@@ -230,10 +231,23 @@ function validateDesktopUpdateUrl(value) {
   }
 }
 
+function getDesktopAppRoot() {
+  const appPath = app.getAppPath();
+  if (app.isPackaged || fs.existsSync(path.join(appPath, "dist", "server.cjs"))) return appPath;
+  const parentPath = path.dirname(appPath);
+  if (
+    fs.existsSync(path.join(parentPath, "package.json"))
+    && fs.existsSync(path.join(parentPath, "dist", "server.cjs"))
+  ) {
+    return parentPath;
+  }
+  return appPath;
+}
+
 function getDesktopPackageVersion() {
   if (app.isPackaged) return app.getVersion();
   try {
-    const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"));
+    const packageJson = JSON.parse(fs.readFileSync(path.join(getDesktopAppRoot(), "package.json"), "utf8"));
     if (typeof packageJson.version === "string" && packageJson.version.trim()) return packageJson.version.trim();
   } catch {}
   return app.getVersion();
@@ -350,7 +364,7 @@ async function startLocalCore() {
   process.env.LIFEOS_PACKAGE_VERSION = process.env.LIFEOS_PACKAGE_VERSION || getDesktopPackageVersion();
   process.env.LIFEOS_DEVICE_NAME = process.env.LIFEOS_DEVICE_NAME || `${app.getName()} Desktop`;
 
-  const appPath = app.isPackaged ? app.getAppPath() : process.cwd();
+  const appPath = getDesktopAppRoot();
   const runtimeCwd = app.isPackaged ? path.dirname(appPath) : appPath;
   process.chdir(runtimeCwd);
   writeDesktopLog("Starting OwnOrbit local core", `port=${serverPort} dataDirConfigured=${Boolean(process.env.LIFEOS_DATA_DIR)} packaged=${app.isPackaged}`);
@@ -401,7 +415,7 @@ async function createWindow(pathname = "/admin/login") {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
-      preload: path.join(app.isPackaged ? app.getAppPath() : process.cwd(), "desktop", "preload.cjs"),
+      preload: path.join(getDesktopAppRoot(), "desktop", "preload.cjs"),
       sandbox: true,
     },
   });
@@ -704,10 +718,11 @@ function desktopUpdateLabel() {
 }
 
 function releaseDirCandidates() {
+  const appPath = getDesktopAppRoot();
   return Array.from(new Set([
     process.env.LIFEOS_RELEASE_DIR ? path.resolve(process.env.LIFEOS_RELEASE_DIR) : "",
-    path.join(process.cwd(), "release"),
-    path.join(process.cwd(), "..", "release"),
+    path.join(appPath, "release"),
+    path.join(appPath, "..", "release"),
   ].filter(Boolean)));
 }
 
@@ -854,7 +869,7 @@ function showStartupFailureWindow(error) {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
-      preload: path.join(app.isPackaged ? app.getAppPath() : process.cwd(), "desktop", "preload.cjs"),
+      preload: path.join(getDesktopAppRoot(), "desktop", "preload.cjs"),
       sandbox: true,
     },
   });
@@ -1093,7 +1108,7 @@ async function configureDesktopShell() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate()));
   desktopUpdateStatus = validateDesktopUpdateUrl(process.env.LIFEOS_UPDATE_URL);
 
-  const iconPath = path.join(app.isPackaged ? app.getAppPath() : process.cwd(), "desktop", "icon.icns");
+  const iconPath = path.join(getDesktopAppRoot(), "desktop", "icon.icns");
   const icon = fs.existsSync(iconPath) ? nativeImage.createFromPath(iconPath) : nativeImage.createEmpty();
   tray = new Tray(icon.resize({ width: 18, height: 18 }));
   updateTrayPresentation();

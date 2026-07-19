@@ -1,7 +1,18 @@
 # Changelog
 
-## Unreleased
+## 0.1.6-alpha.0 (Unreleased source candidate)
 
+- Simplified first launch to three visible actions: set the administrator password, configure one AI provider key, then scan the phone pairing QR and send the first message. Advanced connection and safety diagnostics remain available without blocking the normal path.
+- Added a private CloudKit chat request/response channel for the native iPhone shell. The phone can queue a text prompt while away from the Mac, and the Mac processes it through the configured AI provider without granting tools or native actions.
+- Added dedicated P-256 device identities for CloudKit chat. The iPhone private key stays in the device-only Keychain, CloudKit receives only the public key, and the Mac verifies every signed request before creating a job.
+- Added durable SQLite chat jobs, leases, bounded retries, expiry, idempotent response export, and visible waiting, Mac unavailable, processing, retrying, completed, failed, and timed-out states.
+- Added CloudKit schema records for device keys, chat requests, and chat responses, plus migrations, server tests, native Swift tests, and a real-device acceptance item for one signed iPhone-to-Mac-to-iPhone roundtrip.
+- Completed that real-device acceptance on a signed iPhone over 5G: the Mac text-only AI worker produced exactly one visible response, CloudKit push evidence arrived while the app was backgrounded/locked, and only a redacted local summary was retained.
+- Added an explicit source/public release-state file so candidate source versions cannot silently overwrite the version advertised by existing GitHub downloads.
+
+- Added a guarded native iPhone install command that verifies the signed app bundle, CloudKit container, APNs entitlement, and connected-device readiness before installation, then launches the app and writes path-free, identifier-free local evidence.
+- Expanded the real Apple-device acceptance matrix with required native iPhone CloudKit read/write-back and locked-background push or `BGAppRefreshTask` recovery evidence.
+- Replaced verbose known Xcode provisioning failures with one actionable Apple Developer agreement or profile-repair step while preserving full diagnostics for unknown build failures.
 - Renamed the user-facing product from **LifeOS AI** to **OwnOrbit AI**, including the desktop shell, mobile PWA, native Apple shell, bilingual UI, documentation, repository metadata, and README visuals.
 - Added upgrade compatibility for the former desktop user-data directory and iCloud Drive handoff folder so existing SQLite data, device bindings, settings, and phone entries remain usable after the rename.
 - Kept published compatibility identifiers such as `LIFEOS_*`, `ai.lifeos.desktop`, `lifeos-mobile-entry.*`, CloudKit record identifiers, and the existing `ghcr.io/wgj-fry/lifeos-ai` image path stable.

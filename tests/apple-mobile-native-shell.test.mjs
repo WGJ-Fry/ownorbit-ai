@@ -2,12 +2,17 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import {
+  buildDeviceInstallEvidence,
+  deviceIdHash,
+  selectInstallDevice,
+} from "../scripts/install-ios-mobile-shell.mjs";
 
 const rootDir = process.cwd();
 const nativeDir = path.join(rootDir, "native", "apple", "mobile-shell");
 
 test("Apple native mobile shell validates safe iCloud entries without storing credentials", async () => {
-  const [project, entry, store, notifications, app, webView, content, buildScript, smokeScript, packageJson, nativeWorkflow] = await Promise.all([
+  const [project, entry, store, notifications, app, webView, content, buildScript, installScript, smokeScript, packageJson, nativeWorkflow] = await Promise.all([
     readFile(path.join(nativeDir, "project.yml"), "utf8"),
     readFile(path.join(nativeDir, "Sources", "LifeOSEntry.swift"), "utf8"),
     readFile(path.join(nativeDir, "Sources", "LifeOSEntryStore.swift"), "utf8"),
@@ -16,6 +21,7 @@ test("Apple native mobile shell validates safe iCloud entries without storing cr
     readFile(path.join(nativeDir, "Sources", "LifeOSWebView.swift"), "utf8"),
     readFile(path.join(nativeDir, "Sources", "ContentView.swift"), "utf8"),
     readFile(path.join(rootDir, "scripts", "build-ios-mobile-shell.mjs"), "utf8"),
+    readFile(path.join(rootDir, "scripts", "install-ios-mobile-shell.mjs"), "utf8"),
     readFile(path.join(rootDir, "scripts", "mobile-ios-native-shell-smoke.mjs"), "utf8"),
     readFile(path.join(rootDir, "package.json"), "utf8").then(JSON.parse),
     readFile(path.join(rootDir, ".github", "workflows", "ios-native.yml"), "utf8"),
@@ -56,6 +62,12 @@ test("Apple native mobile shell validates safe iCloud entries without storing cr
   assert.match(buildScript, /xcodegen/);
   assert.match(buildScript, /xcodebuild/);
   assert.match(buildScript, /CODE_SIGNING_ALLOWED=NO/);
+  assert.match(buildScript, /-allowProvisioningDeviceRegistration/);
+  assert.match(installScript, /devicectl/);
+  assert.match(installScript, /codesign/);
+  assert.match(installScript, /cloudKitEntitlementsVerified/);
+  assert.match(installScript, /aps-environment/);
+  assert.match(installScript, /identifierReturned: false/);
   assert.match(smokeScript, /simctl/);
   assert.match(smokeScript, /native-entry-setup/);
   assert.match(smokeScript, /native-mobile-chat/);
@@ -70,9 +82,46 @@ test("Apple native mobile shell validates safe iCloud entries without storing cr
   assert.match(packageJson.scripts["mobile:native:build"], /build-ios-mobile-shell/);
   assert.match(packageJson.scripts["mobile:native:device:compile"], /--device-compile/);
   assert.match(packageJson.scripts["mobile:native:device:build"], /--device/);
+  assert.match(packageJson.scripts["mobile:native:device:install"], /install-ios-mobile-shell/);
   assert.match(packageJson.scripts["mobile:native:smoke"], /mobile-ios-native-shell-smoke/);
   assert.match(nativeWorkflow, /runs-on: macos-latest/);
   assert.match(nativeWorkflow, /npm run mobile:native:device:compile/);
+});
+
+test("Apple native mobile installer selects only available paired devices and redacts evidence", () => {
+  const unavailablePhone = {
+    identifier: "unavailable-device",
+    hardwareProperties: { platform: "iOS", productType: "iPhone16,2" },
+    connectionProperties: { pairingState: "paired", tunnelState: "unavailable" },
+  };
+  const availableTablet = {
+    identifier: "available-tablet",
+    hardwareProperties: { platform: "iOS", productType: "iPad16,10" },
+    connectionProperties: { pairingState: "paired", tunnelState: "connected" },
+  };
+  const availablePhone = {
+    identifier: "available-phone",
+    hardwareProperties: { platform: "iOS", productType: "iPhone17,2" },
+    connectionProperties: { pairingState: "paired", tunnelState: "connected" },
+  };
+
+  assert.equal(selectInstallDevice([unavailablePhone, availableTablet, availablePhone]), availablePhone);
+  assert.equal(selectInstallDevice([availablePhone, availableTablet], "available-tablet"), availableTablet);
+  assert.throws(() => selectInstallDevice([unavailablePhone], "unavailable-device"), /paired but unavailable/);
+  assert.match(deviceIdHash("available-phone"), /^sha256:[a-f0-9]{12}$/);
+
+  const evidence = buildDeviceInstallEvidence({
+    device: availablePhone,
+    bundleId: "com.wgjfry.ownorbit.mobile",
+    containerId: "iCloud.ai.lifeos.desktop",
+    now: new Date("2026-01-02T03:04:05.000Z"),
+  });
+  const serialized = JSON.stringify(evidence);
+  assert.equal(evidence.ok, true);
+  assert.equal(evidence.device.available, true);
+  assert.equal(evidence.device.identifierReturned, false);
+  assert.equal(serialized.includes("available-phone"), false);
+  assert.equal(serialized.includes("/Users/"), false);
 });
 
 test("Apple native mobile shell has a guarded private CloudKit offline data path", async () => {
@@ -128,6 +177,7 @@ test("Apple native mobile shell has a guarded private CloudKit offline data path
   assert.match(app, /LifeOSCloudBackgroundRefreshCoordinator\.scheduleIfEnabled\(\)/);
   assert.match(app, /CKNotification\(fromRemoteNotificationDictionary: userInfo\)/);
   assert.match(app, /databaseNotification\.databaseScope == \.private/);
+  assert.match(app, /LifeOSCloudDeliveryAppState\(applicationState: application\.applicationState\)/);
   assert.match(backgroundRefresh, /import BackgroundTasks/);
   assert.match(backgroundRefresh, /BGTaskScheduler\.shared\.register/);
   assert.match(backgroundRefresh, /BGAppRefreshTaskRequest/);
@@ -136,7 +186,7 @@ test("Apple native mobile shell has a guarded private CloudKit offline data path
   assert.match(backgroundRefresh, /cancel\(taskRequestWithIdentifier:/);
   assert.match(backgroundRefresh, /request\.finish\(success: false\)/);
   assert.match(cloudSync, /lifeOSCloudKitBackgroundRefresh/);
-  assert.match(cloudSync, /sync\(reason: "background-refresh"\)/);
+  assert.match(cloudSync, /sync\(reason: "background-refresh", deliveryAppState: \.background\)/);
   assert.match(cloudSync, /LifeOSCloudBackgroundRefreshCoordinator\.cancel\(\)/);
   assert.match(cloudSync, /completeTaskListItem/);
   assert.match(cloudData, /task-list-item-complete/);
@@ -169,6 +219,8 @@ test("Apple native mobile shell has a guarded private CloudKit offline data path
   assert.match(cloudScreen, /cloudStore\.performNextAction/);
   assert.match(cloudScreen, /LifeOSPendingTaskCompletion/);
   assert.match(cloudScreen, /cloudStore\.completeTaskListItem/);
+  assert.match(cloudScreen, /LifeOSCloudBackgroundHealth\.capture\(\)/);
+  assert.match(cloudScreen, /deliveryAppState\.localizationKey/);
   assert.match(cloudScreen, /LifeOSMemoryComposer/);
   assert.match(cloudScreen, /cloudStore\.createMemory/);
   assert.match(cloudScreen, /cloudStore\.retryPendingMutations/);
@@ -178,7 +230,10 @@ test("Apple native mobile shell has a guarded private CloudKit offline data path
   assert.match(buildScript, /CODE_SIGNING_ALLOWED=NO/);
   assert.match(buildScript, /LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES/);
   assert.match(buildScript, /No matching iPhone provisioning profile is installed/);
-  assert.doesNotMatch(`${cloudData}\n${cloudSync}\n${cloudOutbox}`, /accessToken|adminPassword|providerApiKey|sessionCookie|privateKey/);
+  const cloudTransportSources = `${cloudData}\n${cloudSync}\n${cloudOutbox}`;
+  assert.match(cloudData, /private\[-_\]\?key/);
+  assert.doesNotMatch(cloudTransportSources, /accessToken|adminPassword|providerApiKey|sessionCookie/);
+  assert.doesNotMatch(cloudTransportSources, /(?:payload|record)\s*\[\s*["']privateKey["']\s*\]/);
 });
 
 test("Apple native mobile shell localizations stay aligned", async () => {

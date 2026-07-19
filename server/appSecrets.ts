@@ -370,7 +370,16 @@ export function getActiveAiProviderId(): AiProviderId {
     return "local";
   }
   const state = getClientState(activeAiProviderStateKey)?.value;
-  return typeof state === "string" && getProvider(state) ? state as AiProviderId : "gemini";
+  if (typeof state === "string" && getProvider(state)) return state as AiProviderId;
+
+  // Older installations stored provider credentials and model choices before
+  // the explicit default-provider setting existed. Keep those installations
+  // usable by selecting the first provider that is actually configured.
+  const configuredProvider = aiProviders.find((provider) => (
+    Boolean(getProviderEnvCredential(provider))
+    || Boolean(db.prepare("SELECT 1 FROM app_secrets WHERE id = ?").get(provider.secretId))
+  ));
+  return configuredProvider?.id || "gemini";
 }
 
 export function saveActiveAiProvider(providerId: AiProviderId, actor?: { type: string; id: string }) {
@@ -601,6 +610,7 @@ export function listAiProviderStatuses() {
 export function saveAiApiKey(apiKey: string, providerId: AiProviderId = "gemini") {
   const provider = getProvider(providerId);
   if (!provider) throw new Error("Unknown AI provider");
+  const savedActiveProvider = getClientState(activeAiProviderStateKey)?.value;
   const credential = normalizeProviderCredential(providerId, apiKey);
   const encrypted = encryptSecret(credential);
   const now = Date.now();
@@ -615,6 +625,13 @@ export function saveAiApiKey(apiKey: string, providerId: AiProviderId = "gemini"
       auth_tag = excluded.auth_tag,
       updated_at = excluded.updated_at
   `).run(provider.secretId, provider.id, encrypted.storage, encrypted.ciphertext, encrypted.iv, encrypted.tag, now, now);
+
+  // A one-field first-run flow should not require a separate hidden default
+  // selection. Preserve an existing explicit choice, but make the first saved
+  // credential the durable default for chat and background CloudKit jobs.
+  if (typeof savedActiveProvider !== "string" || !getProvider(savedActiveProvider)) {
+    saveActiveAiProvider(providerId, { type: "system", id: "first-configured-provider" });
+  }
 }
 
 export function deleteAiApiKey(providerId: AiProviderId = "gemini") {

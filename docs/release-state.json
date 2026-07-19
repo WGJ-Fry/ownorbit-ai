@@ -1,0 +1,9 @@
+{
+  "schema": "ownorbit-release-state.v1",
+  "channel": "alpha",
+  "sourceStatus": "candidate",
+  "sourcePackageVersion": "0.1.6-alpha.0",
+  "sourceTag": "v0.1.6-alpha",
+  "publicPackageVersion": "0.1.5-alpha.0",
+  "publicTag": "v0.1.5-alpha"
+}

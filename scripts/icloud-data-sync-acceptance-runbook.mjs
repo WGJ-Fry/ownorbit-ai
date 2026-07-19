@@ -193,6 +193,24 @@ function manualAcceptanceSteps() {
       required: true,
     },
     {
+      id: "iphone-native-cloudkit-roundtrip",
+      title: "Signed iPhone shell completes guarded CloudKit read and write-back",
+      instruction: "Install the signed native shell, explicitly enable CloudKit, confirm Mac data appears in the protected offline view, create one disposable normal memory, complete one disposable task, and verify the Mac accepts each mutation exactly once without exposing credentials.",
+      required: true,
+    },
+    {
+      id: "iphone-cloudkit-chat-roundtrip",
+      title: "iPhone sends one signed CloudKit chat request and receives the Mac reply",
+      instruction: "From the signed iPhone shell, send one harmless test prompt. Confirm the phone first shows waiting for Mac, shows Mac unavailable if the desktop is stopped, then reaches processing/retrying/completed after the Mac starts. Verify exactly one assistant reply appears and no prompt, key, token, or private key is exposed in the evidence export.",
+      required: true,
+    },
+    {
+      id: "iphone-background-refresh",
+      title: "iPhone push and BGAppRefresh recover protected offline data",
+      instruction: "With the signed app backgrounded and the phone locked, change a disposable record on another device. Capture evidence for either a private CloudKit push or a system-scheduled BGAppRefresh wake, then confirm the offline view refreshes without opening the app first. Record no-data, failure, timeout, and retry behavior separately.",
+      required: true,
+    },
+    {
       id: "wifi-cellular-switch",
       title: "iPhone Wi-Fi / cellular switch recovery",
       instruction: "Keep the phone entry open while switching between Wi-Fi and cellular. Confirm queued messages, realtime status, and the recommended entry recover without losing state.",

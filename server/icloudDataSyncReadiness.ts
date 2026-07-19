@@ -36,11 +36,11 @@ const cloudKitRecordPlans: Record<SafeCloudKitDataType, {
   "chat-history": {
     dataType: "chat-history",
     zone: "LifeOSChatZone",
-    recordTypes: ["LifeOSConversation", "LifeOSMessage", "LifeOSSyncCheckpoint"],
-    safeFields: ["conversationId", "messageId", "role", "content", "createdAt", "mutationId", "logicalClock", "redactionFlags"],
+    recordTypes: ["LifeOSConversation", "LifeOSMessage", "LifeOSChatRequest", "LifeOSChatResponse", "LifeOSSyncCheckpoint"],
+    safeFields: ["conversationId", "messageId", "requestId", "responseId", "role", "content", "status", "createdAt", "expiresAt", "mutationId", "logicalClock", "redactionFlags"],
     forbiddenFields: ["aiKey", "providerApiKey", "rawToken", "sessionCookie", "deviceCredential", "sqliteBlob"],
-    mutationModel: "Append-only messages with stable mutation IDs and per-device checkpoints.",
-    conflictPolicy: "Message mutations are idempotent; conversation title and metadata conflicts require review.",
+    mutationModel: "Append-only messages plus immutable phone requests and deterministic Mac responses with stable mutation IDs and per-device checkpoints.",
+    conflictPolicy: "Chat requests are idempotent by request ID; response updates follow the queued/processing/completed/failed/expired state machine; conversation metadata merges automatically unless local data is newer.",
     requiresUserReview: true,
   },
   memory: {
@@ -56,7 +56,7 @@ const cloudKitRecordPlans: Record<SafeCloudKitDataType, {
   tasks: {
     dataType: "tasks",
     zone: "LifeOSTaskZone",
-    recordTypes: ["LifeOSTask", "LifeOSTaskTombstone", "LifeOSSyncCheckpoint"],
+    recordTypes: ["LifeOSTask", "LifeOSTaskTombstone", "LifeOSTaskListSnapshot", "LifeOSSyncCheckpoint"],
     safeFields: ["taskId", "title", "state", "dueAt", "originConnector", "externalRef", "mutationId", "logicalClock"],
     forbiddenFields: ["calendarAccessToken", "reminderCredential", "rawOAuthRefreshToken", "sessionCookie", "deviceCredential"],
     mutationModel: "Guarded task state transitions with stable mutation IDs and reversible tombstones.",
@@ -76,7 +76,7 @@ const cloudKitRecordPlans: Record<SafeCloudKitDataType, {
   "device-trust": {
     dataType: "device-trust",
     zone: "LifeOSDeviceTrustZone",
-    recordTypes: ["LifeOSDeviceTrust", "LifeOSSyncCheckpoint"],
+    recordTypes: ["LifeOSDeviceTrust", "LifeOSDeviceKey", "LifeOSSyncCheckpoint"],
     safeFields: ["deviceIdHash", "displayName", "deviceType", "trustState", "publicKeyFingerprint", "accessExpiresAt", "createdAt", "lastSeenAt", "revokedAt", "mutationId", "logicalClock"],
     forbiddenFields: ["accessToken", "accessTokenHash", "rawDeviceCredential", "devicePrivateKey", "sessionCookie", "privateKey", "sqliteDatabase"],
     mutationModel: "Metadata-only device trust snapshots; raw credentials never leave the local device.",

@@ -9,6 +9,58 @@ final class LifeOSCloudDataTests: XCTestCase {
         XCTAssertEqual(LifeOSCloudSyncOutcome.failed.backgroundFetchResult, .failed)
     }
 
+    func testBackgroundEvidencePersistsOnlySafeDeliveryMetadata() throws {
+        let suiteName = "OwnOrbitCloudKitBackgroundEvidence-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let evidence = LifeOSCloudBackgroundEvidence(
+            trigger: .push,
+            outcome: .newData,
+            recordedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            deliveryAppState: .background
+        )
+
+        LifeOSCloudBackgroundEvidenceStore.save(evidence, defaults: defaults)
+
+        XCTAssertEqual(LifeOSCloudBackgroundEvidenceStore.load(defaults: defaults), evidence)
+        let stored = try XCTUnwrap(defaults.data(forKey: LifeOSCloudBackgroundEvidenceStore.defaultsKey))
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: stored) as? [String: Any])
+        XCTAssertEqual(
+            Set(json.keys),
+            ["schemaVersion", "trigger", "outcome", "recordedAt", "deliveryAppState"]
+        )
+        XCTAssertNil(LifeOSCloudBackgroundTrigger(reason: "foreground"))
+        XCTAssertEqual(LifeOSCloudBackgroundTrigger(reason: "background-refresh"), .backgroundRefresh)
+        XCTAssertEqual(LifeOSCloudDeliveryAppState(applicationState: .active), .active)
+        XCTAssertEqual(LifeOSCloudDeliveryAppState(applicationState: .inactive), .inactive)
+        XCTAssertEqual(LifeOSCloudDeliveryAppState(applicationState: .background), .background)
+    }
+
+    func testRemoteRegistrationEvidencePersistsNoDeviceTokenOrErrorDetails() throws {
+        let suiteName = "OwnOrbitRemoteRegistrationEvidence-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let evidence = LifeOSRemoteNotificationRegistrationEvidence(
+            state: .registered,
+            recordedAt: Date(timeIntervalSince1970: 1_700_000_000)
+        )
+
+        LifeOSRemoteNotificationRegistrationEvidenceStore.save(evidence, defaults: defaults)
+
+        XCTAssertEqual(
+            LifeOSRemoteNotificationRegistrationEvidenceStore.load(defaults: defaults),
+            evidence
+        )
+        let stored = try XCTUnwrap(
+            defaults.data(forKey: LifeOSRemoteNotificationRegistrationEvidenceStore.defaultsKey)
+        )
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: stored) as? [String: Any])
+        XCTAssertEqual(Set(json.keys), ["schemaVersion", "state", "recordedAt"])
+        XCTAssertEqual(LifeOSCloudBackgroundRefreshAvailability(status: .available), .available)
+        XCTAssertEqual(LifeOSCloudBackgroundRefreshAvailability(status: .denied), .denied)
+        XCTAssertEqual(LifeOSCloudBackgroundRefreshAvailability(status: .restricted), .restricted)
+    }
+
     func testBackgroundRefreshPolicyRequiresOptInAndKeepsIdentifierInsideBundleScope() {
         let suiteName = "LifeOSCloudBackgroundRefreshPolicy-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -388,6 +440,222 @@ final class LifeOSCloudDataTests: XCTestCase {
         }
     }
 
+    func testChatRequestMutationBuildsCanonicalSafeRecord() throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let requestId = "123e4567-e89b-42d3-a456-426614174000"
+        let conversationId = "223e4567-e89b-42d3-a456-426614174000"
+        let messageId = "323e4567-e89b-42d3-a456-426614174000"
+        let identity = try LifeOSCloudDeviceIdentity(
+            deviceId: "423e4567-e89b-42d3-a456-426614174000",
+            privateKey: P256.Signing.PrivateKey(rawRepresentation: Data(repeating: 1, count: 32)),
+            createdAt: now,
+            expiresAt: now.addingTimeInterval(LifeOSCloudDeviceIdentity.lifetime)
+        )
+        let deviceKeyRecord = try LifeOSCloudDeviceKeyMutationBuilder.create(
+            identity: identity,
+            displayName: "Test iPhone",
+            now: now
+        )
+        let record = try LifeOSCloudChatRequestMutationBuilder.create(
+            prompt: "  Plan tomorrow's focus.  ",
+            identity: identity,
+            locale: "en-US",
+            requestId: requestId,
+            conversationId: conversationId,
+            userMessageId: messageId,
+            clientSequence: 7,
+            now: now
+        )
+        let payload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(record.payloadJson.utf8)) as? [String: Any]
+        )
+        let metadata = try XCTUnwrap(payload["syncMutation"] as? [String: Any])
+
+        XCTAssertEqual(record.zone, "LifeOSChatZone")
+        XCTAssertEqual(record.recordType, "LifeOSChatRequest")
+        XCTAssertEqual(record.recordName, "chat-request:\(requestId)")
+        XCTAssertEqual(record.mutationId, "ios-chat-request:\(requestId)")
+        XCTAssertEqual(record.logicalClock, 1_700_000_000_000)
+        XCTAssertFalse(record.requiresUserReview)
+        XCTAssertEqual(payload["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(payload["prompt"] as? String, "Plan tomorrow's focus.")
+        XCTAssertEqual(payload["deviceId"] as? String, identity.deviceId)
+        XCTAssertEqual(payload["sourceDeviceHash"] as? String, identity.deviceIdHash)
+        XCTAssertEqual(payload["publicKeyFingerprint"] as? String, identity.publicKeyFingerprint)
+        XCTAssertNotNil(payload["signature"] as? String)
+        XCTAssertEqual(payload["status"] as? String, "queued")
+        XCTAssertEqual((payload["clientSequence"] as? NSNumber)?.int64Value, 7)
+        XCTAssertEqual((payload["expiresAt"] as? NSNumber)?.int64Value, 1_700_086_400_000)
+        XCTAssertEqual(metadata["kind"] as? String, "chat-request")
+        XCTAssertEqual(metadata["origin"] as? String, "ios-native")
+        XCTAssertEqual((metadata["mutatedAt"] as? NSNumber)?.int64Value, record.logicalClock)
+        XCTAssertEqual(try LifeOSCloudPendingMutation.validateDeviceKeyRecord(deviceKeyRecord, now: now), deviceKeyRecord)
+        XCTAssertEqual(
+            try LifeOSCloudPendingMutation.validateChatRequestRecord(record, deviceKeyRecord: deviceKeyRecord, now: now),
+            record
+        )
+    }
+
+    func testChatRequestRejectsSecretsAndInvalidExpiry() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let identity = try! LifeOSCloudDeviceIdentity(
+            deviceId: "423e4567-e89b-42d3-a456-426614174000",
+            privateKey: P256.Signing.PrivateKey(rawRepresentation: Data(repeating: 2, count: 32)),
+            createdAt: now,
+            expiresAt: now.addingTimeInterval(LifeOSCloudDeviceIdentity.lifetime)
+        )
+        let common: (String, Date?) throws -> LifeOSCloudRecord = { prompt, expiresAt in
+            try LifeOSCloudChatRequestMutationBuilder.create(
+                prompt: prompt,
+                identity: identity,
+                locale: "zh-CN",
+                requestId: "123e4567-e89b-42d3-a456-426614174000",
+                conversationId: "223e4567-e89b-42d3-a456-426614174000",
+                userMessageId: "323e4567-e89b-42d3-a456-426614174000",
+                clientSequence: 1,
+                now: now,
+                expiresAt: expiresAt
+            )
+        }
+        XCTAssertThrowsError(try common("Use sk-1234567890abcdef", nil)) { error in
+            XCTAssertEqual(error as? LifeOSCloudChatWriteError, .unsafeContent)
+        }
+        XCTAssertThrowsError(try common(
+            "A safe question",
+            Date(timeIntervalSince1970: 1_700_000_000 + LifeOSCloudChatRequestMutationBuilder.requestTTL + 1)
+        )) { error in
+            XCTAssertEqual(error as? LifeOSCloudChatWriteError, .invalidRequest)
+        }
+    }
+
+    func testChatActivityDistinguishesWaitingOfflineRetryingCompletedAndTimeout() throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let requestId = "123e4567-e89b-42d3-a456-426614174000"
+        let identity = try LifeOSCloudDeviceIdentity(
+            deviceId: "423e4567-e89b-42d3-a456-426614174000",
+            privateKey: P256.Signing.PrivateKey(rawRepresentation: Data(repeating: 4, count: 32)),
+            createdAt: now,
+            expiresAt: now.addingTimeInterval(LifeOSCloudDeviceIdentity.lifetime)
+        )
+        let request = try LifeOSCloudChatRequestMutationBuilder.create(
+            prompt: "Show the current state clearly.",
+            identity: identity,
+            locale: "en-US",
+            requestId: requestId,
+            conversationId: "223e4567-e89b-42d3-a456-426614174000",
+            userMessageId: "323e4567-e89b-42d3-a456-426614174000",
+            clientSequence: 5,
+            now: now
+        )
+        let base = LifeOSCloudSnapshot(
+            schemaVersion: 1,
+            accountFingerprint: "test",
+            updatedAt: now,
+            records: [request],
+            serverChangeTokens: [:],
+            moreComing: false
+        )
+        XCTAssertEqual(base.chatItems(now: now.addingTimeInterval(10)).first?.state, .waitingForMac)
+        XCTAssertEqual(base.chatItems(now: now.addingTimeInterval(100)).first?.state, .macUnavailable)
+        XCTAssertEqual(base.chatItems(now: now.addingTimeInterval(24 * 60 * 60 + 1)).first?.state, .timedOut)
+
+        func response(status: String, text: String? = nil, safeErrorCode: String? = nil) throws -> LifeOSCloudRecord {
+            var payload: [String: Any] = [
+                "schemaVersion": 1,
+                "requestId": requestId,
+                "responseId": "523e4567-e89b-42d3-a456-426614174000",
+                "conversationId": "223e4567-e89b-42d3-a456-426614174000",
+                "status": status,
+                "requestContentHash": request.contentHash,
+                "updatedAt": NSNumber(value: 1_700_000_001_000 as Int64),
+            ]
+            if let text { payload["text"] = text }
+            if let safeErrorCode { payload["safeErrorCode"] = safeErrorCode }
+            let data = try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
+            return try LifeOSCloudRecordValidator.validate(LifeOSCloudRecordInput(
+                zone: "LifeOSChatZone",
+                recordType: "LifeOSChatResponse",
+                recordName: "chat-response:\(requestId)",
+                lifeosSchema: "lifeos-cloudkit-record.v1",
+                lifeosDataType: "chat-history",
+                sourceIdHash: "chat-history:1234567890abcdef",
+                mutationId: "mac-chat-response:\(requestId)",
+                logicalClock: 1_700_000_001_000,
+                contentHash: LifeOSCloudDeviceIdentity.sha256Hex(data),
+                payloadByteSize: data.count,
+                requiresUserReview: false,
+                payloadJson: String(decoding: data, as: UTF8.self),
+                modifiedAt: now
+            ))
+        }
+
+        for (record, expected) in [
+            (try response(status: "processing"), LifeOSCloudChatItem.State.processing),
+            (try response(status: "retrying", safeErrorCode: "ai-temporarily-unavailable"), .retrying),
+            (try response(status: "completed", text: "Done"), .completed),
+        ] {
+            let snapshot = LifeOSCloudSnapshot(
+                schemaVersion: 1,
+                accountFingerprint: "test",
+                updatedAt: now,
+                records: [request, record],
+                serverChangeTokens: [:],
+                moreComing: false
+            )
+            XCTAssertEqual(snapshot.chatItems(now: now).first?.state, expected)
+        }
+    }
+
+    func testChatRequestOutboxPersistsAndStaysBoundToOneAppleAccount() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("lifeos-chat-outbox-\(UUID().uuidString)", isDirectory: true)
+        let fileURL = directory.appendingPathComponent("outbox.json")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let fingerprint = LifeOSCloudAccountIdentity.fingerprint(
+            containerIdentifier: "iCloud.ai.lifeos.desktop",
+            userRecordName: "chat-account"
+        )
+        let otherFingerprint = LifeOSCloudAccountIdentity.fingerprint(
+            containerIdentifier: "iCloud.ai.lifeos.desktop",
+            userRecordName: "other-account"
+        )
+        let identity = try LifeOSCloudDeviceIdentity(
+            deviceId: "423e4567-e89b-42d3-a456-426614174000",
+            privateKey: P256.Signing.PrivateKey(rawRepresentation: Data(repeating: 3, count: 32)),
+            createdAt: now,
+            expiresAt: now.addingTimeInterval(LifeOSCloudDeviceIdentity.lifetime)
+        )
+        let deviceKeyRecord = try LifeOSCloudDeviceKeyMutationBuilder.create(
+            identity: identity,
+            displayName: "Outbox iPhone",
+            now: now
+        )
+        let record = try LifeOSCloudChatRequestMutationBuilder.create(
+            prompt: "Summarize today's priorities.",
+            identity: identity,
+            locale: "en-US",
+            requestId: "123e4567-e89b-42d3-a456-426614174000",
+            conversationId: "223e4567-e89b-42d3-a456-426614174000",
+            userMessageId: "323e4567-e89b-42d3-a456-426614174000",
+            clientSequence: 2,
+            now: now
+        )
+        let pending = try LifeOSCloudPendingMutation.chatRequest(
+            record: record,
+            deviceKeyRecord: deviceKeyRecord,
+            accountFingerprint: fingerprint,
+            now: now
+        )
+        var outbox = LifeOSCloudMutationOutbox(fileURL: fileURL, now: now)
+        XCTAssertTrue(try outbox.enqueue(pending, now: now))
+        XCTAssertFalse(try outbox.enqueue(pending, now: now))
+        XCTAssertEqual(outbox.due(accountFingerprint: fingerprint, now: now), [pending])
+        XCTAssertTrue(outbox.due(accountFingerprint: otherFingerprint, now: now).isEmpty)
+        XCTAssertEqual(outbox.summary(accountFingerprint: otherFingerprint).otherAccount, 1)
+        XCTAssertEqual(LifeOSCloudMutationOutbox(fileURL: fileURL, now: now).entries, [pending])
+    }
+
     func testMutationOutboxPersistsDeduplicatesAndNeverCrossesAppleAccounts() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("lifeos-outbox-\(UUID().uuidString)", isDirectory: true)
@@ -582,6 +850,22 @@ final class LifeOSCloudDataTests: XCTestCase {
         )
         XCTAssertFalse(rejected)
         XCTAssertEqual(store.snapshot.records.count, countBeforeUnsafeDraft)
+        XCTAssertEqual(store.statusTone, .error)
+    }
+
+    @MainActor
+    func testSimulatorDataStoreQueuesSafeChatAndRejectsSecretLikePrompt() async {
+        let store = LifeOSCloudDataStore(demoModeOverride: true)
+        let initialCount = store.snapshot.records.count
+        let sent = await store.sendChatRequest(prompt: "Help me plan the next hour.")
+        XCTAssertTrue(sent)
+        XCTAssertEqual(store.snapshot.records.count, initialCount + 2)
+        XCTAssertEqual(store.snapshot.records.first(where: { $0.recordType == "LifeOSChatRequest" })?.displayBody, "Help me plan the next hour.")
+
+        let countBeforeUnsafePrompt = store.snapshot.records.count
+        let rejected = await store.sendChatRequest(prompt: "My token is sk-1234567890abcdef")
+        XCTAssertFalse(rejected)
+        XCTAssertEqual(store.snapshot.records.count, countBeforeUnsafePrompt)
         XCTAssertEqual(store.statusTone, .error)
     }
 

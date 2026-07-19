@@ -7,14 +7,12 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
-const packageJson = JSON.parse(await readFile(path.join(rootDir, "package.json"), "utf8"));
-const currentPublicVersion = packageJson.version.includes("-") && packageJson.version.endsWith(".0")
-  ? packageJson.version.slice(0, -2)
-  : packageJson.version;
-const currentTag = `v${currentPublicVersion}`;
-const publicMacZipName = `LifeOS.AI-${packageJson.version}-arm64-unsigned.zip`;
-const publicWinInstallerName = `LifeOS.AI.Setup.${packageJson.version}.exe`;
-const publicLinuxAppImageName = `LifeOS.AI-${packageJson.version}.AppImage`;
+const releaseState = JSON.parse(await readFile(path.join(rootDir, "docs", "release-state.json"), "utf8"));
+const publicPackageVersion = String(releaseState.publicPackageVersion || "");
+const currentTag = String(releaseState.publicTag || "");
+const publicMacZipName = `LifeOS.AI-${publicPackageVersion}-arm64-unsigned.zip`;
+const publicWinInstallerName = `LifeOS.AI.Setup.${publicPackageVersion}.exe`;
+const publicLinuxAppImageName = `LifeOS.AI-${publicPackageVersion}.AppImage`;
 const desiredDescription =
   "OwnOrbit AI is an open-source, self-hosted, local-first personal AI assistant and private second brain with memory, mobile access, and generated problem-solving tools.";
 const desiredTopics = [

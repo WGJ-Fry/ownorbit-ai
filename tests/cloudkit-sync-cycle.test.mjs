@@ -73,18 +73,21 @@ function runIsolatedCloudKitCycle(env, scenario) {
         };
       }
       if (options.operation === "sync-export") {
+        const conflictOnly = ${JSON.stringify(scenario)} === "upload-conflicts";
+        const attempted = options.syncExportPackage.helperSyncBatch.records.length;
         return {
-          ok: true,
-          status: "passed",
+          ok: !conflictOnly,
+          status: conflictOnly ? "failed" : "passed",
           operation: "sync-export",
           checkedAt: new Date(now).toISOString(),
           readinessStatus: "ready",
           requestHash: "sha256:cycle",
           evidenceId: "cycle-upload-evidence",
           syncExport: {
-            attempted: options.syncExportPackage.helperSyncBatch.records.length,
-            saved: options.syncExportPackage.helperSyncBatch.records.length,
-            failed: 0,
+            attempted,
+            saved: conflictOnly ? attempted - 1 : attempted,
+            conflicts: conflictOnly ? 1 : 0,
+            failed: conflictOnly ? 1 : 0,
             recordPlanHash: options.syncExportPackage.helperSyncBatch.recordPlanHash,
             zones: options.syncExportPackage.helperSyncBatch.zones,
           },
@@ -93,7 +96,7 @@ function runIsolatedCloudKitCycle(env, scenario) {
           syncImportQuarantine: emptyImport,
           roundtrip: { created: false, fetched: false, deleted: false },
           warnings: [],
-          errors: [],
+          errors: conflictOnly ? ["CloudKit kept one newer remote record for review."] : [],
         };
       }
       if (options.operation === "sync-import-quarantine" && ${JSON.stringify(scenario)} === "more-coming") {
@@ -173,6 +176,24 @@ test("CloudKit safe sync cycle stops before upload when the remote pull fails", 
     assert.equal(result.safety.cloudKitChangeTokenReturnedToAdmin, false);
     assert.equal(result.safety.localBackupPathReturnedToAdmin, false);
     assert.equal(JSON.stringify(result).includes("payloadJson"), false);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit safe sync cycle reports partial upload conflicts as review work", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-cycle-upload-conflicts-"));
+  try {
+    const { result, operations } = runIsolatedCloudKitCycle({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "upload-conflicts");
+
+    assert.deepEqual(operations, ["sync-changes-preview", "sync-export"]);
+    assert.equal(result.status, "upload-conflicts");
+    assert.equal(result.nextAction, "review-conflicts");
+    assert.equal(result.upload.status, "conflicts");
+    assert.equal(result.upload.result.syncExport.saved > 0, true);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

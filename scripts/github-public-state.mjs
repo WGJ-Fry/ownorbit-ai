@@ -3,14 +3,12 @@ import fs from "node:fs";
 const owner = "WGJ-Fry";
 const repo = "ownorbit-ai";
 const baseUrl = process.env.LIFEOS_GITHUB_API_BASE_URL || `https://api.github.com/repos/${owner}/${repo}`;
-const packageJson = JSON.parse(fs.readFileSync("package.json", "utf8"));
-const currentPublicVersion = packageJson.version.includes("-") && packageJson.version.endsWith(".0")
-  ? packageJson.version.slice(0, -2)
-  : packageJson.version;
-const currentTag = `v${currentPublicVersion}`;
-const publicMacZipName = `LifeOS.AI-${packageJson.version}-arm64-unsigned.zip`;
-const publicWinInstallerName = `LifeOS.AI.Setup.${packageJson.version}.exe`;
-const publicLinuxAppImageName = `LifeOS.AI-${packageJson.version}.AppImage`;
+const releaseState = JSON.parse(fs.readFileSync("docs/release-state.json", "utf8"));
+const publicPackageVersion = String(releaseState.publicPackageVersion || "");
+const currentTag = String(releaseState.publicTag || "");
+const publicMacZipName = `LifeOS.AI-${publicPackageVersion}-arm64-unsigned.zip`;
+const publicWinInstallerName = `LifeOS.AI.Setup.${publicPackageVersion}.exe`;
+const publicLinuxAppImageName = `LifeOS.AI-${publicPackageVersion}.AppImage`;
 const oldStableTag = "v0.1.0";
 const deprecatedTag = "v0.0.0";
 const desiredDescription =

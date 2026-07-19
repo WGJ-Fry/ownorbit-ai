@@ -188,6 +188,23 @@ test("AI runtime falls back to the saved default provider when no provider hint 
   });
 });
 
+test("AI runtime adopts the first configured provider for legacy installs without a saved default", async () => {
+  await withRuntime("legacy-configured-provider", {}, async ({ resolveAiProviderId }) => {
+    const { db } = await import("../server/db.ts");
+    const { getClientState } = await import("../server/clientState.ts");
+
+    db.prepare("DELETE FROM client_state WHERE key = 'lifeos_active_ai_provider'").run();
+    db.prepare("DELETE FROM app_secrets").run();
+    assert.equal(getClientState("lifeos_active_ai_provider"), undefined);
+    db.prepare(`
+      INSERT INTO app_secrets (
+        id, provider, secret_storage, ciphertext, iv, auth_tag, created_at, updated_at
+      ) VALUES (?, ?, 'local_aes_gcm', 'legacy-ciphertext', 'legacy-iv', 'legacy-tag', ?, ?)
+    `).run("ai.deepseek.api_key", "deepseek", Date.now(), Date.now());
+    assert.equal(resolveAiProviderId({}), "deepseek");
+  });
+});
+
 test("AI provider changes sync legacy Studio runtime state", async () => {
   await withRuntime("legacy-runtime-sync", {}, async ({ resolveAiProviderId }) => {
     const { saveActiveAiProvider, saveSelectedAiModel } = await import(`../server/appSecrets.ts?case=legacy-runtime-sync-${Date.now()}`);
