@@ -27,6 +27,8 @@ function inspected(sourceApp, containerId = "iCloud.ai.lifeos.desktop") {
     containerId,
     teamId: "TESTTEAM123",
     environment: "Development",
+    distribution: "development",
+    notarized: false,
     entitlementsXml: `<?xml version="1.0"?><plist><dict><key>com.apple.developer.icloud-container-identifiers</key><array><string>${containerId}</string></array><key>com.apple.developer.icloud-services</key><array><string>CloudKit</string></array><key>com.apple.developer.aps-environment</key><string>development</string></dict></plist>`,
   };
 }
@@ -40,6 +42,8 @@ test("desktop resource preparation emits an absent manifest when no signed helpe
     assert.equal(result.manifest.included, false);
     assert.equal(result.manifest.rawSecretsIncluded, false);
     assert.equal(result.manifest.localSourcePathIncluded, false);
+    assert.equal(result.manifest.distribution, "");
+    assert.equal(result.manifest.notarized, false);
     const written = JSON.parse(await readFile(path.join(outputDir, CLOUDKIT_HELPER_MANIFEST_NAME), "utf8"));
     assert.equal(written.reason, "signed-helper-not-found");
     assert.equal(JSON.stringify(written).includes(root), false);
@@ -65,6 +69,8 @@ test("desktop resource preparation copies only inspected signed helper metadata"
     assert.equal(result.manifest.helperRelativePath, CLOUDKIT_HELPER_EXECUTABLE_RELATIVE_PATH);
     assert.equal(result.manifest.rawSecretsIncluded, false);
     assert.equal(result.manifest.localSourcePathIncluded, false);
+    assert.equal(result.manifest.distribution, "development");
+    assert.equal(result.manifest.notarized, false);
     await chmod(path.join(outputDir, result.manifest.helperRelativePath), 0o755);
     const serialized = JSON.stringify(result.manifest);
     assert.equal(serialized.includes(root), false);
@@ -87,6 +93,24 @@ test("desktop resource preparation blocks required, mismatched, or invalid helpe
       containerId: "iCloud.ai.lifeos.desktop",
       inspect: (candidate) => inspected(candidate, "iCloud.example.other"),
     }), /does not match/);
+    assert.throws(() => stageCloudKitHelper({
+      rootDir: root,
+      sourceApp,
+      distributableRequired: true,
+      inspect: (candidate) => inspected(candidate),
+    }), /device-independent Developer ID/);
+    assert.throws(() => stageCloudKitHelper({
+      rootDir: root,
+      sourceApp,
+      notarizedRequired: true,
+      inspect: (candidate) => ({ ...inspected(candidate), distribution: "developer-id", notarized: false }),
+    }), /Apple-notarized and stapled/);
+    assert.throws(() => stageCloudKitHelper({
+      rootDir: root,
+      sourceApp,
+      environment: "Production",
+      inspect: (candidate) => inspected(candidate),
+    }), /environment does not match/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

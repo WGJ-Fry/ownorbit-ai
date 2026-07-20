@@ -9,6 +9,7 @@
 - Added CloudKit schema records for device keys, chat requests, and chat responses, plus migrations, server tests, native Swift tests, and a real-device acceptance item for one signed iPhone-to-Mac-to-iPhone roundtrip.
 - Completed that real-device acceptance on a signed iPhone over 5G: the Mac text-only AI worker produced exactly one visible response, CloudKit push evidence arrived while the app was backgrounded/locked, and only a redacted local summary was retained.
 - Added an explicit source/public release-state file so candidate source versions cannot silently overwrite the version advertised by existing GitHub downloads.
+- Added a reproducible Developer ID Production export and Apple notarization path for the embedded macOS CloudKit Helper, plus packaging and artifact-smoke gates that reject device-limited, entitlement-drifted, or unnotarized helpers while keeping the outer alpha desktop package explicitly unsigned.
 
 - Added a guarded native iPhone install command that verifies the signed app bundle, CloudKit container, APNs entitlement, and connected-device readiness before installation, then launches the app and writes path-free, identifier-free local evidence.
 - Expanded the real Apple-device acceptance matrix with required native iPhone CloudKit read/write-back and locked-background push or `BGAppRefreshTask` recovery evidence.

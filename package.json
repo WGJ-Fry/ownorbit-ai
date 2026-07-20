@@ -71,6 +71,8 @@
     "remote:smoke": "node scripts/remote-connection-smoke.mjs",
     "icloud:helper:build": "node scripts/build-cloudkit-helper.mjs",
     "icloud:helper:xcode:build": "node scripts/build-cloudkit-helper-xcode.mjs",
+    "icloud:helper:xcode:distribute": "LIFEOS_CLOUDKIT_DISTRIBUTION=developer-id LIFEOS_CLOUDKIT_ENVIRONMENT=Production node scripts/build-cloudkit-helper-xcode.mjs",
+    "icloud:helper:xcode:notarize": "LIFEOS_CLOUDKIT_DISTRIBUTION=developer-id LIFEOS_CLOUDKIT_ENVIRONMENT=Production LIFEOS_CLOUDKIT_NOTARIZE=1 node scripts/with-signing-env.mjs node scripts/build-cloudkit-helper-xcode.mjs",
     "icloud:helper:xcode:compile": "node scripts/build-cloudkit-helper-xcode.mjs --compile-only",
     "icloud:helper:smoke": "node --import tsx scripts/cloudkit-native-helper-smoke.mjs",
     "icloud:acceptance": "node --import tsx scripts/icloud-data-sync-acceptance-runbook.mjs",

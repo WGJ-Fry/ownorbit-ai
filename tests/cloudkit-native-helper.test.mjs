@@ -291,6 +291,15 @@ test("Apple CloudKit helper source implements the native JSON stdio contract", a
   assert.match(xcodeBuildScript, /type: application/);
   assert.match(xcodeBuildScript, /CODE_SIGN_STYLE: Automatic/);
   assert.match(xcodeBuildScript, /LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES/);
+  assert.match(xcodeBuildScript, /LIFEOS_CLOUDKIT_DISTRIBUTION/);
+  assert.match(xcodeBuildScript, /developer-id/);
+  assert.match(xcodeBuildScript, /-exportArchive/);
+  assert.match(xcodeBuildScript, /ProvisionsAllDevices/);
+  assert.match(xcodeBuildScript, /Developer ID Application:/);
+  assert.match(xcodeBuildScript, /LIFEOS_CLOUDKIT_NOTARIZE/);
+  assert.match(xcodeBuildScript, /notarytool/);
+  assert.match(xcodeBuildScript, /stapler/);
+  assert.match(xcodeBuildScript, /Notarized Developer ID/);
   assert.match(xcodeBuildScript, /-allowProvisioningUpdates/);
   assert.match(xcodeBuildScript, /-allowProvisioningDeviceRegistration/);
   assert.match(xcodeBuildScript, /PLA Update available/);
@@ -301,6 +310,8 @@ test("Apple CloudKit helper source implements the native JSON stdio contract", a
   assert.match(xcodeBuildScript, /launchCheck/);
   assert.match(packageJson.scripts["icloud:helper:build"], /build-cloudkit-helper\.mjs/);
   assert.match(packageJson.scripts["icloud:helper:xcode:build"], /build-cloudkit-helper-xcode\.mjs/);
+  assert.match(packageJson.scripts["icloud:helper:xcode:distribute"], /LIFEOS_CLOUDKIT_DISTRIBUTION=developer-id/);
+  assert.match(packageJson.scripts["icloud:helper:xcode:notarize"], /LIFEOS_CLOUDKIT_NOTARIZE=1/);
 });
 
 test("CloudKit helper roundtrip executes the configured native helper contract", async () => {

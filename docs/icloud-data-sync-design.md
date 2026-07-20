@@ -157,6 +157,30 @@ npm run icloud:helper:xcode:build
 
 This generates an ignored Xcode project and `.app` under `build/native/cloudkit-helper-xcode`, builds with automatic signing, verifies the embedded executable entitlement, and proves the helper can start. By default it uses only profiles already installed on the Mac and does not modify the Apple Developer account. After the App ID and iCloud Container have been reviewed, `LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES=1` allows Xcode to create or update the matching App ID, certificate, and provisioning profile through the account already signed into Xcode. The Apple Developer Program License Agreement must be accepted by the account holder before Xcode is allowed to perform those updates.
 
+The normal Xcode build is for development testing and can contain a device-limited `Mac Team Provisioning Profile`. Do not put that helper into a public desktop package. For a GitHub-distributed macOS package, archive and export a device-independent Developer ID helper instead:
+
+```bash
+export LIFEOS_CLOUDKIT_CONTAINER_ID="iCloud.ai.lifeos.desktop"
+export LIFEOS_CLOUDKIT_TEAM_ID="YOUR_TEAM_ID"
+export LIFEOS_CLOUDKIT_BUNDLE_ID="ai.lifeos.cloudkit-helper"
+export LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES=1
+npm run icloud:helper:xcode:distribute
+```
+
+This path requires `Production` CloudKit/APNs entitlements, hardened runtime, a `Developer ID Application` identity, and an Xcode-managed direct provisioning profile with `ProvisionsAllDevices=true`. The script rejects profiles containing `ProvisionedDevices`, copies the verified exported helper into the standard staging location, and leaves credentials and profiles outside Git.
+
+For an actual public package, notarize and staple that helper before packaging. The command loads the ignored `.env.signing.local` file through the existing signing wrapper; `LIFEOS_NOTARYTOOL_KEYCHAIN_PROFILE` can be used instead of Apple ID credentials when a notarytool profile has already been stored in Keychain:
+
+```bash
+export LIFEOS_CLOUDKIT_CONTAINER_ID="iCloud.ai.lifeos.desktop"
+export LIFEOS_CLOUDKIT_TEAM_ID="YOUR_TEAM_ID"
+export LIFEOS_CLOUDKIT_BUNDLE_ID="ai.lifeos.cloudkit-helper"
+export LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES=1
+npm run icloud:helper:xcode:notarize
+```
+
+Public macOS packaging should set `LIFEOS_REQUIRE_BUNDLED_CLOUDKIT_HELPER=1`, `LIFEOS_REQUIRE_DISTRIBUTABLE_CLOUDKIT_HELPER=1`, `LIFEOS_REQUIRE_NOTARIZED_CLOUDKIT_HELPER=1`, and `LIFEOS_CLOUDKIT_ENVIRONMENT=Production`. Resource staging and artifact smoke then reject development-only, device-limited, unnotarized, or entitlement-drifted helpers before a Release can be assembled.
+
 ## Native iOS Shell Candidate
 
 The source-only SwiftUI shell lives at `native/apple/mobile-shell`. It is separate from the public PWA and desktop release assets. It can:

@@ -72,6 +72,8 @@ export function inspectSignedCloudKitHelperApp(sourceApp) {
   const signature = run("codesign", ["--verify", "--strict", "--deep", resolved]);
   if (!signature.ok) throw new Error("The CloudKit helper app does not have a valid code signature.");
   const displayed = run("codesign", ["-d", "--entitlements", ":-", executablePath]);
+  const signatureDetailsResult = run("codesign", ["-dv", "--verbose=4", resolved]);
+  const signatureDetails = `${signatureDetailsResult.stdout}\n${signatureDetailsResult.stderr}`;
   const entitlementsXml = extractXml(`${displayed.stdout}\n${displayed.stderr}`);
   if (!displayed.ok || !entitlementsXml) throw new Error("The CloudKit helper signature does not expose readable entitlements.");
   const entitlements = plistJson(entitlementsXml);
@@ -87,6 +89,19 @@ export function inspectSignedCloudKitHelperApp(sourceApp) {
   if (!containerId || !cloudServices.includes("CloudKit") || !teamId || !["development", "production"].includes(apsEnvironment)) {
     throw new Error("The CloudKit helper is missing its container, CloudKit service, team, or APNs entitlement.");
   }
+  const developerIdSigned = signatureDetailsResult.ok && signatureDetails.includes("Authority=Developer ID Application:");
+  const assessment = developerIdSigned ? run("spctl", ["--assess", "--type", "execute", "--verbose=4", resolved]) : { ok: false, stdout: "", stderr: "" };
+  const notarized = assessment.ok && `${assessment.stdout}\n${assessment.stderr}`.includes("Notarized Developer ID");
+  let deviceIndependent = false;
+  if (developerIdSigned) {
+    const profilePath = path.join(resolved, "Contents", "embedded.provisionprofile");
+    const profile = fs.existsSync(profilePath) ? run("security", ["cms", "-D", "-i", profilePath]) : { ok: false, stdout: "" };
+    deviceIndependent = Boolean(
+      profile.ok &&
+      /<key>ProvisionsAllDevices<\/key>\s*<true\s*\/>/.test(profile.stdout) &&
+      !profile.stdout.includes("<key>ProvisionedDevices</key>"),
+    );
+  }
   return {
     sourceApp: resolved,
     executableName,
@@ -94,6 +109,10 @@ export function inspectSignedCloudKitHelperApp(sourceApp) {
     containerId,
     teamId,
     environment: apsEnvironment === "production" ? "Production" : "Development",
+    distribution: developerIdSigned && deviceIndependent && signatureDetails.includes("runtime") && entitlements["com.apple.security.get-task-allow"] !== true
+      ? "developer-id"
+      : "development",
+    notarized,
     entitlementsXml,
   };
 }
@@ -110,6 +129,8 @@ function absentManifest(reason) {
     bundleId: "",
     teamId: "",
     environment: "",
+    distribution: "",
+    notarized: false,
     rawSecretsIncluded: false,
     localSourcePathIncluded: false,
   };
@@ -155,6 +176,18 @@ export function stageCloudKitHelper(options = {}) {
   if (configuredContainer && configuredContainer !== inspected.containerId) {
     throw new Error("The signed helper CloudKit container does not match LIFEOS_CLOUDKIT_CONTAINER_ID.");
   }
+  const configuredEnvironment = compact(options.environment || process.env.LIFEOS_CLOUDKIT_ENVIRONMENT, 20);
+  if (configuredEnvironment && configuredEnvironment !== inspected.environment) {
+    throw new Error("The signed helper CloudKit environment does not match LIFEOS_CLOUDKIT_ENVIRONMENT.");
+  }
+  const distributableRequired = options.distributableRequired ?? process.env.LIFEOS_REQUIRE_DISTRIBUTABLE_CLOUDKIT_HELPER === "1";
+  if (distributableRequired && inspected.distribution !== "developer-id") {
+    throw new Error("A device-independent Developer ID CloudKit helper is required for public desktop packaging.");
+  }
+  const notarizedRequired = options.notarizedRequired ?? process.env.LIFEOS_REQUIRE_NOTARIZED_CLOUDKIT_HELPER === "1";
+  if (notarizedRequired && inspected.notarized !== true) {
+    throw new Error("An Apple-notarized and stapled CloudKit helper is required for public desktop packaging.");
+  }
   const destinationApp = path.join(outputDir, "native", CLOUDKIT_HELPER_APP_NAME);
   fs.mkdirSync(path.dirname(destinationApp), { recursive: true });
   fs.cpSync(inspected.sourceApp || sourceApp, destinationApp, { recursive: true, preserveTimestamps: true });
@@ -171,6 +204,8 @@ export function stageCloudKitHelper(options = {}) {
     bundleId: inspected.bundleId,
     teamId: inspected.teamId,
     environment: inspected.environment,
+    distribution: inspected.distribution || "development",
+    notarized: inspected.notarized === true,
     rawSecretsIncluded: false,
     localSourcePathIncluded: false,
   };

@@ -167,7 +167,7 @@ function checkSourceSizeBudgets() {
 }
 
 function checkScripts() {
-  for (const script of ["build", "desktop", "desktop:resources:prepare", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "icloud:helper:build", "icloud:helper:xcode:build", "icloud:helper:xcode:compile", "icloud:helper:smoke", "icloud:acceptance", "mobile:simulator:smoke", "mobile:native:build", "mobile:native:device:compile", "mobile:native:device:build", "mobile:native:device:install", "mobile:native:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:apple-native", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
+  for (const script of ["build", "desktop", "desktop:resources:prepare", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "icloud:helper:build", "icloud:helper:xcode:build", "icloud:helper:xcode:compile", "icloud:helper:xcode:notarize", "icloud:helper:smoke", "icloud:acceptance", "mobile:simulator:smoke", "mobile:native:build", "mobile:native:device:compile", "mobile:native:device:build", "mobile:native:device:install", "mobile:native:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:apple-native", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
     if (hasScript(script)) pass(`package script exists: ${script}`);
     else fail(`missing package script: ${script}`);
   }
@@ -662,9 +662,14 @@ function checkScripts() {
       artifactSmoke.includes("localSourcePathIncluded !== false") &&
       artifactSmoke.includes("safePackagedResourcePath") &&
       artifactSmoke.includes("verifyPackagedCloudKitHelperSignature") &&
-      artifactSmoke.includes("com.apple.developer.aps-environment")
-    ) pass("desktop artifact smoke verifies packaged CloudKit helper resources and redaction metadata");
-    else fail("desktop artifact smoke should verify CloudKit helper resource paths, files, and redaction metadata");
+      artifactSmoke.includes("com.apple.developer.aps-environment") &&
+      artifactSmoke.includes("LIFEOS_REQUIRE_DISTRIBUTABLE_CLOUDKIT_HELPER") &&
+      artifactSmoke.includes("LIFEOS_REQUIRE_NOTARIZED_CLOUDKIT_HELPER") &&
+      artifactSmoke.includes("Authority=Developer ID Application:") &&
+      artifactSmoke.includes("ProvisionsAllDevices") &&
+      artifactSmoke.includes("Notarized Developer ID")
+    ) pass("desktop artifact smoke verifies packaged CloudKit helper resources, redaction metadata, and distributable Developer ID identity");
+    else fail("desktop artifact smoke should verify CloudKit helper resource paths, files, redaction metadata, and distributable Developer ID identity");
     if (
       artifactSmoke.includes("/mobile/pair?token=") &&
       artifactSmoke.includes("/manifest.webmanifest?pairingToken=") &&
@@ -1741,6 +1746,10 @@ function checkAssets() {
     cloudKitHelperBundleSource.includes('"--verify", "--strict", "--deep"') &&
     cloudKitHelperBundleSource.includes("com.apple.developer.aps-environment") &&
     cloudKitHelperBundleSource.includes("com.apple.developer.icloud-container-identifiers") &&
+    cloudKitHelperBundleSource.includes("LIFEOS_REQUIRE_DISTRIBUTABLE_CLOUDKIT_HELPER") &&
+    cloudKitHelperBundleSource.includes("LIFEOS_REQUIRE_NOTARIZED_CLOUDKIT_HELPER") &&
+    cloudKitHelperBundleSource.includes("Notarized Developer ID") &&
+    cloudKitHelperBundleSource.includes('distribution: developerIdSigned && deviceIndependent') &&
     cloudKitHelperBundleSource.includes("rawSecretsIncluded: false") &&
     cloudKitHelperBundleSource.includes("localSourcePathIncluded: false") &&
     cloudKitHelperStageSource.includes('process.argv.includes("--require")') &&
@@ -1751,6 +1760,8 @@ function checkAssets() {
     desktopMainSourceForRuntimeConfig.includes("resolveCloudKitHelperRuntime") &&
     desktopMainSourceForRuntimeConfig.includes("applyCloudKitHelperRuntimeEnvironment") &&
     cloudKitHelperBundleTestSource.includes("blocks required, mismatched, or invalid helpers") &&
+    cloudKitHelperBundleTestSource.includes("device-independent Developer ID") &&
+    cloudKitHelperBundleTestSource.includes("Apple-notarized and stapled") &&
     cloudKitHelperRuntimeTestSource.includes("rejects traversal, secret flags, and absent helper manifests") &&
     packageJson.scripts.test.includes("tests/cloudkit-helper-bundle.test.mjs") &&
     packageJson.scripts["test:desktop"].includes("tests/cloudkit-helper-runtime.test.mjs")

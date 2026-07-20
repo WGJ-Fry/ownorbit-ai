@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { copyFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from "fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "fs";
 import { resolve } from "path";
 import { spawnSync } from "child_process";
 
@@ -11,7 +11,14 @@ const projectPath = resolve(buildDir, "LifeOSCloudKitHelper.xcodeproj");
 const appPath = resolve(derivedDataDir, "Build/Products/Release/LifeOSCloudKitHelper.app");
 const executablePath = resolve(appPath, "Contents/MacOS/LifeOSCloudKitHelper");
 const entitlementsPath = resolve(buildDir, "LifeOSCloudKitHelper.entitlements");
+const archivePath = resolve(buildDir, "LifeOSCloudKitHelper.xcarchive");
+const exportPath = resolve(buildDir, "DeveloperID");
+const exportedAppPath = resolve(exportPath, "LifeOSCloudKitHelper.app");
+const exportOptionsPath = resolve(buildDir, "ExportOptions.plist");
+const notarizationArchivePath = resolve(buildDir, "LifeOSCloudKitHelper-notarization.zip");
 const compileOnly = process.argv.includes("--compile-only") || process.env.LIFEOS_CLOUDKIT_XCODE_COMPILE_ONLY === "1";
+const distribution = String(process.env.LIFEOS_CLOUDKIT_DISTRIBUTION || "development").trim().toLowerCase();
+const notarize = process.env.LIFEOS_CLOUDKIT_NOTARIZE === "1";
 
 function run(command, args) {
   const result = spawnSync(command, args, {
@@ -60,6 +67,7 @@ targets:
         SWIFT_VERSION: "5.9"
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: ${yamlString(teamId)}
+        ENABLE_HARDENED_RUNTIME: YES
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: OwnOrbit CloudKit Helper
         INFOPLIST_KEY_LSBackgroundOnly: YES
@@ -85,8 +93,111 @@ schemes:
 `;
 }
 
+function developerIdExportOptions(teamId) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>method</key>
+  <string>developer-id</string>
+  <key>signingStyle</key>
+  <string>automatic</string>
+  <key>stripSwiftSymbols</key>
+  <true/>
+  <key>teamID</key>
+  <string>${teamId}</string>
+</dict>
+</plist>
+`;
+}
+
+function reportBuildFailure(build) {
+  const buildOutput = `${build.stdout}\n${build.stderr}`;
+  const agreementBlocked = !compileOnly && (buildOutput.includes("PLA Update available") || buildOutput.includes("Program License Agreement"));
+  const profileMissing = !compileOnly && /No profiles for|provisioning profiles matching/i.test(buildOutput);
+  if (agreementBlocked) {
+    console.error("Apple Developer Program License Agreement must be accepted by the account holder before Xcode can create the OwnOrbit provisioning profile.");
+    console.error("Open https://developer.apple.com/account/, accept the current agreement, then rerun this command.");
+  } else if (profileMissing && !allowProvisioningUpdates) {
+    console.error("Xcode could not find a matching local profile. After reviewing the App ID and iCloud Container, rerun with LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES=1.");
+  } else {
+    if (build.stdout) process.stdout.write(build.stdout);
+    if (build.stderr) process.stderr.write(build.stderr);
+  }
+  process.exit(build.status || 1);
+}
+
+function notaryAuthenticationArgs(teamId) {
+  const keychainProfile = String(process.env.LIFEOS_NOTARYTOOL_KEYCHAIN_PROFILE || "").trim();
+  if (keychainProfile) return ["--keychain-profile", keychainProfile];
+  return [
+    "--apple-id",
+    requiredEnv("APPLE_ID"),
+    "--password",
+    requiredEnv("APPLE_APP_SPECIFIC_PASSWORD"),
+    "--team-id",
+    requiredEnv("APPLE_TEAM_ID", teamId),
+  ];
+}
+
+function notarizeAndStapleHelper(teamId) {
+  rmSync(notarizationArchivePath, { force: true });
+  const archived = run("ditto", ["-c", "-k", "--keepParent", appPath, notarizationArchivePath]);
+  if (!archived.ok) {
+    console.error("The Developer ID helper could not be archived for Apple notarization.");
+    process.exit(archived.status || 1);
+  }
+  const submitted = run("xcrun", [
+    "notarytool",
+    "submit",
+    notarizationArchivePath,
+    ...notaryAuthenticationArgs(teamId),
+    "--wait",
+    "--timeout",
+    "30m",
+    "--output-format",
+    "json",
+    "--no-progress",
+  ]);
+  rmSync(notarizationArchivePath, { force: true });
+  let result;
+  try {
+    result = JSON.parse(submitted.stdout || "{}");
+  } catch {
+    result = {};
+  }
+  if (!submitted.ok || result.status !== "Accepted") {
+    console.error(`Apple notarization did not accept the CloudKit helper${result.id ? ` (submission ${result.id})` : ""}.`);
+    const detail = String(result.message || submitted.stderr || "").trim();
+    if (detail) console.error(detail);
+    process.exit(submitted.status || 1);
+  }
+  const stapled = run("xcrun", ["stapler", "staple", appPath]);
+  const validated = run("xcrun", ["stapler", "validate", appPath]);
+  const assessed = run("spctl", ["--assess", "--type", "execute", "--verbose=4", appPath]);
+  const assessment = `${assessed.stdout}\n${assessed.stderr}`;
+  if (!stapled.ok || !validated.ok || !assessed.ok || !assessment.includes("Notarized Developer ID")) {
+    console.error("The CloudKit helper was accepted but its stapled notarization ticket could not be verified.");
+    process.exit(stapled.status || validated.status || assessed.status || 1);
+  }
+  console.log(`Apple notarization accepted and stapled for submission ${result.id}.`);
+}
+
 if (process.platform !== "darwin") {
   console.error("The Xcode CloudKit helper build requires macOS.");
+  process.exit(2);
+}
+
+if (!compileOnly && !["development", "developer-id"].includes(distribution)) {
+  console.error("LIFEOS_CLOUDKIT_DISTRIBUTION must be development or developer-id.");
+  process.exit(2);
+}
+if (compileOnly && distribution === "developer-id") {
+  console.error("Developer ID distribution cannot be combined with --compile-only.");
+  process.exit(2);
+}
+if (notarize && distribution !== "developer-id") {
+  console.error("LIFEOS_CLOUDKIT_NOTARIZE=1 requires LIFEOS_CLOUDKIT_DISTRIBUTION=developer-id.");
   process.exit(2);
 }
 
@@ -106,6 +217,10 @@ if (environment !== "Development" && environment !== "Production") {
   console.error("LIFEOS_CLOUDKIT_ENVIRONMENT must be Development or Production.");
   process.exit(2);
 }
+if (distribution === "developer-id" && environment !== "Production") {
+  console.error("Developer ID CloudKit distribution requires LIFEOS_CLOUDKIT_ENVIRONMENT=Production.");
+  process.exit(2);
+}
 
 rmSync(buildDir, { recursive: true, force: true });
 mkdirSync(buildDir, { recursive: true });
@@ -121,7 +236,7 @@ if (!generated.ok) {
 }
 
 const allowProvisioningUpdates = process.env.LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES === "1";
-const xcodeArgs = [
+const commonXcodeArgs = [
   "-project",
   projectPath,
   "-scheme",
@@ -142,23 +257,41 @@ const xcodeArgs = [
           ? ["-allowProvisioningUpdates", "-allowProvisioningDeviceRegistration"]
           : []),
       ]),
-  "build",
 ];
-const build = run("xcodebuild", xcodeArgs);
-if (!build.ok) {
-  const buildOutput = `${build.stdout}\n${build.stderr}`;
-  const agreementBlocked = !compileOnly && (buildOutput.includes("PLA Update available") || buildOutput.includes("Program License Agreement"));
-  const profileMissing = !compileOnly && /No profiles for|provisioning profiles matching/i.test(buildOutput);
-  if (agreementBlocked) {
-    console.error("Apple Developer Program License Agreement must be accepted by the account holder before Xcode can create the OwnOrbit provisioning profile.");
-    console.error("Open https://developer.apple.com/account/, accept the current agreement, then rerun this command.");
-  } else if (profileMissing && !allowProvisioningUpdates) {
-    console.error("Xcode could not find a matching local profile. After reviewing the App ID and iCloud Container, rerun with LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES=1.");
-  } else {
-    if (build.stdout) process.stdout.write(build.stdout);
-    if (build.stderr) process.stderr.write(build.stderr);
+if (distribution === "developer-id") {
+  const archive = run("xcodebuild", [
+    ...commonXcodeArgs.filter((value, index) => !(value === "-destination" || commonXcodeArgs[index - 1] === "-destination")),
+    "-destination",
+    "generic/platform=macOS",
+    "-archivePath",
+    archivePath,
+    "archive",
+  ]);
+  if (!archive.ok) reportBuildFailure(archive);
+
+  writeFileSync(exportOptionsPath, developerIdExportOptions(teamId), { mode: 0o600 });
+  rmSync(exportPath, { recursive: true, force: true });
+  const exported = run("xcodebuild", [
+    "-exportArchive",
+    "-archivePath",
+    archivePath,
+    "-exportPath",
+    exportPath,
+    "-exportOptionsPlist",
+    exportOptionsPath,
+    ...(allowProvisioningUpdates ? ["-allowProvisioningUpdates"] : []),
+  ]);
+  if (!exported.ok) reportBuildFailure(exported);
+  if (!existsSync(exportedAppPath)) {
+    console.error(`Developer ID export completed without the expected helper app: ${exportedAppPath}`);
+    process.exit(1);
   }
-  process.exit(build.status || 1);
+  rmSync(appPath, { recursive: true, force: true });
+  mkdirSync(resolve(appPath, ".."), { recursive: true });
+  cpSync(exportedAppPath, appPath, { recursive: true, preserveTimestamps: true });
+} else {
+  const build = run("xcodebuild", [...commonXcodeArgs, "build"]);
+  if (!build.ok) reportBuildFailure(build);
 }
 
 if (!existsSync(executablePath)) {
@@ -178,6 +311,27 @@ if (!compileOnly) {
     console.error("The Xcode-built helper does not expose the requested CloudKit container and macOS push entitlements.");
     process.exit(inspected.status || 1);
   }
+  if (distribution === "developer-id") {
+    const signature = run("codesign", ["-dv", "--verbose=4", appPath]);
+    const signatureDetails = `${signature.stdout}\n${signature.stderr}`;
+    const profilePath = resolve(appPath, "Contents/embedded.provisionprofile");
+    const profile = existsSync(profilePath) ? run("security", ["cms", "-D", "-i", profilePath]) : { ok: false, stdout: "", stderr: "" };
+    if (
+      !signature.ok ||
+      !signatureDetails.includes("Authority=Developer ID Application:") ||
+      !signatureDetails.includes("runtime") ||
+      inspectedEntitlements.includes("com.apple.security.get-task-allow") ||
+      !inspectedEntitlements.includes("<string>production</string>") ||
+      !profile.ok ||
+      !profile.stdout.includes("<key>ProvisionsAllDevices</key>") ||
+      !profile.stdout.includes("<true/>") ||
+      profile.stdout.includes("<key>ProvisionedDevices</key>")
+    ) {
+      console.error("The exported helper is not a device-independent Developer ID build with Production CloudKit/APNs entitlements and hardened runtime.");
+      process.exit(1);
+    }
+    if (notarize) notarizeAndStapleHelper(teamId);
+  }
 }
 const launchCheck = run(executablePath, []);
 if (launchCheck.status !== 2 || !launchCheck.stdout.includes("lifeos-cloudkit-helper-response.v1")) {
@@ -187,7 +341,8 @@ if (launchCheck.status !== 2 || !launchCheck.stdout.includes("lifeos-cloudkit-he
 }
 
 console.log(`Built launchable Xcode CloudKit helper: ${appPath}`);
-console.log(`Build mode: ${compileOnly ? "unsigned compile-only" : "signed CloudKit + APNs"}`);
+console.log(`Build mode: ${compileOnly ? "unsigned compile-only" : distribution === "developer-id" ? "Developer ID distribution CloudKit + APNs" : "signed development CloudKit + APNs"}`);
+if (distribution === "developer-id") console.log(`Apple notarization: ${notarize ? "verified and stapled" : "not requested"}`);
 console.log(`Use helper: LIFEOS_CLOUDKIT_HELPER_BIN="${executablePath}"`);
 console.log(`Use entitlements: LIFEOS_CLOUDKIT_ENTITLEMENTS_PATH="${entitlementsPath}"`);
 if (!compileOnly) console.log(`Provisioning updates allowed: ${allowProvisioningUpdates ? "yes" : "no"}`);

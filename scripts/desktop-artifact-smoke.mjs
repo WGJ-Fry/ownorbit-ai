@@ -318,6 +318,11 @@ function verifyPackagedCloudKitHelperSignature(helperPath, entitlementsPath, man
     encoding: "utf8",
   });
   if (signature.status !== 0) fail(`packaged CloudKit helper signature is invalid\n${signature.stdout || ""}${signature.stderr || ""}`);
+  const signatureDetailsResult = spawnSync("codesign", ["-dv", "--verbose=4", helperApp], {
+    cwd: rootDir,
+    encoding: "utf8",
+  });
+  const signatureDetails = `${signatureDetailsResult.stdout || ""}\n${signatureDetailsResult.stderr || ""}`;
   const displayed = spawnSync("codesign", ["-d", "--entitlements", ":-", helperPath], {
     cwd: rootDir,
     encoding: "utf8",
@@ -344,6 +349,37 @@ function verifyPackagedCloudKitHelperSignature(helperPath, entitlementsPath, man
     encoding: "utf8",
   });
   if (bundleId.status !== 0 || bundleId.stdout.trim() !== manifest.bundleId) fail("packaged CloudKit helper bundle id does not match its manifest");
+  if (manifest.distribution === "developer-id") {
+    const profile = spawnSync("security", ["cms", "-D", "-i", path.join(helperApp, "Contents", "embedded.provisionprofile")], {
+      cwd: rootDir,
+      encoding: "utf8",
+    });
+    const profileXml = String(profile.stdout || "");
+    const isDeviceIndependent = /<key>ProvisionsAllDevices<\/key>\s*<true\s*\/>/.test(profileXml)
+      && !profileXml.includes("<key>ProvisionedDevices</key>");
+    if (
+      signatureDetailsResult.status !== 0
+      || !signatureDetails.includes("Authority=Developer ID Application:")
+      || !signatureDetails.includes("runtime")
+      || signedEnvironment !== "production"
+      || signedEntitlements["com.apple.security.get-task-allow"] === true
+      || profile.status !== 0
+      || !isDeviceIndependent
+    ) {
+      fail("packaged CloudKit helper is not a device-independent Developer ID Production build");
+    }
+    const assessment = spawnSync("spctl", ["--assess", "--type", "execute", "--verbose=4", helperApp], {
+      cwd: rootDir,
+      encoding: "utf8",
+    });
+    const assessmentDetails = `${assessment.stdout || ""}\n${assessment.stderr || ""}`;
+    const assessedNotarized = assessment.status === 0 && assessmentDetails.includes("Notarized Developer ID");
+    if (manifest.notarized !== assessedNotarized) fail("packaged CloudKit helper notarization metadata does not match Gatekeeper assessment");
+    if (assessedNotarized) {
+      const staple = spawnSync("xcrun", ["stapler", "validate", helperApp], { cwd: rootDir, encoding: "utf8" });
+      if (staple.status !== 0) fail("packaged CloudKit helper notarization ticket is not stapled or valid");
+    }
+  }
 }
 
 function checkCloudKitHelperResourceManifest() {
@@ -371,6 +407,14 @@ function checkCloudKitHelperResourceManifest() {
     if (!/^[A-Za-z0-9][A-Za-z0-9.-]{2,180}$/.test(String(manifest.bundleId || ""))) fail("packaged CloudKit helper bundle metadata is invalid");
     if (!/^[A-Za-z0-9][A-Za-z0-9.-]{2,40}$/.test(String(manifest.teamId || ""))) fail("packaged CloudKit helper team metadata is invalid");
     if (!["Development", "Production"].includes(manifest.environment)) fail("packaged CloudKit helper APNs environment is invalid");
+    if (!["development", "developer-id"].includes(manifest.distribution)) fail("packaged CloudKit helper distribution metadata is invalid");
+    if (typeof manifest.notarized !== "boolean") fail("packaged CloudKit helper notarization metadata is invalid");
+    if (process.env.LIFEOS_REQUIRE_DISTRIBUTABLE_CLOUDKIT_HELPER === "1" && manifest.distribution !== "developer-id") {
+      fail("packaged CloudKit helper is not a distributable Developer ID build");
+    }
+    if (process.env.LIFEOS_REQUIRE_NOTARIZED_CLOUDKIT_HELPER === "1" && manifest.notarized !== true) {
+      fail("packaged CloudKit helper is not Apple-notarized and stapled");
+    }
     const helperPath = safePackagedResourcePath(resourceRoot, manifest.helperRelativePath);
     const entitlementsPath = safePackagedResourcePath(resourceRoot, manifest.entitlementsRelativePath);
     if (!helperPath || !fs.statSync(helperPath, { throwIfNoEntry: false })?.isFile()) fail("packaged CloudKit helper executable is missing or outside its resource root");
