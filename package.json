@@ -151,6 +151,7 @@
     "mac": {
       "category": "public.app-category.productivity",
       "icon": "desktop/icon.icns",
+      "signIgnore": "LifeOSCloudKitHelper\\.app(?:/|$)",
       "target": [
         "dmg"
       ]

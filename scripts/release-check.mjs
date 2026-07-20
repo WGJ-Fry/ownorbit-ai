@@ -19,10 +19,10 @@ const currentPublicVersion = publicPackageVersion.includes("-") && publicPackage
   ? publicPackageVersion.slice(0, -2)
   : publicPackageVersion;
 const currentReleaseTag = String(releaseState.publicTag || `v${currentPublicVersion}`);
-const currentDockerImage = `ghcr.io/wgj-fry/lifeos-ai:${currentReleaseTag}`;
-const publicMacZipName = `LifeOS.AI-${publicPackageVersion}-arm64-unsigned.zip`;
-const publicWinInstallerName = `LifeOS.AI.Setup.${publicPackageVersion}.exe`;
-const publicLinuxAppImageName = `LifeOS.AI-${publicPackageVersion}.AppImage`;
+const currentDockerImage = `${String(releaseState.publicDockerRepository || "")}:${currentReleaseTag}`;
+const publicMacZipName = String(releaseState.publicArtifacts?.mac || "");
+const publicWinInstallerName = String(releaseState.publicArtifacts?.windows || "");
+const publicLinuxAppImageName = String(releaseState.publicArtifacts?.linux || "");
 const builderMacZipName = `OwnOrbit AI-${publicPackageVersion}-arm64-unsigned.zip`;
 const builderWinInstallerName = `OwnOrbit AI Setup ${publicPackageVersion}.exe`;
 const builderLinuxAppImageName = `OwnOrbit AI-${publicPackageVersion}.AppImage`;
@@ -715,6 +715,15 @@ function checkBuildConfig() {
     extraResources.some((resource) => resource?.from === "build/desktop-resources" && resource?.to === "lifeos-resources")
   ) pass("Electron packages staged CloudKit helper resources outside app.asar");
   else fail("Electron extraResources should package build/desktop-resources as lifeos-resources");
+
+  const macSignIgnore = Array.isArray(packageJson.build?.mac?.signIgnore)
+    ? packageJson.build.mac.signIgnore
+    : [packageJson.build?.mac?.signIgnore].filter(Boolean);
+  if (macSignIgnore.some((pattern) => String(pattern).includes("LifeOSCloudKitHelper"))) {
+    pass("Electron signing preserves the independently signed CloudKit helper entitlements");
+  } else {
+    fail("Electron mac signing must ignore LifeOSCloudKitHelper.app so its CloudKit entitlements are not replaced");
+  }
 
   const packageScripts = ["desktop:pack", "desktop:pack:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux"];
   if (packageScripts.every((script) => String(packageJson.scripts?.[script] || "").includes("desktop:resources:prepare"))) {
@@ -4512,8 +4521,14 @@ function checkReleaseDocs() {
     releaseState.schema === "ownorbit-release-state.v1" &&
     releaseState.sourcePackageVersion === packageJson.version &&
     releaseState.sourceTag === sourceReleaseTag &&
+    releaseState.sourceDockerRepository === "ghcr.io/wgj-fry/ownorbit-ai" &&
+    releaseState.sourceArtifacts?.mac === `OwnOrbit AI-${packageJson.version}-arm64-unsigned.zip` &&
+    releaseState.sourceArtifacts?.windows === `OwnOrbit AI Setup ${packageJson.version}.exe` &&
+    releaseState.sourceArtifacts?.linux === `OwnOrbit AI-${packageJson.version}.AppImage` &&
     releaseState.publicPackageVersion === publicPackageVersion &&
     releaseState.publicTag === currentReleaseTag &&
+    /^ghcr\.io\/wgj-fry\/(?:lifeos-ai|ownorbit-ai)$/.test(String(releaseState.publicDockerRepository || "")) &&
+    ["mac", "windows", "linux"].every((platform) => String(releaseState.publicArtifacts?.[platform] || "").includes(publicPackageVersion)) &&
     ["candidate", "published"].includes(releaseState.sourceStatus)
   ) {
     pass("release state separates the source candidate from current public downloads");
@@ -4590,6 +4605,7 @@ function checkReleaseDocs() {
     "packages: write",
     "docker/build-push-action@v6",
     "push: true",
+    String(releaseState.sourceDockerRepository || ""),
     "docs/assets/real-demo-en.gif",
     "What am I forgetting?",
   ];

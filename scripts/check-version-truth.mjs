@@ -18,10 +18,14 @@ const publishedPublicVersion = publishedPackageVersion.includes("-") && publishe
 const publishedReleaseTag = String(releaseState.publicTag || "");
 const nextPublicVersion = sourcePublicVersion.replace(/(\d+\.\d+\.)(\d+)(-.+)/, (_match, prefix, patch, suffix) => `${prefix}${Number(patch) + 1}${suffix}`);
 const nextReleaseTag = `v${nextPublicVersion}`;
-const publishedDockerImage = `ghcr.io/wgj-fry/lifeos-ai:${publishedReleaseTag}`;
-const publishedMacZip = `LifeOS.AI-${publishedPackageVersion}-arm64-unsigned.zip`;
-const publishedWinInstaller = `LifeOS.AI.Setup.${publishedPackageVersion}.exe`;
-const publishedLinuxAppImage = `LifeOS.AI-${publishedPackageVersion}.AppImage`;
+const sourceDockerRepository = String(releaseState.sourceDockerRepository || "");
+const publishedDockerRepository = String(releaseState.publicDockerRepository || "");
+const publishedDockerImage = `${publishedDockerRepository}:${publishedReleaseTag}`;
+const sourceArtifacts = releaseState.sourceArtifacts || {};
+const publishedArtifacts = releaseState.publicArtifacts || {};
+const publishedMacZip = String(publishedArtifacts.mac || "");
+const publishedWinInstaller = String(publishedArtifacts.windows || "");
+const publishedLinuxAppImage = String(publishedArtifacts.linux || "");
 const failures = [];
 const passes = [];
 const args = new Set(process.argv.slice(2));
@@ -65,10 +69,10 @@ function includesEvery(content, markers) {
   return markers.filter((marker) => !content.includes(marker));
 }
 
-function mentionedLifeosTags(content) {
+function mentionedOwnOrbitDockerImages(content) {
   return Array.from(new Set(
-    [...content.matchAll(/ghcr\.io\/wgj-fry\/lifeos-ai:(v\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?)/gi)]
-      .map((match) => match[1]),
+    [...content.matchAll(/ghcr\.io\/wgj-fry\/(?:lifeos-ai|ownorbit-ai):(v\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?)/gi)]
+      .map((match) => match[0]),
   ));
 }
 
@@ -238,8 +242,15 @@ check(releaseState.channel === "alpha", "release state channel is alpha", `relea
 check(["candidate", "published"].includes(releaseState.sourceStatus), "release state source status is valid", `release state sourceStatus must be candidate or published, got ${releaseState.sourceStatus || "(missing)"}`);
 check(releaseState.sourcePackageVersion === version, "release state source package version matches package.json", `release state sourcePackageVersion must be ${version}`);
 check(releaseState.sourceTag === releaseTag, "release state source tag matches package.json", `release state sourceTag must be ${releaseTag}`);
+check(sourceDockerRepository === "ghcr.io/wgj-fry/ownorbit-ai", "source candidate uses the OwnOrbit GHCR repository", "release state sourceDockerRepository must be ghcr.io/wgj-fry/ownorbit-ai");
+check(sourceArtifacts.mac === `OwnOrbit AI-${version}-arm64-unsigned.zip`, "source macOS artifact name matches the OwnOrbit package version", `release state sourceArtifacts.mac must be OwnOrbit AI-${version}-arm64-unsigned.zip`);
+check(sourceArtifacts.windows === `OwnOrbit AI Setup ${version}.exe`, "source Windows artifact name matches the OwnOrbit package version", `release state sourceArtifacts.windows must be OwnOrbit AI Setup ${version}.exe`);
+check(sourceArtifacts.linux === `OwnOrbit AI-${version}.AppImage`, "source Linux artifact name matches the OwnOrbit package version", `release state sourceArtifacts.linux must be OwnOrbit AI-${version}.AppImage`);
 check(publishedReleaseTag === `v${publishedPublicVersion}`, "release state public tag matches its package version", `release state publicTag must be v${publishedPublicVersion}`);
 check(publishedNotNewerThanSource, "public release is not newer than the source candidate", `public release ${publishedPackageVersion || "(missing)"} cannot be newer than source ${version}`);
+check(/^ghcr\.io\/wgj-fry\/(?:lifeos-ai|ownorbit-ai)$/.test(publishedDockerRepository), "public Docker repository is an approved OwnOrbit repository", `unsupported publicDockerRepository: ${publishedDockerRepository || "(missing)"}`);
+check(Boolean(publishedMacZip && publishedWinInstaller && publishedLinuxAppImage), "public artifact names are explicit release facts", "release state publicArtifacts must name macOS, Windows, and Linux assets");
+check([publishedMacZip, publishedWinInstaller, publishedLinuxAppImage].every((name) => name.includes(publishedPackageVersion)), "public artifact names match the public package version", `release state publicArtifacts must include ${publishedPackageVersion}`);
 check(exists(releaseNotesPath), "release notes exist for the derived public tag", `missing ${releaseNotesPath}`);
 check(exists(publishedReleaseNotesPath), "release notes exist for the current public download", `missing ${publishedReleaseNotesPath}`);
 check(Boolean(readme), "English README exists");
@@ -257,13 +268,13 @@ for (const [label, content] of [
   if (!content) continue;
   const missing = includesEvery(content, [publishedReleaseTag, publishedPackageVersion, publishedDockerImage, publishedMacZip, publishedWinInstaller, publishedLinuxAppImage]);
   check(missing.length === 0, `${label} uses the current public version, image, and asset names`, `${label} is missing current version markers: ${missing.join(", ")}`);
-  const tags = mentionedLifeosTags(content);
-  const staleTags = tags.filter((tag) => tag !== publishedReleaseTag);
-  check(staleTags.length === 0, `${label} does not point Docker users at stale image tags`, `${label} mentions stale GHCR tag(s): ${staleTags.join(", ")}`);
+  const images = mentionedOwnOrbitDockerImages(content);
+  const staleImages = images.filter((image) => image !== publishedDockerImage);
+  check(staleImages.length === 0, `${label} does not point Docker users at stale images`, `${label} mentions stale GHCR image(s): ${staleImages.join(", ")}`);
 }
 
 check(compose.includes(`image: ${publishedDockerImage}`), "docker-compose image matches the current public release", `docker-compose.yml must use image: ${publishedDockerImage}`);
-check(mentionedLifeosTags(compose).every((tag) => tag === publishedReleaseTag), "docker-compose does not contain stale OwnOrbit image tags");
+check(mentionedOwnOrbitDockerImages(compose).every((image) => image === publishedDockerImage), "docker-compose does not contain stale OwnOrbit images");
 
 const missingCandidateMarkers = includesEvery(releaseNotes, [
   releaseTag,
@@ -378,6 +389,16 @@ if (promotionMode) {
       publishedReleaseTag === releaseTag,
     "release promotion state points public downloads at the source version",
     `release promotion requires docs/release-state.json to mark ${version} / ${releaseTag} as published before tagging`,
+  );
+  check(
+    publishedDockerRepository === sourceDockerRepository,
+    "release promotion publishes the source candidate GHCR repository",
+    `release promotion requires publicDockerRepository=${sourceDockerRepository}`,
+  );
+  check(
+    ["mac", "windows", "linux"].every((platform) => publishedArtifacts[platform] === sourceArtifacts[platform]),
+    "release promotion publishes the source candidate artifact names",
+    "release promotion requires publicArtifacts to match sourceArtifacts for macOS, Windows, and Linux",
   );
 
   const status = git(["status", "--porcelain"]);

@@ -16,13 +16,13 @@ const releaseState = JSON.parse(await readFile(path.join(rootDir, "docs", "relea
 const publicPackageVersion = String(releaseState.publicPackageVersion || "");
 const currentVersionPattern = currentVersion.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const currentPublicTag = String(releaseState.publicTag || "");
-const currentDockerImage = `ghcr.io/wgj-fry/lifeos-ai:${currentPublicTag}`;
+const currentDockerImage = `${String(releaseState.publicDockerRepository || "")}:${currentPublicTag}`;
 const currentMacZipName = `OwnOrbit AI-${currentVersion}-arm64-unsigned.zip`;
 const currentWinInstallerName = `OwnOrbit AI Setup ${currentVersion}.exe`;
 const currentLinuxAppImageName = `OwnOrbit AI-${currentVersion}.AppImage`;
-const publicMacZipName = `LifeOS.AI-${publicPackageVersion}-arm64-unsigned.zip`;
-const publicWinInstallerName = `LifeOS.AI.Setup.${publicPackageVersion}.exe`;
-const publicLinuxAppImageName = `LifeOS.AI-${publicPackageVersion}.AppImage`;
+const publicMacZipName = String(releaseState.publicArtifacts?.mac || "");
+const publicWinInstallerName = String(releaseState.publicArtifacts?.windows || "");
+const publicLinuxAppImageName = String(releaseState.publicArtifacts?.linux || "");
 const packagedDesktopMain = [
   "function fetchLocalJson() {}",
   "const bundle = {",
@@ -640,6 +640,7 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /desktop artifact smoke verifies unsigned macOS ad-hoc signature/);
   assert.match(result.stdout, /desktop artifact smoke verifies packaged dependency safety metadata/);
   assert.match(result.stdout, /desktop artifact smoke verifies Electron runtime entitlements/);
+  assert.match(result.stdout, /Electron signing preserves the independently signed CloudKit helper entitlements/);
   assert.match(result.stdout, /unsigned macOS zip packaging uses electron-builder ad-hoc signing and verifies before zipping/);
   assert.match(result.stdout, /desktop artifact smoke verifies packaged mobile pairing install manifest/);
   assert.match(result.stdout, new RegExp(`release SHA256SUMS includes artifact: ${currentMacZipName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));

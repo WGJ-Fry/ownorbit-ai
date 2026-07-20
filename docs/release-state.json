@@ -4,6 +4,18 @@
   "sourceStatus": "candidate",
   "sourcePackageVersion": "0.1.6-alpha.0",
   "sourceTag": "v0.1.6-alpha",
+  "sourceDockerRepository": "ghcr.io/wgj-fry/ownorbit-ai",
+  "sourceArtifacts": {
+    "mac": "OwnOrbit AI-0.1.6-alpha.0-arm64-unsigned.zip",
+    "windows": "OwnOrbit AI Setup 0.1.6-alpha.0.exe",
+    "linux": "OwnOrbit AI-0.1.6-alpha.0.AppImage"
+  },
   "publicPackageVersion": "0.1.5-alpha.0",
-  "publicTag": "v0.1.5-alpha"
+  "publicTag": "v0.1.5-alpha",
+  "publicDockerRepository": "ghcr.io/wgj-fry/lifeos-ai",
+  "publicArtifacts": {
+    "mac": "LifeOS.AI-0.1.5-alpha.0-arm64-unsigned.zip",
+    "windows": "LifeOS.AI.Setup.0.1.5-alpha.0.exe",
+    "linux": "LifeOS.AI-0.1.5-alpha.0.AppImage"
+  }
 }

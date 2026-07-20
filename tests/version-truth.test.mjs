@@ -23,6 +23,9 @@ test("version truth check keeps public docs aligned with current release facts",
   assert.match(result.stdout, new RegExp(`Version truth passed for ${releaseTag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
   assert.match(result.stdout, new RegExp(`Public downloads remain ${releaseState.publicTag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
   assert.match(result.stdout, /release state source package version matches package\.json/);
+  assert.match(result.stdout, /source candidate uses the OwnOrbit GHCR repository/);
+  assert.match(result.stdout, /source macOS artifact name matches the OwnOrbit package version/);
+  assert.match(result.stdout, /public artifact names are explicit release facts/);
   assert.match(result.stdout, /source candidate release notes describe implemented CloudKit chat/);
   assert.match(result.stdout, /README files separate the source candidate from public downloads/);
   assert.match(result.stdout, /English README keeps the current alpha limits visible/);
@@ -220,4 +223,19 @@ test("version truth release asset guard requires all desktop platforms", async (
   assert.equal(complete.status, 0, `${complete.stdout}\n${complete.stderr}`);
   assert.match(complete.stdout, /release artifacts cover macOS, Windows, and Linux/);
   assert.match(complete.stdout, /SHA256SUMS includes release artifact/);
+});
+
+test("version truth promotion rejects stale public repository and artifact facts", () => {
+  const result = spawnSync(process.execPath, ["scripts/check-version-truth.mjs", "--promotion"], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      LIFEOS_RELEASE_DIR: path.join(tmpdir(), "lifeos-version-truth-missing-promotion-assets"),
+    },
+    encoding: "utf8",
+  });
+
+  assert.notEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /release promotion requires publicDockerRepository=ghcr\.io\/wgj-fry\/ownorbit-ai/);
+  assert.match(result.stderr, /release promotion requires publicArtifacts to match sourceArtifacts/);
 });

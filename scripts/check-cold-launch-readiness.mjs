@@ -6,7 +6,8 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"
 const releaseState = JSON.parse(fs.readFileSync(path.join(rootDir, "docs", "release-state.json"), "utf8"));
 const version = String(releaseState.publicPackageVersion || "");
 const releaseTag = String(releaseState.publicTag || "");
-const image = `ghcr.io/wgj-fry/lifeos-ai:${releaseTag}`;
+const imageRepository = String(releaseState.publicDockerRepository || "");
+const image = `${imageRepository}:${releaseTag}`;
 const failures = [];
 const passes = [];
 
@@ -29,7 +30,7 @@ async function checkGhcrManifest() {
     return;
   }
 
-  const imageName = "wgj-fry/lifeos-ai";
+  const imageName = imageRepository.replace(/^ghcr\.io\//, "");
   const accept = [
     "application/vnd.oci.image.index.v1+json",
     "application/vnd.docker.distribution.manifest.list.v2+json",
@@ -112,9 +113,9 @@ check(exists("Dockerfile"), "Dockerfile exists");
 check(exists("docker-compose.yml"), "docker-compose.yml exists");
 check(Boolean(dockerWorkflow), "Docker image workflow exists", ".github/workflows/docker.yml is missing");
 check(
-  dockerWorkflow.includes('tags:\n      - "v*"') && dockerWorkflow.includes("packages: write") && dockerWorkflow.includes("docker/build-push-action@v6") && dockerWorkflow.includes("push: true"),
+  dockerWorkflow.includes('tags:\n      - "v*"') && dockerWorkflow.includes("packages: write") && dockerWorkflow.includes("docker/build-push-action@v6") && dockerWorkflow.includes("push: true") && dockerWorkflow.includes(String(releaseState.sourceDockerRepository || "")),
   "Docker image workflow builds and pushes GHCR images for version tags",
-  "Docker image workflow must trigger on v* tags, allow packages: write, and push images to GHCR",
+  "Docker image workflow must trigger on v* tags, allow packages: write, and push images to the source candidate GHCR repository",
 );
 check(compose.includes(`image: ${image}`), "docker-compose image uses the current public alpha tag", `docker-compose.yml must use image: ${image}`);
 check(compose.includes("LOCAL_MODEL_NAME=llama3.2"), "docker-compose selects llama3.2 for the quickstart local model");
