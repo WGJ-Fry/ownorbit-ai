@@ -677,6 +677,13 @@ function checkScripts() {
       artifactSmoke.includes("packaged macOS app preserves mobile pairing token through install manifest")
     ) pass("desktop artifact smoke verifies packaged mobile pairing install manifest");
     else fail("desktop artifact smoke should verify packaged mobile pairing install manifest");
+    if (
+      artifactSmoke.includes("function stopPackagedApp") &&
+      artifactSmoke.includes('spawnSync("pkill"') &&
+      artifactSmoke.includes('spawnSync("pgrep"') &&
+      artifactSmoke.indexOf("stopPackagedApp(installedAppPath)") < artifactSmoke.lastIndexOf("fs.rmSync(installedAppPath")
+    ) pass("desktop artifact smoke stops the packaged app before removing its working directory");
+    else fail("desktop artifact smoke must wait for packaged app shutdown before removing its working directory");
   } else {
     fail("missing desktop artifact smoke script: scripts/desktop-artifact-smoke.mjs");
   }

@@ -643,6 +643,7 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /Electron signing preserves the independently signed CloudKit helper entitlements/);
   assert.match(result.stdout, /unsigned macOS zip packaging uses electron-builder ad-hoc signing and verifies before zipping/);
   assert.match(result.stdout, /desktop artifact smoke verifies packaged mobile pairing install manifest/);
+  assert.match(result.stdout, /desktop artifact smoke stops the packaged app before removing its working directory/);
   assert.match(result.stdout, new RegExp(`release SHA256SUMS includes artifact: ${currentMacZipName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
   assert.match(result.stdout, /release feed metadata matches manifest: latest-mac\.yml/);
   assert.match(result.stdout, /release feed avoids local absolute paths: latest-mac\.yml/);

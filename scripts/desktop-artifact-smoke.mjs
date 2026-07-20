@@ -147,6 +147,22 @@ function unsetLaunchctlEnv(key) {
   spawnSync("launchctl", ["unsetenv", key], { cwd: rootDir, stdio: "ignore" });
 }
 
+function sleepSync(milliseconds) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+}
+
+function stopPackagedApp(appPath) {
+  spawnSync("pkill", ["-TERM", "-f", appPath], { cwd: rootDir, stdio: "ignore" });
+  const deadline = Date.now() + 5_000;
+  while (Date.now() < deadline) {
+    const running = spawnSync("pgrep", ["-f", appPath], { cwd: rootDir, stdio: "ignore" });
+    if (running.status !== 0) return;
+    sleepSync(100);
+  }
+  spawnSync("pkill", ["-KILL", "-f", appPath], { cwd: rootDir, stdio: "ignore" });
+  sleepSync(100);
+}
+
 function macAppPathFromBinary(binary) {
   return binary.slice(0, binary.lastIndexOf(".app/Contents/MacOS/") + 4);
 }
@@ -769,7 +785,7 @@ async function launchPackagedMacApp() {
     }
     pass("packaged macOS app preserves mobile pairing token through install manifest");
   } finally {
-    spawn("pkill", ["-f", installedAppPath], { cwd: rootDir, stdio: "ignore" });
+    stopPackagedApp(installedAppPath);
     unsetLaunchctlEnv("LIFEOS_PORT");
     unsetLaunchctlEnv("LIFEOS_HOST");
     unsetLaunchctlEnv("PUBLIC_BASE_URL");
