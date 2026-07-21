@@ -132,6 +132,46 @@ test("AI runtime routes mainland China and international OpenAI-compatible provi
   });
 });
 
+test("Qwen3.7-Max uses the stable model id and explicit hybrid-thinking compatibility", async () => {
+  await withRuntime("qwen37-max", {
+    DASHSCOPE_API_KEY: "sk-qwen37-test",
+  }, async ({ generateAiContent, resolveAiModel, resolveAiProviderId }) => {
+    let request;
+    globalThis.fetch = async (url, init) => {
+      request = { url: String(url), headers: init.headers, body: JSON.parse(init.body) };
+      return jsonResponse({
+        choices: [{
+          message: {
+            reasoning_content: "private reasoning must not become assistant text",
+            content: JSON.stringify({ answer: "compatible" }),
+          },
+        }],
+      });
+    };
+
+    assert.equal(resolveAiProviderId({ modelEngine: "Qwen3.7-Max" }), "qwen");
+    assert.equal(resolveAiModel("qwen", "Qwen3.7-Max"), "qwen3.7-max");
+
+    const result = await generateAiContent({
+      providerId: "qwen",
+      modelEngine: "Qwen3.7-Max",
+      contents: "Return JSON",
+      responseMimeType: "application/json",
+    });
+
+    assert.equal(request.url, "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions");
+    assert.equal(request.headers.Authorization, "Bearer sk-qwen37-test");
+    assert.equal(request.body.model, "qwen3.7-max");
+    assert.equal(request.body.stream, false);
+    assert.equal(request.body.enable_thinking, true);
+    assert.equal(request.body.preserve_thinking, false);
+    assert.deepEqual(request.body.response_format, { type: "json_object" });
+    assert.equal(result.model, "qwen3.7-max");
+    assert.equal(result.text, JSON.stringify({ answer: "compatible" }));
+    assert.equal(result.text.includes("private reasoning"), false);
+  });
+});
+
 test("AI runtime routes Anthropic through the Messages API", async () => {
   await withRuntime("anthropic", {
     ANTHROPIC_API_KEY: "sk-ant-test",

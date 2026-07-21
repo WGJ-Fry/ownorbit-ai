@@ -17,6 +17,12 @@ The normal setup path now asks for only one thing at a time:
 
 Backups, connection diagnostics, CloudKit details, and safety tools remain available as advanced controls without crowding the normal path.
 
+### Qwen3.7-Max compatibility
+
+- Alibaba Model Studio users can select `qwen3.7-max`, `qwen3.7-max-2026-06-08`, or `qwen3.7-max-2026-05-20` from the built-in model catalog.
+- The runtime sends the official hybrid-thinking parameters through the OpenAI-compatible Chat Completions endpoint and keeps `reasoning_content` separate from the assistant's visible final answer.
+- Normal chat, tool definitions, and JSON response mode share the same tested provider path. The API key remains server-side.
+
 ### Signed iPhone-to-Mac CloudKit chat
 
 - The native iPhone shell can create a `LifeOSChatRequest` in the user's private CloudKit database.
@@ -81,6 +87,12 @@ Package version：`0.1.6-alpha.0`
 3. 扫描手机二维码并发送第一条消息。
 
 备份、连接诊断、CloudKit 细节和安全工具仍保留在高级功能中，不再挤进主流程。
+
+### Qwen3.7-Max 兼容
+
+- 阿里云百炼用户可在内置模型目录选择 `qwen3.7-max`、`qwen3.7-max-2026-06-08` 或 `qwen3.7-max-2026-05-20`。
+- 运行时通过 OpenAI-compatible Chat Completions 接口发送官方混合思考参数，并把 `reasoning_content` 与用户可见的最终回答分开处理。
+- 普通聊天、工具定义和 JSON 响应模式共用同一条受测 provider 路径，API Key 仍只保存在后端。
 
 ### iPhone 到 Mac 的签名 CloudKit 对话
 

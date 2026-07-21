@@ -1115,6 +1115,10 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.ok(openAiProvider.models.includes("gpt-4o-mini"));
   assert.ok(openAiProvider.models.includes("gpt-5"));
   assert.equal(openAiProvider.selectedModel, "gpt-4o-mini");
+  const qwenProvider = aiProviders.providers.find((provider) => provider.id === "qwen");
+  assert.ok(qwenProvider.models.includes("qwen3.7-max"));
+  assert.ok(qwenProvider.models.includes("qwen3.7-max-2026-06-08"));
+  assert.ok(qwenProvider.models.includes("qwen3.7-max-2026-05-20"));
   const updatedOpenAiModel = await request(port, "/api/v1/admin/ai-providers/openai/model", {
     method: "PUT",
     headers: adminHeaders,

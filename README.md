@@ -295,7 +295,7 @@ LOCAL_MODEL_NAME=llama3.2
 LOCAL_MODEL_BASE_URL=http://ollama:11434/v1
 ```
 
-The desktop/admin path includes provider settings for Mainland China and international models: DeepSeek, Qwen/DashScope, Kimi, GLM, Qianfan/ERNIE, Hunyuan, Doubao, MiniMax, StepFun, SiliconFlow, Baichuan, OpenAI, Gemini, Claude, Mistral, Groq, Perplexity, Together, xAI Grok, OpenRouter, and local OpenAI-compatible endpoints. Built-in model IDs are only the starting catalog: the UI can refresh `/models` where supported and also lets you type a newly released model ID manually. Sensitive keys are intended to stay server-side and out of frontend storage, backups, logs, and API responses.
+The desktop/admin path includes provider settings for Mainland China and international models: DeepSeek, Qwen/DashScope (including tested Qwen3.7-Max model ID `qwen3.7-max`), Kimi, GLM, Qianfan/ERNIE, Hunyuan, Doubao, MiniMax, StepFun, SiliconFlow, Baichuan, OpenAI, Gemini, Claude, Mistral, Groq, Perplexity, Together, xAI Grok, OpenRouter, and local OpenAI-compatible endpoints. Built-in model IDs are only the starting catalog: the UI can refresh `/models` where supported and also lets you type a newly released model ID manually. Sensitive keys are intended to stay server-side and out of frontend storage, backups, logs, and API responses.
 
 ## Current Alpha Limits
 

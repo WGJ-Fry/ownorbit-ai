@@ -295,7 +295,7 @@ LOCAL_MODEL_NAME=llama3.2
 LOCAL_MODEL_BASE_URL=http://ollama:11434/v1
 ```
 
-桌面/管理端路径包含中国大陆与国际主流模型配置入口：DeepSeek、通义千问/DashScope、Kimi、智谱 GLM、千帆/文心、腾讯混元、豆包、MiniMax、StepFun、硅基流动、百川、OpenAI、Gemini、Claude、Mistral、Groq、Perplexity、Together、xAI Grok、OpenRouter，以及本地 OpenAI-compatible endpoint。内置模型 ID 只是初始目录；服务支持时 UI 会刷新 `/models`，也允许手动输入服务商新发布的模型 ID。敏感 Key 设计目标是只留在后端，不进入前端存储、备份明文、日志和 API 响应。
+桌面/管理端路径包含中国大陆与国际主流模型配置入口：DeepSeek、通义千问/DashScope（已测试兼容 Qwen3.7-Max，模型 ID 为 `qwen3.7-max`）、Kimi、智谱 GLM、千帆/文心、腾讯混元、豆包、MiniMax、StepFun、硅基流动、百川、OpenAI、Gemini、Claude、Mistral、Groq、Perplexity、Together、xAI Grok、OpenRouter，以及本地 OpenAI-compatible endpoint。内置模型 ID 只是初始目录；服务支持时 UI 会刷新 `/models`，也允许手动输入服务商新发布的模型 ID。敏感 Key 设计目标是只留在后端，不进入前端存储、备份明文、日志和 API 响应。
 
 ## 当前 Alpha 限制
 

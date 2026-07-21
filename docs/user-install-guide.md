@@ -415,7 +415,7 @@ Configure AI keys in the desktop admin UI. Keys are stored on the computer in se
 
 Supported or prepared providers:
 
-- Mainland China / Chinese providers: DeepSeek, Alibaba Qwen / DashScope, Moonshot AI / Kimi, Zhipu AI / GLM, Baidu Qianfan / ERNIE, Tencent Hunyuan, Volcengine Ark / Doubao, MiniMax, StepFun, SiliconFlow, Baichuan AI.
+- Mainland China / Chinese providers: DeepSeek, Alibaba Qwen / DashScope (including tested Qwen3.7-Max support), Moonshot AI / Kimi, Zhipu AI / GLM, Baidu Qianfan / ERNIE, Tencent Hunyuan, Volcengine Ark / Doubao, MiniMax, StepFun, SiliconFlow, Baichuan AI.
 - International providers: OpenAI, Google Gemini, Anthropic Claude, Mistral AI, Groq, Perplexity, Together AI, xAI Grok, OpenRouter.
 - Local model endpoint: Ollama, LM Studio, or any OpenAI-compatible local server.
 

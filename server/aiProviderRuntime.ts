@@ -66,6 +66,7 @@ const providerNamePattern: Array<[AiProviderId, RegExp]> = [
   ["local", /local|ollama|lm studio|local/i],
   ["gemini", /gemini|google/i],
 ];
+const qwen37MaxModelPattern = /^qwen3\.7-max(?:-\d{4}-\d{2}-\d{2})?$/i;
 
 function isProviderId(value: unknown): value is AiProviderId {
   return typeof value === "string" && aiProviders.some((provider) => provider.id === value);
@@ -106,6 +107,7 @@ export function resolveAiModel(providerId: AiProviderId, modelEngine: unknown) {
   if (providerId === "openai" && /GPT-4o|gpt-4o/i.test(engine)) return "gpt-4o";
   if (providerId === "openrouter" && /Claude|claude/i.test(engine)) return "anthropic/claude-3.5-sonnet";
   if (providerId === "deepseek" && /reason|r1|推理/i.test(engine)) return "deepseek-reasoner";
+  if (providerId === "qwen" && /3[.\s_-]*7[\s_-]*max/i.test(engine)) return "qwen3.7-max";
   if (providerId === "qwen" && /max/i.test(engine)) return "qwen-max";
   if (providerId === "moonshot" && /128k/i.test(engine)) return "moonshot-v1-128k";
   if (providerId === "zhipu" && /flash/i.test(engine)) return "glm-4.5-flash";
@@ -178,6 +180,17 @@ function openAiTools(tools: GenerateAiContentInput["tools"]) {
   }));
 }
 
+function openAiProviderRequestOptions(providerId: AiProviderId, model: string) {
+  if (providerId === "qwen" && qwen37MaxModelPattern.test(model)) {
+    return {
+      stream: false,
+      enable_thinking: true,
+      preserve_thinking: false,
+    };
+  }
+  return {};
+}
+
 async function generateGemini(input: GenerateAiContentInput, apiKey: string, model: string): Promise<AiProviderResponse> {
   const ai = new GoogleGenAI({
     apiKey,
@@ -223,6 +236,7 @@ async function generateOpenAiCompatible(input: GenerateAiContentInput, credentia
       messages: normalizeMessages(input.contents, input.systemInstruction),
       tools: openAiTools(input.tools),
       temperature: input.temperature,
+      ...openAiProviderRequestOptions(providerId, model),
       ...(input.responseMimeType === "application/json" ? { response_format: { type: "json_object" } } : {}),
     }),
   });

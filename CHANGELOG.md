@@ -3,6 +3,7 @@
 ## 0.1.6-alpha.0 (Unreleased source candidate)
 
 - Simplified first launch to three visible actions: set the administrator password, configure one AI provider key, then scan the phone pairing QR and send the first message. Advanced connection and safety diagnostics remain available without blocking the normal path.
+- Added tested Alibaba Qwen3.7-Max compatibility through the Model Studio OpenAI-compatible Chat Completions endpoint, including the stable alias, dated snapshots, explicit hybrid-thinking request parameters, structured output, and final-answer-only response handling.
 - Added a private CloudKit chat request/response channel for the native iPhone shell. The phone can queue a text prompt while away from the Mac, and the Mac processes it through the configured AI provider without granting tools or native actions.
 - Added dedicated P-256 device identities for CloudKit chat. The iPhone private key stays in the device-only Keychain, CloudKit receives only the public key, and the Mac verifies every signed request before creating a job.
 - Added durable SQLite chat jobs, leases, bounded retries, expiry, idempotent response export, and visible waiting, Mac unavailable, processing, retrying, completed, failed, and timed-out states.
