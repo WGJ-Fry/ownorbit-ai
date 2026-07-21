@@ -645,7 +645,7 @@ function fetchText(port, pathname, options = {}) {
       res.on("data", (chunk) => { body += chunk; });
       res.on("end", () => resolve({ status: res.statusCode || 0, headers: res.headers, body }));
     });
-    req.setTimeout(2000, () => req.destroy(new Error("timeout")));
+    req.setTimeout(5000, () => req.destroy(new Error(`timeout requesting ${pathname}`)));
     req.on("error", reject);
   });
 }
@@ -716,6 +716,7 @@ async function launchPackagedMacApp() {
   setLaunchctlEnv("PUBLIC_BASE_URL", "");
   setLaunchctlEnv("APP_URL", "");
   setLaunchctlEnv("LIFEOS_ADMIN_PASSWORD", "");
+  setLaunchctlEnv("LIFEOS_STARTUP_CONNECTIVITY_DELAY_MS", "30000");
   setLaunchctlEnv("LIFEOS_DESKTOP_USER_DATA_DIR", path.join(tempRoot, "userData"));
   const child = spawn("open", ["-na", installedAppPath], {
     cwd: rootDir,
@@ -791,6 +792,7 @@ async function launchPackagedMacApp() {
     unsetLaunchctlEnv("PUBLIC_BASE_URL");
     unsetLaunchctlEnv("APP_URL");
     unsetLaunchctlEnv("LIFEOS_ADMIN_PASSWORD");
+    unsetLaunchctlEnv("LIFEOS_STARTUP_CONNECTIVITY_DELAY_MS");
     unsetLaunchctlEnv("LIFEOS_DESKTOP_USER_DATA_DIR");
     try {
       spawnSync("hdiutil", ["detach", mountDir], { cwd: rootDir, stdio: "ignore" });

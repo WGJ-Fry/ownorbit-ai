@@ -242,6 +242,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(serverSource, /process\.env\.NODE_ENV !== "production" && !RUNNING_BUNDLED_SERVER/);
   assert.match(serverSource, /startIcloudHandoffMonitor/);
   assert.match(serverSource, /runIcloudHandoffStartupRefresh/);
+  assert.match(serverSource, /LIFEOS_STARTUP_CONNECTIVITY_DELAY_MS/);
+  assert.match(serverSource, /DEFAULT_STARTUP_CONNECTIVITY_DELAY_MS = 15_000/);
+  assert.match(serverSource, /scheduleStartupConnectivityTask/);
   assert.match(serverSource, /refreshIcloudHandoffAfterStartup\("local-core-startup"\)/);
   assert.match(serverSource, /refreshIcloudHandoffAfterStartup\("cloudflare-autostart"\)/);
   assert.match(serverSource, /refreshIcloudHandoffAfterStartup\("tailscale-autostart"\)/);

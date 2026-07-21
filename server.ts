@@ -35,6 +35,19 @@ const PORT = Number(process.env.LIFEOS_PORT || process.env.PORT || 3000);
 const HOST = process.env.LIFEOS_HOST || "127.0.0.1";
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || process.env.APP_URL || "";
 const RUNNING_BUNDLED_SERVER = typeof __dirname !== "undefined" && path.basename(__dirname) === "dist";
+const DEFAULT_STARTUP_CONNECTIVITY_DELAY_MS = 15_000;
+const STARTUP_CONNECTIVITY_STAGGER_MS = 750;
+
+function startupConnectivityDelayMs() {
+  const configured = Number.parseInt(String(process.env.LIFEOS_STARTUP_CONNECTIVITY_DELAY_MS || ""), 10);
+  if (!Number.isFinite(configured) || configured < 0) return DEFAULT_STARTUP_CONNECTIVITY_DELAY_MS;
+  return Math.min(configured, 60_000);
+}
+
+function scheduleStartupConnectivityTask(delayMs: number, task: () => void) {
+  const timer = setTimeout(task, delayMs);
+  timer.unref();
+}
 
 if ((HOST === "0.0.0.0" || PUBLIC_BASE_URL) && process.env.LIFEOS_ALLOW_PUBLIC !== "1") {
   throw new Error("Public/LAN mode requires LIFEOS_ALLOW_PUBLIC=1. Set it only behind trusted HTTPS/tunnel protection.");
@@ -167,8 +180,11 @@ async function startServer() {
 
   server.listen(PORT, HOST, () => {
     console.log(`Server running on http://${HOST === "0.0.0.0" ? "localhost" : HOST}:${PORT}`);
-    const startupConnectivityTimer = setTimeout(() => {
+    const connectivityDelay = startupConnectivityDelayMs();
+    scheduleStartupConnectivityTask(connectivityDelay, () => {
       refreshIcloudHandoffAfterStartup("local-core-startup");
+    });
+    scheduleStartupConnectivityTask(connectivityDelay + STARTUP_CONNECTIVITY_STAGGER_MS, () => {
       maybeStartConfiguredCloudflareTunnel(String(PORT))
         .then((result) => {
           if (result.started && result.tunnel.url) {
@@ -179,6 +195,8 @@ async function startServer() {
         .catch((error) => {
           console.warn("Cloudflare Tunnel autostart failed:", error?.message || error);
         });
+    });
+    scheduleStartupConnectivityTask(connectivityDelay + STARTUP_CONNECTIVITY_STAGGER_MS * 2, () => {
       try {
         const tailscale = maybeStartConfiguredTailscaleServe(String(PORT));
         if (tailscale.started && tailscale.serve?.url) {
@@ -188,8 +206,7 @@ async function startServer() {
       } catch (error: any) {
         console.warn("Tailscale HTTPS Serve autostart failed:", error?.message || error);
       }
-    }, 500);
-    startupConnectivityTimer.unref();
+    });
   });
 
   const shutdown = () => {

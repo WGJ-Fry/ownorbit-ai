@@ -335,6 +335,7 @@ process.exit(1);
       LIFEOS_ALLOW_PUBLIC: "",
       LIFEOS_ADMIN_PASSWORD: "",
       LIFEOS_DESKTOP_USER_DATA_DIR: userDataDir,
+      LIFEOS_STARTUP_CONNECTIVITY_DELAY_MS: "100",
       LIFEOS_TAILSCALE_BIN: process.execPath,
       LIFEOS_TAILSCALE_BIN_ARGS: JSON.stringify([tailscalePath]),
     },
