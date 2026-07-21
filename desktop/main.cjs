@@ -8,6 +8,7 @@ const os = require("os");
 const path = require("path");
 const { createCloudKitPushListenerController } = require("./cloudKitPushListener.cjs");
 const { applyCloudKitHelperRuntimeEnvironment, resolveCloudKitHelperRuntime } = require("./cloudKitHelperRuntime.cjs");
+const { resolvePreferredDesktopUserDataPath } = require("./userDataPath.cjs");
 
 let mainWindow;
 let tray;
@@ -87,15 +88,12 @@ if (process.env.LIFEOS_DESKTOP_USER_DATA_DIR) {
   app.setPath("userData", path.resolve(process.env.LIFEOS_DESKTOP_USER_DATA_DIR));
 } else {
   const currentUserDataPath = app.getPath("userData");
-  const legacyUserDataPath = path.join(app.getPath("appData"), "LifeOS AI");
-  const currentDataPath = path.join(currentUserDataPath, "data");
-  const legacyDataPath = path.join(legacyUserDataPath, "data");
-  if (
-    path.resolve(currentUserDataPath) !== path.resolve(legacyUserDataPath)
-    && fs.existsSync(legacyDataPath)
-    && !fs.existsSync(currentDataPath)
-  ) {
-    app.setPath("userData", legacyUserDataPath);
+  const preferredUserDataPath = resolvePreferredDesktopUserDataPath({
+    appDataPath: app.getPath("appData"),
+    currentUserDataPath,
+  });
+  if (path.resolve(currentUserDataPath) !== path.resolve(preferredUserDataPath)) {
+    app.setPath("userData", preferredUserDataPath);
   }
 }
 

@@ -57,12 +57,16 @@ test("desktop resource preparation copies only inspected signed helper metadata"
   try {
     const sourceApp = await fakeApp(root);
     const outputDir = path.join(root, "resources");
+    const inspectedPaths = [];
     const result = stageCloudKitHelper({
       rootDir: root,
       outputDir,
       sourceApp,
       containerId: "iCloud.ai.lifeos.desktop",
-      inspect: (candidate) => inspected(candidate),
+      inspect: (candidate) => {
+        inspectedPaths.push(candidate);
+        return inspected(candidate);
+      },
     });
     assert.equal(result.manifest.included, true);
     assert.equal(result.manifest.verified, true);
@@ -71,11 +75,36 @@ test("desktop resource preparation copies only inspected signed helper metadata"
     assert.equal(result.manifest.localSourcePathIncluded, false);
     assert.equal(result.manifest.distribution, "development");
     assert.equal(result.manifest.notarized, false);
+    assert.equal(inspectedPaths.length, 2);
+    assert.equal(inspectedPaths[0], sourceApp);
+    assert.equal(inspectedPaths[1], path.join(outputDir, "native", "LifeOSCloudKitHelper.app"));
     await chmod(path.join(outputDir, result.manifest.helperRelativePath), 0o755);
     const serialized = JSON.stringify(result.manifest);
     assert.equal(serialized.includes(root), false);
     assert.equal(serialized.includes("deviceToken"), false);
     assert.equal(serialized.includes("APPLE_APP_SPECIFIC_PASSWORD"), false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("desktop resource preparation rejects a helper whose signature is lost while staging", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-bundle-copy-invalid-"));
+  try {
+    const sourceApp = await fakeApp(root);
+    const outputDir = path.join(root, "resources");
+    let inspections = 0;
+    assert.throws(() => stageCloudKitHelper({
+      rootDir: root,
+      outputDir,
+      sourceApp,
+      inspect: (candidate) => {
+        inspections += 1;
+        if (inspections === 2) throw new Error(`invalid signature: ${candidate}`);
+        return inspected(candidate);
+      },
+    }), /signature did not survive/);
+    assert.equal(inspections, 2);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

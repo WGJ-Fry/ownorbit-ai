@@ -39,6 +39,15 @@ function run(command, args, options = {}) {
   };
 }
 
+function copyAppBundle(sourceApp, destinationApp) {
+  if (process.platform === "darwin") {
+    const copied = run("ditto", ["--rsrc", "--extattr", "--acl", sourceApp, destinationApp]);
+    if (!copied.ok) throw new Error(`The CloudKit helper app could not be copied: ${compact(copied.stderr || copied.stdout)}`);
+    return;
+  }
+  fs.cpSync(sourceApp, destinationApp, { recursive: true, preserveTimestamps: true });
+}
+
 function extractXml(value) {
   const text = String(value || "");
   const start = text.indexOf("<?xml");
@@ -190,9 +199,26 @@ export function stageCloudKitHelper(options = {}) {
   }
   const destinationApp = path.join(outputDir, "native", CLOUDKIT_HELPER_APP_NAME);
   fs.mkdirSync(path.dirname(destinationApp), { recursive: true });
-  fs.cpSync(inspected.sourceApp || sourceApp, destinationApp, { recursive: true, preserveTimestamps: true });
+  copyAppBundle(inspected.sourceApp || sourceApp, destinationApp);
+  let staged;
+  try {
+    staged = inspect(destinationApp);
+  } catch {
+    fs.rmSync(destinationApp, { recursive: true, force: true });
+    throw new Error("The CloudKit helper signature did not survive desktop resource staging.");
+  }
+  for (const key of ["bundleId", "containerId", "teamId", "environment", "distribution"]) {
+    if (staged[key] !== inspected[key]) {
+      fs.rmSync(destinationApp, { recursive: true, force: true });
+      throw new Error(`The staged CloudKit helper ${key} does not match the inspected source.`);
+    }
+  }
+  if (staged.notarized !== inspected.notarized) {
+    fs.rmSync(destinationApp, { recursive: true, force: true });
+    throw new Error("The staged CloudKit helper notarization state does not match the inspected source.");
+  }
   const entitlementsPath = path.join(outputDir, CLOUDKIT_HELPER_ENTITLEMENTS_RELATIVE_PATH);
-  fs.writeFileSync(entitlementsPath, inspected.entitlementsXml, { mode: 0o600 });
+  fs.writeFileSync(entitlementsPath, staged.entitlementsXml, { mode: 0o600 });
   const manifest = {
     schema: CLOUDKIT_HELPER_BUNDLE_SCHEMA,
     included: true,
@@ -200,12 +226,12 @@ export function stageCloudKitHelper(options = {}) {
     reason: "signed-helper-staged",
     helperRelativePath: CLOUDKIT_HELPER_EXECUTABLE_RELATIVE_PATH,
     entitlementsRelativePath: CLOUDKIT_HELPER_ENTITLEMENTS_RELATIVE_PATH,
-    containerId: inspected.containerId,
-    bundleId: inspected.bundleId,
-    teamId: inspected.teamId,
-    environment: inspected.environment,
-    distribution: inspected.distribution || "development",
-    notarized: inspected.notarized === true,
+    containerId: staged.containerId,
+    bundleId: staged.bundleId,
+    teamId: staged.teamId,
+    environment: staged.environment,
+    distribution: staged.distribution || "development",
+    notarized: staged.notarized === true,
     rawSecretsIncluded: false,
     localSourcePathIncluded: false,
   };

@@ -89,7 +89,7 @@
     "preview": "vite preview",
     "lint": "node --stack_size=8192 ./node_modules/typescript/bin/tsc --noEmit",
     "test:api": "npm run build && node --test tests/api-auth.test.mjs",
-    "test:desktop": "npm run build && node --test --test-concurrency=1 tests/cloudkit-helper-runtime.test.mjs tests/cloudkit-push-listener.test.mjs tests/desktop-smoke.test.mjs",
+    "test:desktop": "npm run build && node --test --test-concurrency=1 tests/cloudkit-helper-runtime.test.mjs tests/cloudkit-push-listener.test.mjs tests/desktop-user-data-path.test.mjs tests/desktop-smoke.test.mjs",
     "test:smoke": "npm run build && node --test tests/frontend-smoke.test.mjs",
     "test:e2e": "playwright test",
     "test:mobile:simulator": "playwright test tests/e2e/admin-mobile-binding.spec.ts --project=chromium",

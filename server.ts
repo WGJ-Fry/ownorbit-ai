@@ -167,26 +167,29 @@ async function startServer() {
 
   server.listen(PORT, HOST, () => {
     console.log(`Server running on http://${HOST === "0.0.0.0" ? "localhost" : HOST}:${PORT}`);
-    refreshIcloudHandoffAfterStartup("local-core-startup");
-    maybeStartConfiguredCloudflareTunnel(String(PORT))
-      .then((result) => {
-        if (result.started && result.tunnel.url) {
-          console.log(`Cloudflare Tunnel running at ${result.tunnel.url}`);
+    const startupConnectivityTimer = setTimeout(() => {
+      refreshIcloudHandoffAfterStartup("local-core-startup");
+      maybeStartConfiguredCloudflareTunnel(String(PORT))
+        .then((result) => {
+          if (result.started && result.tunnel.url) {
+            console.log(`Cloudflare Tunnel running at ${result.tunnel.url}`);
+          }
+          refreshIcloudHandoffAfterStartup("cloudflare-autostart");
+        })
+        .catch((error) => {
+          console.warn("Cloudflare Tunnel autostart failed:", error?.message || error);
+        });
+      try {
+        const tailscale = maybeStartConfiguredTailscaleServe(String(PORT));
+        if (tailscale.started && tailscale.serve?.url) {
+          console.log(`Tailscale HTTPS Serve running at ${tailscale.serve.url}`);
         }
-        refreshIcloudHandoffAfterStartup("cloudflare-autostart");
-      })
-      .catch((error) => {
-        console.warn("Cloudflare Tunnel autostart failed:", error?.message || error);
-      });
-    try {
-      const tailscale = maybeStartConfiguredTailscaleServe(String(PORT));
-      if (tailscale.started && tailscale.serve?.url) {
-        console.log(`Tailscale HTTPS Serve running at ${tailscale.serve.url}`);
+        refreshIcloudHandoffAfterStartup("tailscale-autostart");
+      } catch (error: any) {
+        console.warn("Tailscale HTTPS Serve autostart failed:", error?.message || error);
       }
-      refreshIcloudHandoffAfterStartup("tailscale-autostart");
-    } catch (error: any) {
-      console.warn("Tailscale HTTPS Serve autostart failed:", error?.message || error);
-    }
+    }, 500);
+    startupConnectivityTimer.unref();
   });
 
   const shutdown = () => {

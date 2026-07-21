@@ -2466,7 +2466,9 @@ function getCloudflareTunnelStatus(port: string) {
 function getTailscaleStatus(portOverride = String(process.env.LIFEOS_PORT || process.env.PORT || "3000")) {
   const version = runTailscaleCommand(["version", "--short"]);
   const installed = version.ok;
-  const brew = process.platform === "darwin" ? runCommand(brewCommand(), ["--version"]) : { ok: false, output: "" };
+  const brew = process.platform === "darwin" && !installed
+    ? runCommand(brewCommand(), ["--version"])
+    : { ok: false, output: "" };
   const port = String(portOverride || process.env.LIFEOS_PORT || process.env.PORT || "3000");
   let online = false;
   let deviceName = "";
