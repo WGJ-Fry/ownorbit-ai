@@ -2238,6 +2238,10 @@ export class LifeosApiError extends Error {
   }
 }
 
+export function isLifeosRequestTimeout(error: unknown) {
+  return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: unknown }).code === "request_timeout");
+}
+
 async function requestJson<T>(url: string, init?: JsonRequestInit): Promise<T> {
   const method = init?.method || "GET";
   const body = typeof init?.body === "string" ? init.body : "";
@@ -2259,7 +2263,7 @@ async function requestJson<T>(url: string, init?: JsonRequestInit): Promise<T> {
     });
   } catch (error: any) {
     if (error?.name === "AbortError") {
-      throw new Error("Request timed out. Please retry after the local core is ready.");
+      throw new LifeosApiError("Request timed out. Please retry after the local core is ready.", 0, "request_timeout");
     }
     throw error;
   } finally {

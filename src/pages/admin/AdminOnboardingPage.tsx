@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type React from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { AlertTriangle, ArrowRight, CheckCircle2, Cloud, Copy, DatabaseBackup, KeyRound, Loader2, QrCode, RefreshCw, ShieldAlert, SlidersHorizontal, Sparkles, Smartphone, Wifi } from "lucide-react";
-import { cleanupIcloudHandoffEntries, completeOnboarding, createBackup, exportIcloudHandoff, getBackupSchedule, getBindingSession, getCloudKitDeviceTrustMetadata, getConfigDiagnostics, getNetworkDiagnostics, getOnboardingStatus, listAiProviders, listBackups, listDevices, saveAiProviderKey, saveDesktopConnectionConfig, startBindingSession, startCloudflareTunnel, startTailscaleHttpsServe, testAiProvider, testConnectionUrl, updateActiveAiProvider, updateAiProviderModel, updateBackupSchedule } from "../../services/lifeosApi";
+import { cleanupIcloudHandoffEntries, completeOnboarding, createBackup, exportIcloudHandoff, getBackupSchedule, getBindingSession, getCloudKitDeviceTrustMetadata, getConfigDiagnostics, getNetworkDiagnostics, getOnboardingStatus, isLifeosRequestTimeout, listAiProviders, listBackups, listDevices, saveAiProviderKey, saveDesktopConnectionConfig, startBindingSession, startCloudflareTunnel, startTailscaleHttpsServe, testAiProvider, testConnectionUrl, updateActiveAiProvider, updateAiProviderModel, updateBackupSchedule } from "../../services/lifeosApi";
 import type { AiProviderId, AiProviderStatus, BackupRecord, BackupSchedule, BindingSession, BoundDevice, CloudKitDeviceTrustMetadataSummary, ConfigDiagnostics, NetworkDiagnostics, OnboardingStatus } from "../../services/lifeosApi";
 import LanguageSwitcher from "../../i18n/LanguageSwitcher";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -46,6 +46,11 @@ const simpleIcloudAcceptanceRequirementKeys: Partial<Record<NonNullable<NetworkD
 function formatIcloudHandoffExportError(error: any, t: (key: any, params?: Record<string, any>) => string) {
   const key = icloudHandoffExportErrorKeys[String(error?.code || "")];
   return key ? t(key as any) : error?.message || t("onboarding.appleRemoteIcloudExportFailed");
+}
+
+function formatOnboardingApiError(error: any, t: (key: any, params?: Record<string, any>) => string, fallbackKey: TranslationKey) {
+  if (isLifeosRequestTimeout(error)) return t("api.requestTimeout");
+  return error?.message || t(fallbackKey);
 }
 
 export default function AdminOnboardingPage() {
@@ -434,7 +439,7 @@ export default function AdminOnboardingPage() {
         : result.message);
       await refresh();
     } catch (error: any) {
-      setStatus(error.message || t("onboarding.aiFailed"));
+      setStatus(formatOnboardingApiError(error, t, "onboarding.aiFailed"));
     } finally {
       setBusy(null);
     }

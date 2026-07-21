@@ -172,6 +172,12 @@ function checkScripts() {
     else fail(`missing package script: ${script}`);
   }
 
+  if (packageJson.scripts?.build?.includes("--external:electron")) {
+    pass("server build keeps Electron safeStorage in the desktop runtime");
+  } else {
+    fail("server build must externalize Electron so AI Key storage cannot execute the npm Electron downloader");
+  }
+
   if (exists("scripts/check-version-truth.mjs")) {
     const versionTruthSource = fs.readFileSync(path.join(rootDir, "scripts/check-version-truth.mjs"), "utf8");
     const versionTruthCheck = spawnSync(process.execPath, ["scripts/check-version-truth.mjs"], {
@@ -4122,8 +4128,15 @@ function checkAssets() {
   ) pass("high-risk AI key, device, backup, data export, and diagnostic exports include detailed redacted audit metadata");
   else warn("high-risk AI key, device, backup, data export, or diagnostic export audit metadata is too shallow or lacks tests");
 
-  if (exists("dist/server.cjs") && exists("dist/index.html")) pass("build output exists in dist/");
-  else warn("dist/ is missing or stale; run npm run build before packaging");
+  if (exists("dist/server.cjs") && exists("dist/index.html")) {
+    pass("build output exists in dist/");
+    const serverBundle = fs.readFileSync(path.join(rootDir, "dist/server.cjs"), "utf8");
+    if (!serverBundle.includes("node_modules/electron/index.js") && !serverBundle.includes("Downloading Electron binary")) {
+      pass("server bundle excludes the npm Electron downloader from AI Key storage");
+    } else {
+      fail("server bundle contains the npm Electron downloader and can block AI Key storage");
+    }
+  } else warn("dist/ is missing or stale; run npm run build before packaging");
 }
 
 function checkElectronBinary() {

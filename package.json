@@ -40,7 +40,7 @@
   "main": "desktop/main.cjs",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --define:process.env.NODE_ENV='\"production\"' --sourcemap --outfile=dist/server.cjs",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --external:electron --define:process.env.NODE_ENV='\"production\"' --sourcemap --outfile=dist/server.cjs",
     "desktop": "npm run build && electron desktop/main.cjs",
     "desktop:resources:prepare": "node scripts/stage-cloudkit-helper.mjs",
     "desktop:pack": "npm run desktop:resources:prepare && npm run build && electron-builder --dir",

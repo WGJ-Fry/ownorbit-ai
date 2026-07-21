@@ -1,9 +1,15 @@
 import { useEffect, useState } from "react";
 import { KeyRound, PlugZap, Save, Trash2 } from "lucide-react";
-import { deleteAiProviderKey, listAiProviders, saveAiProviderKey, testAiProvider, updateActiveAiProvider, updateAiProviderModel } from "../../../services/lifeosApi";
+import { deleteAiProviderKey, isLifeosRequestTimeout, listAiProviders, saveAiProviderKey, testAiProvider, updateActiveAiProvider, updateAiProviderModel } from "../../../services/lifeosApi";
 import type { AiProviderId, AiProviderStatus, ConfigDiagnostics } from "../../../services/lifeosApi";
 import { useI18n } from "../../../i18n/I18nProvider";
+import type { TranslationKey } from "../../../i18n/translations";
 import AiProviderSecuritySummary from "./AiProviderSecuritySummary";
+
+function formatAiKeyApiError(error: any, t: (key: any, params?: Record<string, any>) => string, fallbackKey: TranslationKey) {
+  if (isLifeosRequestTimeout(error)) return t("api.requestTimeout");
+  return error?.message || t(fallbackKey);
+}
 
 export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: ConfigDiagnostics; onChanged: () => Promise<void> }) {
   const { t } = useI18n();
@@ -72,7 +78,7 @@ export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: Co
       await refreshProviders();
       await onChanged();
     } catch (error: any) {
-      setStatus(error.message || t("aiKey.saveFailed"));
+      setStatus(formatAiKeyApiError(error, t, "aiKey.saveFailed"));
     } finally {
       setBusy(false);
     }
@@ -88,7 +94,7 @@ export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: Co
       await refreshProviders();
       await onChanged();
     } catch (error: any) {
-      setStatus(error.message || t("aiKey.deleteFailed"));
+      setStatus(formatAiKeyApiError(error, t, "aiKey.deleteFailed"));
     } finally {
       setBusy(false);
     }
@@ -106,7 +112,7 @@ export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: Co
         : result.message);
       await refreshProviders();
     } catch (error: any) {
-      setStatus(error.message || t("aiKey.testFailed"));
+      setStatus(formatAiKeyApiError(error, t, "aiKey.testFailed"));
     } finally {
       setBusy(false);
     }
@@ -123,7 +129,7 @@ export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: Co
       await refreshProviders();
       await onChanged();
     } catch (error: any) {
-      setStatus(error.message || t("aiKey.modelSaveFailed"));
+      setStatus(formatAiKeyApiError(error, t, "aiKey.modelSaveFailed"));
     } finally {
       setBusy(false);
     }
@@ -139,7 +145,7 @@ export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: Co
       setStatus(t("aiKey.defaultSet", { provider: result.provider.provider }));
       await onChanged();
     } catch (error: any) {
-      setStatus(error.message || t("aiKey.defaultFailed"));
+      setStatus(formatAiKeyApiError(error, t, "aiKey.defaultFailed"));
     } finally {
       setBusy(false);
     }

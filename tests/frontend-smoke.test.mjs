@@ -58,6 +58,13 @@ async function getOpenPort() {
   });
 }
 
+test("production server bundle keeps Electron safeStorage in the desktop runtime", async () => {
+  const serverBundle = await readFile(path.join(rootDir, "dist/server.cjs"), "utf8");
+  assert.doesNotMatch(serverBundle, /node_modules\/electron\/index\.js/);
+  assert.doesNotMatch(serverBundle, /Downloading Electron binary/);
+  assert.match(serverBundle, /require\("electron"\)/);
+});
+
 test("production build serves desktop admin, mobile PWA, manifest, and service worker", async (t) => {
   const port = await getOpenPort();
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-frontend-smoke-"));
