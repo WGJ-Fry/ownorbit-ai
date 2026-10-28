@@ -107,7 +107,7 @@
     "@google/genai": "^2.4.0",
     "dotenv": "^17.2.3",
     "electron-updater": "^6.8.9",
-    "express": "^4.21.2",
+    "express": "^4.22.3",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "qrcode.react": "^4.2.0",
@@ -124,13 +124,13 @@
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^6.0.2",
     "autoprefixer": "^10.4.21",
-    "electron": "42.11.2",
+    "electron": "42.11.18",
     "electron-builder": "26.15.7",
     "esbuild": "^0.28.1",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
-    "vite": "^8.0.16"
+    "vite": "^8.3.5"
   },
   "build": {
     "appId": "ai.lifeos.desktop",
@@ -176,8 +176,8 @@
   },
   "overrides": {
     "esbuild": "$esbuild",
-    "fast-uri": "3.1.6",
-    "qs": "6.16.0",
-    "undici": "7.29.0"
+    "fast-uri": "3.1.9",
+    "qs": "6.16.2",
+    "undici": "7.30.1"
   }
 }
