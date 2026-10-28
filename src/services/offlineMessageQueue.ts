@@ -653,6 +653,17 @@ export function enqueueOfflineMessage(message: Message, options: EnqueueOfflineM
   return id;
 }
 
+// Whether a queue entry can anchor messages queued behind it: it must flush
+// on its own (not a failed record), and leave room for one more item, since
+// trimQueueToBudget evicts from the front once the queue is over budget.
+// Checking size matters because re-sending an identical oversized message
+// dedupes onto the old record and resets it to pending.
+export function isOfflineMessageDeliverable(id: string) {
+  const entry = readQueue().find((item) => item.id === id);
+  if (!entry || entry.status === "failed") return false;
+  return getOfflineQueueSerializedBytes([entry]) <= MAX_QUEUE_BYTES - MAX_QUEUE_ITEM_BYTES;
+}
+
 export function getOfflineMessageQueue() {
   return readQueue();
 }

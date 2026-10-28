@@ -101,3 +101,31 @@ test("private Tailscale socket refuses outside paths and regular-file replacemen
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("Tailscale Serve CLI output never carries the private socket path out of the process", async () => {
+  const { redactTailscaleServeTarget } = await import("../server/networkDiagnostics.ts");
+  const socketPath = "/home/alice/.config/OwnOrbit AI/data/runtime/tailscale/core.sock";
+  const target = `unix:${socketPath}`;
+  const cliOutput = [
+    "Available within your tailnet:",
+    "",
+    "https://mac.tailnet.ts.net/",
+    `|-- / proxy ${target}`,
+    `error: could not reach ${socketPath}`,
+  ].join("\n");
+
+  const redacted = redactTailscaleServeTarget(cliOutput, target);
+  assert.equal(redacted.includes(socketPath), false);
+  assert.equal(redacted.includes("alice"), false);
+  assert.match(redacted, /\|-- \/ proxy unix:\[OwnOrbit private socket\]/);
+  // The public hostname stays readable.
+  assert.match(redacted, /https:\/\/mac\.tailnet\.ts\.net\//);
+});
+
+test("a loopback Serve target is not private and is left as is", async () => {
+  const { redactTailscaleServeTarget } = await import("../server/networkDiagnostics.ts");
+  if (process.platform === "win32") return;
+  const output = "|-- / proxy http://127.0.0.1:3000";
+  assert.equal(redactTailscaleServeTarget(output, "http://127.0.0.1:3000"), output);
+  assert.equal(redactTailscaleServeTarget("", "unix:/tmp/x.sock"), "");
+});

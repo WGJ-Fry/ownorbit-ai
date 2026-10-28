@@ -6,12 +6,14 @@ import {
   enqueueOfflineMessage,
   type EnqueueOfflineMessageOptions,
   getOfflineMessagesReadyToSync,
+  isOfflineMessageDeliverable,
   markOfflineMessagesSynced,
   markOfflineMessageFailed,
   markOfflineMessageSyncing,
   recoverStaleOfflineMessages,
 } from "../services/offlineMessageQueue";
 import { getNetworkStatus } from "../services/networkStatus";
+import { persistInOrder, type PersistOutcome } from "../services/orderedMessagePersistence";
 
 async function buildOfflineMessageSource(): Promise<EnqueueOfflineMessageOptions["source"]> {
   const credential = await getStoredDeviceCredentialAsync().catch(() => null);
@@ -63,21 +65,37 @@ export function useChatPersistence() {
     return getChatSessionMessages(sessionId);
   }, [ensureChatSessionId]);
 
-  const persistMessageToCore = useCallback(async (message: Message) => {
+  const persistMessageToCore = useCallback(async (message: Message): Promise<PersistOutcome> => {
     try {
       const sessionId = await ensureChatSessionId();
       await saveChatMessage(sessionId, message);
+      return "stored";
     } catch (error) {
       console.warn("Failed to persist chat message, retrying with a fresh session:", error);
       try {
         const sessionId = await createAndUseChatSession();
         await saveChatMessage(sessionId, message);
+        return "stored";
       } catch (retryError) {
         console.warn("Failed to persist chat message:", retryError);
-        enqueueOfflineMessage(message, { source: await buildOfflineMessageSource() });
+        try {
+          const queuedId = enqueueOfflineMessage(message, { source: await buildOfflineMessageSource() });
+          return isOfflineMessageDeliverable(queuedId) ? "queued" : "unsaved";
+        } catch (queueError) {
+          console.warn("Failed to queue chat message offline:", queueError);
+          return "unsaved";
+        }
       }
     }
   }, [createAndUseChatSession, ensureChatSessionId]);
+
+  const persistMessagesInOrder = useCallback((messages: Message[]) => persistInOrder(
+    messages,
+    persistMessageToCore,
+    async (message) => {
+      enqueueOfflineMessage(message, { source: await buildOfflineMessageSource() });
+    },
+  ), [persistMessageToCore]);
 
   const flushOfflineMessages = useCallback(async () => {
     recoverStaleOfflineMessages();
@@ -113,5 +131,6 @@ export function useChatPersistence() {
     flushOfflineMessages,
     loadMessagesFromCore,
     persistMessageToCore,
+    persistMessagesInOrder,
   };
 }

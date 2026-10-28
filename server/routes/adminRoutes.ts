@@ -2,6 +2,7 @@ import type express from "express";
 import crypto from "crypto";
 import { createDatabaseBackup, db } from "../db";
 import { maybeBroadcastDeviceEndpointsChange } from "../deviceEndpoints";
+import { releaseStoppedRemoteEntry, type SurvivingRemoteEntry } from "../remoteEntryRelease";
 import { insertAuditLog, listAuditLogs } from "../audit";
 import { aiProviders, deleteAiApiKey, getActiveAiProviderId, getAiApiKey, getAiConfigStatus, getAiProviderBaseUrl, getAiProviderDefinition, getAiProviderStatus, listAiProviderStatuses, saveActiveAiProvider, saveAiApiKey, saveDiscoveredAiModelCatalog, saveSelectedAiModel, supportsAiProviderModelDiscovery, type AiProviderId } from "../appSecrets";
 import { buildCalendarSyncPreview, buildCalendarSyncPreviewAsync, executeCalendarSyncOperationAsync } from "../calendarSyncPreview";
@@ -10,7 +11,7 @@ import { createCalendarSyncRun, listCalendarSyncRuns } from "../calendarSyncRuns
 import { bootstrapAdminCredential, createAdminSession, getAdminSessionByToken, getBearerToken, isAdminConfigured, requireAdmin, resetAdminCredential, rotateAdminCredential, verifyAdminPassword } from "../auth";
 import { createDiagnosticBundle, getReleaseDiagnostics } from "../diagnosticBundle";
 import { clearHttpOnlyCookie, getClientIp, rateLimit, setClientCookie, setHttpOnlyCookie } from "../httpSecurity";
-import { IcloudHandoffExportError, analyzeIcloudHandoffRepairPacket, cleanupIcloudHandoffEntries, exportIcloudHandoff, getNetworkDiagnostics, installTailscaleClient, maybeRefreshIcloudHandoff, retireIcloudHandoffEntry, startTailscaleHttpsServe, stopTailscaleHttpsServe, testConnectionUrl } from "../networkDiagnostics";
+import { IcloudHandoffExportError, analyzeIcloudHandoffRepairPacket, cleanupIcloudHandoffEntries, exportIcloudHandoff, getNetworkDiagnostics, installTailscaleClient, maybeRefreshIcloudHandoff, retireIcloudHandoffEntry, startTailscaleHttpsServe, stopTailscaleHttpsServe, testConnectionUrl, getActiveTailscaleHttpsServeUrl } from "../networkDiagnostics";
 import { generateCloudflareNamedTunnelConfig, getCloudflareNamedTunnelStatus, getManagedCloudflareTunnelStatus, refreshCloudflareNamedTunnelConfigForPort, startConfiguredCloudflareNamedTunnel, startManagedCloudflareTunnel, stopManagedCloudflareTunnel } from "../cloudflareTunnel";
 import { getDesktopRuntimeConfig, saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { getConfiguredPublicBaseUrl, normalizePublicBaseUrl } from "../publicBaseUrl";
@@ -925,6 +926,24 @@ function reconcileIcloudHandoffAfterRemoteStop(reason: string) {
       },
     };
   }
+}
+
+function survivingRemoteEntry(stopped: "cloudflare" | "tailscale"): SurvivingRemoteEntry {
+  if (stopped !== "cloudflare") {
+    const tunnel = getManagedCloudflareTunnelStatus();
+    if (tunnel.ready && tunnel.url) return { mode: "cloudflare" as const, label: "Cloudflare Tunnel", url: tunnel.url };
+  }
+  if (stopped !== "tailscale") {
+    const url = getActiveTailscaleHttpsServeUrl();
+    if (url) return { mode: "tailscale" as const, label: "Tailscale HTTPS Serve", url };
+  }
+  return null;
+}
+
+function savedConfigAfterRemoteStop(survivor: SurvivingRemoteEntry) {
+  if (survivor) return saveDesktopRuntimeConfig({ mode: survivor.mode, label: survivor.label, baseUrl: survivor.url });
+  const port = String(process.env.LIFEOS_PORT || process.env.PORT || "3000");
+  return saveDesktopRuntimeConfig({ mode: "local", label: "Local management", baseUrl: `http://127.0.0.1:${port}` });
 }
 
 export function registerAdminRoutes(app: express.Express) {
@@ -2511,20 +2530,9 @@ export function registerAdminRoutes(app: express.Express) {
     if (clearedPublicBaseUrl) delete process.env.PUBLIC_BASE_URL;
     if (clearedAppUrl) delete process.env.APP_URL;
     const clearedActiveEntry = clearedPublicBaseUrl || clearedAppUrl;
-    if (clearedActiveEntry) {
-      if (!getConfiguredPublicBaseUrl()) {
-        delete process.env.LIFEOS_ALLOW_PUBLIC;
-        delete process.env.LIFEOS_TRUST_PROXY;
-      }
-    }
-    const port = String(process.env.LIFEOS_PORT || process.env.PORT || "3000");
-    const config = savedConfig?.mode === "cloudflare"
-      ? saveDesktopRuntimeConfig({
-          mode: "local",
-          label: "Local management",
-          baseUrl: `http://127.0.0.1:${port}`,
-        })
-      : null;
+    const survivor = clearedActiveEntry || savedConfig?.mode === "cloudflare" ? survivingRemoteEntry("cloudflare") : null;
+    if (clearedActiveEntry) releaseStoppedRemoteEntry(survivor);
+    const config = savedConfig?.mode === "cloudflare" ? savedConfigAfterRemoteStop(survivor) : null;
     const requiresRestart = process.env.LIFEOS_HOST === "0.0.0.0";
     const icloud = reconcileIcloudHandoffAfterRemoteStop("cloudflare-tunnel-stopped");
     insertAuditLog("cloudflare_tunnel_stopped", "network", "cloudflare", {
@@ -2533,7 +2541,8 @@ export function registerAdminRoutes(app: express.Express) {
       clearedActiveEntry,
       clearedPublicBaseUrl,
       clearedAppUrl,
-      savedLocalMode: Boolean(config),
+      savedLocalMode: Boolean(config) && !survivor,
+      survivingEntryMode: survivor?.mode || null,
       requiresRestart,
       icloudRefresh: icloud.refresh,
       icloudRetirement: icloud.retirement,
@@ -2627,18 +2636,9 @@ export function registerAdminRoutes(app: express.Express) {
       if (clearedPublicBaseUrl) delete process.env.PUBLIC_BASE_URL;
       if (clearedAppUrl) delete process.env.APP_URL;
       const clearedActiveEntry = clearedPublicBaseUrl || clearedAppUrl;
-      if (clearedActiveEntry && !getConfiguredPublicBaseUrl()) {
-        delete process.env.LIFEOS_ALLOW_PUBLIC;
-        delete process.env.LIFEOS_TRUST_PROXY;
-      }
-      const port = String(process.env.LIFEOS_PORT || process.env.PORT || "3000");
-      const config = savedConfig?.mode === "tailscale"
-        ? saveDesktopRuntimeConfig({
-            mode: "local",
-            label: "Local management",
-            baseUrl: `http://127.0.0.1:${port}`,
-          })
-        : null;
+      const survivor = clearedActiveEntry || savedConfig?.mode === "tailscale" ? survivingRemoteEntry("tailscale") : null;
+      if (clearedActiveEntry) releaseStoppedRemoteEntry(survivor);
+      const config = savedConfig?.mode === "tailscale" ? savedConfigAfterRemoteStop(survivor) : null;
       const icloud = reconcileIcloudHandoffAfterRemoteStop("tailscale-serve-stopped");
       insertAuditLog("tailscale_https_serve_stopped", "network", serve.url || "tailscale", {
         command: serve.command,
@@ -2646,7 +2646,8 @@ export function registerAdminRoutes(app: express.Express) {
         clearedActiveEntry,
         clearedPublicBaseUrl,
         clearedAppUrl,
-        savedLocalMode: Boolean(config),
+        savedLocalMode: Boolean(config) && !survivor,
+        survivingEntryMode: survivor?.mode || null,
         icloudRefresh: icloud.refresh,
         icloudRetirement: icloud.retirement,
       }, (req as any).actor?.type, (req as any).actor?.id);

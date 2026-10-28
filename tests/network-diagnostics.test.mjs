@@ -1273,6 +1273,8 @@ test("iCloud handoff retires an old phone entry when no reachable address remain
       APP_URL: "",
       LIFEOS_CLOUDFLARED_BIN: "/definitely/missing/cloudflared",
       LIFEOS_TAILSCALE_BIN: "/definitely/missing/tailscale",
+      // Retirement mechanics only; the sustained-absence guard is covered below.
+      LIFEOS_ICLOUD_RETIRE_AFTER_ABSENCE_MS: "0",
     },
     encoding: "utf8",
   });
@@ -1289,6 +1291,69 @@ test("iCloud handoff retires an old phone entry when no reachable address remain
   assert.match(result.html, /这个手机入口已停用/);
   assert.match(result.html, /This mobile entry is retired/);
   assert.doesNotMatch(result.html, /href=/);
+});
+
+test("iCloud handoff keeps a valid entry through a brief startup gap before tunnels return", async (t) => {
+  const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-startup-gap-"));
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-startup-gap-data-"));
+  t.after(async () => {
+    await rm(icloudDir, { recursive: true, force: true });
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  // Models a relaunch: the entry was exported while the tunnel was up, the
+  // first refreshes run before the saved tunnel is restored, then it returns.
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const fs = await import("node:fs");
+    const network = await import("./server/networkDiagnostics.ts?icloud-startup-gap=" + Date.now());
+    const first = network.exportIcloudHandoff("test-startup-gap-initial");
+    const before = JSON.parse(fs.readFileSync(first.packetFilePath, "utf8"));
+    delete process.env.PUBLIC_BASE_URL;
+    const gapOne = network.maybeRefreshIcloudHandoff("remote-health-startup");
+    const gapTwo = network.maybeRefreshIcloudHandoff("local-core-startup");
+    const during = JSON.parse(fs.readFileSync(first.packetFilePath, "utf8"));
+    const html = fs.readFileSync(first.handoffFilePath, "utf8");
+    process.env.PUBLIC_BASE_URL = "https://lifeos.example.test";
+    const back = network.maybeRefreshIcloudHandoff("tunnel-restored");
+    delete process.env.PUBLIC_BASE_URL;
+    const nextGap = network.maybeRefreshIcloudHandoff("desktop-resume");
+    process.stdout.write(JSON.stringify({ before, gapOne, gapTwo, during, html, back, nextGap }));
+  `], {
+    cwd: rootDir,
+    env: {
+      ...process.env,
+      LIFEOS_DATA_DIR: dataDir,
+      LIFEOS_FORCE_ICLOUD_HANDOFF: "1",
+      LIFEOS_ICLOUD_DRIVE_DIR: icloudDir,
+      LIFEOS_ICLOUD_SYNC_SERVICE_STATUS: "running",
+      LIFEOS_ICLOUD_ACCOUNT_STATUS: "ready",
+      LIFEOS_HOST: "127.0.0.1",
+      LIFEOS_ALLOW_PUBLIC: "1",
+      PUBLIC_BASE_URL: "https://lifeos.example.test",
+      APP_URL: "",
+      LIFEOS_CLOUDFLARED_BIN: "/definitely/missing/cloudflared",
+      LIFEOS_TAILSCALE_BIN: "/definitely/missing/tailscale",
+      LIFEOS_ICLOUD_RETIRE_AFTER_ABSENCE_MS: "",
+    },
+    encoding: "utf8",
+  });
+  const result = JSON.parse(output);
+
+  for (const gap of [result.gapOne, result.gapTwo]) {
+    assert.equal(gap.reason, "no-phone-entry");
+    assert.equal(gap.retirement.retired, false);
+    assert.equal(gap.retirement.reason, "absence-not-sustained");
+  }
+  // The phone's entry is untouched during the gap.
+  assert.equal(result.during.mobilePairUrl, result.before.mobilePairUrl);
+  assert.equal(result.during.generatedAt, result.before.generatedAt);
+  assert.equal(result.during.expiresAt, result.before.expiresAt);
+  assert.doesNotMatch(result.html, /This mobile entry is retired/);
+  // Once the address is back the absence clock resets, so a later short gap
+  // starts counting from zero instead of inheriting the earlier one.
+  assert.notEqual(result.back.reason, "no-phone-entry");
+  assert.equal(result.nextGap.retirement.reason, "absence-not-sustained");
+  assert.equal(result.nextGap.retirement.absentForMs < 5_000, true);
 });
 
 test("iCloud handoff auto refresh records Tailscale HTTPS address changes", async (t) => {

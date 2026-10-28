@@ -2554,6 +2554,22 @@ function getCloudflareTunnelStatus(port: string) {
   };
 }
 
+// The real serve target is a private socket path (with the OS username in it)
+// on Linux or a per-run relay port on Windows; neither may leave the process.
+function publicTailscaleServeTarget(serveTarget: string) {
+  if (serveTarget.startsWith("unix:")) return "unix:[OwnOrbit private socket]";
+  if (process.platform === "win32" && serveTarget) return "http://127.0.0.1:[OwnOrbit private relay]";
+  return serveTarget;
+}
+
+export function redactTailscaleServeTarget(text: string, serveTarget: string) {
+  if (!text || !serveTarget) return text;
+  const publicTarget = publicTailscaleServeTarget(serveTarget);
+  if (publicTarget === serveTarget) return text;
+  const rawForms = [serveTarget, serveTarget.replace(/^unix:/, "")].filter(Boolean);
+  return rawForms.reduce((value, raw) => value.split(raw).join(publicTarget), text);
+}
+
 function getTailscaleStatus(portOverride = String(process.env.LIFEOS_PORT || process.env.PORT || "3000")) {
   const version = runTailscaleCommand(["version"]);
   const installed = version.ok;
@@ -2571,11 +2587,7 @@ function getTailscaleStatus(portOverride = String(process.env.LIFEOS_PORT || pro
   let serveRunning = false;
   let serveStatus = "";
   const serveTarget = tailscaleServeTarget(port);
-  const publicServeTarget = serveTarget.startsWith("unix:")
-    ? "unix:[OwnOrbit private socket]"
-    : process.platform === "win32" && serveTarget
-    ? "http://127.0.0.1:[OwnOrbit private relay]"
-    : serveTarget;
+  const publicServeTarget = publicTailscaleServeTarget(serveTarget);
 
   if (installed) {
     const status = runTailscaleCommand(["status", "--json"]);
@@ -2747,7 +2759,7 @@ export function startTailscaleHttpsServe(port = String(process.env.LIFEOS_PORT |
   if (!target) throw new Error("OwnOrbit private Tailscale relay is not ready. Restart the desktop app and try again.");
   const command = before.serveCommand || `tailscale serve --bg --https=443 ${target}`;
   const result = runManagedTailscaleCommand(["serve", "--bg", "--https=443", target]);
-  if (!result.ok) throw new Error(result.output || "Failed to start Tailscale HTTPS Serve");
+  if (!result.ok) throw new Error(redactTailscaleServeTarget(result.output, target) || "Failed to start Tailscale HTTPS Serve");
   const after = getTailscaleStatus(port);
   if (!after.httpsServeReady || !after.serveRunning) {
     runManagedTailscaleCommand(["serve", "--https=443", "off"]);
@@ -2757,23 +2769,36 @@ export function startTailscaleHttpsServe(port = String(process.env.LIFEOS_PORT |
   return {
     ok: true,
     command,
-    output: result.output,
+    output: redactTailscaleServeTarget(result.output, target),
     url: after.httpsServeUrl || before.httpsServeUrl,
     status: after,
   };
 }
 
+// The HTTPS Serve hostname only while it is actually reachable — online,
+// MagicDNS on, and our serve handler installed. Used when another remote path
+// stops, to decide whether this one survives as the active phone entry.
+export function getActiveTailscaleHttpsServeUrl(port = String(process.env.LIFEOS_PORT || process.env.PORT || "3000")) {
+  try {
+    const status = getTailscaleStatus(port);
+    return status.httpsServeReady ? status.httpsServeUrl : "";
+  } catch {
+    return "";
+  }
+}
+
 export function stopTailscaleHttpsServe() {
   const before = getTailscaleStatus();
   if (!before.installed) throw new Error("Tailscale CLI was not detected.");
+  const target = tailscaleServeTarget(String(process.env.LIFEOS_PORT || process.env.PORT || "3000"));
   const result = runManagedTailscaleCommand(["serve", "--https=443", "off"]);
-  if (!result.ok) throw new Error(result.output || "Failed to stop Tailscale HTTPS Serve");
+  if (!result.ok) throw new Error(redactTailscaleServeTarget(result.output, target) || "Failed to stop Tailscale HTTPS Serve");
   ownedTailscaleServeTarget = "";
   const after = getTailscaleStatus();
   return {
     ok: true,
     command: "tailscale serve --https=443 off",
-    output: result.output,
+    output: redactTailscaleServeTarget(result.output, target),
     url: before.httpsServeUrl,
     status: after,
   };
@@ -3114,6 +3139,17 @@ export function retireIcloudHandoffEntry(reason = "remote-entry-stopped") {
   };
 }
 
+// Automatic refreshes also run at startup and on wake, seconds before saved
+// tunnels are restored, so one snapshot without a phone-reachable address is
+// not evidence the entry is dead. Retire automatically only once the absence
+// has lasted; an explicit tunnel stop retires immediately through its own path.
+let remoteEntryAbsentSince = 0;
+
+function icloudRetireAfterAbsenceMs() {
+  const value = Number.parseInt(String(process.env.LIFEOS_ICLOUD_RETIRE_AFTER_ABSENCE_MS || ""), 10);
+  return Number.isFinite(value) && value >= 0 ? value : 10 * 60 * 1000;
+}
+
 export function maybeRefreshIcloudHandoff(reason = "auto") {
   const diagnostics = getNetworkDiagnostics();
   const status = diagnostics.icloud;
@@ -3140,11 +3176,17 @@ export function maybeRefreshIcloudHandoff(reason = "auto") {
   if (status.availability.status === "account-unavailable") return { refreshed: false, reason: "icloud-account-unavailable", requestedReason: reason, status: status.handoffHealth.status };
   if (status.availability.status === "read-only") return { refreshed: false, reason: "icloud-read-only", requestedReason: reason, status: status.handoffHealth.status };
   if (!status.canExport) {
+    const now = Date.now();
+    if (!remoteEntryAbsentSince) remoteEntryAbsentSince = now;
+    const absentForMs = now - remoteEntryAbsentSince;
     const retirement = status.handoffHealth.status === "missing" || status.handoffHealth.status === "expired"
       ? { retired: false, reason: "already-unavailable" }
+      : absentForMs < icloudRetireAfterAbsenceMs()
+      ? { retired: false, reason: "absence-not-sustained", absentForMs }
       : retireIcloudHandoffEntry(`${reason}-no-phone-entry`);
     return { refreshed: false, reason: "no-phone-entry", requestedReason: reason, status: status.handoffHealth.status, retirement };
   }
+  remoteEntryAbsentSince = 0;
   if (!status.handoffHealth.needsRefresh && !indexConsistencyNeedsRefresh && phoneConfirmation.action !== "refresh-entry" && !pairingSessionNeedsRefresh) {
     return {
       refreshed: false,

@@ -51,7 +51,7 @@ export default function App() {
   const [sendNotice, setSendNotice] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const { createAndUseChatSession, flushOfflineMessages, loadMessagesFromCore, persistMessageToCore } = useChatPersistence();
+  const { createAndUseChatSession, flushOfflineMessages, loadMessagesFromCore, persistMessageToCore, persistMessagesInOrder } = useChatPersistence();
   const {
     clearQueuedMessages,
     networkStatus,
@@ -348,8 +348,7 @@ export default function App() {
 
       const modelMessage: Message = { role: "model", parts: [{ text: data.text }], widget: widgetToShow, widgetArgs };
       setMessages((prev) => [...prev, userMessage, modelMessage]);
-      void persistMessageToCore(userMessage);
-      void persistMessageToCore(modelMessage);
+      void persistMessagesInOrder([userMessage, modelMessage]);
       setInput((current) => current === currentInputValue ? "" : current);
       setAttachedImage((current) => current === currentAttachedImage ? null : current);
       setTimeout(() => {

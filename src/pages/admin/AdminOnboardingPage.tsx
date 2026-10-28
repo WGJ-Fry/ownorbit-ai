@@ -44,6 +44,10 @@ const simpleIcloudAcceptanceRequirementKeys: Partial<Record<NonNullable<NetworkD
   "old-entry-repair": "onboarding.appleRemoteIcloudAcceptanceRequirementOldEntry",
 };
 
+function isRateLimitedError(error: unknown) {
+  return (error as { status?: unknown } | null)?.status === 429;
+}
+
 function formatIcloudHandoffExportError(error: any, t: (key: any, params?: Record<string, any>) => string) {
   const key = icloudHandoffExportErrorKeys[String(error?.code || "")];
   return key ? t(key as any) : error?.message || t("onboarding.appleRemoteIcloudExportFailed");
@@ -421,26 +425,35 @@ export default function AdminOnboardingPage() {
   useEffect(() => {
     let stopped = false;
     const refreshNativeDeviceReadiness = async () => {
-      const [onboardingData, deviceTrustData, chatDevicesData] = await Promise.all([
+      // Nobody can approve a pending iPhone in a hidden tab; the
+      // visibilitychange listener below catches up as soon as it is shown.
+      if (document.visibilityState === "hidden") return;
+      const [onboardingData, deviceTrustData, chatDevicesResult] = await Promise.all([
         getOnboardingStatus().catch(() => null),
         getCloudKitDeviceTrustMetadata(10).catch(() => null),
-        getCloudKitChatDevices(10).catch(() => null),
+        getCloudKitChatDevices(10).then((data) => ({ data, error: null }), (error: unknown) => ({ data: null, error })),
       ]);
       if (stopped) return;
       if (onboardingData) setOnboarding(onboardingData.onboarding);
       if (deviceTrustData) setCloudKitDeviceTrustSummary(deviceTrustData.deviceTrust.summary);
-      if (chatDevicesData) {
-        setCloudKitChatDevices(chatDevicesData.devices.items);
+      if (chatDevicesResult.data) {
+        setCloudKitChatDevices(chatDevicesResult.data.devices.items);
         setCloudKitChatDeviceLoadFailed(false);
-      } else {
+      } else if (!isRateLimitedError(chatDevicesResult.error)) {
         setCloudKitChatDeviceLoadFailed(true);
       }
     };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") void refreshNativeDeviceReadiness();
+    };
     void refreshNativeDeviceReadiness();
-    const interval = window.setInterval(refreshNativeDeviceReadiness, 2500);
+    // The devices route allows 20 requests a minute; 10s keeps this poll at 6.
+    const interval = window.setInterval(refreshNativeDeviceReadiness, 10_000);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
       stopped = true;
       window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
@@ -450,8 +463,9 @@ export default function AdminOnboardingPage() {
       const data = await getCloudKitChatDevices(10);
       setCloudKitChatDevices(data.devices.items);
       setCloudKitChatDeviceLoadFailed(false);
-    } catch {
-      setCloudKitChatDeviceLoadFailed(true);
+    } catch (error) {
+      // Being throttled says nothing about iCloud; keep the last known list.
+      if (!isRateLimitedError(error)) setCloudKitChatDeviceLoadFailed(true);
     } finally {
       setCloudKitChatDeviceRefreshing(false);
     }

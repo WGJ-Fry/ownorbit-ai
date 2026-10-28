@@ -41,24 +41,47 @@ function writeElectronPathFile() {
   fs.writeFileSync(pathFile, executablePath);
 }
 
-function installedVersionMatches() {
+// Written into the staging dir after a complete extraction, so it only ever
+// appears in dist through the final rename. It ties dist to this exact
+// archive (version, platform, arch, and checksum).
+const installMarkerName = ".ownorbit-electron-install";
+const installMarkerValue = `${zipName} ${expectedChecksum}`;
+
+function installMarkerMatches() {
   try {
-    const distVersion = fs.readFileSync(path.join(distPath, "version"), "utf8").trim().replace(/^v/, "");
-    if (distVersion !== version || !fs.existsSync(path.join(distPath, executablePath))) return false;
-    const runtime = spawnSync(path.join(distPath, executablePath), ["--version"], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-      timeout: 10_000,
-    });
-    return runtime.status === 0 && `${runtime.stdout || ""}${runtime.stderr || ""}`.trim().replace(/^v/, "") === version;
+    return fs.readFileSync(path.join(distPath, installMarkerName), "utf8").trim() === installMarkerValue;
   } catch {
     return false;
   }
 }
 
+function installedVersionMatches() {
+  try {
+    const distVersion = fs.readFileSync(path.join(distPath, "version"), "utf8").trim().replace(/^v/, "");
+    if (distVersion !== version || !fs.existsSync(path.join(distPath, executablePath))) return false;
+    // On Linux a launch is not a usable signal: headless CI has no display,
+    // Ubuntu's AppArmor blocks the unprivileged sandbox, and Chromium logs to
+    // stderr. A completed, checksum-verified extraction is the proof there.
+    if (process.platform === "linux") return installMarkerMatches();
+    const runtime = spawnSync(path.join(distPath, executablePath), ["--version"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 10_000,
+    });
+    if (runtime.status !== 0) return false;
+    return String(runtime.stdout || "")
+      .split(/\r?\n/)
+      .some((line) => line.trim().replace(/^v/, "") === version);
+  } catch {
+    return false;
+  }
+}
+
+const verifiedWhat = process.platform === "linux" ? "archive install" : "binary and runtime version";
+
 if (installedVersionMatches()) {
   writeElectronPathFile();
-  console.log(`Electron ${version} binary and runtime version verified at ${distPath}`);
+  console.log(`Electron ${version} ${verifiedWhat} verified at ${distPath}`);
   process.exit(0);
 }
 
@@ -77,11 +100,20 @@ if (actualChecksum !== expectedChecksum) {
 }
 console.log(`Verified Electron archive SHA256 against node_modules/electron/checksums.json`);
 
-fs.rmSync(distPath, { recursive: true, force: true });
-fs.mkdirSync(distPath, { recursive: true });
+// Extract beside dist and swap it in only once unzip has finished, so an
+// interrupted or failed extraction can never be mistaken for an install.
+const stagingPath = `${distPath}.partial`;
+fs.rmSync(stagingPath, { recursive: true, force: true });
+fs.mkdirSync(stagingPath, { recursive: true });
 
-const unzip = spawnSync("unzip", ["-q", zipPath, "-d", distPath], { stdio: "inherit" });
-if (unzip.status !== 0) process.exit(unzip.status || 1);
+const unzip = spawnSync("unzip", ["-q", zipPath, "-d", stagingPath], { stdio: "inherit" });
+if (unzip.status !== 0) {
+  fs.rmSync(stagingPath, { recursive: true, force: true });
+  process.exit(unzip.status || 1);
+}
+fs.writeFileSync(path.join(stagingPath, installMarkerName), `${installMarkerValue}\n`);
+fs.rmSync(distPath, { recursive: true, force: true });
+fs.renameSync(stagingPath, distPath);
 
 if (!installedVersionMatches()) {
   console.error(`Installed Electron runtime does not report v${version}.`);
