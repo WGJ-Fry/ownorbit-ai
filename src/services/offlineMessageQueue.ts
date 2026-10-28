@@ -15,6 +15,25 @@ const SYNCING_STALE_AFTER_MS = 2 * 60 * 1000;
 const SIMILAR_CONFLICT_WINDOW_MS = 10 * 60 * 1000;
 const FAILED_RETRY_BACKOFF_MS = [15_000, 30_000, 60_000, 2 * 60_000, 5 * 60_000];
 
+// crypto.randomUUID is secure-context only, so it is undefined when the phone reaches the
+// desktop over plain-HTTP LAN. crypto.getRandomValues has no such restriction, so fall back
+// to it rather than letting the queue throw on every enqueue in LAN compatibility mode.
+export function randomQueueId() {
+  const globalCrypto = typeof crypto !== "undefined" ? crypto : undefined;
+  if (typeof globalCrypto?.randomUUID === "function") return globalCrypto.randomUUID();
+
+  const bytes = new Uint8Array(16);
+  if (typeof globalCrypto?.getRandomValues === "function") {
+    globalCrypto.getRandomValues(bytes);
+  } else {
+    for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256);
+  }
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 export type OfflineQueuedMessage = {
   id: string;
   mutationId: string;
@@ -612,8 +631,8 @@ export function enqueueOfflineMessage(message: Message, options: EnqueueOfflineM
     return existing.id;
   }
 
-  const id = crypto.randomUUID();
-  const mutationId = crypto.randomUUID();
+  const id = randomQueueId();
+  const mutationId = randomQueueId();
   const clientSequence = nextClientSequence();
   queue.push({
     id,
@@ -632,6 +651,17 @@ export function enqueueOfflineMessage(message: Message, options: EnqueueOfflineM
   });
   writeQueue(queue);
   return id;
+}
+
+// Whether a queue entry can anchor messages queued behind it: it must flush
+// on its own (not a failed record), and leave room for one more item, since
+// trimQueueToBudget evicts from the front once the queue is over budget.
+// Checking size matters because re-sending an identical oversized message
+// dedupes onto the old record and resets it to pending.
+export function isOfflineMessageDeliverable(id: string) {
+  const entry = readQueue().find((item) => item.id === id);
+  if (!entry || entry.status === "failed") return false;
+  return getOfflineQueueSerializedBytes([entry]) <= MAX_QUEUE_BYTES - MAX_QUEUE_ITEM_BYTES;
 }
 
 export function getOfflineMessageQueue() {

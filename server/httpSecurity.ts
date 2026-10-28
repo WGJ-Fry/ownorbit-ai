@@ -8,7 +8,25 @@ type RateBucket = {
 };
 
 const buckets = new Map<string, RateBucket>();
+const MAX_RATE_LIMIT_BUCKETS = 5_000;
+const RATE_LIMIT_SWEEP_INTERVAL_MS = 30_000;
+let lastRateLimitSweepAt = 0;
 const API_ERROR_TEXT_KEY = /^(error|message|detail|details|reason|lastError)$/i;
+
+function pruneRateLimitBuckets(now: number) {
+  if (buckets.size < MAX_RATE_LIMIT_BUCKETS && now - lastRateLimitSweepAt < RATE_LIMIT_SWEEP_INTERVAL_MS) return;
+  for (const [key, bucket] of buckets) {
+    if (bucket.resetAt <= now) buckets.delete(key);
+  }
+  if (buckets.size > MAX_RATE_LIMIT_BUCKETS) {
+    const overflow = buckets.size - MAX_RATE_LIMIT_BUCKETS;
+    const oldest = Array.from(buckets.entries())
+      .sort((left, right) => left[1].resetAt - right[1].resetAt)
+      .slice(0, overflow);
+    for (const [key] of oldest) buckets.delete(key);
+  }
+  lastRateLimitSweepAt = now;
+}
 
 export function getCookie(req: express.Request, name: string) {
   const cookieHeader = req.headers.cookie || "";
@@ -65,6 +83,7 @@ export function rateLimit(options: { windowMs: number; max: number; keyPrefix: s
     const ip = getClientIp(req);
     const key = `${options.keyPrefix}:${ip}`;
     const now = Date.now();
+    pruneRateLimitBuckets(now);
     const existing = buckets.get(key);
     const bucket = existing && existing.resetAt > now ? existing : { count: 0, resetAt: now + options.windowMs };
 
@@ -80,7 +99,7 @@ export function rateLimit(options: { windowMs: number; max: number; keyPrefix: s
   };
 }
 
-function requestOriginAllowed(req: express.Request) {
+export function requestOriginAllowed(req: express.Request) {
   const origin = req.headers.origin;
   if (!origin) return true;
   const allowedOrigins = new Set<string>();
@@ -134,4 +153,14 @@ export function requireCsrf(req: express.Request, res: express.Response, next: e
     return res.status(403).json({ error: "CSRF validation failed" });
   }
   next();
+}
+
+export function apiRequestErrorHandler(error: any, req: express.Request, res: express.Response, next: express.NextFunction) {
+  if (error?.type === "entity.too.large" || error?.status === 413) {
+    return res.status(413).json({ error: "Request body is too large" });
+  }
+  if (error instanceof SyntaxError && "body" in error) {
+    return res.status(400).json({ error: "Request body is not valid JSON" });
+  }
+  next(error);
 }

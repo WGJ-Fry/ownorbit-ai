@@ -98,7 +98,10 @@ final class LifeOSCloudKitClient {
     private let containerIdentifier: String
     private let container: CKContainer
     private let database: CKDatabase
-    private let zones = [
+    private let relayZones = [
+        "LifeOSChatRelayZone",
+    ]
+    private let fullDataZones = [
         "LifeOSChatZone",
         "LifeOSMemoryZone",
         "LifeOSTaskZone",
@@ -146,7 +149,11 @@ final class LifeOSCloudKitClient {
         )
     }
 
-    func sync(snapshot: LifeOSCloudSnapshot, now: Date = Date()) async throws -> (LifeOSCloudSnapshot, LifeOSCloudSyncReport) {
+    func sync(
+        snapshot: LifeOSCloudSnapshot,
+        includeFullData: Bool = false,
+        now: Date = Date()
+    ) async throws -> (LifeOSCloudSnapshot, LifeOSCloudSyncReport) {
         let accountFingerprint = try await currentAccountFingerprint()
         let scoped = snapshot.scoped(to: accountFingerprint)
         let currentSnapshot = scoped.snapshot
@@ -160,6 +167,7 @@ final class LifeOSCloudKitClient {
         var pagesFetched = 0
         var moreComing = false
 
+        let zones = includeFullData ? relayZones + fullDataZones : relayZones
         for zone in zones {
             if changed.count + deleted.count >= maxRecords {
                 moreComing = true
@@ -431,6 +439,72 @@ final class LifeOSCloudKitClient {
         }
     }
 
+    func saveChatReceiptRecord(
+        _ input: LifeOSCloudRecord,
+        expectedAccountFingerprint: String,
+        now: Date = Date()
+    ) async throws -> LifeOSCloudRecord {
+        let accountFingerprint = try await currentAccountFingerprint()
+        guard accountFingerprint == expectedAccountFingerprint else { throw LifeOSCloudSyncError.accountChanged }
+        let candidate = try LifeOSCloudRecordValidator.validate(LifeOSCloudRecordInput(
+            zone: input.zone,
+            recordType: input.recordType,
+            recordName: input.recordName,
+            lifeosSchema: "lifeos-cloudkit-record.v1",
+            lifeosDataType: input.dataType,
+            sourceIdHash: input.sourceIdHash,
+            mutationId: input.mutationId,
+            logicalClock: input.logicalClock,
+            contentHash: input.contentHash,
+            payloadByteSize: input.payloadJson.utf8.count,
+            requiresUserReview: input.requiresUserReview,
+            payloadJson: input.payloadJson,
+            modifiedAt: input.modifiedAt
+        ))
+        guard candidate.zone == "LifeOSChatRelayZone",
+              candidate.recordType == "LifeOSChatReceipt",
+              candidate.recordName.hasPrefix("chat-receipt:"),
+              candidate.mutationId.hasPrefix("ios-chat-receipt:"),
+              !candidate.requiresUserReview else {
+            throw LifeOSCloudChatWriteError.invalidRequest
+        }
+        let zoneId = CKRecordZone.ID(zoneName: candidate.zone, ownerName: CKCurrentUserDefaultName)
+        try await ensureZone(zoneId)
+        let recordId = CKRecord.ID(recordName: candidate.recordName, zoneID: zoneId)
+        let cloudRecord = CKRecord(recordType: candidate.recordType, recordID: recordId)
+        cloudRecord["lifeosSchema"] = "lifeos-cloudkit-record.v1" as CKRecordValue
+        cloudRecord["lifeosDataType"] = candidate.dataType as CKRecordValue
+        cloudRecord["lifeosRecordType"] = candidate.recordType as CKRecordValue
+        cloudRecord["lifeosRecordName"] = candidate.recordName as CKRecordValue
+        cloudRecord["sourceIdHash"] = candidate.sourceIdHash as CKRecordValue
+        cloudRecord["mutationId"] = candidate.mutationId as CKRecordValue
+        cloudRecord["logicalClock"] = NSNumber(value: candidate.logicalClock)
+        cloudRecord["contentHash"] = candidate.contentHash as CKRecordValue
+        cloudRecord["payloadByteSize"] = NSNumber(value: candidate.payloadJson.utf8.count)
+        cloudRecord["requiresUserReview"] = NSNumber(value: false)
+        cloudRecord["payloadJson"] = candidate.payloadJson as CKRecordValue
+        cloudRecord["lifeosSyncedAt"] = now as CKRecordValue
+        do {
+            let result = try await database.modifyRecords(
+                saving: [cloudRecord],
+                deleting: [],
+                savePolicy: .ifServerRecordUnchanged,
+                atomically: true
+            )
+            guard let saveResult = result.saveResults[recordId] else { throw LifeOSCloudChatWriteError.saveFailed }
+            switch saveResult {
+            case .success(let saved):
+                return try validatedRecord(saved, zone: candidate.zone)
+            case .failure(let error as CKError) where error.code == .serverRecordChanged:
+                return try await resolveChatRequestCollision(recordId: recordId, candidate: candidate)
+            case .failure(let error):
+                throw error
+            }
+        } catch let error as CKError where error.code == .serverRecordChanged {
+            return try await resolveChatRequestCollision(recordId: recordId, candidate: candidate)
+        }
+    }
+
     func saveDeviceKeyRecord(
         _ input: LifeOSCloudRecord,
         expectedAccountFingerprint: String,
@@ -621,6 +695,7 @@ final class LifeOSCloudDataStore: ObservableObject {
     @Published private(set) var otherAccountMutationCount = 0
     @Published private(set) var enabled: Bool
     @Published private(set) var backgroundEvidence: LifeOSCloudBackgroundEvidence?
+    @Published private(set) var macTrustIdentityChanged = false
     private(set) var lastSyncOutcome: LifeOSCloudSyncOutcome = .noData
 
     var isWriting: Bool { writingTaskRecordId != nil || writingMemory || writingChat || isProcessingPendingMutations }
@@ -632,9 +707,13 @@ final class LifeOSCloudDataStore: ObservableObject {
     private var backgroundRefreshObserver: NSObjectProtocol?
     private var accountObserver: NSObjectProtocol?
     private var retryTask: Task<Void, Never>?
+    private var chatResponsePollTask: Task<Void, Never>?
+    private var syncRequested = false
+    private var chatDeviceIdHash: String?
     private var retryAttempt = 0
     private let maxCatchUpPasses = 3
     private let simulatorDemoMode: Bool
+    private let fullDataSyncEnabled = UserDefaults.standard.bool(forKey: "lifeos.cloud.full-data-sync-enabled")
     private lazy var client = LifeOSCloudKitClient()
 
     init(demoModeOverride: Bool? = nil, mutationOutboxURLOverride: URL? = nil) {
@@ -649,6 +728,11 @@ final class LifeOSCloudDataStore: ObservableObject {
         #endif
         simulatorDemoMode = demoMode
         enabled = demoMode || LifeOSCloudBackgroundRefreshPolicy.isEnabled()
+        #if targetEnvironment(simulator)
+        chatDeviceIdHash = demoMode ? (try? Self.simulatorChatIdentity(now: Date()))?.deviceIdHash : nil
+        #else
+        chatDeviceIdHash = (try? LifeOSCloudDeviceIdentityStore.loadOrCreate(now: Date()))?.deviceIdHash
+        #endif
         #if targetEnvironment(simulator)
         snapshot = demoMode ? Self.simulatorDemoSnapshot() : Self.loadSnapshot(from: fileURL)
         #else
@@ -718,6 +802,7 @@ final class LifeOSCloudDataStore: ObservableObject {
         if let backgroundRefreshObserver { NotificationCenter.default.removeObserver(backgroundRefreshObserver) }
         if let accountObserver { NotificationCenter.default.removeObserver(accountObserver) }
         retryTask?.cancel()
+        chatResponsePollTask?.cancel()
     }
 
     func enableAndSync() async {
@@ -732,7 +817,12 @@ final class LifeOSCloudDataStore: ObservableObject {
         reason: String = "manual",
         deliveryAppState: LifeOSCloudDeliveryAppState? = nil
     ) async -> Bool {
-        guard enabled, !isSyncing, !isWriting else {
+        guard enabled else {
+            lastSyncOutcome = .noData
+            return false
+        }
+        if isSyncing || isWriting {
+            syncRequested = true
             lastSyncOutcome = .noData
             return false
         }
@@ -767,6 +857,7 @@ final class LifeOSCloudDataStore: ObservableObject {
                 LifeOSCloudBackgroundEvidenceStore.save(evidence)
                 backgroundEvidence = evidence
             }
+            scheduleQueuedSyncIfNeeded()
         }
         do {
             #if targetEnvironment(simulator)
@@ -775,7 +866,10 @@ final class LifeOSCloudDataStore: ObservableObject {
             var currentSnapshot = snapshot
             var combinedReport: LifeOSCloudSyncReport?
             for _ in 0..<maxCatchUpPasses {
-                let (next, passReport) = try await client.sync(snapshot: currentSnapshot)
+                let (next, passReport) = try await client.sync(
+                    snapshot: currentSnapshot,
+                    includeFullData: fullDataSyncEnabled
+                )
                 try save(next)
                 currentSnapshot = next
                 snapshot = next
@@ -813,8 +907,11 @@ final class LifeOSCloudDataStore: ObservableObject {
                 nextReport.deleted > 0 ||
                 nextReport.accountChanged ||
                 nextReport.resetZoneCount > 0
+            let receiptsUploaded = await publishTerminalChatReceipts(
+                accountFingerprint: currentSnapshot.accountFingerprint
+            )
             let uploaded = await processPendingMutations(accountFingerprint: currentSnapshot.accountFingerprint)
-            let changedAnything = hasNewData || uploaded > 0
+            let changedAnything = hasNewData || receiptsUploaded > 0 || uploaded > 0
             lastSyncOutcome = changedAnything ? .newData : .noData
             return changedAnything
             #endif
@@ -852,7 +949,10 @@ final class LifeOSCloudDataStore: ObservableObject {
         statusMessage = NSLocalizedString("cloud.task.status.writing", comment: "")
         statusTone = .neutral
         nextAction = .none
-        defer { writingTaskRecordId = nil }
+        defer {
+            writingTaskRecordId = nil
+            scheduleQueuedSyncIfNeeded()
+        }
         do {
             #if targetEnvironment(simulator)
             guard simulatorDemoMode else { throw LifeOSCloudSyncError.invalidContainer }
@@ -946,7 +1046,10 @@ final class LifeOSCloudDataStore: ObservableObject {
         statusMessage = NSLocalizedString("cloud.memory.status.writing", comment: "")
         statusTone = .neutral
         nextAction = .none
-        defer { writingMemory = false }
+        defer {
+            writingMemory = false
+            scheduleQueuedSyncIfNeeded()
+        }
         do {
             #if targetEnvironment(simulator)
             guard simulatorDemoMode else { throw LifeOSCloudSyncError.invalidContainer }
@@ -1036,7 +1139,10 @@ final class LifeOSCloudDataStore: ObservableObject {
         statusMessage = NSLocalizedString("cloud.chat.status.sending", comment: "")
         statusTone = .neutral
         nextAction = .none
-        defer { writingChat = false }
+        defer {
+            writingChat = false
+            scheduleQueuedSyncIfNeeded()
+        }
         let now = Date()
         do {
             #if targetEnvironment(simulator)
@@ -1045,6 +1151,21 @@ final class LifeOSCloudDataStore: ObservableObject {
             #else
             let identity = try LifeOSCloudDeviceIdentityStore.loadOrCreate(now: now)
             #endif
+            let trustedMacFingerprint: String?
+            #if targetEnvironment(simulator)
+            trustedMacFingerprint = nil
+            #else
+            guard let accountFingerprint = snapshot.accountFingerprint else {
+                statusMessage = NSLocalizedString("cloud.outbox.error.syncFirst", comment: "")
+                statusTone = .warning
+                nextAction = .continueSync
+                return false
+            }
+            trustedMacFingerprint = try LifeOSCloudMacTrustStore.trustedFingerprint(
+                accountFingerprint: accountFingerprint
+            )
+            #endif
+            chatDeviceIdHash = identity.deviceIdHash
             let deviceKeyRecord = try LifeOSCloudDeviceKeyMutationBuilder.create(identity: identity, now: now)
             let candidate = try LifeOSCloudChatRequestMutationBuilder.create(
                 prompt: prompt,
@@ -1052,6 +1173,7 @@ final class LifeOSCloudDataStore: ObservableObject {
                 locale: Self.chatLocale(),
                 conversationId: Self.chatConversationId(),
                 clientSequence: Int64(now.timeIntervalSince1970 * 1000),
+                trustedMacFingerprint: trustedMacFingerprint,
                 now: now
             )
             #if targetEnvironment(simulator)
@@ -1064,12 +1186,6 @@ final class LifeOSCloudDataStore: ObservableObject {
                 now: now
             )
             #else
-            guard let accountFingerprint = snapshot.accountFingerprint else {
-                statusMessage = NSLocalizedString("cloud.outbox.error.syncFirst", comment: "")
-                statusTone = .warning
-                nextAction = .continueSync
-                return false
-            }
             let pending = try LifeOSCloudPendingMutation.chatRequest(
                 record: candidate,
                 deviceKeyRecord: deviceKeyRecord,
@@ -1090,6 +1206,9 @@ final class LifeOSCloudDataStore: ObservableObject {
             } else {
                 statusMessage = NSLocalizedString("cloud.chat.status.sent", comment: "")
                 statusTone = .success
+            }
+            if candidate.chatRequestId != nil {
+                scheduleChatResponsePolling()
             }
             return true
             #endif
@@ -1121,9 +1240,74 @@ final class LifeOSCloudDataStore: ObservableObject {
         }
     }
 
+    func rebindChatDevice() async -> Bool {
+        guard enabled, !isSyncing, !isWriting else { return false }
+        writingChat = true
+        statusMessage = NSLocalizedString("cloud.chat.rebind.status.starting", comment: "")
+        statusTone = .neutral
+        nextAction = .none
+        defer {
+            writingChat = false
+            scheduleQueuedSyncIfNeeded()
+        }
+        let now = Date()
+        do {
+            try mutationOutbox.removeChatRequests()
+            refreshMutationSummary()
+            #if targetEnvironment(simulator)
+            guard simulatorDemoMode else { throw LifeOSCloudSyncError.invalidContainer }
+            let identity = try Self.simulatorChatIdentity(now: now)
+            let deviceKeyRecord = try LifeOSCloudDeviceKeyMutationBuilder.create(identity: identity, now: now)
+            let next = snapshot.merging(
+                changed: [deviceKeyRecord],
+                deletedRecordIds: [],
+                serverChangeTokens: [:],
+                accountFingerprint: snapshot.accountFingerprint ?? "simulator-demo",
+                moreComing: snapshot.moreComing,
+                now: now
+            )
+            #else
+            guard let accountFingerprint = snapshot.accountFingerprint else {
+                statusMessage = NSLocalizedString("cloud.outbox.error.syncFirst", comment: "")
+                statusTone = .warning
+                nextAction = .continueSync
+                return false
+            }
+            let identity = try LifeOSCloudDeviceIdentityStore.rotate(now: now)
+            let deviceKeyRecord = try LifeOSCloudDeviceKeyMutationBuilder.create(identity: identity, now: now)
+            let savedDeviceKey = try await client.saveDeviceKeyRecord(
+                deviceKeyRecord,
+                expectedAccountFingerprint: accountFingerprint,
+                now: now
+            )
+            let next = snapshot.merging(
+                changed: [savedDeviceKey],
+                deletedRecordIds: [],
+                serverChangeTokens: [:],
+                accountFingerprint: accountFingerprint,
+                moreComing: snapshot.moreComing,
+                now: now
+            )
+            #endif
+            try save(next)
+            snapshot = next
+            chatDeviceIdHash = identity.deviceIdHash
+            statusMessage = NSLocalizedString("cloud.chat.rebind.status.pendingApproval", comment: "")
+            statusTone = .warning
+            return true
+        } catch {
+            statusMessage = LifeOSCloudSyncError.userFacing(error).errorDescription
+                ?? NSLocalizedString("cloud.chat.rebind.status.failed", comment: "")
+            statusTone = .error
+            return false
+        }
+    }
+
     func disableAndClear() {
         retryTask?.cancel()
         retryTask = nil
+        chatResponsePollTask?.cancel()
+        chatResponsePollTask = nil
         enabled = false
         UserDefaults.standard.removeObject(forKey: LifeOSCloudBackgroundRefreshPolicy.enabledDefaultsKey)
         LifeOSCloudBackgroundRefreshCoordinator.cancel()
@@ -1141,6 +1325,166 @@ final class LifeOSCloudDataStore: ObservableObject {
         statusTone = clearedPendingActions ? .neutral : .error
         nextAction = .none
         refreshMutationSummary()
+    }
+
+    func chatItems(now: Date = Date()) -> [LifeOSCloudChatItem] {
+        guard let accountFingerprint = snapshot.accountFingerprint else { return [] }
+        var identityChanged = false
+        let items = snapshot.chatItems(
+            now: now,
+            sourceDeviceHash: chatDeviceIdHash,
+            responseVerifier: { response, request in
+                do {
+                    return try LifeOSCloudMacTrustStore.verifyAndPin(
+                        response: response,
+                        request: request,
+                        accountFingerprint: accountFingerprint
+                    )
+                } catch LifeOSCloudMacTrustError.identityChanged {
+                    identityChanged = true
+                    return false
+                } catch {
+                    return false
+                }
+            }
+        )
+        if identityChanged != macTrustIdentityChanged {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.macTrustIdentityChanged = identityChanged
+                if identityChanged {
+                    self.statusMessage = NSLocalizedString("cloud.chat.macTrust.status.changed", comment: "")
+                    self.statusTone = .error
+                }
+            }
+        }
+        return items
+    }
+
+    private func publishTerminalChatReceipts(accountFingerprint: String?) async -> Int {
+        #if targetEnvironment(simulator)
+        return 0
+        #else
+        guard let accountFingerprint,
+              let identity = try? LifeOSCloudDeviceIdentityStore.loadOrCreate(now: Date()) else {
+            return 0
+        }
+        var requestsById: [String: LifeOSCloudRecord] = [:]
+        for request in snapshot.records where
+            request.recordType == "LifeOSChatRequest" &&
+            request.chatSourceDeviceHash == identity.deviceIdHash {
+            guard let requestId = request.chatRequestId else { continue }
+            if let existing = requestsById[requestId], existing.logicalClock >= request.logicalClock { continue }
+            requestsById[requestId] = request
+        }
+        var responsesById: [String: LifeOSCloudRecord] = [:]
+        for response in snapshot.records where response.recordType == "LifeOSChatResponse" {
+            guard let requestId = response.chatRequestId,
+                  requestsById[requestId] != nil,
+                  ["completed", "failed", "expired"].contains(response.chatStatus ?? "") else { continue }
+            let existingClock = responsesById[requestId]?.logicalClock ?? 0
+            if existingClock >= response.logicalClock { continue }
+            responsesById[requestId] = response
+        }
+        let existingReceipts = snapshot.records.filter { $0.recordType == "LifeOSChatReceipt" }
+        var uploaded = 0
+        for (requestId, response) in responsesById {
+            guard let request = requestsById[requestId] else { continue }
+            do {
+                _ = try LifeOSCloudMacTrustStore.verifyAndPin(
+                    response: response,
+                    request: request,
+                    accountFingerprint: accountFingerprint
+                )
+                if existingReceipts.contains(where: {
+                    LifeOSCloudChatReceiptMutationBuilder.matches($0, response: response, identity: identity)
+                }) {
+                    continue
+                }
+                let candidate = try LifeOSCloudChatReceiptMutationBuilder.create(
+                    response: response,
+                    request: request,
+                    identity: identity
+                )
+                let saved = try await client.saveChatReceiptRecord(
+                    candidate,
+                    expectedAccountFingerprint: accountFingerprint
+                )
+                let next = snapshot.merging(
+                    changed: [saved],
+                    deletedRecordIds: [],
+                    serverChangeTokens: [:],
+                    accountFingerprint: accountFingerprint,
+                    moreComing: snapshot.moreComing,
+                    now: Date()
+                )
+                try save(next)
+                snapshot = next
+                uploaded += 1
+            } catch LifeOSCloudMacTrustError.identityChanged {
+                macTrustIdentityChanged = true
+            } catch {
+                continue
+            }
+        }
+        return uploaded
+        #endif
+    }
+
+    func resetMacChatTrust() -> Bool {
+        guard let accountFingerprint = snapshot.accountFingerprint else { return false }
+        do {
+            try LifeOSCloudMacTrustStore.reset(accountFingerprint: accountFingerprint)
+            macTrustIdentityChanged = false
+            statusMessage = NSLocalizedString("cloud.chat.macTrust.status.reset", comment: "")
+            statusTone = .warning
+            return true
+        } catch {
+            statusMessage = NSLocalizedString("cloud.chat.macTrust.status.failed", comment: "")
+            statusTone = .error
+            return false
+        }
+    }
+
+    private func scheduleChatResponsePolling() {
+        guard chatResponsePollTask == nil else { return }
+        chatResponsePollTask = Task { [weak self] in
+            guard let self else { return }
+            defer { self.chatResponsePollTask = nil }
+            for attempt in 0..<30 {
+                if Task.isCancelled || !self.enabled { return }
+                if attempt > 0 {
+                    do {
+                        let seconds: UInt64 = attempt < 12 ? 5 : attempt < 20 ? 15 : 60
+                        try await Task.sleep(nanoseconds: seconds * 1_000_000_000)
+                    } catch {
+                        return
+                    }
+                }
+                if !self.hasPendingChatResponses() { return }
+                _ = await self.sync(reason: "chat-response-poll")
+                if !self.hasPendingChatResponses() { return }
+            }
+        }
+    }
+
+    private func hasPendingChatResponses() -> Bool {
+        chatItems().contains { item in
+            switch item.state {
+            case .completed, .failed, .timedOut:
+                return false
+            case .waitingForMac, .macUnavailable, .processing, .retrying:
+                return true
+            }
+        }
+    }
+
+    private func scheduleQueuedSyncIfNeeded() {
+        guard enabled, syncRequested, !isSyncing, !isWriting else { return }
+        syncRequested = false
+        Task { @MainActor [weak self] in
+            _ = await self?.sync(reason: "coalesced")
+        }
     }
 
     func retryPendingMutations() async {
@@ -1186,13 +1530,18 @@ final class LifeOSCloudDataStore: ObservableObject {
             refreshMutationSummary()
             return 0
         }
-        let due = mutationOutbox.due(accountFingerprint: accountFingerprint)
+        let due = mutationOutbox.due(accountFingerprint: accountFingerprint).filter {
+            fullDataSyncEnabled || $0.kind == .chatRequest
+        }
         guard !due.isEmpty else {
             refreshMutationSummary()
             return 0
         }
         isProcessingPendingMutations = true
-        defer { isProcessingPendingMutations = false }
+        defer {
+            isProcessingPendingMutations = false
+            scheduleQueuedSyncIfNeeded()
+        }
         var uploaded = 0
 
         for entry in due {

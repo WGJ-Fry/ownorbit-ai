@@ -6,6 +6,7 @@ import { getCookie } from "../httpSecurity";
 import { INSTALL_PAIRING_COOKIE, mobileManifest, normalizeInstallPairingToken } from "../mobileInstall";
 import { getConfiguredPublicBaseUrl, isTemporaryTryCloudflareUrl } from "../publicBaseUrl";
 import { getDesktopRuntimeConfig } from "../desktopRuntimeConfig";
+import { isKnownCandidateOrigin } from "../deviceEndpoints";
 import { getOnlineDeviceCount } from "../realtime";
 import { getSecurityDiagnostics } from "../securityDiagnostics";
 import { getPackageVersion } from "../version";
@@ -32,8 +33,20 @@ export function registerCoreRoutes(app: express.Express, host: string) {
     res.json({ token: pairingToken });
   });
 
-  app.get("/api/v1/health", (_req, res) => {
+  app.get("/api/v1/health", (req, res) => {
     trace("start");
+    // Cross-candidate probes from the phone (another of this desktop's own
+    // addresses) may read health to verify identity; every other origin keeps
+    // getting an opaque response.
+    const probeOrigin = String(req.headers.origin || "");
+    if (probeOrigin) {
+      try {
+        if (isKnownCandidateOrigin(probeOrigin, host)) {
+          res.setHeader("Access-Control-Allow-Origin", probeOrigin);
+          res.setHeader("Vary", "Origin");
+        }
+      } catch {}
+    }
     const desktopRuntimeConfig = getDesktopRuntimeConfig();
     trace("desktopRuntimeConfig");
     const configuredPublicBaseUrl = getConfiguredPublicBaseUrl();
@@ -41,7 +54,8 @@ export function registerCoreRoutes(app: express.Express, host: string) {
     const publicBaseUrl = configuredPublicBaseUrl
       || (savedPublicBaseUrl && !isTemporaryTryCloudflareUrl(savedPublicBaseUrl) ? savedPublicBaseUrl : "");
     trace("publicBaseUrl");
-    const aiConfigured = listAiProviderStatuses().some((provider) => provider.configured);
+    const activeAiProvider = listAiProviderStatuses().find((provider) => provider.active);
+    const aiConfigured = Boolean(activeAiProvider?.configured && !activeAiProvider.credentialResetRequired);
     trace("aiConfigured");
     const adminConfigured = isAdminConfigured();
     trace("adminConfigured");

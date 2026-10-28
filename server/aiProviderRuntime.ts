@@ -27,6 +27,9 @@ type GenerateAiContentInput = {
   temperature?: number;
   responseMimeType?: string;
   responseSchema?: unknown;
+  maxOutputTokens?: number;
+  credentialOverride?: string;
+  signal?: AbortSignal;
 };
 
 type AiFunctionCall = {
@@ -204,10 +207,12 @@ async function generateGemini(input: GenerateAiContentInput, apiKey: string, mod
     model,
     contents: input.contents as any,
     config: {
+      abortSignal: input.signal,
       systemInstruction: input.systemInstruction,
       tools: input.tools,
       responseMimeType: input.responseMimeType,
       responseSchema: input.responseSchema as any,
+      maxOutputTokens: input.maxOutputTokens,
       temperature: input.temperature,
     },
   });
@@ -236,9 +241,11 @@ async function generateOpenAiCompatible(input: GenerateAiContentInput, credentia
       messages: normalizeMessages(input.contents, input.systemInstruction),
       tools: openAiTools(input.tools),
       temperature: input.temperature,
+      ...(input.maxOutputTokens ? { max_tokens: input.maxOutputTokens } : {}),
       ...openAiProviderRequestOptions(providerId, model),
       ...(input.responseMimeType === "application/json" ? { response_format: { type: "json_object" } } : {}),
     }),
+    signal: input.signal,
   });
 
   const data = await response.json().catch(() => ({}));
@@ -296,12 +303,13 @@ async function generateAnthropic(input: GenerateAiContentInput, apiKey: string, 
     },
     body: JSON.stringify({
       model,
-      max_tokens: 4096,
+      max_tokens: input.maxOutputTokens || 4096,
       system: input.systemInstruction,
       messages: anthropicMessages(input.contents),
       tools: anthropicTools(input.tools),
       temperature: input.temperature,
     }),
+    signal: input.signal,
   });
 
   const data = await response.json().catch(() => ({}));
@@ -327,7 +335,7 @@ async function generateAnthropic(input: GenerateAiContentInput, apiKey: string, 
 
 export async function generateAiContent(input: GenerateAiContentInput): Promise<AiProviderResponse> {
   const providerId = resolveAiProviderId({ providerId: input.providerId, modelEngine: input.modelEngine });
-  const credential = getAiApiKey(providerId);
+  const credential = input.credentialOverride?.trim() || getAiApiKey(providerId);
   if (!credential) {
     const status = getAiProviderStatus(providerId);
     const error: any = new Error(`${status.provider} is not configured`);

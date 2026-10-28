@@ -14,6 +14,7 @@ type ChatGenerator = (input: {
   contents: AiContent;
   systemInstruction: string;
   temperature: number;
+  signal: AbortSignal;
 }) => Promise<AiProviderResponse>;
 
 export type CloudKitChatWorkerItemResult = {
@@ -89,16 +90,18 @@ function systemInstruction(locale: ClaimedCloudKitChatJob["locale"]) {
   ].join("");
 }
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
+function withTimeout<T>(run: (signal: AbortSignal) => Promise<T>, timeoutMs: number) {
+  const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
       const error: any = new Error("CloudKit chat AI request timed out.");
       error.code = "AI_TIMEOUT";
+      controller.abort(error);
       reject(error);
     }, timeoutMs);
   });
-  return Promise.race([promise, timeout]).finally(() => {
+  return Promise.race([run(controller.signal), timeout]).finally(() => {
     if (timer) clearTimeout(timer);
   });
 }
@@ -124,17 +127,19 @@ export async function runCloudKitChatWorkerOnce(options: {
   now?: number;
   timeoutMs?: number;
   generate?: ChatGenerator;
+  requestId?: string;
 } = {}): Promise<CloudKitChatWorkerItemResult> {
   const now = options.now ?? Date.now();
-  const timeoutMs = Math.min(5 * 60_000, Math.max(5_000, options.timeoutMs ?? DEFAULT_TIMEOUT_MS));
-  const job = claimNextCloudKitChatJob({ now, leaseMs: timeoutMs + 30_000 });
+  const timeoutMs = Math.min(5 * 60_000, Math.max(100, options.timeoutMs ?? DEFAULT_TIMEOUT_MS));
+  const job = claimNextCloudKitChatJob({ now, leaseMs: timeoutMs + 30_000, requestId: options.requestId });
   if (!job) return { status: "idle" };
   try {
     const generated = await withTimeout(
-      (options.generate || generateAiContent)({
+      (signal) => (options.generate || generateAiContent)({
         contents: conversationContents(job),
         systemInstruction: systemInstruction(job.locale),
         temperature: 0.4,
+        signal,
       }),
       timeoutMs,
     );
@@ -176,8 +181,9 @@ export async function runCloudKitChatWorkerQueue(options: {
   limit?: number;
   timeoutMs?: number;
   generate?: ChatGenerator;
+  requestId?: string;
 } = {}): Promise<CloudKitChatWorkerQueueResult> {
-  const limit = Math.min(10, Math.max(1, Math.trunc(options.limit || 3)));
+  const limit = options.requestId ? 1 : Math.min(10, Math.max(1, Math.trunc(options.limit || 3)));
   const items: CloudKitChatWorkerItemResult[] = [];
   for (let index = 0; index < limit; index += 1) {
     const result = await runCloudKitChatWorkerOnce(options);

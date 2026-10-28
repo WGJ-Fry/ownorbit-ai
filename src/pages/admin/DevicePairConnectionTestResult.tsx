@@ -60,13 +60,18 @@ export default function DevicePairConnectionTestResult({ result }: { result: Con
   const total = result.steps?.length || 0;
   const failedSteps = result.steps?.filter((step) => !step.ok) || [];
   const repairHints = result.fixes || [];
+  const visibleFailure = repairHints[0]
+    ? t(repairHintKey[repairHints[0].id])
+    : failedSteps[0]
+    ? t(stepFixKey[failedSteps[0].id])
+    : t("devicePair.testFix.generic");
   const hasActionableRepair = !result.ok || repairHints.length > 0 || !result.httpsStatus?.ok;
   return (
     <div className={`mt-2 rounded-xl border p-3 text-left text-xs leading-relaxed ${result.ok ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100" : "border-amber-400/20 bg-amber-500/10 text-amber-100"}`}>
       <div className="font-bold">
         {result.ok
           ? t("devicePair.testSuccess", { latency: result.latencyMs, url: result.url, passed, total })
-          : t("devicePair.testFailure", { message: result.error || `HTTP ${result.status}`, passed, total })}
+          : t("devicePair.testFailure", { message: visibleFailure, passed, total })}
       </div>
       {hasActionableRepair ? (
         <button
@@ -94,7 +99,7 @@ export default function DevicePairConnectionTestResult({ result }: { result: Con
             </div>
             <div className="mt-1 break-all font-mono text-[10px] opacity-70">{step.url}</div>
             <div className="mt-1 opacity-80">
-              {step.ok ? t("devicePair.testStep.latency", { latency: step.latencyMs }) : step.error || `HTTP ${step.status}`}
+              {step.ok ? t("devicePair.testStep.latency", { latency: step.latencyMs }) : t(stepFixKey[step.id])}
             </div>
             {!step.ok && repairHints.length === 0 ? <div className="mt-1 text-amber-50/90">{t(stepFixKey[step.id])}</div> : null}
           </div>
@@ -122,7 +127,7 @@ export default function DevicePairConnectionTestResult({ result }: { result: Con
       ) : null}
       {!result.httpsStatus?.ok ? (
         <div className="mt-2 rounded-lg border border-amber-300/20 bg-amber-400/10 p-2 text-amber-50">
-          <div>{result.httpsStatus?.error || t("devicePair.testHttpsWarning")}</div>
+          <div>{t("devicePair.testHttpsWarning")}</div>
           <div className="mt-1 text-amber-50/90">{t("devicePair.testFix.https")}</div>
         </div>
       ) : null}

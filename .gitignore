@@ -26,3 +26,5 @@ data/
 *.sqlite3
 *.sqlite3-*
 *.backup
+native/apple/mobile-shell/Generated/
+native/apple/mobile-shell/LifeOSMobile.xcodeproj/

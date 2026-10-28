@@ -14,6 +14,7 @@ function runIsolatedCloudKitCycle(env, scenario) {
     const path = await import("node:path");
     const { runMigrations } = await import("./server/migrations.ts");
     const { createChatSession, insertMessage } = await import("./server/chat.ts");
+    const { enqueueCloudKitChatRequest, getCloudKitChatJob } = await import("./server/cloudKitChatJobs.ts");
     runMigrations();
 
     const dataDir = process.env.LIFEOS_DATA_DIR;
@@ -37,6 +38,32 @@ function runIsolatedCloudKitCycle(env, scenario) {
     const { getIcloudDataSyncReadiness } = await import("./server/icloudDataSyncReadiness.ts");
     const { runCloudKitSyncCycle } = await import("./server/cloudKitSyncCycle.ts");
     const now = 1700000000000;
+    const pinnedRequestId = "11111111-1111-4111-8111-111111111111";
+    if (${JSON.stringify(scenario)} === "pinned-chat") {
+      enqueueCloudKitChatRequest({
+        schemaVersion: 1,
+        requestId: pinnedRequestId,
+        conversationId: "22222222-2222-4222-8222-222222222222",
+        userMessageId: "33333333-3333-4333-8333-333333333333",
+        deviceId: "44444444-4444-4444-8444-444444444444",
+        sourceDeviceHash: "a".repeat(64),
+        publicKeyFingerprint: "b".repeat(64),
+        trustedMacFingerprint: "c".repeat(64),
+        signature: "x".repeat(86),
+        prompt: "This request belongs to another trusted Mac.",
+        locale: "en-US",
+        status: "queued",
+        clientSequence: 1,
+        createdAt: now,
+        expiresAt: now + 60_000,
+        syncMutation: { kind: "chat-request", origin: "ios-native", mutatedAt: now },
+      }, {
+        recordName: "chat-request:" + pinnedRequestId,
+        contentHash: "d".repeat(64),
+        importedAt: now,
+        now,
+      });
+    }
     const readiness = getIcloudDataSyncReadiness({ platformSupported: true });
     const operations = [];
 
@@ -123,7 +150,8 @@ function runIsolatedCloudKitCycle(env, scenario) {
 
     const createBackup = () => ({ file: "lifeos-cycle.db", path: "/Users/example/private/lifeos-cycle.db", size: 77, createdAt: now, redaction: "sqlite-only" });
     const result = await runCloudKitSyncCycle(readiness, { now, runHelper: fakeRunHelper, createBackup });
-    process.stdout.write(JSON.stringify({ result, operations }));
+    const pinnedJob = ${JSON.stringify(scenario)} === "pinned-chat" ? getCloudKitChatJob(pinnedRequestId) : undefined;
+    process.stdout.write(JSON.stringify({ result, operations, pinnedJob }));
   `;
   const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
     cwd: rootDir,
@@ -155,6 +183,26 @@ test("CloudKit safe sync cycle pulls first and uploads local records only after 
     assert.equal(serialized.includes("cycle local text should only reach helper stdin"), false);
     assert.equal(serialized.includes("/Users/example"), false);
     assert.equal(serialized.includes(dir), false);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit full sync cannot process a request pinned to another Mac", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-cycle-pinned-chat-"));
+  try {
+    const { result, operations, pinnedJob } = runIsolatedCloudKitCycle({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "pinned-chat");
+
+    assert.deepEqual(operations, ["sync-changes-preview", "sync-export"]);
+    assert.equal(result.status, "completed");
+    assert.equal(result.chatWorker, undefined);
+    assert.equal(result.safety.chatRelayDelegatedToDedicatedCycle, true);
+    assert.equal(pinnedJob.status, "queued");
+    assert.equal(pinnedJob.attemptCount, 0);
+    assert.equal(pinnedJob.trustedMacFingerprint, "c".repeat(64));
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

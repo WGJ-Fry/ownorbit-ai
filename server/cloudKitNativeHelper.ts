@@ -1,7 +1,6 @@
 import { spawn } from "child_process";
 import crypto from "crypto";
 import type { CloudKitSyncExportPackage } from "./cloudKitSyncBatch.ts";
-import type { getIcloudDataSyncReadiness } from "./icloudDataSyncReadiness.ts";
 
 export const CLOUDKIT_NATIVE_HELPER_PROTOCOL_VERSION = 1;
 export const CLOUDKIT_NATIVE_HELPER_REQUEST_SCHEMA = "lifeos-cloudkit-helper-request.v1";
@@ -13,15 +12,41 @@ export const CLOUDKIT_NATIVE_HELPER_TIMEOUT_MS = 15_000;
 const MAX_HELPER_OUTPUT_BYTES = 8 * 1024 * 1024;
 const MAX_TEXT_CHARS = 800;
 
-type IcloudDataSyncReadiness = ReturnType<typeof getIcloudDataSyncReadiness>;
+export type CloudKitNativeHelperReadiness = {
+  enabled: boolean;
+  ready: boolean;
+  status: string;
+  containerId: string;
+  bundleId: string;
+  nativeHelper: {
+    executable: boolean;
+    path: string;
+  };
+  selectedDataTypes: readonly string[];
+  recordPlan: Array<{
+    dataType: string;
+    zone: string;
+    recordTypes: readonly string[];
+    safeFields: readonly string[];
+    forbiddenFields: readonly string[];
+    mutationModel: string;
+    conflictPolicy: string;
+    requiresUserReview: boolean;
+  }>;
+  requiredNativeCapabilities: readonly string[];
+  blockedDataTypes: readonly string[];
+  notSyncedDataTypes: readonly string[];
+  blockedDataTypePolicy: string;
+};
 
-export type CloudKitNativeHelperOperation = "probe" | "roundtrip" | "subscription-probe" | "sync-export" | "sync-import-preview" | "sync-changes-preview" | "sync-import-quarantine";
+export type CloudKitNativeHelperOperation = "probe" | "roundtrip" | "subscription-probe" | "chat-claim" | "sync-export" | "sync-import-preview" | "sync-changes-preview" | "sync-import-quarantine";
 export type CloudKitNativeHelperRunStatus = "passed" | "failed" | "skipped";
 
 const operationRequiredNativeCapabilities: Record<CloudKitNativeHelperOperation, string[]> = {
   probe: ["account-status", "private-database", "container-reachability"],
   roundtrip: ["account-status", "private-database", "container-reachability", "custom-zones", "create-fetch-delete-roundtrip"],
   "subscription-probe": ["account-status", "private-database", "container-reachability", "subscription-registration"],
+  "chat-claim": ["account-status", "private-database", "container-reachability", "custom-zones", "chat-claim-exclusive"],
   "sync-export": ["account-status", "private-database", "container-reachability", "custom-zones", "sync-export-save"],
   "sync-import-preview": ["account-status", "private-database", "container-reachability", "custom-zones", "sync-import-preview-query"],
   "sync-changes-preview": ["account-status", "private-database", "container-reachability", "custom-zones", "change-token-fetch", "sync-changes-preview"],
@@ -49,9 +74,19 @@ type HelperRunOptions = {
   timeoutMs?: number;
   now?: Date;
   runCommand?: CommandRunner;
-  syncExportPackage?: CloudKitSyncExportPackage;
+  syncExportPackage?: Pick<CloudKitSyncExportPackage, "ok" | "helperSyncBatch">;
   syncState?: CloudKitNativeHelperSyncState;
   importConfirmation?: string;
+  chatClaim?: {
+    requestId: string;
+    requestContentHash: string;
+    claimId: string;
+    ownerFingerprint: string;
+    trustedMacFingerprint?: string;
+    fencingToken: number;
+    claimedAt: number;
+    expiresAt: number;
+  };
 };
 
 function compact(value: unknown, limit = MAX_TEXT_CHARS) {
@@ -152,6 +187,7 @@ function normalizeSyncExport(value: unknown) {
     created: Number(input.created || 0),
     updated: Number(input.updated || 0),
     unchanged: Number(input.unchanged || 0),
+    deleted: Number(input.deleted || 0),
     conflicts: Number(input.conflicts || 0),
     failed: Number(input.failed || 0),
     recordPlanHash: compact(input.recordPlanHash, 80),
@@ -301,7 +337,21 @@ function normalizeSubscriptionProbe(value: unknown) {
   };
 }
 
-function nativeCapabilityCoverage(required: string[], verified: string[]) {
+function normalizeChatClaim(value: unknown) {
+  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    attempted: Boolean(input.attempted),
+    acquired: Boolean(input.acquired),
+    busy: Boolean(input.busy),
+    renewed: Boolean(input.renewed),
+    ownerMatches: Boolean(input.ownerMatches),
+    requestId: compact(input.requestId, 36),
+    claimId: compact(input.claimId, 80),
+    expiresAt: Number(input.expiresAt || 0),
+  };
+}
+
+function nativeCapabilityCoverage(required: readonly string[], verified: string[]) {
   const verifiedSet = new Set(verified);
   const missing = required.filter((capability) => !verifiedSet.has(capability));
   return {
@@ -321,19 +371,20 @@ export function cloudKitNativeHelperContract() {
     transport: CLOUDKIT_NATIVE_HELPER_TRANSPORT,
     requestSchema: CLOUDKIT_NATIVE_HELPER_REQUEST_SCHEMA,
     responseSchema: CLOUDKIT_NATIVE_HELPER_RESPONSE_SCHEMA,
-    operations: ["probe", "roundtrip", "subscription-probe", "sync-export", "sync-import-preview", "sync-changes-preview", "sync-import-quarantine"] as CloudKitNativeHelperOperation[],
+    operations: ["probe", "roundtrip", "subscription-probe", "chat-claim", "sync-export", "sync-import-preview", "sync-changes-preview", "sync-import-quarantine"] as CloudKitNativeHelperOperation[],
     commandArgs: [...CLOUDKIT_NATIVE_HELPER_ARGS],
     timeoutMs: CLOUDKIT_NATIVE_HELPER_TIMEOUT_MS,
   };
 }
 
 export function buildCloudKitNativeHelperRequest(
-  readiness: IcloudDataSyncReadiness,
+  readiness: CloudKitNativeHelperReadiness,
   operation: CloudKitNativeHelperOperation,
   now = new Date(),
-  syncExportPackage?: CloudKitSyncExportPackage,
+  syncExportPackage?: Pick<CloudKitSyncExportPackage, "ok" | "helperSyncBatch">,
   syncState?: CloudKitNativeHelperSyncState,
   importConfirmation?: string,
+  chatClaim?: HelperRunOptions["chatClaim"],
 ) {
   const forbiddenFieldNames = Array.from(new Set(readiness.recordPlan.flatMap((item) => item.forbiddenFields))).sort();
   const request: Record<string, unknown> = {
@@ -379,6 +430,18 @@ export function buildCloudKitNativeHelperRequest(
   if (operation === "sync-import-quarantine") {
     request.importConfirmation = compact(importConfirmation, 80);
   }
+  if (operation === "chat-claim" && chatClaim) {
+    request.chatClaim = {
+      requestId: compact(chatClaim.requestId, 36).toLowerCase(),
+      requestContentHash: compact(chatClaim.requestContentHash, 64).toLowerCase(),
+      claimId: compact(chatClaim.claimId, 80).toLowerCase(),
+      ownerFingerprint: compact(chatClaim.ownerFingerprint, 64).toLowerCase(),
+      trustedMacFingerprint: compact(chatClaim.trustedMacFingerprint, 64).toLowerCase(),
+      fencingToken: Math.max(1, Math.trunc(Number(chatClaim.fencingToken || 0))),
+      claimedAt: Math.trunc(Number(chatClaim.claimedAt || 0)),
+      expiresAt: Math.trunc(Number(chatClaim.expiresAt || 0)),
+    };
+  }
   return request;
 }
 
@@ -391,6 +454,8 @@ function skippedResult(operation: CloudKitNativeHelperOperation, readinessStatus
     checkedAt: new Date().toISOString(),
     readinessStatus,
     reason,
+    warnings: [] as string[],
+    errors: [reason],
     helperProtocol: cloudKitNativeHelperContract(),
     requiredOperationCapabilities: requiredCapabilitiesForOperation(operation),
     missingOperationCapabilities: requiredCapabilitiesForOperation(operation),
@@ -405,7 +470,7 @@ function skippedResult(operation: CloudKitNativeHelperOperation, readinessStatus
 }
 
 export async function runCloudKitNativeHelper(
-  readiness: IcloudDataSyncReadiness,
+  readiness: CloudKitNativeHelperReadiness,
   options: HelperRunOptions = {},
 ) {
   const operation = options.operation || "probe";
@@ -425,6 +490,7 @@ export async function runCloudKitNativeHelper(
     options.syncExportPackage,
     options.syncState,
     options.importConfirmation,
+    options.chatClaim,
   );
   const requestJson = JSON.stringify(request);
   const requestHash = `sha256:${crypto.createHash("sha256").update(requestJson).digest("hex").slice(0, 16)}`;
@@ -440,6 +506,7 @@ export async function runCloudKitNativeHelper(
   const syncChangesPreview = normalizeSyncChangesPreview(payload?.syncChangesPreview);
   const syncImportQuarantine = normalizeSyncImportQuarantine(payload?.syncImportQuarantine);
   const subscriptionProbe = normalizeSubscriptionProbe(payload?.subscriptionProbe);
+  const chatClaim = normalizeChatClaim(payload?.chatClaim);
   const capabilitiesVerified = normalizeStringList(payload?.capabilitiesVerified || payload?.capabilities, 32);
   const capabilityCoverage = nativeCapabilityCoverage(readiness.requiredNativeCapabilities, capabilitiesVerified);
   const operationCapabilityCoverage = nativeCapabilityCoverage(requiredCapabilitiesForOperation(operation), capabilitiesVerified);
@@ -449,9 +516,14 @@ export async function runCloudKitNativeHelper(
   const responseOk = payload?.ok === true;
   const roundtripOk = operation !== "roundtrip" || (roundtrip.created && roundtrip.fetched && roundtrip.deleted);
   const subscriptionProbeOk = operation !== "subscription-probe" || (subscriptionProbe.exists && subscriptionProbe.contentAvailable);
-  const syncExportOk = operation !== "sync-export" || (syncExport.attempted > 0 && syncExport.saved === syncExport.attempted && syncExport.failed === 0);
+  const chatClaimOk = operation !== "chat-claim" || chatClaim.attempted;
+  const syncExportOk = operation !== "sync-export" || (
+    syncExport.attempted > 0
+    && syncExport.saved + syncExport.deleted === syncExport.attempted
+    && syncExport.failed === 0
+  );
   const syncImportQuarantineOk = operation !== "sync-import-quarantine" || syncImportQuarantine.failed === 0;
-  const passed = command.exitCode === 0 && !command.timedOut && responseOk && protocolMatches && operationMatches && operationCapabilityCoverage.complete && roundtripOk && subscriptionProbeOk && syncExportOk && syncImportQuarantineOk;
+  const passed = command.exitCode === 0 && !command.timedOut && responseOk && protocolMatches && operationMatches && operationCapabilityCoverage.complete && roundtripOk && subscriptionProbeOk && chatClaimOk && syncExportOk && syncImportQuarantineOk;
   const helperLaunchBlocked = !command.timedOut && command.exitCode === null && Boolean(command.signal) && !command.stdout.trim();
   const failureKind = passed
     ? "none" as const
@@ -496,6 +568,7 @@ export async function runCloudKitNativeHelper(
     operationCapabilityCoverageOk: operationCapabilityCoverage.complete,
     roundtrip,
     subscriptionProbe,
+    chatClaim,
     syncExport,
     syncImportPreview,
     syncChangesPreview,

@@ -31,9 +31,80 @@ on:
       - "tsconfig.json"
       - "playwright.config.ts"
 
+permissions:
+  contents: read
+
 jobs:
+  preflight:
+    name: release-preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Electron binary
+        run: npm run electron:install
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Apple native contract tests
+        run: npm run test:apple-native
+
+      - name: CloudKit relay lifecycle tests
+        env:
+          NODE_OPTIONS: --experimental-sqlite
+        run: npm run test:relay-lifecycle
+
+      - name: CloudKit relay schedule and concurrency tests
+        env:
+          NODE_OPTIONS: --experimental-sqlite
+        run: npm run test:relay-schedule
+
+      - name: Unit and API tests
+        env:
+          NODE_OPTIONS: --experimental-sqlite
+        run: npm test
+
+      - name: E2E tests
+        env:
+          NODE_OPTIONS: --experimental-sqlite
+        run: npm run test:e2e
+
+      - name: Desktop smoke tests
+        env:
+          NODE_OPTIONS: --experimental-sqlite
+          ELECTRON_DISABLE_SANDBOX: "1"
+        run: xvfb-run -a npm run test:desktop
+
+      - name: Remote connection mock smoke
+        env:
+          NODE_OPTIONS: --experimental-sqlite
+        run: npm run remote:mock-smoke
+
+      - name: Unsigned release check
+        env:
+          NODE_OPTIONS: --experimental-sqlite
+          LIFEOS_RELEASE_SKIP_ARTIFACTS: "1"
+        run: npm run release:check:unsigned
+
   desktop-release-smoke:
     name: ${{ matrix.os }}
+    needs: preflight
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
@@ -42,9 +113,11 @@ jobs:
         os: [macos-latest, windows-latest, ubuntu-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
           cache: npm

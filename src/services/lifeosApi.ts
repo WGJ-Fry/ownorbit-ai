@@ -4,6 +4,8 @@ import { clearDevicePrivateKey, createDeviceKeyPair, isDeviceSignatureAvailable,
 import { clearDeviceCredential, getCachedDeviceCredential, getDeviceCredentialExpiryStatus, getDeviceCredentialStorageStatus, hydrateDeviceCredential, saveDeviceCredential } from "./deviceCredentialStore";
 import { clearActiveChatSessionId } from "./chatSessionStorage";
 import type { DeviceCredentialExpiryStatus, StoredDeviceCredential } from "./deviceCredentialStore";
+import { clearEndpointCandidates, getStoredEndpointCandidates, saveEndpointCandidates } from "./endpointCandidates";
+import type { EndpointCandidatesSnapshot } from "./endpointCandidates";
 
 export type BoundDevice = {
   id: string;
@@ -204,6 +206,12 @@ export type OnboardingStatus = {
   completedAt: number | null;
   required: boolean;
   securityOverall: "ok" | "warning" | "critical";
+  deviceReadiness?: {
+    ready: boolean;
+    webDevices: number;
+    cloudKitDevices: number;
+    modes: Array<"quickstart" | "cloudkit-native" | "web-pwa">;
+  };
   nextPath: string;
 };
 
@@ -649,6 +657,7 @@ export type ConfigDiagnostics = {
       migrationRecommended?: boolean;
     };
     restartRequired: boolean;
+    credentialResetRequired?: boolean;
     updatedAt?: number;
     recommendations: string[];
   };
@@ -1354,7 +1363,11 @@ export type NetworkDiagnostics = {
     running: boolean;
     managed: {
       running: boolean;
+      // running && the tunnel has its URL / registered connection.
+      ready: boolean;
       starting: boolean;
+      phase: "stopped" | "starting" | "ready" | "stopping";
+      // Kept after cloudflared exits; check running/ready before calling it live.
       url: string;
       pid: number | null;
       startedAt: number | null;
@@ -1865,6 +1878,26 @@ export type CloudKitDeviceTrustMetadataSummary = {
   deviceAccessGrantedFromCloudKit: false;
 };
 
+export type CloudKitChatDeviceItem = {
+  id: string;
+  displayName: string;
+  publicKeyFingerprintShort: string;
+  state: "pending" | "approved" | "revoked" | "expired";
+  expiresAt: number;
+  approvedAt: number | null;
+  revokedAt: number | null;
+  appliedAt: number;
+};
+
+export type CloudKitChatDeviceSummary = {
+  total: number;
+  pending: number;
+  approved: number;
+  revoked: number;
+  rawPublicKeyReturned: false;
+  rawDeviceIdReturned: false;
+};
+
 export type ConnectionTestResult = {
   ok: boolean;
   httpsStatus?: {
@@ -2152,6 +2185,7 @@ export type StoredCustomAppCapabilityManifest = {
   appId: string;
   allowedCapabilities: CustomAppCapabilityId[];
   declaredCapabilities: CustomAppCapabilityId[];
+  allowedNetworkOrigins: string[];
   riskLevel: "low" | "medium" | "high";
   updatedByType?: string | null;
   updatedById?: string | null;
@@ -2163,6 +2197,8 @@ export type StoredCustomAppCapabilityRequest = {
   appId: string;
   requestedCapabilities: CustomAppCapabilityId[];
   missingCapabilities: CustomAppCapabilityId[];
+  requestedNetworkOrigins: string[];
+  missingNetworkOrigins: string[];
   label: string;
   reason?: string | null;
   risk: "low" | "medium" | "high";
@@ -2242,6 +2278,18 @@ export function isLifeosRequestTimeout(error: unknown) {
   return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: unknown }).code === "request_timeout");
 }
 
+function recoverExpiredAdminSession(code: string) {
+  if (code !== "admin_auth_required" || typeof window === "undefined" || !window.location.pathname.includes("/admin")) return;
+  clearStoredAdminSession();
+  const returnTo = `${window.location.pathname}${window.location.search}`;
+  try {
+    window.sessionStorage.setItem("lifeos_admin_return_to", returnTo);
+  } catch {}
+  if (!window.location.pathname.endsWith("/admin/login")) {
+    window.location.assign(apiUrl("/admin/login?reason=session-expired"));
+  }
+}
+
 async function requestJson<T>(url: string, init?: JsonRequestInit): Promise<T> {
   const method = init?.method || "GET";
   const body = typeof init?.body === "string" ? init.body : "";
@@ -2272,7 +2320,9 @@ async function requestJson<T>(url: string, init?: JsonRequestInit): Promise<T> {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new LifeosApiError(data?.error || `Request failed: ${response.status}`, response.status, String(data?.code || ""), data);
+    const code = String(data?.code || "");
+    recoverExpiredAdminSession(code);
+    throw new LifeosApiError(data?.error || `Request failed: ${response.status}`, response.status, code, data);
   }
   return data;
 }
@@ -2379,6 +2429,9 @@ export function saveStoredDeviceCredential(credential: StoredDeviceCredential) {
 export async function clearStoredDeviceCredential() {
   await clearDeviceCredential();
   await clearDevicePrivateKey().catch(() => null);
+  // The stored desktop address list rides along with the credential: an
+  // unpaired phone should not keep a map of every address the desktop had.
+  clearEndpointCandidates();
 }
 
 export function getAdminStatus(options?: { timeoutMs?: number }) {
@@ -2567,6 +2620,10 @@ export function analyzeIcloudHandoffRepairPacket(packet: string) {
 export function stopCloudflareTunnel() {
   return requestJson<{
     tunnel: NetworkDiagnostics["cloudflare"]["managed"];
+    config: NetworkDiagnostics["desktopRuntimeConfig"];
+    clearedActiveEntry: boolean;
+    requiresRestart: boolean;
+    icloudRefresh?: IcloudAutoRefreshResult;
     diagnostics: NetworkDiagnostics;
     message: string;
   }>("/api/v1/admin/cloudflare-tunnel/stop", { method: "POST" });
@@ -2742,6 +2799,30 @@ export function getCloudKitDeviceTrustMetadata(limit?: number) {
     };
     diagnostics: NetworkDiagnostics;
   }>(`/api/v1/admin/icloud-data-sync/device-trust${query}`);
+}
+
+export function getCloudKitChatDevices(limit?: number) {
+  const query = limit ? `?limit=${encodeURIComponent(String(limit))}` : "";
+  return requestJson<{
+    devices: {
+      items: CloudKitChatDeviceItem[];
+      summary: CloudKitChatDeviceSummary;
+    };
+  }>(`/api/v1/admin/cloudkit-chat/devices${query}`);
+}
+
+export function approveCloudKitChatDevice(deviceId: string) {
+  return requestJson<{ ok: true; device: { id: string; state: "approved"; approvedAt: number }; relayCycleQueued: true }>(
+    `/api/v1/admin/cloudkit-chat/devices/${encodeURIComponent(deviceId)}/approve`,
+    { method: "POST", body: "{}" },
+  );
+}
+
+export function revokeCloudKitChatDevice(deviceId: string) {
+  return requestJson<{ ok: true; device: { id: string; state: "revoked"; revokedAt: number } }>(
+    `/api/v1/admin/cloudkit-chat/devices/${encodeURIComponent(deviceId)}/revoke`,
+    { method: "POST", body: "{}" },
+  );
 }
 
 export function applyCloudKitSyncQuarantine(input: { confirmation: string; limit?: number }) {
@@ -2957,6 +3038,9 @@ export function stopTailscaleHttpsServe() {
       url: string;
       status: NetworkDiagnostics["tailscale"];
     };
+    config: NetworkDiagnostics["desktopRuntimeConfig"];
+    clearedActiveEntry: boolean;
+    icloudRefresh?: IcloudAutoRefreshResult;
     diagnostics: NetworkDiagnostics;
     message: string;
   }>("/api/v1/admin/tailscale-serve/stop", { method: "POST" });
@@ -3020,18 +3104,45 @@ export type AiProviderTestResult = {
   selectedModelAvailable?: boolean;
 };
 
-export function testAiProvider(providerId: AiProviderId, mode: "configuration" | "live" = "configuration") {
+export function testAiProvider(
+  providerId: AiProviderId,
+  mode: "configuration" | "live" = "configuration",
+  credential = "",
+) {
   return requestJson<AiProviderTestResult>(`/api/v1/admin/ai-providers/${providerId}/test`, {
     method: "POST",
-    body: JSON.stringify({ mode }),
+    body: JSON.stringify({ mode, ...(credential ? { credential } : {}) }),
   });
 }
 
+function desktopAdminSessionResult(result: {
+  ok?: boolean;
+  status?: number;
+  body?: AdminSession & { error?: string; code?: string };
+}) {
+  if (!result?.ok) {
+    const payload: { error?: string; code?: string } = result?.body || {};
+    throw new LifeosApiError(
+      payload.error || `Request failed: ${result?.status || 0}`,
+      Number(result?.status || 0),
+      payload.code || "",
+      payload,
+    );
+  }
+  return result.body as AdminSession;
+}
+
 export async function setupAdmin(password: string) {
-  const session = await requestJson<AdminSession>("/api/v1/admin/setup", {
-    method: "POST",
-    body: JSON.stringify({ password }),
-  });
+  const desktop = (window as any).lifeosDesktop;
+  const result = typeof desktop?.setupAdmin === "function"
+    ? await desktop.setupAdmin(password)
+    : undefined;
+  const session = result
+    ? desktopAdminSessionResult(result)
+    : await requestJson<AdminSession>("/api/v1/admin/setup", {
+        method: "POST",
+        body: JSON.stringify({ password }),
+      });
   saveStoredAdminSession(session);
   return session;
 }
@@ -3046,19 +3157,27 @@ export async function loginAdmin(password: string) {
 }
 
 export async function resetLocalAdminPassword(newPassword: string) {
-  const session = await requestJson<AdminSession>("/api/v1/admin/local-password-reset", {
-    method: "POST",
-    body: JSON.stringify({ newPassword }),
-  });
+  const desktop = (window as any).lifeosDesktop;
+  const result = typeof desktop?.resetAdminPassword === "function"
+    ? await desktop.resetAdminPassword(newPassword)
+    : undefined;
+  const session = result
+    ? desktopAdminSessionResult(result)
+    : await requestJson<AdminSession>("/api/v1/admin/local-password-reset", {
+        method: "POST",
+        body: JSON.stringify({ newPassword }),
+      });
   saveStoredAdminSession(session);
   return session;
 }
 
-export function changeAdminPassword(input: { currentPassword: string; newPassword: string }) {
-  return requestJson<{ ok: true; passwordPolicy: unknown; securityCheck: ConfigDiagnostics["securityCheck"] }>("/api/v1/admin/password", {
+export async function changeAdminPassword(input: { currentPassword: string; newPassword: string }) {
+  const session = await requestJson<{ ok: true; expiresAt: number; passwordPolicy: unknown; securityCheck: ConfigDiagnostics["securityCheck"] }>("/api/v1/admin/password", {
     method: "PUT",
     body: JSON.stringify(input),
   });
+  saveStoredAdminSession(session);
+  return session;
 }
 
 export async function logoutAdmin() {
@@ -3088,7 +3207,7 @@ export function getBindingSession(bindingId: string) {
 
 export async function confirmBinding(token: string, deviceName: string) {
   const keyPair = isDeviceSignatureAvailable() ? await createDeviceKeyPair() : null;
-  const credential = await requestJson<StoredDeviceCredential>("/api/v1/devices/bind/confirm", {
+  const { endpoints, ...credential } = await requestJson<StoredDeviceCredential & { endpoints?: EndpointCandidatesSnapshot }>("/api/v1/devices/bind/confirm", {
     method: "POST",
     body: JSON.stringify({
       token,
@@ -3097,12 +3216,71 @@ export async function confirmBinding(token: string, deviceName: string) {
       ...(keyPair ? { publicKey: keyPair.publicKey } : {}),
     }),
   });
+  // The pairing response carries every currently reachable desktop address so a
+  // later failure of this origin is not a dead end. Addresses only, no secrets.
+  if (endpoints) saveEndpointCandidates(endpoints);
   if (!keyPair) return credential;
   return {
     device: credential.device,
     authMethod: "signature" as const,
     accessTokenExpiresAt: credential.accessTokenExpiresAt,
   };
+}
+
+// Migration: the phone asks its current (working) origin for a one-time
+// voucher, then redeems it on the target origin with a fresh keypair so the
+// binding moves without a new QR scan.
+export function requestDeviceMigrationToken(targetBaseUrl: string) {
+  return requestJson<{ token: string; expiresAt: number }>("/api/v1/devices/me/migrate-token", {
+    method: "POST",
+    body: JSON.stringify({ targetBaseUrl }),
+  });
+}
+
+export async function confirmDeviceMigration(token: string) {
+  const keyPair = isDeviceSignatureAvailable() ? await createDeviceKeyPair() : null;
+  const { endpoints, ...credential } = await requestJson<StoredDeviceCredential & { endpoints?: EndpointCandidatesSnapshot }>("/api/v1/devices/migrate/confirm", {
+    method: "POST",
+    body: JSON.stringify({
+      token,
+      // The redeeming origin must match the origin the voucher was pinned to.
+      targetBaseUrl: window.location.origin,
+      ...(keyPair ? { publicKey: keyPair.publicKey } : {}),
+    }),
+  });
+  if (endpoints) saveEndpointCandidates(endpoints);
+  if (!keyPair) return credential;
+  return {
+    device: credential.device,
+    authMethod: "signature" as const,
+    accessTokenExpiresAt: credential.accessTokenExpiresAt,
+  };
+}
+
+export type DeviceEndpointsResponse = EndpointCandidatesSnapshot & { unchanged?: boolean };
+
+let lastEndpointRefreshAt = 0;
+const ENDPOINT_REFRESH_MIN_INTERVAL_MS = 60_000;
+
+export async function refreshDeviceEndpoints(options: { force?: boolean } = {}) {
+  // A flapping WebSocket reconnects (and fires auth.ok) about once a second;
+  // without a floor that alone exhausts the server-side rate limit.
+  const now = Date.now();
+  if (!options.force && now - lastEndpointRefreshAt < ENDPOINT_REFRESH_MIN_INTERVAL_MS) return null;
+  lastEndpointRefreshAt = now;
+
+  const stored = getStoredEndpointCandidates();
+  const query = stored?.version ? `?version=${encodeURIComponent(stored.version)}` : "";
+  const response = await requestJson<DeviceEndpointsResponse>(`/api/v1/devices/me/endpoints${query}`);
+  if (!response.unchanged && Array.isArray(response.candidates)) {
+    // Never wipe a known-good list with a transient empty snapshot — right
+    // after a desktop restart the diagnostics may answer before its tunnels
+    // have come back up.
+    if (response.candidates.length > 0 || !stored?.candidates.length) {
+      saveEndpointCandidates(response);
+    }
+  }
+  return response;
 }
 
 export async function rotateDeviceToken() {
@@ -3324,7 +3502,7 @@ export function listChatSessions() {
   return requestJson<{ sessions: ChatSession[] }>("/api/v1/chat/sessions");
 }
 
-export function createChatSession(title = "JARVIS Main Session") {
+export function createChatSession(title = "OwnOrbit Main Session") {
   return requestJson<{ session: ChatSession }>("/api/v1/chat/sessions", {
     method: "POST",
     body: JSON.stringify({ title }),
@@ -3521,7 +3699,7 @@ export function getCustomAppCapabilityManifest(appId: string) {
 
 export function updateCustomAppCapabilityManifest(
   appId: string,
-  input: { allowedCapabilities?: CustomAppCapabilityId[]; declaredCapabilities?: CustomAppCapabilityId[]; capabilities?: CustomAppCapabilityId[] },
+  input: { allowedCapabilities?: CustomAppCapabilityId[]; declaredCapabilities?: CustomAppCapabilityId[]; capabilities?: CustomAppCapabilityId[]; allowedNetworkOrigins?: string[]; networkOrigins?: string[] },
 ) {
   return requestJson<{ manifest: StoredCustomAppCapabilityManifest }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/capabilities`, {
     method: "PUT",
@@ -3535,7 +3713,7 @@ export function listCustomAppCapabilityRequests(appId: string, limit = 20) {
 
 export function createCustomAppCapabilityRequest(
   appId: string,
-  input: { requestedCapabilities?: CustomAppCapabilityId[]; capabilities?: CustomAppCapabilityId[]; label?: string; reason?: string },
+  input: { requestedCapabilities?: CustomAppCapabilityId[]; capabilities?: CustomAppCapabilityId[]; networkOrigins?: string[]; label?: string; reason?: string },
 ) {
   return requestJson<{ request: StoredCustomAppCapabilityRequest }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/capability-requests`, {
     method: "POST",

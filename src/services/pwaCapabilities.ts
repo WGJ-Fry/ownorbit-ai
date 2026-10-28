@@ -449,6 +449,45 @@ export function getMobileConnectivityIssue(
   return "mobileDevice.connectivityIssueUnknown";
 }
 
+// A trycloudflare address dies with its cloudflared process, but a sleeping or
+// briefly offline Mac, or cloudflared re-registering with the edge, also break
+// the socket, and then the SAME address comes back. Those usually clear within
+// a minute, so wait for two minutes of failure without a break while this
+// phone is online (the realtime hook restarts the clock on "online" and on
+// returning to the app). The copy still starts with "wake the computer".
+export const TEMPORARY_ENTRY_LOST_AFTER_MS = 2 * 60 * 1000;
+
+export function isTemporaryEntryLikelyLost(input: {
+  entryKind: RemoteEntryKind;
+  realtimeStatus: string;
+  failingSince: number | null;
+  now: number;
+  phoneOnline: boolean;
+}) {
+  return input.entryKind === "temporary-cloudflare"
+    && input.realtimeStatus === "offline"
+    && input.phoneOnline
+    && input.failingSince !== null
+    && input.now - input.failingSince >= TEMPORARY_ENTRY_LOST_AFTER_MS;
+}
+
+// The device page explains a temporary address whenever the page itself was
+// opened from one, even when the desktop has since saved a different address
+// (which getRemoteEntryStatus reports as a mismatch instead).
+export function isTemporaryCloudflareOrigin(currentHref?: string) {
+  const base = currentBaseFromHref(currentHref);
+  if (!base) return false;
+  try {
+    return new URL(base).hostname.toLowerCase().endsWith(".trycloudflare.com");
+  } catch {
+    return false;
+  }
+}
+
+// The chat pill's "may have changed" hint links to the device page's steps
+// card with this fragment, and the card opens itself when it sees it.
+export const TEMPORARY_ENTRY_STEPS_ANCHOR = "temporary-entry";
+
 export function getRemoteEntryGuidance(
   entry: Pick<RemoteEntryStatus, "kind" | "currentBase" | "okForRemote">,
   queue?: { pending?: number; failed?: number; syncing?: number },
@@ -520,7 +559,7 @@ export function getPwaCapabilityStatus(): PwaCapabilityStatus {
     status.recommendations.push("IndexedDB is unavailable, which affects device credentials and long-term offline state. Check private browsing settings.");
   }
   if (!status.online) {
-    status.recommendations.push("You are offline. Messages will enter the local queue and sync when the network returns.");
+    status.recommendations.push("You are offline. Typed messages and photos can't be sent and stay in the input box; messages already in the queue sync when the network returns.");
   }
 
   return status;

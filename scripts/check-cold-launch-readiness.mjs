@@ -113,7 +113,11 @@ check(exists("Dockerfile"), "Dockerfile exists");
 check(exists("docker-compose.yml"), "docker-compose.yml exists");
 check(Boolean(dockerWorkflow), "Docker image workflow exists", ".github/workflows/docker.yml is missing");
 check(
-  dockerWorkflow.includes('tags:\n      - "v*"') && dockerWorkflow.includes("packages: write") && dockerWorkflow.includes("docker/build-push-action@v6") && dockerWorkflow.includes("push: true") && dockerWorkflow.includes(String(releaseState.sourceDockerRepository || "")),
+  dockerWorkflow.includes('tags:\n      - "v*"') &&
+    dockerWorkflow.includes("packages: write") &&
+    /docker\/build-push-action@[0-9a-f]{40}/.test(dockerWorkflow) &&
+    dockerWorkflow.includes("push: true") &&
+    dockerWorkflow.includes(String(releaseState.sourceDockerRepository || "")),
   "Docker image workflow builds and pushes GHCR images for version tags",
   "Docker image workflow must trigger on v* tags, allow packages: write, and push images to the source candidate GHCR repository",
 );

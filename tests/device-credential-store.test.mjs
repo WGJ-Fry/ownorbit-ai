@@ -147,6 +147,20 @@ test("device credential store removes expired legacy localStorage credential", a
   assert.equal(status.storage, "none");
 });
 
+test("device credential store keeps signature credentials even when a legacy token expiry is present", async () => {
+  const localStorage = installBrowserStorage();
+  const credential = legacyCredential({
+    authMethod: "signature",
+    accessToken: undefined,
+    accessTokenExpiresAt: Date.now() - 1000,
+  });
+  localStorage.setItem("lifeos_device_credential", JSON.stringify(credential));
+
+  const store = await import(`../src/services/deviceCredentialStore.ts?case=signature-expiry-${Date.now()}`);
+  assert.equal(store.getCachedDeviceCredential()?.device.id, credential.device.id);
+  assert.equal((await store.hydrateDeviceCredential())?.authMethod, "signature");
+});
+
 test("device credential store clears IndexedDB and legacy localStorage copies", async () => {
   const localStorage = installBrowserStorage();
   const credential = legacyCredential({ device: { ...legacyCredential().device, id: "device-clear-1" } });

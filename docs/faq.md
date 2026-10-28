@@ -20,7 +20,7 @@ OwnOrbit AI 是一个本地优先的个人 AI 管家/助手。电脑端运行私
 
 管理端“手机连接向导”会检测 Tailscale、Cloudflare Tunnel 和局域网地址。Tailscale 在线并启用 MagicDNS 时，会优先推荐 HTTPS Serve，并提供“一键启动 Tailscale HTTPS Serve”；命令行作为备用方案。已安装 `cloudflared` 时，可以直接点“一键启动 Cloudflare Tunnel”，系统会保存新的 HTTPS 地址并用于二维码。
 
-注意：`trycloudflare.com` 快速隧道是临时地址，重启后可能变化。长期稳定使用优先选 Tailscale、Cloudflare Named Tunnel 或自己的可信 HTTPS 反向代理。
+注意：`trycloudflare.com` 快速隧道是临时地址，电脑端 OwnOrbit AI 或电脑重启、Tunnel 停止或意外退出后就会失效，不会自动重新创建；需要再次点击“一键启动 Cloudflare Tunnel”，并让手机扫描新的二维码。长期稳定使用优先选 Tailscale、Cloudflare Named Tunnel 或自己的可信 HTTPS 反向代理。
 
 不要直接把本地服务暴露到公网 IP。异地连接前请确认管理员密码、备份、HTTPS/可信隧道和 `LIFEOS_ALLOW_PUBLIC=1` 配置。
 
@@ -78,7 +78,7 @@ Recommended options:
 
 The admin connection guide detects Tailscale, Cloudflare Tunnel, and LAN addresses. When Tailscale is online and MagicDNS is enabled, it prefers HTTPS Serve and offers `Start Tailscale HTTPS Serve`; the command line remains available as a fallback. When `cloudflared` is installed, you can click `Start Cloudflare Tunnel`; OwnOrbit AI saves the new HTTPS address and uses it for pairing QR codes.
 
-Note: quick `trycloudflare.com` tunnels are temporary and may change after restart. For stable long-term use, prefer Tailscale, Cloudflare Named Tunnel, or your own trusted HTTPS reverse proxy.
+Note: quick `trycloudflare.com` tunnels are temporary. Once the desktop app or the computer restarts, or the tunnel stops or crashes, the address stops working and is not recreated automatically; click `Start Cloudflare Tunnel` again and scan the new QR code on the phone. For stable long-term use, prefer Tailscale, Cloudflare Named Tunnel, or your own trusted HTTPS reverse proxy.
 
 Do not expose the local core directly to a public IP. Before remote access, verify the admin password, backups, HTTPS/trusted tunnel, and `LIFEOS_ALLOW_PUBLIC=1`.
 

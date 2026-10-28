@@ -3,6 +3,7 @@ import type { NetworkDiagnostics } from "../../services/lifeosApi";
 import { buildConnectionSetupPacket } from "../../services/connectionSetupPacket";
 import { useI18n } from "../../i18n/I18nProvider";
 import NoPhoneReachableNotice from "./NoPhoneReachableNotice";
+import { candidateSupportsPhonePairing } from "../../services/pairingCandidatePolicy";
 
 type ConnectionCandidate = NetworkDiagnostics["connectionCandidates"][number];
 
@@ -36,7 +37,9 @@ export default function ConnectionRecommendedEntryCard({
   onTestCandidate,
 }: ConnectionRecommendedEntryCardProps) {
   const { t } = useI18n();
-  const savedDesktopCandidate = diagnostics.connectionCandidates.find((candidate) => candidate.id === "saved-desktop-config") || null;
+  const savedDesktopCandidate = diagnostics.connectionCandidates.find((candidate) => (
+    candidate.id === "saved-desktop-config" && candidateSupportsPhonePairing(candidate)
+  )) || null;
   return (
     <div className="mt-4 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 p-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">

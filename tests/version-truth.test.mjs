@@ -148,6 +148,16 @@ test("version truth remote acceptance guard requires real-world evidence", async
 
 test("version truth release asset guard requires all desktop platforms", async (t) => {
   const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
+  const currentCommit = spawnSync("git", ["rev-parse", "HEAD"], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+  }).stdout.trim();
+  const releaseSource = {
+    schema: "ownorbit-release-source.v1",
+    commit: currentCommit,
+    ref: process.env.GITHUB_REF_NAME || "test",
+    dirty: false,
+  };
   const releaseDir = await mkdtemp(path.join(tmpdir(), "lifeos-version-truth-assets-"));
   t.after(async () => {
     await rm(releaseDir, { recursive: true, force: true });
@@ -185,6 +195,7 @@ test("version truth release asset guard requires all desktop platforms", async (
   await writeFile(path.join(releaseDir, "update-feed", "release-manifest.json"), `${JSON.stringify({
     version: packageJson.version,
     generatedAt: new Date(0).toISOString(),
+    source: releaseSource,
     artifacts: [mac, windows],
   }, null, 2)}\n`);
 
@@ -209,6 +220,7 @@ test("version truth release asset guard requires all desktop platforms", async (
   await writeFile(path.join(releaseDir, "update-feed", "release-manifest.json"), `${JSON.stringify({
     version: packageJson.version,
     generatedAt: new Date(0).toISOString(),
+    source: releaseSource,
     artifacts: [mac, windows, linux],
   }, null, 2)}\n`);
 
@@ -238,4 +250,18 @@ test("version truth promotion rejects stale public repository and artifact facts
   assert.notEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
   assert.match(result.stderr, /release promotion requires publicDockerRepository=ghcr\.io\/wgj-fry\/ownorbit-ai/);
   assert.match(result.stderr, /release promotion requires publicArtifacts to match sourceArtifacts/);
+});
+
+test("version truth tag build guard rejects a workflow tag that disagrees with package.json", () => {
+  const result = spawnSync(process.execPath, ["scripts/check-version-truth.mjs", "--tag-build"], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      GITHUB_REF_NAME: "v9.9.9-alpha",
+    },
+    encoding: "utf8",
+  });
+
+  assert.notEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /GitHub workflow ref v9\.9\.9-alpha must equal v0\.1\.6-alpha/);
 });

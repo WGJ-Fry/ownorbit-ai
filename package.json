@@ -52,7 +52,9 @@
     "desktop:dist:win": "npm run desktop:resources:prepare && npm run build && electron-builder --win --x64 --publish never -c.electronDist=",
     "desktop:dist:linux": "npm run desktop:resources:prepare && npm run build && electron-builder --linux --x64 --publish never -c.electronDist=",
     "desktop:artifact:smoke": "node scripts/desktop-artifact-smoke.mjs",
-    "desktop:artifact:smoke:launch": "LIFEOS_ARTIFACT_SMOKE_LAUNCH=1 node scripts/desktop-artifact-smoke.mjs",
+    "desktop:artifact:smoke:launch": "node scripts/desktop-artifact-smoke.mjs --launch",
+    "desktop:artifact:smoke:local": "node scripts/desktop-artifact-smoke.mjs --allow-dirty-local",
+    "desktop:artifact:smoke:local:launch": "node scripts/desktop-artifact-smoke.mjs --allow-dirty-local --launch",
     "desktop:release:smoke": "node scripts/desktop-release-smoke.mjs",
     "electron:install": "node scripts/install-electron.mjs",
     "signing:check:mac": "node scripts/check-mac-signing-env.mjs",
@@ -67,6 +69,7 @@
     "github:public:check": "node scripts/github-public-state.mjs",
     "github:public:fix": "node scripts/github-public-state.mjs --fix",
     "version:truth:check": "node scripts/check-version-truth.mjs",
+    "version:truth:tag": "node scripts/check-version-truth.mjs --tag-build",
     "version:truth:release": "node scripts/check-version-truth.mjs --promotion",
     "remote:smoke": "node scripts/remote-connection-smoke.mjs",
     "icloud:helper:build": "node scripts/build-cloudkit-helper.mjs",
@@ -89,43 +92,45 @@
     "preview": "vite preview",
     "lint": "node --stack_size=8192 ./node_modules/typescript/bin/tsc --noEmit",
     "test:api": "npm run build && node --test tests/api-auth.test.mjs",
-    "test:desktop": "npm run build && node --test --test-concurrency=1 tests/cloudkit-helper-runtime.test.mjs tests/cloudkit-push-listener.test.mjs tests/desktop-user-data-path.test.mjs tests/desktop-smoke.test.mjs",
+    "test:desktop": "npm run build && node --test --test-concurrency=1 tests/cloudkit-helper-runtime.test.mjs tests/cloudkit-push-listener.test.mjs tests/desktop-user-data-path.test.mjs tests/desktop-login-item-policy.test.mjs tests/desktop-smoke.test.mjs",
     "test:smoke": "npm run build && node --test tests/frontend-smoke.test.mjs",
     "test:e2e": "playwright test",
     "test:mobile:simulator": "playwright test tests/e2e/admin-mobile-binding.spec.ts --project=chromium",
     "test:apple-native": "node --test tests/apple-mobile-native-shell.test.mjs",
-    "quality:gate": "npm run lint && npm run test:apple-native && npm test && npm run test:e2e && npm run test:desktop && npm run release:check:unsigned",
-    "test": "npm run build && node --import tsx --test --test-concurrency=1 tests/i18n.test.mjs tests/client-routing.test.mjs tests/offline-queue.test.mjs tests/mobile-pairing-intent.test.mjs tests/mobile-pairing-errors.test.mjs tests/device-pairing-errors.test.mjs tests/mobile-install-hint-storage.test.mjs tests/pwa-capabilities.test.mjs tests/pwa-service-worker-lifecycle.test.mjs tests/device-credential-store.test.mjs tests/onboarding-handoff-summary.test.mjs tests/apple-remote-icloud-primary-action.test.mjs tests/apple-remote-icloud-simple-status.test.mjs tests/apple-remote-icloud-phone-pickup.test.mjs tests/icloud-data-sync-readiness.test.mjs tests/cloudkit-data-sync-config.test.mjs tests/icloud-data-sync-acceptance-runbook.test.mjs tests/cloudkit-helper-bundle.test.mjs tests/cloudkit-native-helper.test.mjs tests/cloudkit-push-evidence.test.mjs tests/cloudkit-chat-protocol.test.mjs tests/cloudkit-device-key-protocol.test.mjs tests/cloudkit-chat-jobs.test.mjs tests/cloudkit-chat-worker.test.mjs tests/cloudkit-sync-batch.test.mjs tests/cloudkit-sync-apply.test.mjs tests/cloudkit-device-trust-metadata.test.mjs tests/cloudkit-sync-now.test.mjs tests/cloudkit-sync-upload-now.test.mjs tests/cloudkit-sync-cycle.test.mjs tests/cloudkit-auto-sync-schedule.test.mjs tests/sensitive-local-storage.test.mjs tests/synced-client-state.test.mjs tests/network-status.test.mjs tests/network-diagnostics.test.mjs tests/cloudflare-tunnel.test.mjs tests/remote-connection-smoke.test.mjs tests/calendar-acceptance-runbook.test.mjs tests/backup-schedule.test.mjs tests/audit-redaction.test.mjs tests/http-security.test.mjs tests/data-export-redaction.test.mjs tests/diagnostic-bundle-redaction.test.mjs tests/ai-provider-runtime.test.mjs tests/vault.test.mjs tests/calendar-sync-preview.test.mjs tests/release-update-check.test.mjs tests/native-automation-bridge.test.mjs tests/chat-state-changes.test.mjs tests/problem-blueprint.test.mjs tests/chat-message-storage.test.mjs tests/chat-runtime-settings.test.mjs tests/chat-session-storage.test.mjs tests/server-mobile-install.test.mjs tests/system-actions.test.mjs tests/backup-restore-ui.test.mjs tests/connection-setup-packet.test.mjs tests/version-truth.test.mjs tests/github-public-state.test.mjs && node --import tsx --test --test-concurrency=1 tests/api-auth.test.mjs tests/backup-restore.test.mjs tests/chat-vault-route.test.mjs tests/frontend-smoke.test.mjs tests/migrations.test.mjs tests/public-mode.test.mjs tests/release-feed.test.mjs tests/remote-validation-report.test.mjs"
+    "test:apple-native:xcode": "node scripts/test-ios-native-xcode.mjs",
+    "test:relay-lifecycle": "node --import tsx --test tests/cloudkit-chat-lifecycle.test.mjs",
+    "test:relay-schedule": "node --import tsx --test tests/cloudkit-chat-relay-config.test.mjs tests/cloudkit-chat-relay-cycle.test.mjs tests/cloudkit-chat-relay-schedule.test.mjs tests/cloudkit-chat-relay-lease.test.mjs tests/cloudkit-mac-identity.test.mjs",
+    "quality:gate": "npm run lint && npm run test:apple-native && npm run test:apple-native:xcode && npm run test:relay-lifecycle && npm run test:relay-schedule && npm test && npm run test:e2e && npm run test:desktop && npm run release:check:unsigned",
+    "test": "npm run build && node --import tsx --test --test-concurrency=1 tests/i18n.test.mjs tests/client-routing.test.mjs tests/offline-queue.test.mjs tests/mobile-pairing-intent.test.mjs tests/mobile-pairing-errors.test.mjs tests/device-pairing-errors.test.mjs tests/device-pairing-lan-binding.test.mjs tests/device-endpoints.test.mjs tests/endpoint-candidates.test.mjs tests/pairing-candidate-policy.test.mjs tests/mobile-install-hint-storage.test.mjs tests/pwa-capabilities.test.mjs tests/pwa-service-worker-lifecycle.test.mjs tests/device-credential-store.test.mjs tests/onboarding-handoff-summary.test.mjs tests/apple-remote-icloud-primary-action.test.mjs tests/apple-remote-icloud-simple-status.test.mjs tests/apple-remote-icloud-phone-pickup.test.mjs tests/icloud-data-sync-readiness.test.mjs tests/cloudkit-data-sync-config.test.mjs tests/icloud-data-sync-acceptance-runbook.test.mjs tests/cloudkit-helper-bundle.test.mjs tests/cloudkit-native-helper.test.mjs tests/cloudkit-push-evidence.test.mjs tests/cloudkit-chat-protocol.test.mjs tests/cloudkit-device-key-protocol.test.mjs tests/cloudkit-chat-jobs.test.mjs tests/cloudkit-chat-worker.test.mjs tests/cloudkit-sync-batch.test.mjs tests/cloudkit-sync-apply.test.mjs tests/cloudkit-device-trust-metadata.test.mjs tests/cloudkit-sync-now.test.mjs tests/cloudkit-sync-upload-now.test.mjs tests/cloudkit-sync-cycle.test.mjs tests/cloudkit-auto-sync-schedule.test.mjs tests/sensitive-local-storage.test.mjs tests/synced-client-state.test.mjs tests/network-status.test.mjs tests/tailscale-socket.test.mjs tests/network-diagnostics.test.mjs tests/tunnel-conflict.test.mjs tests/remote-entry-release.test.mjs tests/remote-entry-shutdown.test.mjs tests/remote-entry-routes.test.mjs tests/cloudflare-tunnel.test.mjs tests/remote-connection-smoke.test.mjs tests/calendar-acceptance-runbook.test.mjs tests/backup-schedule.test.mjs tests/audit-redaction.test.mjs tests/http-security.test.mjs tests/data-export-redaction.test.mjs tests/diagnostic-bundle-redaction.test.mjs tests/ai-provider-runtime.test.mjs tests/ai-provider-test-feedback.test.mjs tests/vault.test.mjs tests/calendar-sync-preview.test.mjs tests/release-update-check.test.mjs tests/native-automation-bridge.test.mjs tests/chat-state-changes.test.mjs tests/problem-blueprint.test.mjs tests/chat-message-storage.test.mjs tests/chat-draft-storage.test.mjs tests/ordered-message-persistence.test.mjs tests/chat-runtime-settings.test.mjs tests/chat-session-storage.test.mjs tests/server-mobile-install.test.mjs tests/system-actions.test.mjs tests/backup-restore-ui.test.mjs tests/connection-setup-packet.test.mjs tests/version-truth.test.mjs tests/github-public-state.test.mjs && node --import tsx --test --test-concurrency=1 tests/api-auth.test.mjs tests/backup-restore.test.mjs tests/chat-vault-route.test.mjs tests/frontend-smoke.test.mjs tests/migrations.test.mjs tests/public-mode.test.mjs tests/release-feed.test.mjs tests/remote-validation-report.test.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
     "dotenv": "^17.2.3",
     "electron-updater": "^6.8.9",
-    "express": "^4.21.2",
+    "express": "^4.22.3",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "qrcode.react": "^4.2.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
-    "react-router-dom": "^7.17.0",
     "recharts": "^3.8.1",
     "ws": "^8.21.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.60.0",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/vite": "^4.3.1",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^6.0.2",
     "autoprefixer": "^10.4.21",
-    "electron": "^42.3.3",
-    "electron-builder": "^26.15.2",
+    "electron": "42.11.18",
+    "electron-builder": "26.15.7",
     "esbuild": "^0.28.1",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
-    "vite": "^8.0.16"
+    "vite": "^8.3.5"
   },
   "build": {
     "appId": "ai.lifeos.desktop",
@@ -171,6 +176,8 @@
   },
   "overrides": {
     "esbuild": "$esbuild",
-    "undici": "7.28.0"
+    "fast-uri": "3.1.9",
+    "qs": "6.16.2",
+    "undici": "7.30.1"
   }
 }

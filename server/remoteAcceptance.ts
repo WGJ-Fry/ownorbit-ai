@@ -509,7 +509,7 @@ export function buildRemoteAcceptanceChecklist(input: {
       status: diagnostics.tailscale?.serveRunning && tailscaleUrl && stableHealthPassed && sameUrl(runtimeUrl, tailscaleUrl) ? "passed" : "needs-action",
       evidence: diagnostics.tailscale?.serveRunning && tailscaleUrl ? tailscaleUrl : "Tailscale HTTPS Serve has not been proven as the saved healthy entry.",
       action: "Start Tailscale HTTPS Serve, save it as the desktop remote entry, restart OwnOrbit AI, then run remote health.",
-      command: "tailscale serve --bg https:443 http://127.0.0.1:3000",
+      command: "tailscale serve --bg --https=443 http://127.0.0.1:3000",
     },
     {
       id: "cloudflare-named-tunnel",

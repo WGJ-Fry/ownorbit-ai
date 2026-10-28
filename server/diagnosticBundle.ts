@@ -17,7 +17,7 @@ import { getNetworkDiagnostics } from "./networkDiagnostics";
 import { getOnlineDeviceCount } from "./realtime";
 import { buildRemoteAcceptanceChecklist, buildRemoteAcceptanceEvidencePack, getRemoteAcceptanceRecords, getRemoteAcceptanceRunbookRecords, summarizeRemoteAcceptanceChecklist } from "./remoteAcceptance";
 import { getRemoteValidationReport, summarizeRemoteHealth } from "./remoteValidationReport";
-import { getRemoteHealthEvidence, getRemoteRecoveryReport } from "./remoteHealthMonitor";
+import { getRemoteHealthEvidence, getRemoteRecoveryReport, remoteHealthSummaryBaseUrl } from "./remoteHealthMonitor";
 import { getSecurityDiagnostics } from "./securityDiagnostics";
 import { getPackageVersion } from "./version";
 
@@ -657,7 +657,7 @@ export function createDiagnosticBundle() {
   const remoteAcceptanceRecords = getRemoteAcceptanceRecords();
   const remoteAcceptanceRunbookRecords = getRemoteAcceptanceRunbookRecords();
   const remoteHealthSummary = summarizeRemoteHealth({
-    baseUrl: network.desktopRuntimeConfig?.publicBaseUrl || network.remoteReadiness.baseUrl,
+    baseUrl: remoteHealthSummaryBaseUrl(network),
     readiness: network.remoteReadiness,
     report: remoteValidationReport,
   });

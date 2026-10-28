@@ -1,11 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, RefreshCw, ShieldCheck, Smartphone } from "lucide-react";
-import { getCloudKitDeviceTrustMetadata } from "../../../services/lifeosApi";
-import type { CloudKitDeviceTrustMetadataItem, CloudKitDeviceTrustMetadataSummary } from "../../../services/lifeosApi";
+import {
+  approveCloudKitChatDevice,
+  getCloudKitChatDevices,
+  getCloudKitDeviceTrustMetadata,
+  revokeCloudKitChatDevice,
+} from "../../../services/lifeosApi";
+import type {
+  CloudKitChatDeviceItem,
+  CloudKitDeviceTrustMetadataItem,
+  CloudKitDeviceTrustMetadataSummary,
+} from "../../../services/lifeosApi";
 import { useI18n } from "../../../i18n/I18nProvider";
 import type { TranslationKey } from "../../../i18n/translations";
 
 type DeviceTrustResponse = Awaited<ReturnType<typeof getCloudKitDeviceTrustMetadata>>["deviceTrust"];
+type ChatDevicesResponse = Awaited<ReturnType<typeof getCloudKitChatDevices>>["devices"];
 
 const nextActionKeys: Record<CloudKitDeviceTrustMetadataItem["nextAction"], TranslationKey> = {
   "rebind-device": "settings.cloudKitDeviceTrustNextRebind",
@@ -68,6 +78,8 @@ function TrustSummary({ summary }: { summary: CloudKitDeviceTrustMetadataSummary
 export default function CloudKitDeviceTrustPanel() {
   const { locale, t } = useI18n();
   const [deviceTrust, setDeviceTrust] = useState<DeviceTrustResponse | null>(null);
+  const [chatDevices, setChatDevices] = useState<ChatDevicesResponse | null>(null);
+  const [updatingDeviceId, setUpdatingDeviceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,8 +87,12 @@ export default function CloudKitDeviceTrustPanel() {
     setLoading(true);
     setError(null);
     try {
-      const result = await getCloudKitDeviceTrustMetadata(20);
-      setDeviceTrust(result.deviceTrust);
+      const [trustResult, chatResult] = await Promise.all([
+        getCloudKitDeviceTrustMetadata(20),
+        getCloudKitChatDevices(20),
+      ]);
+      setDeviceTrust(trustResult.deviceTrust);
+      setChatDevices(chatResult.devices);
     } catch (err: any) {
       setError(err?.message || t("settings.cloudKitDeviceTrustLoadFailed"));
     } finally {
@@ -89,6 +105,21 @@ export default function CloudKitDeviceTrustPanel() {
   }, []);
 
   const newestApplied = useMemo(() => formatTime(deviceTrust?.summary.newestAppliedAt, locale), [deviceTrust?.summary.newestAppliedAt, locale]);
+
+  const updateChatDevice = async (item: CloudKitChatDeviceItem, action: "approve" | "revoke") => {
+    if (action === "revoke" && !window.confirm(t("settings.cloudKitChatDeviceRevokeConfirm"))) return;
+    setUpdatingDeviceId(item.id);
+    setError(null);
+    try {
+      if (action === "approve") await approveCloudKitChatDevice(item.id);
+      else await revokeCloudKitChatDevice(item.id);
+      await refresh();
+    } catch (err: any) {
+      setError(err?.message || t("settings.cloudKitChatDeviceUpdateFailed"));
+    } finally {
+      setUpdatingDeviceId(null);
+    }
+  };
 
   return (
     <section id="cloudkit-device-trust" className="mb-6 rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
@@ -114,6 +145,50 @@ export default function CloudKitDeviceTrustPanel() {
       </div>
 
       {error ? <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200">{error}</div> : null}
+
+      {chatDevices && chatDevices.items.length > 0 ? (
+        <div className="mb-4 space-y-3">
+          {chatDevices.summary.pending > 0 ? (
+            <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4 text-sm text-amber-100">
+              <div className="font-bold">{t("settings.cloudKitChatDevicePending", { count: chatDevices.summary.pending })}</div>
+              <div className="mt-1 text-xs text-amber-100/75">{t("settings.cloudKitChatDevicePendingBody")}</div>
+            </div>
+          ) : null}
+          {chatDevices.items.map((item) => (
+            <div key={item.id} className="flex flex-col gap-3 rounded-2xl border border-white/[0.08] bg-black/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <Smartphone className="h-5 w-5 text-cyan-300" />
+                <div>
+                  <div className="font-bold text-zinc-100">{item.displayName}</div>
+                  <div className="mt-1 text-xs text-zinc-500">
+                    {t(`settings.cloudKitChatDeviceState.${item.state}` as TranslationKey)}
+                    {" · "}
+                    {t("settings.cloudKitDeviceTrustFingerprint")} {item.publicKeyFingerprintShort}
+                  </div>
+                </div>
+              </div>
+              {item.state === "pending" ? (
+                <button
+                  onClick={() => void updateChatDevice(item, "approve")}
+                  disabled={updatingDeviceId === item.id}
+                  className="rounded-xl bg-cyan-400 px-4 py-2 text-sm font-bold text-[#061016] disabled:opacity-50"
+                >
+                  {t("settings.cloudKitChatDeviceApprove")}
+                </button>
+              ) : item.state === "approved" ? (
+                <button
+                  onClick={() => void updateChatDevice(item, "revoke")}
+                  disabled={updatingDeviceId === item.id}
+                  className="rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-2 text-sm font-bold text-red-200 disabled:opacity-50"
+                >
+                  {t("settings.cloudKitChatDeviceRevoke")}
+                </button>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       {deviceTrust ? <TrustSummary summary={deviceTrust.summary} /> : null}
 
       {deviceTrust && deviceTrust.items.length === 0 ? (

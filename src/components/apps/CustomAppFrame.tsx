@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CustomApp } from "../../types";
 import {
   createCustomAppActionRequest,
@@ -6,6 +6,7 @@ import {
   createCustomAppRuntimeEvent,
   decideCustomAppActionRequest,
   decideCustomAppCapabilityRequest,
+  getCustomAppCapabilityManifest,
   getCustomAppState,
   saveCustomAppState,
   type CustomAppCapabilityId,
@@ -23,6 +24,26 @@ const customAppCapabilityIds: CustomAppCapabilityId[] = ["storage", "openExterna
 export default function CustomAppFrame({ app }: CustomAppFrameProps) {
   const { t } = useI18n();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const [allowedNetworkOrigins, setAllowedNetworkOrigins] = useState<string[]>([]);
+  const sandboxSrcDoc = useMemo(
+    () => buildStudioSandboxSrcDoc(app.code || "", { allowedNetworkOrigins }),
+    [allowedNetworkOrigins, app.code],
+  );
+
+  useEffect(() => {
+    let active = true;
+    setAllowedNetworkOrigins([]);
+    getCustomAppCapabilityManifest(app.id)
+      .then(({ manifest }) => {
+        if (active) setAllowedNetworkOrigins(manifest.allowedCapabilities.includes("network") ? manifest.allowedNetworkOrigins : []);
+      })
+      .catch(() => {
+        if (active) setAllowedNetworkOrigins([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [app.id]);
 
   useEffect(() => {
     const recordRuntimeEvent = (
@@ -85,6 +106,7 @@ export default function CustomAppFrame({ app }: CustomAppFrameProps) {
           }
           const created = await createCustomAppCapabilityRequest(app.id, {
             requestedCapabilities,
+            networkOrigins: Array.isArray(payload.networkOrigins) ? payload.networkOrigins : undefined,
             label: typeof payload.label === "string" ? payload.label : undefined,
             reason: typeof payload.reason === "string" ? payload.reason : undefined,
           });
@@ -94,16 +116,20 @@ export default function CustomAppFrame({ app }: CustomAppFrameProps) {
             missingCapabilities: created.request.missingCapabilities,
           });
           if (created.request.status === "approved") {
+            if (created.request.requestedCapabilities.includes("network")) setAllowedNetworkOrigins(created.request.requestedNetworkOrigins);
             respondToFrame(data.requestId, { ok: true, result: { status: "approved", request: created.request } });
             return;
           }
           const confirmed = window.confirm(t("customApp.capabilityConfirm", {
             label: created.request.label,
-            capabilities: created.request.missingCapabilities.join(", "),
+            capabilities: [...created.request.missingCapabilities, ...created.request.missingNetworkOrigins].join(", "),
             risk: t(`customApp.actionRisk.${created.request.risk}` as TranslationKey),
           }));
           const decision = confirmed ? "approved" : "denied";
           const decided = await decideCustomAppCapabilityRequest(app.id, created.request.id, decision, confirmed ? t("customApp.capabilityApproveNote") : t("customApp.capabilityDenyNote"));
+          if (confirmed && decided.request.requestedCapabilities.includes("network")) {
+            setAllowedNetworkOrigins(decided.request.requestedNetworkOrigins);
+          }
           respondToFrame(data.requestId, { ok: confirmed, result: { status: decided.request.status, request: decided.request }, error: confirmed ? undefined : t("customApp.capabilityDenied") });
           return;
         }
@@ -159,7 +185,7 @@ export default function CustomAppFrame({ app }: CustomAppFrameProps) {
     <div className="w-full min-h-[360px] bg-[#0a0a0a] pointer-events-auto relative">
       <iframe
         ref={iframeRef}
-        srcDoc={buildStudioSandboxSrcDoc(app.code || "")}
+        srcDoc={sandboxSrcDoc}
         title={app.name}
         className="absolute inset-0 w-full h-full border-none"
         sandbox={STUDIO_IFRAME_SANDBOX}

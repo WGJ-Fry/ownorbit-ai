@@ -2,6 +2,56 @@ import CryptoKit
 import XCTest
 @testable import LifeOSMobile
 
+private final class InMemoryCloudMacTrustStorage: LifeOSCloudMacTrustStorage {
+    var trustedFingerprints: [String: String] = [:]
+    var replacementResetTimes: [String: Int64] = [:]
+    var failNextTrustedFingerprintRemoval = false
+    var failNextReplacementResetSave = false
+    var operations: [String] = []
+
+    init(
+        trustedFingerprints: [String: String] = [:],
+        replacementResetTimes: [String: Int64] = [:]
+    ) {
+        self.trustedFingerprints = trustedFingerprints
+        self.replacementResetTimes = replacementResetTimes
+    }
+
+    func loadTrustedFingerprint(accountFingerprint: String) throws -> String? {
+        trustedFingerprints[accountFingerprint]
+    }
+
+    func saveTrustedFingerprint(_ fingerprint: String, accountFingerprint: String) throws {
+        trustedFingerprints[accountFingerprint] = fingerprint
+    }
+
+    func removeTrustedFingerprint(accountFingerprint: String) throws {
+        operations.append("remove-trusted-fingerprint")
+        if failNextTrustedFingerprintRemoval {
+            failNextTrustedFingerprintRemoval = false
+            throw LifeOSCloudMacTrustError.keychain
+        }
+        trustedFingerprints.removeValue(forKey: accountFingerprint)
+    }
+
+    func loadReplacementResetAt(accountFingerprint: String) throws -> Int64? {
+        replacementResetTimes[accountFingerprint]
+    }
+
+    func saveReplacementResetAt(_ resetAt: Int64, accountFingerprint: String) throws {
+        operations.append("save-replacement-reset")
+        if failNextReplacementResetSave {
+            failNextReplacementResetSave = false
+            throw LifeOSCloudMacTrustError.keychain
+        }
+        replacementResetTimes[accountFingerprint] = resetAt
+    }
+
+    func clearReplacementResetAt(accountFingerprint: String) throws {
+        replacementResetTimes.removeValue(forKey: accountFingerprint)
+    }
+}
+
 final class LifeOSCloudDataTests: XCTestCase {
     func testCloudSyncOutcomeMapsBackgroundFetchResultsWithoutCollapsingFailures() {
         XCTAssertEqual(LifeOSCloudSyncOutcome.newData.backgroundFetchResult, .newData)
@@ -445,6 +495,7 @@ final class LifeOSCloudDataTests: XCTestCase {
         let requestId = "123e4567-e89b-42d3-a456-426614174000"
         let conversationId = "223e4567-e89b-42d3-a456-426614174000"
         let messageId = "323e4567-e89b-42d3-a456-426614174000"
+        let trustedMacFingerprint = String(repeating: "f", count: 64)
         let identity = try LifeOSCloudDeviceIdentity(
             deviceId: "423e4567-e89b-42d3-a456-426614174000",
             privateKey: P256.Signing.PrivateKey(rawRepresentation: Data(repeating: 1, count: 32)),
@@ -464,6 +515,7 @@ final class LifeOSCloudDataTests: XCTestCase {
             conversationId: conversationId,
             userMessageId: messageId,
             clientSequence: 7,
+            trustedMacFingerprint: trustedMacFingerprint,
             now: now
         )
         let payload = try XCTUnwrap(
@@ -471,7 +523,7 @@ final class LifeOSCloudDataTests: XCTestCase {
         )
         let metadata = try XCTUnwrap(payload["syncMutation"] as? [String: Any])
 
-        XCTAssertEqual(record.zone, "LifeOSChatZone")
+        XCTAssertEqual(record.zone, "LifeOSChatRelayZone")
         XCTAssertEqual(record.recordType, "LifeOSChatRequest")
         XCTAssertEqual(record.recordName, "chat-request:\(requestId)")
         XCTAssertEqual(record.mutationId, "ios-chat-request:\(requestId)")
@@ -482,6 +534,7 @@ final class LifeOSCloudDataTests: XCTestCase {
         XCTAssertEqual(payload["deviceId"] as? String, identity.deviceId)
         XCTAssertEqual(payload["sourceDeviceHash"] as? String, identity.deviceIdHash)
         XCTAssertEqual(payload["publicKeyFingerprint"] as? String, identity.publicKeyFingerprint)
+        XCTAssertEqual(payload["trustedMacFingerprint"] as? String, trustedMacFingerprint)
         XCTAssertNotNil(payload["signature"] as? String)
         XCTAssertEqual(payload["status"] as? String, "queued")
         XCTAssertEqual((payload["clientSequence"] as? NSNumber)?.int64Value, 7)
@@ -573,12 +626,12 @@ final class LifeOSCloudDataTests: XCTestCase {
             if let safeErrorCode { payload["safeErrorCode"] = safeErrorCode }
             let data = try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
             return try LifeOSCloudRecordValidator.validate(LifeOSCloudRecordInput(
-                zone: "LifeOSChatZone",
+                zone: "LifeOSChatRelayZone",
                 recordType: "LifeOSChatResponse",
                 recordName: "chat-response:\(requestId)",
                 lifeosSchema: "lifeos-cloudkit-record.v1",
-                lifeosDataType: "chat-history",
-                sourceIdHash: "chat-history:1234567890abcdef",
+                lifeosDataType: "chat-relay",
+                sourceIdHash: "chat-relay:1234567890abcdef",
                 mutationId: "mac-chat-response:\(requestId)",
                 logicalClock: 1_700_000_001_000,
                 contentHash: LifeOSCloudDeviceIdentity.sha256Hex(data),
@@ -602,15 +655,417 @@ final class LifeOSCloudDataTests: XCTestCase {
                 serverChangeTokens: [:],
                 moreComing: false
             )
-            XCTAssertEqual(snapshot.chatItems(now: now).first?.state, expected)
+            XCTAssertEqual(
+                snapshot.chatItems(now: now, responseVerifier: { _, _ in true }).first?.state,
+                expected
+            )
         }
+    }
+
+    func testChatActivityRejectsUnsignedResponsesByDefaultAndToleratesDuplicateRequests() throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let requestId = "123e4567-e89b-42d3-a456-426614174000"
+        let identity = try LifeOSCloudDeviceIdentity(
+            deviceId: "423e4567-e89b-42d3-a456-426614174000",
+            privateKey: P256.Signing.PrivateKey(rawRepresentation: Data(repeating: 5, count: 32)),
+            createdAt: now,
+            expiresAt: now.addingTimeInterval(LifeOSCloudDeviceIdentity.lifetime)
+        )
+        let request = try LifeOSCloudChatRequestMutationBuilder.create(
+            prompt: "Keep unsigned replies hidden.",
+            identity: identity,
+            locale: "en-US",
+            requestId: requestId,
+            conversationId: "223e4567-e89b-42d3-a456-426614174000",
+            userMessageId: "323e4567-e89b-42d3-a456-426614174000",
+            clientSequence: 8,
+            now: now
+        )
+        let payload: [String: Any] = [
+            "schemaVersion": 1,
+            "requestId": requestId,
+            "responseId": "1d7a0c51-5a71-43ce-ae50-13af3a17e9df",
+            "conversationId": "223e4567-e89b-42d3-a456-426614174000",
+            "assistantMessageId": "623e4567-e89b-42d3-a456-426614174000",
+            "status": "completed",
+            "text": "Unsigned reply",
+            "requestContentHash": request.contentHash,
+            "completedAt": NSNumber(value: 1_700_000_001_000 as Int64),
+            "updatedAt": NSNumber(value: 1_700_000_001_000 as Int64),
+        ]
+        let data = try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
+        let unsignedResponse = try LifeOSCloudRecordValidator.validate(LifeOSCloudRecordInput(
+            zone: "LifeOSChatRelayZone",
+            recordType: "LifeOSChatResponse",
+            recordName: "chat-response:\(requestId)",
+            lifeosSchema: "lifeos-cloudkit-record.v1",
+            lifeosDataType: "chat-relay",
+            sourceIdHash: "chat-relay:1234567890abcdef",
+            mutationId: "mac-chat-response:\(requestId)",
+            logicalClock: 1_700_000_001_000,
+            contentHash: LifeOSCloudDeviceIdentity.sha256Hex(data),
+            payloadByteSize: data.count,
+            requiresUserReview: false,
+            payloadJson: String(decoding: data, as: UTF8.self),
+            modifiedAt: now
+        ))
+        let snapshot = LifeOSCloudSnapshot(
+            schemaVersion: 1,
+            accountFingerprint: "test",
+            updatedAt: now,
+            records: [request, request, unsignedResponse],
+            serverChangeTokens: [:],
+            moreComing: false
+        )
+
+        let items = snapshot.chatItems(now: now.addingTimeInterval(10))
+        XCTAssertEqual(items.count, 1)
+        XCTAssertEqual(items.first?.state, .waitingForMac)
+        XCTAssertEqual(items.first?.responseText, "")
+    }
+
+    func testMacSignedChatResponseIsVerifiedAndTamperingIsRejected() throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let requestId = "123e4567-e89b-42d3-a456-426614174000"
+        let requestIdentity = try LifeOSCloudDeviceIdentity(
+            deviceId: "423e4567-e89b-42d3-a456-426614174000",
+            privateKey: P256.Signing.PrivateKey(rawRepresentation: Data(repeating: 4, count: 32)),
+            createdAt: now,
+            expiresAt: now.addingTimeInterval(LifeOSCloudDeviceIdentity.lifetime)
+        )
+        let request = try LifeOSCloudChatRequestMutationBuilder.create(
+            prompt: "Verify the Mac reply.",
+            identity: requestIdentity,
+            locale: "en-US",
+            requestId: requestId,
+            conversationId: "223e4567-e89b-42d3-a456-426614174000",
+            userMessageId: "323e4567-e89b-42d3-a456-426614174000",
+            clientSequence: 6,
+            now: now
+        )
+        let macIdentity = try LifeOSCloudDeviceIdentity(
+            deviceId: "523e4567-e89b-42d3-a456-426614174000",
+            privateKey: P256.Signing.PrivateKey(rawRepresentation: Data(repeating: 8, count: 32)),
+            createdAt: now,
+            expiresAt: now.addingTimeInterval(LifeOSCloudDeviceIdentity.lifetime)
+        )
+        let responseId = "1d7a0c51-5a71-43ce-ae50-13af3a17e9df"
+        var payload: [String: Any] = [
+            "schemaVersion": 1,
+            "requestId": requestId,
+            "responseId": responseId,
+            "conversationId": "223e4567-e89b-42d3-a456-426614174000",
+            "assistantMessageId": "623e4567-e89b-42d3-a456-426614174000",
+            "status": "completed",
+            "text": "This reply is authenticated.",
+            "providerLabel": "Test",
+            "modelLabel": "test-model",
+            "requestContentHash": request.contentHash,
+            "startedAt": NSNumber(value: 1_700_000_000_500 as Int64),
+            "completedAt": NSNumber(value: 1_700_000_001_000 as Int64),
+            "updatedAt": NSNumber(value: 1_700_000_001_000 as Int64),
+            "macPublicKey": macIdentity.publicKey,
+            "macPublicKeyFingerprint": macIdentity.publicKeyFingerprint,
+        ]
+        payload["macSignature"] = try macIdentity.sign(
+            LifeOSCloudMacResponseVerifier.signatureText(payload: payload)
+        )
+
+        func record(_ value: [String: Any], logicalClock: Int64 = 1_700_000_001_000) throws -> LifeOSCloudRecord {
+            let data = try JSONSerialization.data(withJSONObject: value, options: [.sortedKeys])
+            return try LifeOSCloudRecordValidator.validate(LifeOSCloudRecordInput(
+                zone: "LifeOSChatRelayZone",
+                recordType: "LifeOSChatResponse",
+                recordName: "chat-response:\(requestId)",
+                lifeosSchema: "lifeos-cloudkit-record.v1",
+                lifeosDataType: "chat-relay",
+                sourceIdHash: "chat-relay:1234567890abcdef",
+                mutationId: "mac-chat-response:\(requestId)",
+                logicalClock: logicalClock,
+                contentHash: LifeOSCloudDeviceIdentity.sha256Hex(data),
+                payloadByteSize: data.count,
+                requiresUserReview: false,
+                payloadJson: String(decoding: data, as: UTF8.self),
+                modifiedAt: now
+            ))
+        }
+
+        let signedResponse = try record(payload)
+        XCTAssertEqual(
+            try LifeOSCloudMacResponseVerifier.verify(response: signedResponse, request: request),
+            macIdentity.publicKeyFingerprint
+        )
+        let receipt = try LifeOSCloudChatReceiptMutationBuilder.create(
+            response: signedResponse,
+            request: request,
+            identity: requestIdentity,
+            now: now.addingTimeInterval(2)
+        )
+        XCTAssertEqual(receipt.recordType, "LifeOSChatReceipt")
+        XCTAssertEqual(receipt.recordName, "chat-receipt:\(requestId)")
+        XCTAssertEqual(receipt.mutationId, "ios-chat-receipt:\(requestId)")
+        XCTAssertEqual(receipt.logicalClock, signedResponse.logicalClock)
+        XCTAssertTrue(
+            LifeOSCloudChatReceiptMutationBuilder.matches(
+                receipt,
+                response: signedResponse,
+                identity: requestIdentity
+            )
+        )
+        let otherIdentity = try LifeOSCloudDeviceIdentity(
+            deviceId: "723e4567-e89b-42d3-a456-426614174000",
+            privateKey: P256.Signing.PrivateKey(rawRepresentation: Data(repeating: 9, count: 32)),
+            createdAt: now,
+            expiresAt: now.addingTimeInterval(LifeOSCloudDeviceIdentity.lifetime)
+        )
+        XCTAssertFalse(
+            LifeOSCloudChatReceiptMutationBuilder.matches(
+                receipt,
+                response: signedResponse,
+                identity: otherIdentity
+            )
+        )
+        var tampered = payload
+        tampered["text"] = "Tampered reply"
+        XCTAssertThrowsError(
+            try LifeOSCloudMacResponseVerifier.verify(response: try record(tampered), request: request)
+        ) { error in
+            XCTAssertEqual(error as? LifeOSCloudMacTrustError, .invalidSignature)
+        }
+        XCTAssertThrowsError(
+            try LifeOSCloudMacResponseVerifier.verify(
+                response: try record(payload, logicalClock: 9_000_000_000_000),
+                request: request
+            )
+        ) { error in
+            XCTAssertEqual(error as? LifeOSCloudMacTrustError, .invalidResponse)
+        }
+    }
+
+    func testMacTrustPinsPerAccountRejectsIdentityChangesAndRequiresFreshResponseAfterReset() throws {
+        let storage = InMemoryCloudMacTrustStorage()
+        let accountA = String(repeating: "a", count: 64)
+        let accountB = String(repeating: "b", count: 64)
+        let baseTimestamp: Int64 = 1_700_000_000_000
+        let requestIdentity = try LifeOSCloudDeviceIdentity(
+            deviceId: "423e4567-e89b-42d3-a456-426614174000",
+            privateKey: P256.Signing.PrivateKey(rawRepresentation: Data(repeating: 4, count: 32)),
+            createdAt: Date(timeIntervalSince1970: TimeInterval(baseTimestamp) / 1000),
+            expiresAt: Date(timeIntervalSince1970: TimeInterval(baseTimestamp) / 1000 + LifeOSCloudDeviceIdentity.lifetime)
+        )
+        let macA = try LifeOSCloudDeviceIdentity(
+            deviceId: "523e4567-e89b-42d3-a456-426614174000",
+            privateKey: P256.Signing.PrivateKey(rawRepresentation: Data(repeating: 8, count: 32)),
+            createdAt: Date(timeIntervalSince1970: TimeInterval(baseTimestamp) / 1000),
+            expiresAt: Date(timeIntervalSince1970: TimeInterval(baseTimestamp) / 1000 + LifeOSCloudDeviceIdentity.lifetime)
+        )
+        let macB = try LifeOSCloudDeviceIdentity(
+            deviceId: "623e4567-e89b-42d3-a456-426614174000",
+            privateKey: P256.Signing.PrivateKey(rawRepresentation: Data(repeating: 9, count: 32)),
+            createdAt: Date(timeIntervalSince1970: TimeInterval(baseTimestamp) / 1000),
+            expiresAt: Date(timeIntervalSince1970: TimeInterval(baseTimestamp) / 1000 + LifeOSCloudDeviceIdentity.lifetime)
+        )
+
+        func request(
+            id: String,
+            conversationId: String,
+            messageId: String,
+            createdAt: Int64
+        ) throws -> LifeOSCloudRecord {
+            try LifeOSCloudChatRequestMutationBuilder.create(
+                prompt: "Bind this response to one trusted Mac.",
+                identity: requestIdentity,
+                locale: "en-US",
+                requestId: id,
+                conversationId: conversationId,
+                userMessageId: messageId,
+                clientSequence: createdAt - baseTimestamp + 1,
+                now: Date(timeIntervalSince1970: TimeInterval(createdAt) / 1000)
+            )
+        }
+
+        func response(
+            request: LifeOSCloudRecord,
+            requestId: String,
+            conversationId: String,
+            mac: LifeOSCloudDeviceIdentity,
+            updatedAt: Int64
+        ) throws -> LifeOSCloudRecord {
+            let responseHash = LifeOSCloudDeviceIdentity.sha256Hex(
+                "ownorbit-chat-response:\(requestId.lowercased())"
+            )
+            let responseId = "\(responseHash.prefix(8))-\(responseHash.dropFirst(8).prefix(4))-4\(responseHash.dropFirst(13).prefix(3))-a\(responseHash.dropFirst(17).prefix(3))-\(responseHash.dropFirst(20).prefix(12))"
+            var payload: [String: Any] = [
+                "schemaVersion": 1,
+                "requestId": requestId,
+                "responseId": responseId,
+                "conversationId": conversationId,
+                "assistantMessageId": "723e4567-e89b-42d3-a456-426614174000",
+                "status": "completed",
+                "text": "Authenticated response",
+                "providerLabel": "Test",
+                "modelLabel": "test-model",
+                "requestContentHash": request.contentHash,
+                "startedAt": NSNumber(value: updatedAt - 100),
+                "completedAt": NSNumber(value: updatedAt),
+                "updatedAt": NSNumber(value: updatedAt),
+                "macPublicKey": mac.publicKey,
+                "macPublicKeyFingerprint": mac.publicKeyFingerprint,
+            ]
+            payload["macSignature"] = try mac.sign(
+                LifeOSCloudMacResponseVerifier.signatureText(payload: payload)
+            )
+            let data = try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
+            return try LifeOSCloudRecordValidator.validate(LifeOSCloudRecordInput(
+                zone: "LifeOSChatRelayZone",
+                recordType: "LifeOSChatResponse",
+                recordName: "chat-response:\(requestId)",
+                lifeosSchema: "lifeos-cloudkit-record.v1",
+                lifeosDataType: "chat-relay",
+                sourceIdHash: "chat-relay:1234567890abcdef",
+                mutationId: "mac-chat-response:\(requestId)",
+                logicalClock: updatedAt,
+                contentHash: LifeOSCloudDeviceIdentity.sha256Hex(data),
+                payloadByteSize: data.count,
+                requiresUserReview: false,
+                payloadJson: String(decoding: data, as: UTF8.self),
+                modifiedAt: Date(timeIntervalSince1970: TimeInterval(updatedAt) / 1000)
+            ))
+        }
+
+        let firstRequestId = "123e4567-e89b-42d3-a456-426614174000"
+        let firstConversationId = "223e4567-e89b-42d3-a456-426614174000"
+        let firstRequest = try request(
+            id: firstRequestId,
+            conversationId: firstConversationId,
+            messageId: "323e4567-e89b-42d3-a456-426614174000",
+            createdAt: baseTimestamp
+        )
+        let firstMacAResponse = try response(
+            request: firstRequest,
+            requestId: firstRequestId,
+            conversationId: firstConversationId,
+            mac: macA,
+            updatedAt: baseTimestamp + 500
+        )
+        XCTAssertTrue(try LifeOSCloudMacTrustStore.verifyAndPin(
+            response: firstMacAResponse,
+            request: firstRequest,
+            accountFingerprint: accountA,
+            storage: storage
+        ))
+        XCTAssertEqual(
+            try LifeOSCloudMacTrustStore.trustedFingerprint(accountFingerprint: accountA, storage: storage),
+            macA.publicKeyFingerprint
+        )
+
+        let firstMacBResponse = try response(
+            request: firstRequest,
+            requestId: firstRequestId,
+            conversationId: firstConversationId,
+            mac: macB,
+            updatedAt: baseTimestamp + 500
+        )
+        XCTAssertThrowsError(try LifeOSCloudMacTrustStore.verifyAndPin(
+            response: firstMacBResponse,
+            request: firstRequest,
+            accountFingerprint: accountA,
+            storage: storage
+        )) { error in
+            XCTAssertEqual(error as? LifeOSCloudMacTrustError, .identityChanged)
+        }
+        XCTAssertTrue(try LifeOSCloudMacTrustStore.verifyAndPin(
+            response: firstMacBResponse,
+            request: firstRequest,
+            accountFingerprint: accountB,
+            storage: storage
+        ))
+        XCTAssertEqual(
+            try LifeOSCloudMacTrustStore.trustedFingerprint(accountFingerprint: accountB, storage: storage),
+            macB.publicKeyFingerprint
+        )
+
+        let resetAt = baseTimestamp + 1_000
+        storage.failNextReplacementResetSave = true
+        XCTAssertThrowsError(try LifeOSCloudMacTrustStore.reset(
+            accountFingerprint: accountA,
+            resetAt: resetAt,
+            storage: storage
+        )) { error in
+            XCTAssertEqual(error as? LifeOSCloudMacTrustError, .keychain)
+        }
+        XCTAssertEqual(storage.trustedFingerprints[accountA], macA.publicKeyFingerprint)
+        XCTAssertNil(storage.replacementResetTimes[accountA])
+        XCTAssertEqual(Array(storage.operations.suffix(1)), ["save-replacement-reset"])
+
+        storage.failNextTrustedFingerprintRemoval = true
+        XCTAssertThrowsError(try LifeOSCloudMacTrustStore.reset(
+            accountFingerprint: accountA,
+            resetAt: resetAt,
+            storage: storage
+        )) { error in
+            XCTAssertEqual(error as? LifeOSCloudMacTrustError, .keychain)
+        }
+        XCTAssertEqual(storage.trustedFingerprints[accountA], macA.publicKeyFingerprint)
+        XCTAssertEqual(storage.replacementResetTimes[accountA], resetAt)
+        XCTAssertEqual(
+            Array(storage.operations.suffix(2)),
+            ["save-replacement-reset", "remove-trusted-fingerprint"]
+        )
+
+        let restartedStorage = InMemoryCloudMacTrustStorage(
+            trustedFingerprints: storage.trustedFingerprints,
+            replacementResetTimes: storage.replacementResetTimes
+        )
+        XCTAssertThrowsError(try LifeOSCloudMacTrustStore.verifyAndPin(
+            response: firstMacBResponse,
+            request: firstRequest,
+            accountFingerprint: accountA,
+            storage: restartedStorage
+        )) { error in
+            XCTAssertEqual(error as? LifeOSCloudMacTrustError, .awaitingReplacementResponse)
+        }
+
+        let replacementRequestId = "823e4567-e89b-42d3-a456-426614174000"
+        let replacementConversationId = "923e4567-e89b-42d3-a456-426614174000"
+        let replacementRequest = try request(
+            id: replacementRequestId,
+            conversationId: replacementConversationId,
+            messageId: "a23e4567-e89b-42d3-a456-426614174000",
+            createdAt: resetAt + 1
+        )
+        let replacementResponse = try response(
+            request: replacementRequest,
+            requestId: replacementRequestId,
+            conversationId: replacementConversationId,
+            mac: macB,
+            updatedAt: resetAt + 2
+        )
+        XCTAssertTrue(try LifeOSCloudMacTrustStore.verifyAndPin(
+            response: replacementResponse,
+            request: replacementRequest,
+            accountFingerprint: accountA,
+            storage: restartedStorage
+        ))
+        XCTAssertEqual(
+            try LifeOSCloudMacTrustStore.trustedFingerprint(
+                accountFingerprint: accountA,
+                storage: restartedStorage
+            ),
+            macB.publicKeyFingerprint
+        )
+        XCTAssertNil(restartedStorage.replacementResetTimes[accountA])
     }
 
     func testChatRequestOutboxPersistsAndStaysBoundToOneAppleAccount() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("lifeos-chat-outbox-\(UUID().uuidString)", isDirectory: true)
         let fileURL = directory.appendingPathComponent("outbox.json")
-        defer { try? FileManager.default.removeItem(at: directory) }
+        defer {
+            if FileManager.default.fileExists(atPath: directory.path) {
+                try? FileManager.default.removeItem(at: directory)
+            }
+        }
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let fingerprint = LifeOSCloudAccountIdentity.fingerprint(
             containerIdentifier: "iCloud.ai.lifeos.desktop",
@@ -654,6 +1109,9 @@ final class LifeOSCloudDataTests: XCTestCase {
         XCTAssertTrue(outbox.due(accountFingerprint: otherFingerprint, now: now).isEmpty)
         XCTAssertEqual(outbox.summary(accountFingerprint: otherFingerprint).otherAccount, 1)
         XCTAssertEqual(LifeOSCloudMutationOutbox(fileURL: fileURL, now: now).entries, [pending])
+        try outbox.removeChatRequests()
+        XCTAssertTrue(outbox.entries.isEmpty)
+        XCTAssertTrue(LifeOSCloudMutationOutbox(fileURL: fileURL, now: now).entries.isEmpty)
     }
 
     func testMutationOutboxPersistsDeduplicatesAndNeverCrossesAppleAccounts() throws {

@@ -1,4 +1,4 @@
-import { apiUrl } from "./lifeosApi";
+import { apiUrl, getLifeOSBasePath } from "./lifeosApi";
 
 const PAIRING_INTENT_KEY = "lifeos_pending_pairing_intent";
 const PAIRING_INTENT_TTL_MS = 24 * 60 * 60 * 1000;
@@ -6,11 +6,28 @@ const INSTALL_PATH_PREFIX = "/mobile/install/";
 const DB_NAME = "lifeos-pairing-intent";
 const STORE_NAME = "intents";
 const PAIRING_INTENT_RECORD_ID = "pending";
+// Input with a scheme ("https:", "javascript:") or a protocol-relative host
+// names its own origin; anything else is a bare token or a path on this origin.
+// In http(s) URLs the parser reads "\" as "/", so any two of them ("//",
+// "\\", "/\", "\/") start a host, not a path.
+const SCHEME_INPUT = /^[a-z][a-z0-9+.-]*:/i;
+const PROTOCOL_RELATIVE_INPUT = /^[\\/]{2}/;
+
+function isOriginBearingInput(value: string) {
+  return SCHEME_INPUT.test(value) || PROTOCOL_RELATIVE_INPUT.test(value);
+}
 
 type PairingIntent = {
   token: string;
   createdAt: number;
   expiresAt: number;
+};
+
+export type PairingInputDestination = {
+  token: string;
+  // An absolute URL when crossOrigin, otherwise a path on the current origin.
+  href: string;
+  crossOrigin: boolean;
 };
 
 let intentCache: PairingIntent | null | undefined;
@@ -130,24 +147,54 @@ async function hydratePendingPairingIntent(now = Date.now()) {
   return legacy.token;
 }
 
+// The URL parser silently drops tabs/newlines anywhere and control characters
+// at the ends (so "java\tscript:" is "javascript:"). Do the same first, so the
+// scheme test sees the text new URL() will.
+function cleanPairingInput(raw: unknown) {
+  return typeof raw === "string" ? raw.replace(/[\t\n\r]/g, "").replace(/^[\s\u0000-\u001f]+|[\s\u0000-\u001f]+$/g, "") : "";
+}
+
+function originOf(value: string) {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return "";
+  }
+}
+
+// A pairing link may carry a base path (PUBLIC_BASE_URL with a path) in front
+// of /mobile/install. Only a full link can: a scheme-less
+// "host/mobile/install/…" stays unreadable instead of being taken for a path
+// on the current origin.
+function parsePairingUrl(value: string, base: string | undefined, allowBasePath: boolean) {
+  try {
+    const parsed = new URL(value, base);
+    const rawBasePath = allowBasePath && isOriginBearingInput(value) ? getLifeOSBasePath(parsed.pathname) : "";
+    const routePath = parsed.pathname.slice(rawBasePath.length);
+    const pathToken = routePath.startsWith(INSTALL_PATH_PREFIX)
+      ? safeDecodeURIComponent(routePath.slice(INSTALL_PATH_PREFIX.length))
+      : "";
+    const token = normalizeToken(pathToken) || normalizeToken(parsed.searchParams.get("token")) || normalizeToken(parsed.searchParams.get("pairingToken"));
+    // "//evil.example" as a base path would turn a same-origin path into a
+    // protocol-relative URL pointing somewhere else.
+    return { parsed, basePath: rawBasePath.replace(/\/{2,}/g, "/"), token };
+  } catch {
+    return null;
+  }
+}
+
 export function extractPairingToken(raw: string) {
   const directToken = normalizeToken(raw);
   if (directToken) return directToken;
   const value = typeof raw === "string" ? raw.trim() : "";
   if (!value) return "";
-  try {
-    const fallbackOrigin = typeof window === "undefined" ? "http://lifeos.local" : window.location.origin;
-    const parsed = new URL(value, fallbackOrigin);
-    const pathToken = parsed.pathname.startsWith(INSTALL_PATH_PREFIX)
-      ? safeDecodeURIComponent(parsed.pathname.slice(INSTALL_PATH_PREFIX.length))
-      : "";
-    return normalizeToken(pathToken) || normalizeToken(parsed.searchParams.get("token")) || normalizeToken(parsed.searchParams.get("pairingToken"));
-  } catch {
-    if (value.startsWith(INSTALL_PATH_PREFIX)) {
-      return normalizeToken(safeDecodeURIComponent(value.slice(INSTALL_PATH_PREFIX.length)));
-    }
-    return "";
+  const fallbackOrigin = typeof window === "undefined" ? "http://lifeos.local" : window.location.origin;
+  const result = parsePairingUrl(value, fallbackOrigin, false);
+  if (result) return result.token;
+  if (value.startsWith(INSTALL_PATH_PREFIX)) {
+    return normalizeToken(safeDecodeURIComponent(value.slice(INSTALL_PATH_PREFIX.length)));
   }
+  return "";
 }
 
 export function pairingInstallPath(token: string) {
@@ -156,23 +203,61 @@ export function pairingInstallPath(token: string) {
   return `${INSTALL_PATH_PREFIX}${encodeURIComponent(normalized)}`;
 }
 
-export function savePendingPairingToken(token: string, now = Date.now()) {
+// Where a pasted pairing link should take the phone. A restarted quick tunnel
+// hands out a new trycloudflare host, so the link can name a different origin
+// than the (possibly dead) page it is pasted into. Credentials are
+// origin-scoped, so pairing has to happen ON that origin: send the phone there
+// rather than replay the token here. Only http(s) links are followed, and the
+// destination is rebuilt from origin + base path + token, so nothing else in
+// the pasted text (credentials, query, fragment) is carried over.
+export function resolvePairingInputDestination(raw: unknown, currentOrigin: string): PairingInputDestination | null {
+  const value = cleanPairingInput(raw);
+  if (!value) return null;
+  if (!isOriginBearingInput(value)) {
+    const token = extractPairingToken(value);
+    return token ? { token, href: pairingInstallPath(token), crossOrigin: false } : null;
+  }
+  const current = originOf(currentOrigin);
+  // A link with a scheme is read on its own. Resolved against this page, a
+  // mistyped "https:/host/…" or "https:host/…" would keep this page's host
+  // and turn the intended one into a path (the parser only reads a host when
+  // the scheme differs from the base's). Only "//host" needs this page's scheme.
+  const base = SCHEME_INPUT.test(value) ? undefined : current || undefined;
+  const result = parsePairingUrl(value, base, true);
+  if (!result?.token) return null;
+  if (result.parsed.protocol !== "http:" && result.parsed.protocol !== "https:") return null;
+  const installPath = `${result.basePath}${pairingInstallPath(result.token)}`;
+  if (current && result.parsed.origin === current) {
+    // The pair page only reads a token from a root /mobile/install/ path, so
+    // a same-origin link under a base path would clear the credential here
+    // and then fail to pair. Keep rejecting it, as before links were followed.
+    if (result.basePath) return null;
+    return { token: result.token, href: installPath, crossOrigin: false };
+  }
+  return { token: result.token, href: `${result.parsed.origin}${installPath}`, crossOrigin: true };
+}
+
+// Resolves once the intent is stored (IndexedDB, or the localStorage
+// fallback); callers that are about to navigate away can await it.
+export function savePendingPairingToken(token: string, now = Date.now()): Promise<void> {
   const normalized = extractPairingToken(token);
-  if (!normalized.startsWith("bind_")) return;
+  if (!normalized.startsWith("bind_")) return Promise.resolve();
   const intent: PairingIntent = {
     token: normalized,
     createdAt: now,
     expiresAt: now + PAIRING_INTENT_TTL_MS,
   };
   intentCache = intent;
-  void writeIndexedPairingIntent(intent)
+  return writeIndexedPairingIntent(intent)
     .then((written) => {
       if (written && localStorageAvailable()) localStorage.removeItem(PAIRING_INTENT_KEY);
       else if (!written && localStorageAvailable()) localStorage.setItem(PAIRING_INTENT_KEY, JSON.stringify(intent));
     })
     .catch(() => {
       if (localStorageAvailable()) localStorage.setItem(PAIRING_INTENT_KEY, JSON.stringify(intent));
-    });
+    })
+    // The in-memory intent above still covers this page; never fail a caller.
+    .catch(() => undefined);
 }
 
 export function peekPendingPairingToken(now = Date.now()) {

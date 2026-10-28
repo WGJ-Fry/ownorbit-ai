@@ -309,8 +309,102 @@ export function getOpenBindingSessionByToken(token: string, now: number) {
   return row ? mapBindingSession(row) : undefined;
 }
 
-export function confirmBindingSession(bindingId: string, deviceId: string, confirmedAt: number) {
-  db.prepare("UPDATE binding_sessions SET confirmed_at = ?, confirmed_device_id = ? WHERE id = ?").run(confirmedAt, deviceId, bindingId);
+export function getBindingSessionByToken(token: string) {
+  const row = db.prepare("SELECT * FROM binding_sessions WHERE token_hash = ?").get(tokenHash(token));
+  return row ? mapBindingSession(row) : undefined;
+}
+
+export function confirmBindingSessionWithDevice(bindingId: string, device: DeviceRecord, confirmedAt: number) {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    insertDevice(device);
+    const claimed = db.prepare(`
+      UPDATE binding_sessions
+      SET confirmed_at = ?, confirmed_device_id = ?
+      WHERE id = ? AND confirmed_at IS NULL AND expires_at > ?
+    `).run(confirmedAt, device.id, bindingId, confirmedAt).changes === 1;
+    if (!claimed) {
+      db.exec("ROLLBACK");
+      return false;
+    }
+    db.exec("COMMIT");
+    return true;
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+// Migration vouchers let an already-authenticated phone move its binding to a
+// different origin without a new QR scan. A voucher is requested over the old
+// working origin, redeemed exactly once on the new one, and expires fast —
+// only its hash is stored.
+export type DeviceMigrationVoucher = {
+  id: string;
+  deviceId: string;
+  tokenHash: string;
+  targetBaseUrl?: string;
+  createdAt: number;
+  expiresAt: number;
+  usedAt?: number;
+};
+
+function mapMigrationVoucher(row: any): DeviceMigrationVoucher {
+  return {
+    id: row.id,
+    deviceId: row.device_id,
+    tokenHash: row.token_hash,
+    targetBaseUrl: row.target_base_url || undefined,
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+    usedAt: row.used_at || undefined,
+  };
+}
+
+export function insertDeviceMigrationVoucher(voucher: DeviceMigrationVoucher) {
+  db.prepare(`
+    INSERT INTO device_migration_vouchers (id, device_id, token_hash, target_base_url, created_at, expires_at, used_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(voucher.id, voucher.deviceId, voucher.tokenHash, voucher.targetBaseUrl || null, voucher.createdAt, voucher.expiresAt, voucher.usedAt || null);
+}
+
+export function getOpenDeviceMigrationVoucherByToken(token: string, now: number) {
+  const row = db
+    .prepare("SELECT * FROM device_migration_vouchers WHERE token_hash = ? AND expires_at > ? AND used_at IS NULL")
+    .get(tokenHash(token), now);
+  return row ? mapMigrationVoucher(row) : undefined;
+}
+
+// Self-guarding burn: the used_at predicate makes single-use hold even if a
+// future refactor introduces an await between lookup and burn.
+export function markDeviceMigrationVoucherUsed(voucherId: string, usedAt: number) {
+  const result = db.prepare("UPDATE device_migration_vouchers SET used_at = ? WHERE id = ? AND used_at IS NULL").run(usedAt, voucherId);
+  return result.changes > 0;
+}
+
+export function pruneExpiredDeviceMigrationVouchers(now: number) {
+  db.prepare("DELETE FROM device_migration_vouchers WHERE expires_at <= ?").run(now);
+}
+
+// Rotating onto a new origin replaces the whole credential: the new public key
+// (or NULL when the new origin has no WebCrypto and falls back to token auth)
+// and a fresh token hash. The old origin's stored credential stops working at
+// this moment — one active credential per device, same as bind/confirm.
+export function migrateDeviceCredential(deviceId: string, input: {
+  publicKey?: string;
+  accessTokenHash: string;
+  accessTokenExpiresAt?: number;
+  migratedAt: number;
+}) {
+  const result = db.prepare(`
+    UPDATE devices
+    SET public_key = ?, access_token_hash = ?, access_token_expires_at = ?, last_seen_at = ?
+    WHERE id = ? AND revoked_at IS NULL
+  `).run(input.publicKey || null, input.accessTokenHash, input.accessTokenExpiresAt || null, input.migratedAt, deviceId);
+  // A concurrent revocation between voucher check and rotation must read as
+  // failure, not as the stale pre-rotation record.
+  if (!result.changes) return undefined;
+  return getDevice(deviceId);
 }
 
 export function pruneExpiredBindingSessions(now: number) {

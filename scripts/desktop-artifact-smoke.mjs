@@ -5,6 +5,7 @@ import http from "node:http";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
+import { currentSourceCommit, releaseProvenanceFailures } from "./release-provenance.mjs";
 
 const rootDir = process.cwd();
 const releaseDir = process.env.LIFEOS_RELEASE_DIR ? path.resolve(process.env.LIFEOS_RELEASE_DIR) : path.join(rootDir, "release");
@@ -12,6 +13,13 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"
 const require = createRequire(import.meta.url);
 const asar = require("@electron/asar");
 const productName = packageJson.build?.productName || "OwnOrbit AI";
+const launchRequested = process.env.LIFEOS_ARTIFACT_SMOKE_LAUNCH === "1" || process.argv.includes("--launch");
+const allowDirtyLocal = process.argv.includes("--allow-dirty-local");
+
+if (allowDirtyLocal && String(process.env.CI || "").toLowerCase() === "true") {
+  console.error("[FAIL] --allow-dirty-local is only available for local verification");
+  process.exit(1);
+}
 
 function fail(message) {
   console.error(`[FAIL] ${message}`);
@@ -219,6 +227,16 @@ function checkUpdateFeed() {
   const checksums = fs.readFileSync(checksumPath, "utf8");
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   if (manifest.version !== packageJson.version) fail(`release manifest version ${manifest.version} does not match package ${packageJson.version}`);
+  const provenanceFailures = releaseProvenanceFailures(manifest.source, {
+    expectedCommit: currentSourceCommit(rootDir),
+    requireClean: !allowDirtyLocal,
+  });
+  if (provenanceFailures.length > 0) fail(provenanceFailures.join("\n"));
+  if (allowDirtyLocal && manifest.source.dirty) {
+    console.log("[WARN] verifying a local-only package from uncommitted source; it is not eligible for publishing");
+  } else {
+    pass(`release artifacts are bound to clean source commit ${manifest.source.commit.slice(0, 12)}`);
+  }
   if (!Array.isArray(manifest.artifacts) || manifest.artifacts.length === 0) fail("release manifest has no artifacts");
   for (const artifact of manifest.artifacts) {
     const artifactPath = path.join(releaseDir, "update-feed", artifact.fileName || "");
@@ -425,6 +443,17 @@ function checkCloudKitHelperResourceManifest() {
     if (!["Development", "Production"].includes(manifest.environment)) fail("packaged CloudKit helper APNs environment is invalid");
     if (!["development", "developer-id"].includes(manifest.distribution)) fail("packaged CloudKit helper distribution metadata is invalid");
     if (typeof manifest.notarized !== "boolean") fail("packaged CloudKit helper notarization metadata is invalid");
+    const expectedIdentity = {
+      containerId: String(process.env.LIFEOS_CLOUDKIT_CONTAINER_ID || "").trim(),
+      bundleId: String(process.env.LIFEOS_CLOUDKIT_BUNDLE_ID || "").trim(),
+      teamId: String(process.env.LIFEOS_CLOUDKIT_TEAM_ID || "").trim(),
+      environment: String(process.env.LIFEOS_CLOUDKIT_ENVIRONMENT || "").trim(),
+    };
+    for (const [field, expected] of Object.entries(expectedIdentity)) {
+      if (expected && manifest[field] !== expected) {
+        fail(`packaged CloudKit helper ${field} does not match the release identity`);
+      }
+    }
     if (process.env.LIFEOS_REQUIRE_DISTRIBUTABLE_CLOUDKIT_HELPER === "1" && manifest.distribution !== "developer-id") {
       fail("packaged CloudKit helper is not a distributable Developer ID build");
     }
@@ -472,7 +501,7 @@ function checkPackagedMacSignature() {
         const combined = output.join("");
         const signedDmgExists = Boolean(findSignedMacDmg());
         const interruptedBundle = combined.includes("code has no resources but signature indicates they must be present");
-        if (process.env.LIFEOS_ARTIFACT_SMOKE_LAUNCH === "1" && signedDmgExists && interruptedBundle) {
+        if (launchRequested && signedDmgExists && interruptedBundle) {
           console.log("[WARN] release/mac-arm64 contains an interrupted app bundle; skipping direct signature verification and relying on the signed DMG launch smoke");
           if (tempRoot) fs.rmSync(tempRoot, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
           resolve();
@@ -514,7 +543,7 @@ function checkPackagedMacEntitlements() {
   const appPath = macAppPathFromBinary(binary);
   const signedDmgExists = Boolean(findSignedMacDmg());
   const interruptedBundle = detectInterruptedMacBundle(appPath).interrupted;
-  if (process.env.LIFEOS_ARTIFACT_SMOKE_LAUNCH === "1" && signedDmgExists && interruptedBundle) {
+  if (launchRequested && signedDmgExists && interruptedBundle) {
     console.log("[WARN] release/mac-arm64 contains an interrupted app bundle; skipping direct entitlement verification and relying on the signed DMG launch smoke");
     return;
   }
@@ -655,8 +684,8 @@ async function launchPackagedMacApp() {
     console.log("[SKIP] packaged app launch smoke is macOS-only");
     return;
   }
-  if (process.env.LIFEOS_ARTIFACT_SMOKE_LAUNCH !== "1") {
-    console.log("[SKIP] set LIFEOS_ARTIFACT_SMOKE_LAUNCH=1 to launch the packaged macOS app");
+  if (!launchRequested) {
+    console.log("[SKIP] pass --launch to launch the packaged macOS app");
     return;
   }
   const dmgPath = findSignedMacDmg();
@@ -814,8 +843,8 @@ async function launchPackagedWindowsApp() {
     console.log("[SKIP] packaged Windows app launch smoke is Windows-only");
     return;
   }
-  if (process.env.LIFEOS_ARTIFACT_SMOKE_LAUNCH !== "1") {
-    console.log("[SKIP] set LIFEOS_ARTIFACT_SMOKE_LAUNCH=1 to launch the packaged Windows app");
+  if (!launchRequested) {
+    console.log("[SKIP] pass --launch to launch the packaged Windows app");
     return;
   }
   const binary = findWindowsUnpackedBinary();
@@ -858,8 +887,8 @@ async function launchPackagedLinuxApp() {
     console.log("[SKIP] packaged Linux app launch smoke is Linux-only");
     return;
   }
-  if (process.env.LIFEOS_ARTIFACT_SMOKE_LAUNCH !== "1") {
-    console.log("[SKIP] set LIFEOS_ARTIFACT_SMOKE_LAUNCH=1 to launch the packaged Linux app");
+  if (!launchRequested) {
+    console.log("[SKIP] pass --launch to launch the packaged Linux app");
     return;
   }
   const binary = findLinuxUnpackedBinary();

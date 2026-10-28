@@ -4,12 +4,19 @@ struct CloudDataScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var cloudStore: LifeOSCloudDataStore
+    let showsDoneButton: Bool
     @State private var confirmClear = false
     @State private var confirmClearPending = false
+    @State private var confirmRebindChat = false
+    @State private var confirmResetMacTrust = false
     @State private var pendingTaskCompletion: LifeOSPendingTaskCompletion?
     @State private var showMemoryComposer = ProcessInfo.processInfo.arguments.contains("--cloud-memory-compose-demo")
     @State private var backgroundHealth = LifeOSCloudBackgroundHealth.pending
     @State private var chatPrompt = ""
+
+    init(showsDoneButton: Bool = true) {
+        self.showsDoneButton = showsDoneButton
+    }
 
     var body: some View {
         NavigationStack {
@@ -22,25 +29,9 @@ struct CloudDataScreen: View {
             }
             .navigationTitle(Text("cloud.title"))
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("common.done") { dismiss() }
-                }
-                if cloudStore.enabled {
-                    ToolbarItemGroup(placement: .topBarTrailing) {
-                        Button {
-                            showMemoryComposer = true
-                        } label: {
-                            Image(systemName: "plus")
-                        }
-                        .disabled(cloudStore.isSyncing || cloudStore.isWriting)
-                        .accessibilityLabel(Text("cloud.memory.add"))
-                        Button {
-                            Task { await cloudStore.sync() }
-                        } label: {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                        .disabled(cloudStore.isSyncing || cloudStore.isWriting)
-                        .accessibilityLabel(Text("cloud.refresh"))
+                if showsDoneButton {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("common.done") { dismiss() }
                     }
                 }
             }
@@ -59,6 +50,30 @@ struct CloudDataScreen: View {
                 Button("common.cancel", role: .cancel) {}
             } message: {
                 Text("cloud.outbox.clear.body")
+            }
+            .confirmationDialog(
+                "cloud.chat.rebind.title",
+                isPresented: $confirmRebindChat,
+                titleVisibility: .visible
+            ) {
+                Button("cloud.chat.rebind.confirm", role: .destructive) {
+                    Task { _ = await cloudStore.rebindChatDevice() }
+                }
+                Button("common.cancel", role: .cancel) {}
+            } message: {
+                Text("cloud.chat.rebind.body")
+            }
+            .confirmationDialog(
+                "cloud.chat.macTrust.reset.title",
+                isPresented: $confirmResetMacTrust,
+                titleVisibility: .visible
+            ) {
+                Button("cloud.chat.macTrust.reset.confirm", role: .destructive) {
+                    _ = cloudStore.resetMacChatTrust()
+                }
+                Button("common.cancel", role: .cancel) {}
+            } message: {
+                Text("cloud.chat.macTrust.reset.body")
             }
             .alert(
                 "cloud.task.complete.title",
@@ -108,12 +123,16 @@ struct CloudDataScreen: View {
                 Text("cloud.enable.body")
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Label("cloud.enable.safe", systemImage: "lock.shield")
+                DisclosureGroup("cloud.enable.privacy") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("cloud.enable.safe", systemImage: "lock.shield")
+                        Label("cloud.enable.connectionBoundary", systemImage: "network.slash")
+                    }
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                Label("cloud.enable.connectionBoundary", systemImage: "network.slash")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .padding(.top, 8)
+                }
+                .font(.footnote.weight(.semibold))
                 Button {
                     Task { await cloudStore.enableAndSync() }
                 } label: {
@@ -133,31 +152,17 @@ struct CloudDataScreen: View {
 
     private var syncedContent: some View {
         List {
-            Section {
-                HStack(spacing: 12) {
-                    Image(systemName: cloudStore.isSyncing ? "arrow.triangle.2.circlepath.icloud" : "checkmark.icloud")
-                        .foregroundStyle(.cyan)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(cloudSummaryTitle)
-                            .font(.headline)
-                        if let updatedAt = cloudStore.snapshot.updatedAt {
-                            Text(updatedAt, style: .relative)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    Spacer()
-                    Text("\(cloudStore.snapshot.records.count)")
-                        .font(.title3.monospacedDigit().weight(.semibold))
+            if cloudStore.statusTone == .error || cloudStore.statusTone == .warning {
+                Section {
+                    cloudStatus
                 }
-                cloudStatus
             }
 
             Section {
                 TextField("cloud.chat.prompt.placeholder", text: $chatPrompt, axis: .vertical)
                     .lineLimit(2...6)
                     .textInputAutocapitalization(.sentences)
-                    .disabled(cloudStore.isWriting || cloudStore.isSyncing)
+                    .disabled(cloudStore.isWriting)
                 HStack {
                     Text(String(
                         format: NSLocalizedString("cloud.chat.prompt.counter", comment: ""),
@@ -184,7 +189,7 @@ struct CloudDataScreen: View {
                     .disabled(
                         chatPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
                             chatPrompt.count > LifeOSCloudChatRequestMutationBuilder.maxPromptLength ||
-                            cloudStore.isWriting || cloudStore.isSyncing
+                            cloudStore.isWriting
                     )
                 }
             } header: {
@@ -193,40 +198,97 @@ struct CloudDataScreen: View {
                 Text("cloud.chat.footer")
             }
 
-            if !cloudStore.snapshot.chatItems().isEmpty {
+            let chatItems = cloudStore.chatItems()
+            if chatItems.isEmpty {
                 Section {
-                    ForEach(cloudStore.snapshot.chatItems().prefix(20)) { item in
-                        HStack(alignment: .top, spacing: 12) {
-                            Image(systemName: chatStateIcon(item.state))
-                                .foregroundStyle(chatStateColor(item.state))
-                                .frame(width: 24, height: 24)
-                            VStack(alignment: .leading, spacing: 5) {
-                                Text(item.prompt)
-                                    .font(.body.weight(.semibold))
-                                    .lineLimit(3)
-                                HStack(spacing: 7) {
-                                    Text(LocalizedStringKey(chatStateKey(item)))
-                                        .font(.caption.weight(.medium))
-                                        .foregroundStyle(chatStateColor(item.state))
-                                    Text(item.createdAt, style: .relative)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                if item.state == .completed, !item.responseText.isEmpty {
-                                    Text(item.responseText)
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                }
-                            }
-                        }
-                        .padding(.vertical, 4)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("cloud.chat.empty.title", systemImage: "bubble.left.and.bubble.right")
+                            .font(.headline)
+                        Text("cloud.chat.empty.body")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                     }
-                } header: {
-                    Text("cloud.chat.activity.section")
-                } footer: {
-                    Text("cloud.chat.activity.footer")
+                    .padding(.vertical, 6)
                 }
+            } else {
+                Section {
+                    ForEach(chatItems.prefix(20)) { item in
+                        chatConversationRow(item)
+                    }
+                }
+            }
+
+            if chatItems.contains(where: chatItemNeedsMacTrustRecovery) {
+                Section {
+                    Button {
+                        confirmResetMacTrust = true
+                    } label: {
+                        Label("cloud.chat.macTrust.recovery.button", systemImage: "desktopcomputer.and.arrow.down")
+                    }
+                    .disabled(cloudStore.isSyncing || cloudStore.isWriting)
+                } header: {
+                    Text("cloud.chat.macTrust.recovery.title")
+                } footer: {
+                    Text("cloud.chat.macTrust.recovery.body")
+                }
+            }
+
+            Section {
+                NavigationLink {
+                    diagnosticsContent
+                } label: {
+                    Label {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("cloud.diagnostics.entry")
+                                .font(.body.weight(.semibold))
+                            Text("cloud.diagnostics.subtitle")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "stethoscope")
+                            .foregroundStyle(.cyan)
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+    }
+
+    private var diagnosticsContent: some View {
+        List {
+            Section {
+                HStack(spacing: 12) {
+                    Image(systemName: cloudStore.isSyncing ? "arrow.triangle.2.circlepath.icloud" : "checkmark.icloud")
+                        .foregroundStyle(.cyan)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(cloudSummaryTitle)
+                            .font(.headline)
+                        if let updatedAt = cloudStore.snapshot.updatedAt {
+                            Text(updatedAt, style: .relative)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    Text("\(cloudStore.snapshot.records.count)")
+                        .font(.title3.monospacedDigit().weight(.semibold))
+                }
+                cloudStatus
+            }
+
+            Section {
+                Button {
+                    Task { await cloudStore.sync() }
+                } label: {
+                    Label("cloud.refresh", systemImage: "arrow.clockwise")
+                }
+                Button {
+                    showMemoryComposer = true
+                } label: {
+                    Label("cloud.memory.add", systemImage: "plus")
+                }
+                .disabled(cloudStore.isWriting)
             }
 
             if let evidence = cloudStore.backgroundEvidence {
@@ -350,30 +412,76 @@ struct CloudDataScreen: View {
             }
 
             Section {
+                Button(role: .destructive) {
+                    confirmRebindChat = true
+                } label: {
+                    Label("cloud.chat.rebind.button", systemImage: "key.horizontal")
+                }
+                .disabled(cloudStore.isSyncing || cloudStore.isWriting)
+                Button(role: .destructive) {
+                    confirmResetMacTrust = true
+                } label: {
+                    Label("cloud.chat.macTrust.reset.button", systemImage: "desktopcomputer.and.arrow.down")
+                }
+                .disabled(cloudStore.isSyncing || cloudStore.isWriting)
+            } header: {
+                Text("cloud.chat.rebind.section")
+            } footer: {
+                Text("cloud.chat.rebind.footer")
+            }
+
+            Section {
                 Button("cloud.clear.button", role: .destructive) { confirmClear = true }
                     .disabled(cloudStore.isSyncing || cloudStore.isWriting)
             } footer: {
                 Text("cloud.readOnly")
             }
         }
-        .overlay {
-            if cloudStore.snapshot.records.isEmpty &&
-                !cloudStore.isSyncing &&
-                (cloudStore.statusTone == .neutral || cloudStore.statusTone == .success) {
-                VStack(spacing: 12) {
-                    Image(systemName: "icloud.slash")
-                        .font(.system(size: 34))
-                        .foregroundStyle(.secondary)
-                    Text("cloud.empty.title")
-                        .font(.headline)
-                    Text("cloud.empty.body")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
+        .navigationTitle(Text("cloud.diagnostics.title"))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    @ViewBuilder
+    private func chatConversationRow(_ item: LifeOSCloudChatItem) -> some View {
+        VStack(spacing: 10) {
+            HStack {
+                Spacer(minLength: 36)
+                Text(item.prompt)
+                    .font(.body)
+                    .padding(.horizontal, 13)
+                    .padding(.vertical, 10)
+                    .background(Color.cyan.opacity(0.16), in: RoundedRectangle(cornerRadius: 15))
+            }
+            HStack(alignment: .top, spacing: 9) {
+                Image(systemName: chatStateIcon(item.state))
+                    .foregroundStyle(chatStateColor(item.state))
+                    .frame(width: 24, height: 24)
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 7) {
+                        Text(LocalizedStringKey(chatStateKey(item)))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(chatStateColor(item.state))
+                        Text(item.createdAt, style: .relative)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if item.state == .completed, !item.responseText.isEmpty {
+                        Text(item.responseText)
+                            .font(.body)
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    if item.state == .failed || item.state == .timedOut {
+                        Button("cloud.chat.askAgain") {
+                            chatPrompt = item.prompt
+                        }
+                        .buttonStyle(.bordered)
+                    }
                 }
-                .padding(32)
+                Spacer(minLength: 30)
             }
         }
+        .padding(.vertical, 6)
     }
 
     @ViewBuilder
@@ -465,7 +573,9 @@ struct CloudDataScreen: View {
 
     private var groupedRecords: [(dataType: String, records: [LifeOSCloudRecord])] {
         let records = cloudStore.snapshot.records.filter {
-            $0.recordType != "LifeOSChatRequest" && $0.recordType != "LifeOSChatResponse"
+            $0.recordType != "LifeOSChatRequest" &&
+                $0.recordType != "LifeOSChatResponse" &&
+                $0.recordType != "LifeOSChatReceipt"
         }
         let groups = Dictionary(grouping: records, by: \.dataType)
         let order = ["chat-history", "memory", "tasks", "generated-app-state", "device-trust"]
@@ -519,6 +629,17 @@ struct CloudDataScreen: View {
             case "unsafe-ai-response": return "cloud.chat.state.unsafeResponse"
             default: return "cloud.chat.state.failed"
             }
+        }
+    }
+
+    private func chatItemNeedsMacTrustRecovery(_ item: LifeOSCloudChatItem) -> Bool {
+        switch item.state {
+        case .macUnavailable, .timedOut:
+            return true
+        case .waitingForMac, .retrying:
+            return Date().timeIntervalSince(item.createdAt) >= 60
+        case .processing, .completed, .failed:
+            return false
         }
     }
 

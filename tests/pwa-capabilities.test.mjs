@@ -145,6 +145,76 @@ test("remote entry status accepts stable HTTPS, Tailscale, and temporary Cloudfl
   assert.equal(quickTunnel.okForRemote, true);
 });
 
+test("temporary Cloudflare entry is reported lost only after two minutes of continuous failure while the phone is online", async () => {
+  const { getRemoteEntryStatus, isTemporaryEntryLikelyLost, TEMPORARY_ENTRY_LOST_AFTER_MS } = await import(`../src/services/pwaCapabilities.ts?case=temporary-lost-${Date.now()}`);
+  const { realtimeReconnectDelay } = await import(`../src/hooks/useLifeOSRealtime.ts?case=temporary-lost-${Date.now()}`);
+  const entryKind = getRemoteEntryStatus({ currentHref: "https://dead-quick-tunnel.trycloudflare.com/mobile/chat" }).kind;
+  const failingSince = 1_000_000;
+  const lost = (overrides = {}) => isTemporaryEntryLikelyLost({
+    entryKind,
+    realtimeStatus: "offline",
+    failingSince,
+    now: failingSince + TEMPORARY_ENTRY_LOST_AFTER_MS,
+    phoneOnline: true,
+    ...overrides,
+  });
+
+  assert.equal(entryKind, "temporary-cloudflare");
+  assert.equal(TEMPORARY_ENTRY_LOST_AFTER_MS, 120_000);
+  assert.equal(lost(), true);
+  assert.equal(lost({ now: failingSince + 10 * 60_000 }), true);
+  // Just short of two minutes is still a blip, however many reconnects failed.
+  assert.equal(lost({ now: failingSince + TEMPORARY_ENTRY_LOST_AFTER_MS - 1 }), false);
+  // A sleeping Mac or a cloudflared edge reconnect: the first five failures
+  // (the old trigger) are only 15 s of backoff, nowhere near the threshold.
+  let backoffMs = 0;
+  for (let attempt = 0; attempt < 4; attempt += 1) backoffMs += realtimeReconnectDelay(attempt);
+  assert.equal(backoffMs, 15_000);
+  assert.equal(lost({ now: failingSince + backoffMs }), false);
+  for (const elapsed of [0, 1_000, 30_000, 60_000, 90_000, 119_000]) {
+    assert.equal(lost({ now: failingSince + elapsed }), false, `${elapsed} ms of failure should not trigger`);
+  }
+  // Backoff caps at 30 s, so another attempt lands within ~30 s of the mark.
+  let elapsedAtAttempt = 0;
+  let attempts = 0;
+  while (elapsedAtAttempt < TEMPORARY_ENTRY_LOST_AFTER_MS) elapsedAtAttempt += realtimeReconnectDelay(attempts++);
+  assert.ok(elapsedAtAttempt - TEMPORARY_ENTRY_LOST_AFTER_MS <= 30_000);
+  // Not failing (connected, or the run was reset on "online"/foreground).
+  assert.equal(lost({ failingSince: null }), false);
+  // The phone itself offline means the address is not what is broken.
+  assert.equal(lost({ phoneOnline: false }), false);
+  assert.equal(lost({ realtimeStatus: "connecting" }), false);
+  assert.equal(lost({ realtimeStatus: "connected" }), false);
+  for (const otherKind of ["cloudflare-named", "tailscale", "stable-https", "same-lan", "configured-mismatch", "unknown"]) {
+    assert.equal(lost({ entryKind: otherKind }), false, `${otherKind} is not a temporary quick tunnel`);
+  }
+});
+
+test("temporary Cloudflare origin is recognised from the page address, not the saved desktop entry", async () => {
+  const { getRemoteEntryStatus, isTemporaryCloudflareOrigin } = await import(`../src/services/pwaCapabilities.ts?case=temporary-origin-${Date.now()}`);
+
+  assert.equal(isTemporaryCloudflareOrigin("https://dead-quick-tunnel.trycloudflare.com/mobile/device"), true);
+  assert.equal(isTemporaryCloudflareOrigin("https://DEAD-QUICK.TryCloudflare.com/mobile/chat?x=1"), true);
+  // After the desktop saved a new address the entry reads as a mismatch, but
+  // the page is still on the old temporary address and needs its guidance.
+  const moved = getRemoteEntryStatus({
+    currentHref: "https://dead-quick-tunnel.trycloudflare.com/mobile/device",
+    configuredBaseUrl: "https://new-quick-tunnel.trycloudflare.com",
+  });
+  assert.equal(moved.kind, "configured-mismatch");
+  assert.equal(isTemporaryCloudflareOrigin("https://dead-quick-tunnel.trycloudflare.com/mobile/device"), true);
+  for (const href of [
+    "https://mac.tailnet.ts.net/mobile/device",
+    "https://lifeos.example.com/mobile/device",
+    "https://trycloudflare.com.evil.example/mobile/device",
+    "https://fake-trycloudflare.com/mobile/device",
+    "http://192.168.1.20:3000/mobile/device",
+    "not a url",
+  ]) {
+    assert.equal(isTemporaryCloudflareOrigin(href), false, href);
+  }
+});
+
 test("remote entry status treats Tailscale HTTP as a fallback that needs HTTPS Serve", async () => {
   const { getRemoteEntryStatus } = await import(`../src/services/pwaCapabilities.ts?case=remote-tailscale-http-${Date.now()}`);
 

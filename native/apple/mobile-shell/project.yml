@@ -38,7 +38,6 @@ targets:
         UILaunchScreen: {}
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
-          NSAllowsArbitraryLoadsInWebContent: true
         NSLocalNetworkUsageDescription: OwnOrbit connects to your own computer on the local network.
         LifeOSCloudKitContainerIdentifier: $(LIFEOS_CLOUDKIT_CONTAINER_ID)
         LifeOSCloudKitBackgroundRefreshIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER).cloudkit-refresh

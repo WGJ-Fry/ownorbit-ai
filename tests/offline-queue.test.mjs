@@ -924,3 +924,174 @@ test("offline queue health prioritizes storage, failed sync, remote entry, and n
   assert.equal(buildOfflineQueueHealth({ ...baseSummary, count: 1, pending: 1 }, baseStorage, online, remoteOk).titleKey, "offlineQueue.healthPendingTitle");
   assert.equal(buildOfflineQueueHealth(baseSummary, baseStorage, online, remoteOk).titleKey, "offlineQueue.healthReadyTitle");
 });
+
+// globalThis.crypto is a getter-only property in Node, so it has to be redefined rather than assigned.
+function withCrypto(replacement, run) {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "crypto");
+  Object.defineProperty(globalThis, "crypto", { value: replacement, configurable: true, writable: true });
+  return Promise.resolve()
+    .then(run)
+    .finally(() => {
+      if (original) Object.defineProperty(globalThis, "crypto", original);
+      else delete globalThis.crypto;
+    });
+}
+
+test("queue ids survive a non-secure context where crypto.randomUUID is unavailable", async () => {
+  // Over plain-HTTP LAN the phone is not a secure context, so crypto.randomUUID is undefined
+  // while crypto.getRandomValues still works. Enqueuing must not throw there.
+  await withCrypto({
+    getRandomValues(target) {
+      for (let index = 0; index < target.length; index += 1) target[index] = (index * 37 + 11) % 256;
+      return target;
+    },
+  }, async () => {
+    const queueModule = await import(`../src/services/offlineMessageQueue.ts?case=insecure-context-${Date.now()}`);
+    const id = queueModule.randomQueueId();
+    assert.match(id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    assert.doesNotThrow(() => queueModule.enqueueOfflineMessage({ role: "user", parts: [{ text: "lan http enqueue" }] }));
+  });
+});
+
+test("queue ids still use crypto.randomUUID when the context is secure", async () => {
+  let used = false;
+  await withCrypto({
+    randomUUID() {
+      used = true;
+      return "11111111-2222-4333-8444-555555555555";
+    },
+    getRandomValues(target) {
+      return target;
+    },
+  }, async () => {
+    const queueModule = await import(`../src/services/offlineMessageQueue.ts?case=secure-context-${Date.now()}`);
+    assert.equal(queueModule.randomQueueId(), "11111111-2222-4333-8444-555555555555");
+    assert.equal(used, true);
+  });
+});
+
+test("an oversized photo question keeps its failure record when its reply is persisted in order", async () => {
+  storage.clear();
+  const queueModule = await import(`../src/services/offlineMessageQueue.ts?case=photo-order-${Date.now()}`);
+  const { persistInOrder } = await import("../src/services/orderedMessagePersistence.ts");
+  queueModule.clearOfflineMessageQueue();
+
+  // ~1.2 MB of base64 — over both the per-item cap and the whole queue budget.
+  const photoQuestion = {
+    role: "user",
+    parts: [{ inlineData: { mimeType: "image/jpeg", data: "A".repeat(1_200_000) } }, { text: "what is this?" }],
+  };
+  const reply = { role: "model", parts: [{ text: "It looks like a teapot." }] };
+  const storedOnline = [];
+  // Mirrors useChatPersistence: both online saves fail (413 / timeout), so the
+  // message goes to the offline queue and reports whether it will flush.
+  const persist = async (message) => {
+    if (message === photoQuestion) {
+      const id = queueModule.enqueueOfflineMessage(message);
+      return queueModule.isOfflineMessageDeliverable(id) ? "queued" : "unsaved";
+    }
+    storedOnline.push(message.role);
+    return "stored";
+  };
+
+  await persistInOrder([photoQuestion, reply], persist, (message) => {
+    queueModule.enqueueOfflineMessage(message);
+  });
+
+  const queue = queueModule.getOfflineMessageQueue();
+  // The failure record survives for the queue panel; the reply was not queued
+  // behind it (which would have evicted it under the 512 KB budget).
+  assert.equal(queue.length, 1);
+  assert.equal(queue[0].message.role, "user");
+  assert.equal(queue[0].status, "failed");
+  assert.deepEqual(storedOnline, ["model"]);
+});
+
+test("a small queued question keeps its reply queued behind it in order", async () => {
+  storage.clear();
+  const queueModule = await import(`../src/services/offlineMessageQueue.ts?case=small-order-${Date.now()}`);
+  const { persistInOrder } = await import("../src/services/orderedMessagePersistence.ts");
+  queueModule.clearOfflineMessageQueue();
+
+  const question = { role: "user", parts: [{ text: "remind me at 6pm" }] };
+  const reply = { role: "model", parts: [{ text: "Okay, 6pm." }] };
+  await persistInOrder(
+    [question, reply],
+    async (message) => {
+      const id = queueModule.enqueueOfflineMessage(message);
+      return queueModule.isOfflineMessageDeliverable(id) ? "queued" : "unsaved";
+    },
+    (message) => {
+      queueModule.enqueueOfflineMessage(message);
+    },
+  );
+
+  const queue = queueModule.getOfflineMessageQueue();
+  assert.deepEqual(queue.map((item) => item.message.role), ["user", "model"]);
+  assert.equal(queue.every((item) => item.status === "pending"), true);
+  assert.equal(queue[0].clientSequence < queue[1].clientSequence, true);
+});
+
+test("re-sending an identical oversized photo cannot let its reply evict the record", async () => {
+  storage.clear();
+  const queueModule = await import(`../src/services/offlineMessageQueue.ts?case=photo-resend-${Date.now()}`);
+  const { persistInOrder } = await import("../src/services/orderedMessagePersistence.ts");
+  queueModule.clearOfflineMessageQueue();
+
+  const photoQuestion = () => ({
+    role: "user",
+    parts: [{ inlineData: { mimeType: "image/jpeg", data: "B".repeat(1_200_000) } }, { text: "what is this?" }],
+  });
+  const storedOnline = [];
+  const persist = async (message) => {
+    if (message.role === "user") {
+      const id = queueModule.enqueueOfflineMessage(message);
+      return queueModule.isOfflineMessageDeliverable(id) ? "queued" : "unsaved";
+    }
+    storedOnline.push(message.parts[0].text);
+    return "stored";
+  };
+  const enqueue = (message) => {
+    queueModule.enqueueOfflineMessage(message);
+  };
+
+  await persistInOrder([photoQuestion(), { role: "model", parts: [{ text: "A teapot." }] }], persist, enqueue);
+  // Same photo and text again: dedupe resets the old record to pending.
+  await persistInOrder([photoQuestion(), { role: "model", parts: [{ text: "Still a teapot." }] }], persist, enqueue);
+
+  const queue = queueModule.getOfflineMessageQueue();
+  assert.equal(queue.length, 1);
+  assert.equal(queue[0].message.role, "user");
+  assert.deepEqual(storedOnline, ["A teapot.", "Still a teapot."]);
+});
+
+test("a mid-size photo that fits the budget keeps its reply queued behind it", async () => {
+  storage.clear();
+  const queueModule = await import(`../src/services/offlineMessageQueue.ts?case=photo-mid-${Date.now()}`);
+  const { persistInOrder } = await import("../src/services/orderedMessagePersistence.ts");
+  queueModule.clearOfflineMessageQueue();
+
+  // ~200 KB: over the 64 KB per-item cap (first enqueue is a failed record)
+  // but small enough to flush; a resend dedupes it back to pending.
+  const photoQuestion = () => ({
+    role: "user",
+    parts: [{ inlineData: { mimeType: "image/jpeg", data: "C".repeat(200_000) } }, { text: "and this?" }],
+  });
+  const persist = async (message) => {
+    const id = queueModule.enqueueOfflineMessage(message);
+    return queueModule.isOfflineMessageDeliverable(id) ? "queued" : "unsaved";
+  };
+  const firstId = queueModule.enqueueOfflineMessage(photoQuestion());
+  assert.equal(queueModule.isOfflineMessageDeliverable(firstId), false);
+
+  await persistInOrder(
+    [photoQuestion(), { role: "model", parts: [{ text: "A kettle." }] }],
+    persist,
+    (message) => {
+      queueModule.enqueueOfflineMessage(message);
+    },
+  );
+  const queue = queueModule.getOfflineMessageQueue();
+  assert.deepEqual(queue.map((item) => item.message.role), ["user", "model"]);
+  assert.equal(queue[0].clientSequence < queue[1].clientSequence, true);
+});

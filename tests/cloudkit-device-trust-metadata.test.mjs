@@ -67,6 +67,36 @@ function runIsolatedDeviceTrustMetadata(env) {
   return JSON.parse(result.stdout);
 }
 
+function runIsolatedActiveDeviceCount(env) {
+  const script = `
+    const { runMigrations } = await import("./server/migrations.ts");
+    const { db } = await import("./server/db.ts");
+    runMigrations();
+    const { countActiveCloudKitDevices } = await import("./server/cloudKitDeviceKeys.ts");
+    const now = 1700000000000;
+    const insert = db.prepare("INSERT INTO cloudkit_device_keys (device_id, device_id_hash, display_name, device_type, channel_scope, public_key, public_key_fingerprint, status, created_at, expires_at, logical_clock, mutation_id, source_record_name, source_evidence_id, imported_at, applied_at, revoked_at) VALUES (?, ?, ?, 'ios', 'cloudkit-chat', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    insert.run("active-device", "active-hash", "Active iPhone", "active-public-key", "active-fingerprint", "active", now - 1000, now + 60000, 1, "active-mutation", "active-record", "active-evidence", now, now, null);
+    insert.run("expired-device", "expired-hash", "Expired iPhone", "expired-public-key", "expired-fingerprint", "active", now - 2000, now - 1, 2, "expired-mutation", "expired-record", "expired-evidence", now, now, null);
+    insert.run("revoked-device", "revoked-hash", "Revoked iPhone", "revoked-public-key", "revoked-fingerprint", "revoked", now - 3000, now + 60000, 3, "revoked-mutation", "revoked-record", "revoked-evidence", now, now, now - 10);
+    const pendingCount = countActiveCloudKitDevices(now);
+    db.prepare("UPDATE cloudkit_device_keys SET approved_at = ?, approval_actor = 'test-admin' WHERE device_id = ?")
+      .run(now, "active-device");
+    const approvedCount = countActiveCloudKitDevices(now);
+    db.prepare("UPDATE cloudkit_device_keys SET status = 'revoked', revoked_at = ?, approved_at = NULL WHERE device_id = ?")
+      .run(now + 1, "active-device");
+    const revokedCount = countActiveCloudKitDevices(now + 1);
+    process.stdout.write(JSON.stringify({ pendingCount, approvedCount, revokedCount }));
+  `;
+  const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
+    cwd: rootDir,
+    env,
+    encoding: "utf8",
+    maxBuffer: 1024 * 1024,
+  });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  return JSON.parse(result.stdout);
+}
+
 test("CloudKit device trust metadata view shows rebind guidance without granting access", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-device-trust-metadata-"));
   try {
@@ -96,6 +126,21 @@ test("CloudKit device trust metadata view shows rebind guidance without granting
     assert.equal(serialized.includes("source_record_name"), false);
     assert.equal(serialized.includes("accessToken"), false);
     assert.equal(serialized.includes("access_token"), false);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit onboarding device count includes only approved, active, unexpired device keys", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-active-device-count-"));
+  try {
+    const result = runIsolatedActiveDeviceCount({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    });
+    assert.equal(result.pendingCount, 0);
+    assert.equal(result.approvedCount, 1);
+    assert.equal(result.revokedCount, 0);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

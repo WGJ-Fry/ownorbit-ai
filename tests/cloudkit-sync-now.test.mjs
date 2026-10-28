@@ -282,6 +282,10 @@ test("CloudKit safe sync now reports no changes when only historical imports exi
     assert.equal(result.nextAction, "done");
     assert.equal(result.import, undefined);
     assert.equal(result.apply.applied, 0);
+    assert.deepEqual(result.apply.promotedZones, ["LifeOSChatZone"]);
+    assert.equal(result.quarantine.checkpoints[0].tokenState, "applied");
+    assert.equal(result.quarantine.checkpoints[0].appliedServerChangeTokenPresent, true);
+    assert.equal(result.quarantine.checkpoints[0].pendingServerChangeTokenPresent, false);
     assert.equal(result.quarantine.summary.applied, 1);
     assert.equal(result.backups.length, 0);
   } finally {
@@ -302,6 +306,8 @@ test("CloudKit expired cursors require baseline review even when the remote zone
     assert.equal(result.import.quarantine.importedChanged, 0);
     assert.equal(result.import.quarantine.pendingReview, 1);
     assert.equal(result.import.result.syncImportQuarantine.changeTokenResetZones[0], "LifeOSChatZone");
+    assert.deepEqual(result.apply.promotedZones, []);
+    assert.deepEqual(result.apply.blockedZones, ["LifeOSChatZone"]);
     assert.deepEqual(sessions, []);
     assert.deepEqual(messages, []);
   } finally {

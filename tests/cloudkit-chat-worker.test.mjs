@@ -36,6 +36,7 @@ function runWorkerScenario(dataDir, scenario) {
       now,
     });
     let generatorInput;
+    let generatorAborted = false;
     const scenario = ${JSON.stringify(scenario)};
     const generate = async (input) => {
       generatorInput = input;
@@ -45,6 +46,14 @@ function runWorkerScenario(dataDir, scenario) {
         throw error;
       }
       if (scenario === "temporary") throw new Error("503 service unavailable");
+      if (scenario === "timeout") {
+        return await new Promise((resolve, reject) => {
+          input.signal.addEventListener("abort", () => {
+            generatorAborted = true;
+            reject(input.signal.reason || new Error("aborted"));
+          }, { once: true });
+        });
+      }
       if (scenario === "tool") return {
         providerId: "openai", providerName: "OpenAI", model: "gpt-test", text: "",
         functionCalls: [{ name: "open_url", args: { url: "https://example.com" } }],
@@ -56,7 +65,12 @@ function runWorkerScenario(dataDir, scenario) {
         text: "Reserve 45 minutes and silence notifications.",
       };
     };
-    const result = await worker.runCloudKitChatWorkerQueue({ now: now + 10, limit: 3, generate });
+    const result = await worker.runCloudKitChatWorkerQueue({
+      now: now + 10,
+      limit: 3,
+      timeoutMs: scenario === "timeout" ? 100 : undefined,
+      generate,
+    });
     const job = jobs.getCloudKitChatJob(request.requestId);
     const response = jobs.listCloudKitChatResponsePayloads()[0];
     console.log(JSON.stringify({
@@ -68,6 +82,8 @@ function runWorkerScenario(dataDir, scenario) {
       systemInstruction: generatorInput?.systemInstruction,
       contents: generatorInput?.contents,
       generatorInputHasTools: Object.hasOwn(generatorInput || {}, "tools"),
+      generatorHasSignal: generatorInput?.signal instanceof AbortSignal,
+      generatorAborted,
     }));
   `;
   const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
@@ -119,6 +135,21 @@ test("CloudKit chat worker schedules bounded retries for temporary provider fail
     assert.equal(output.jobStatus, "queued");
     assert.equal(output.result.retryScheduled, 1);
     assert.equal(output.result.items[0].safeErrorCode, "ai-temporarily-unavailable");
+  } finally {
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit chat worker aborts timed-out provider calls and schedules a bounded retry", async () => {
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), "ownorbit-cloudkit-chat-worker-timeout-"));
+  try {
+    const output = runWorkerScenario(dataDir, "timeout");
+    assert.equal(output.generatorHasSignal, true);
+    assert.equal(output.generatorAborted, true);
+    assert.equal(output.jobStatus, "queued");
+    assert.equal(output.result.retryScheduled, 1);
+    assert.equal(output.result.failed, 0);
+    assert.equal(output.result.items[0].safeErrorCode, "ai-timeout");
   } finally {
     await rm(dataDir, { recursive: true, force: true });
   }

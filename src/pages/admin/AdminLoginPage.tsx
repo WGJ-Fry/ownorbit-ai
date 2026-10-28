@@ -7,6 +7,18 @@ import { useI18n } from "../../i18n/I18nProvider";
 type Mode = "loading" | "setup" | "login" | "reset";
 type PublicRiskItem = Awaited<ReturnType<typeof getHealth>>["publicRisk"]["items"][number];
 
+function consumeAdminReturnPath() {
+  try {
+    const raw = window.sessionStorage.getItem("lifeos_admin_return_to") || "";
+    window.sessionStorage.removeItem("lifeos_admin_return_to");
+    const target = new URL(raw, window.location.origin);
+    if (target.origin === window.location.origin && /\/admin(?:\/|$)/.test(target.pathname) && !target.pathname.endsWith("/admin/login")) {
+      return `${target.pathname}${target.search}${target.hash}`;
+    }
+  } catch {}
+  return "";
+}
+
 export default function AdminLoginPage() {
   const { t } = useI18n();
   const [mode, setMode] = useState<Mode>("loading");
@@ -19,6 +31,7 @@ export default function AdminLoginPage() {
   const [publicSetupRisk, setPublicSetupRisk] = useState(false);
   const [publicRiskItems, setPublicRiskItems] = useState<PublicRiskItem[]>([]);
   const onlyPasswordRisk = publicRiskItems.length > 0 && publicRiskItems.every((item) => item.id === "password");
+  const sessionExpired = new URLSearchParams(window.location.search).get("reason") === "session-expired";
 
   const loginTitle = mode === "setup" ? t("auth.setupTitle") : mode === "reset" ? t("auth.resetPasswordTitle") : t("auth.loginTitle");
   const loginDescription = mode === "setup"
@@ -59,7 +72,10 @@ export default function AdminLoginPage() {
       setPublicSetupRisk(Boolean(health?.publicSetupRisk));
       setPublicRiskItems(health?.publicRisk?.items || []);
       if (adminStatus.authenticated) {
-        window.location.href = adminStatus.nextPath || "/chat";
+        const returnPath = consumeAdminReturnPath();
+        window.location.href = adminStatus.onboardingRequired
+          ? (adminStatus.nextPath || "/admin/onboarding")
+          : returnPath || "/admin/dashboard";
         return;
       }
       setMode(adminStatus.configured ? "login" : "setup");
@@ -91,12 +107,13 @@ export default function AdminLoginPage() {
         window.location.href = session.nextPath || "/admin/onboarding";
       } else if (mode === "reset") {
         const session = await resetLocalAdminPassword(password);
-        window.location.href = session.onboardingRequired ? (session.nextPath || "/admin/onboarding") : (session.nextPath || "/chat");
+        window.location.href = session.onboardingRequired ? (session.nextPath || "/admin/onboarding") : "/admin/dashboard";
       } else {
         const session = await loginAdmin(password);
+        const returnPath = consumeAdminReturnPath();
         window.location.href = onlyPasswordRisk
           ? "/admin/settings#admin-password-strength"
-          : session.onboardingRequired ? (session.nextPath || "/admin/onboarding") : (session.nextPath || "/chat");
+          : session.onboardingRequired ? (session.nextPath || "/admin/onboarding") : returnPath || "/admin/dashboard";
       }
     } catch (err: any) {
       setError(friendlyError(err.message || "", err.code || ""));
@@ -117,6 +134,12 @@ export default function AdminLoginPage() {
 
         <h1 className="text-xl font-bold">{loginTitle}</h1>
         <p className="mt-2 text-sm leading-relaxed text-zinc-400">{loginDescription}</p>
+
+        {sessionExpired ? (
+          <div className="mt-5 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 p-4 text-sm leading-relaxed text-cyan-100">
+            {t("auth.sessionExpired")}
+          </div>
+        ) : null}
 
         {publicSetupRisk ? (
           <div className="mt-5 rounded-2xl border border-amber-400/25 bg-amber-500/10 p-4 text-sm leading-relaxed text-amber-100">

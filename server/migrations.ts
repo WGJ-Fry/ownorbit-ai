@@ -518,6 +518,220 @@ CREATE INDEX IF NOT EXISTS idx_cloudkit_device_keys_fingerprint
   ON cloudkit_device_keys (public_key_fingerprint);
 `,
   },
+  {
+    version: 24,
+    name: "custom_app_network_origins",
+    sql: `
+ALTER TABLE custom_app_capability_manifests
+  ADD COLUMN allowed_network_origins_json TEXT NOT NULL DEFAULT '[]';
+
+ALTER TABLE custom_app_capability_requests
+  ADD COLUMN requested_network_origins_json TEXT NOT NULL DEFAULT '[]';
+
+ALTER TABLE custom_app_capability_requests
+  ADD COLUMN missing_network_origins_json TEXT NOT NULL DEFAULT '[]';
+`,
+  },
+  {
+    version: 25,
+    name: "device_request_nonces",
+    sql: `
+CREATE TABLE IF NOT EXISTS device_request_nonces (
+  device_id TEXT NOT NULL,
+  nonce_hash BLOB NOT NULL CHECK (length(nonce_hash) = 32),
+  used_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL CHECK (expires_at > used_at),
+  PRIMARY KEY (device_id, nonce_hash),
+  FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE
+) WITHOUT ROWID;
+
+CREATE INDEX IF NOT EXISTS idx_device_request_nonces_expiry
+  ON device_request_nonces (expires_at);
+`,
+  },
+  {
+    version: 26,
+    name: "admin_session_credential_version",
+    sql: `
+ALTER TABLE admin_sessions
+  ADD COLUMN credential_source TEXT NOT NULL DEFAULT 'db';
+
+ALTER TABLE admin_sessions
+  ADD COLUMN credential_version INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE admin_sessions
+  ADD COLUMN revoked_reason TEXT;
+
+UPDATE admin_sessions
+SET revoked_at = COALESCE(revoked_at, CAST(strftime('%s', 'now') AS INTEGER) * 1000),
+    revoked_reason = COALESCE(revoked_reason, 'credential-version-migration');
+`,
+  },
+  {
+    version: 27,
+    name: "cloudkit_chat_conversation_owners",
+    sql: `
+CREATE TABLE IF NOT EXISTS cloudkit_chat_conversation_owners (
+  conversation_id TEXT PRIMARY KEY,
+  source_device_hash TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  last_seen_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_cloudkit_chat_conversation_owners_device
+  ON cloudkit_chat_conversation_owners (source_device_hash, last_seen_at DESC);
+`,
+  },
+  {
+    version: 28,
+    name: "cloudkit_device_key_approvals",
+    sql: `
+ALTER TABLE cloudkit_device_keys
+  ADD COLUMN approved_at INTEGER;
+
+ALTER TABLE cloudkit_device_keys
+  ADD COLUMN approval_actor TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_cloudkit_device_keys_approval
+  ON cloudkit_device_keys (approved_at, status, expires_at);
+`,
+  },
+  {
+    version: 29,
+    name: "cloudkit_chat_relay_lease",
+    sql: `
+CREATE TABLE IF NOT EXISTS cloudkit_chat_relay_leases (
+  lease_name TEXT PRIMARY KEY,
+  lease_id TEXT NOT NULL,
+  holder_pid INTEGER NOT NULL,
+  acquired_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_cloudkit_chat_relay_leases_expiry
+  ON cloudkit_chat_relay_leases (expires_at);
+`,
+  },
+  {
+    version: 30,
+    name: "cloudkit_chat_response_delivery",
+    sql: `
+ALTER TABLE cloudkit_chat_jobs
+  ADD COLUMN response_exported_updated_at INTEGER;
+
+ALTER TABLE cloudkit_chat_jobs
+  ADD COLUMN response_exported_at INTEGER;
+
+CREATE INDEX IF NOT EXISTS idx_cloudkit_chat_jobs_response_delivery
+  ON cloudkit_chat_jobs (response_exported_updated_at, updated_at);
+`,
+  },
+  {
+    version: 31,
+    name: "cloudkit_chat_device_sequences",
+    sql: `
+CREATE TABLE IF NOT EXISTS cloudkit_chat_device_sequences (
+  source_device_hash TEXT NOT NULL,
+  client_sequence INTEGER NOT NULL,
+  request_id TEXT NOT NULL UNIQUE,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (source_device_hash, client_sequence)
+) WITHOUT ROWID;
+
+CREATE INDEX IF NOT EXISTS idx_cloudkit_chat_device_sequences_created
+  ON cloudkit_chat_device_sequences (source_device_hash, created_at DESC);
+`,
+  },
+  {
+    version: 32,
+    name: "cloudkit_chat_relay_fencing",
+    sql: `
+ALTER TABLE cloudkit_chat_relay_leases
+  ADD COLUMN fencing_token INTEGER NOT NULL DEFAULT 0;
+
+UPDATE cloudkit_chat_relay_leases
+SET fencing_token = CASE WHEN fencing_token < 1 THEN 1 ELSE fencing_token END;
+`,
+  },
+  {
+    version: 33,
+    name: "cloudkit_chat_response_receipts",
+    sql: `
+ALTER TABLE cloudkit_chat_jobs
+  ADD COLUMN response_exported_content_hash TEXT;
+
+ALTER TABLE cloudkit_chat_jobs
+  ADD COLUMN response_consumed_at INTEGER;
+
+CREATE INDEX IF NOT EXISTS idx_cloudkit_chat_jobs_response_consumption
+  ON cloudkit_chat_jobs (response_consumed_at, updated_at);
+`,
+  },
+  {
+    version: 34,
+    name: "cloudkit_chat_remote_cleanup",
+    sql: `
+CREATE TABLE IF NOT EXISTS cloudkit_chat_remote_cleanup (
+  request_id TEXT PRIMARY KEY,
+  status TEXT NOT NULL DEFAULT 'queued',
+  attempt_count INTEGER NOT NULL DEFAULT 0,
+  next_attempt_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  completed_at INTEGER,
+  last_error TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_cloudkit_chat_remote_cleanup_due
+  ON cloudkit_chat_remote_cleanup (status, next_attempt_at, created_at);
+
+INSERT OR IGNORE INTO cloudkit_chat_remote_cleanup (
+  request_id,
+  status,
+  attempt_count,
+  next_attempt_at,
+  created_at,
+  completed_at,
+  last_error
+)
+SELECT
+  request_id,
+  'queued',
+  0,
+  COALESCE(response_consumed_at, updated_at),
+  COALESCE(response_consumed_at, updated_at),
+  NULL,
+  NULL
+FROM cloudkit_chat_jobs
+WHERE response_consumed_at IS NOT NULL;
+`,
+  },
+  {
+    version: 35,
+    name: "cloudkit_chat_trusted_mac",
+    sql: `
+ALTER TABLE cloudkit_chat_jobs
+  ADD COLUMN trusted_mac_fingerprint TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_cloudkit_chat_jobs_trusted_mac
+  ON cloudkit_chat_jobs (trusted_mac_fingerprint, status, created_at);
+`,
+  },
+  {
+    version: 36,
+    name: "device_migration_vouchers",
+    sql: `
+CREATE TABLE IF NOT EXISTS device_migration_vouchers (
+  id TEXT PRIMARY KEY,
+  device_id TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  target_base_url TEXT,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  used_at INTEGER,
+  FOREIGN KEY (device_id) REFERENCES devices(id)
+);
+`,
+  },
 ];
 
 function parseMigration(migrationDir: string, file: string): Migration | null {

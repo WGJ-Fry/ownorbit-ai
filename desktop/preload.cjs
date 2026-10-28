@@ -1,6 +1,8 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 const desktopBridge = {
+  setupAdmin: (password) => ipcRenderer.invoke("lifeos:admin-setup", password),
+  resetAdminPassword: (password) => ipcRenderer.invoke("lifeos:admin-reset", password),
   openLogsFolder: () => ipcRenderer.invoke("lifeos:open-logs-folder"),
   openIcloudFolder: () => ipcRenderer.invoke("lifeos:open-icloud-folder"),
   openIcloudSettings: () => ipcRenderer.invoke("lifeos:open-icloud-settings"),

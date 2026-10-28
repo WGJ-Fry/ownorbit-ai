@@ -316,7 +316,7 @@ while true; do sleep 1; done
     const result = await runRemoteHealthCheck("manual");
     const recovery = getRemoteRecoveryReport();
     const evidence = getRemoteHealthEvidence();
-    stopManagedCloudflareTunnel();
+    await stopManagedCloudflareTunnel();
     await new Promise((resolve) => wss.close(resolve));
     await new Promise((resolve) => server.close(resolve));
     process.stdout.write(JSON.stringify({ restored: result.restored, recovery, report: result.report, evidence }));

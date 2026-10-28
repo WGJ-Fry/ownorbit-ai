@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { assertReleaseProvenance, currentSourceCommit } from "./release-provenance.mjs";
 
 const rootDir = process.cwd();
 const inputDir = process.env.LIFEOS_RELEASE_ARTIFACTS_DIR
@@ -42,6 +43,11 @@ function readManifest(file) {
   if (!Array.isArray(manifest.artifacts)) {
     throw new Error(`Release manifest ${path.relative(rootDir, file)} is missing artifacts`);
   }
+  assertReleaseProvenance(manifest.source, {
+    expectedCommit: currentSourceCommit(rootDir),
+    expectedRef: process.env.GITHUB_REF_NAME || "",
+    requireClean: true,
+  });
   return manifest;
 }
 
@@ -74,6 +80,11 @@ if (checksumLines.length === 0) {
 fs.writeFileSync(path.join(outputDir, "SHA256SUMS"), `${checksumLines.join("\n")}\n`);
 
 const manifests = manifestFiles.map(readManifest);
+const sourceKeys = new Set(manifests.map((manifest) => JSON.stringify(manifest.source)));
+if (sourceKeys.size !== 1) {
+  throw new Error("Release draft manifests were built from different source commits or refs");
+}
+const source = manifests[0]?.source;
 const artifacts = manifests.flatMap((manifest) => manifest.artifacts);
 const seenArtifactKeys = new Set();
 const uniqueArtifacts = [];
@@ -113,6 +124,7 @@ for (const name of requiredFeedFiles) {
 fs.writeFileSync(path.join(outputDir, "release-manifest.json"), `${JSON.stringify({
   version: packageVersion,
   generatedAt: new Date().toISOString(),
+  source,
   artifacts: uniqueArtifacts,
 }, null, 2)}\n`);
 

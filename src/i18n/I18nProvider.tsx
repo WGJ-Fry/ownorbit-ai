@@ -1,7 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, localeLabels, translations } from "./translations";
-import type { Locale, TranslationKey } from "./translations";
+import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, loadTranslations, localeLabels } from "./translations";
+import type { Locale, TranslationKey, TranslationMessages } from "./translations";
 
 type TranslationValues = Record<string, string | number | boolean | null | undefined>;
 
@@ -32,22 +32,69 @@ function interpolate(template: string, values?: TranslationValues) {
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(() => readInitialLocale());
+  const [messages, setMessages] = useState<TranslationMessages | null>(null);
+  const loadVersionRef = useRef(0);
 
   const setLocale = useCallback((nextLocale: Locale) => {
-    setLocaleState(nextLocale);
-    window.localStorage.setItem(LOCALE_STORAGE_KEY, nextLocale);
+    const loadVersion = ++loadVersionRef.current;
+    void loadTranslations(nextLocale)
+      .then((nextMessages) => {
+        if (loadVersion !== loadVersionRef.current) return;
+        setMessages(nextMessages);
+        setLocaleState(nextLocale);
+        window.localStorage.setItem(LOCALE_STORAGE_KEY, nextLocale);
+      })
+      .catch((error) => {
+        console.error(`Failed to load ${nextLocale} translations`, error);
+      });
   }, []);
 
   useEffect(() => {
     document.documentElement.lang = locale;
   }, [locale]);
 
+  useEffect(() => {
+    const loadVersion = ++loadVersionRef.current;
+    void loadTranslations(locale)
+      .then((nextMessages) => {
+        if (loadVersion !== loadVersionRef.current) return;
+        setMessages(nextMessages);
+      })
+      .catch(async (error) => {
+        console.error(`Failed to load ${locale} translations`, error);
+        if (locale === DEFAULT_LOCALE || loadVersion !== loadVersionRef.current) return;
+        try {
+          const fallbackMessages = await loadTranslations(DEFAULT_LOCALE);
+          if (loadVersion !== loadVersionRef.current) return;
+          setMessages(fallbackMessages);
+          setLocaleState(DEFAULT_LOCALE);
+          window.localStorage.setItem(LOCALE_STORAGE_KEY, DEFAULT_LOCALE);
+        } catch (fallbackError) {
+          console.error("Failed to load fallback translations", fallbackError);
+        }
+      });
+    return () => {
+      if (loadVersion === loadVersionRef.current) loadVersionRef.current += 1;
+    };
+  }, []);
+
   const t = useCallback((key: TranslationKey, values?: TranslationValues) => {
-    const template = translations[locale][key] || translations[DEFAULT_LOCALE][key] || key;
+    const template = messages?.[key] || key;
     return interpolate(template, values);
-  }, [locale]);
+  }, [messages]);
 
   const value = useMemo(() => ({ locale, setLocale, t, localeLabels }), [locale, setLocale, t]);
+
+  if (!messages) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#060a10] text-zinc-100" role="status" aria-label="OwnOrbit AI">
+        <div className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 py-4 text-sm font-bold text-zinc-300">
+          <div className="h-2 w-2 animate-pulse rounded-full bg-cyan-300" />
+          OwnOrbit AI
+        </div>
+      </div>
+    );
+  }
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }

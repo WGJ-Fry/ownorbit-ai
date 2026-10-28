@@ -145,6 +145,58 @@ async function screenshot(device, outDir, name) {
   return filePath;
 }
 
+async function inspectRenderedScreenshot(filePath) {
+  const bitmapPath = `${filePath}.render-check.bmp`;
+  try {
+    await execFileAsync("/usr/bin/sips", ["-s", "format", "bmp", filePath, "--out", bitmapPath], {
+      timeout: 30_000,
+      maxBuffer: 1024 * 1024,
+    });
+    const bitmap = fs.readFileSync(bitmapPath);
+    if (bitmap.toString("ascii", 0, 2) !== "BM") throw new Error("Screenshot conversion did not produce a bitmap.");
+
+    const pixelOffset = bitmap.readUInt32LE(10);
+    const width = bitmap.readInt32LE(18);
+    const rawHeight = bitmap.readInt32LE(22);
+    const height = Math.abs(rawHeight);
+    const bitsPerPixel = bitmap.readUInt16LE(28);
+    if (width <= 0 || height <= 0 || ![24, 32].includes(bitsPerPixel)) {
+      throw new Error("Screenshot bitmap uses an unsupported pixel format.");
+    }
+
+    const bytesPerPixel = bitsPerPixel / 8;
+    const rowStride = Math.ceil((width * bitsPerPixel) / 32) * 4;
+    const xStart = Math.floor(width * 0.05);
+    const xEnd = Math.floor(width * 0.95);
+    const yStart = Math.floor(height * 0.10);
+    const yEnd = Math.floor(height * 0.82);
+    let sampledPixels = 0;
+    let nearWhitePixels = 0;
+    let darkPixels = 0;
+    for (let y = yStart; y < yEnd; y += 4) {
+      const sourceY = rawHeight < 0 ? y : height - 1 - y;
+      for (let x = xStart; x < xEnd; x += 4) {
+        const offset = pixelOffset + sourceY * rowStride + x * bytesPerPixel;
+        const blue = bitmap[offset];
+        const green = bitmap[offset + 1];
+        const red = bitmap[offset + 2];
+        if (red > 245 && green > 245 && blue > 245) nearWhitePixels += 1;
+        if (red < 40 && green < 40 && blue < 40) darkPixels += 1;
+        sampledPixels += 1;
+      }
+    }
+    const whiteRatio = sampledPixels ? nearWhitePixels / sampledPixels : 1;
+    const darkRatio = sampledPixels ? darkPixels / sampledPixels : 0;
+    return {
+      rendered: whiteRatio < 0.985 || darkRatio > 0.01,
+      whiteRatio: Number(whiteRatio.toFixed(4)),
+      darkRatio: Number(darkRatio.toFixed(4)),
+      sampledPixels,
+    };
+  } finally {
+    fs.rmSync(bitmapPath, { force: true });
+  }
+}
 async function main() {
   const baseUrl = normalizeRemoteBaseUrl(process.argv[2] || process.env.LIFEOS_SIMULATOR_BASE_URL || DEFAULT_BASE_URL);
   const outDir = path.resolve(process.env.LIFEOS_SIMULATOR_SMOKE_OUT_DIR || DEFAULT_OUT_DIR);
@@ -177,6 +229,11 @@ async function main() {
   await xcrun(["simctl", "openurl", device.udid, chatUrl], { timeoutMs: 60_000 });
   await new Promise((resolve) => setTimeout(resolve, chatWaitMs));
   const chatScreenshot = await screenshot(device, outDir, "mobile-chat");
+  const handoffRender = await inspectRenderedScreenshot(handoffScreenshot);
+  const chatRender = await inspectRenderedScreenshot(chatScreenshot);
+  if (!handoffRender.rendered || !chatRender.rendered) {
+    throw new Error("iOS Simulator Safari stayed blank. The Mac can reach this address, but the simulator did not render the phone entry; use an entry reachable from the simulator or verify the private Tailscale entry on a real signed-in iPhone.");
+  }
   const longTermReady = remoteSmoke.longTermCandidate && remoteSmoke.httpsStatus.ok;
   const simulatorEvidenceStatus = longTermReady ? "simulator-opened-long-term-entry" : "simulator-opened-local-or-test-entry";
   const requiredRealDeviceScenarios = [
@@ -211,6 +268,10 @@ async function main() {
     screenshots: {
       handoff: handoffScreenshot,
       chat: chatScreenshot,
+    },
+    screenshotRender: {
+      handoff: handoffRender,
+      chat: chatRender,
     },
     limits: [
       "This proves the mobile shell opens in iOS Simulator through the selected entry.",

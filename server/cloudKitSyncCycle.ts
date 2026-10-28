@@ -3,7 +3,6 @@ import { createDatabaseBackup } from "./db";
 import { runCloudKitNativeHelper } from "./cloudKitNativeHelper";
 import { runCloudKitSyncNow } from "./cloudKitSyncNow";
 import { runCloudKitSyncUploadNow } from "./cloudKitSyncUploadNow";
-import { runCloudKitChatWorkerQueue } from "./cloudKitChatWorker";
 
 export const CLOUDKIT_SYNC_CYCLE_CONFIRMATION = "SYNC_CLOUDKIT_CYCLE";
 
@@ -16,7 +15,6 @@ type SyncCycleOptions = {
   now?: number;
   runHelper?: typeof runCloudKitNativeHelper;
   createBackup?: typeof createDatabaseBackup;
-  runChatWorker?: typeof runCloudKitChatWorkerQueue;
 };
 
 function normalizeLimit(value: unknown) {
@@ -105,10 +103,6 @@ export async function runCloudKitSyncCycle(readiness: IcloudDataSyncReadiness, o
     };
   }
 
-  const chatWorker = await (options.runChatWorker || runCloudKitChatWorkerQueue)({
-    now,
-    limit: Math.min(3, limit),
-  });
   const upload = await runCloudKitSyncUploadNow(readiness, dependencies);
   const status = finalStatus(upload.status);
 
@@ -120,7 +114,7 @@ export async function runCloudKitSyncCycle(readiness: IcloudDataSyncReadiness, o
     finishedAt: Date.now(),
     limit,
     pull: publicPull,
-    chatWorker,
+    chatWorker: undefined,
     upload,
     safety: {
       rawPayloadReturnedToAdmin: false,
@@ -128,6 +122,7 @@ export async function runCloudKitSyncCycle(readiness: IcloudDataSyncReadiness, o
       localBackupPathReturnedToAdmin: false,
       uploadRunsOnlyAfterConflictFreePull: true,
       remoteChatToolsEnabled: false,
+      chatRelayDelegatedToDedicatedCycle: true,
     },
   };
 }

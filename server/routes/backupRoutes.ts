@@ -1,10 +1,14 @@
-import type express from "express";
+import express from "express";
 import { insertAuditLog } from "../audit";
 import { cleanupData, createDataExport, normalizeDataExportScope, previewBackup, previewDataCleanup, summarizeDataExport } from "../dataLifecycle";
 import { cancelPendingRestore, createDatabaseBackup, getBackupPath, getPendingRestore, listBackups, scheduleDatabaseRestore } from "../db";
 import { requireAdmin } from "../auth";
 import { getBackupSchedule, runBackupScheduleNow, updateBackupSchedule } from "../backupSchedule";
 import { encryptBackupFile, importEncryptedBackup } from "../encryptedBackups";
+import { rateLimit } from "../httpSecurity";
+
+export const ENCRYPTED_BACKUP_IMPORT_PATH = "/api/v1/backups/encrypted-import";
+const encryptedBackupJsonParser = express.json({ limit: "64mb" });
 
 function publicBackupRecord(backup: ReturnType<typeof listBackups>[number]) {
   return {
@@ -152,7 +156,12 @@ export function registerBackupRoutes(app: express.Express) {
     }
   });
 
-  app.post("/api/v1/backups/encrypted-import", requireAdmin, (req, res) => {
+  app.post(
+    ENCRYPTED_BACKUP_IMPORT_PATH,
+    requireAdmin,
+    rateLimit({ keyPrefix: "encrypted-backup-import", windowMs: 60_000, max: 4 }),
+    encryptedBackupJsonParser,
+    (req, res) => {
     try {
       const backup = importEncryptedBackup(req.body?.payload, req.body?.passphrase);
       const preview = previewBackup(backup.file);
@@ -167,7 +176,8 @@ export function registerBackupRoutes(app: express.Express) {
       insertAuditLog("encrypted_backup_import_failed", "database", "encrypted-import", encryptedImportFailureAuditMetadata(req.body, error), (req as any).actor?.type, (req as any).actor?.id);
       res.status(400).json({ error: error.message || "Encrypted backup import failed" });
     }
-  });
+    },
+  );
 
   app.get("/api/v1/backups/:file/preview", requireAdmin, (req, res) => {
     try {

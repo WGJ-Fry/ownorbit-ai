@@ -12,7 +12,7 @@ export type StudioRefineHistoryItem = {
 };
 
 const INITIAL_LOGS: StudioTelemetryLog[] = [
-  { time: "SYSTEM", text: "JARVIS isolated rendering sandbox initialized.", type: "info" },
+  { time: "SYSTEM", text: "OwnOrbit isolated rendering sandbox initialized.", type: "info" },
   { time: "ROUTER", text: "Adaptive state machine mounted. You can switch landscape or mobile viewport.", type: "log" },
 ];
 
@@ -58,7 +58,7 @@ export function useStudioSimulatorState() {
     setRefineHistory([]);
     if (!app) return;
     setSimulatorLogs([
-      { time: "SYSTEM", text: `JARVIS sandbox reset and loaded micro app \"${app.name}\".`, type: "info" },
+      { time: "SYSTEM", text: `OwnOrbit sandbox reset and loaded micro app \"${app.name}\".`, type: "info" },
       { time: "SANDBOX", text: "Live Console probe and H5 IndexedDB protection lock injected.", type: "log" },
     ]);
   }, []);

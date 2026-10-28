@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { createReleaseProvenance } from "./release-provenance.mjs";
 
 const rootDir = process.cwd();
 const releaseDir = process.env.LIFEOS_RELEASE_DIR ? path.resolve(process.env.LIFEOS_RELEASE_DIR) : path.join(rootDir, "release");
@@ -92,8 +93,14 @@ const linuxArtifact = artifacts.find((file) => file.endsWith(".AppImage"));
 const manifest = {
   version: packageJson.version,
   generatedAt: new Date().toISOString(),
+  source: createReleaseProvenance(rootDir),
   artifacts: [],
 };
+
+if (!manifest.source.commit) {
+  console.error("Could not resolve the Git commit used to build these release artifacts.");
+  process.exit(1);
+}
 
 if (macArtifact) manifest.artifacts.push(writeFeed("latest-mac.yml", macArtifact, "mac"));
 if (winArtifact) manifest.artifacts.push(writeFeed("latest.yml", winArtifact, "windows"));

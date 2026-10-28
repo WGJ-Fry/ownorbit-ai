@@ -147,6 +147,9 @@ test("CloudKit sync batch preview builds safe records and blocks sensitive paylo
     assert.ok(preview.recordTypes.some((item) => item.recordType === "LifeOSTaskListSnapshot"));
     assert.ok(preview.recordTypes.some((item) => item.recordType === "LifeOSGeneratedAppState"));
     assert.ok(preview.recordTypes.some((item) => item.recordType === "LifeOSDeviceTrust"));
+    assert.equal(preview.recordTypes.some((item) => item.recordType === "LifeOSDeviceKey"), false);
+    assert.equal(preview.recordTypes.some((item) => item.recordType === "LifeOSChatRequest"), false);
+    assert.equal(preview.recordTypes.some((item) => item.recordType === "LifeOSChatResponse"), false);
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSMessage" && record.requiresUserReview === false), true);
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSConversation" && record.requiresUserReview === false), true);
     assert.equal(preview.records.some((record) => record.recordType === "LifeOSMemory" && record.requiresUserReview === false), true);

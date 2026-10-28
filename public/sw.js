@@ -1,8 +1,9 @@
-const CACHE_NAME = "lifeos-ai-shell-v5";
+const CACHE_NAME = "lifeos-ai-shell-v6";
 const BASE_PATH = self.location.pathname.replace(/\/sw\.js$/, "").replace(/\/+$/, "");
 const withBasePath = (path) => `${BASE_PATH}${path.startsWith("/") ? path : `/${path}`}`;
 const withoutBasePath = (pathname) => BASE_PATH && pathname.startsWith(`${BASE_PATH}/`) ? pathname.slice(BASE_PATH.length) || "/" : pathname;
 const OFFLINE_FALLBACK = withBasePath("/offline.html");
+const BUILD_MANIFEST = withBasePath("/asset-manifest.json");
 const SHELL_ASSETS = [
   withBasePath("/"),
   withBasePath("/mobile/chat"),
@@ -37,6 +38,30 @@ async function cacheBuildAssets(cache) {
   }
 }
 
+function extractManifestAssets(manifest) {
+  const assets = new Set();
+  for (const entry of Object.values(manifest || {})) {
+    for (const value of [entry?.file, ...(entry?.css || []), ...(entry?.assets || [])]) {
+      if (typeof value !== "string" || !value || value.includes("..") || /^[a-z]+:/i.test(value)) continue;
+      assets.add(withBasePath(`/${value.replace(/^\/+/, "")}`));
+    }
+  }
+  return Array.from(assets);
+}
+
+async function cacheManifestAssets(cache) {
+  try {
+    const response = await fetch(BUILD_MANIFEST, { cache: "no-store" });
+    if (!response.ok) return;
+    const manifest = await response.clone().json();
+    const assets = extractManifestAssets(manifest);
+    await cache.put(BUILD_MANIFEST, response);
+    if (assets.length) await cache.addAll(assets);
+  } catch (error) {
+    console.warn("OwnOrbit service worker could not pre-cache lazy build assets", error);
+  }
+}
+
 async function notifyClients(message) {
   const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
   for (const client of windows) {
@@ -51,6 +76,7 @@ self.addEventListener("install", (event) => {
       .then(async (cache) => {
         await cache.addAll(SHELL_ASSETS);
         await cacheBuildAssets(cache);
+        await cacheManifestAssets(cache);
       })
       .then(() => self.skipWaiting()),
   );

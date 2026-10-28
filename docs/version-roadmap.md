@@ -46,6 +46,7 @@ Implemented in source:
 
 - A three-step normal first launch: administrator password, one AI provider key, then phone QR plus first chat. Advanced safety, backup, and connection diagnostics remain available without blocking the main path.
 - A private CloudKit `LifeOSChatRequest` / `LifeOSChatResponse` channel between the native iPhone shell and the Mac local core.
+- A signed `LifeOSChatReceipt` acknowledgment so the Mac retains terminal jobs until the intended iPhone has securely persisted the exact response.
 - A dedicated `LifeOSDeviceKey` identity using P-256 signatures. The private key remains in device-only Keychain storage; CloudKit receives only the scoped public key.
 - Durable SQLite chat jobs with leases, expiry, bounded retries, idempotent response export, safe errors, and visible waiting/offline/processing/retrying/completed/failed/timeout states.
 - A text-only Mac AI worker that rejects tool calls and cannot invoke local/native actions through the CloudKit channel.
@@ -151,6 +152,7 @@ These capabilities should not be described as current release features until the
 
 - 普通首次启动只有三步：管理员密码、一个 AI provider Key、手机二维码和第一次对话；高级安全、备份和连接诊断不再阻断主流程。
 - iPhone 原生壳与 Mac 本地核心之间的私有 CloudKit `LifeOSChatRequest` / `LifeOSChatResponse` 通道。
+- 签名 `LifeOSChatReceipt` 回执，确保目标 iPhone 安全保存完全一致的回复前，Mac 不会清理终态任务。
 - 独立 `LifeOSDeviceKey` P-256 签名身份；私钥只留在设备 Keychain，CloudKit 只保存有 scope 的公钥。
 - 带 lease、过期、有限重试、幂等 response、脱敏错误和等待/离线/处理/重试/完成/失败/超时状态的 SQLite 持久任务。
 - 禁止工具调用、不能通过 CloudKit 触发本地/原生动作的 text-only Mac AI worker。

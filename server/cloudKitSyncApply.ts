@@ -3,13 +3,20 @@ import { db } from "./db";
 import { buildCloudKitTaskListPayload, cloudKitPayloadContentHash } from "./cloudKitSyncBatch";
 import { getCloudKitSyncQuarantineSummary, listCloudKitSyncCheckpoints } from "./cloudKitSyncState";
 import { setClientState, setClientStateAt } from "./clientState";
-import { enqueueCloudKitChatRequest, getCloudKitChatJob } from "./cloudKitChatJobs";
+import {
+  enqueueCloudKitChatRequest,
+  getCloudKitChatJob,
+} from "./cloudKitChatJobs";
 import {
   cloudKitChatResponseRecordName,
+  parseCloudKitChatReceiptPayload,
   parseCloudKitChatRequestPayload,
   parseCloudKitChatResponsePayload,
+  verifyCloudKitChatReceiptSignature,
   verifyCloudKitChatRequestSignature,
 } from "./cloudKitChatProtocol";
+import { getCloudKitMacIdentityPublic } from "./cloudKitMacIdentity";
+import { queueCloudKitChatRemoteCleanup } from "./cloudKitChatLifecycle";
 import { parseCloudKitDeviceKeyPayload } from "./cloudKitDeviceKeyProtocol";
 
 export const CLOUDKIT_SYNC_APPLY_CONFIRMATION = "APPLY_CLOUDKIT_QUARANTINE";
@@ -164,11 +171,22 @@ function quarantineItem(row: QuarantineRow): CloudKitSyncQuarantineItem {
   };
 }
 
-function listRows(limit: number, status?: string | string[]) {
+function listRows(limit: number, status?: string | string[], allowedZones: string[] = []) {
   const safeLimit = Math.max(1, Math.min(500, Math.floor(limit || 100)));
   const statuses = Array.isArray(status) ? status.filter(Boolean) : status ? [status] : [];
-  const where = statuses.length ? `WHERE status IN (${statuses.map(() => "?").join(", ")})` : "";
-  const params = statuses.length ? [...statuses, safeLimit] : [safeLimit];
+  const zones = Array.from(new Set(allowedZones.map((zone) => String(zone || "").trim()).filter(Boolean))).slice(0, 20);
+  const clauses: string[] = [];
+  const params: Array<string | number> = [];
+  if (statuses.length) {
+    clauses.push(`status IN (${statuses.map(() => "?").join(", ")})`);
+    params.push(...statuses);
+  }
+  if (zones.length) {
+    clauses.push(`zone IN (${zones.map(() => "?").join(", ")})`);
+    params.push(...zones);
+  }
+  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+  params.push(safeLimit);
   return db.prepare(`
     SELECT
       id,
@@ -196,7 +214,9 @@ function listRows(limit: number, status?: string | string[]) {
         WHEN record_type = 'LifeOSDeviceKey' THEN 0
         WHEN record_type = 'LifeOSConversation' THEN 1
         WHEN record_type = 'LifeOSChatRequest' THEN 2
-        ELSE 3
+        WHEN record_type = 'LifeOSChatResponse' THEN 3
+        WHEN record_type = 'LifeOSChatReceipt' THEN 4
+        ELSE 5
       END ASC,
       imported_at ASC,
       record_type ASC,
@@ -217,9 +237,12 @@ export function listCloudKitSyncQuarantineItems(options: { limit?: number; statu
 function setQuarantineStatus(row: QuarantineRow, status: "applied" | "conflict" | "failed", now: number, error?: string) {
   db.prepare(`
     UPDATE cloudkit_sync_quarantine
-    SET status = ?, applied_at = CASE WHEN ? = 'applied' THEN ? ELSE applied_at END, error = ?
+    SET status = ?,
+        applied_at = CASE WHEN ? = 'applied' THEN ? ELSE applied_at END,
+        payload_json = CASE WHEN ? = 'applied' THEN NULL ELSE payload_json END,
+        error = ?
     WHERE id = ?
-  `).run(status, status, now, error || null, row.id);
+  `).run(status, status, now, status, error || null, row.id);
 }
 
 function ensureConversation(payload: Record<string, unknown>, row: QuarantineRow) {
@@ -277,6 +300,49 @@ function applyMessage(payload: Record<string, unknown>, row: QuarantineRow) {
   db.prepare("UPDATE chat_sessions SET updated_at = MAX(updated_at, ?) WHERE id = ?").run(createdAt, conversationId);
 }
 
+type ApprovedCloudKitDeviceKey = {
+  publicKey: string;
+  publicKeyFingerprint: string;
+};
+
+function requireApprovedCloudKitDeviceKey(
+  identity: {
+    deviceId: string;
+    sourceDeviceHash: string;
+    publicKeyFingerprint: string;
+  },
+  now: number,
+): ApprovedCloudKitDeviceKey {
+  const deviceKey = db.prepare(`
+    SELECT
+      public_key as publicKey,
+      public_key_fingerprint as publicKeyFingerprint,
+      status,
+      expires_at as expiresAt,
+      revoked_at as revokedAt,
+      approved_at as approvedAt
+    FROM cloudkit_device_keys
+    WHERE device_id = ? AND device_id_hash = ? AND channel_scope = 'cloudkit-chat'
+  `).get(identity.deviceId, identity.sourceDeviceHash) as {
+    publicKey?: string;
+    publicKeyFingerprint?: string;
+    status?: string;
+    expiresAt?: number;
+    revokedAt?: number | null;
+    approvedAt?: number | null;
+  } | undefined;
+  if (
+    !deviceKey || deviceKey.status !== "active" || Number(deviceKey.expiresAt || 0) <= now ||
+    Number(deviceKey.revokedAt || 0) > 0 || Number(deviceKey.approvedAt || 0) <= 0 ||
+    deviceKey.publicKeyFingerprint !== identity.publicKeyFingerprint ||
+    !deviceKey.publicKey
+  ) throw new Error("CloudKit chat payload is not signed by an active paired device.");
+  return {
+    publicKey: deviceKey.publicKey,
+    publicKeyFingerprint: deviceKey.publicKeyFingerprint || "",
+  };
+}
+
 function applyChatRequest(payload: Record<string, unknown>, row: QuarantineRow, now: number) {
   if (row.requiresUserReview) throw new Error("CloudKit chat request cannot run while marked for manual review.");
   if (!row.contentHash || !/^[a-f0-9]{64}$/i.test(row.contentHash)) throw new Error("CloudKit chat request content hash is invalid.");
@@ -286,27 +352,12 @@ function applyChatRequest(payload: Record<string, unknown>, row: QuarantineRow, 
     mutationId: row.mutationId || undefined,
     logicalClock: Number(row.logicalClock || 0),
   });
-  const deviceKey = db.prepare(`
-    SELECT
-      public_key as publicKey,
-      public_key_fingerprint as publicKeyFingerprint,
-      status,
-      expires_at as expiresAt,
-      revoked_at as revokedAt
-    FROM cloudkit_device_keys
-    WHERE device_id = ? AND device_id_hash = ? AND channel_scope = 'cloudkit-chat'
-  `).get(request.deviceId, request.sourceDeviceHash) as {
-    publicKey?: string;
-    publicKeyFingerprint?: string;
-    status?: string;
-    expiresAt?: number;
-    revokedAt?: number | null;
-  } | undefined;
-  if (
-    !deviceKey || deviceKey.status !== "active" || Number(deviceKey.expiresAt || 0) <= now ||
-    Number(deviceKey.revokedAt || 0) > 0 || deviceKey.publicKeyFingerprint !== request.publicKeyFingerprint ||
-    !deviceKey.publicKey
-  ) throw new Error("CloudKit chat request is not signed by an active paired device.");
+  let deviceKey: ApprovedCloudKitDeviceKey;
+  try {
+    deviceKey = requireApprovedCloudKitDeviceKey(request, now);
+  } catch {
+    throw new Error("CloudKit chat request is not signed by an active paired device.");
+  }
   verifyCloudKitChatRequestSignature(request, deviceKey.publicKey);
   enqueueCloudKitChatRequest(request, {
     recordName: row.recordName,
@@ -314,6 +365,79 @@ function applyChatRequest(payload: Record<string, unknown>, row: QuarantineRow, 
     importedAt: row.importedAt,
     now,
   });
+}
+
+function applyChatReceipt(payload: Record<string, unknown>, row: QuarantineRow, now: number) {
+  if (row.requiresUserReview) throw new Error("CloudKit chat receipt cannot run while marked for manual review.");
+  const receipt = parseCloudKitChatReceiptPayload(payload, {
+    now,
+    recordName: row.recordName,
+    mutationId: row.mutationId || undefined,
+    logicalClock: Number(row.logicalClock || 0),
+  });
+  const deviceKey = requireApprovedCloudKitDeviceKey(receipt, now);
+  verifyCloudKitChatReceiptSignature(receipt, deviceKey.publicKey);
+
+  const job = db.prepare(`
+    SELECT
+      response_id as responseId,
+      source_device_hash as sourceDeviceHash,
+      status,
+      updated_at as updatedAt,
+      response_exported_updated_at as responseExportedUpdatedAt,
+      response_exported_at as responseExportedAt,
+      response_exported_content_hash as responseExportedContentHash,
+      response_consumed_at as responseConsumedAt
+    FROM cloudkit_chat_jobs
+    WHERE request_id = ?
+  `).get(receipt.requestId) as {
+    responseId?: string;
+    sourceDeviceHash?: string;
+    status?: string;
+    updatedAt?: number;
+    responseExportedUpdatedAt?: number | null;
+    responseExportedAt?: number | null;
+    responseExportedContentHash?: string | null;
+    responseConsumedAt?: number | null;
+  } | undefined;
+  if (
+    !job ||
+    !["completed", "failed", "expired"].includes(String(job.status || "")) ||
+    job.responseId !== receipt.responseId ||
+    job.sourceDeviceHash !== receipt.sourceDeviceHash ||
+    Number(job.updatedAt || 0) !== receipt.responseUpdatedAt ||
+    Number(job.responseExportedUpdatedAt || 0) !== receipt.responseUpdatedAt ||
+    Number(job.responseExportedAt || 0) <= 0 ||
+    job.responseExportedContentHash !== receipt.responseContentHash
+  ) throw new Error("CloudKit chat receipt does not match an exported terminal response.");
+
+  const result = db.prepare(`
+    UPDATE cloudkit_chat_jobs
+    SET response_consumed_at = CASE
+      WHEN response_consumed_at IS NULL OR response_consumed_at < ? THEN ?
+      ELSE response_consumed_at
+    END
+    WHERE request_id = ?
+      AND response_id = ?
+      AND source_device_hash = ?
+      AND updated_at = ?
+      AND response_exported_updated_at = ?
+      AND response_exported_content_hash = ?
+      AND status IN ('completed', 'failed', 'expired')
+  `).run(
+    receipt.acknowledgedAt,
+    receipt.acknowledgedAt,
+    receipt.requestId,
+    receipt.responseId,
+    receipt.sourceDeviceHash,
+    receipt.responseUpdatedAt,
+    receipt.responseUpdatedAt,
+    receipt.responseContentHash,
+  ) as { changes?: number };
+  if (Number(result.changes || 0) !== 1) {
+    throw new Error("CloudKit chat receipt could not acknowledge the response.");
+  }
+  queueCloudKitChatRemoteCleanup(receipt.requestId, { now: receipt.acknowledgedAt });
 }
 
 function applyDeviceKey(payload: Record<string, unknown>, row: QuarantineRow, now: number) {
@@ -325,12 +449,31 @@ function applyDeviceKey(payload: Record<string, unknown>, row: QuarantineRow, no
     logicalClock: Number(row.logicalClock || 0),
   });
   const existing = db.prepare(`
-    SELECT logical_clock as logicalClock, public_key_fingerprint as publicKeyFingerprint
+    SELECT
+      logical_clock as logicalClock,
+      public_key_fingerprint as publicKeyFingerprint,
+      status,
+      revoked_at as revokedAt
     FROM cloudkit_device_keys
     WHERE device_id = ?
-  `).get(deviceKey.deviceId) as { logicalClock?: number; publicKeyFingerprint?: string } | undefined;
+  `).get(deviceKey.deviceId) as {
+    logicalClock?: number;
+    publicKeyFingerprint?: string;
+    status?: string;
+    revokedAt?: number | null;
+  } | undefined;
+  if (existing && (existing.status === "revoked" || Number(existing.revokedAt || 0) > 0)) {
+    throw new Error("A revoked CloudKit device key must complete an explicit local rebind.");
+  }
   if (existing && Number(existing.logicalClock || 0) > deviceKey.createdAt) {
     throw new Error("A newer CloudKit device key is already registered.");
+  }
+  if (
+    existing &&
+    Number(existing.logicalClock || 0) === deviceKey.createdAt &&
+    existing.publicKeyFingerprint !== deviceKey.publicKeyFingerprint
+  ) {
+    throw new Error("A CloudKit device key collided with an existing registration.");
   }
   db.prepare(`
     INSERT INTO cloudkit_device_keys (
@@ -344,6 +487,16 @@ function applyDeviceKey(payload: Record<string, unknown>, row: QuarantineRow, no
       display_name = excluded.display_name,
       device_type = 'ios',
       channel_scope = 'cloudkit-chat',
+      approved_at = CASE
+        WHEN cloudkit_device_keys.public_key_fingerprint = excluded.public_key_fingerprint
+          THEN cloudkit_device_keys.approved_at
+        ELSE NULL
+      END,
+      approval_actor = CASE
+        WHEN cloudkit_device_keys.public_key_fingerprint = excluded.public_key_fingerprint
+          THEN cloudkit_device_keys.approval_actor
+        ELSE NULL
+      END,
       public_key = excluded.public_key,
       public_key_fingerprint = excluded.public_key_fingerprint,
       status = 'active',
@@ -376,21 +529,60 @@ function applyDeviceKey(payload: Record<string, unknown>, row: QuarantineRow, no
 
 function applyChatResponse(payload: Record<string, unknown>, row: QuarantineRow) {
   if (row.requiresUserReview) throw new Error("CloudKit chat response cannot be auto-applied while marked for manual review.");
-  const response = parseCloudKitChatResponsePayload(payload);
-  if (row.recordName !== cloudKitChatResponseRecordName(response.requestId)) {
-    throw new Error("CloudKit chat response id does not match its record name.");
+  if (!row.contentHash || !/^[a-f0-9]{64}$/i.test(row.contentHash)) {
+    throw new Error("CloudKit chat response content hash is invalid.");
+  }
+  const response = parseCloudKitChatResponsePayload(payload, {
+    requireMacSignature: true,
+    recordName: row.recordName,
+    mutationId: row.mutationId || undefined,
+    logicalClock: row.logicalClock || undefined,
+  });
+  if (!("macPublicKeyFingerprint" in response)) {
+    throw new Error("CloudKit chat response Mac signature is required.");
+  }
+  const localMacIdentity = getCloudKitMacIdentityPublic();
+  if (response.macPublicKeyFingerprint !== localMacIdentity.publicKeyFingerprint) {
+    throw new Error("CloudKit chat response was signed by an untrusted Mac identity.");
   }
   const job = getCloudKitChatJob(response.requestId);
   if (!job || job.requestContentHash !== response.requestContentHash) {
     throw new Error("CloudKit chat response does not match a local request.");
   }
   const expectedStatus = response.status === "retrying" ? "queued" : response.status;
-  if (job.status !== expectedStatus || job.responseId !== response.responseId) {
+  if (
+    job.status !== expectedStatus ||
+    job.responseId !== response.responseId ||
+    job.updatedAt !== response.updatedAt
+  ) {
     throw new Error("CloudKit chat response conflicts with the local job state.");
   }
   if ((job.assistantMessageId || undefined) !== response.assistantMessageId) {
     throw new Error("CloudKit chat response message does not match the local job.");
   }
+  if (
+    job.responseExportedUpdatedAt === response.updatedAt &&
+    job.responseExportedContentHash &&
+    job.responseExportedContentHash !== row.contentHash.toLowerCase()
+  ) {
+    throw new Error("CloudKit chat response export evidence conflicts with the remote record.");
+  }
+  db.prepare(`
+    UPDATE cloudkit_chat_jobs
+    SET response_exported_updated_at = ?,
+        response_exported_at = COALESCE(response_exported_at, ?),
+        response_exported_content_hash = ?,
+        response_consumed_at = NULL
+    WHERE request_id = ?
+      AND updated_at = ?
+      AND (response_exported_updated_at IS NULL OR response_exported_updated_at < updated_at)
+  `).run(
+    response.updatedAt,
+    row.importedAt,
+    row.contentHash.toLowerCase(),
+    response.requestId,
+    response.updatedAt,
+  );
 }
 
 function validateNativeMemoryCreateMutation(
@@ -707,6 +899,7 @@ function applyChangedRow(row: QuarantineRow, now: number) {
   if (row.recordType === "LifeOSDeviceKey") return applyDeviceKey(payload, row, now);
   if (row.recordType === "LifeOSChatRequest") return applyChatRequest(payload, row, now);
   if (row.recordType === "LifeOSChatResponse") return applyChatResponse(payload, row);
+  if (row.recordType === "LifeOSChatReceipt") return applyChatReceipt(payload, row, now);
   if (row.recordType === "LifeOSMemory" || row.recordType === "LifeOSMemoryTombstone") return applyMemory(payload, row, now);
   if (row.recordType === "LifeOSTask" || row.recordType === "LifeOSTaskTombstone") return applyTask(payload, row);
   if (row.recordType === "LifeOSTaskListSnapshot") return applyTaskListSnapshot(payload, row);
@@ -721,7 +914,7 @@ function promoteReadyZones(touchedZones: Set<string>, now: number) {
   const unresolved = db.prepare(`
     SELECT COUNT(*) as count
     FROM cloudkit_sync_quarantine
-    WHERE zone = ? AND status IN ('pending-review', 'conflict', 'failed')
+    WHERE zone = ? AND status IN ('auto-ready', 'pending-review', 'conflict', 'failed')
   `);
   const promote = db.prepare(`
     UPDATE cloudkit_sync_checkpoints
@@ -744,12 +937,12 @@ function promoteReadyZones(touchedZones: Set<string>, now: number) {
   return { promotedZones, blockedZones };
 }
 
-export function applyCloudKitSyncQuarantine(options: { limit?: number; now?: number; includeManualReview?: boolean } = {}): CloudKitSyncApplyResult {
+export function applyCloudKitSyncQuarantine(options: { limit?: number; now?: number; includeManualReview?: boolean; allowedZones?: string[] } = {}): CloudKitSyncApplyResult {
   const now = options.now || Date.now();
   const statuses = options.includeManualReview ? ["auto-ready", "pending-review"] : ["auto-ready"];
-  const rows = listRows(options.limit || 100, statuses);
+  const rows = listRows(options.limit || 100, statuses, options.allowedZones);
   const records: CloudKitSyncApplyResult["records"] = [];
-  const touchedZones = new Set<string>();
+  const touchedZones = new Set<string>(options.allowedZones || []);
   let applied = 0;
   let manualReviewRequired = 0;
   let conflicts = 0;
@@ -773,11 +966,15 @@ export function applyCloudKitSyncQuarantine(options: { limit?: number; now?: num
         continue;
       }
       try {
+        db.exec("SAVEPOINT cloudkit_apply_row");
         applyChangedRow(row, now);
         setQuarantineStatus(row, "applied", now);
+        db.exec("RELEASE SAVEPOINT cloudkit_apply_row");
         applied += 1;
         records.push({ id: row.id, zone: row.zone, recordType: row.recordType, status: "applied" });
       } catch (error: any) {
+        db.exec("ROLLBACK TO SAVEPOINT cloudkit_apply_row");
+        db.exec("RELEASE SAVEPOINT cloudkit_apply_row");
         const message = String(error?.message || "CloudKit quarantine item could not be applied.").slice(0, 240);
         setQuarantineStatus(row, "conflict", now, message);
         conflicts += 1;

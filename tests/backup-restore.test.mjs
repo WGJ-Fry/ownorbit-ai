@@ -15,6 +15,7 @@ function request(port, pathname, options = {}) {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      Origin: `http://127.0.0.1:${port}`,
       ...(options.headers || {}),
     },
   });
@@ -61,6 +62,7 @@ async function startServer(port, dataDir, extraEnv = {}) {
     env: {
       ...process.env,
       NODE_ENV: "production",
+      LIFEOS_ALLOW_BROWSER_ADMIN_BOOTSTRAP: "1",
       LIFEOS_PORT: String(port),
       LIFEOS_DATA_DIR: dataDir,
       LIFEOS_HOST: "127.0.0.1",

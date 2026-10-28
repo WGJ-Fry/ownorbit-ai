@@ -13,6 +13,7 @@ function request(port, pathname, options = {}) {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      Origin: `http://127.0.0.1:${port}`,
       ...(options.headers || {}),
     },
   });
@@ -35,6 +36,7 @@ function startServer(env) {
     env: {
       ...process.env,
       NODE_ENV: "production",
+      LIFEOS_ALLOW_BROWSER_ADMIN_BOOTSTRAP: "1",
       PUBLIC_BASE_URL: "",
       APP_URL: "",
       ...env,
@@ -213,15 +215,16 @@ test("public mode diagnostics flag weak password, non-HTTPS, and missing backup"
     body: JSON.stringify({ currentPassword: "correct horse battery staple", newPassword: "new strong password 123!" }),
   });
   assert.equal(passwordResponse.status, 200);
+  const refreshedAdminHeaders = cookieHeader(passwordResponse);
 
   const scheduleResponse = await request(port, "/api/v1/backups/schedule", {
     method: "PUT",
-    headers: adminHeaders,
+    headers: refreshedAdminHeaders,
     body: JSON.stringify({ enabled: true, intervalHours: 12 }),
   });
   assert.equal(scheduleResponse.status, 200);
 
-  const improvedDiagnostics = await request(port, "/api/v1/admin/config-diagnostics", { headers: adminHeaders }).then((res) => res.json());
+  const improvedDiagnostics = await request(port, "/api/v1/admin/config-diagnostics", { headers: refreshedAdminHeaders }).then((res) => res.json());
   assert.equal(improvedDiagnostics.securityCheck.items.some((item) => item.id === "password" && item.status === "ok"), true);
   assert.equal(improvedDiagnostics.securityCheck.items.some((item) => item.id === "backup" && item.status === "ok"), true);
   assert.equal(improvedDiagnostics.securityCheck.items.some((item) => item.id === "backupFreshness" && item.status === "ok"), true);
@@ -259,7 +262,7 @@ test("PUBLIC_BASE_URL requires explicit public access opt-in", async (t) => {
   assert.match(result.output, /requires LIFEOS_ALLOW_PUBLIC=1/);
 });
 
-test("quickstart env password login skips onboarding and routes to chat", async (t) => {
+test("quickstart env password login skips onboarding and routes to the desktop console", async (t) => {
   const port = 11410 + Math.floor(Math.random() * 1000);
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-quickstart-login-test-"));
   const { child, output } = startServer({
@@ -287,13 +290,13 @@ test("quickstart env password login skips onboarding and routes to chat", async 
   assert.equal(loginResponse.status, 200);
   const login = await loginResponse.json();
   assert.equal(login.onboardingRequired, false);
-  assert.equal(login.nextPath, "/chat");
+  assert.equal(login.nextPath, "/admin/dashboard");
 
   const adminHeaders = cookieHeader(loginResponse);
   const onboarding = await request(port, "/api/v1/admin/onboarding", { headers: adminHeaders }).then((res) => res.json());
   assert.equal(onboarding.onboarding.required, false);
   assert.equal(onboarding.onboarding.completed, true);
-  assert.equal(onboarding.onboarding.nextPath, "/chat");
+  assert.equal(onboarding.onboarding.nextPath, "/admin/dashboard");
   assert.equal(onboarding.onboarding.steps.every((step) => step.done), true);
 });
 

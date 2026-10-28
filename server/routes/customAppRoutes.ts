@@ -276,6 +276,7 @@ export function registerCustomAppRoutes(app: express.Express) {
       insertAuditLog("custom_app_capabilities_updated", "custom_app", req.params.appId, {
         allowedCapabilities: manifest.allowedCapabilities,
         declaredCapabilities: manifest.declaredCapabilities,
+        allowedNetworkOrigins: manifest.allowedNetworkOrigins,
         riskLevel: manifest.riskLevel,
       }, actor(req)?.type, actor(req)?.id);
       broadcastRealtime({ type: "custom_app.capabilities_updated", appId: req.params.appId, manifest, timestamp: manifest.updatedAt });
@@ -299,6 +300,8 @@ export function registerCustomAppRoutes(app: express.Express) {
         requestId: request.id,
         requestedCapabilities: request.requestedCapabilities,
         missingCapabilities: request.missingCapabilities,
+        requestedNetworkOrigins: request.requestedNetworkOrigins,
+        missingNetworkOrigins: request.missingNetworkOrigins,
         label: request.label,
         risk: request.risk,
         status: request.status,
@@ -321,6 +324,8 @@ export function registerCustomAppRoutes(app: express.Express) {
         requestId: request.id,
         requestedCapabilities: request.requestedCapabilities,
         missingCapabilities: request.missingCapabilities,
+        requestedNetworkOrigins: request.requestedNetworkOrigins,
+        missingNetworkOrigins: request.missingNetworkOrigins,
         label: request.label,
         risk: request.risk,
         status: request.status,

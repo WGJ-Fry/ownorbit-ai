@@ -33,7 +33,7 @@ export default function VoiceModeOverlay({
 
       <div className="text-center relative z-10">
         <h3 className="text-zinc-400 font-bold tracking-widest text-xs uppercase">{t("chat.voice.title")}</h3>
-        <p className="text-[10px] text-zinc-650 font-mono mt-1 text-zinc-500">VOICE OVER INTERFACE v1.4.2</p>
+        <p className="text-[10px] font-mono mt-1 text-zinc-500">{t("chat.voice.subtitle")}</p>
       </div>
 
       <div className="relative flex flex-col items-center justify-center w-full z-10 flex-1 my-4">
@@ -140,7 +140,7 @@ export default function VoiceModeOverlay({
               }
             }}
           />
-          <span className="text-[9px] text-zinc-500 font-bold bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/[0.05] flex-shrink-0">Enter</span>
+          <span className="text-[9px] text-zinc-500 font-bold bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/[0.05] flex-shrink-0">{t("chat.voice.submitKey")}</span>
         </div>
       </div>
 

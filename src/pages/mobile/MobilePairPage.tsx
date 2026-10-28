@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Loader2, RefreshCw, ShieldCheck, Smartphone, XCircle } from "lucide-react";
-import { confirmBinding, reportMobileConnectivity, saveStoredDeviceCredential } from "../../services/lifeosApi";
+import { confirmBinding, confirmDeviceMigration, reportMobileConnectivity, saveStoredDeviceCredential } from "../../services/lifeosApi";
 import { isDeviceSignatureAvailable } from "../../services/deviceKeyStore";
 import { testMobileRemoteConnectivity } from "../../services/pwaCapabilities";
 import type { MobileConnectivityResult } from "../../services/pwaCapabilities";
@@ -9,6 +9,7 @@ import {
   consumePendingPairingTokenAsync,
   extractPairingToken,
   pairingInstallPath,
+  resolvePairingInputDestination,
   savePendingPairingToken,
   setPairingManifestToken,
 } from "../../services/mobilePairingIntent";
@@ -18,9 +19,40 @@ import { useI18n } from "../../i18n/I18nProvider";
 import MobileConnectivityCard from "./MobileConnectivityCard";
 import { handleMobileIcloudHandoffLaunch } from "../../services/mobileIcloudHandoff";
 
+function extractMigrationToken(raw: string) {
+  try {
+    const parsed = new URL(raw, window.location.origin);
+    const value = String(parsed.searchParams.get("migrate") || "").trim();
+    return /^migrate_[A-Za-z0-9_-]{16,64}$/.test(value) ? value : "";
+  } catch {
+    return "";
+  }
+}
+
+// The voucher is single-use and redemption rotates the device credential
+// server-side, so the redeem request must run exactly once per token even
+// when React StrictMode mounts the effect twice. The credential is also saved
+// inside this shared promise: a cancelled first mount must never discard an
+// already-rotated credential.
+let migrationRedeemInFlight: { token: string; promise: Promise<Awaited<ReturnType<typeof confirmDeviceMigration>>> } | null = null;
+
+function redeemMigrationOnce(token: string) {
+  if (migrationRedeemInFlight?.token !== token) {
+    migrationRedeemInFlight = {
+      token,
+      promise: confirmDeviceMigration(token).then(async (credential) => {
+        await saveStoredDeviceCredential(credential);
+        return credential;
+      }),
+    };
+  }
+  return migrationRedeemInFlight.promise;
+}
+
 export default function MobilePairPage() {
   const { t } = useI18n();
   const token = useMemo(() => extractPairingToken(window.location.href), []);
+  const migrationToken = useMemo(() => extractMigrationToken(window.location.href), []);
   const [deviceName, setDeviceName] = useState(() => {
     const platform = navigator.platform || "Mobile";
     return t("mobilePair.defaultDeviceName", { platform });
@@ -36,7 +68,45 @@ export default function MobilePairPage() {
     void handleMobileIcloudHandoffLaunch();
   }, []);
 
+  // Arriving with a migration voucher: redeem it immediately — the user
+  // already confirmed the move on the old origin. On failure fall back to the
+  // normal QR flow with actionable copy.
   useEffect(() => {
+    if (!migrationToken) return;
+    let cancelled = false;
+    setStatus("binding");
+    // redeemMigrationOnce dedupes the request across StrictMode double-mounts
+    // and persists the credential inside the shared promise, so `cancelled`
+    // only ever gates UI state — never the save of a rotated credential.
+    redeemMigrationOnce(migrationToken)
+      .then(() => {
+        if (cancelled) return;
+        window.history.replaceState(null, "", "/mobile/pair");
+        setStatus("bound");
+        setConnectivityBusy(true);
+        testMobileRemoteConnectivity()
+          .then(async (result) => {
+            if (cancelled) return;
+            setConnectivityTest(result);
+            await reportMobileConnectivity(result).catch(() => null);
+          })
+          .catch(() => null)
+          .finally(() => {
+            if (!cancelled) setConnectivityBusy(false);
+          });
+      })
+      .catch((err: any) => {
+        if (cancelled) return;
+        setError(getMobilePairingErrorCopy(err));
+        setStatus("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [migrationToken]);
+
+  useEffect(() => {
+    if (migrationToken) return;
     if (!token) {
       let cancelled = false;
       void consumePendingPairingTokenAsync().then((pendingToken) => {
@@ -54,7 +124,7 @@ export default function MobilePairPage() {
       window.history.replaceState(null, "", installPath);
     }
     return setPairingManifestToken(token);
-  }, [token]);
+  }, [token, migrationToken]);
 
   const handleConfirm = async () => {
     if (!token || !deviceName.trim()) return;
@@ -80,16 +150,18 @@ export default function MobilePairPage() {
   };
 
   const handlePairingLinkSubmit = () => {
-    const nextToken = extractPairingToken(pairingLinkInput);
-    if (!nextToken) {
+    const destination = resolvePairingInputDestination(pairingLinkInput, window.location.origin);
+    if (!destination) {
       setError({
         titleKey: "mobilePair.recoveryInvalidTitle",
         bodyKey: "mobilePair.recoveryInvalidBody",
       });
       return;
     }
-    savePendingPairingToken(nextToken);
-    window.location.assign(pairingInstallPath(nextToken));
+    // An intent saved here only helps a pairing on this origin; another
+    // origin reads the token from the link itself.
+    if (!destination.crossOrigin) savePendingPairingToken(destination.token);
+    window.location.assign(destination.href);
   };
 
   const handleConnectivityTest = async () => {
@@ -126,6 +198,15 @@ export default function MobilePairPage() {
             <a href="/mobile/chat" className="mt-8 inline-flex w-full justify-center rounded-xl bg-cyan-500 py-3 font-bold text-[#061016]">
               {t("mobilePair.enterMobileAi")}
             </a>
+          </div>
+        ) : migrationToken && status === "binding" ? (
+          // Migration in flight: never show the missing-QR error or the
+          // recovery form — its hard navigation would unload the page while
+          // the single-use voucher is being redeemed.
+          <div className="text-center py-8">
+            <Loader2 className="w-12 h-12 animate-spin text-cyan-300 mx-auto mb-5" />
+            <h1 className="text-xl font-bold">{t("mobilePair.migratingTitle")}</h1>
+            <p className="text-sm text-zinc-400 mt-2">{t("mobilePair.migratingBody")}</p>
           </div>
         ) : (
           <>

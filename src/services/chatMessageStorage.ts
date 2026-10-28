@@ -7,7 +7,7 @@ export const defaultChatMessages: Message[] = [
     role: "model",
     parts: [
       {
-        text: "Good morning. I am JARVIS, your intelligent design workshop system.\nDrop code (tsx, vue, py, html, and more) or UI screenshots into the window at any time, and I can redefine or create new interactive controls for you.",
+        text: "Good morning. I am OwnOrbit, your intelligent design workshop system.\nDrop code (tsx, vue, py, html, and more) or UI screenshots into the window at any time, and I can redefine or create new interactive controls for you.",
       },
     ],
   },

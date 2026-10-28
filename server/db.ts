@@ -11,6 +11,19 @@ const pendingRestoreMetaPath = path.join(dataDir, "restore-pending.json");
 const defaultBackupRetentionCount = 20;
 const sensitiveClientStateKey = /api[-_]?key|byok[-_]?key|token|password|passphrase|secret|authorization|cookie|private/i;
 
+function protectPrivatePath(targetPath: string, mode: number) {
+  if (process.platform === "win32" || !fs.existsSync(targetPath)) return;
+  try {
+    fs.chmodSync(targetPath, mode);
+  } catch {}
+}
+
+function protectSqliteFiles() {
+  for (const targetPath of [dbPath, `${dbPath}-wal`, `${dbPath}-shm`, `${dbPath}-journal`]) {
+    protectPrivatePath(targetPath, 0o600);
+  }
+}
+
 function getBackupRetentionCount() {
   const rawValue = process.env.LIFEOS_BACKUP_RETENTION_COUNT;
   if (rawValue === undefined || rawValue === "") return defaultBackupRetentionCount;
@@ -19,8 +32,10 @@ function getBackupRetentionCount() {
   return parsed;
 }
 
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
-if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true, mode: 0o700 });
+protectPrivatePath(dataDir, 0o700);
+protectPrivatePath(backupDir, 0o700);
 
 function removeSqliteSidecars() {
   for (const suffix of ["-wal", "-shm", "-journal"]) {
@@ -33,6 +48,7 @@ function applyPendingRestoreBeforeOpen() {
   if (!fs.existsSync(pendingRestorePath)) return;
   removeSqliteSidecars();
   fs.copyFileSync(pendingRestorePath, dbPath);
+  protectPrivatePath(dbPath, 0o600);
   fs.rmSync(pendingRestorePath, { force: true });
   fs.rmSync(pendingRestoreMetaPath, { force: true });
 }
@@ -67,6 +83,17 @@ db.exec(`
     confirmed_at INTEGER,
     confirmed_device_id TEXT,
     FOREIGN KEY (confirmed_device_id) REFERENCES devices(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS device_migration_vouchers (
+    id TEXT PRIMARY KEY,
+    device_id TEXT NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    target_base_url TEXT,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    used_at INTEGER,
+    FOREIGN KEY (device_id) REFERENCES devices(id)
   );
 
   CREATE TABLE IF NOT EXISTS device_connectivity_reports (
@@ -150,6 +177,16 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_cloudkit_sync_quarantine_record
     ON cloudkit_sync_quarantine (zone, record_type, record_name);
+
+  CREATE TABLE IF NOT EXISTS cloudkit_chat_conversation_owners (
+    conversation_id TEXT PRIMARY KEY,
+    source_device_hash TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    last_seen_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_cloudkit_chat_conversation_owners_device
+    ON cloudkit_chat_conversation_owners (source_device_hash, last_seen_at DESC);
 
   CREATE TABLE IF NOT EXISTS cloudkit_device_trust_metadata (
     device_id_hash TEXT PRIMARY KEY,
@@ -243,7 +280,10 @@ db.exec(`
     created_at INTEGER NOT NULL,
     expires_at INTEGER NOT NULL,
     last_seen_at INTEGER NOT NULL,
-    revoked_at INTEGER
+    revoked_at INTEGER,
+    credential_source TEXT NOT NULL DEFAULT 'db',
+    credential_version INTEGER NOT NULL DEFAULT 0,
+    revoked_reason TEXT
   );
 
   CREATE TABLE IF NOT EXISTS client_state (
@@ -271,6 +311,7 @@ db.exec(`
     applied_at INTEGER NOT NULL
   );
 `);
+protectSqliteFiles();
 
 function tableColumns(tableName: string) {
   return new Set(db.prepare(`PRAGMA table_info(${tableName})`).all().map((column) => String(column.name)));
@@ -313,9 +354,25 @@ export function applyMigration(version: number, name: string, sql: string) {
     return true;
   } catch (error) {
     if (error instanceof Error && /duplicate column name/i.test(error.message)) {
-      db.prepare("INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)").run(version, name, Date.now());
-      db.exec("COMMIT");
-      return false;
+      db.exec("ROLLBACK");
+      db.exec("BEGIN");
+      try {
+        for (const statement of sql.split(";").map((item) => item.trim()).filter(Boolean)) {
+          try {
+            db.exec(`${statement};`);
+          } catch (statementError) {
+            if (!(statementError instanceof Error) || !/duplicate column name/i.test(statementError.message)) {
+              throw statementError;
+            }
+          }
+        }
+        db.prepare("INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)").run(version, name, Date.now());
+        db.exec("COMMIT");
+        return false;
+      } catch (repairError) {
+        db.exec("ROLLBACK");
+        throw repairError;
+      }
     }
     db.exec("ROLLBACK");
     throw error;
@@ -409,6 +466,7 @@ export function createDatabaseBackup(options: { prune?: boolean; protectedFiles?
   db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
   const { file, targetPath } = createBackupFileName();
   fs.copyFileSync(dbPath, targetPath);
+  protectPrivatePath(targetPath, 0o600);
   const redaction = sanitizeBackupFile(targetPath);
   const stat = fs.statSync(targetPath);
   if (options.prune !== false) {
@@ -460,6 +518,7 @@ export function scheduleDatabaseRestore(file: string) {
   db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
   const preRestore = createDatabaseBackup({ prune: false });
   fs.copyFileSync(sourcePath, pendingRestorePath);
+  protectPrivatePath(pendingRestorePath, 0o600);
   pruneBackups([safeFile, preRestore.file]);
   const restore = {
     restoredFrom: safeFile,
@@ -468,7 +527,8 @@ export function scheduleDatabaseRestore(file: string) {
     scheduledForNextStart: true,
     restartRequired: true,
   };
-  fs.writeFileSync(pendingRestoreMetaPath, JSON.stringify(restore, null, 2));
+  fs.writeFileSync(pendingRestoreMetaPath, JSON.stringify(restore, null, 2), { mode: 0o600 });
+  protectPrivatePath(pendingRestoreMetaPath, 0o600);
   return restore;
 }
 

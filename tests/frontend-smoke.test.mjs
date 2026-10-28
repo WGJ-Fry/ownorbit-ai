@@ -212,9 +212,20 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(serviceWorker, /SHELL_ASSETS/);
   assert.match(serviceWorker, /extractBuildAssets/);
   assert.match(serviceWorker, /cacheBuildAssets/);
+  assert.match(serviceWorker, /extractManifestAssets/);
+  assert.match(serviceWorker, /cacheManifestAssets/);
+  assert.match(serviceWorker, /asset-manifest\.json/);
   assert.match(serviceWorker, /html\.match\(/);
   assert.match(serviceWorker, /assets/);
   assert.match(serviceWorker, /withBasePath\("\/"\)/);
+
+  const assetManifestResponse = await request(port, "/asset-manifest.json");
+  assert.equal(assetManifestResponse.status, 200);
+  assert.match(assetManifestResponse.headers.get("content-type") || "", /json/);
+  const assetManifest = await assetManifestResponse.json();
+  const buildFiles = Object.values(assetManifest).map((entry) => entry.file);
+  assert.ok(buildFiles.some((file) => /translations-zh-CN/.test(file)));
+  assert.ok(buildFiles.some((file) => /translations-en-US/.test(file)));
   assert.match(serviceWorker, /cache\.addAll\(buildAssets\)/);
   assert.match(serviceWorker, /\/mobile\/chat/);
   assert.match(serviceWorker, /\/mobile\/device/);
@@ -236,7 +247,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mainSource, /window\.location\.reload\(\)/);
   assert.match(mainSource, /registration\.update\(\)/);
   assert.match(mainSource, /LIFEOS_SKIP_WAITING/);
-  assert.match(mainSource, /basename=\{lifeosBasePath \|\| undefined\}/);
+  assert.match(mainSource, /function currentLifeOSPath\(\)/);
+  assert.match(mainSource, /pathname\.startsWith\(`\$\{basePath\}\/`\)/);
+  assert.match(mainSource, /pathname\.slice\(basePath\.length\)/);
+  assert.match(mainSource, /\$\{basePath\}\$\{routePath\}\$\{window\.location\.search\}\$\{window\.location\.hash\}/);
   assert.match(mainSource, /navigator\.serviceWorker\.register\(`\$\{lifeosBasePath\}\/sw\.js`/);
 
   const indexHtmlSource = await readFile(path.join(rootDir, "index.html"), "utf8");
@@ -278,6 +292,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(appSource, /resolveChatStateChanges\(stateChanges\)/);
   assert.match(appSource, /loadStoredChatMessages/);
   assert.match(appSource, /persistStoredChatMessages/);
+  assert.match(appSource, /loadStoredChatDraft/);
+  assert.match(appSource, /persistStoredChatDraft/);
+  assert.match(appSource, /chat\.attachmentTooLarge/);
+  assert.match(appSource, /formatChatError/);
+  assert.match(appSource, /chat\.aiNotConfigured/);
+  assert.doesNotMatch(appSource, /err instanceof Error \? err\.message/);
   assert.doesNotMatch(appSource, /localStorage\.getItem\("lifeos_messages"/);
   assert.doesNotMatch(appSource, /localStorage\.setItem\("lifeos_messages"/);
 
@@ -285,6 +305,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(chatMessageStorageSource, /parseStoredChatMessages/);
   assert.match(chatMessageStorageSource, /defaultChatMessages/);
   assert.match(chatMessageStorageSource, /catch/);
+  const chatDraftStorageSource = await readFile(path.join(rootDir, "src", "services", "chatDraftStorage.ts"), "utf8");
+  assert.match(chatDraftStorageSource, /MAX_CHAT_DRAFT_IMAGE_BYTES/);
+  assert.match(chatDraftStorageSource, /removeItem\(CHAT_DRAFT_STORAGE_KEY\)/);
 
   const chatPersistenceSource = await readFile(path.join(rootDir, "src", "hooks", "useChatPersistence.ts"), "utf8");
   const chatSessionStorageSource = await readFile(path.join(rootDir, "src", "services", "chatSessionStorage.ts"), "utf8");
@@ -319,7 +342,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(chatStateChangesSource, /OPEN_APP/);
   assert.match(chatStateChangesSource, /REQUEST_APP_GENERATION/);
   assert.match(chatStateChangesSource, /widgetArgKeys/);
-  const translationsSource = await readFile(path.join(rootDir, "src", "i18n", "translations.ts"), "utf8");
+  const translationsSource = (await Promise.all([
+    "translations.ts",
+    "translations.zh-CN.ts",
+    "translations.en-US.ts",
+  ].map((file) => readFile(path.join(rootDir, "src", "i18n", file), "utf8")))).join("\n");
   const systemActionsAppSource = await readFile(path.join(rootDir, "src", "components", "apps", "SystemActionsApp.tsx"), "utf8");
   const systemActionsServiceSource = await readFile(path.join(rootDir, "src", "services", "systemActions.ts"), "utf8");
   const problemBlueprintSource = await readFile(path.join(rootDir, "src", "services", "problemBlueprint.ts"), "utf8");
@@ -523,6 +550,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(loginSource, /auth\.forgotPassword/);
   assert.match(loginSource, /auth\.resetPasswordSubmit/);
   assert.match(loginSource, /auth\.invalidPassword/);
+  assert.equal(loginSource.includes('"/chat"'), false, "desktop login must return to an admin route");
   assert.match(loginSource, /publicRiskItems\.slice\(0, 4\)\.map/);
   assert.match(loginSource, /auth\.mustFix/);
   assert.match(loginSource, /item\.action/);
@@ -542,6 +570,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.alreadyDefault/);
   assert.match(onboardingSource, /aiKey\.modelCatalogUpdated/);
   assert.match(onboardingSource, /modelCatalogUpdated/);
+  assert.match(onboardingSource, /result\.selectedModelAvailable === false/);
+  assert.match(onboardingSource, /retryOnboardingLoad/);
+  assert.match(onboardingSource, /await refresh\(\)/);
   assert.match(onboardingSource, /primaryStep/);
   assert.match(onboardingSource, /primaryProgress/);
   assert.match(onboardingSource, /onboarding\.simpleAiTitle/);
@@ -677,6 +708,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.simpleIcloudOpenQr/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudRegenerate/);
   assert.match(onboardingSource, /onboarding\.simpleStartChat/);
+  assert.match(onboardingSource, /\/admin\/dashboard/);
+  assert.equal(onboardingSource.includes('"/chat"'), false, "desktop onboarding must finish in the admin console");
   assert.match(onboardingSource, /onboarding\.simpleAdvancedSummary/);
   assert.match(onboardingSource, /<details/);
   assert.match(onboardingSource, /onboarding\.localEndpointLabel/);
@@ -1141,6 +1174,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /icloudDataSyncStatusKeys/);
   assert.match(adminSettingsPageSource, /CloudKitDeviceTrustPanel/);
   assert.match(cloudKitDeviceTrustPanelSource, /getCloudKitDeviceTrustMetadata\(20\)/);
+  assert.match(cloudKitDeviceTrustPanelSource, /getCloudKitChatDevices\(20\)/);
+  assert.match(cloudKitDeviceTrustPanelSource, /approveCloudKitChatDevice/);
+  assert.match(cloudKitDeviceTrustPanelSource, /revokeCloudKitChatDevice/);
+  assert.match(cloudKitDeviceTrustPanelSource, /settings\.cloudKitChatDeviceApprove/);
   assert.match(cloudKitDeviceTrustPanelSource, /settings\.cloudKitDeviceTrustSafeBoundary/);
   assert.match(cloudKitDeviceTrustPanelSource, /\/admin\/devices\/pair/);
   assert.match(lifeosApiSource, /CloudKitDeviceTrustMetadataItem/);
@@ -1295,6 +1332,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   const onboardingHandoffSource = await readFile(path.join(rootDir, "src", "pages", "admin", "OnboardingHandoffCard.tsx"), "utf8");
   assert.match(onboardingHandoffSource, /onboarding\.handoffChatTitle/);
   assert.match(onboardingHandoffSource, /onboarding\.copyHandoffSummary/);
+  assert.match(onboardingHandoffSource, /\/admin\/devices\/pair/);
+  assert.equal(onboardingHandoffSource.includes('"/chat"'), false, "desktop handoff must send chat setup to the phone pairing route");
   assert.match(onboardingHandoffSource, /\/admin\/settings#mobile-connect/);
   const mobileIcloudHandoffSource = await readFile(path.join(rootDir, "src", "services", "mobileIcloudHandoff.ts"), "utf8");
   assert.match(mobileIcloudHandoffSource, /lifeosEntry/);
@@ -1326,9 +1365,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /开启每日自动备份/);
   assert.match(translationsSource, /长期使用建议开启自动备份/);
   assert.match(translationsSource, /还不能完成向导/);
-  assert.match(translationsSource, /进入聊天后先发送一条测试消息/);
+  assert.match(translationsSource, /在手机端先发送一条测试消息/);
   assert.match(translationsSource, /The guide cannot be finished yet/);
-  assert.match(translationsSource, /send one test message first/);
+  assert.match(translationsSource, /Send one test message from the phone/);
   assert.match(translationsSource, /打开日志文件夹/);
   assert.match(translationsSource, /导出诊断包/);
   assert.match(translationsSource, /必须处理/);
@@ -1346,11 +1385,43 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileChatSource, /recoveringPairingIntent/);
   assert.match(mobileChatSource, /mobile\.recoveringPairing/);
   assert.match(mobileChatSource, /mobile\.realtimeOfflineBody/);
+  assert.doesNotMatch(translationsSource, /聊天会继续保存在本机离线队列里/);
+  assert.doesNotMatch(translationsSource, /Chats will stay in this phone's offline queue/);
+  assert.match(mobileChatSource, /isTemporaryEntryLikelyLost/);
+  assert.match(mobileChatSource, /mobile\.temporaryEntryLostBody/);
+  // The lost-address hint waits for two minutes of failure, not a count of
+  // quick retries, and its pill only links to the steps on the device page.
+  assert.match(mobileChatSource, /failingSince/);
+  assert.match(mobileChatSource, /TEMPORARY_ENTRY_LOST_AFTER_MS/);
+  assert.doesNotMatch(mobileChatSource, /failedAttempts: retryAttempt/);
+  assert.match(realtimeHookSource, /failingSince/);
+  assert.match(mobileChatSource, /mobile\.temporaryEntryLostAction/);
+  assert.match(translationsSource, /"mobile\.temporaryEntryLostTitle": "这个临时地址可能已失效"/);
+  assert.match(translationsSource, /"mobile\.temporaryEntryLostTitle": "Temporary address may have changed"/);
+  assert.match(translationsSource, /"mobile\.temporaryEntryLostAction": "查看处理步骤"/);
+  assert.match(translationsSource, /"mobile\.temporaryEntryLostAction": "See what to do"/);
+  assert.doesNotMatch(translationsSource, /也不会自动恢复/);
+  assert.doesNotMatch(translationsSource, /很可能已经失效/);
+  assert.doesNotMatch(translationsSource, /has probably changed/);
+  assert.doesNotMatch(translationsSource, /对话记录保存在电脑上，不会因此丢失/);
+  assert.doesNotMatch(translationsSource, /conversation history is stored on the computer and is not lost/);
+  assert.match(translationsSource, /已经发到电脑上的消息会留在电脑上，可以在电脑端 OwnOrbit 里查看；手机上的新页面会从一个新对话开始/);
+  assert.match(translationsSource, /Messages that already reached the computer stay there and can be viewed in the desktop app; the new page on this phone starts a new chat/);
+  assert.match(mobileChatSource, /resolvePairingInputDestination/);
+  assert.match(mobileChatSource, /if \(!destination\.crossOrigin\) savePendingPairingToken\(destination\.token\);/);
+  assert.doesNotMatch(translationsSource, /下次启动会自动创建新的 Tunnel/);
+  assert.doesNotMatch(translationsSource, /next launch will create a fresh Tunnel/);
   assert.match(mobileChatSource, /mobile\.openDeviceConnection/);
   assert.match(mobileChatSource, /\/mobile\/device/);
   assert.match(translationsSource, /正在恢复添加到桌面时保存的绑定信息/);
-  assert.match(translationsSource, /打开设备与连接，可以测试当前入口/);
-  assert.match(translationsSource, /Open Device & Connection to test the current entry/);
+  // Voice mode puts unsent commands in the chat and the queue, not the input
+  // box, so the pill only promises the box for typed messages and photos.
+  assert.match(translationsSource, /"mobile\.realtimeOfflineBody": "打字和图片没发出去会留在输入框里，连上后再点发送。"/);
+  assert.match(translationsSource, /"mobile\.realtimeOfflineBody": "Typed messages and photos that didn't send stay in the input box; send again once reconnected\."/);
+  // The lost hint links straight to the steps card, and going offline drops
+  // the hint at once instead of at the next reconnect attempt.
+  assert.match(mobileChatSource, /`\/mobile\/device#\$\{TEMPORARY_ENTRY_STEPS_ANCHOR\}`/);
+  assert.match(mobileChatSource, /window\.addEventListener\("offline", handleOffline\)/);
   assert.match(mobileChatSource, /launchPairingToken/);
   assert.match(mobileChatSource, /setPairingManifestToken/);
   assert.match(mobileChatSource, /pairingInstallPath/);
@@ -1448,7 +1519,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileToolsSource, /openApp=\$\{encodeURIComponent\(app\.id\)\}/);
   assert.match(mobileChatSource, /\/mobile\/tools/);
   assert.match(mainSource, /MobileToolsPage/);
-  assert.match(mainSource, /path="\/mobile\/tools"/);
+  assert.match(mainSource, /case "\/mobile\/tools":/);
   assert.match(translationsSource, /最近生成的解决程序/);
   assert.match(translationsSource, /Recently Generated Problem-Solving Tools/);
   assert.match(translationsSource, /我的解决程序/);
@@ -1635,6 +1706,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceSource, /testMobileRemoteConnectivity/);
   assert.match(mobileDeviceSource, /reportMobileConnectivity/);
   assert.match(mobileDeviceSource, /getLatestMobileConnectivityReport/);
+  assert.match(mobileDeviceSource, /healthResult\.status === "fulfilled" \|\| reportResult\.status === "fulfilled"/);
+  assert.match(mobileDeviceSource, /mobileDevice\.serverStateRefreshFailed/);
   assert.match(mobileDeviceSource, /lastConnectivityReport/);
   assert.match(mobileDeviceSource, /mobileConnectivityResultFromReport/);
   assert.match(mobileDeviceSource, /connectivityReportStale/);
@@ -1695,7 +1768,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /打开 Tailscale/);
   assert.match(translationsSource, /重新绑定远程入口/);
   assert.match(translationsSource, /离线消息同步失败/);
-  assert.match(translationsSource, /临时 Cloudflare Tunnel 很可能已失效/);
+  assert.match(translationsSource, /临时 Cloudflare Tunnel 连不上：如果电脑只是睡眠或断网，唤醒并联网后会恢复/);
   assert.match(translationsSource, /Tailscale 通路不可达/);
   assert.match(translationsSource, /只有实时通道失败/);
   assert.match(translationsSource, /实时聊天通道/);
@@ -1710,6 +1783,58 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /add OwnOrbit to the home screen/);
 
   const pwaCapabilitiesSource = await readFile(path.join(rootDir, "src", "services", "pwaCapabilities.ts"), "utf8");
+  // The offline queue only holds messages already shown in the chat whose
+  // save to the desktop failed (voice mode, or replies whose save failed). A
+  // typed message or photo that can't be sent is not queued: it stays in the
+  // input box. No copy may promise that offline sends enter the queue.
+  for (const queuePromise of [
+    /之后断网发送/,
+    /断网发送可能丢失/,
+    /继续离线发送/,
+    /发送失败时会进入离线队列/,
+    /消息会先留在本地队列/,
+    /消息会先进入本地队列/,
+    /发送后看一下队列状态/,
+    /发送重要内容后检查队列/,
+    /离线保护已开启/,
+    /Future offline sends/,
+    /future offline messages will appear here/,
+    /Sends made offline may be lost/,
+    /More offline sends/,
+    /Failed sends will enter the offline queue/,
+    /Messages stay in the local queue/,
+    /Messages will enter the local queue/,
+    /check queue status after sending/,
+    /Check the queue after important sends/,
+    /Offline Protection Is Active/,
+  ]) {
+    assert.doesNotMatch(translationsSource, queuePromise);
+    assert.doesNotMatch(pwaCapabilitiesSource, queuePromise);
+  }
+  assert.match(translationsSource, /只有已经显示在对话里、但没能保存到电脑的消息（例如语音模式里的消息，或保存失败的回复）/);
+  assert.match(translationsSource, /Only messages already shown in the chat that fail to save to the computer \(such as voice-mode messages, or replies whose save failed\)/);
+  assert.match(pwaCapabilitiesSource, /You are offline\. Typed messages and photos can't be sent and stay in the input box/);
+  const desktopReleaseDoc = await readFile(path.join(rootDir, "docs", "desktop-release.md"), "utf8");
+  assert.doesNotMatch(desktopReleaseDoc, /failed messages remain in the offline queue/);
+  assert.match(desktopReleaseDoc, /A typed message or photo that cannot be sent is not queued/);
+  // A quick tunnel does not "change after restart": it stops working when the
+  // desktop app or the computer restarts or the tunnel stops, and nothing
+  // recreates it.
+  for (const restartPromise of [
+    /重启后地址可能变化/,
+    /服务重启后地址可能变化/,
+    /可能会在电脑端重启后失效/,
+    /它可能已经过期/,
+    /may change after restart/,
+    /may change after the service restarts/,
+    /may stop working after the desktop restarts/,
+    /It may have expired/,
+    /likely expired/,
+  ]) {
+    assert.doesNotMatch(translationsSource, restartPromise);
+  }
+  assert.match(pwaCapabilitiesSource, /isTemporaryCloudflareOrigin/);
+  assert.match(pwaCapabilitiesSource, /TEMPORARY_ENTRY_LOST_AFTER_MS = 2 \* 60 \* 1000/);
   assert.match(pwaCapabilitiesSource, /serviceWorkerControlled/);
   assert.match(pwaCapabilitiesSource, /backgroundSyncSupported/);
   assert.match(pwaCapabilitiesSource, /indexedDbSupported/);
@@ -1729,6 +1854,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(pwaCapabilitiesSource, /\/api\/v1\/ws/);
   const dashboardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminDashboardPage.tsx"), "utf8");
   assert.match(dashboardSource, /connectivityReport/);
+  assert.match(dashboardSource, /getCloudKitChatDevices\(10\)/);
+  assert.match(dashboardSource, /PendingCloudKitDeviceApproval/);
+  const pendingCloudKitDeviceApprovalSource = await readFile(path.join(rootDir, "src", "pages", "admin", "PendingCloudKitDeviceApproval.tsx"), "utf8");
+  assert.match(pendingCloudKitDeviceApprovalSource, /dashboard-cloudkit-phone-approval/);
   const deviceConnectivityStatusSource = await readFile(path.join(rootDir, "src", "pages", "admin", "DeviceConnectivityStatus.tsx"), "utf8");
   assert.match(deviceConnectivityStatusSource, /mobileShellOk/);
   assert.match(deviceConnectivityStatusSource, /dashboard\.mobileConnectivityChecks/);
@@ -1852,7 +1981,19 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(studioSandboxSource, /request-action/);
   assert.match(studioSandboxSource, /request-capability/);
   assert.match(studioSandboxSource, /lifeos-custom-app-host/);
+  assert.match(studioSandboxSource, /STUDIO_IFRAME_SANDBOX = "allow-scripts"/);
+  assert.doesNotMatch(studioSandboxSource, /allow-scripts allow-forms/);
+  assert.match(studioSandboxSource, /Content-Security-Policy/);
+  assert.match(studioSandboxSource, /connect-src/);
+  assert.match(studioSandboxSource, /form-action 'none'/);
+  assert.match(studioSandboxSource, /networkCapabilityError/);
+  assert.match(studioSandboxSource, /tailwindcss\.com\/3\.4\.17/);
+  assert.match(studioSandboxSource, /alpinejs@3\.14\.9/);
+  assert.match(studioSandboxSource, /chart\.js@4\.4\.7/);
   assert.match(customAppFrameSource, /getCustomAppState/);
+  assert.match(customAppFrameSource, /getCustomAppCapabilityManifest/);
+  assert.match(customAppFrameSource, /allowedNetworkOrigins/);
+  assert.match(customAppFrameSource, /manifest\.allowedNetworkOrigins/);
   assert.match(customAppFrameSource, /saveCustomAppState/);
   assert.match(customAppFrameSource, /createCustomAppRuntimeEvent/);
   assert.match(customAppFrameSource, /createCustomAppActionRequest/);
@@ -1885,7 +2026,20 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(chatPersistenceSource, /deviceIdHint/);
   assert.match(chatPersistenceSource, /networkQuality/);
   assert.match(mobileDeviceSource, /navigator\.clipboard\.writeText/);
-  assert.match(mobileDeviceSource, /pairingInstallPath/);
+  assert.match(mobileDeviceSource, /resolvePairingInputDestination/);
+  // Same-origin re-pairing saves the token as a pending intent before the
+  // credential is cleared; another origin never clears it.
+  assert.match(mobileDeviceSource, /if \(!destination\.crossOrigin\) \{[\s\S]{0,240}await savePendingPairingToken\(destination\.token\);\s*if \(options\.clearCurrent\) await clearStoredDeviceCredential\(\);/);
+  assert.match(mobileDeviceSource, /MobileTemporaryEntryCard/);
+  // The steps card sits below the one-tap migration card and stays folded
+  // unless the chat pill sent the user to it.
+  assert.ok(mobileDeviceSource.indexOf("<MobileEndpointMigrationCard") < mobileDeviceSource.indexOf("<MobileTemporaryEntryCard"));
+  // Migration needs a voucher from this origin, so it is only offered once
+  // this session has reached the computer through it.
+  // A passing test after the page loaded on a dead origin brings it back.
+  assert.match(mobileDeviceSource, /<MobileEndpointMigrationCard active=\{connectivityTest \? connectivityTest\.ok : Boolean\(health\)\} \/>/);
+  assert.match(mobileDeviceSource, /<MobileTemporaryEntryCard explainAddress=\{currentEntry\.kind !== "temporary-cloudflare"\} \/>/);
+  assert.match(mobileDeviceSource, /isTemporaryCloudflareOrigin\(\)/);
   assert.doesNotMatch(mobileDeviceSource, /window\.location\.href = `\/mobile\/pair\?token=/);
   assert.match(mobileDeviceSource, /getOfflineMessageQueueStorageStatus/);
   assert.match(mobileDeviceSource, /MobileOfflineQueuePanel/);
@@ -2075,7 +2229,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileCustomAppActionsPanelSource, /getCustomAppActionPolicy\(app\.id\)/);
   assert.match(mobileCustomAppActionsPanelSource, /getCustomAppCapabilityManifest\(app\.id\)/);
   assert.match(mobileCustomAppActionsPanelSource, /updateCustomAppActionPolicy\(appId, \{ template \}\)/);
-  assert.match(mobileCustomAppActionsPanelSource, /updateCustomAppCapabilityManifest\(appId, \{ allowedCapabilities: nextCapabilities \}\)/);
+  assert.match(
+    mobileCustomAppActionsPanelSource,
+    /updateCustomAppCapabilityManifest\(appId, \{ allowedCapabilities: nextCapabilities, allowedNetworkOrigins \}\)/,
+  );
+  assert.match(mobileCustomAppActionsPanelSource, /allowedNetworkOrigins\.length === 0/);
   assert.match(mobileCustomAppActionsPanelSource, /decideCustomAppCapabilityRequest/);
   assert.match(mobileCustomAppActionsPanelSource, /decideCustomAppActionRequest\(request\.appId, request\.id, "cancelled"/);
   assert.match(mobileCustomAppActionsPanelSource, /customAppActions\.title/);
@@ -2379,32 +2537,60 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(cloudflareTunnelActionsSource, /disabled=\{!canStart \|\| tunnelBusy === "start"\}/);
   assert.match(cloudflareTunnelActionsSource, /connection\.cloudflareInstallRequired/);
   assert.match(cloudflareTunnelActionsSource, /cloudflare\.installCommand/);
+  // The server keeps a quick tunnel's URL after cloudflared exits; "running"
+  // copy needs running && ready, and a dead one says it stopped.
+  assert.match(cloudflareTunnelActionsSource, /managed\.kind !== "named" && managed\.running && managed\.ready/);
+  assert.match(cloudflareTunnelActionsSource, /connection\.cloudflareManagedStopped/);
+  assert.doesNotMatch(cloudflareTunnelActionsSource, /\{cloudflare\.managed\.url \? \(/);
+  assert.match(translationsSource, /"connection\.cloudflareManagedStopped": "临时 Tunnel \{\{url\}\} 已停止，这个地址不会自己恢复。/);
+  assert.match(translationsSource, /"connection\.cloudflareManagedStopped": "The temporary tunnel \{\{url\}\} has stopped and will not come back by itself\./);
 
   const devicePairSource = await readFile(path.join(rootDir, "src", "pages", "admin", "DevicePairPage.tsx"), "utf8");
   assert.match(devicePairSource, /connectionCandidates/);
-  assert.match(devicePairSource, /candidate\.mode !== "local"/);
+  assert.match(devicePairSource, /eligiblePhonePairingCandidates/);
+  assert.doesNotMatch(devicePairSource, /networkDiagnostics\.recommendedBaseUrl/);
   assert.match(devicePairSource, /devicePair\.noReachableAddress/);
   assert.match(devicePairSource, /devicePair\.openConnectionGuide/);
   assert.match(devicePairSource, /testConnectionUrl/);
   assert.match(devicePairSource, /devicePair\.testCurrent/);
+  assert.match(devicePairSource, /devicePair\.tailscalePhoneRequiredTitle/);
+  assert.match(devicePairSource, /activeCandidate\?\.mode === "tailscale"/);
   assert.match(devicePairSource, /connection\.secureRecommended/);
   assert.match(devicePairSource, /connection\.trustedNetworkOnly/);
   assert.match(devicePairSource, /connection\.restartBadge/);
   assert.match(devicePairSource, /activeCandidate\.envTemplate/);
-  assert.match(devicePairSource, /activeCandidate\.restartInstruction/);
+  assert.doesNotMatch(devicePairSource, /activeCandidate\.restartInstruction/);
+  assert.doesNotMatch(devicePairSource, /activeCandidate\.notes\[0\]/);
+  assert.match(devicePairSource, /candidateLabelKey/);
+  assert.match(devicePairSource, /candidateNoteKey/);
   assert.match(devicePairSource, /copiedEnv/);
   assert.match(devicePairSource, /devicePair\.copyEnv/);
   assert.match(devicePairSource, /devicePair\.restartTitle/);
   assert.match(devicePairSource, /devicePair\.temporaryTitle/);
   assert.match(devicePairSource, /devicePair\.temporaryBody/);
+
+  const electronInstallSource = await readFile(path.join(rootDir, "scripts", "install-electron.mjs"), "utf8");
+  assert.match(electronInstallSource, /packageJson\.devDependencies\?\.electron/);
+  assert.doesNotMatch(electronInstallSource, /\|\| "42\.3\.3"/);
   assert.match(devicePairSource, /formatDevicePairingCreateError/);
   assert.match(devicePairSource, /DevicePairConnectionTestResult/);
+  assert.match(devicePairSource, /setClockNow\(Date\.now\(\)\)/);
+  assert.match(devicePairSource, /Date\.now\(\) >= session\.expiresAt/);
+  assert.match(devicePairSource, /devicePair\.expiredBody/);
+  const devicePairConnectionResultSource = await readFile(path.join(rootDir, "src", "pages", "admin", "DevicePairConnectionTestResult.tsx"), "utf8");
+  assert.match(devicePairConnectionResultSource, /visibleFailure/);
+  assert.doesNotMatch(devicePairConnectionResultSource, /result\.error \|\| `HTTP/);
+  const voiceModeSource = await readFile(path.join(rootDir, "src", "components", "chat", "VoiceModeOverlay.tsx"), "utf8");
+  assert.match(voiceModeSource, /chat\.voice\.submitKey/);
+  assert.doesNotMatch(voiceModeSource, />Enter</);
   const devicePairingErrorsSource = await readFile(path.join(rootDir, "src", "services", "devicePairingErrors.ts"), "utf8");
   assert.match(devicePairingErrorsSource, /binding_session_create_failed/);
   assert.match(devicePairingErrorsSource, /devicePair\.createFailedRestart/);
   const devicePairingErrorsTestSource = await readFile(path.join(rootDir, "tests", "device-pairing-errors.test.mjs"), "utf8");
   assert.match(devicePairingErrorsTestSource, /device pairing QR creation errors become actionable copy/);
   assert.match(translationsSource, /devicePair\.createFailedRestart/);
+  assert.match(translationsSource, /现在只做这一步：在 iPhone 打开 Tailscale/);
+  assert.match(translationsSource, /Do this now: open Tailscale on the iPhone/);
   assert.match(translationsSource, /The QR code was not created/);
   const devicePairConnectionTestSource = await readFile(path.join(rootDir, "src", "pages", "admin", "DevicePairConnectionTestResult.tsx"), "utf8");
   assert.match(devicePairConnectionTestSource, /devicePair\.testStep\.health/);
@@ -2445,6 +2631,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Next step: install cloudflared first/);
 
   const adminDashboardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminDashboardPage.tsx"), "utf8");
+  assert.match(adminDashboardSource, /dashboard\.mobileChatTitle/);
+  assert.match(adminDashboardSource, /dashboard\.openPhoneQr/);
+  assert.equal(adminDashboardSource.includes('"/chat"'), false, "desktop dashboard must not promote the consumer chat route");
   assert.match(adminDashboardSource, /dashboard\.publicRiskTitle/);
   assert.match(adminDashboardSource, /health\.publicRisk\.items\.map/);
   assert.match(adminDashboardSource, /dashboard\.openSecuritySettings/);
@@ -2568,6 +2757,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(aiKeyPanelSource, /updateAiProviderModel/);
   assert.match(aiKeyPanelSource, /testAiProvider/);
   assert.match(aiKeyPanelSource, /testAiProvider\(selectedProvider, "live"\)/);
+  assert.match(aiKeyPanelSource, /result\.selectedModelAvailable !== false/);
   assert.match(aiKeyPanelSource, /aiKey\.testConfigOk/);
   assert.match(aiKeyPanelSource, /aiKey\.testConfigOnly/);
   assert.match(aiKeyPanelSource, /aiKey\.testLiveOk/);
@@ -2596,6 +2786,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /aiKey\.summaryConfiguredTitle/);
   assert.match(translationsSource, /System Secure Storage Available/);
   assert.match(aiKeyPanelSource, /aiKey\.enabledHint/);
+  assert.match(aiKeyPanelSource, /credentialResetRequired/);
+  assert.match(aiKeyPanelSource, /ai-key-reset-required/);
+  assert.match(adminOnboardingSource, /onboarding-ai-key-reset-required/);
   assert.match(translationsSource, /多模型聚合路由/);
   assert.match(translationsSource, /系统安全存储不可用/);
   assert.match(translationsSource, /当前保存位置/);

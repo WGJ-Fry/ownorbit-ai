@@ -2,6 +2,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+test("AI response errors preserve stable status and code for localized mobile copy", async () => {
+  const { parseAiResponse } = await import(`../src/services/aiRuntime.ts?ai-error=${Date.now()}`);
+  await assert.rejects(
+    parseAiResponse(new Response(JSON.stringify({
+      code: "AI_CONFIG_MISSING",
+      message: "technical backend message",
+    }), {
+      status: 503,
+      headers: { "content-type": "application/json" },
+    })),
+    (error) => error?.code === "AI_CONFIG_MISSING" && error?.status === 503,
+  );
+});
+
 test("client API and realtime URLs preserve reverse-proxy base paths", async (t) => {
   const originalWindow = globalThis.window;
   t.after(() => {

@@ -21,12 +21,13 @@ Backups, connection diagnostics, CloudKit details, and safety tools remain avail
 
 - Alibaba Model Studio users can select `qwen3.7-max`, `qwen3.7-max-2026-06-08`, or `qwen3.7-max-2026-05-20` from the built-in model catalog.
 - The runtime sends the official hybrid-thinking parameters through the OpenAI-compatible Chat Completions endpoint and keeps `reasoning_content` separate from the assistant's visible final answer.
-- Normal chat, tool definitions, and JSON response mode share the same tested provider path. The API key remains server-side.
+- Normal chat, tool definitions, and JSON response mode share the same protocol-adapter and mocked-request test path. A live Alibaba Model Studio account acceptance result is not claimed by this source test. The API key remains server-side.
 
 ### Signed iPhone-to-Mac CloudKit chat
 
 - The native iPhone shell can create a `LifeOSChatRequest` in the user's private CloudKit database.
 - The Mac imports the request into a durable SQLite job, runs the configured AI through a **text-only** worker, and exports one idempotent `LifeOSChatResponse`.
+- After the iPhone verifies and stores a terminal response, it uploads a signed `LifeOSChatReceipt`; the Mac verifies the active device signature and exact exported response hash before allowing lifecycle cleanup.
 - Remote CloudKit chat cannot execute tools, URL schemes, native actions, shell commands, calendar writes, reminder writes, or generated-program actions.
 - Jobs use leases, expiry, bounded retries, safe error codes, and deterministic response IDs.
 - The phone shows waiting for Mac, Mac unavailable, processing, retrying, completed, failed, and timed-out states instead of a generic spinner.
@@ -42,7 +43,7 @@ Backups, connection diagnostics, CloudKit details, and safety tools remain avail
 
 ### Schema, migrations, and evidence
 
-- Added CloudKit schema records for `LifeOSChatRequest`, `LifeOSChatResponse`, and `LifeOSDeviceKey`.
+- Added CloudKit schema records for `LifeOSChatRequest`, `LifeOSChatResponse`, `LifeOSChatReceipt`, and `LifeOSDeviceKey`.
 - Added SQLite migrations for durable CloudKit chat jobs and registered device public keys.
 - Added server protocol, job, worker, retry, expiry, signature, quarantine, and end-to-end import/export tests.
 - Added native Swift tests for key storage boundaries, signed outbox records, response state mapping, duplicate safety, and offline snapshot recovery.
@@ -92,12 +93,13 @@ Package version：`0.1.6-alpha.0`
 
 - 阿里云百炼用户可在内置模型目录选择 `qwen3.7-max`、`qwen3.7-max-2026-06-08` 或 `qwen3.7-max-2026-05-20`。
 - 运行时通过 OpenAI-compatible Chat Completions 接口发送官方混合思考参数，并把 `reasoning_content` 与用户可见的最终回答分开处理。
-- 普通聊天、工具定义和 JSON 响应模式共用同一条受测 provider 路径，API Key 仍只保存在后端。
+- 普通聊天、工具定义和 JSON 响应模式共用同一条协议适配与模拟请求测试路径；源码测试不冒充真实阿里云百炼账号验收结果。API Key 仍只保存在后端。
 
 ### iPhone 到 Mac 的签名 CloudKit 对话
 
 - iPhone 原生壳可以在用户私有 CloudKit 数据库写入 `LifeOSChatRequest`。
 - Mac 将请求导入 SQLite 持久任务，通过已配置 AI 的 **text-only** worker 处理，再幂等导出一个 `LifeOSChatResponse`。
+- iPhone 校验并保存终态回复后会上传签名 `LifeOSChatReceipt`；Mac 只有在有效设备签名和已导出回复哈希都完全匹配时，才允许生命周期清理该任务。
 - 远程 CloudKit 对话不能执行工具、URL Scheme、原生动作、shell、日历/提醒事项写入或生成程序动作。
 - 任务具备 lease、过期、有限重试、脱敏错误码和确定性 response ID。
 - 手机会显示等待 Mac、Mac 不在线、处理中、重试中、已完成、失败和超时，而不是只有一个没有解释的加载动画。
@@ -113,7 +115,7 @@ Package version：`0.1.6-alpha.0`
 
 ### Schema、migration 与证据
 
-- 新增 `LifeOSChatRequest`、`LifeOSChatResponse`、`LifeOSDeviceKey` CloudKit schema。
+- 新增 `LifeOSChatRequest`、`LifeOSChatResponse`、`LifeOSChatReceipt`、`LifeOSDeviceKey` CloudKit schema。
 - 新增 CloudKit 对话任务和设备公钥 SQLite migration。
 - 新增协议、任务、worker、重试、过期、签名、隔离区和完整导入/导出自动化测试。
 - 新增 Keychain 边界、签名 outbox、状态映射、去重和离线快照恢复的 Swift 测试。

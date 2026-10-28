@@ -26,7 +26,7 @@ function runIsolatedCloudKitApply(env, scenario) {
     db.prepare("INSERT INTO cloudkit_sync_checkpoints (zone, applied_server_change_token, pending_server_change_token, token_state, last_evidence_id, last_preview_at, last_applied_at, changed_count, deleted_count, failed_count, more_coming, updated_at) VALUES (?, NULL, ?, 'pending-preview', ?, ?, NULL, ?, ?, 0, 0, ?)")
       .run("LifeOSChatZone", "opaque-next-token", "evidence-chat", now, 2, 0, now);
 
-    if (${JSON.stringify(scenario)} === "apply") {
+    if (${JSON.stringify(scenario)} === "apply" || ${JSON.stringify(scenario)} === "apply-limit") {
       const conversationPayload = {
         conversationId: "remote-convo",
         title: "Remote synced",
@@ -233,7 +233,7 @@ function runIsolatedCloudKitApply(env, scenario) {
 
     const listed = listCloudKitSyncQuarantineItems({ limit: 10 });
     const apply = applyCloudKitSyncQuarantine({
-      limit: 10,
+      limit: ${JSON.stringify(scenario)} === "apply-limit" ? 1 : 10,
       now: now + 4000,
       includeManualReview: ${JSON.stringify(scenario)} === "delete" || ${JSON.stringify(scenario)} === "memory-tombstone" || ${JSON.stringify(scenario)} === "checkpoint-reset" || ${JSON.stringify(scenario)}.startsWith("device-trust"),
     });
@@ -288,6 +288,26 @@ test("CloudKit quarantine apply writes conflict-free records and promotes pendin
     assert.equal(result.checkpoint.appliedToken, "opaque-next-token");
     assert.equal(result.checkpoint.pendingToken, null);
     assert.equal(result.checkpoint.lastAppliedAt, 1700000004000);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit checkpoint stays pending while the same zone still has an auto-ready row outside the apply limit", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-sync-apply-limit-"));
+  try {
+    const result = runIsolatedCloudKitApply({
+      ...process.env,
+      LIFEOS_DATA_DIR: path.join(dir, "data"),
+    }, "apply-limit");
+
+    assert.equal(result.apply.attempted, 1);
+    assert.equal(result.apply.applied, 1);
+    assert.deepEqual(result.apply.promotedZones, []);
+    assert.deepEqual(result.apply.blockedZones, ["LifeOSChatZone"]);
+    assert.equal(result.checkpoint.tokenState, "pending-preview");
+    assert.equal(result.checkpoint.appliedToken, null);
+    assert.equal(result.checkpoint.pendingToken, "opaque-next-token");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

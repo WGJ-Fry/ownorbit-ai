@@ -130,6 +130,12 @@ function reportBuildFailure(build) {
 function notaryAuthenticationArgs(teamId) {
   const keychainProfile = String(process.env.LIFEOS_NOTARYTOOL_KEYCHAIN_PROFILE || "").trim();
   if (keychainProfile) return ["--keychain-profile", keychainProfile];
+  const apiKeyPath = String(process.env.APPLE_API_KEY_PATH || "").trim();
+  const apiKeyId = String(process.env.APPLE_API_KEY_ID || "").trim();
+  const apiIssuerId = String(process.env.APPLE_API_ISSUER_ID || "").trim();
+  if (apiKeyPath && apiKeyId && apiIssuerId) {
+    return ["--key", apiKeyPath, "--key-id", apiKeyId, "--issuer", apiIssuerId];
+  }
   return [
     "--apple-id",
     requiredEnv("APPLE_ID"),
@@ -236,6 +242,16 @@ if (!generated.ok) {
 }
 
 const allowProvisioningUpdates = process.env.LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES === "1";
+const apiKeyPath = String(process.env.APPLE_API_KEY_PATH || "").trim();
+const apiKeyId = String(process.env.APPLE_API_KEY_ID || "").trim();
+const apiIssuerId = String(process.env.APPLE_API_ISSUER_ID || "").trim();
+const provisioningAuthenticationArgs = allowProvisioningUpdates && apiKeyPath && apiKeyId && apiIssuerId
+  ? [
+      "-authenticationKeyPath", apiKeyPath,
+      "-authenticationKeyID", apiKeyId,
+      "-authenticationKeyIssuerID", apiIssuerId,
+    ]
+  : [];
 const commonXcodeArgs = [
   "-project",
   projectPath,
@@ -254,7 +270,7 @@ const commonXcodeArgs = [
         `DEVELOPMENT_TEAM=${teamId}`,
         "CODE_SIGN_STYLE=Automatic",
         ...(allowProvisioningUpdates
-          ? ["-allowProvisioningUpdates", "-allowProvisioningDeviceRegistration"]
+          ? ["-allowProvisioningUpdates", "-allowProvisioningDeviceRegistration", ...provisioningAuthenticationArgs]
           : []),
       ]),
 ];
@@ -279,7 +295,7 @@ if (distribution === "developer-id") {
     exportPath,
     "-exportOptionsPlist",
     exportOptionsPath,
-    ...(allowProvisioningUpdates ? ["-allowProvisioningUpdates"] : []),
+    ...(allowProvisioningUpdates ? ["-allowProvisioningUpdates", ...provisioningAuthenticationArgs] : []),
   ]);
   if (!exported.ok) reportBuildFailure(exported);
   if (!existsSync(exportedAppPath)) {

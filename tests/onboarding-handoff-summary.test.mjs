@@ -65,7 +65,7 @@ test("onboarding handoff summary is actionable and excludes sensitive values", a
       completed: true,
       completedAt: 1800000000000,
       required: false,
-      nextPath: "/chat",
+      nextPath: "/admin/dashboard",
       securityOverall: "warning",
       steps: [
         { id: "ai", label: "AI", done: true, actionPath: "/admin/onboarding", message: "ok" },

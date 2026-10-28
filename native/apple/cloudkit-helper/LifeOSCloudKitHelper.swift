@@ -469,6 +469,246 @@ private func runSubscriptionProbe(container: CKContainer) async -> [String: Any]
   return response
 }
 
+private func exactLowerHex(_ value: String, count: Int) -> Bool {
+  guard value.count == count else { return false }
+  return value.unicodeScalars.allSatisfy { scalar in
+    (scalar.value >= 48 && scalar.value <= 57) || (scalar.value >= 97 && scalar.value <= 102)
+  }
+}
+
+private func saveClaimIfUnchanged(database: CKDatabase, record: CKRecord) async throws {
+  let result = try await database.modifyRecords(
+    saving: [record],
+    deleting: [],
+    savePolicy: .ifServerRecordUnchanged,
+    atomically: true
+  )
+  guard let saved = result.saveResults[record.recordID] else {
+    throw CKError(.internalError)
+  }
+  _ = try saved.get()
+}
+
+private func runChatClaim(container: CKContainer, request: [String: Any]) async -> [String: Any] {
+  let probe = await runProbe(container: container, operation: "chat-claim")
+  guard probe["ok"] as? Bool == true else { return probe }
+  guard let claim = request["chatClaim"] as? [String: Any] else {
+    var response = responseBase(operation: "chat-claim", ok: false)
+    response["accountStatus"] = probe["accountStatus"] ?? "available"
+    response["containerReachable"] = probe["containerReachable"] ?? true
+    response["capabilitiesVerified"] = probe["capabilitiesVerified"] ?? []
+    response["warnings"] = []
+    response["errors"] = ["chatClaim is required."]
+    response["chatClaim"] = ["attempted": false, "acquired": false, "busy": false]
+    response["evidenceId"] = ""
+    return response
+  }
+
+  let requestId = compact(claim["requestId"], limit: 36).lowercased()
+  let requestContentHash = compact(claim["requestContentHash"], limit: 64).lowercased()
+  let claimId = compact(claim["claimId"], limit: 80).lowercased()
+  let ownerFingerprint = compact(claim["ownerFingerprint"], limit: 64).lowercased()
+  let trustedMacFingerprint = compact(claim["trustedMacFingerprint"], limit: 64).lowercased()
+  let fencingToken = (claim["fencingToken"] as? NSNumber)?.int64Value ?? 0
+  let claimedAtMs = (claim["claimedAt"] as? NSNumber)?.int64Value ?? 0
+  let expiresAtMs = (claim["expiresAt"] as? NSNumber)?.int64Value ?? 0
+  let now = Date()
+  let claimedAt = Date(timeIntervalSince1970: TimeInterval(claimedAtMs) / 1000)
+  let expiresAt = Date(timeIntervalSince1970: TimeInterval(expiresAtMs) / 1000)
+  guard
+    UUID(uuidString: requestId) != nil,
+    exactLowerHex(requestContentHash, count: 64),
+    exactLowerHex(claimId, count: 64),
+    exactLowerHex(ownerFingerprint, count: 64),
+    trustedMacFingerprint.isEmpty || exactLowerHex(trustedMacFingerprint, count: 64),
+    fencingToken > 0,
+    claimedAt.timeIntervalSince(now) >= -300,
+    claimedAt.timeIntervalSince(now) <= 300,
+    expiresAt > now,
+    expiresAt.timeIntervalSince(now) <= 15 * 60
+  else {
+    var response = responseBase(operation: "chat-claim", ok: false)
+    response["accountStatus"] = probe["accountStatus"] ?? "available"
+    response["containerReachable"] = probe["containerReachable"] ?? true
+    response["capabilitiesVerified"] = probe["capabilitiesVerified"] ?? []
+    response["warnings"] = []
+    response["errors"] = ["CloudKit chat claim fields are invalid."]
+    response["chatClaim"] = ["attempted": false, "acquired": false, "busy": false]
+    response["evidenceId"] = ""
+    return response
+  }
+
+  let database = container.privateCloudDatabase
+  let requestZoneId = CKRecordZone.ID(zoneName: "LifeOSChatRelayZone", ownerName: CKCurrentUserDefaultName)
+  let requestRecordId = CKRecord.ID(recordName: "chat-request:\(requestId)", zoneID: requestZoneId)
+  do {
+    let requestRecord = try await database.record(for: requestRecordId)
+    let remoteContentHash = compact(requestRecord["contentHash"], limit: 64).lowercased()
+    let payloadJson = requestRecord["payloadJson"] as? String ?? ""
+    guard !payloadJson.isEmpty, payloadJson.lengthOfBytes(using: .utf8) <= 64 * 1024 else {
+      throw NSError(domain: "OwnOrbitCloudKitChatClaim", code: 2)
+    }
+    let payloadData = Data(payloadJson.utf8)
+    let payload = try JSONSerialization.jsonObject(with: payloadData) as? [String: Any]
+    let requestTrustedMacFingerprint = compact(payload?["trustedMacFingerprint"], limit: 64).lowercased()
+    guard remoteContentHash == requestContentHash,
+          compact(payload?["requestId"], limit: 36).lowercased() == requestId,
+          requestTrustedMacFingerprint == trustedMacFingerprint,
+          requestTrustedMacFingerprint.isEmpty || exactLowerHex(requestTrustedMacFingerprint, count: 64) else {
+      throw NSError(domain: "OwnOrbitCloudKitChatClaim", code: 1)
+    }
+    if !requestTrustedMacFingerprint.isEmpty && requestTrustedMacFingerprint != ownerFingerprint {
+      var response = responseBase(operation: "chat-claim", ok: true)
+      response["accountStatus"] = probe["accountStatus"] ?? "available"
+      response["containerReachable"] = probe["containerReachable"] ?? true
+      response["capabilitiesVerified"] = [
+        "account-status", "private-database", "container-reachability", "custom-zones", "chat-claim-exclusive", "chat-claim-trusted-mac",
+      ]
+      response["warnings"] = []
+      response["errors"] = []
+      response["chatClaim"] = [
+        "attempted": true,
+        "acquired": false,
+        "busy": false,
+        "renewed": false,
+        "ownerMatches": false,
+        "trustedMacMismatch": true,
+        "requestId": requestId,
+      ]
+      response["evidenceId"] = "lifeos-cloudkit-chat-claim-untrusted-\(UUID().uuidString)"
+      return response
+    }
+  } catch {
+    var response = responseBase(operation: "chat-claim", ok: false)
+    response["accountStatus"] = probe["accountStatus"] ?? "available"
+    response["containerReachable"] = probe["containerReachable"] ?? true
+    response["capabilitiesVerified"] = [
+      "account-status", "private-database", "container-reachability", "custom-zones", "chat-claim-exclusive", "chat-claim-trusted-mac",
+    ]
+    response["warnings"] = []
+    response["errors"] = ["CloudKit chat claim request binding could not be verified."]
+    response["chatClaim"] = ["attempted": true, "acquired": false, "busy": false, "requestId": requestId]
+    response["evidenceId"] = ""
+    return response
+  }
+  let zoneId = CKRecordZone.ID(zoneName: "LifeOSChatRelayControlZone", ownerName: CKCurrentUserDefaultName)
+  do {
+    _ = try await database.save(CKRecordZone(zoneID: zoneId))
+  } catch {
+    // Saving an existing custom zone can report a conflict; the claim write below remains authoritative.
+  }
+  let recordId = CKRecord.ID(recordName: "chat-claim:\(requestId)", zoneID: zoneId)
+  let record: CKRecord
+  let existed: Bool
+  do {
+    record = try await database.record(for: recordId)
+    existed = true
+  } catch let error as CKError where error.code == .unknownItem {
+    record = CKRecord(recordType: "LifeOSChatClaim", recordID: recordId)
+    existed = false
+  } catch {
+    var response = responseBase(operation: "chat-claim", ok: false)
+    response["accountStatus"] = probe["accountStatus"] ?? "available"
+    response["containerReachable"] = probe["containerReachable"] ?? true
+    response["capabilitiesVerified"] = [
+      "account-status", "private-database", "container-reachability", "custom-zones", "chat-claim-exclusive",
+    ]
+    response["warnings"] = []
+    response["errors"] = ["CloudKit chat claim lookup failed: \(describeCloudKitError(error))"]
+    response["chatClaim"] = ["attempted": true, "acquired": false, "busy": false, "requestId": requestId]
+    response["evidenceId"] = ""
+    return response
+  }
+
+  let currentOwner = compact(record["ownerFingerprint"], limit: 64).lowercased()
+  let currentExpiresAt = record["expiresAt"] as? Date ?? .distantPast
+  let ownerMatches = existed && currentOwner == ownerFingerprint
+  if existed && !ownerMatches && currentExpiresAt > now {
+    var response = responseBase(operation: "chat-claim", ok: true)
+    response["accountStatus"] = probe["accountStatus"] ?? "available"
+    response["containerReachable"] = probe["containerReachable"] ?? true
+    response["capabilitiesVerified"] = [
+      "account-status", "private-database", "container-reachability", "custom-zones", "chat-claim-exclusive",
+    ]
+    response["warnings"] = []
+    response["errors"] = []
+    response["chatClaim"] = [
+      "attempted": true,
+      "acquired": false,
+      "busy": true,
+      "renewed": false,
+      "ownerMatches": false,
+      "requestId": requestId,
+      "expiresAt": Int64(currentExpiresAt.timeIntervalSince1970 * 1000),
+    ]
+    response["evidenceId"] = "lifeos-cloudkit-chat-claim-busy-\(UUID().uuidString)"
+    return response
+  }
+
+  record["requestId"] = requestId as NSString
+  record["requestContentHash"] = requestContentHash as NSString
+  record["claimId"] = claimId as NSString
+  record["ownerFingerprint"] = ownerFingerprint as NSString
+  record["trustedMacFingerprint"] = trustedMacFingerprint as NSString
+  record["fencingToken"] = NSNumber(value: fencingToken)
+  record["claimedAt"] = claimedAt as NSDate
+  record["expiresAt"] = expiresAt as NSDate
+  do {
+    try await saveClaimIfUnchanged(database: database, record: record)
+    var response = responseBase(operation: "chat-claim", ok: true)
+    response["accountStatus"] = probe["accountStatus"] ?? "available"
+    response["containerReachable"] = probe["containerReachable"] ?? true
+    response["capabilitiesVerified"] = [
+      "account-status", "private-database", "container-reachability", "custom-zones", "chat-claim-exclusive",
+    ]
+    response["warnings"] = []
+    response["errors"] = []
+    response["chatClaim"] = [
+      "attempted": true,
+      "acquired": true,
+      "busy": false,
+      "renewed": existed,
+      "ownerMatches": ownerMatches,
+      "requestId": requestId,
+      "claimId": claimId,
+      "expiresAt": expiresAtMs,
+    ]
+    response["evidenceId"] = "lifeos-cloudkit-chat-claim-\(UUID().uuidString)"
+    return response
+  } catch let error as CKError where error.code == .serverRecordChanged || error.code == .batchRequestFailed {
+    var response = responseBase(operation: "chat-claim", ok: true)
+    response["accountStatus"] = probe["accountStatus"] ?? "available"
+    response["containerReachable"] = probe["containerReachable"] ?? true
+    response["capabilitiesVerified"] = [
+      "account-status", "private-database", "container-reachability", "custom-zones", "chat-claim-exclusive",
+    ]
+    response["warnings"] = []
+    response["errors"] = []
+    response["chatClaim"] = [
+      "attempted": true,
+      "acquired": false,
+      "busy": true,
+      "renewed": false,
+      "ownerMatches": false,
+      "requestId": requestId,
+    ]
+    response["evidenceId"] = "lifeos-cloudkit-chat-claim-raced-\(UUID().uuidString)"
+    return response
+  } catch {
+    var response = responseBase(operation: "chat-claim", ok: false)
+    response["accountStatus"] = probe["accountStatus"] ?? "available"
+    response["containerReachable"] = probe["containerReachable"] ?? true
+    response["capabilitiesVerified"] = [
+      "account-status", "private-database", "container-reachability", "custom-zones", "chat-claim-exclusive",
+    ]
+    response["warnings"] = []
+    response["errors"] = ["CloudKit chat claim write failed: \(describeCloudKitError(error))"]
+    response["chatClaim"] = ["attempted": true, "acquired": false, "busy": false, "requestId": requestId]
+    response["evidenceId"] = ""
+    return response
+  }
+}
+
 private func assignRecordField(_ record: CKRecord, key: String, value: Any) {
   let field = safeRecordFieldName(key)
   if field.isEmpty { return }
@@ -510,6 +750,16 @@ private func runSyncExport(container: CKContainer, request: [String: Any]) async
 
   let database = container.privateCloudDatabase
   let records = dictList(batch["records"], limit: 500)
+  let deletions = dictList(batch["deletions"], limit: 500)
+  let recordPlan = dictList(request["recordPlan"], limit: 16)
+  var approvedRecordPlan: [String: Set<String>] = [:]
+  for plan in recordPlan {
+    let zone = compact(plan["zone"], limit: 80)
+    let recordTypes = Set(stringList(plan["recordTypes"], limit: 32).map { compact($0, limit: 80) })
+    if !zone.isEmpty, !recordTypes.isEmpty {
+      approvedRecordPlan[zone] = recordTypes
+    }
+  }
   let recordPlanHash = compact(batch["recordPlanHash"], limit: 80)
   var warnings: [String] = []
   var errors: [String] = []
@@ -517,6 +767,7 @@ private func runSyncExport(container: CKContainer, request: [String: Any]) async
   var created = 0
   var updated = 0
   var unchanged = 0
+  var deleted = 0
   var conflicts = 0
   var failed = 0
   var zones = Set<String>()
@@ -530,6 +781,11 @@ private func runSyncExport(container: CKContainer, request: [String: Any]) async
     guard !zone.isEmpty, !recordType.isEmpty, !recordName.isEmpty else {
       failed += 1
       errors.append("CloudKit sync export skipped one invalid record descriptor.")
+      continue
+    }
+    guard approvedRecordPlan[zone]?.contains(recordType) == true else {
+      failed += 1
+      errors.append("CloudKit sync export rejected a record outside the approved record plan.")
       continue
     }
     let fields: [String: Any]
@@ -604,7 +860,55 @@ private func runSyncExport(container: CKContainer, request: [String: Any]) async
     }
   }
 
-  var response = responseBase(operation: "sync-export", ok: records.count > 0 && saved == records.count && failed == 0)
+  for item in deletions {
+    let zone = compact(item["zone"], limit: 80)
+    let recordType = compact(item["recordType"], limit: 80)
+    let recordName = compact(item["recordName"], limit: 160)
+    let expectedPrefix: String
+    if zone == "LifeOSChatRelayZone" && recordType == "LifeOSChatRequest" {
+      expectedPrefix = "chat-request:"
+    } else if zone == "LifeOSChatRelayZone" && recordType == "LifeOSChatResponse" {
+      expectedPrefix = "chat-response:"
+    } else if zone == "LifeOSChatRelayZone" && recordType == "LifeOSChatReceipt" {
+      expectedPrefix = "chat-receipt:"
+    } else if zone == "LifeOSChatRelayControlZone" && recordType == "LifeOSChatClaim" {
+      expectedPrefix = "chat-claim:"
+    } else {
+      failed += 1
+      errors.append("CloudKit sync export rejected a deletion outside the consumed chat relay lifecycle.")
+      continue
+    }
+    let requestId = String(recordName.dropFirst(expectedPrefix.count))
+    guard recordName.hasPrefix(expectedPrefix), UUID(uuidString: requestId) != nil else {
+      failed += 1
+      errors.append("CloudKit sync export rejected an invalid chat relay deletion descriptor.")
+      continue
+    }
+    if zone == "LifeOSChatRelayZone" && approvedRecordPlan[zone]?.contains(recordType) != true {
+      failed += 1
+      errors.append("CloudKit sync export rejected a chat relay deletion outside the approved record plan.")
+      continue
+    }
+    let zoneId = CKRecordZone.ID(zoneName: zone, ownerName: CKCurrentUserDefaultName)
+    let recordId = CKRecord.ID(recordName: recordName, zoneID: zoneId)
+    zones.insert(zone)
+    recordTypes.insert(recordType)
+    do {
+      _ = try await database.deleteRecord(withID: recordId)
+      deleted += 1
+    } catch let error as CKError where error.code == .unknownItem || error.code == .zoneNotFound {
+      deleted += 1
+    } catch {
+      failed += 1
+      errors.append("CloudKit sync export failed to delete one consumed chat relay record: \(describeCloudKitError(error))")
+    }
+  }
+
+  let attempted = records.count + deletions.count
+  var response = responseBase(
+    operation: "sync-export",
+    ok: attempted > 0 && saved + deleted == attempted && failed == 0
+  )
   response["accountStatus"] = probe["accountStatus"] ?? "available"
   response["containerReachable"] = probe["containerReachable"] ?? true
   response["capabilitiesVerified"] = [
@@ -614,12 +918,14 @@ private func runSyncExport(container: CKContainer, request: [String: Any]) async
     "custom-zones",
     "sync-export-save",
     "sync-export-upsert",
+    "sync-export-delete-consumed-relay",
   ]
   response["warnings"] = warnings.map { redact($0, limit: 240) }
   response["errors"] = errors.map { redact($0, limit: 240) }
   response["syncExport"] = [
-    "attempted": records.count,
+    "attempted": attempted,
     "saved": saved,
+    "deleted": deleted,
     "created": created,
     "updated": updated,
     "unchanged": unchanged,
@@ -1252,6 +1558,8 @@ struct LifeOSCloudKitHelper {
       response = await runRoundtrip(container: container, request: request)
     } else if operation == "subscription-probe" {
       response = await runSubscriptionProbe(container: container)
+    } else if operation == "chat-claim" {
+      response = await runChatClaim(container: container, request: request)
     } else if operation == "sync-export" {
       response = await runSyncExport(container: container, request: request)
     } else if operation == "sync-import-preview" {

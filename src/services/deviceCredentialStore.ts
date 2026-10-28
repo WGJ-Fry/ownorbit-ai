@@ -58,7 +58,7 @@ function legacyCredentialPresent() {
 function normalizeCredential(value: unknown): StoredDeviceCredential | null {
   const credential = value as StoredDeviceCredential | null;
   if (!credential?.device?.id) return null;
-  if (credential.accessTokenExpiresAt && credential.accessTokenExpiresAt <= Date.now()) return null;
+  if (credential.authMethod !== "signature" && credential.accessTokenExpiresAt && credential.accessTokenExpiresAt <= Date.now()) return null;
   return credential;
 }
 

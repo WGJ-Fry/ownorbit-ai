@@ -1,4 +1,4 @@
-import { HelpCircle, LogOut, Settings2, User } from "lucide-react";
+import { LogOut, Settings2, User } from "lucide-react";
 import { motion } from "motion/react";
 import { useI18n } from "../../i18n/I18nProvider";
 
@@ -33,9 +33,9 @@ export default function ProfileModal({
             </div>
           </div>
           <div>
-            <h3 className="text-xl font-bold text-white">Commander</h3>
+            <h3 className="text-xl font-bold text-white">{t("chat.profile.name")}</h3>
             <span className="mt-0.5 flex items-center text-sm font-medium text-emerald-400">
-              <div className="mr-1.5 h-1.5 w-1.5 rounded-full bg-emerald-400 opacity-80" /> Online
+              <div className="mr-1.5 h-1.5 w-1.5 rounded-full bg-emerald-400 opacity-80" /> {t("chat.profile.ready")}
             </span>
           </div>
         </div>
@@ -49,15 +49,10 @@ export default function ProfileModal({
               <Settings2 className="mr-3 h-5 w-5 text-zinc-400" /> {t("chat.profile.settings")}
             </span>
           </button>
-          <button className="flex w-full items-center justify-between rounded-[20px] border border-transparent bg-white/[0.02] p-4 transition-colors hover:border-white/[0.05] hover:bg-white/[0.05]">
-            <span className="flex items-center text-[15px] font-medium">
-              <HelpCircle className="mr-3 h-5 w-5 text-zinc-400" /> {t("chat.profile.help")}
-            </span>
-          </button>
         </div>
 
         <button onClick={onClose} className="flex w-full items-center justify-center rounded-[20px] bg-red-500/10 py-4 text-center font-bold text-red-500 transition-colors hover:bg-red-500/20">
-          <LogOut className="mr-2 h-4 w-4" /> {t("chat.profile.logout")}
+          <LogOut className="mr-2 h-4 w-4" /> {t("chat.profile.close")}
         </button>
       </motion.div>
     </motion.div>

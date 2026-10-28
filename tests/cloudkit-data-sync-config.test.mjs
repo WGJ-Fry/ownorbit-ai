@@ -55,7 +55,7 @@ test("CloudKit data sync opt-in persists only safe non-sensitive settings in SQL
     const data = JSON.parse(result.stdout);
     assert.equal(data.before.enabled, false);
     assert.equal(data.before.enabledSource, "default");
-    assert.deepEqual(data.before.selectedDataTypes, ["chat-history", "memory", "tasks", "generated-app-state", "device-trust"]);
+    assert.deepEqual(data.before.selectedDataTypes, []);
     assert.equal(data.enabled.enabled, true);
     assert.equal(data.enabled.enabledSource, "sqlite");
     assert.deepEqual(data.enabled.selectedDataTypes, ["memory", "tasks"]);

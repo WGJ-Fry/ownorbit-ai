@@ -3,7 +3,7 @@ import process from "node:process";
 
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const fast = process.env.LIFEOS_RELEASE_SMOKE_FAST === "1";
-const launchPackagedMacApp = process.env.LIFEOS_RELEASE_SMOKE_LAUNCH === "1";
+const launchPackagedApp = process.env.LIFEOS_RELEASE_SMOKE_LAUNCH === "1";
 
 function run(script, extraEnv = {}) {
   const result = spawnSync(npmCommand, ["run", script], {
@@ -45,7 +45,7 @@ if (process.platform === "darwin") {
 
 run("release:artifacts:check");
 run("desktop:artifact:smoke");
-if (process.platform === "darwin" && launchPackagedMacApp) {
+if (launchPackagedApp) {
   run("desktop:artifact:smoke:launch");
 }
 run("release:check:unsigned");

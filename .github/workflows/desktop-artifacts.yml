@@ -7,13 +7,87 @@ on:
       - "v*"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
+  preflight:
+    name: release-preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Verify release tag and source facts
+        if: startsWith(github.ref, 'refs/tags/')
+        run: npm run version:truth:tag
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Electron binary
+        run: npm run electron:install
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Apple native contract tests
+        run: npm run test:apple-native
+
+      - name: CloudKit relay lifecycle tests
+        env:
+          NODE_OPTIONS: --experimental-sqlite
+        run: npm run test:relay-lifecycle
+
+      - name: CloudKit relay schedule and concurrency tests
+        env:
+          NODE_OPTIONS: --experimental-sqlite
+        run: npm run test:relay-schedule
+
+      - name: Unit and API tests
+        env:
+          NODE_OPTIONS: --experimental-sqlite
+        run: npm test
+
+      - name: E2E tests
+        env:
+          NODE_OPTIONS: --experimental-sqlite
+        run: npm run test:e2e
+
+      - name: Desktop smoke tests
+        env:
+          NODE_OPTIONS: --experimental-sqlite
+          ELECTRON_DISABLE_SANDBOX: "1"
+        run: xvfb-run -a npm run test:desktop
+
+      - name: Remote connection mock smoke
+        env:
+          NODE_OPTIONS: --experimental-sqlite
+        run: npm run remote:mock-smoke
+
+      - name: Unsigned release check
+        env:
+          NODE_OPTIONS: --experimental-sqlite
+          LIFEOS_RELEASE_SKIP_ARTIFACTS: "1"
+        run: npm run release:check:unsigned
+
   package:
     name: ${{ matrix.platform }}
+    needs: preflight
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     strategy:
       fail-fast: false
       matrix:
@@ -26,15 +100,27 @@ jobs:
             os: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
           cache: npm
 
+      - name: Verify release tag and source facts
+        if: startsWith(github.ref, 'refs/tags/')
+        run: npm run version:truth:tag
+
       - name: Install dependencies
         run: npm ci
+
+      - name: Install XcodeGen
+        if: runner.os == 'macOS'
+        run: brew install xcodegen
+
+      - name: Run native iOS XCTest release gate
+        if: runner.os == 'macOS'
+        run: npm run test:apple-native:xcode
 
       - name: Install Linux packaging dependencies
         if: runner.os == 'Linux'
@@ -44,6 +130,49 @@ jobs:
 
       - name: Install Electron binary
         run: npm run electron:install
+
+      - name: Validate Apple CloudKit release secrets
+        if: runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/')
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          for name in MACOS_CERTIFICATE_P12 MACOS_CERTIFICATE_PASSWORD APP_STORE_CONNECT_API_KEY_P8 APPLE_API_KEY_ID APPLE_API_ISSUER_ID APPLE_TEAM_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is required for a tagged macOS release with the CloudKit relay."
+              exit 1
+            fi
+          done
+
+      - name: Import Apple Developer ID certificate
+        if: runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/')
+        uses: apple-actions/import-codesign-certs@63fff01cd422d4b7b855d40ca1e9d34d2de9427d
+        with:
+          p12-file-base64: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          p12-password: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+
+      - name: Build and notarize Production CloudKit helper
+        if: runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/')
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          LIFEOS_CLOUDKIT_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          LIFEOS_CLOUDKIT_CONTAINER_ID: iCloud.ai.lifeos.desktop
+          LIFEOS_CLOUDKIT_BUNDLE_ID: ai.lifeos.cloudkit-helper
+          LIFEOS_CLOUDKIT_ALLOW_PROVISIONING_UPDATES: "1"
+        run: |
+          brew install xcodegen
+          key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+          printf '%s' "$APP_STORE_CONNECT_API_KEY_P8" > "$key_path"
+          chmod 600 "$key_path"
+          export APPLE_API_KEY_PATH="$key_path"
+          npm run icloud:helper:xcode:notarize
 
       - name: Resolve Windows Node binary
         if: runner.os == 'Windows'
@@ -55,8 +184,17 @@ jobs:
         env:
           NODE_OPTIONS: --experimental-sqlite
           LIFEOS_RELEASE_SMOKE_FAST: "1"
+          LIFEOS_RELEASE_SMOKE_LAUNCH: "1"
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
           ELECTRON_DISABLE_SANDBOX: "1"
+          LIFEOS_REQUIRE_BUNDLED_CLOUDKIT_HELPER: ${{ runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/') && '1' || '0' }}
+          LIFEOS_REQUIRE_DISTRIBUTABLE_CLOUDKIT_HELPER: ${{ runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/') && '1' || '0' }}
+          LIFEOS_REQUIRE_NOTARIZED_CLOUDKIT_HELPER: ${{ runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/') && '1' || '0' }}
+          LIFEOS_CLOUDKIT_HELPER_APP: ${{ runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/') && format('{0}/build/native/cloudkit-helper-xcode/DerivedData/Build/Products/Release/LifeOSCloudKitHelper.app', github.workspace) || '' }}
+          LIFEOS_CLOUDKIT_CONTAINER_ID: ${{ runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/') && 'iCloud.ai.lifeos.desktop' || '' }}
+          LIFEOS_CLOUDKIT_BUNDLE_ID: ${{ runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/') && 'ai.lifeos.cloudkit-helper' || '' }}
+          LIFEOS_CLOUDKIT_TEAM_ID: ${{ runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/') && secrets.APPLE_TEAM_ID || '' }}
+          LIFEOS_CLOUDKIT_ENVIRONMENT: ${{ runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/') && 'Production' || '' }}
         run: npm run desktop:release:smoke
 
       - name: Build and verify desktop package (Linux)
@@ -64,12 +202,23 @@ jobs:
         env:
           NODE_OPTIONS: --experimental-sqlite
           LIFEOS_RELEASE_SMOKE_FAST: "1"
+          LIFEOS_RELEASE_SMOKE_LAUNCH: "1"
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
           ELECTRON_DISABLE_SANDBOX: "1"
         run: xvfb-run -a npm run desktop:release:smoke
 
+      - name: Attest executable release artifacts
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: |
+            release/*.dmg
+            release/*.zip
+            release/*.exe
+            release/*.AppImage
+
       - name: Upload package and update metadata
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: ownorbit-ai-${{ matrix.platform }}-${{ github.run_number }}
           if-no-files-found: error
@@ -91,11 +240,13 @@ jobs:
     needs: package
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           path: release-artifacts
           pattern: ownorbit-ai-*-${{ github.run_number }}
@@ -105,7 +256,7 @@ jobs:
 
       - name: Upload files to GitHub Release draft
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
         with:
           draft: true
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { currentSourceCommit, releaseProvenanceFailures } from "./release-provenance.mjs";
 
 const rootDir = process.cwd();
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
@@ -30,6 +31,7 @@ const failures = [];
 const passes = [];
 const args = new Set(process.argv.slice(2));
 const promotionMode = args.has("--promotion") || process.env.LIFEOS_RELEASE_PROMOTION === "1";
+const tagBuildMode = args.has("--tag-build") || process.env.LIFEOS_RELEASE_TAG_BUILD === "1";
 const requireReleaseAssets = promotionMode || args.has("--require-assets") || process.env.LIFEOS_REQUIRE_FULL_RELEASE_ARTIFACTS === "1";
 const requireRemoteAcceptanceEvidence = promotionMode || args.has("--require-remote-acceptance") || process.env.LIFEOS_REQUIRE_REMOTE_ACCEPTANCE_EVIDENCE === "1";
 const releaseDir = process.env.LIFEOS_RELEASE_DIR ? path.resolve(process.env.LIFEOS_RELEASE_DIR) : path.join(rootDir, "release");
@@ -98,6 +100,11 @@ function checkReleaseAssetsReady() {
   const checksums = fs.readFileSync(checksumPath, "utf8");
   const artifacts = Array.isArray(manifest.artifacts) ? manifest.artifacts : [];
   check(manifest.version === version, "release artifact manifest version matches package version", `release artifact manifest version must be ${version}, got ${manifest.version || "(missing)"}`);
+  const provenanceIssues = releaseProvenanceFailures(manifest.source, {
+    expectedCommit: currentSourceCommit(rootDir),
+    requireClean: true,
+  });
+  check(provenanceIssues.length === 0, "release artifacts are bound to the current clean source commit", provenanceIssues.join("; "));
   check(artifacts.length > 0, "release artifact manifest lists artifacts", "release artifact manifest must list artifacts");
 
   const requiredPlatforms = ["mac", "windows", "linux"];
@@ -439,6 +446,24 @@ if (promotionMode) {
   }
 } else {
   check(true, "release promotion guard is available; run npm run version:truth:release before public upload");
+}
+
+if (tagBuildMode) {
+  const status = git(["status", "--porcelain"]);
+  const head = git(["rev-parse", "HEAD"]);
+  const tagCommit = git(["rev-list", "-n", "1", releaseTag]);
+  const workflowRef = String(process.env.GITHUB_REF_NAME || "");
+
+  check(status.status === 0 && trimmedStdout(status) === "", "tag build worktree is clean", "tag build requires a clean checkout");
+  check(tagCommit.status === 0, `tag build tag exists: ${releaseTag}`, `tag build tag is missing: ${releaseTag}`);
+  if (head.status === 0 && tagCommit.status === 0) {
+    check(trimmedStdout(head) === trimmedStdout(tagCommit), `tag build ${releaseTag} points at HEAD`, `tag build ${releaseTag} must point at HEAD`);
+  }
+  if (workflowRef) {
+    check(workflowRef === releaseTag, "GitHub workflow tag matches package version", `GitHub workflow ref ${workflowRef} must equal ${releaseTag}`);
+  }
+} else {
+  check(true, "tag build guard is available; tagged packaging runs npm run version:truth:tag");
 }
 
 for (const message of passes) console.log(`[PASS] ${message}`);

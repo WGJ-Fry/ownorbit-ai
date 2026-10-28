@@ -4,6 +4,7 @@ import { importCloudKitDevicePublicKey } from "./cloudKitDeviceKeyProtocol";
 export const CLOUDKIT_CHAT_PROTOCOL_SCHEMA = "ownorbit-cloudkit-chat.v1";
 export const CLOUDKIT_CHAT_REQUEST_RECORD_TYPE = "LifeOSChatRequest";
 export const CLOUDKIT_CHAT_RESPONSE_RECORD_TYPE = "LifeOSChatResponse";
+export const CLOUDKIT_CHAT_RECEIPT_RECORD_TYPE = "LifeOSChatReceipt";
 export const CLOUDKIT_CHAT_MAX_PROMPT_CHARS = 8_000;
 export const CLOUDKIT_CHAT_MAX_RESPONSE_CHARS = 16_000;
 export const CLOUDKIT_CHAT_MAX_REQUEST_AGE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -18,6 +19,7 @@ export type CloudKitChatRequestPayload = {
   deviceId: string;
   sourceDeviceHash: string;
   publicKeyFingerprint: string;
+  trustedMacFingerprint?: string;
   signature: string;
   prompt: string;
   locale: "zh-CN" | "en-US";
@@ -32,7 +34,7 @@ export type CloudKitChatRequestPayload = {
   };
 };
 
-export type CloudKitChatResponsePayload = {
+export type CloudKitChatUnsignedResponsePayload = {
   schemaVersion: 1;
   requestId: string;
   responseId: string;
@@ -47,6 +49,30 @@ export type CloudKitChatResponsePayload = {
   startedAt?: number;
   completedAt?: number;
   updatedAt: number;
+};
+
+export type CloudKitChatResponsePayload = CloudKitChatUnsignedResponsePayload & {
+  macPublicKey: string;
+  macPublicKeyFingerprint: string;
+  macSignature: string;
+};
+
+export type CloudKitChatReceiptPayload = {
+  schemaVersion: 1;
+  requestId: string;
+  responseId: string;
+  deviceId: string;
+  sourceDeviceHash: string;
+  publicKeyFingerprint: string;
+  responseContentHash: string;
+  responseUpdatedAt: number;
+  acknowledgedAt: number;
+  signature: string;
+  syncMutation: {
+    kind: "chat-receipt";
+    origin: "ios-native";
+    mutatedAt: number;
+  };
 };
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -112,6 +138,16 @@ export function cloudKitChatResponseRecordName(requestId: string) {
   return `chat-response:${requestId.toLowerCase()}`;
 }
 
+export function cloudKitChatReceiptRecordName(requestId: string) {
+  if (!uuidPattern.test(requestId)) throw new Error("CloudKit chat request id is invalid.");
+  return `chat-receipt:${requestId.toLowerCase()}`;
+}
+
+export function cloudKitChatClaimRecordName(requestId: string) {
+  if (!uuidPattern.test(requestId)) throw new Error("CloudKit chat request id is invalid.");
+  return `chat-claim:${requestId.toLowerCase()}`;
+}
+
 export function cloudKitChatResponseId(requestId: string) {
   if (!uuidPattern.test(requestId)) throw new Error("CloudKit chat request id is invalid.");
   const seed = crypto.createHash("sha256").update(`ownorbit-chat-response:${requestId.toLowerCase()}`).digest("hex");
@@ -120,7 +156,7 @@ export function cloudKitChatResponseId(requestId: string) {
 
 export function cloudKitChatRequestSignatureText(value: Pick<CloudKitChatRequestPayload,
   "requestId" | "conversationId" | "userMessageId" | "deviceId" | "sourceDeviceHash" |
-  "publicKeyFingerprint" | "prompt" | "locale" | "clientSequence" | "createdAt" | "expiresAt">) {
+  "publicKeyFingerprint" | "trustedMacFingerprint" | "prompt" | "locale" | "clientSequence" | "createdAt" | "expiresAt">) {
   const promptHash = crypto.createHash("sha256").update(value.prompt, "utf8").digest("hex");
   return [
     CLOUDKIT_CHAT_PROTOCOL_SCHEMA,
@@ -130,6 +166,7 @@ export function cloudKitChatRequestSignatureText(value: Pick<CloudKitChatRequest
     value.deviceId.toLowerCase(),
     value.sourceDeviceHash.toLowerCase(),
     value.publicKeyFingerprint.toLowerCase(),
+    ...(value.trustedMacFingerprint ? [value.trustedMacFingerprint.toLowerCase()] : []),
     promptHash,
     value.locale,
     String(value.clientSequence),
@@ -154,6 +191,93 @@ export function verifyCloudKitChatRequestSignature(request: CloudKitChatRequestP
   return true;
 }
 
+export function cloudKitChatReceiptSignatureText(value: Pick<CloudKitChatReceiptPayload,
+  "requestId" | "responseId" | "deviceId" | "sourceDeviceHash" | "publicKeyFingerprint" |
+  "responseContentHash" | "responseUpdatedAt" | "acknowledgedAt">) {
+  return [
+    "ownorbit-cloudkit-chat-receipt.v1",
+    value.requestId.toLowerCase(),
+    value.responseId.toLowerCase(),
+    value.deviceId.toLowerCase(),
+    value.sourceDeviceHash.toLowerCase(),
+    value.publicKeyFingerprint.toLowerCase(),
+    value.responseContentHash.toLowerCase(),
+    String(value.responseUpdatedAt),
+    String(value.acknowledgedAt),
+  ].join("\n");
+}
+
+export function verifyCloudKitChatReceiptSignature(receipt: CloudKitChatReceiptPayload, publicKey: string) {
+  if (!signaturePattern.test(receipt.signature)) throw new Error("CloudKit chat receipt signature encoding is invalid.");
+  const signature = Buffer.from(receipt.signature, "base64url");
+  if (signature.length !== 64 || signature.toString("base64url") !== receipt.signature) {
+    throw new Error("CloudKit chat receipt signature encoding is invalid.");
+  }
+  const valid = crypto.verify(
+    "sha256",
+    Buffer.from(cloudKitChatReceiptSignatureText(receipt), "utf8"),
+    { key: importCloudKitDevicePublicKey(publicKey), dsaEncoding: "ieee-p1363" },
+    signature,
+  );
+  if (!valid) throw new Error("CloudKit chat receipt signature is invalid.");
+  return true;
+}
+
+export function cloudKitChatResponseSignatureText(value: CloudKitChatUnsignedResponsePayload & {
+  macPublicKey: string;
+  macPublicKeyFingerprint: string;
+}) {
+  const textHash = crypto.createHash("sha256").update(value.text || "", "utf8").digest("hex");
+  return [
+    CLOUDKIT_CHAT_PROTOCOL_SCHEMA,
+    value.requestId.toLowerCase(),
+    value.responseId.toLowerCase(),
+    value.conversationId.toLowerCase(),
+    value.assistantMessageId?.toLowerCase() || "",
+    value.status,
+    textHash,
+    value.safeErrorCode || "",
+    value.providerLabel || "",
+    value.modelLabel || "",
+    value.requestContentHash.toLowerCase(),
+    value.startedAt === undefined ? "" : String(value.startedAt),
+    value.completedAt === undefined ? "" : String(value.completedAt),
+    String(value.updatedAt),
+    value.macPublicKeyFingerprint.toLowerCase(),
+  ].join("\n");
+}
+
+function importCloudKitMacPublicKey(publicKey: string) {
+  const encoded = Buffer.from(publicKey, "base64url");
+  if (encoded.length < 80 || encoded.length > 160 || encoded.toString("base64url") !== publicKey) {
+    throw new Error("CloudKit Mac public key encoding is invalid.");
+  }
+  const key = crypto.createPublicKey({ key: encoded, format: "der", type: "spki" });
+  if (key.asymmetricKeyType !== "ec" || key.asymmetricKeyDetails?.namedCurve !== "prime256v1") {
+    throw new Error("CloudKit Mac public key is invalid.");
+  }
+  return { key, encoded };
+}
+
+export function verifyCloudKitChatResponseSignature(response: CloudKitChatResponsePayload) {
+  if (!signaturePattern.test(response.macSignature)) throw new Error("CloudKit chat response signature encoding is invalid.");
+  const signature = Buffer.from(response.macSignature, "base64url");
+  if (signature.length !== 64 || signature.toString("base64url") !== response.macSignature) {
+    throw new Error("CloudKit chat response signature encoding is invalid.");
+  }
+  const { key, encoded } = importCloudKitMacPublicKey(response.macPublicKey);
+  const fingerprint = crypto.createHash("sha256").update(encoded).digest("hex");
+  if (fingerprint !== response.macPublicKeyFingerprint) throw new Error("CloudKit Mac public key fingerprint is invalid.");
+  const valid = crypto.verify(
+    "sha256",
+    Buffer.from(cloudKitChatResponseSignatureText(response), "utf8"),
+    { key, dsaEncoding: "ieee-p1363" },
+    signature,
+  );
+  if (!valid) throw new Error("CloudKit chat response signature is invalid.");
+  return true;
+}
+
 export function canTransitionCloudKitChatJob(from: CloudKitChatJobStatus, to: CloudKitChatJobStatus) {
   return from === to || transitions[from].has(to);
 }
@@ -173,7 +297,7 @@ export function parseCloudKitChatRequestPayload(
     "schemaVersion", "requestId", "conversationId", "userMessageId", "deviceId", "sourceDeviceHash",
     "publicKeyFingerprint", "signature", "prompt",
     "locale", "status", "clientSequence", "createdAt", "expiresAt", "syncMutation",
-  ])) throw new Error("CloudKit chat request contains unsupported fields.");
+  ], ["trustedMacFingerprint"])) throw new Error("CloudKit chat request contains unsupported fields.");
   if (value.schemaVersion !== 1 || value.status !== "queued") throw new Error("CloudKit chat request schema or status is invalid.");
 
   const requestId = boundedText(value.requestId, 36).toLowerCase();
@@ -182,6 +306,9 @@ export function parseCloudKitChatRequestPayload(
   const deviceId = boundedText(value.deviceId, 36).toLowerCase();
   const sourceDeviceHash = boundedText(value.sourceDeviceHash, 64).toLowerCase();
   const publicKeyFingerprint = boundedText(value.publicKeyFingerprint, 64).toLowerCase();
+  const trustedMacFingerprint = value.trustedMacFingerprint === undefined
+    ? ""
+    : boundedText(value.trustedMacFingerprint, 64).toLowerCase();
   const signature = boundedText(value.signature, 128);
   const prompt = boundedText(value.prompt, CLOUDKIT_CHAT_MAX_PROMPT_CHARS);
   const locale = value.locale === "en-US" ? "en-US" : value.locale === "zh-CN" ? "zh-CN" : "";
@@ -195,6 +322,9 @@ export function parseCloudKitChatRequestPayload(
   const expectedDeviceHash = crypto.createHash("sha256").update(deviceId, "utf8").digest("hex");
   if (!hashPattern.test(sourceDeviceHash) || sourceDeviceHash !== expectedDeviceHash || !hashPattern.test(publicKeyFingerprint)) {
     throw new Error("CloudKit chat request device identity is invalid.");
+  }
+  if (value.trustedMacFingerprint !== undefined && !hashPattern.test(trustedMacFingerprint)) {
+    throw new Error("CloudKit chat request trusted Mac identity is invalid.");
   }
   if (!signaturePattern.test(signature)) throw new Error("CloudKit chat request signature encoding is invalid.");
   if (!prompt || secretLikePattern.test(prompt)) throw new Error("CloudKit chat request prompt is empty, too large, or contains secret-like content.");
@@ -229,6 +359,7 @@ export function parseCloudKitChatRequestPayload(
     deviceId,
     sourceDeviceHash,
     publicKeyFingerprint,
+    ...(trustedMacFingerprint ? { trustedMacFingerprint } : {}),
     signature,
     prompt,
     locale,
@@ -240,11 +371,92 @@ export function parseCloudKitChatRequestPayload(
   };
 }
 
-export function parseCloudKitChatResponsePayload(input: unknown): CloudKitChatResponsePayload {
+export function parseCloudKitChatReceiptPayload(
+  input: unknown,
+  options: { now?: number; recordName?: string; mutationId?: string; logicalClock?: number } = {},
+): CloudKitChatReceiptPayload {
+  const value = parseJsonPayload(input);
+  if (!plainObject(value) || !exactFields(value, [
+    "schemaVersion", "requestId", "responseId", "deviceId", "sourceDeviceHash",
+    "publicKeyFingerprint", "responseContentHash", "responseUpdatedAt", "acknowledgedAt",
+    "signature", "syncMutation",
+  ])) throw new Error("CloudKit chat receipt contains unsupported fields.");
+  if (value.schemaVersion !== 1) throw new Error("CloudKit chat receipt schema is invalid.");
+
+  const requestId = boundedText(value.requestId, 36).toLowerCase();
+  const responseId = boundedText(value.responseId, 36).toLowerCase();
+  const deviceId = boundedText(value.deviceId, 36).toLowerCase();
+  const sourceDeviceHash = boundedText(value.sourceDeviceHash, 64).toLowerCase();
+  const publicKeyFingerprint = boundedText(value.publicKeyFingerprint, 64).toLowerCase();
+  const responseContentHash = boundedText(value.responseContentHash, 64).toLowerCase();
+  const responseUpdatedAt = integer(value.responseUpdatedAt);
+  const acknowledgedAt = integer(value.acknowledgedAt);
+  const signature = boundedText(value.signature, 128);
+  const now = options.now ?? Date.now();
+  if (!uuidPattern.test(requestId) || !uuidPattern.test(responseId) || !uuidPattern.test(deviceId)) {
+    throw new Error("CloudKit chat receipt identifiers are invalid.");
+  }
+  if (responseId !== cloudKitChatResponseId(requestId)) throw new Error("CloudKit chat receipt response id is invalid.");
+  const expectedDeviceHash = crypto.createHash("sha256").update(deviceId, "utf8").digest("hex");
+  if (
+    !hashPattern.test(sourceDeviceHash) || sourceDeviceHash !== expectedDeviceHash ||
+    !hashPattern.test(publicKeyFingerprint) || !hashPattern.test(responseContentHash)
+  ) throw new Error("CloudKit chat receipt identity or response hash is invalid.");
+  if (
+    responseUpdatedAt === undefined || acknowledgedAt === undefined ||
+    responseUpdatedAt <= 0 || acknowledgedAt !== responseUpdatedAt ||
+    acknowledgedAt > now + 5 * 60 * 1000
+  ) throw new Error("CloudKit chat receipt timestamp is invalid.");
+  if (!signaturePattern.test(signature)) throw new Error("CloudKit chat receipt signature encoding is invalid.");
+  if (!plainObject(value.syncMutation) || !exactFields(value.syncMutation, ["kind", "origin", "mutatedAt"])) {
+    throw new Error("CloudKit chat receipt mutation metadata is invalid.");
+  }
+  if (
+    value.syncMutation.kind !== "chat-receipt" ||
+    value.syncMutation.origin !== "ios-native" ||
+    integer(value.syncMutation.mutatedAt) !== acknowledgedAt
+  ) throw new Error("CloudKit chat receipt mutation metadata is invalid.");
+  if (options.recordName && options.recordName !== cloudKitChatReceiptRecordName(requestId)) {
+    throw new Error("CloudKit chat receipt id does not match its record name.");
+  }
+  if (options.mutationId && options.mutationId !== `ios-chat-receipt:${requestId}`) {
+    throw new Error("CloudKit chat receipt mutation id is invalid.");
+  }
+  if (options.logicalClock !== undefined && options.logicalClock !== acknowledgedAt) {
+    throw new Error("CloudKit chat receipt logical clock is invalid.");
+  }
+  return {
+    schemaVersion: 1,
+    requestId,
+    responseId,
+    deviceId,
+    sourceDeviceHash,
+    publicKeyFingerprint,
+    responseContentHash,
+    responseUpdatedAt,
+    acknowledgedAt,
+    signature,
+    syncMutation: { kind: "chat-receipt", origin: "ios-native", mutatedAt: acknowledgedAt },
+  };
+}
+
+export function parseCloudKitChatResponsePayload(
+  input: unknown,
+  options: {
+    requireMacSignature?: boolean;
+    verifyMacSignature?: boolean;
+    recordName?: string;
+    mutationId?: string;
+    logicalClock?: number;
+  } = {},
+): CloudKitChatUnsignedResponsePayload | CloudKitChatResponsePayload {
   const value = parseJsonPayload(input);
   if (!plainObject(value) || !exactFields(value, [
     "schemaVersion", "requestId", "responseId", "conversationId", "status", "requestContentHash", "updatedAt",
-  ], ["assistantMessageId", "text", "safeErrorCode", "providerLabel", "modelLabel", "startedAt", "completedAt"])) {
+  ], [
+    "assistantMessageId", "text", "safeErrorCode", "providerLabel", "modelLabel", "startedAt", "completedAt",
+    "macPublicKey", "macPublicKeyFingerprint", "macSignature",
+  ])) {
     throw new Error("CloudKit chat response contains unsupported fields.");
   }
   const status = value.status;
@@ -282,14 +494,23 @@ export function parseCloudKitChatResponsePayload(input: unknown): CloudKitChatRe
     throw new Error("Failed CloudKit chat response is incomplete or unsafe.");
   }
   if (text && secretLikePattern.test(text)) throw new Error("CloudKit chat response contains secret-like content.");
+  if (options.recordName && options.recordName !== cloudKitChatResponseRecordName(requestId)) {
+    throw new Error("CloudKit chat response id does not match its record name.");
+  }
+  if (options.mutationId && options.mutationId !== `mac-chat-response:${requestId}`) {
+    throw new Error("CloudKit chat response mutation id is invalid.");
+  }
+  if (options.logicalClock !== undefined && options.logicalClock !== updatedAt) {
+    throw new Error("CloudKit chat response logical clock is invalid.");
+  }
 
-  return {
+  const unsigned: CloudKitChatUnsignedResponsePayload = {
     schemaVersion: 1,
     requestId,
     responseId,
     conversationId,
     assistantMessageId,
-    status: status as CloudKitChatResponsePayload["status"],
+    status: status as CloudKitChatUnsignedResponsePayload["status"],
     text,
     safeErrorCode,
     providerLabel: safeLabel(value.providerLabel),
@@ -299,4 +520,25 @@ export function parseCloudKitChatResponsePayload(input: unknown): CloudKitChatRe
     completedAt,
     updatedAt,
   };
+  const hasAnyMacSignatureField = value.macPublicKey !== undefined
+    || value.macPublicKeyFingerprint !== undefined
+    || value.macSignature !== undefined;
+  if (!hasAnyMacSignatureField) {
+    if (options.requireMacSignature) throw new Error("CloudKit chat response Mac signature is required.");
+    return unsigned;
+  }
+  const macPublicKey = boundedText(value.macPublicKey, 256);
+  const macPublicKeyFingerprint = boundedText(value.macPublicKeyFingerprint, 64).toLowerCase();
+  const macSignature = boundedText(value.macSignature, 128);
+  if (!macPublicKey || !hashPattern.test(macPublicKeyFingerprint) || !signaturePattern.test(macSignature)) {
+    throw new Error("CloudKit chat response Mac signature fields are invalid.");
+  }
+  const signed: CloudKitChatResponsePayload = {
+    ...unsigned,
+    macPublicKey,
+    macPublicKeyFingerprint,
+    macSignature,
+  };
+  if (options.verifyMacSignature !== false) verifyCloudKitChatResponseSignature(signed);
+  return signed;
 }

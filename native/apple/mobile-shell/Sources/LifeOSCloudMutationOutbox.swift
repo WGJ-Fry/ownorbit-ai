@@ -210,7 +210,7 @@ struct LifeOSCloudPendingMutation: Codable, Equatable, Identifiable {
 
     static func validateDeviceKeyRecord(_ record: LifeOSCloudRecord, now: Date = Date()) throws -> LifeOSCloudRecord {
         let validated = try validateRecord(record)
-        guard validated.zone == "LifeOSDeviceTrustZone",
+        guard validated.zone == "LifeOSChatRelayZone",
               validated.recordType == "LifeOSDeviceKey",
               !validated.requiresUserReview,
               let payload = try? JSONSerialization.jsonObject(with: Data(validated.payloadJson.utf8)) as? [String: Any],
@@ -276,16 +276,20 @@ struct LifeOSCloudPendingMutation: Codable, Equatable, Identifiable {
     ) throws -> LifeOSCloudRecord {
         let validated = try validateRecord(record)
         let validatedDeviceKey = try validateDeviceKeyRecord(deviceKeyRecord, now: now)
-        guard validated.zone == "LifeOSChatZone",
+        guard validated.zone == "LifeOSChatRelayZone",
               validated.recordType == "LifeOSChatRequest",
               !validated.requiresUserReview,
               let payload = try? JSONSerialization.jsonObject(with: Data(validated.payloadJson.utf8)) as? [String: Any],
               let devicePayload = try? JSONSerialization.jsonObject(with: Data(validatedDeviceKey.payloadJson.utf8)) as? [String: Any],
-              Set(payload.keys) == Set([
+              [Set([
                 "schemaVersion", "requestId", "conversationId", "userMessageId", "deviceId", "sourceDeviceHash",
                 "publicKeyFingerprint", "signature", "prompt", "locale", "status", "clientSequence", "createdAt",
                 "expiresAt", "syncMutation",
-              ]),
+              ]), Set([
+                "schemaVersion", "requestId", "conversationId", "userMessageId", "deviceId", "sourceDeviceHash",
+                "publicKeyFingerprint", "trustedMacFingerprint", "signature", "prompt", "locale", "status",
+                "clientSequence", "createdAt", "expiresAt", "syncMutation",
+              ])].contains(Set(payload.keys)),
               (payload["schemaVersion"] as? NSNumber)?.intValue == 1,
               let requestId = payload["requestId"] as? String,
               let conversationId = payload["conversationId"] as? String,
@@ -293,6 +297,9 @@ struct LifeOSCloudPendingMutation: Codable, Equatable, Identifiable {
               let deviceId = payload["deviceId"] as? String,
               let sourceDeviceHash = payload["sourceDeviceHash"] as? String,
               let publicKeyFingerprint = payload["publicKeyFingerprint"] as? String,
+              payload["trustedMacFingerprint"] == nil ||
+                (payload["trustedMacFingerprint"] as? String)?
+                  .range(of: #"^[0-9a-f]{64}$"#, options: .regularExpression) != nil,
               let signatureValue = payload["signature"] as? String,
               let prompt = payload["prompt"] as? String,
               let locale = payload["locale"] as? String,
@@ -321,11 +328,18 @@ struct LifeOSCloudPendingMutation: Codable, Equatable, Identifiable {
               validated.logicalClock == createdAt else {
             throw LifeOSCloudMutationOutboxError.invalidMutation
         }
-        let signatureText = [
+        let trustedMacFingerprint = payload["trustedMacFingerprint"] as? String
+        var signatureValues = [
             "ownorbit-cloudkit-chat.v1", requestId.lowercased(), conversationId.lowercased(), userMessageId.lowercased(),
             deviceId.lowercased(), sourceDeviceHash.lowercased(), publicKeyFingerprint.lowercased(),
+        ]
+        if let trustedMacFingerprint {
+            signatureValues.append(trustedMacFingerprint)
+        }
+        signatureValues.append(contentsOf: [
             LifeOSCloudDeviceIdentity.sha256Hex(prompt), locale, String(clientSequence), String(createdAt), String(expiresAt),
-        ].joined(separator: "\n")
+        ])
+        let signatureText = signatureValues.joined(separator: "\n")
         guard publicKey.isValidSignature(signature, for: Data(signatureText.utf8)) else {
             throw LifeOSCloudMutationOutboxError.invalidMutation
         }
@@ -475,6 +489,11 @@ struct LifeOSCloudMutationOutbox {
     mutating func remove(id: String) throws {
         guard entries.contains(where: { $0.id == id }) else { return }
         try commit(entries.filter { $0.id != id })
+    }
+
+    mutating func removeChatRequests() throws {
+        guard entries.contains(where: { $0.kind == .chatRequest }) else { return }
+        try commit(entries.filter { $0.kind != .chatRequest })
     }
 
     mutating func clear() throws {

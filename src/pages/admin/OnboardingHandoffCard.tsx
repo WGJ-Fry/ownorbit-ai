@@ -1,22 +1,22 @@
-import { ClipboardCheck, MessageCircle, Network, Smartphone } from "lucide-react";
+import { ClipboardCheck, LayoutDashboard, Network, Smartphone } from "lucide-react";
 import { useI18n } from "../../i18n/I18nProvider";
 
 export default function OnboardingHandoffCard({ onCopySummary }: { onCopySummary?: () => void }) {
   const { t } = useI18n();
   const items = [
     {
-      icon: <MessageCircle className="h-4 w-4" />,
+      icon: <Smartphone className="h-4 w-4" />,
       title: t("onboarding.handoffChatTitle"),
       body: t("onboarding.handoffChatBody"),
-      href: "/chat",
-      action: t("onboarding.startFirstChat"),
+      href: "/admin/devices/pair",
+      action: t("onboarding.simpleOpenQr"),
     },
     {
-      icon: <Smartphone className="h-4 w-4" />,
-      title: t("onboarding.handoffMobileTitle"),
-      body: t("onboarding.handoffMobileBody"),
-      href: "/admin/devices",
-      action: t("onboarding.manageDevices"),
+      icon: <LayoutDashboard className="h-4 w-4" />,
+      title: t("onboarding.handoffConsoleTitle"),
+      body: t("onboarding.handoffConsoleBody"),
+      href: "/admin/dashboard",
+      action: t("onboarding.enterDashboard"),
     },
     {
       icon: <Network className="h-4 w-4" />,

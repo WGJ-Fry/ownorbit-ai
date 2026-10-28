@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Menu, Tray, Notification, clipboard, dialog, ipcMain, nativeImage, powerMonitor, shell } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const crypto = require("crypto");
+const { spawnSync } = require("child_process");
 const fs = require("fs");
 const http = require("http");
 const net = require("net");
@@ -8,12 +9,16 @@ const os = require("os");
 const path = require("path");
 const { createCloudKitPushListenerController } = require("./cloudKitPushListener.cjs");
 const { applyCloudKitHelperRuntimeEnvironment, resolveCloudKitHelperRuntime } = require("./cloudKitHelperRuntime.cjs");
+const { resolveDesktopLoginItemPolicy, shouldShowDesktopWindowOnStartup } = require("./loginItemPolicy.cjs");
+const { resolveDesktopDistribution } = require("./distributionPolicy.cjs");
 const { resolvePreferredDesktopUserDataPath } = require("./userDataPath.cjs");
 
 let mainWindow;
 let tray;
 let trayRefreshTimer;
 let cloudKitPushStatusRefreshTimer;
+let cloudKitChatRelayPollTimer;
+let cloudKitChatRelayRequestInFlight = false;
 let serverPort = 3000;
 let desktopLogPath = "";
 let desktopInternalToken = "";
@@ -113,6 +118,53 @@ function localUrl(pathname = "/admin/login") {
   return `http://127.0.0.1:${serverPort}${pathname}`;
 }
 
+function isAllowedDesktopLocalUrl(value) {
+  try {
+    const parsed = new URL(value);
+    return parsed.origin === new URL(localUrl("/")).origin;
+  } catch {
+    return false;
+  }
+}
+
+function isSafeExternalUrl(value) {
+  try {
+    const parsed = new URL(value);
+    return (parsed.protocol === "https:" || parsed.protocol === "http:")
+      && !parsed.username
+      && !parsed.password
+      && !isAllowedDesktopLocalUrl(value);
+  } catch {
+    return false;
+  }
+}
+
+function guardDesktopWebContents(webContents) {
+  webContents.setWindowOpenHandler(({ url }) => {
+    if (isAllowedDesktopLocalUrl(url)) {
+      webContents.loadURL(url).catch((error) => writeDesktopLog("Failed to open local desktop link", error?.message || String(error)));
+    } else if (isSafeExternalUrl(url)) {
+      shell.openExternal(url).catch((error) => writeDesktopLog("Failed to open external link", error?.message || String(error)));
+    } else {
+      writeDesktopLog("Blocked unsafe desktop link", redactDiagnosticText(url));
+    }
+    return { action: "deny" };
+  });
+  const guardNavigation = (event, url) => {
+    if (isAllowedDesktopLocalUrl(url)) return;
+    event.preventDefault();
+    if (isSafeExternalUrl(url)) {
+      shell.openExternal(url).catch((error) => writeDesktopLog("Failed to open external navigation", error?.message || String(error)));
+    } else {
+      writeDesktopLog("Blocked unsafe desktop navigation", redactDiagnosticText(url));
+    }
+  };
+  webContents.on("will-navigate", guardNavigation);
+  webContents.on("will-redirect", guardNavigation);
+  webContents.session.setPermissionCheckHandler(() => false);
+  webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
+}
+
 function ensureDesktopInternalToken() {
   if (!desktopInternalToken) {
     desktopInternalToken = process.env.LIFEOS_DESKTOP_INTERNAL_TOKEN || crypto.randomBytes(32).toString("hex");
@@ -173,9 +225,15 @@ function normalizeDesktopRuntimeConfig(config) {
   if (!config || typeof config !== "object") return null;
   const mode = String(config.mode || "");
   if (!["configured", "cloudflare", "tailscale", "lan", "local"].includes(mode)) return null;
-  const host = config.host === "0.0.0.0" ? "0.0.0.0" : "127.0.0.1";
-  const port = Number.parseInt(String(config.port || ""), 10);
   const publicBaseUrl = String(config.publicBaseUrl || "").trim();
+  const isLoopbackTunnel = mode === "cloudflare"
+    || (mode === "tailscale" && /^https:\/\//i.test(publicBaseUrl));
+  const host = isLoopbackTunnel
+    ? "127.0.0.1"
+    : config.host === "0.0.0.0"
+      ? "0.0.0.0"
+      : "127.0.0.1";
+  const port = Number.parseInt(String(config.port || ""), 10);
   return {
     mode,
     host,
@@ -350,6 +408,24 @@ function waitForEndpoint(url, options = {}) {
 
 async function startLocalCore() {
   desktopLogPath = path.join(app.getPath("logs"), "lifeos-desktop.log");
+  let macCodeSignature = "";
+  if (process.platform === "darwin" && app.isPackaged) {
+    const signature = spawnSync("codesign", ["-dvvv", app.getPath("exe")], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 5_000,
+    });
+    macCodeSignature = `${signature.stdout || ""}\n${signature.stderr || ""}`;
+  }
+  const distribution = resolveDesktopDistribution({
+    configured: app.isPackaged ? "" : process.env.LIFEOS_DISTRIBUTION,
+    platform: process.platform,
+    isPackaged: app.isPackaged,
+    macCodeSignature,
+  });
+  if (distribution) process.env.LIFEOS_DISTRIBUTION = distribution;
+  process.env.LIFEOS_DESKTOP_PACKAGED = app.isPackaged ? "1" : "0";
+  process.env.LIFEOS_DESKTOP_SIGNATURE_VERIFIED = distribution === "signed" ? "1" : "0";
   process.env.LIFEOS_DATA_DIR = path.join(app.getPath("userData"), "data");
   const helperRuntime = resolveCloudKitHelperRuntime({ environment: process.env, resourcesPath: process.resourcesPath });
   cloudKitHelperRuntimeStatus = applyCloudKitHelperRuntimeEnvironment(helperRuntime, process.env);
@@ -365,7 +441,7 @@ async function startLocalCore() {
   const appPath = getDesktopAppRoot();
   const runtimeCwd = app.isPackaged ? path.dirname(appPath) : appPath;
   process.chdir(runtimeCwd);
-  writeDesktopLog("Starting OwnOrbit local core", `port=${serverPort} dataDirConfigured=${Boolean(process.env.LIFEOS_DATA_DIR)} packaged=${app.isPackaged}`);
+  writeDesktopLog("Starting OwnOrbit local core", `port=${serverPort} dataDirConfigured=${Boolean(process.env.LIFEOS_DATA_DIR)} packaged=${app.isPackaged} distribution=${process.env.LIFEOS_DISTRIBUTION || "unclassified"}`);
   if (process.env.LIFEOS_DESKTOP_FORCE_CORE_FAILURE === "1") {
     throw new Error("Forced desktop startup failure for smoke testing.");
   }
@@ -391,10 +467,9 @@ async function resolvePreferredAdminPath(fallbackPath = "/admin/login") {
   if (!adminStatusResult.ok || !adminStatusResult.body) return fallbackPath;
   const status = publicAdminStatusSnapshot(adminStatusResult.body);
   if (!status?.configured) return "/admin/login";
-  if (status.authenticated && status.nextPath) return status.nextPath;
-  if (status.onboardingRequired && status.nextPath) return status.nextPath;
-  if (fallbackPath === "/admin/dashboard") return status.nextPath || "/admin/dashboard";
-  return fallbackPath;
+  if (!status.authenticated) return "/admin/login";
+  if (status.onboardingRequired) return "/admin/onboarding";
+  return "/admin/dashboard";
 }
 
 async function showPreferredAdminWindow(fallbackPath = "/admin/login") {
@@ -418,10 +493,7 @@ async function createWindow(pathname = "/admin/login") {
     },
   });
 
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
-    return { action: "deny" };
-  });
+  guardDesktopWebContents(mainWindow.webContents);
   await loadDesktopWindow(mainWindow, pathname);
   return mainWindow;
 }
@@ -528,7 +600,7 @@ function fetchLocalJson(pathname) {
   });
 }
 
-function postLocalJson(pathname, body = {}, headers = {}) {
+function postLocalJson(pathname, body = {}, headers = {}, timeoutMs = 2500) {
   return new Promise((resolve) => {
     const payload = JSON.stringify(body || {});
     const req = http.request({
@@ -554,17 +626,63 @@ function postLocalJson(pathname, body = {}, headers = {}) {
             ok: res.statusCode >= 200 && res.statusCode < 300,
             status: res.statusCode || 0,
             body: responseBody ? JSON.parse(responseBody) : null,
+            setCookie: Array.isArray(res.headers["set-cookie"]) ? res.headers["set-cookie"] : [],
           });
         } catch {
           resolve({ ok: false, status: res.statusCode || 0, error: "invalid json" });
         }
       });
     });
-    req.setTimeout(2500, () => req.destroy(new Error("timeout")));
+    req.setTimeout(timeoutMs, () => req.destroy(new Error("timeout")));
     req.on("error", (error) => resolve({ ok: false, status: 0, error: error?.message || "request failed" }));
     req.write(payload);
     req.end();
   });
+}
+
+function isTrustedDesktopIpcEvent(event) {
+  if (!mainWindow || mainWindow.isDestroyed() || event.sender.id !== mainWindow.webContents.id) return false;
+  const frameUrl = event.senderFrame?.url || event.sender.getURL();
+  return isAllowedDesktopLocalUrl(frameUrl);
+}
+
+async function applyDesktopResponseCookies(targetSession, setCookieHeaders = []) {
+  for (const header of setCookieHeaders) {
+    const [pair] = String(header).split(";");
+    const separator = pair.indexOf("=");
+    if (separator <= 0) continue;
+    const name = pair.slice(0, separator).trim();
+    const value = pair.slice(separator + 1).trim();
+    if (!["lifeos_admin_session", "lifeos_csrf"].includes(name) || !value) continue;
+    await targetSession.cookies.set({
+      url: localUrl("/"),
+      name,
+      value,
+      path: "/",
+      httpOnly: name === "lifeos_admin_session",
+      secure: false,
+      sameSite: "strict",
+    });
+  }
+}
+
+async function runDesktopAdminAction(event, action, password) {
+  if (!isTrustedDesktopIpcEvent(event)) throw new Error("Desktop admin action was rejected.");
+  const normalizedPassword = String(password || "");
+  const capabilityResponse = await postLocalJson("/api/v1/internal/admin-capability", { action }, {
+    "X-LifeOS-Desktop-Token": ensureDesktopInternalToken(),
+  });
+  const capability = capabilityResponse.body?.capability;
+  if (!capabilityResponse.ok || typeof capability !== "string") {
+    return { ok: false, status: capabilityResponse.status, body: capabilityResponse.body || { code: "desktop_capability_required" } };
+  }
+  const pathname = action === "setup" ? "/api/v1/admin/setup" : "/api/v1/admin/local-password-reset";
+  const field = action === "setup" ? "password" : "newPassword";
+  const response = await postLocalJson(pathname, { [field]: normalizedPassword }, {
+    "X-LifeOS-Desktop-Capability": capability,
+  });
+  if (response.ok) await applyDesktopResponseCookies(event.sender.session, response.setCookie);
+  return { ok: response.ok, status: response.status, body: response.body };
 }
 
 async function fetchDesktopInternalNetworkSummary(reason = "desktop-tray") {
@@ -599,16 +717,69 @@ async function handleCloudKitPushListenerEvent(event) {
 
 function reconcileCloudKitPushListener(networkSummary) {
   const dataSync = networkSummary?.icloud?.dataSync;
-  const enabled = process.env.LIFEOS_CLOUDKIT_PUSH_LISTENER !== "0"
-    && Boolean(dataSync?.enabled)
+  const chatRelay = networkSummary?.icloud?.chatRelay;
+  const fullDataListenerEnabled = Boolean(dataSync?.enabled)
     && Boolean(dataSync?.ready)
     && Boolean(dataSync?.autoSync?.enabled);
+  const chatRelayEnabled = Boolean(chatRelay?.enabled) && Boolean(chatRelay?.ready);
+  const enabled = process.env.LIFEOS_CLOUDKIT_PUSH_LISTENER !== "0"
+    && (fullDataListenerEnabled || chatRelayEnabled);
   cloudKitPushStatus = cloudKitPushListenerController.configure({
     enabled,
     helperPath: process.env.LIFEOS_CLOUDKIT_HELPER_BIN,
     containerId: process.env.LIFEOS_CLOUDKIT_CONTAINER_ID,
   });
+  reconcileCloudKitChatRelayPolling(chatRelayEnabled);
   return cloudKitPushStatus;
+}
+
+async function runCloudKitChatRelayFromDesktop(reason = "desktop-chat-relay-poll") {
+  if (shutdownRequested || cloudKitChatRelayRequestInFlight) return null;
+  cloudKitChatRelayRequestInFlight = true;
+  try {
+    const response = await postLocalJson("/api/v1/internal/cloudkit-chat-relay/run", { reason }, {
+      "X-LifeOS-Desktop-Token": ensureDesktopInternalToken(),
+    }, 75_000);
+    if (response.ok) {
+      const result = response.body?.result || {};
+      if (result.processed || result.exportedResponses || !["completed", "relay-busy"].includes(result.status)) {
+        writeDesktopLog(
+          "iPhone iCloud chat relay cycle finished",
+          `reason=${reason} status=${result.status || "unknown"} processed=${Number(result.processed || 0)} completed=${Number(result.completed || 0)} exported=${Number(result.exportedResponses || 0)}`,
+        );
+      }
+    } else {
+      writeDesktopLog(
+        "iPhone iCloud chat relay cycle failed",
+        `reason=${reason} status=${response.status} error=${response.error || response.body?.code || "unknown"}`,
+      );
+    }
+    return response;
+  } finally {
+    cloudKitChatRelayRequestInFlight = false;
+  }
+}
+
+function reconcileCloudKitChatRelayPolling(enabled) {
+  const shouldRun = process.env.LIFEOS_CLOUDKIT_CHAT_RELAY_POLL !== "0" && enabled;
+  if (!shouldRun) {
+    if (cloudKitChatRelayPollTimer) clearInterval(cloudKitChatRelayPollTimer);
+    cloudKitChatRelayPollTimer = null;
+    return;
+  }
+  if (cloudKitChatRelayPollTimer) return;
+  const initial = setTimeout(() => {
+    runCloudKitChatRelayFromDesktop("desktop-chat-relay-startup").catch((error) => {
+      writeDesktopLog("Initial iPhone iCloud chat relay cycle failed", error?.message || String(error));
+    });
+  }, 1000);
+  initial.unref?.();
+  cloudKitChatRelayPollTimer = setInterval(() => {
+    runCloudKitChatRelayFromDesktop("desktop-chat-relay-poll").catch((error) => {
+      writeDesktopLog("Scheduled iPhone iCloud chat relay cycle failed", error?.message || String(error));
+    });
+  }, 20_000);
+  cloudKitChatRelayPollTimer.unref?.();
 }
 
 function publicHealthSnapshot(health) {
@@ -1037,7 +1208,8 @@ async function refreshIcloudHandoffFromDesktopWake(reason = "desktop-resume") {
   if (response.ok) {
     const result = response.body?.result || {};
     const dataSync = response.body?.cloudKitDataSync || {};
-    writeDesktopLog("iCloud handoff refreshed after desktop wake", `reason=${reason} refreshed=${Boolean(result.refreshed)} status=${result.status || "unknown"} refreshReason=${result.refreshReason || "unknown"} dataSyncQueued=${Boolean(dataSync.queued)} dataSyncStatus=${dataSync.status || "not-enabled"}`);
+    const chatRelay = response.body?.cloudKitChatRelay || {};
+    writeDesktopLog("iCloud handoff refreshed after desktop wake", `reason=${reason} refreshed=${Boolean(result.refreshed)} status=${result.status || "unknown"} refreshReason=${result.refreshReason || "unknown"} dataSyncQueued=${Boolean(dataSync.queued)} dataSyncStatus=${dataSync.status || "not-enabled"} chatRelayQueued=${Boolean(chatRelay.queued)} chatRelayStatus=${chatRelay.status || "not-ready"}`);
   } else {
     writeDesktopLog("iCloud handoff desktop wake refresh failed", `reason=${reason} status=${response.status} error=${response.error || response.body?.error || "unknown"}`);
   }
@@ -1134,6 +1306,30 @@ function configureUpdates() {
   });
 }
 
+function configureDesktopLoginItem() {
+  const policy = resolveDesktopLoginItemPolicy({
+    platform: process.platform,
+    isPackaged: app.isPackaged,
+    environment: process.env,
+  });
+  if (!policy.supported) return { ...policy, wasOpenedAtLogin: false };
+  try {
+    app.setLoginItemSettings({
+      openAtLogin: policy.openAtLogin,
+      openAsHidden: policy.openAsHidden,
+    });
+    const settings = app.getLoginItemSettings();
+    writeDesktopLog(
+      "Desktop login item configured",
+      `enabled=${policy.enabled} openedAtLogin=${Boolean(settings.wasOpenedAtLogin)}`,
+    );
+    return { ...policy, wasOpenedAtLogin: Boolean(settings.wasOpenedAtLogin) };
+  } catch (error) {
+    writeDesktopLog("Desktop login item configuration failed", error?.message || String(error));
+    return { ...policy, wasOpenedAtLogin: false };
+  }
+}
+
 function requestDesktopShutdown(reason = "signal") {
   if (shutdownRequested) return;
   shutdownRequested = true;
@@ -1167,6 +1363,8 @@ if (!hasSingleInstanceLock) {
   });
 
   app.whenReady().then(async () => {
+    ipcMain.handle("lifeos:admin-setup", async (event, password) => runDesktopAdminAction(event, "setup", password));
+    ipcMain.handle("lifeos:admin-reset", async (event, password) => runDesktopAdminAction(event, "reset", password));
     ipcMain.handle("lifeos:open-logs-folder", async () => {
       openLogsFolder();
       return true;
@@ -1188,9 +1386,21 @@ if (!hasSingleInstanceLock) {
     try {
       await startLocalCore();
       configureUpdates();
+      const loginItem = configureDesktopLoginItem();
       await configureDesktopShell();
       registerDesktopPowerMonitorRefresh();
-      await createWindow(await resolvePreferredAdminPath("/admin/login"));
+      const adminStatusResult = await fetchLocalJson("/api/v1/admin/status");
+      const adminStatus = adminStatusResult.ok ? publicAdminStatusSnapshot(adminStatusResult.body) : null;
+      const preferredPath = await resolvePreferredAdminPath("/admin/login");
+      if (shouldShowDesktopWindowOnStartup({
+        wasOpenedAtLogin: loginItem.wasOpenedAtLogin,
+        adminConfigured: Boolean(adminStatus?.configured),
+        environment: process.env,
+      })) {
+        await createWindow(preferredPath);
+      } else {
+        writeDesktopLog("Desktop started in background", "reason=macos-login-item");
+      }
       if (process.env.LIFEOS_DESKTOP_EXPORT_DIAGNOSTIC_ON_START) {
         await exportDesktopDiagnosticBundle(process.env.LIFEOS_DESKTOP_EXPORT_DIAGNOSTIC_ON_START);
       }
@@ -1227,6 +1437,8 @@ if (!hasSingleInstanceLock) {
   app.on("before-quit", () => {
     shutdownRequested = true;
     if (trayRefreshTimer) clearInterval(trayRefreshTimer);
+    if (cloudKitChatRelayPollTimer) clearInterval(cloudKitChatRelayPollTimer);
+    cloudKitChatRelayPollTimer = null;
     cloudKitPushListenerController.stop("app-quit");
     if (cloudKitPushStatusRefreshTimer) clearTimeout(cloudKitPushStatusRefreshTimer);
     cloudKitPushStatusRefreshTimer = null;

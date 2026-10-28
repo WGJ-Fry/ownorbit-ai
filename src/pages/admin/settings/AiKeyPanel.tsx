@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { KeyRound, PlugZap, Save, Trash2 } from "lucide-react";
+import { AlertTriangle, KeyRound, PlugZap, Save, Trash2 } from "lucide-react";
 import { deleteAiProviderKey, isLifeosRequestTimeout, listAiProviders, saveAiProviderKey, testAiProvider, updateActiveAiProvider, updateAiProviderModel } from "../../../services/lifeosApi";
 import type { AiProviderId, AiProviderStatus, ConfigDiagnostics } from "../../../services/lifeosApi";
 import { useI18n } from "../../../i18n/I18nProvider";
 import type { TranslationKey } from "../../../i18n/translations";
 import AiProviderSecuritySummary from "./AiProviderSecuritySummary";
+import { getAiProviderTestFeedback } from "../../../services/aiProviderTestFeedback";
 
 function formatAiKeyApiError(error: any, t: (key: any, params?: Record<string, any>) => string, fallbackKey: TranslationKey) {
   if (isLifeosRequestTimeout(error)) return t("api.requestTimeout");
@@ -30,6 +31,7 @@ export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: Co
     defaultModel: diagnostics.ai.defaultModel,
     selectedModel: diagnostics.ai.selectedModel,
     restartRequired: diagnostics.ai.restartRequired,
+    credentialResetRequired: diagnostics.ai.credentialResetRequired,
     secureStorage: diagnostics.ai.secureStorage,
     recommendations: diagnostics.ai.recommendations,
   };
@@ -54,9 +56,15 @@ export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: Co
       ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100"
       : "border-white/[0.08] bg-white/[0.03] text-zinc-300";
 
-  const refreshProviders = async () => {
+  const refreshProviders = async (preferredProviderId?: AiProviderId) => {
     const data = await listAiProviders();
     setProviders(data.providers);
+    const preferredProvider = data.providers.find((provider) => provider.id === preferredProviderId)
+      || data.providers.find((provider) => provider.active)
+      || data.providers.find((provider) => provider.credentialResetRequired)
+      || data.providers.find((provider) => provider.configured)
+      || data.providers[0];
+    if (preferredProvider) setSelectedProvider(preferredProvider.id);
   };
 
   useEffect(() => {
@@ -75,7 +83,7 @@ export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: Co
       await saveAiProviderKey(selectedProvider, apiKey.trim());
       setApiKey("");
       setStatus(t("aiKey.saved", { provider: activeProvider.provider }));
-      await refreshProviders();
+      await refreshProviders(selectedProvider);
       await onChanged();
     } catch (error: any) {
       setStatus(formatAiKeyApiError(error, t, "aiKey.saveFailed"));
@@ -91,7 +99,7 @@ export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: Co
     try {
       await deleteAiProviderKey(selectedProvider);
       setStatus(t("aiKey.deleted", { provider: activeProvider.provider }));
-      await refreshProviders();
+      await refreshProviders(selectedProvider);
       await onChanged();
     } catch (error: any) {
       setStatus(formatAiKeyApiError(error, t, "aiKey.deleteFailed"));
@@ -107,10 +115,13 @@ export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: Co
       const result = await testAiProvider(selectedProvider, "live");
       const testDetails = result.mode === "live" ? t("aiKey.testLiveOk", { count: result.modelCount ?? 0 }) : t("aiKey.testConfigOnly");
       const catalogDetails = result.modelCatalogUpdated ? ` ${t("aiKey.modelCatalogUpdated", { count: result.discoveredModelCount || result.modelCount || 0 })}` : "";
-      setStatus(result.ok
-        ? `${t("aiKey.testConfigOk", { provider: result.provider.provider, model: result.selectedModel || result.provider.selectedModel || result.provider.defaultModel || "-" })} ${testDetails}${catalogDetails}`
-        : result.message);
-      await refreshProviders();
+      if (result.ok && result.selectedModelAvailable !== false) {
+        setStatus(`${t("aiKey.testConfigOk", { provider: result.provider.provider, model: result.selectedModel || result.provider.selectedModel || result.provider.defaultModel || "-" })} ${testDetails}${catalogDetails}`);
+      } else {
+        const feedback = getAiProviderTestFeedback(result);
+        setStatus(t(feedback.key, feedback.params));
+      }
+      await refreshProviders(selectedProvider);
     } catch (error: any) {
       setStatus(formatAiKeyApiError(error, t, "aiKey.testFailed"));
     } finally {
@@ -126,7 +137,7 @@ export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: Co
       const result = await updateAiProviderModel(selectedProvider, modelValue.trim());
       setSelectedModel(result.provider.selectedModel || modelValue.trim());
       setStatus(t("aiKey.modelSaved", { provider: result.provider.provider, model: result.provider.selectedModel || modelValue.trim() }));
-      await refreshProviders();
+      await refreshProviders(selectedProvider);
       await onChanged();
     } catch (error: any) {
       setStatus(formatAiKeyApiError(error, t, "aiKey.modelSaveFailed"));
@@ -164,6 +175,16 @@ export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: Co
       </div>
 
       <AiProviderSecuritySummary providers={providers.length ? providers : [activeProvider as AiProviderStatus]} />
+
+      {activeProvider.credentialResetRequired ? (
+        <div data-testid="ai-key-reset-required" className="mb-4 flex gap-3 border-y border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-50">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <div className="font-bold">{t("aiKey.credentialResetTitle")}</div>
+            <div className="mt-1 text-xs leading-relaxed text-amber-50/75">{t("aiKey.credentialResetBody", { provider: activeProvider.provider })}</div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mb-4 grid gap-2 sm:grid-cols-4">
         {providers.map((provider) => {

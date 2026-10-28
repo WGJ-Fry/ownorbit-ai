@@ -151,7 +151,7 @@ export default function AdminChatPage() {
 function MessageRow({ message }: { message: StoredChatMessage }) {
   const { t } = useI18n();
   const isUser = message.role === "user";
-  const displayRole = isUser ? t("adminChat.user") : message.role === "assistant" ? "JARVIS" : message.role;
+  const displayRole = isUser ? t("adminChat.user") : message.role === "assistant" ? "OwnOrbit" : message.role;
 
   return (
     <div className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>

@@ -9,7 +9,7 @@ import { insertAuditLog } from "./server/audit";
 import { DeviceRecord, BindingSession, getDevices, insertBindingSession, insertDevice } from "./server/devices";
 import { registerAiRoutes } from "./server/aiRoutes";
 import { registerAdminRoutes } from "./server/routes/adminRoutes";
-import { registerBackupRoutes } from "./server/routes/backupRoutes";
+import { ENCRYPTED_BACKUP_IMPORT_PATH, registerBackupRoutes } from "./server/routes/backupRoutes";
 import { registerChatRoutes } from "./server/routes/chatRoutes";
 import { registerCoreRoutes } from "./server/routes/coreRoutes";
 import { registerCustomAppRoutes } from "./server/routes/customAppRoutes";
@@ -19,9 +19,11 @@ import { registerProblemBlueprintRoutes } from "./server/routes/problemBlueprint
 import { registerStateRoutes } from "./server/routes/stateRoutes";
 import { attachRealtimeServer } from "./server/realtime";
 import { runMigrations } from "./server/migrations";
-import { redactApiErrorResponses, requireCsrf, securityHeaders } from "./server/httpSecurity";
+import { apiRequestErrorHandler, redactApiErrorResponses, requireCsrf, securityHeaders } from "./server/httpSecurity";
 import { startBackupScheduler } from "./server/backupSchedule";
 import { startCloudKitAutoSyncScheduler } from "./server/cloudKitAutoSyncSchedule";
+import { startCloudKitChatLifecycleScheduler } from "./server/cloudKitChatLifecycle";
+import { startCloudKitChatRelayScheduler } from "./server/cloudKitChatRelaySchedule";
 import { maybeStartConfiguredCloudflareTunnel } from "./server/cloudflareTunnel";
 import { runIcloudHandoffStartupRefresh, startIcloudHandoffMonitor } from "./server/icloudHandoffMonitor";
 import { maybeStartConfiguredTailscaleServe } from "./server/networkDiagnostics";
@@ -29,6 +31,8 @@ import { startRemoteHealthMonitor } from "./server/remoteHealthMonitor";
 import { getInstallPairingToken, htmlWithInstallPairingManifest, htmlWithPublicBaseHref, setInstallPairingIntentCookie } from "./server/mobileInstall";
 import { getConfiguredPublicBasePath } from "./server/publicBaseUrl";
 import { migrateLegacyCustomAppsFromClientState } from "./server/customApps";
+import { createOwnedRemoteEntryShutdown } from "./server/remoteEntryShutdown";
+import { prepareTailscaleSocketPath, protectTailscaleSocket } from "./server/tailscaleSocket";
 
 const app = express();
 const PORT = Number(process.env.LIFEOS_PORT || process.env.PORT || 3000);
@@ -87,6 +91,8 @@ migrateLegacyJsonStore();
 migrateLegacyCustomAppsFromClientState();
 startBackupScheduler();
 startCloudKitAutoSyncScheduler();
+startCloudKitChatRelayScheduler();
+startCloudKitChatLifecycleScheduler();
 startRemoteHealthMonitor();
 startIcloudHandoffMonitor();
 
@@ -98,16 +104,20 @@ app.use((req, _res, next) => {
   next();
 });
 
-app.use(express.json({ limit: "64mb" }));
-app.use(express.urlencoded({ limit: "64mb", extended: true }));
 app.use(securityHeaders);
 app.use(redactApiErrorResponses);
 app.use(requireCsrf);
+const defaultJsonParser = express.json({ limit: process.env.LIFEOS_JSON_BODY_LIMIT || "1mb" });
+app.use((req, res, next) => {
+  if (req.path === ENCRYPTED_BACKUP_IMPORT_PATH) return next();
+  return defaultJsonParser(req, res, next);
+});
+app.use(express.urlencoded({ limit: process.env.LIFEOS_FORM_BODY_LIMIT || "256kb", extended: true }));
 
 registerCoreRoutes(app, HOST);
 registerAdminRoutes(app);
 registerBackupRoutes(app);
-registerDeviceRoutes(app);
+registerDeviceRoutes(app, HOST);
 registerChatRoutes(app);
 registerMemoryRoutes(app);
 registerProblemBlueprintRoutes(app);
@@ -115,10 +125,38 @@ registerCustomAppRoutes(app);
 registerStateRoutes(app);
 
 registerAiRoutes(app);
+app.use(apiRequestErrorHandler);
 
 async function startServer() {
   const server = http.createServer(app);
   attachRealtimeServer(server);
+  const tailscaleSocketPath = prepareTailscaleSocketPath();
+  const tailscaleSocketServer = tailscaleSocketPath ? http.createServer(app) : null;
+  const tailscaleWindowsRelayServer = process.platform === "win32" ? http.createServer(app) : null;
+  if (tailscaleSocketServer) {
+    attachRealtimeServer(tailscaleSocketServer);
+    tailscaleSocketServer.listen(tailscaleSocketPath, () => {
+      protectTailscaleSocket(tailscaleSocketPath);
+      console.log("OwnOrbit private Tailscale socket is ready");
+    });
+  }
+  if (tailscaleWindowsRelayServer) {
+    attachRealtimeServer(tailscaleWindowsRelayServer);
+    await new Promise<void>((resolve, reject) => {
+      tailscaleWindowsRelayServer.once("error", reject);
+      tailscaleWindowsRelayServer.listen(0, "127.0.0.1", () => {
+        tailscaleWindowsRelayServer.off("error", reject);
+        const address = tailscaleWindowsRelayServer.address();
+        if (!address || typeof address === "string") {
+          reject(new Error("OwnOrbit could not allocate the private Windows Tailscale relay."));
+          return;
+        }
+        process.env.LIFEOS_TAILSCALE_LOOPBACK_PORT = String(address.port);
+        console.log("OwnOrbit private Windows Tailscale relay is ready");
+        resolve();
+      });
+    });
+  }
 
   if (process.env.NODE_ENV !== "production" && !RUNNING_BUNDLED_SERVER) {
     const { createServer: createViteServer } = await import("vite");
@@ -209,7 +247,15 @@ async function startServer() {
     });
   });
 
-  const shutdown = () => {
+  // Serve-off, socket cleanup and cloudflared SIGTERM all happen synchronously
+  // inside the first call, so the "exit" path completes them too.
+  const cleanupOwnedRemoteEntry = createOwnedRemoteEntryShutdown({ port: String(PORT), tailscaleSocketPath });
+  process.once("exit", () => { void cleanupOwnedRemoteEntry(); });
+
+  const shutdown = async () => {
+    await cleanupOwnedRemoteEntry();
+    tailscaleSocketServer?.close();
+    tailscaleWindowsRelayServer?.close();
     server.close(() => {
       process.exit(0);
     });

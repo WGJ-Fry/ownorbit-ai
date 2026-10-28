@@ -44,7 +44,7 @@ test("AI runtime routes OpenAI-compatible providers with safe headers and select
     const calls = [];
     globalThis.fetch = async (url, init) => {
       const body = JSON.parse(init.body);
-      calls.push({ url: String(url), headers: init.headers, body });
+      calls.push({ url: String(url), headers: init.headers, body, signal: init.signal });
       return jsonResponse({
         choices: [{
           message: {
@@ -60,7 +60,13 @@ test("AI runtime routes OpenAI-compatible providers with safe headers and select
       });
     };
 
-    const openai = await generateAiContent({ providerId: "openai", modelEngine: "GPT-4o", contents: "hello" });
+    const providerAbort = new AbortController();
+    const openai = await generateAiContent({
+      providerId: "openai",
+      modelEngine: "GPT-4o",
+      contents: "hello",
+      signal: providerAbort.signal,
+    });
     assert.equal(openai.providerId, "openai");
     assert.equal(openai.model, "gpt-4o");
     assert.equal(openai.functionCalls?.[0]?.args.appName, "navigation");
@@ -75,6 +81,7 @@ test("AI runtime routes OpenAI-compatible providers with safe headers and select
 
     assert.equal(calls[0].url, "https://api.openai.com/v1/chat/completions");
     assert.equal(calls[0].headers.Authorization, "Bearer sk-openai-test");
+    assert.equal(calls[0].signal, providerAbort.signal);
     assert.equal(calls[1].url, "https://openrouter.ai/api/v1/chat/completions");
     assert.equal(calls[1].headers.Authorization, "Bearer sk-openrouter-test");
     assert.equal(calls[1].headers["X-Title"], "OwnOrbit AI");

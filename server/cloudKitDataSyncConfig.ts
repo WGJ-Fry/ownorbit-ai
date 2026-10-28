@@ -57,7 +57,7 @@ function normalizePersistedConfig(value: unknown): PersistedCloudKitDataSyncConf
   return {
     version: 1,
     enabled: Boolean(raw.enabled),
-    selectedDataTypes: selectedDataTypes.length ? selectedDataTypes : [...safeCloudKitDataTypes],
+    selectedDataTypes,
     updatedAt: Number.isFinite(updatedAt) && updatedAt > 0 ? Math.floor(updatedAt) : 0,
   };
 }
@@ -75,7 +75,7 @@ export function getCloudKitDataSyncConfig(): CloudKitDataSyncConfig {
     enabled: enabledEnvironmentOverride ? enabledEnvironmentValue === "1" : persisted?.enabled || false,
     selectedDataTypes: dataTypesEnvironmentOverride
       ? environmentDataTypes
-      : persisted?.selectedDataTypes || [...safeCloudKitDataTypes],
+      : persisted?.selectedDataTypes || [],
     updatedAt: persisted?.updatedAt || state?.updatedAt,
     enabledSource: enabledEnvironmentOverride ? "environment" : persisted ? "sqlite" : "default",
     dataTypesSource: dataTypesEnvironmentOverride ? "environment" : persisted ? "sqlite" : "default",
@@ -103,7 +103,7 @@ export function updateCloudKitDataSyncConfig(
     throw error;
   }
   const selectedDataTypes = normalizeCloudKitDataTypes(requested);
-  if (!selectedDataTypes.length) {
+  if (input.enabled && !selectedDataTypes.length) {
     const error = new Error("Choose at least one safe CloudKit data type.");
     (error as any).statusCode = 400;
     throw error;

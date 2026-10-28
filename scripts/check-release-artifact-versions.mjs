@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { currentSourceCommit, releaseProvenanceFailures } from "./release-provenance.mjs";
 
 const rootDir = process.cwd();
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
@@ -47,23 +48,54 @@ const staleMetadata = metadata
   .map((file) => ({ file, mismatches: metadataVersionMismatches(file), kind: "metadata" }))
   .filter((item) => item.mismatches.length > 0);
 const stale = [...staleArtifacts, ...staleMetadata];
+const manifestPath = path.join(releaseDir, "update-feed", "release-manifest.json");
+const topLevelArtifacts = fs.existsSync(releaseDir)
+  ? fs.readdirSync(releaseDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && /\.(dmg|zip|exe|AppImage)$/i.test(entry.name))
+  : [];
+const provenanceFailures = [];
 
-if (stale.length === 0) {
-  console.log(`Release artifact versions are clean for ${packageJson.version}.`);
+if (topLevelArtifacts.length > 0 && !fs.existsSync(manifestPath)) {
+  provenanceFailures.push("release artifacts exist but update-feed/release-manifest.json is missing");
+} else if (fs.existsSync(manifestPath)) {
+  try {
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    provenanceFailures.push(...releaseProvenanceFailures(manifest.source, {
+      expectedCommit: currentSourceCommit(rootDir),
+      requireClean: true,
+    }));
+  } catch (error) {
+    provenanceFailures.push(`release manifest is not valid JSON: ${error.message}`);
+  }
+}
+
+if (stale.length === 0 && provenanceFailures.length === 0) {
+  console.log(`Release artifact versions and source provenance are clean for ${packageJson.version}.`);
   process.exit(0);
 }
 
-console.error(`Release artifacts do not match package version ${packageJson.version}:`);
-for (const item of stale) {
-  console.error(`- ${path.relative(rootDir, item.file)} (${item.kind}) contains ${item.mismatches.join(", ")}`);
+if (stale.length > 0) {
+  console.error(`Release artifacts do not match package version ${packageJson.version}:`);
+  for (const item of stale) {
+    console.error(`- ${path.relative(rootDir, item.file)} (${item.kind}) contains ${item.mismatches.join(", ")}`);
+  }
+}
+if (provenanceFailures.length > 0) {
+  console.error("Release artifact source provenance is not safe:");
+  for (const failure of provenanceFailures) console.error(`- ${failure}`);
 }
 
 if (!fix) {
-  console.error("Run with --fix to delete stale release artifacts, or rebuild packages for the current version.");
+  console.error("Rebuild every release package from a clean commit. Use --fix only to remove version-mismatched files.");
   process.exit(1);
 }
 
 for (const item of stale) {
   fs.rmSync(item.file, { force: true });
   console.log(`Deleted ${path.relative(rootDir, item.file)}`);
+}
+
+if (provenanceFailures.length > 0) {
+  console.error("Source provenance cannot be repaired in place; rebuild every release package from a clean commit.");
+  process.exit(1);
 }

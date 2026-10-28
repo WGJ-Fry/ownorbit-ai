@@ -5,20 +5,23 @@ import type { DeviceConnectivityReport, DeviceCredentialStorageStatus } from "..
 import { clearOfflineMessageQueue, getOfflineMessageConflictGroups, getOfflineMessageQueue, getOfflineMessageQueueRecoverySummary, getOfflineMessageQueueStorageStatus, getOfflineMessageQueueSummary, removeFailedOfflineMessages, removeOfflineMessages, requestOfflineMessageQueuePersistentStorage, resolveOfflineMessageConflictGroup, retryFailedOfflineMessages, retryOfflineMessage, subscribeOfflineMessageQueue } from "../../services/offlineMessageQueue";
 import type { OfflineMessageConflictGroup, OfflineMessageConflictResolutionOption, OfflineMessageQueueStorageStatus, OfflineQueuedMessage } from "../../services/offlineMessageQueue";
 import { getNetworkStatus } from "../../services/networkStatus";
-import { extractPairingToken, pairingInstallPath } from "../../services/mobilePairingIntent";
-import { getMobileConnectivityIssue, getMobileRecoveryHints, getPwaCapabilityStatus, getRemoteEntryGuidance, getRemoteEntryStatus, mobileConnectivityResultFromReport, testMobileRemoteConnectivity } from "../../services/pwaCapabilities";
+import { resolvePairingInputDestination, savePendingPairingToken } from "../../services/mobilePairingIntent";
+import { getMobileConnectivityIssue, getMobileRecoveryHints, getPwaCapabilityStatus, getRemoteEntryGuidance, getRemoteEntryStatus, isTemporaryCloudflareOrigin, mobileConnectivityResultFromReport, testMobileRemoteConnectivity } from "../../services/pwaCapabilities";
 import type { MobileConnectivityResult } from "../../services/pwaCapabilities";
 import { getPwaServiceWorkerLifecycleStatus, subscribePwaServiceWorkerLifecycle } from "../../services/pwaServiceWorkerLifecycle";
 import type { PwaServiceWorkerLifecycleStatus } from "../../services/pwaServiceWorkerLifecycle";
 import { flushPendingMobileIcloudHandoffEvents, getMobileIcloudHandoffServerRepairStatus, getMobileIcloudHandoffStatus, handleMobileIcloudHandoffLaunch } from "../../services/mobileIcloudHandoff";
 import type { MobileIcloudHandoffServerRepairStatus } from "../../services/mobileIcloudHandoff";
 import MobileConnectionRecoveryCard from "./MobileConnectionRecoveryCard";
+import MobileEndpointFallbackCard from "./MobileEndpointFallbackCard";
+import MobileEndpointMigrationCard from "./MobileEndpointMigrationCard";
 import MobileDeviceHealthSummary from "./MobileDeviceHealthSummary";
 import MobileGeneratedToolsCard from "./MobileGeneratedToolsCard";
 import MobileOfflineQueueRecoveryCard from "./MobileOfflineQueueRecoveryCard";
 import MobileOfflineQueuePanel from "./MobileOfflineQueuePanel";
 import MobileRemoteEntryCard from "./MobileRemoteEntryCard";
 import MobilePwaCapabilitiesCard from "./MobilePwaCapabilitiesCard";
+import MobileTemporaryEntryCard from "./MobileTemporaryEntryCard";
 import { CredentialExpiryCard, CredentialStorageCard, PairingLinkPanel, Row } from "./MobileDeviceStatusCards";
 import { useI18n } from "../../i18n/I18nProvider";
 
@@ -55,6 +58,8 @@ export default function MobileDevicePage() {
   const conflictGroups = useMemo(() => getOfflineMessageConflictGroups(queueItems), [queueItems]);
   const queueRecovery = useMemo(() => getOfflineMessageQueueRecoverySummary(queueItems, { online: network.online, networkQuality: network.quality, remoteOk: currentEntry.okForRemote }), [currentEntry.okForRemote, network.online, network.quality, queueItems]);
   const connectivityReportStale = Boolean(lastConnectivityReport && Date.now() - lastConnectivityReport.createdAt > 6 * 60 * 60 * 1000);
+  const rebindDestination = useMemo(() => resolvePairingInputDestination(pairingInput, window.location.origin), [pairingInput]);
+  const onTemporaryCloudflareOrigin = useMemo(() => isTemporaryCloudflareOrigin(), []);
   const refreshCredentialStorage = async () => {
     const storage = await getStoredDeviceCredentialStorageStatus().catch(() => null);
     setCredentialStorage(storage);
@@ -72,9 +77,14 @@ export default function MobileDevicePage() {
       await flushPendingMobileIcloudHandoffEvents().catch(() => null);
       setIcloudHandoffStatus(getMobileIcloudHandoffStatus());
       setIcloudServerRepair(getMobileIcloudHandoffServerRepairStatus());
-      if (options.announce) setStatus(t("mobileDevice.serverStateRefreshed"));
-    } catch (error: any) {
-      if (options.announce) setStatus(error.message || t("mobileDevice.serverStateRefreshFailed"));
+      if (options.announce) {
+        const refreshedServerState = healthResult.status === "fulfilled" || reportResult.status === "fulfilled";
+        setStatus(t(refreshedServerState
+          ? "mobileDevice.serverStateRefreshed"
+          : "mobileDevice.serverStateRefreshFailed"));
+      }
+    } catch {
+      if (options.announce) setStatus(t("mobileDevice.serverStateRefreshFailed"));
     } finally {
       if (options.announce) setServerRefreshBusy(false);
     }
@@ -181,11 +191,11 @@ export default function MobileDevicePage() {
       setCredential(null);
       await refreshCredentialStorage();
       setStatus(t("mobileDevice.unboundDone"));
-    } catch (error: any) {
+    } catch {
       await clearStoredDeviceCredential();
       setCredential(null);
       await refreshCredentialStorage();
-      setStatus(t("mobileDevice.localClearedRevokeFailed", { message: error.message || t("mobileDevice.revokeLater") }));
+      setStatus(t("mobileDevice.localClearedRevokeFailed", { message: t("mobileDevice.revokeLater") }));
     }
   };
 
@@ -196,8 +206,8 @@ export default function MobileDevicePage() {
       setCredential(next);
       await refreshCredentialStorage();
       setStatus(t("mobileDevice.credentialRefreshed"));
-    } catch (error: any) {
-      setStatus(error.message || t("mobileDevice.refreshFailed"));
+    } catch {
+      setStatus(t("mobileDevice.refreshFailed"));
     }
   };
 
@@ -256,8 +266,8 @@ export default function MobileDevicePage() {
     try {
       await navigator.clipboard.writeText(text);
       setStatus(t("mobileDevice.itemCopied"));
-    } catch (error: any) {
-      setStatus(error.message || t("mobileDevice.copyFailed"));
+    } catch {
+      setStatus(t("mobileDevice.copyFailed"));
     }
   };
 
@@ -284,15 +294,21 @@ export default function MobileDevicePage() {
   };
 
   const openPairingInput = async (options: { clearCurrent?: boolean } = {}) => {
-    const token = extractPairingToken(pairingInput);
-    if (!token) {
+    const destination = resolvePairingInputDestination(pairingInput, window.location.origin);
+    if (!destination) {
       setPairingInputError(t("mobile.pairingInvalid"));
       return;
     }
-    if (options.clearCurrent) {
-      await clearStoredDeviceCredential();
+    // Another origin has its own credential storage, so pairing there never
+    // overwrites this one. Keep it as the fallback (the desktop can revoke it)
+    // instead of leaving the phone with nothing if the new address fails.
+    if (!destination.crossOrigin) {
+      // Saved before the credential goes, so the pair page can still recover
+      // the token if the install URL is lost on the way.
+      await savePendingPairingToken(destination.token);
+      if (options.clearCurrent) await clearStoredDeviceCredential();
     }
-    window.location.href = pairingInstallPath(token);
+    window.location.href = destination.href;
   };
 
   const handleConnectivityTest = async () => {
@@ -332,6 +348,19 @@ export default function MobileDevicePage() {
           currentEntry={currentEntry}
           lastConnectivityResult={lastConnectivityResult}
         />
+        {credential ? (
+          // Gate on a connectivity test that actually failed IN THIS SESSION —
+          // a stale failure report fetched from the server must not tell the
+          // user their working entry is unreachable.
+          <MobileEndpointFallbackCard active={Boolean(connectivityTest && !connectivityTest.ok)} />
+        ) : null}
+        {credential ? (
+          // Suggested only while the current entry works (the latest test, else
+          // health, says so) — migration needs it alive to hand out its voucher.
+          <MobileEndpointMigrationCard active={connectivityTest ? connectivityTest.ok : Boolean(health)} />
+        ) : null}
+        {/* Also says what a temporary address is when the entry card reports a mismatch instead. */}
+        {onTemporaryCloudflareOrigin ? <MobileTemporaryEntryCard explainAddress={currentEntry.kind !== "temporary-cloudflare"} /> : null}
         {credential ? (
           <MobileConnectionRecoveryCard
             connectivityBusy={connectivityBusy}
@@ -407,7 +436,7 @@ export default function MobileDevicePage() {
                     setPairingInputError(null);
                   }}
                   onSubmit={() => openPairingInput({ clearCurrent: true })}
-                  buttonLabel={t("mobileDevice.rebindButton")}
+                  buttonLabel={t(rebindDestination?.crossOrigin ? "mobileDevice.rebindButtonNewAddress" : "mobileDevice.rebindButton")}
                   title={t("mobileDevice.rebindTitle")}
                   body={t("mobileDevice.rebindBody")}
                 />

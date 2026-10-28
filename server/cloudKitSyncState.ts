@@ -8,11 +8,15 @@ export const CLOUDKIT_SYNC_IMPORT_CONFIRMATION = "IMPORT_CLOUDKIT_CHANGES";
 const forbiddenValuePattern = /\b(?:github_pat_[A-Za-z0-9_]+|ghp_[A-Za-z0-9_]+|sk-[A-Za-z0-9_-]{12,}|sk-or-[A-Za-z0-9_-]{12,}|AIza[0-9A-Za-z_-]{20,}|Bearer\s+[A-Za-z0-9._~+/=-]+)\b|\/Users\/[^/\s]+|[A-Z]:\\Users\\[^\\\s]+/i;
 const forbiddenFieldPattern = /api[-_]?key|provider[-_]?key|token|password|passphrase|secret|authorization|cookie|private[-_]?key|credential|sqlite|local[-_]?path|file[-_]?path/i;
 const allowedCloudKitRecordPlan = {
-  LifeOSChatZone: { dataType: "chat-history", recordTypes: new Set(["LifeOSConversation", "LifeOSMessage", "LifeOSChatRequest", "LifeOSChatResponse", "LifeOSSyncCheckpoint"]) },
+  LifeOSChatZone: { dataType: "chat-history", recordTypes: new Set(["LifeOSConversation", "LifeOSMessage", "LifeOSSyncCheckpoint"]) },
+  LifeOSChatRelayZone: {
+    dataType: "chat-relay",
+    recordTypes: new Set(["LifeOSDeviceKey", "LifeOSChatRequest", "LifeOSChatResponse", "LifeOSChatReceipt"]),
+  },
   LifeOSMemoryZone: { dataType: "memory", recordTypes: new Set(["LifeOSMemory", "LifeOSMemoryTombstone", "LifeOSSyncCheckpoint"]) },
   LifeOSTaskZone: { dataType: "tasks", recordTypes: new Set(["LifeOSTask", "LifeOSTaskTombstone", "LifeOSTaskListSnapshot", "LifeOSSyncCheckpoint"]) },
   LifeOSGeneratedAppZone: { dataType: "generated-app-state", recordTypes: new Set(["LifeOSGeneratedAppState", "LifeOSGeneratedAppMutation", "LifeOSSyncCheckpoint"]) },
-  LifeOSDeviceTrustZone: { dataType: "device-trust", recordTypes: new Set(["LifeOSDeviceTrust", "LifeOSDeviceKey", "LifeOSSyncCheckpoint"]) },
+  LifeOSDeviceTrustZone: { dataType: "device-trust", recordTypes: new Set(["LifeOSDeviceTrust", "LifeOSSyncCheckpoint"]) },
 } as const;
 
 export type CloudKitSyncCheckpoint = {
@@ -162,7 +166,11 @@ export function listCloudKitSyncCheckpoints(): CloudKitSyncCheckpoint[] {
   return rows.map(rowToCheckpoint);
 }
 
-export function getCloudKitSyncStateSnapshot(now = new Date()): CloudKitSyncStateSnapshot {
+export function getCloudKitSyncStateSnapshot(now = new Date(), allowedZones: string[] = []): CloudKitSyncStateSnapshot {
+  const zones = Array.from(new Set(allowedZones.map((zone) => String(zone || "").trim()).filter(Boolean))).slice(0, 20);
+  const where = zones.length
+    ? `WHERE zone IN (${zones.map(() => "?").join(", ")}) AND applied_server_change_token IS NOT NULL AND applied_server_change_token != ''`
+    : "WHERE applied_server_change_token IS NOT NULL AND applied_server_change_token != ''";
   const rows = db.prepare(`
     SELECT
       zone,
@@ -170,9 +178,9 @@ export function getCloudKitSyncStateSnapshot(now = new Date()): CloudKitSyncStat
       token_state as tokenState,
       updated_at as updatedAt
     FROM cloudkit_sync_checkpoints
-    WHERE applied_server_change_token IS NOT NULL AND applied_server_change_token != ''
+    ${where}
     ORDER BY zone ASC
-  `).all() as Pick<CloudKitSyncCheckpointRow, "zone" | "appliedServerChangeToken" | "tokenState" | "updatedAt">[];
+  `).all(...zones) as Pick<CloudKitSyncCheckpointRow, "zone" | "appliedServerChangeToken" | "tokenState" | "updatedAt">[];
   return {
     generatedAt: now.toISOString(),
     zones: rows.map((row) => ({
@@ -514,6 +522,23 @@ export function saveCloudKitSyncImportQuarantine(result: CloudKitNativeHelperRes
     db.exec("ROLLBACK");
     throw error;
   }
+}
+
+export function saveCloudKitChatRelayImportQuarantine(result: CloudKitNativeHelperResult, now = Date.now()) {
+  const relayTypes = allowedCloudKitRecordPlan.LifeOSChatRelayZone.recordTypes;
+  const imported = result.syncImportQuarantine;
+  if (!imported) throw new Error("CloudKit chat relay import result is missing.");
+  for (const zone of imported.zones || []) {
+    if (zone.zone !== "LifeOSChatRelayZone") {
+      throw new Error("CloudKit chat relay import returned an unexpected zone.");
+    }
+  }
+  for (const record of [...(imported.changedRecords || []), ...(imported.deletedRecords || [])]) {
+    if (record.zone !== "LifeOSChatRelayZone" || !relayTypes.has(record.recordType as any)) {
+      throw new Error("CloudKit chat relay import returned an unexpected record type.");
+    }
+  }
+  return saveCloudKitSyncImportQuarantine(result, now);
 }
 
 export function publicCloudKitHelperResult<T extends CloudKitNativeHelperResult>(result: T): T {

@@ -109,6 +109,11 @@ enum LifeOSCloudDeviceIdentityStore {
         return identity
     }
 
+    static func rotate(now: Date = Date()) throws -> LifeOSCloudDeviceIdentity {
+        try remove()
+        return try loadOrCreate(now: now)
+    }
+
     private static func identity(from stored: StoredIdentity) throws -> LifeOSCloudDeviceIdentity {
         guard stored.schemaVersion == 1, let privateData = Data(base64Encoded: stored.privateKey) else {
             throw LifeOSCloudDeviceIdentityError.invalidIdentity
@@ -212,12 +217,12 @@ enum LifeOSCloudDeviceKeyMutationBuilder {
             throw LifeOSCloudDeviceIdentityError.invalidIdentity
         }
         return try LifeOSCloudRecordValidator.validate(LifeOSCloudRecordInput(
-            zone: "LifeOSDeviceTrustZone",
+            zone: "LifeOSChatRelayZone",
             recordType: "LifeOSDeviceKey",
             recordName: "device-key:\(identity.deviceIdHash.prefix(24))",
             lifeosSchema: "lifeos-cloudkit-record.v1",
-            lifeosDataType: "device-trust",
-            sourceIdHash: "device-trust:\(identity.deviceIdHash.prefix(16))",
+            lifeosDataType: "chat-relay",
+            sourceIdHash: "chat-relay:\(identity.deviceIdHash.prefix(16))",
             mutationId: "ios-device-key:\(identity.deviceId)",
             logicalClock: createdAt,
             contentHash: LifeOSCloudDeviceIdentity.sha256Hex(payloadData),

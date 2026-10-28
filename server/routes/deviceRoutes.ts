@@ -4,21 +4,14 @@ import { insertAuditLog, redactAuditString } from "../audit";
 import { requireAdmin } from "../auth";
 import { getRequestActor } from "../auth";
 import { noteCloudKitLocalChange } from "../cloudKitAutoSyncSchedule";
-import { BindingSession, DeviceRecord, confirmBindingSession, getBindingSessionById, getDevice, getDevices, getLatestDeviceConnectivityReport, getLatestDeviceIcloudHandoffEvent, getOpenBindingSessionByToken, insertBindingSession, insertDevice, insertDeviceConnectivityReport, insertDeviceIcloudHandoffEvent, pruneExpiredBindingSessions, revokeDeviceRecord, rotateDeviceToken } from "../devices";
-import { getDesktopRuntimeConfig } from "../desktopRuntimeConfig";
+import { BindingSession, DeviceRecord, confirmBindingSessionWithDevice, getBindingSessionById, getBindingSessionByToken, getDevice, getDevices, getLatestDeviceConnectivityReport, getLatestDeviceIcloudHandoffEvent, getOpenBindingSessionByToken, getOpenDeviceMigrationVoucherByToken, insertBindingSession, insertDeviceConnectivityReport, insertDeviceIcloudHandoffEvent, insertDeviceMigrationVoucher, markDeviceMigrationVoucherUsed, migrateDeviceCredential, pruneExpiredBindingSessions, pruneExpiredDeviceMigrationVouchers, revokeDeviceRecord, rotateDeviceToken } from "../devices";
 import { rateLimit } from "../httpSecurity";
 import { maybeRefreshIcloudHandoff } from "../networkDiagnostics";
-import { getConfiguredPublicBaseUrl, isTemporaryTryCloudflareUrl, normalizePublicBaseUrl } from "../publicBaseUrl";
+import { getDeviceEndpointsSnapshot } from "../deviceEndpoints";
+import { pairingBaseUrlNeedsLanBinding } from "../phoneReachability";
+import { normalizePublicBaseUrl } from "../publicBaseUrl";
 import { broadcastRealtime, closeDeviceConnection, isDeviceOnline, sendRealtimeToDevice } from "../realtime";
 import { createSecret, tokenHash } from "../security";
-
-function publicBaseUrl(req: express.Request) {
-  const configured = getConfiguredPublicBaseUrl();
-  if (configured && !isTemporaryTryCloudflareUrl(configured)) return configured;
-  const saved = getDesktopRuntimeConfig()?.publicBaseUrl || "";
-  if (saved && !isTemporaryTryCloudflareUrl(saved)) return saved;
-  return `${req.protocol}://${req.get("host")}`;
-}
 
 function normalizePairingBaseUrl(value: unknown) {
   const raw = String(value || "").trim();
@@ -48,6 +41,9 @@ function normalizePairingBaseUrl(value: unknown) {
   return normalized;
 }
 
+// Re-exported so existing imports/tests keep one canonical path.
+export { pairingBaseUrlNeedsLanBinding };
+
 function sanitizeDevice(device: DeviceRecord) {
   const { accessTokenHash, ...safeDevice } = device;
   return safeDevice;
@@ -59,6 +55,32 @@ function sanitizeDeviceWithConnectivity(device: DeviceRecord) {
     connectivityReport: getLatestDeviceConnectivityReport(device.id) || null,
     icloudHandoffEvent: getLatestDeviceIcloudHandoffEvent(device.id) || null,
   };
+}
+
+function normalizeP256PublicKey(value: unknown) {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (typeof value !== "string") throw new Error("publicKey must be a base64url P-256 SPKI key");
+  const encoded = value.trim();
+  if (!encoded || encoded.length > 256 || !/^[A-Za-z0-9_-]+$/.test(encoded)) {
+    throw new Error("publicKey must be a base64url P-256 SPKI key");
+  }
+
+  try {
+    const der = Buffer.from(encoded, "base64url");
+    if (!der.length || der.toString("base64url") !== encoded) {
+      throw new Error("non-canonical key");
+    }
+    const key = crypto.createPublicKey({ key: der, format: "der", type: "spki" });
+    const curve = key.asymmetricKeyDetails?.namedCurve;
+    if (key.asymmetricKeyType !== "ec" || !["prime256v1", "P-256"].includes(String(curve || ""))) {
+      throw new Error("unsupported curve");
+    }
+    const canonical = key.export({ type: "spki", format: "der" }).toString("base64url");
+    if (canonical !== encoded) throw new Error("non-canonical key");
+    return canonical;
+  } catch {
+    throw new Error("publicKey must be a canonical P-256 SPKI key");
+  }
 }
 
 function connectivityAuditSummary(deviceId: string) {
@@ -198,15 +220,40 @@ function revokeDevice(device: DeviceRecord, actor: { type: string; id: string },
   });
 }
 
-export function registerDeviceRoutes(app: express.Express) {
+export function registerDeviceRoutes(app: express.Express, bindHost = "127.0.0.1") {
   app.post("/api/v1/devices/bind/start", rateLimit({ keyPrefix: "bind-start", windowMs: 5 * 60 * 1000, max: 20 }), requireAdmin, (req, res) => {
     const now = Date.now();
     const token = createSecret("bind");
-    let baseUrl = publicBaseUrl(req);
+    let baseUrl = "";
     try {
-      baseUrl = normalizePairingBaseUrl(req.body?.baseUrl) || baseUrl;
+      const requestedBaseUrl = String(req.body?.baseUrl || "").trim();
+      baseUrl = requestedBaseUrl
+        ? normalizePairingBaseUrl(requestedBaseUrl)
+        : getDeviceEndpointsSnapshot(bindHost, { maxAgeMs: 0 }).candidates[0]?.baseUrl || "";
     } catch (error: any) {
       return res.status(400).json({ error: error.message || "Invalid baseUrl" });
+    }
+    if (!baseUrl) {
+      insertAuditLog("binding_session_blocked", "binding_session", "unknown", {
+        reason: "no_phone_reachable_entry",
+        bindHost,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      return res.status(409).json({
+        code: "no_phone_reachable_entry",
+        error: "No verified phone-reachable address is active yet. Start Tailscale HTTPS Serve, Cloudflare Tunnel, or trusted LAN access, then retry.",
+        recovery: { action: "open-connection-guide" },
+      });
+    }
+    if (pairingBaseUrlNeedsLanBinding(baseUrl, bindHost)) {
+      insertAuditLog("binding_session_blocked", "binding_session", "unknown", {
+        reason: "lan_pairing_requires_lan_binding",
+        bindHost,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      return res.status(409).json({
+        code: "lan_pairing_requires_lan_binding",
+        error: "This computer only listens on its own loopback address, so a LAN QR code cannot be reached from the phone. Turn on LAN access and restart OwnOrbit, or pair through Tailscale HTTPS Serve or Cloudflare Tunnel instead.",
+        recovery: { action: "enable-lan-access-and-restart" },
+      });
     }
     const session: BindingSession = {
       id: crypto.randomUUID(),
@@ -263,8 +310,24 @@ export function registerDeviceRoutes(app: express.Express) {
     if (!token || !deviceName) {
       return res.status(400).json({ error: "token and deviceName are required" });
     }
+    let normalizedPublicKey: string | undefined;
+    try {
+      normalizedPublicKey = normalizeP256PublicKey(publicKey);
+    } catch (error: any) {
+      return res.status(400).json({
+        code: "invalid_device_public_key",
+        error: error.message || "Device public key is invalid",
+      });
+    }
 
     const now = Date.now();
+    const knownSession = getBindingSessionByToken(token);
+    if (knownSession?.confirmedAt) {
+      return res.status(409).json({
+        code: "binding_already_used",
+        error: "This pairing QR code has already been used. Generate a new QR code to bind another phone.",
+      });
+    }
     const session = getOpenBindingSessionByToken(token, now);
     if (!session) {
       const icloudRefresh = safeRefreshIcloudForBinding("binding-token-invalid-or-expired");
@@ -289,29 +352,33 @@ export function registerDeviceRoutes(app: express.Express) {
       });
     }
 
+    const authMethod = normalizedPublicKey ? "signature" : "token";
     const accessToken = createSecret("device");
     const device: DeviceRecord = {
       id: crypto.randomUUID(),
       name: String(deviceName).slice(0, 80),
       type: deviceType === "desktop" || deviceType === "browser" ? deviceType : "mobile",
       status: "offline",
-      publicKey: typeof publicKey === "string" ? publicKey : undefined,
+      publicKey: normalizedPublicKey,
       accessTokenHash: tokenHash(accessToken),
-      accessTokenExpiresAt: deviceTokenExpiresAt(now),
+      accessTokenExpiresAt: authMethod === "token" ? deviceTokenExpiresAt(now) : undefined,
       createdAt: now,
       lastSeenAt: now,
     };
 
-    const authMethod = device.publicKey ? "signature" : "token";
-    insertDevice(device);
-    confirmBindingSession(session.id, device.id, now);
+    if (!confirmBindingSessionWithDevice(session.id, device, now)) {
+      return res.status(409).json({
+        code: "binding_already_used",
+        error: "This pairing QR code has already been used. Generate a new QR code to bind another phone.",
+      });
+    }
     noteCloudKitLocalChange("device-trust", { type: "device", id: device.id });
     insertAuditLog("device_bound", "device", device.id, {
       bindingSessionId: session.id,
       name: device.name,
       type: device.type,
       authMethod,
-      credentialExpiresAt: device.accessTokenExpiresAt,
+      credentialExpiresAt: device.accessTokenExpiresAt || null,
     }, "device", device.id);
 
     broadcastRealtime({
@@ -321,11 +388,22 @@ export function registerDeviceRoutes(app: express.Express) {
       timestamp: now,
     });
 
+    // Hand the phone every currently reachable address at pairing time so a
+    // later failure of the pairing address is not a dead end. Never let a
+    // diagnostics hiccup break binding itself.
+    let endpoints: ReturnType<typeof getDeviceEndpointsSnapshot> | null = null;
+    try {
+      endpoints = getDeviceEndpointsSnapshot(bindHost);
+    } catch {
+      endpoints = null;
+    }
+
     res.json({
       device: sanitizeDevice(device),
       authMethod,
       ...(authMethod === "token" ? { accessToken } : {}),
-      accessTokenExpiresAt: device.accessTokenExpiresAt,
+      ...(device.accessTokenExpiresAt ? { accessTokenExpiresAt: device.accessTokenExpiresAt } : {}),
+      ...(endpoints ? { endpoints } : {}),
     });
   });
 
@@ -334,6 +412,12 @@ export function registerDeviceRoutes(app: express.Express) {
     if (!actor || actor.type !== "device") return res.status(401).json({ error: "Device authentication required" });
 
     const previousDevice = getDevice(actor.id);
+    if (previousDevice?.publicKey) {
+      return res.status(409).json({
+        code: "signature_device_token_rotation_not_allowed",
+        error: "This device uses a protected signing key and cannot switch to a transferable access token.",
+      });
+    }
     const accessToken = createSecret("device");
     const accessTokenExpiresAt = deviceTokenExpiresAt();
     const device = rotateDeviceToken(actor.id, tokenHash(accessToken), accessTokenExpiresAt);
@@ -359,6 +443,168 @@ export function registerDeviceRoutes(app: express.Express) {
 
     revokeDevice(device, actor, "self");
     res.json({ ok: true, device: sanitizeDevice({ ...device, status: "revoked", revokedAt: Date.now() }) });
+  });
+
+  // Issued over the OLD, still-working origin so the phone can carry its
+  // binding to a new origin without a fresh QR. Short-lived and single-use;
+  // only its hash is stored.
+  app.post("/api/v1/devices/me/migrate-token", rateLimit({ keyPrefix: "device-migrate-token", windowMs: 5 * 60 * 1000, max: 10 }), (req, res) => {
+    const actor = getRequestActor(req);
+    if (!actor || actor.type !== "device") return res.status(401).json({ error: "Device authentication required" });
+    const device = getDevice(actor.id);
+    if (!device || device.revokedAt) return res.status(404).json({ error: "Device not found" });
+
+    // Pinning the voucher to the intended target origin means a token that
+    // leaks toward the wrong host cannot rotate the credential there.
+    let targetBaseUrl: string | undefined;
+    const rawTarget = String(req.body?.targetBaseUrl || "").trim();
+    if (rawTarget) {
+      try {
+        targetBaseUrl = new URL(rawTarget).origin.toLowerCase();
+      } catch {
+        return res.status(400).json({ error: "targetBaseUrl is invalid" });
+      }
+    }
+
+    const now = Date.now();
+    pruneExpiredDeviceMigrationVouchers(now);
+    const token = createSecret("migrate");
+    const voucher = {
+      id: crypto.randomUUID(),
+      deviceId: device.id,
+      tokenHash: tokenHash(token),
+      targetBaseUrl,
+      createdAt: now,
+      expiresAt: now + 5 * 60 * 1000,
+    };
+    insertDeviceMigrationVoucher(voucher);
+    insertAuditLog("device_migration_voucher_created", "device", device.id, {
+      voucherId: voucher.id,
+      targetBaseUrl: targetBaseUrl || null,
+      expiresAt: voucher.expiresAt,
+    }, "device", device.id);
+    res.json({ token, expiresAt: voucher.expiresAt });
+  });
+
+  // Redeemed on the NEW origin. The phone arrives with a fresh origin-scoped
+  // keypair (or none, over plain HTTP) and the whole credential rotates onto
+  // it — the old origin's credential stops working at this moment, keeping
+  // exactly one active credential per device.
+  app.post("/api/v1/devices/migrate/confirm", rateLimit({ keyPrefix: "device-migrate-confirm", windowMs: 5 * 60 * 1000, max: 20 }), (req, res) => {
+    const { token, publicKey } = req.body || {};
+    if (!token) return res.status(400).json({ error: "token is required" });
+
+    let normalizedPublicKey: string | undefined;
+    try {
+      normalizedPublicKey = normalizeP256PublicKey(publicKey);
+    } catch (error: any) {
+      return res.status(400).json({
+        code: "invalid_device_public_key",
+        error: error.message || "Device public key is invalid",
+      });
+    }
+
+    const now = Date.now();
+    const voucher = getOpenDeviceMigrationVoucherByToken(String(token), now);
+    const device = voucher ? getDevice(voucher.deviceId) : undefined;
+    if (!voucher || !device || device.revokedAt) {
+      insertAuditLog("device_migration_invalid_or_expired", "device", voucher?.deviceId || "unknown", {
+        reason: !voucher ? "voucher-invalid-or-expired" : "device-revoked",
+        attemptedAt: now,
+      }, "device", "unbound");
+      return res.status(400).json({
+        code: "migration_token_invalid_or_expired",
+        error: "Migration token is invalid or expired",
+        recovery: { reason: "migration-token-invalid-or-expired", action: "generate-new-qr" },
+      });
+    }
+
+    // The redeemer must state which origin it is redeeming at; a mismatch
+    // against a pinned voucher burns it — a probing wrong host must not leave
+    // the token alive for further tries.
+    if (voucher.targetBaseUrl) {
+      let redeemerOrigin = "";
+      try {
+        redeemerOrigin = new URL(String(req.body?.targetBaseUrl || "")).origin.toLowerCase();
+      } catch {}
+      if (redeemerOrigin !== voucher.targetBaseUrl) {
+        markDeviceMigrationVoucherUsed(voucher.id, now);
+        insertAuditLog("device_migration_target_mismatch", "device", device.id, {
+          voucherId: voucher.id,
+          attemptedAt: now,
+        }, "device", "unbound");
+        return res.status(400).json({
+          code: "migration_token_invalid_or_expired",
+          error: "Migration token is invalid or expired",
+          recovery: { reason: "migration-target-mismatch", action: "generate-new-qr" },
+        });
+      }
+    }
+
+    // Same rule token/rotate enforces: a device bound to a protected signing
+    // key must not turn into a transferable bearer-token device. Rejected
+    // before burning — a missing key is a client capability gap (e.g. a
+    // plain-HTTP origin without WebCrypto), not a leaked token, so the
+    // voucher stays redeemable from a signature-capable origin.
+    if (device.publicKey && !normalizedPublicKey) {
+      insertAuditLog("device_migration_key_required", "device", device.id, {
+        voucherId: voucher.id,
+        attemptedAt: now,
+      }, "device", "unbound");
+      return res.status(409).json({
+        code: "signature_device_token_migration_not_allowed",
+        error: "This device uses a protected signing key. Migrate from a secure (HTTPS) address so the new origin can create its own signing key.",
+      });
+    }
+
+    if (!markDeviceMigrationVoucherUsed(voucher.id, now)) {
+      return res.status(400).json({
+        code: "migration_token_invalid_or_expired",
+        error: "Migration token is invalid or expired",
+        recovery: { reason: "migration-token-invalid-or-expired", action: "generate-new-qr" },
+      });
+    }
+    const authMethod = normalizedPublicKey ? "signature" : "token";
+    const accessToken = createSecret("device");
+    const migrated = migrateDeviceCredential(device.id, {
+      publicKey: normalizedPublicKey,
+      accessTokenHash: tokenHash(accessToken),
+      accessTokenExpiresAt: authMethod === "token" ? deviceTokenExpiresAt(now) : undefined,
+      migratedAt: now,
+    });
+    if (!migrated) {
+      return res.status(400).json({
+        code: "migration_token_invalid_or_expired",
+        error: "Migration token is invalid or expired",
+        recovery: { reason: "device-unavailable", action: "generate-new-qr" },
+      });
+    }
+
+    insertAuditLog("device_migrated", "device", device.id, {
+      voucherId: voucher.id,
+      authMethod,
+      credentialExpiresAt: migrated.accessTokenExpiresAt || null,
+    }, "device", device.id);
+    noteCloudKitLocalChange("device-trust", { type: "device", id: device.id });
+    // The old origin's realtime session authenticated with the credential that
+    // just died — close it like revoke does instead of letting it linger.
+    closeDeviceConnection(device.id, "credential-migrated");
+    broadcastRealtime({ type: "device.migrated", deviceId: device.id, timestamp: now });
+
+    let endpoints: ReturnType<typeof getDeviceEndpointsSnapshot> | null = null;
+    try {
+      endpoints = getDeviceEndpointsSnapshot(bindHost);
+    } catch {
+      endpoints = null;
+    }
+
+    res.json({
+      device: sanitizeDevice(migrated),
+      authMethod,
+      ...(authMethod === "token" ? { accessToken } : {}),
+      ...(migrated.accessTokenExpiresAt ? { accessTokenExpiresAt: migrated.accessTokenExpiresAt } : {}),
+      ...(endpoints ? { endpoints } : {}),
+    });
   });
 
   app.post("/api/v1/devices/me/connectivity-report", (req, res) => {
@@ -408,6 +654,27 @@ export function registerDeviceRoutes(app: express.Express) {
     if (!device || device.revokedAt) return res.status(404).json({ error: "Device not found" });
 
     res.json({ report: getLatestDeviceConnectivityReport(device.id) || null });
+  });
+
+  // Behind a tunnel every phone shares one upstream IP, so the bucket must
+  // hold several devices' worth of refreshes (clients also self-throttle).
+  app.get("/api/v1/devices/me/endpoints", rateLimit({ keyPrefix: "device-endpoints", windowMs: 60 * 1000, max: 60 }), (req, res) => {
+    const actor = getRequestActor(req);
+    if (!actor || actor.type !== "device") return res.status(401).json({ error: "Device authentication required" });
+    const device = getDevice(actor.id);
+    if (!device || device.revokedAt) return res.status(404).json({ error: "Device not found" });
+
+    let snapshot: ReturnType<typeof getDeviceEndpointsSnapshot>;
+    try {
+      snapshot = getDeviceEndpointsSnapshot(bindHost);
+    } catch {
+      return res.status(503).json({ error: "Endpoint snapshot is temporarily unavailable" });
+    }
+    const knownVersion = String(req.query?.version || "");
+    if (knownVersion && knownVersion === snapshot.version) {
+      return res.json({ version: snapshot.version, generatedAt: snapshot.generatedAt, unchanged: true });
+    }
+    res.json({ ...snapshot, unchanged: false });
   });
 
   app.post("/api/v1/devices/me/icloud-handoff-event", (req, res) => {

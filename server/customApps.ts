@@ -291,6 +291,7 @@ export type StoredCustomAppCapabilityManifest = {
   appId: string;
   allowedCapabilities: CustomAppCapabilityId[];
   declaredCapabilities: CustomAppCapabilityId[];
+  allowedNetworkOrigins: string[];
   riskLevel: CustomAppCapabilityRisk;
   updatedByType?: string | null;
   updatedById?: string | null;
@@ -302,6 +303,8 @@ export type StoredCustomAppCapabilityRequest = {
   appId: string;
   requestedCapabilities: CustomAppCapabilityId[];
   missingCapabilities: CustomAppCapabilityId[];
+  requestedNetworkOrigins: string[];
+  missingNetworkOrigins: string[];
   label: string;
   reason?: string | null;
   risk: CustomAppCapabilityRisk;
@@ -523,6 +526,34 @@ function normalizeCustomAppCapabilities(value: unknown, fallback: CustomAppCapab
   ));
 }
 
+function normalizeCustomAppNetworkOrigins(value: unknown, fallback: string[] = []) {
+  if (value === undefined) return fallback;
+  if (!Array.isArray(value)) throw statusError("networkOrigins must be an array");
+  if (value.length > 12) throw statusError("A custom app can allow at most 12 network origins");
+  const origins = value.map((item) => {
+    if (typeof item !== "string" || !item.trim()) throw statusError("Every network origin must be a URL");
+    let parsed: URL;
+    try {
+      parsed = new URL(item.trim());
+    } catch {
+      throw statusError(`Invalid network origin: ${String(item).slice(0, 120)}`);
+    }
+    const protocol = parsed.protocol.toLowerCase();
+    if (!["https:", "wss:", "http:", "ws:"].includes(protocol)) {
+      throw statusError("Custom app network origins must use HTTPS or WSS");
+    }
+    const loopback = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(parsed.hostname.toLowerCase());
+    if (["http:", "ws:"].includes(protocol) && !loopback) {
+      throw statusError("Unencrypted custom app network origins are only allowed for loopback addresses");
+    }
+    if (parsed.username || parsed.password || parsed.search || parsed.hash) {
+      throw statusError("Custom app network origins cannot include credentials, query strings, or fragments");
+    }
+    return parsed.origin;
+  });
+  return Array.from(new Set(origins));
+}
+
 function riskForCustomAppCapabilities(capabilities: CustomAppCapabilityId[]): CustomAppCapabilityRisk {
   if (capabilities.some((capability) => HIGH_RISK_CUSTOM_APP_CAPABILITIES.has(capability))) return "high";
   if (capabilities.some((capability) => MEDIUM_RISK_CUSTOM_APP_CAPABILITIES.has(capability))) return "medium";
@@ -735,6 +766,7 @@ function defaultCustomAppActionPolicy(appId: string): StoredCustomAppActionPolic
 function rowToCustomAppCapabilityManifest(row: any): StoredCustomAppCapabilityManifest {
   let allowedCapabilities: CustomAppCapabilityId[] = DEFAULT_CUSTOM_APP_CAPABILITIES;
   let declaredCapabilities: CustomAppCapabilityId[] = [];
+  let allowedNetworkOrigins: string[] = [];
   try {
     allowedCapabilities = normalizeCustomAppCapabilities(JSON.parse(row.allowedCapabilitiesJson || "[]"), []);
   } catch {
@@ -745,10 +777,16 @@ function rowToCustomAppCapabilityManifest(row: any): StoredCustomAppCapabilityMa
   } catch {
     declaredCapabilities = [];
   }
+  try {
+    allowedNetworkOrigins = normalizeCustomAppNetworkOrigins(JSON.parse(row.allowedNetworkOriginsJson || "[]"), []);
+  } catch {
+    allowedNetworkOrigins = [];
+  }
   return {
     appId: row.appId,
     allowedCapabilities,
     declaredCapabilities,
+    allowedNetworkOrigins,
     riskLevel: row.riskLevel === "high" || row.riskLevel === "low" ? row.riskLevel : "medium",
     updatedByType: row.updatedByType,
     updatedById: row.updatedById,
@@ -759,6 +797,8 @@ function rowToCustomAppCapabilityManifest(row: any): StoredCustomAppCapabilityMa
 function rowToCustomAppCapabilityRequest(row: any): StoredCustomAppCapabilityRequest {
   let requestedCapabilities: CustomAppCapabilityId[] = [];
   let missingCapabilities: CustomAppCapabilityId[] = [];
+  let requestedNetworkOrigins: string[] = [];
+  let missingNetworkOrigins: string[] = [];
   try {
     requestedCapabilities = normalizeCustomAppCapabilities(JSON.parse(row.requestedCapabilitiesJson || "[]"), []);
   } catch {
@@ -769,11 +809,20 @@ function rowToCustomAppCapabilityRequest(row: any): StoredCustomAppCapabilityReq
   } catch {
     missingCapabilities = [];
   }
+  try {
+    requestedNetworkOrigins = normalizeCustomAppNetworkOrigins(JSON.parse(row.requestedNetworkOriginsJson || "[]"), []);
+    missingNetworkOrigins = normalizeCustomAppNetworkOrigins(JSON.parse(row.missingNetworkOriginsJson || "[]"), []);
+  } catch {
+    requestedNetworkOrigins = [];
+    missingNetworkOrigins = [];
+  }
   return {
     id: row.id,
     appId: row.appId,
     requestedCapabilities,
     missingCapabilities,
+    requestedNetworkOrigins,
+    missingNetworkOrigins,
     label: row.label,
     reason: row.reason,
     risk: row.risk === "high" || row.risk === "low" ? row.risk : "medium",
@@ -815,6 +864,7 @@ function defaultCustomAppCapabilityManifest(appId: string): StoredCustomAppCapab
     appId,
     allowedCapabilities: DEFAULT_CUSTOM_APP_CAPABILITIES,
     declaredCapabilities: DEFAULT_CUSTOM_APP_CAPABILITIES,
+    allowedNetworkOrigins: [],
     riskLevel: riskForCustomAppCapabilities(DEFAULT_CUSTOM_APP_CAPABILITIES),
     updatedByType: null,
     updatedById: null,
@@ -1168,7 +1218,8 @@ export function getCustomAppCapabilityManifest(appId: string) {
   if (!app) return null;
   const row = db.prepare(`
     SELECT app_id as appId, allowed_capabilities_json as allowedCapabilitiesJson,
-           declared_capabilities_json as declaredCapabilitiesJson, risk_level as riskLevel,
+           declared_capabilities_json as declaredCapabilitiesJson,
+           allowed_network_origins_json as allowedNetworkOriginsJson, risk_level as riskLevel,
            updated_by_type as updatedByType, updated_by_id as updatedById, updated_at as updatedAt
     FROM custom_app_capability_manifests
     WHERE app_id = ?
@@ -1188,19 +1239,23 @@ export function updateCustomAppCapabilityManifest(appId: string, input: Record<s
     input.declaredCapabilities,
     allowedCapabilities,
   );
+  const allowedNetworkOrigins = allowedCapabilities.includes("network")
+    ? normalizeCustomAppNetworkOrigins(input.allowedNetworkOrigins ?? input.networkOrigins, current.allowedNetworkOrigins)
+    : [];
   const riskLevel = riskForCustomAppCapabilities(allowedCapabilities);
   const updatedAt = Date.now();
 
   db.prepare(`
     INSERT INTO custom_app_capability_manifests (
       app_id, allowed_capabilities_json, declared_capabilities_json, risk_level,
-      updated_by_type, updated_by_id, updated_at
+      allowed_network_origins_json, updated_by_type, updated_by_id, updated_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(app_id) DO UPDATE SET
       allowed_capabilities_json = excluded.allowed_capabilities_json,
       declared_capabilities_json = excluded.declared_capabilities_json,
       risk_level = excluded.risk_level,
+      allowed_network_origins_json = excluded.allowed_network_origins_json,
       updated_by_type = excluded.updated_by_type,
       updated_by_id = excluded.updated_by_id,
       updated_at = excluded.updated_at
@@ -1209,6 +1264,7 @@ export function updateCustomAppCapabilityManifest(appId: string, input: Record<s
     JSON.stringify(allowedCapabilities),
     JSON.stringify(declaredCapabilities),
     riskLevel,
+    JSON.stringify(allowedNetworkOrigins),
     actor?.type || null,
     actor?.id || null,
     updatedAt,
@@ -2015,7 +2071,9 @@ export function recordCustomAppAutoRepairSmokeReview(appId: string, input: Recor
 function selectCustomAppCapabilityRequest(appId: string, requestId: string) {
   return db.prepare(`
     SELECT id, app_id as appId, requested_capabilities_json as requestedCapabilitiesJson,
-           missing_capabilities_json as missingCapabilitiesJson, label, reason, risk, status,
+           missing_capabilities_json as missingCapabilitiesJson,
+           requested_network_origins_json as requestedNetworkOriginsJson,
+           missing_network_origins_json as missingNetworkOriginsJson, label, reason, risk, status,
            created_by_type as createdByType, created_by_id as createdById, created_at as createdAt,
            decided_by_type as decidedByType, decided_by_id as decidedById, decided_at as decidedAt,
            decision_note as decisionNote
@@ -2035,7 +2093,9 @@ export function listCustomAppCapabilityRequests(appId: string, limitInput?: unkn
   const limit = normalizeLimit(limitInput);
   return db.prepare(`
     SELECT id, app_id as appId, requested_capabilities_json as requestedCapabilitiesJson,
-           missing_capabilities_json as missingCapabilitiesJson, label, reason, risk, status,
+           missing_capabilities_json as missingCapabilitiesJson,
+           requested_network_origins_json as requestedNetworkOriginsJson,
+           missing_network_origins_json as missingNetworkOriginsJson, label, reason, risk, status,
            created_by_type as createdByType, created_by_id as createdById, created_at as createdAt,
            decided_by_type as decidedByType, decided_by_id as decidedById, decided_at as decidedAt,
            decision_note as decisionNote
@@ -2054,7 +2114,15 @@ export function createCustomAppCapabilityRequest(appId: string, input: Record<st
   const capabilityCheck = customAppHasCapabilities(appId, requestedCapabilities);
   if (!capabilityCheck) return null;
   const missingCapabilities = capabilityCheck.missingCapabilities;
-  const status: CustomAppCapabilityRequestStatus = missingCapabilities.length ? "pending" : "approved";
+  const requestedNetworkOrigins = requestedCapabilities.includes("network")
+    ? normalizeCustomAppNetworkOrigins(input.networkOrigins ?? input.allowedNetworkOrigins, [])
+    : [];
+  if (requestedCapabilities.includes("network") && requestedNetworkOrigins.length === 0) {
+    throw statusError("Network capability requires at least one HTTPS or WSS origin");
+  }
+  const allowedOrigins = new Set(capabilityCheck.manifest.allowedNetworkOrigins);
+  const missingNetworkOrigins = requestedNetworkOrigins.filter((origin) => !allowedOrigins.has(origin));
+  const status: CustomAppCapabilityRequestStatus = missingCapabilities.length || missingNetworkOrigins.length ? "pending" : "approved";
   const risk = riskForCustomAppCapabilities(requestedCapabilities);
   const now = Date.now();
   const id = `app-capability-${crypto.randomUUID()}`;
@@ -2063,15 +2131,18 @@ export function createCustomAppCapabilityRequest(appId: string, input: Record<st
 
   db.prepare(`
     INSERT INTO custom_app_capability_requests (
-      id, app_id, requested_capabilities_json, missing_capabilities_json, label, reason, risk, status,
+      id, app_id, requested_capabilities_json, missing_capabilities_json,
+      requested_network_origins_json, missing_network_origins_json, label, reason, risk, status,
       created_by_type, created_by_id, created_at, decided_by_type, decided_by_id, decided_at, decision_note
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     appId,
     JSON.stringify(requestedCapabilities),
     JSON.stringify(missingCapabilities),
+    JSON.stringify(requestedNetworkOrigins),
+    JSON.stringify(missingNetworkOrigins),
     label,
     reason,
     risk,
@@ -2102,17 +2173,19 @@ export function decideCustomAppCapabilityRequest(
     updateCustomAppCapabilityManifest(appId, {
       allowedCapabilities: Array.from(new Set([...manifest.allowedCapabilities, ...request.requestedCapabilities])),
       declaredCapabilities: Array.from(new Set([...manifest.declaredCapabilities, ...request.requestedCapabilities])),
+      allowedNetworkOrigins: Array.from(new Set([...manifest.allowedNetworkOrigins, ...request.requestedNetworkOrigins])),
     }, actor);
   }
   const decidedAt = Date.now();
   const decisionNote = sanitizeActionText(note, 240) || null;
   db.prepare(`
     UPDATE custom_app_capability_requests
-    SET status = ?, missing_capabilities_json = ?, decided_by_type = ?, decided_by_id = ?, decided_at = ?, decision_note = ?
+    SET status = ?, missing_capabilities_json = ?, missing_network_origins_json = ?, decided_by_type = ?, decided_by_id = ?, decided_at = ?, decision_note = ?
     WHERE app_id = ? AND id = ? AND status = 'pending'
   `).run(
     decision,
     decision === "approved" ? "[]" : JSON.stringify(request.missingCapabilities),
+    decision === "approved" ? "[]" : JSON.stringify(request.missingNetworkOrigins),
     actor?.type || null,
     actor?.id || null,
     decidedAt,

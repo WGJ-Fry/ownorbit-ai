@@ -91,7 +91,7 @@ export default function StudioImportWizardModal({
                 <div className="space-y-4">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400 text-xs font-bold border border-indigo-500/15">
-                      JARVIS
+                      OwnOrbit
                     </div>
                     <div>
                       <h4 className="text-xs font-bold text-zinc-300">{t("studio.import.guideTitle")}</h4>

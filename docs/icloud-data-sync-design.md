@@ -193,8 +193,23 @@ The source-only SwiftUI shell lives at `native/apple/mobile-shell`. It is separa
 - explicitly opt in to the same private CloudKit container used by the Mac helper, validate approved OwnOrbit record schema/zone/type/size/SHA-256 before persistence, and keep an incremental offline snapshot under iOS Data Protection;
 - subscribe to private-database changes, reject non-CloudKit and non-private-database push payloads, retry on foreground or silent push, and submit an opt-in `BGAppRefreshTask` fallback with a 30-minute earliest start before presenting a bilingual offline view of synced chats, memories, tasks, generated app state, and review-only device metadata;
 - allow two native write mutations after explicit confirmation: `memory-create` creates one new normal memory after client-side secret/path checks and can never overwrite an existing Mac memory; `task-list-item-complete` fetches the current CKRecord, requires an unchanged server change tag, embeds the previous payload hash, and changes exactly one incomplete task to complete. The Mac validates each mutation contract and rejects stale, colliding, or wider mutations into quarantine.
-- submit a separate signed `LifeOSChatRequest` when the user explicitly sends a native prompt. The phone first registers a `LifeOSDeviceKey` P-256 public key with fixed `cloudkit-chat` scope; its private key stays in `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` Keychain storage. The Mac verifies the key proof, fingerprint, scope, expiry, and canonical request signature before importing a durable SQLite job. A text-only worker rejects tool calls and exports one deterministic `LifeOSChatResponse` with safe retry/terminal state. This public key does not grant web-device access and does not replace normal pairing.
+- submit a separate signed `LifeOSChatRequest` when the user explicitly sends a native prompt. The phone first registers a `LifeOSDeviceKey` P-256 public key with fixed `cloudkit-chat` scope; its private key stays in `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` Keychain storage. After the first signed response is trusted, every later phone request includes that Mac fingerprint inside the canonical signed request. The backend, CloudKit claim helper, and claim record all enforce the same fingerprint, so another Mac on the same iCloud account cannot claim or process the pinned request. The Mac verifies the key proof, fingerprint, scope, expiry, and canonical request signature before importing a durable SQLite job. Before AI generation, it acquires a compare-and-swap `LifeOSChatClaim` in a separate private control zone. Execution remains at-least-once across crashes: if the trusted Mac finishes a paid AI call but exits before its signed response reaches CloudKit, the same Mac may call AI again after recovery. If CloudKit already contains that signed response but the local export marker was not committed, the next import reconstructs the exact export evidence before applying the phone receipt, avoiding a duplicate call. Deterministic response IDs and terminal-state checks prevent duplicate terminal messages, but cannot guarantee exactly-once provider billing before the response reaches CloudKit. A text-only worker rejects tool calls and exports one deterministic `LifeOSChatResponse` with safe retry/terminal state. AI provider timeouts abort the underlying request and are not retried concurrently. After the phone verifies the currently pinned Mac response identity and persists a terminal response, it uploads a deterministic signed `LifeOSChatReceipt`. Switching to another Mac requires an explicit trust reset; responses signed by an untrusted Mac are rejected. The Mac verifies each receipt against the active approved device and the exact exported response content hash before marking the job consumed; only then does a persistent, retryable cleanup job remove the matching request, response, receipt, and claim records. Missing remote records are treated as an idempotent cleanup success, while unacknowledged terminal jobs remain in SQLite. This public key does not grant web-device access and does not replace normal pairing.
 - scope every protected snapshot to a one-way hash of the CloudKit account and container, clear it on `CKAccountChanged`, rebuild only an affected zone when a server change token expires, and automatically continue bounded pages with retry backoff.
+
+The default Apple-only experience enables only `LifeOSChatRelayZone`. That zone
+accepts `LifeOSDeviceKey`, `LifeOSChatRequest`, `LifeOSChatResponse`, and
+`LifeOSChatReceipt` and is
+polled independently from the advanced full-data scheduler. The Mac listens for
+private CloudKit database pushes and also runs a 20-second foreground fallback;
+the iPhone polls for a matching response for up to two minutes after sending so
+an occasional delayed silent push does not strand the first answer. Full chat
+history, memories, tasks, generated-app state, and device-trust metadata remain
+disabled unless the owner explicitly enables advanced full-data sync.
+
+`LifeOSChatRelayControlZone` is not a user-data mirror. It contains only
+short-lived deterministic `LifeOSChatClaim` records used for multi-Mac
+exclusion. The native helper accepts cleanup deletions only for the four
+request-scoped relay/control descriptors and validates their UUID record names.
 
 Build and test it on an iPhone Simulator without Apple signing:
 
@@ -220,6 +235,8 @@ This is a developer candidate, not a public iOS package. The unkeyed entry check
 For `v0.1.6-alpha`, the minimum real-device chat proof is the `iphone-cloudkit-chat-roundtrip` acceptance item: on cellular data, send one harmless native prompt, observe waiting/offline/processing/retrying state as applicable, let the Mac text-only worker process it, confirm exactly one completed response returns, and review the exported evidence for secrets and local paths. This evidence is mandatory before the source candidate can become a public release.
 
 When the user explicitly enables CloudKit data auto-sync, the Mac safe-cycle scheduler uses a 15-minute fallback poll, queues local safe-data changes within 15 seconds, continues paged remote pulls within 15 seconds, retries transient failures after 5 minutes, and performs an additional check after local-core startup or desktop wake. A provisioned Xcode-built `.app` helper can now stay alive under Electron, register for macOS remote notifications, verify the private-database subscription, and queue the existing guarded sync cycle after a matched CloudKit database notification. The listener sends only a fixed event name, reason, match flag, and timestamp to the local core; it never forwards the APNs device token, notification payload, or CloudKit change token. The desktop tray distinguishes listener-ready, polling-fallback, and setup-required states. Source compilation and subscription registration do not prove delivery: real two-device delivery, restart, network-switch, and long-run evidence are still required before calling the path realtime or fully unattended sync.
+
+The guarded full-data sync cycle never invokes the AI chat worker. Chat requests are processed only by the dedicated relay cycle, after the local Mac fingerprint matches the signed request binding and the native CloudKit claim succeeds. This separation prevents a manual or scheduled full-data sync from processing a request pinned to another trusted Mac.
 
 Build output is intentionally local and should not be committed. The plain `swiftc` helper at `build/native/LifeOSCloudKitHelper` is suitable for JSON-contract compilation and foreground probe/sync checks only:
 
@@ -471,6 +488,29 @@ Start with conservative conflict handling:
 5. Deleted records become tombstones first, then age out after backup.
 6. Cross-device schema migrations must stop sync until all required migrations run.
 
+## Chat Relay Mac Ownership And Failover
+
+CloudKit chat currently uses one trusted Mac identity at a time. The iPhone stores
+the trusted Mac public-key fingerprint and rejects a different Mac until the user
+explicitly confirms a trust reset. This is intentional: automatic multi-Mac
+failover would let any Mac in the same container silently become the phone's AI
+core.
+
+Before the phone has pinned a Mac, the first verified signed response establishes
+trust. Every later signed request carries that trusted fingerprint. Other Macs may
+observe CloudKit metadata, but the local queue filter and the native CloudKit claim
+both reject a fingerprint mismatch before model execution. Switching the phone to
+a replacement Mac remains an explicit user action in Devices & Connection.
+
+The relay is idempotent for stored messages and exported response records, but AI
+provider execution is at-least-once. In the narrow case where a model call succeeds
+and the trusted Mac exits before its signed response reaches CloudKit, that Mac may
+call the model again after recovery. Once the signed response exists in CloudKit,
+import repairs a missing local export marker before accepting the exact phone
+receipt, so this later crash window does not requeue the model call. Exactly-once
+provider billing before upload would require a durable server-side provider
+transaction, which model APIs do not expose.
+
 ## Product Flow
 
 The future user flow should be:
@@ -553,3 +593,7 @@ helper 探测通过不等于真实同步完成。API 会返回已验证能力、
 当前还新增了审核应用接口：`GET /api/v1/admin/icloud-data-sync/quarantine` 只返回隔离区摘要，`POST /api/v1/admin/icloud-data-sync/apply-quarantine` 需要显式确认 `APPLY_CLOUDKIT_QUARANTINE`。应用前会创建 SQLite 备份，只自动写入已识别且无冲突的聊天、消息、普通记忆、任务和已存在生成程序状态；硬删除、敏感记忆、未知记录、疑似密钥或本地更新较新的记录会继续留在隔离区。只有某个 zone 没有未解决隔离项时，才会把 pending CloudKit checkpoint 推进为 applied checkpoint。
 
 当前还新增了面向普通用户的一键安全同步接口：`POST /api/v1/admin/icloud-data-sync/sync-now`。它要求显式确认 `SYNC_CLOUDKIT_NOW`，内部按顺序执行“增量变更预览 → 导入隔离区 → 应用无冲突记录”。这个接口不会返回 `payloadJson`、原始 server change token、helper stdin、本地备份路径、设备凭证、AI Key 或 session 信息；遇到冲突时只返回下一步“查看隔离区并处理冲突”。它让默认 UI 只露出一个按钮，但安全边界和人工冲突审核仍然保留。
+
+CloudKit 文字中继当前采用“手机一次只信任一台 Mac”的模型。第一条经用户确认的签名响应建立信任，之后 iPhone 会把受信任 Mac 的公钥指纹写入并签进每个请求。SQLite 候选筛选和 CloudKit 原生 claim 都会在模型调用前拒绝指纹不匹配的 Mac；切换到另一台电脑时，必须在“设备与连接”里由用户明确确认重置信任，不能静默自动切换。
+
+消息入库和响应记录具备幂等性，但模型调用只能保证 at-least-once。极端情况下，受信任 Mac 已完成模型调用，却在签名响应上传 CloudKit 前退出；恢复后同一台 Mac 仍可能再次调用模型。若签名响应已经到达 CloudKit、只是本机来不及记录“已导出”，下一次导入会先恢复精确的导出哈希和时间，再处理手机回执，不会因此重复调用。最终只接受一个终态响应，而且 CloudKit 文字中继不会执行本地工具动作。模型服务商没有提供可跨进程持久化的事务，因此不能对外宣称“模型计费严格 exactly-once”。

@@ -107,6 +107,10 @@ chmod +x "LifeOS.AI-0.1.5-alpha.0.AppImage"
 
 同一 Wi-Fi 下，使用管理端推荐的局域网地址。
 
+局域网地址需要本地核心真正监听在网卡上。默认只监听回环地址 `127.0.0.1`，此时生成局域网二维码会被拒绝并返回 `lan_pairing_requires_lan_binding`，因为那样的二维码扫出来必定连不上。请先在连接向导里开启局域网访问并保存到桌面启动配置，然后**完全退出并重新打开** OwnOrbit AI（配置不会热生效），再重新生成二维码。
+
+Tailscale 和 Cloudflare Tunnel 不受这个限制：它们把流量转发到 `127.0.0.1`，所以本地核心保持回环绑定即可，也不会顺带暴露到局域网。
+
 异地使用建议：
 
 - Tailscale：适合长期自用。
@@ -122,7 +126,7 @@ chmod +x "LifeOS.AI-0.1.5-alpha.0.AppImage"
 
 1. 在电脑和手机上安装 Tailscale。
 2. 两台设备登录同一个 Tailnet。
-3. 在 Tailscale 管理后台启用 MagicDNS。
+3. 在 <https://login.tailscale.com/admin/dns> 同时开启 **MagicDNS** 和 **HTTPS Certificates**。两个都默认关闭，缺任何一个都拿不到 `https://<device>.<tailnet>` 域名。
 4. 打开 OwnOrbit AI 电脑端的“手机连接向导”。
 5. 优先选择 `Tailscale HTTPS Serve` 推荐地址。
 6. 点击“一键启动 Tailscale HTTPS Serve”。成功后系统会把 `https://<device>.<tailnet>` 保存为手机绑定地址。
@@ -134,6 +138,36 @@ chmod +x "LifeOS.AI-0.1.5-alpha.0.AppImage"
 
 8. 点击连接测试，测试通过后保存到桌面启动配置。
 9. 退出并重新打开 OwnOrbit AI，然后重新生成手机绑定二维码。
+
+#### 地址变化后手机怎么办
+
+配对成功时，手机会保存电脑当前所有可达地址（仅地址，不含任何凭证）。之后每次实时通道重连、以及电脑地址集合变化时，手机都会自动刷新这份列表。
+
+**当前入口还能用时**：如果列表里有比当前入口更稳定的地址（例如当前是临时隧道、而 Tailscale 域名可用且已确认在线），"设备与连接"页会提示"一键迁移"。迁移通过当前入口签发一张 5 分钟内有效、只能用一次的迁移凭证，到新地址自动换发新密钥，**不需要重新扫码**；旧地址上的凭证在迁移瞬间失效，始终保持每台设备只有一份有效凭证。
+
+**当前入口连不上时**：设备页会自动探测其余已知地址；找到电脑仍在线的备用地址后给出一键跳转。此时旧入口已经无法签发迁移凭证，所以跳过去需要重新扫码配对一次（浏览器凭证按地址保存）。
+
+#### 代理软件的 TUN 模式会挡住 Tailscale
+
+如果电脑上装了 Clash、Mihomo、Surge 之类的代理客户端并开启了 **TUN 模式**，它的路由接管和 DNS 劫持会让 Tailscale 一直连不上，界面上只显示"未检测到在线状态"。连接向导现在会自动检测这种情况并在诊断里点名。
+
+两种解法，任选其一：
+
+- **改用系统代理模式**（推荐）。不建 TUN、不抢路由，与 Tailscale 完全不冲突。
+- **保留 TUN 模式**，在代理客户端的覆写/Merge 配置里加两条排除，让 Tailscale 的网段和域名绕开它：
+
+  ```yaml
+  tun:
+    route-exclude-address:
+      - 100.64.0.0/10
+  dns:
+    nameserver-policy:
+      "+.ts.net": "100.100.100.100"
+  ```
+
+  第一条让代理不要接管 Tailscale 的 `100.64.0.0/10` 网段，第二条把 `*.ts.net` 的解析交回 Tailscale 自己的 MagicDNS 解析器。注意要写在覆写配置里，直接改订阅生成的文件会在下次更新订阅时丢失。
+
+手机侧还有一个系统级限制：**iOS 同一时间只能激活一个 VPN**。手机上开着 Tailscale 就不能同时开其他代理客户端，只能二选一。
 10. 发布或长期使用前，从电脑终端跑一次远程验收：
 
    ```bash
@@ -174,7 +208,7 @@ Tailscale HTTPS Serve 会给手机一个 `https://<device>.<tailnet>` 入口，�
    LIFEOS_REMOTE_ACCEPTANCE_OUT="./remote-acceptance.json" LIFEOS_REMOTE_BASE_URL="https://<your-tunnel>.trycloudflare.com" npm run remote:acceptance
    ```
 
-`trycloudflare.com` 快速隧道是临时地址。OwnOrbit AI 会在下次启动时自动重新创建 Tunnel 并刷新二维码地址，但已经添加到手机主屏幕的旧临时域名可能失效。需要长期固定入口时，请使用 Tailscale、Cloudflare Named Tunnel，或自己的可信 HTTPS 反向代理。
+`trycloudflare.com` 快速隧道是临时地址：电脑端 OwnOrbit AI 重启、电脑重启，或 Tunnel 停止、意外退出后，这个地址就会失效，OwnOrbit AI 不会自动重新创建它。电脑只是睡眠或断网时不算失效：唤醒电脑、让它重新联网后，同一个地址还能继续用。真正失效后，请回到“手机连接向导”再次点击“一键启动 Cloudflare Tunnel”，让手机扫描新的二维码完成绑定，把新页面重新添加到主屏幕并确认能连上，再删除指向旧临时域名的主屏幕图标，并在电脑端撤销旧设备。已经发到电脑上的消息会留在电脑端；手机上的新页面会从新对话开始，删除旧图标前请先复制输入框和离线队列里还没写回的内容。手机聊天页在临时地址上连续两分钟连不上时，会提示地址可能已失效，并链接到“设备与连接”页里的这些步骤。需要长期固定入口时，请使用 Tailscale HTTPS Serve、Cloudflare Named Tunnel，或自己的可信 HTTPS 反向代理。
 
 ## AI Key
 
@@ -346,6 +380,10 @@ If the desktop window does not open correctly during first launch but the local 
 
 On the same Wi-Fi, use the LAN address recommended by the admin connection guide.
 
+A LAN address only works when the local core actually listens on that interface. By default it listens on loopback `127.0.0.1` only, so generating a LAN QR code is refused with `lan_pairing_requires_lan_binding` — such a QR code could never be reached from the phone. Turn on LAN access in the connection guide, save it to the desktop startup configuration, then **fully quit and reopen** OwnOrbit AI (the setting does not apply live) before generating a new QR code.
+
+Tailscale and Cloudflare Tunnel are not affected: they forward into `127.0.0.1`, so the local core can stay bound to loopback and is never exposed on the LAN as a side effect.
+
 For remote access, prefer:
 
 - Tailscale for long-term personal use.
@@ -361,7 +399,7 @@ For long-term personal use, prefer Tailscale:
 
 1. Install Tailscale on the desktop and the phone.
 2. Sign both devices into the same Tailnet.
-3. Enable MagicDNS in the Tailscale admin console.
+3. Turn on both **MagicDNS** and **HTTPS Certificates** at <https://login.tailscale.com/admin/dns>. Both are off by default, and either one missing means no `https://<device>.<tailnet>` hostname.
 4. Open the OwnOrbit AI desktop connection guide.
 5. Prefer the `Tailscale HTTPS Serve` recommended address.
 6. Click `Start Tailscale HTTPS Serve`. On success, OwnOrbit saves `https://<device>.<tailnet>` as the mobile pairing address.
@@ -373,6 +411,36 @@ For long-term personal use, prefer Tailscale:
 
 8. Run the connection test, then save it to the desktop startup configuration.
 9. Quit and reopen OwnOrbit AI, then generate a fresh mobile pairing QR code.
+
+#### When the address changes after pairing
+
+At pairing time the phone stores every address the desktop is currently reachable at (addresses only — never credentials). The list refreshes automatically on every realtime reconnect and whenever the desktop's address set changes.
+
+**While the current entry still works**: if the list holds a more stable address (say the phone is on a temporary tunnel while a verified Tailscale hostname is online), the Devices page offers one-tap migration. It issues a single-use voucher (5-minute TTL) over the current entry and re-keys on the new address automatically — **no new QR scan**. The old origin's credential dies the moment migration completes, keeping exactly one active credential per device.
+
+**When the current entry is unreachable**: the Devices page probes the other known addresses and offers a one-tap jump to a backup address where the desktop still answers. The dead entry can no longer issue vouchers, so the backup address asks for one fresh pairing QR scan (browser credentials are stored per address).
+
+#### A proxy client in TUN mode blocks Tailscale
+
+If this computer runs Clash, Mihomo, Surge, or a similar proxy client with **TUN mode** enabled, its route hijacking and DNS interception keep Tailscale from connecting — the UI only reports "no online status was detected". The connection guide now detects this and names it in the diagnostics.
+
+Either fix works:
+
+- **Switch that client to system-proxy mode** (recommended). It creates no tunnel and claims no routes, so it never competes with Tailscale.
+- **Keep TUN mode** and add two exclusions in the proxy client's override/merge config so Tailscale traffic bypasses it:
+
+  ```yaml
+  tun:
+    route-exclude-address:
+      - 100.64.0.0/10
+  dns:
+    nameserver-policy:
+      "+.ts.net": "100.100.100.100"
+  ```
+
+  The first keeps Tailscale's `100.64.0.0/10` range out of the hijacked routes; the second sends `*.ts.net` lookups to Tailscale's own MagicDNS resolver. Put these in the override config — editing the generated subscription file directly loses them on the next subscription update.
+
+On the phone there is also a system limit: **iOS only allows one active VPN at a time**. Running Tailscale means no other proxy client can be connected simultaneously.
 10. Before publishing or relying on remote access long-term, run the remote smoke check from the desktop:
 
    ```bash
@@ -405,7 +473,7 @@ For an HTTPS public entry, use Cloudflare Tunnel:
    LIFEOS_REMOTE_ACCEPTANCE_OUT="./remote-acceptance.json" LIFEOS_REMOTE_BASE_URL="https://<your-tunnel>.trycloudflare.com" npm run remote:acceptance
    ```
 
-Quick `trycloudflare.com` tunnels are temporary. OwnOrbit AI can recreate a Tunnel on the next launch and refresh QR addresses, but an old home-screen icon that points to the previous temporary domain may stop working. For a stable long-term entry, use Tailscale, Cloudflare Named Tunnel, or your own trusted HTTPS reverse proxy.
+Quick `trycloudflare.com` tunnels are temporary: once the desktop app restarts, the computer reboots, or the tunnel stops or crashes, the address stops working, and OwnOrbit AI does not recreate it automatically. A computer that is only asleep or offline does not kill it: wake the computer and get it back online, and the same address works again. Once it is really gone, click `Start Cloudflare Tunnel` in the connection guide, scan the new QR code on the phone, add the new page to the home screen and confirm it connects, then delete the old home-screen icon that points to the previous temporary domain and revoke the old device on the desktop. Messages that already reached the desktop stay there; the new page on the phone starts a new chat, so copy anything still in the input box or the offline queue before deleting the old icon. When the phone chat page has failed to reconnect to a temporary address for two minutes, it says the address may have changed and links to these steps on the Device & Connection page. For a stable long-term entry, use Tailscale HTTPS Serve, Cloudflare Named Tunnel, or your own trusted HTTPS reverse proxy.
 
 For long-term acceptance, complete every manual item in the desktop `Long-Term Remote Acceptance Checklist`: turn off phone Wi-Fi and send a message over cellular data; switch the phone between Wi-Fi and cellular and confirm queue/realtime recovery; regenerate the pairing QR and verify an old QR or stale home-screen entry fails safely before re-pairing with the fresh QR; interrupt and restore Tailscale/Tunnel/network connectivity and confirm the phone shows clear recovery guidance; quit and reopen the desktop app, run `Run Remote Health Check`, and mark restart restore as verified. If you use Apple devices and the iCloud entry is the default path, the `Apple / iCloud Remote Entry` card can record the same real-device evidence directly from first launch. Add a short note for each item that states the phone, network, entry URL type, and result; OwnOrbit stores it in the same long-term acceptance records and diagnostic bundle. Export a diagnostic bundle from Settings afterward; it includes the remote health summary, latest remote smoke report, acceptance checklist, and recent manual acceptance records. For release promotion, save that remote acceptance JSON as `release/remote-acceptance-evidence.json`, or set `LIFEOS_REMOTE_ACCEPTANCE_EVIDENCE=/path/to/diagnostic-bundle.json` before `npm run version:truth:release`. The release truth check rejects promotion without real cellular, network-switch, restart, stale-QR, tunnel-interruption, and diagnostic-export evidence.
 
@@ -415,7 +483,7 @@ Configure AI keys in the desktop admin UI. Keys are stored on the computer in se
 
 Supported or prepared providers:
 
-- Mainland China / Chinese providers: DeepSeek, Alibaba Qwen / DashScope (including tested Qwen3.7-Max support), Moonshot AI / Kimi, Zhipu AI / GLM, Baidu Qianfan / ERNIE, Tencent Hunyuan, Volcengine Ark / Doubao, MiniMax, StepFun, SiliconFlow, Baichuan AI.
+- Mainland China / Chinese providers: DeepSeek, Alibaba Qwen / DashScope (Qwen3.7-Max has protocol-adapter and mocked-request coverage), Moonshot AI / Kimi, Zhipu AI / GLM, Baidu Qianfan / ERNIE, Tencent Hunyuan, Volcengine Ark / Doubao, MiniMax, StepFun, SiliconFlow, Baichuan AI.
 - International providers: OpenAI, Google Gemini, Anthropic Claude, Mistral AI, Groq, Perplexity, Together AI, xAI Grok, OpenRouter.
 - Local model endpoint: Ollama, LM Studio, or any OpenAI-compatible local server.
 

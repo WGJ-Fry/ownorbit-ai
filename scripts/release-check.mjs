@@ -29,7 +29,7 @@ const builderLinuxAppImageName = `OwnOrbit AI-${publicPackageVersion}.AppImage`;
 const sourceCandidateAhead = publicPackageVersion !== packageJson.version;
 const skipReleaseArtifacts = process.env.LIFEOS_RELEASE_SKIP_ARTIFACTS === "1" ||
   (sourceCandidateAhead && !process.env.LIFEOS_RELEASE_DIR);
-const translationsSource = exists("src/i18n/translations.ts") ? fs.readFileSync(path.join(rootDir, "src/i18n/translations.ts"), "utf8") : "";
+const translationsSource = readTranslationsSource();
 const require = createRequire(import.meta.url);
 const results = [];
 const userInstallStatusMarkers = [
@@ -58,6 +58,14 @@ function fail(message) {
 
 function exists(relativePath) {
   return fs.existsSync(path.join(rootDir, relativePath));
+}
+
+function readTranslationsSource() {
+  return ["translations.ts", "translations.zh-CN.ts", "translations.en-US.ts"]
+    .map((file) => path.join("src", "i18n", file))
+    .filter(exists)
+    .map((file) => fs.readFileSync(path.join(rootDir, file), "utf8"))
+    .join("\n");
 }
 
 function hasScript(name) {
@@ -167,7 +175,7 @@ function checkSourceSizeBudgets() {
 }
 
 function checkScripts() {
-  for (const script of ["build", "desktop", "desktop:resources:prepare", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "icloud:helper:build", "icloud:helper:xcode:build", "icloud:helper:xcode:compile", "icloud:helper:xcode:notarize", "icloud:helper:smoke", "icloud:acceptance", "mobile:simulator:smoke", "mobile:native:build", "mobile:native:device:compile", "mobile:native:device:build", "mobile:native:device:install", "mobile:native:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:apple-native", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
+  for (const script of ["build", "desktop", "desktop:resources:prepare", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "icloud:helper:build", "icloud:helper:xcode:build", "icloud:helper:xcode:compile", "icloud:helper:xcode:notarize", "icloud:helper:smoke", "icloud:acceptance", "mobile:simulator:smoke", "mobile:native:build", "mobile:native:device:compile", "mobile:native:device:build", "mobile:native:device:install", "mobile:native:smoke", "remote:acceptance", "calendar:acceptance", "remote:mock-smoke", "test", "test:apple-native", "test:apple-native:xcode", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
     if (hasScript(script)) pass(`package script exists: ${script}`);
     else fail(`missing package script: ${script}`);
   }
@@ -245,10 +253,13 @@ function checkScripts() {
     const artifactVersionCheck = fs.readFileSync(path.join(rootDir, "scripts/check-release-artifact-versions.mjs"), "utf8");
     if (
       artifactVersionCheck.includes("Release artifacts do not match package version") &&
+      artifactVersionCheck.includes("releaseProvenanceFailures") &&
+      artifactVersionCheck.includes("expectedCommit: currentSourceCommit(rootDir)") &&
+      artifactVersionCheck.includes("Source provenance cannot be repaired in place") &&
       artifactVersionCheck.includes("process.argv.includes(\"--fix\")") &&
       artifactVersionCheck.includes("fs.rmSync")
-    ) pass("release artifact version checker can block and explicitly clean stale installers");
-    else fail("release artifact version checker is missing stale-version detection or explicit cleanup mode");
+    ) pass("release artifact checker blocks wrong versions, dirty builds, and mismatched source commits");
+    else fail("release artifact checker is missing version cleanup or source provenance enforcement");
   } else {
     fail("missing stale release artifact version checker: scripts/check-release-artifact-versions.mjs");
   }
@@ -391,7 +402,8 @@ function checkScripts() {
       packageJson.scripts?.["mobile:native:device:build"]?.includes("--device") &&
       packageJson.scripts?.["mobile:native:device:install"]?.includes("install-ios-mobile-shell.mjs") &&
       packageJson.scripts?.["test:apple-native"]?.includes("apple-mobile-native-shell.test.mjs") &&
-      packageJson.scripts?.["quality:gate"]?.includes("test:apple-native") &&
+      packageJson.scripts?.["test:apple-native:xcode"]?.includes("test-ios-native-xcode.mjs") &&
+      packageJson.scripts?.["quality:gate"]?.includes("test:apple-native:xcode") &&
       nativeEntry.includes("SHA256.hash") &&
       nativeEntry.includes("withoutEscapingSlashes") &&
       nativeEntry.includes("entryChecksumSha256 == checksum") &&
@@ -579,9 +591,9 @@ function checkScripts() {
     if (smoke.includes("desktop:artifact:smoke")) pass("desktop release smoke verifies packaged artifacts after building");
     else fail("desktop release smoke should run desktop:artifact:smoke after packaging");
     if (smoke.includes("LIFEOS_RELEASE_SMOKE_LAUNCH") && smoke.includes("desktop:artifact:smoke:launch")) {
-      pass("desktop release smoke can launch the packaged macOS app when requested");
+      pass("desktop release smoke can launch the packaged app on every supported platform when requested");
     } else {
-      fail("desktop release smoke should support LIFEOS_RELEASE_SMOKE_LAUNCH=1 for packaged macOS launch smoke");
+      fail("desktop release smoke should support LIFEOS_RELEASE_SMOKE_LAUNCH=1 on every supported platform");
     }
   }
 
@@ -592,19 +604,32 @@ function checkScripts() {
     const draftAssembler = fs.existsSync(draftAssemblerPath) ? fs.readFileSync(draftAssemblerPath, "utf8") : "";
     const releaseFeedTestPath = path.join(rootDir, "tests", "release-feed.test.mjs");
     const releaseFeedTests = fs.existsSync(releaseFeedTestPath) ? fs.readFileSync(releaseFeedTestPath, "utf8") : "";
+    const hasPinnedAction = (name) => new RegExp(`${name.replace("/", "\\/")}@[0-9a-f]{40}`).test(artifactsWorkflow);
     if (
-      artifactsWorkflow.includes("actions/upload-artifact@v4") &&
-      artifactsWorkflow.includes("actions/download-artifact@v4") &&
-      artifactsWorkflow.includes("softprops/action-gh-release@v2") &&
+      hasPinnedAction("actions/upload-artifact") &&
+      hasPinnedAction("actions/download-artifact") &&
+      hasPinnedAction("softprops/action-gh-release") &&
+      hasPinnedAction("apple-actions/import-codesign-certs") &&
+      artifactsWorkflow.includes("preflight:") &&
       artifactsWorkflow.includes("publish-draft:") &&
+      artifactsWorkflow.includes("needs: preflight") &&
       artifactsWorkflow.includes("needs: package") &&
+      artifactsWorkflow.includes("npm run test:apple-native") &&
+      artifactsWorkflow.includes("npm run test:apple-native:xcode") &&
+      artifactsWorkflow.includes("npm run test:relay-lifecycle") &&
+      artifactsWorkflow.includes("npm run test:relay-schedule") &&
+      artifactsWorkflow.includes("npm run test:e2e") &&
+      artifactsWorkflow.includes("npm run test:desktop") &&
+      artifactsWorkflow.includes("npm run release:check:unsigned") &&
       artifactsWorkflow.includes("node scripts/assemble-release-draft-assets.mjs") &&
       artifactsWorkflow.includes("contents: write") &&
       artifactsWorkflow.includes("draft: true") &&
       artifactsWorkflow.includes("prerelease:") &&
       artifactsWorkflow.includes("generate_release_notes: true") &&
       artifactsWorkflow.includes("startsWith(github.ref, 'refs/tags/')") &&
+      artifactsWorkflow.includes("npm run version:truth:tag") &&
       artifactsWorkflow.includes("npm run desktop:release:smoke") &&
+      (artifactsWorkflow.match(/LIFEOS_RELEASE_SMOKE_LAUNCH:\s*\"1\"/g)?.length || 0) >= 2 &&
       artifactsWorkflow.includes("macos-latest") &&
       artifactsWorkflow.includes("windows-latest") &&
       artifactsWorkflow.includes("ubuntu-latest") &&
@@ -627,8 +652,8 @@ function checkScripts() {
       draftAssembler.includes("Release draft is missing feed file") &&
       draftAssembler.includes("Release draft SHA256SUMS is missing artifact") &&
       releaseFeedTests.includes("release draft assembler rejects incomplete platform artifact sets")
-    ) pass("desktop package artifact workflow aggregates macOS, Windows, Linux packages into one draft GitHub Release");
-    else fail("desktop package artifact workflow must build, verify, aggregate, and attach all platform package artifacts plus update metadata to one draft GitHub Release");
+    ) pass("desktop package artifact workflow runs full preflight, launches every packaged platform, and aggregates one draft GitHub Release");
+    else fail("desktop package artifact workflow must run full preflight, build, launch, verify, aggregate, and attach all platform package artifacts plus update metadata to one draft GitHub Release");
   } else {
     fail("missing desktop package artifact workflow: .github/workflows/desktop-artifacts.yml");
   }
@@ -636,12 +661,12 @@ function checkScripts() {
   if (exists("scripts/desktop-artifact-smoke.mjs")) {
     const artifactSmoke = fs.readFileSync(path.join(rootDir, "scripts/desktop-artifact-smoke.mjs"), "utf8");
     const launchSmokeScript = packageJson.scripts?.["desktop:artifact:smoke:launch"] || "";
-    if (launchSmokeScript.includes("LIFEOS_ARTIFACT_SMOKE_LAUNCH=1") && launchSmokeScript.includes("desktop-artifact-smoke.mjs")) {
+    if (launchSmokeScript.includes("desktop-artifact-smoke.mjs --launch")) {
       pass("desktop artifact launch smoke script starts the packaged app");
     } else {
-      fail("desktop:artifact:smoke:launch should set LIFEOS_ARTIFACT_SMOKE_LAUNCH=1 and run desktop-artifact-smoke.mjs");
+      fail("desktop:artifact:smoke:launch should pass the cross-platform --launch flag to desktop-artifact-smoke.mjs");
     }
-    if (artifactSmoke.includes("release-manifest.json") && artifactSmoke.includes("app.asar") && artifactSmoke.includes("LIFEOS_ARTIFACT_SMOKE_LAUNCH")) {
+    if (artifactSmoke.includes("release-manifest.json") && artifactSmoke.includes("app.asar") && artifactSmoke.includes("launchRequested")) {
       pass("desktop artifact smoke verifies update feed, packaged asar, and optional launch");
     } else {
       fail("desktop artifact smoke should verify update feed, packaged asar, and optional launch");
@@ -823,7 +848,14 @@ function checkAssets() {
     else fail("PWA service worker should cache offline fallback and mobile routes");
     if (sw.includes("/icons/icon-192.png") && sw.includes("/icons/icon-512.png")) pass("PWA service worker caches install icons for offline startup");
     else warn("PWA service worker does not cache install icons");
-    if (sw.includes("extractBuildAssets") && sw.includes("cacheBuildAssets") && sw.includes("cache.addAll(buildAssets)")) pass("PWA service worker pre-caches production build assets");
+    if (
+      sw.includes("extractBuildAssets") &&
+      sw.includes("cacheBuildAssets") &&
+      sw.includes("cache.addAll(buildAssets)") &&
+      sw.includes("extractManifestAssets") &&
+      sw.includes("cacheManifestAssets") &&
+      sw.includes("asset-manifest.json")
+    ) pass("PWA service worker pre-caches eager and lazy production build assets");
     else fail("PWA service worker should pre-cache Vite build assets for offline startup");
     if (sw.includes("lifeos-offline-queue") && sw.includes("LIFEOS_SYNC_OFFLINE_QUEUE")) pass("PWA service worker supports background offline queue sync");
     else warn("PWA service worker does not expose offline queue sync hooks");
@@ -836,7 +868,10 @@ function checkAssets() {
   const mainSource = exists("src/main.tsx") ? fs.readFileSync(path.join(rootDir, "src/main.tsx"), "utf8") : "";
   const pwaServiceWorkerLifecycleSource = exists("src/services/pwaServiceWorkerLifecycle.ts") ? fs.readFileSync(path.join(rootDir, "src/services/pwaServiceWorkerLifecycle.ts"), "utf8") : "";
   if (
-    mainSource.includes("basename={lifeosBasePath || undefined}") &&
+    mainSource.includes("function currentLifeOSPath()") &&
+    mainSource.includes("pathname.startsWith(`${basePath}/`)") &&
+    mainSource.includes("pathname.slice(basePath.length)") &&
+    mainSource.includes("`${basePath}${routePath}${window.location.search}${window.location.hash}`") &&
     mainSource.includes("navigator.serviceWorker.register(`${lifeosBasePath}/sw.js`")
   ) pass("PWA router and service worker registration preserve reverse-proxy base paths");
   else fail("PWA router or service worker registration does not preserve reverse-proxy base paths");
@@ -868,7 +903,7 @@ function checkAssets() {
   const onboardingMobileSource = exists("src/pages/admin/OnboardingMobileCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/OnboardingMobileCard.tsx"), "utf8") : "";
   const onboardingRecoverySource = exists("src/pages/admin/OnboardingRecoveryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/OnboardingRecoveryCard.tsx"), "utf8") : "";
   const onboardingHandoffSource = exists("src/pages/admin/OnboardingHandoffCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/OnboardingHandoffCard.tsx"), "utf8") : "";
-  const translationsSource = exists("src/i18n/translations.ts") ? fs.readFileSync(path.join(rootDir, "src/i18n/translations.ts"), "utf8") : "";
+  const translationsSource = readTranslationsSource();
   if (
     adminRoutesSource.includes("/api/v1/admin/onboarding") &&
     adminRoutesSource.includes("admin_onboarding_completed") &&
@@ -1075,6 +1110,7 @@ function checkAssets() {
   const cloudflareTunnelActionsSource = exists("src/pages/admin/CloudflareTunnelActions.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/CloudflareTunnelActions.tsx"), "utf8") : "";
   const customRemoteEntrySource = exists("src/pages/admin/CustomRemoteEntryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/CustomRemoteEntryCard.tsx"), "utf8") : "";
   const devicePairSource = exists("src/pages/admin/DevicePairPage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/DevicePairPage.tsx"), "utf8") : "";
+  const pairingCandidatePolicySource = exists("src/services/pairingCandidatePolicy.ts") ? fs.readFileSync(path.join(rootDir, "src/services/pairingCandidatePolicy.ts"), "utf8") : "";
   const devicePairConnectionTestSource = exists("src/pages/admin/DevicePairConnectionTestResult.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/DevicePairConnectionTestResult.tsx"), "utf8") : "";
   const devicePairingErrorsSource = exists("src/services/devicePairingErrors.ts") ? fs.readFileSync(path.join(rootDir, "src/services/devicePairingErrors.ts"), "utf8") : "";
   const devicePairingErrorsTestSource = exists("tests/device-pairing-errors.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/device-pairing-errors.test.mjs"), "utf8") : "";
@@ -1101,9 +1137,9 @@ function checkAssets() {
     networkDiagnosticsSource.includes("restartInstruction") &&
     networkDiagnosticsSource.includes("desktopRuntimeConfig") &&
     networkDiagnosticsSource.includes("saved-desktop-config") &&
-    networkDiagnosticsTestSource.includes("recommends saved desktop remote config before local-only entries") &&
+    networkDiagnosticsTestSource.includes("does not advertise a saved remote config before restart") &&
     networkDiagnosticsTestSource.includes("LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=https://lifeos-mac.tailnet.example.ts.net") &&
-    networkDiagnosticsTestSource.includes('tailscaleHttpCandidate.envTemplate.includes("LIFEOS_TRUST_PROXY=1"), false') &&
+    networkDiagnosticsTestSource.includes('magicDns.envTemplate.includes("LIFEOS_TRUST_PROXY=1"), false') &&
     desktopRuntimeConfigSource.includes("desktop-runtime-config.json") &&
     desktopRuntimeConfigSource.includes("normalizeDesktopRuntimeConfig") &&
     desktopRuntimeConfigSource.includes("allowPublic") &&
@@ -1116,7 +1152,7 @@ function checkAssets() {
     networkDiagnosticsSource.includes("httpsServeReady") &&
     networkDiagnosticsSource.includes("httpsServeUrl") &&
     networkDiagnosticsSource.includes("getTailscaleStatus(portOverride =") &&
-    networkDiagnosticsSource.includes("tailscale serve --bg https:443") &&
+    networkDiagnosticsSource.includes("tailscale serve --bg --https=443") &&
     networkDiagnosticsSource.includes("LIFEOS_TRUST_PROXY=1") &&
     networkDiagnosticsSource.includes("startTailscaleHttpsServe") &&
     networkDiagnosticsSource.includes("stopTailscaleHttpsServe") &&
@@ -1273,7 +1309,8 @@ function checkAssets() {
     remoteAcceptanceSource.includes("Remote acceptance report URLs must not contain username, password, token, query, or fragment") &&
     desktopRuntimeConfigSource.includes("Desktop connection baseUrl must not contain username, password, token, query, or fragment") &&
     apiAuthTestSourceForRouting.includes("unsafeRemoteDesktopConnectionConfig.status, 400") &&
-    deviceRoutesSource.includes("getDesktopRuntimeConfig()?.publicBaseUrl") &&
+    deviceRoutesSource.includes("getDeviceEndpointsSnapshot(bindHost, { maxAgeMs: 0 })") &&
+    !deviceRoutesSource.includes("getDesktopRuntimeConfig()?.publicBaseUrl") &&
     deviceRoutesSource.includes("baseUrl must not contain username, password, token, query, or fragment") &&
     apiAuthTestSourceForRouting.includes("defaultRemoteBinding.baseUrl") &&
     apiAuthTestSourceForRouting.includes("tokenizedPairingBaseUrl.status, 400") &&
@@ -1437,9 +1474,12 @@ function checkAssets() {
     packageJson.scripts.test.includes("tests/client-routing.test.mjs") &&
     desktopRuntimeConfigSmokeTestSource.includes("loads saved connection config before starting local core") &&
     desktopRuntimeConfigSmokeTestSource.includes("autostarts saved Tailscale HTTPS Serve config") &&
-    devicePairSource.includes("networkDiagnostics.recommendedBaseUrl") &&
-    devicePairSource.includes('candidate.mode !== "local"') &&
-    connectionGuideCombinedSource.includes('candidate.mode !== "local"') &&
+    devicePairSource.includes("eligiblePhonePairingCandidates") &&
+    !devicePairSource.includes("networkDiagnostics.recommendedBaseUrl") &&
+    connectionGuideSource.includes("eligiblePhonePairingCandidates") &&
+    pairingCandidatePolicySource.includes('candidate.mode === "local"') &&
+    pairingCandidatePolicySource.includes('candidate.mode !== "lan"') &&
+    pairingCandidatePolicySource.includes('parsed.protocol !== "https:"') &&
     connectionGuideCombinedSource.includes("NoPhoneReachableNotice") &&
     connectionGuideCombinedSource.includes("ConnectionMobileEntryPanel") &&
     translationsSource.includes("connection.noPhoneReachableShort")
@@ -1453,7 +1493,7 @@ function checkAssets() {
     devicePairSource.includes("connection.trustedNetworkOnly") &&
     devicePairSource.includes("connection.restartBadge") &&
     devicePairSource.includes("activeCandidate.envTemplate") &&
-    devicePairSource.includes("activeCandidate.restartInstruction") &&
+    devicePairSource.includes('t("devicePair.restartInstruction")') &&
     devicePairSource.includes("copiedEnv") &&
     devicePairSource.includes("devicePair.copyEnv") &&
     devicePairSource.includes("devicePair.restartTitle") &&
@@ -1496,7 +1536,7 @@ function checkAssets() {
   if (
     networkDiagnosticsSource.includes("cloudflared tunnel --url") &&
     networkDiagnosticsSource.includes("tailscale") &&
-    networkDiagnosticsSource.includes("tailscale serve --bg https:443") &&
+    networkDiagnosticsSource.includes("tailscale serve --bg --https=443") &&
     networkDiagnosticsSource.includes("magicDnsEnabled") &&
     networkDiagnosticsSource.includes("loginCommand") &&
     networkDiagnosticsSource.includes("httpsServeReady") &&
@@ -1693,7 +1733,7 @@ function checkAssets() {
   if (
     mobileDeviceStatusCardsSource.includes("mobileDevice.pastePairingLink") &&
     mobileDeviceSource.includes("mobileDevice.rebindButton") &&
-    mobileDeviceSource.includes("pairingInstallPath") &&
+    mobileDeviceSource.includes("resolvePairingInputDestination") &&
     !mobileDeviceSource.includes('href="/mobile/pair"') &&
     !mobileDeviceSource.includes("window.location.href = `/mobile/pair?token=")
   ) pass("mobile device page supports token paste rebinding without naked pair links");
@@ -1783,6 +1823,8 @@ function checkAssets() {
   if (
     cloudKitChatProtocolSource.includes("LifeOSChatRequest") &&
     cloudKitChatProtocolSource.includes("LifeOSChatResponse") &&
+    cloudKitChatProtocolSource.includes("LifeOSChatReceipt") &&
+    cloudKitChatProtocolSource.includes("verifyCloudKitChatReceiptSignature") &&
     cloudKitChatProtocolSource.includes('dsaEncoding: "ieee-p1363"') &&
     cloudKitDeviceKeyProtocolSource.includes("LifeOSDeviceKey") &&
     cloudKitDeviceKeyProtocolSource.includes('namedCurve !== "prime256v1"') &&
@@ -1797,14 +1839,16 @@ function checkAssets() {
     nativeCloudDataSource.includes("timedOut") &&
     cloudKitSchemaSource.includes("RECORD TYPE LifeOSChatRequest") &&
     cloudKitSchemaSource.includes("RECORD TYPE LifeOSChatResponse") &&
+    cloudKitSchemaSource.includes("RECORD TYPE LifeOSChatReceipt") &&
     cloudKitSchemaSource.includes("RECORD TYPE LifeOSDeviceKey") &&
     cloudKitChatProtocolTestSource.includes("canonical safe phone payloads") &&
     cloudKitDeviceKeyProtocolTestSource.includes("P-256 possession without private material") &&
     cloudKitChatJobsTestSource.includes("CloudKit quarantine imports a phone chat request and exports the completed Mac response") &&
+    cloudKitChatJobsTestSource.includes("ios-chat-receipt:") &&
     cloudKitChatWorkerTestSource.includes("text-only response without exposing tools") &&
     packageJson.scripts.test.includes("tests/cloudkit-device-key-protocol.test.mjs")
-  ) pass("CloudKit phone chat uses device-only P-256 signing, durable jobs, text-only Mac AI, safe status states, and schema/test gates");
-  else fail("CloudKit phone chat must keep signed requests, device-only keys, no-tool AI execution, durable retry states, schema records, and tests together");
+  ) pass("CloudKit phone chat uses device-only P-256 signing, signed response receipts, durable jobs, text-only Mac AI, safe status states, and schema/test gates");
+  else fail("CloudKit phone chat must keep signed requests and receipts, device-only keys, no-tool AI execution, durable retry states, schema records, and tests together");
   if (
     deviceRoutesSource.includes("pairingInstallUrl") &&
     deviceRoutesSource.includes("/mobile/install/") &&
@@ -4579,6 +4623,7 @@ function checkReleaseDocs() {
       "不是公开下载包",
       "LifeOSChatRequest",
       "LifeOSChatResponse",
+      "LifeOSChatReceipt",
       "LifeOSDeviceKey",
       "P-256",
       "Keychain",
@@ -4634,7 +4679,9 @@ function checkReleaseDocs() {
     "VTODO",
     'tags:\n      - "v*"',
     "packages: write",
-    "docker/build-push-action@v6",
+    "docker/build-push-action@",
+    "npm run version:truth:tag",
+    "platforms: linux/amd64,linux/arm64",
     "push: true",
     String(releaseState.sourceDockerRepository || ""),
     "docs/assets/real-demo-en.gif",
@@ -5033,6 +5080,26 @@ function checkReleaseDocs() {
 }
 
 function checkCiWorkflow() {
+  for (const relativePath of [
+    ".github/workflows/quality.yml",
+    ".github/workflows/desktop-release-smoke.yml",
+    ".github/workflows/ios-native.yml",
+  ]) {
+    const readOnlyWorkflowPath = path.join(rootDir, relativePath);
+    if (!fs.existsSync(readOnlyWorkflowPath)) {
+      fail(`missing read-only CI workflow: ${relativePath}`);
+      continue;
+    }
+    const readOnlyWorkflow = fs.readFileSync(readOnlyWorkflowPath, "utf8");
+    if (
+      /^permissions:\s*\n\s+contents:\s+read\s*$/m.test(readOnlyWorkflow) &&
+      readOnlyWorkflow.includes("persist-credentials: false")
+    ) {
+      pass(`${relativePath} keeps the GitHub token read-only and does not persist checkout credentials`);
+    } else {
+      fail(`${relativePath} must set contents: read and disable persisted checkout credentials`);
+    }
+  }
   const workflowPath = path.join(rootDir, ".github", "workflows", "desktop-release-smoke.yml");
   if (!fs.existsSync(workflowPath)) {
     warn("desktop release smoke GitHub Actions workflow is missing");
@@ -5061,7 +5128,11 @@ function checkCiWorkflow() {
   }
   if (workflow.includes("CSC_IDENTITY_AUTO_DISCOVERY") && workflow.includes("false")) pass("desktop release smoke workflow disables opportunistic signing");
   else warn("desktop release smoke workflow should disable opportunistic signing for unsigned smoke builds");
-  if (workflow.includes("LIFEOS_RELEASE_SMOKE_FAST")) pass("desktop release smoke workflow uses fast quality gate before platform packaging");
+  if (
+    workflow.includes("LIFEOS_RELEASE_SMOKE_FAST") &&
+    workflow.includes("preflight:") &&
+    workflow.includes("needs: preflight")
+  ) pass("desktop release smoke workflow uses fast per-platform packaging only after the full preflight job");
   else warn("desktop release smoke workflow does not set LIFEOS_RELEASE_SMOKE_FAST");
 }
 
@@ -5074,26 +5145,124 @@ function checkAudit() {
   const npmExecPath = process.env.npm_execpath || "";
   const auditCommand = npmExecPath ? process.execPath : process.platform === "win32" ? "npm.cmd" : "npm";
   const auditArgsPrefix = npmExecPath ? [npmExecPath] : [];
-  let lastAudit;
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    lastAudit = spawnSync(auditCommand, [...auditArgsPrefix, "audit", "--audit-level=high"], {
-      cwd: rootDir,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    if (lastAudit.error) {
-      fail(`npm audit could not start: ${lastAudit.error.message}`);
-      return;
+
+  const runAudit = (extraArgs = []) => {
+    let lastAudit;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      lastAudit = spawnSync(
+        auditCommand,
+        [...auditArgsPrefix, "audit", "--json", "--audit-level=high", ...extraArgs],
+        {
+          cwd: rootDir,
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "pipe"],
+        },
+      );
+      if (lastAudit.error) return { error: lastAudit.error };
+      const output = `${lastAudit.stdout || ""}\n${lastAudit.stderr || ""}`.trim();
+      try {
+        return {
+          report: JSON.parse(lastAudit.stdout || "{}"),
+          status: lastAudit.status,
+          attempt,
+        };
+      } catch {
+        if (!/ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|audit endpoint returned an error|socket hang up/i.test(output)) {
+          return { output, status: lastAudit.status };
+        }
+      }
     }
-    if (lastAudit.status === 0) {
-      pass(attempt === 1 ? "npm audit found no high severity vulnerabilities" : `npm audit found no high severity vulnerabilities after ${attempt} attempts`);
-      return;
-    }
-    const output = `${lastAudit.stdout}\n${lastAudit.stderr}`.trim();
-    if (!/ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|audit endpoint returned an error|socket hang up/i.test(output)) break;
+    return {
+      output: `${lastAudit?.stdout || ""}\n${lastAudit?.stderr || ""}`.trim(),
+      status: lastAudit?.status,
+    };
+  };
+
+  const productionAudit = runAudit(["--omit=dev"]);
+  if (productionAudit.error) {
+    fail(`production npm audit could not start: ${productionAudit.error.message}`);
+    return;
   }
-  const output = `${lastAudit?.stdout || ""}\n${lastAudit?.stderr || ""}`.trim();
-  fail(`npm audit failed or found high severity vulnerabilities${output ? `\n${output}` : ""}`);
+  if (!productionAudit.report) {
+    fail(`production npm audit did not return a readable report${productionAudit.output ? `\n${productionAudit.output}` : ""}`);
+    return;
+  }
+  const productionHigh = Number(productionAudit.report.metadata?.vulnerabilities?.high || 0);
+  const productionCritical = Number(productionAudit.report.metadata?.vulnerabilities?.critical || 0);
+  if (productionAudit.status !== 0 || productionHigh > 0 || productionCritical > 0) {
+    fail(`production dependencies contain ${productionHigh} high and ${productionCritical} critical vulnerabilities`);
+    return;
+  }
+  pass("production dependency audit found no high or critical vulnerabilities");
+
+  const fullAudit = runAudit();
+  if (fullAudit.error) {
+    fail(`full npm audit could not start: ${fullAudit.error.message}`);
+    return;
+  }
+  if (!fullAudit.report) {
+    fail(`full npm audit did not return a readable report${fullAudit.output ? `\n${fullAudit.output}` : ""}`);
+    return;
+  }
+  if (fullAudit.status === 0) {
+    pass("full dependency audit found no high severity vulnerabilities");
+    return;
+  }
+
+  const allowedBuildToolPackages = new Set([
+    "@electron/asar",
+    "@electron/universal",
+    "app-builder-lib",
+    "brace-expansion",
+    "dir-compare",
+    "dmg-builder",
+    "ejs",
+    "electron-builder",
+    "electron-builder-squirrel-windows",
+    "electron-winstaller",
+    "filelist",
+    "glob",
+    "jake",
+    "minimatch",
+    "rimraf",
+    "temp",
+  ]);
+  const vulnerabilities = fullAudit.report.vulnerabilities || {};
+  const unexpectedPackages = Object.keys(vulnerabilities)
+    .filter((name) => !allowedBuildToolPackages.has(name));
+  const directVulnerabilities = Object.entries(vulnerabilities)
+    .filter(([, vulnerability]) => vulnerability?.isDirect)
+    .map(([name]) => name);
+  const advisoryUrls = new Set(
+    Object.values(vulnerabilities)
+      .flatMap((vulnerability) => Array.isArray(vulnerability?.via) ? vulnerability.via : [])
+      .filter((via) => via && typeof via === "object" && typeof via.url === "string")
+      .map((via) => via.url),
+  );
+  const expectedAdvisory = "https://github.com/advisories/GHSA-mh99-v99m-4gvg";
+  const builderVersion = String(packageJson.devDependencies?.["electron-builder"] || "");
+  const hasOnlyExpectedAdvisory = advisoryUrls.size === 1 && advisoryUrls.has(expectedAdvisory);
+  const hasOnlyExpectedDirectDependency = directVulnerabilities.length === 1 &&
+    directVulnerabilities[0] === "electron-builder";
+  const builderIsPinned = builderVersion === "26.15.7";
+
+  if (
+    unexpectedPackages.length === 0 &&
+    hasOnlyExpectedAdvisory &&
+    hasOnlyExpectedDirectDependency &&
+    builderIsPinned
+  ) {
+    pass("full audit contains only the pinned electron-builder development-chain brace-expansion advisory; it is excluded from production dependencies and any advisory drift will fail this check");
+    return;
+  }
+
+  fail(
+    "full dependency audit contains an unapproved high severity finding: " +
+    `packages=${unexpectedPackages.join(", ") || "none"}, ` +
+    `direct=${directVulnerabilities.join(", ") || "none"}, ` +
+    `advisories=${[...advisoryUrls].join(", ") || "none"}, ` +
+    `electron-builder=${builderVersion || "missing"}`,
+  );
 }
 
 function checkUnsignedPackage() {

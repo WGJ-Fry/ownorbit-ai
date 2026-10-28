@@ -23,6 +23,16 @@ const currentLinuxAppImageName = `OwnOrbit AI-${currentVersion}.AppImage`;
 const publicMacZipName = String(releaseState.publicArtifacts?.mac || "");
 const publicWinInstallerName = String(releaseState.publicArtifacts?.windows || "");
 const publicLinuxAppImageName = String(releaseState.publicArtifacts?.linux || "");
+const currentCommit = spawnSync("git", ["rev-parse", "HEAD"], {
+  cwd: rootDir,
+  encoding: "utf8",
+}).stdout.trim();
+const releaseSource = {
+  schema: "ownorbit-release-source.v1",
+  commit: currentCommit,
+  ref: process.env.GITHUB_REF_NAME || "test",
+  dirty: false,
+};
 const packagedDesktopMain = [
   "function fetchLocalJson() {}",
   "const bundle = {",
@@ -181,6 +191,9 @@ test("release feed generator writes electron-updater metadata for packaged artif
 
   const manifest = JSON.parse(await readFile(path.join(releaseDir, "update-feed", "release-manifest.json"), "utf8"));
   assert.equal(manifest.version, currentVersion);
+  assert.equal(manifest.source.schema, "ownorbit-release-source.v1");
+  assert.equal(manifest.source.commit, currentCommit);
+  assert.equal(typeof manifest.source.dirty, "boolean");
   assert.equal(manifest.artifacts.length, 1);
   assert.equal(manifest.artifacts[0].platform, "mac");
   assert.equal(manifest.artifacts[0].feedFile, "latest-mac.yml");
@@ -273,7 +286,7 @@ test("release feed generator ignores unpacked app internals", async (t) => {
   assert.doesNotMatch(checksums, /OwnOrbit AI\.exe/);
 });
 
-test("release artifact version checker blocks and explicitly cleans stale installers", async (t) => {
+test("release artifact version checker cleans stale versions but never blesses unprovenanced installers", async (t) => {
   const releaseDir = await mkdtemp(path.join(tmpdir(), "lifeos-release-artifact-version-"));
   t.after(async () => {
     await rm(releaseDir, { recursive: true, force: true });
@@ -325,14 +338,51 @@ test("release artifact version checker blocks and explicitly cleans stale instal
     env: { ...process.env, LIFEOS_RELEASE_DIR: releaseDir },
     encoding: "utf8",
   });
-  assert.equal(fixed.status, 0, `${fixed.stdout}\n${fixed.stderr}`);
+  assert.notEqual(fixed.status, 0, `${fixed.stdout}\n${fixed.stderr}`);
   assert.match(fixed.stdout, /Deleted/);
+  assert.match(fixed.stderr, /Source provenance cannot be repaired in place/);
   assert.equal(await fileExists(staleDmg), false);
   assert.equal(await fileExists(staleBlockmap), false);
   assert.equal(await fileExists(currentExe), true);
   assert.equal(await fileExists(staleFeed), false);
   assert.equal(await fileExists(staleManifest), false);
   assert.equal(await fileExists(staleChecksums), false);
+});
+
+test("release artifact checker rejects dirty or mismatched source provenance", async (t) => {
+  const releaseDir = await mkdtemp(path.join(tmpdir(), "lifeos-release-artifact-provenance-"));
+  t.after(async () => {
+    await rm(releaseDir, { recursive: true, force: true });
+  });
+
+  await mkdir(path.join(releaseDir, "update-feed"), { recursive: true });
+  await writeFile(path.join(releaseDir, currentWinInstallerName), "current nsis bytes");
+  await writeFile(path.join(releaseDir, "update-feed", "release-manifest.json"), `${JSON.stringify({
+    version: currentVersion,
+    source: { ...releaseSource, dirty: true },
+    artifacts: [],
+  }, null, 2)}\n`);
+
+  const dirty = spawnSync(process.execPath, ["scripts/check-release-artifact-versions.mjs"], {
+    cwd: rootDir,
+    env: { ...process.env, LIFEOS_RELEASE_DIR: releaseDir },
+    encoding: "utf8",
+  });
+  assert.notEqual(dirty.status, 0, `${dirty.stdout}\n${dirty.stderr}`);
+  assert.match(dirty.stderr, /generated from a dirty worktree/);
+
+  await writeFile(path.join(releaseDir, "update-feed", "release-manifest.json"), `${JSON.stringify({
+    version: currentVersion,
+    source: { ...releaseSource, commit: "0".repeat(40) },
+    artifacts: [],
+  }, null, 2)}\n`);
+  const wrongCommit = spawnSync(process.execPath, ["scripts/check-release-artifact-versions.mjs"], {
+    cwd: rootDir,
+    env: { ...process.env, LIFEOS_RELEASE_DIR: releaseDir },
+    encoding: "utf8",
+  });
+  assert.notEqual(wrongCommit.status, 0, `${wrongCommit.stdout}\n${wrongCommit.stderr}`);
+  assert.match(wrongCommit.stderr, /expected [0-9a-f]{40}/);
 });
 
 test("release feed generator writes Windows and Linux updater metadata", async (t) => {
@@ -403,6 +453,7 @@ test("release draft assembler merges platform artifacts into one payload", async
     await writeFile(path.join(dir, "release-manifest.json"), `${JSON.stringify({
       version: currentVersion,
       generatedAt: new Date(0).toISOString(),
+      source: releaseSource,
       artifacts: [{
         platform,
         feedFile,
@@ -450,6 +501,7 @@ test("release draft assembler merges platform artifacts into one payload", async
 
   const manifest = JSON.parse(await readFile(path.join(outputDir, "release-manifest.json"), "utf8"));
   assert.equal(manifest.version, currentVersion);
+  assert.deepEqual(manifest.source, releaseSource);
   assert.deepEqual(manifest.artifacts.map((artifact) => artifact.platform).sort(), ["linux", "mac", "windows"]);
   assert.deepEqual(manifest.artifacts.map((artifact) => artifact.feedFile).sort(), ["latest-linux.yml", "latest-mac.yml", "latest.yml"]);
 });
@@ -478,6 +530,7 @@ test("release draft assembler rejects incomplete platform artifact sets", async 
     await writeFile(path.join(dir, "release-manifest.json"), `${JSON.stringify({
       version: currentVersion,
       generatedAt: new Date(0).toISOString(),
+      source: releaseSource,
       artifacts: [{
         platform,
         feedFile,
@@ -623,7 +676,7 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /package script exists: release:artifacts:check/);
   assert.match(result.stdout, /package script exists: check:cold-launch/);
   assert.match(result.stdout, /cold launch readiness verifies README, Compose, release tag, and GHCR image references/);
-  assert.match(result.stdout, /release artifact version checker can block and explicitly clean stale installers/);
+  assert.match(result.stdout, /release artifact checker blocks wrong versions, dirty builds, and mismatched source commits/);
   assert.match(result.stdout, /quality gate script runs lint, tests, e2e, desktop, and release checks/);
   assert.match(result.stdout, /GitHub Actions quality gate runs Playwright E2E, desktop smoke, SQLite-enabled tests, and remote smoke/);
   assert.match(result.stdout, /iOS Simulator smoke can open the mobile handoff\/chat shell and records evidence without replacing real-device acceptance/);
@@ -633,8 +686,8 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /desktop release smoke regenerates update feed after Windows\/Linux builds/);
   assert.match(result.stdout, /desktop release smoke blocks stale installer artifacts before verification/);
   assert.match(result.stdout, /desktop release smoke verifies packaged artifacts after building/);
-  assert.match(result.stdout, /desktop release smoke can launch the packaged macOS app when requested/);
-  assert.match(result.stdout, /desktop package artifact workflow aggregates macOS, Windows, Linux packages into one draft GitHub Release/);
+  assert.match(result.stdout, /desktop release smoke can launch the packaged app on every supported platform when requested/);
+  assert.match(result.stdout, /desktop package artifact workflow runs full preflight, launches every packaged platform, and aggregates one draft GitHub Release/);
   assert.match(result.stdout, /desktop artifact launch smoke script starts the packaged app/);
   assert.match(result.stdout, /desktop artifact smoke verifies update feed, packaged asar, and optional launch/);
   assert.match(result.stdout, /desktop artifact smoke verifies unsigned macOS ad-hoc signature/);
@@ -653,7 +706,7 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /desktop release smoke workflow launches the packaged macOS app/);
   assert.match(result.stdout, /desktop release smoke workflow launches packaged Windows and Linux apps/);
   assert.match(result.stdout, /desktop release smoke workflow disables opportunistic signing/);
-  assert.match(result.stdout, /desktop release smoke workflow uses fast quality gate before platform packaging/);
+  assert.match(result.stdout, /desktop release smoke workflow uses fast per-platform packaging only after the full preflight job/);
   assert.match(result.stdout, /Vite dependency is pinned to the esbuild-safe major line/);
   assert.match(result.stdout, /React Vite plugin is compatible with Vite 8/);
   assert.match(result.stdout, /direct esbuild dependency is at the audited safe version/);
@@ -674,7 +727,7 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /PWA offline fallback page shows persisted queue status/);
   assert.match(result.stdout, /PWA service worker caches mobile shell routes/);
   assert.match(result.stdout, /PWA service worker caches install icons for offline startup/);
-  assert.match(result.stdout, /PWA service worker pre-caches production build assets/);
+  assert.match(result.stdout, /PWA service worker pre-caches eager and lazy production build assets/);
   assert.match(result.stdout, /PWA service worker supports background offline queue sync/);
   assert.match(result.stdout, /PWA service worker supports immediate update activation/);
   assert.match(result.stdout, /PWA client reloads after service worker updates/);

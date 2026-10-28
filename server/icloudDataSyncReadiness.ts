@@ -36,7 +36,7 @@ const cloudKitRecordPlans: Record<SafeCloudKitDataType, {
   "chat-history": {
     dataType: "chat-history",
     zone: "LifeOSChatZone",
-    recordTypes: ["LifeOSConversation", "LifeOSMessage", "LifeOSChatRequest", "LifeOSChatResponse", "LifeOSSyncCheckpoint"],
+    recordTypes: ["LifeOSConversation", "LifeOSMessage", "LifeOSSyncCheckpoint"],
     safeFields: ["conversationId", "messageId", "requestId", "responseId", "role", "content", "status", "createdAt", "expiresAt", "mutationId", "logicalClock", "redactionFlags"],
     forbiddenFields: ["aiKey", "providerApiKey", "rawToken", "sessionCookie", "deviceCredential", "sqliteBlob"],
     mutationModel: "Append-only messages plus immutable phone requests and deterministic Mac responses with stable mutation IDs and per-device checkpoints.",
@@ -76,7 +76,7 @@ const cloudKitRecordPlans: Record<SafeCloudKitDataType, {
   "device-trust": {
     dataType: "device-trust",
     zone: "LifeOSDeviceTrustZone",
-    recordTypes: ["LifeOSDeviceTrust", "LifeOSDeviceKey", "LifeOSSyncCheckpoint"],
+    recordTypes: ["LifeOSDeviceTrust", "LifeOSSyncCheckpoint"],
     safeFields: ["deviceIdHash", "displayName", "deviceType", "trustState", "publicKeyFingerprint", "accessExpiresAt", "createdAt", "lastSeenAt", "revokedAt", "mutationId", "logicalClock"],
     forbiddenFields: ["accessToken", "accessTokenHash", "rawDeviceCredential", "devicePrivateKey", "sessionCookie", "privateKey", "sqliteDatabase"],
     mutationModel: "Metadata-only device trust snapshots; raw credentials never leave the local device.",

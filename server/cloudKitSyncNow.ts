@@ -150,10 +150,21 @@ export async function runCloudKitSyncNow(readiness: IcloudDataSyncReadiness, opt
 
   let apply = emptyApply();
   const beforeApply = getCloudKitSyncQuarantineSummary();
-  if (changes.status === "passed" && (!importResult || importResult.status === "passed") && beforeApply.autoReady > 0) {
-    const backup = createBackup({ prune: false });
-    backups.push(backupSummary("apply-quarantine", backup));
-    apply = applyCloudKitSyncQuarantine({ limit, now, includeManualReview: false });
+  const checkpointZones = Array.from(new Set([
+    ...(changes.syncChangesPreview?.zones || []).map((zone) => zone.zone),
+    ...(importResult?.syncImportQuarantine?.zones || []).map((zone) => zone.zone),
+  ].map((zone) => String(zone || "").trim()).filter(Boolean)));
+  if (changes.status === "passed" && (!importResult || importResult.status === "passed") && (beforeApply.autoReady > 0 || checkpointZones.length > 0)) {
+    if (beforeApply.autoReady > 0) {
+      const backup = createBackup({ prune: false });
+      backups.push(backupSummary("apply-quarantine", backup));
+    }
+    apply = applyCloudKitSyncQuarantine({
+      limit,
+      now,
+      includeManualReview: false,
+      allowedZones: checkpointZones,
+    });
   }
 
   const finalSummary = getCloudKitSyncQuarantineSummary();

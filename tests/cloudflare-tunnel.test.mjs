@@ -1,10 +1,51 @@
 // @ts-nocheck
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+
+test("quick Cloudflare Tunnel timeout terminates the unready process", async (t) => {
+  const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-cloudflared-timeout-bin-"));
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-cloudflared-timeout-data-"));
+  const cloudflaredPath = path.join(binDir, "cloudflared");
+
+  t.after(async () => {
+    await rm(binDir, { recursive: true, force: true });
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  await writeFile(cloudflaredPath, `#!/bin/sh
+trap 'exit 0' TERM INT
+while true; do sleep 1; done
+`);
+  await chmod(cloudflaredPath, 0o755);
+
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const tunnelManager = await import("./server/cloudflareTunnel.ts");
+    let error = "";
+    try {
+      await tunnelManager.startManagedCloudflareTunnel("4567", 100);
+    } catch (caught) {
+      error = String(caught?.message || caught);
+    }
+    process.stdout.write(JSON.stringify({ error, status: tunnelManager.getManagedCloudflareTunnelStatus() }));
+  `], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      LIFEOS_DATA_DIR: dataDir,
+      LIFEOS_CLOUDFLARED_BIN: cloudflaredPath,
+    },
+    encoding: "utf8",
+  });
+  const result = JSON.parse(output);
+  assert.match(result.error, /Timed out waiting for cloudflared to create a tunnel URL/);
+  assert.equal(result.status.running, false);
+  assert.equal(result.status.ready, false);
+  assert.equal(result.status.phase, "stopped");
+});
 
 test("configured quick Cloudflare Tunnel is not treated as restart-stable", async (t) => {
   const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-cloudflared-bin-"));
@@ -108,7 +149,7 @@ while true; do sleep 1; done
   assert.equal(stableSavedConfig.publicBaseUrl, "https://lifeos.example.com");
   assert.equal(stableSavedConfig.baseUrl, "https://lifeos.example.com");
 
-  tunnelManager.stopManagedCloudflareTunnel();
+  await tunnelManager.stopManagedCloudflareTunnel();
 });
 
 test("Cloudflare Named Tunnel config is generated and autostarted as a stable entry", async (t) => {
@@ -189,7 +230,7 @@ while true; do sleep 1; done
   assert.equal(started.tunnel.url, "https://lifeos.example.com");
   assert.equal(process.env.PUBLIC_BASE_URL, "https://lifeos.example.com");
 
-  tunnelManager.stopManagedCloudflareTunnel();
+  await tunnelManager.stopManagedCloudflareTunnel();
 
   await rm(credentialsFile, { force: true });
   const missingCredentialsStatus = tunnelManager.getCloudflareNamedTunnelStatus();
@@ -238,7 +279,7 @@ while true; do sleep 1; done
     saveDesktopRuntimeConfig({ mode: "cloudflare", label: "Cloudflare Named Tunnel", baseUrl: "https://lifeos.example.com" });
     const started = await startConfiguredCloudflareNamedTunnel(1000, "6789");
     const restoredConfig = readFileSync(${JSON.stringify(path.join(dataDir, "cloudflared-named-tunnel.yml"))}, "utf8");
-    stopManagedCloudflareTunnel();
+    await stopManagedCloudflareTunnel();
     process.stdout.write(JSON.stringify({ refreshed, refreshedConfig, started, restoredConfig }));
   `], {
     cwd: process.cwd(),
@@ -320,9 +361,9 @@ while true; do sleep 1; done
   const cacheKey = Date.now();
   const tunnelManager = await import(`../server/cloudflareTunnel.ts?cloudflare-named-reconnect=${cacheKey}`);
   const { dataDir: activeDataDir } = await import("../server/db.ts");
-  t.after(() => {
+  t.after(async () => {
     try {
-      tunnelManager.stopManagedCloudflareTunnel();
+      await tunnelManager.stopManagedCloudflareTunnel();
     } catch {}
   });
   tunnelManager.generateCloudflareNamedTunnelConfig({
@@ -359,8 +400,377 @@ while true; do sleep 1; done
   const refreshedConfig = await readFile(path.join(activeDataDir, "cloudflared-named-tunnel.yml"), "utf8");
   assert.match(refreshedConfig, /service: http:\/\/127\.0\.0\.1:7890/);
 
-  tunnelManager.stopManagedCloudflareTunnel();
+  await tunnelManager.stopManagedCloudflareTunnel();
   const stopped = tunnelManager.getManagedCloudflareTunnelStatus();
   assert.equal(stopped.running, false);
   assert.equal(stopped.reconnectScheduledAt, null);
+});
+
+async function createQuickTunnelHandoffFixture(t) {
+  const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-cloudflared-handoff-bin-"));
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-cloudflared-handoff-data-"));
+  const stateDir = path.join(dataDir, "fake-cli-state");
+  const credentialsFile = path.join(dataDir, "named-tunnel.json");
+  t.after(async () => {
+    const pids = await readFile(path.join(stateDir, "cloudflared-pids"), "utf8")
+      .then((value) => value.split("\n").filter(Boolean))
+      .catch(() => []);
+    for (const pid of pids) {
+      try { process.kill(Number(pid), "SIGKILL"); } catch {}
+    }
+    await rm(binDir, { recursive: true, force: true });
+    await rm(dataDir, { recursive: true, force: true });
+  });
+  await mkdir(stateDir, { recursive: true });
+  await writeFile(credentialsFile, "{}");
+  const cloudflaredPath = path.join(binDir, "cloudflared");
+  await writeFile(cloudflaredPath, `#!/bin/sh
+if [ "$1" = "--version" ]; then
+  echo "cloudflared version 2026.6.0"
+  exit 0
+fi
+echo "$$" >> "${stateDir}/cloudflared-pids"
+# "slow-exit": cloudflared takes a moment to shut down, as it does while it
+# closes its edge connections. "quick-slow": the quick tunnel URL is late.
+trap 'if [ -f "${stateDir}/slow-exit" ]; then sleep 1; fi; exit 0' TERM INT
+if [ "$2" = "--url" ]; then
+  count=$(cat "${stateDir}/quick-count" 2>/dev/null || echo 0)
+  count=$((count + 1))
+  echo "$count" > "${stateDir}/quick-count"
+  if [ -f "${stateDir}/quick-slow" ]; then sleep 1; fi
+  echo "INF Requesting new quick Tunnel on https://quick-$count-lifeos.trycloudflare.com" >&2
+else
+  if [ -f "${stateDir}/named-fails" ]; then
+    echo "ERR Named Tunnel credentials were rejected" >&2
+    exit 3
+  fi
+  echo "INF Registered tunnel connection" >&2
+fi
+while true; do sleep 1 & wait $!; done
+`);
+  const pgrepPath = path.join(binDir, "pgrep");
+  await writeFile(pgrepPath, "#!/bin/sh\nexit 1\n");
+  await chmod(cloudflaredPath, 0o755);
+  await chmod(pgrepPath, 0o755);
+
+  const run = (body, extraEnv = {}) => JSON.parse(execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const tunnels = await import("./server/cloudflareTunnel.ts");
+    const { getNetworkDiagnostics } = await import("./server/networkDiagnostics.ts");
+    const { getDeviceEndpointsSnapshot, isKnownCandidateOrigin } = await import("./server/deviceEndpoints.ts");
+    const retired = [];
+    tunnels.setCloudflareQuickTunnelHandoffRetiredHandler((event) => { retired.push(event); });
+    const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const waitFor = async (condition, timeoutMs = 4000) => {
+      const deadline = Date.now() + timeoutMs;
+      while (Date.now() < deadline && !condition()) await sleep(50);
+      return condition();
+    };
+    const endpointUrls = () => getDeviceEndpointsSnapshot("127.0.0.1", { maxAgeMs: 0 }).candidates.map((candidate) => candidate.baseUrl);
+    const settle = (promise) => promise.then((status) => ({ status }), (error) => ({ error: error.message }));
+    const configureNamed = () => tunnels.generateCloudflareNamedTunnelConfig({
+      name: "lifeos-ai",
+      hostname: "lifeos.example.com",
+      credentialsFile: ${JSON.stringify(credentialsFile)},
+      port: "4567",
+    });
+    const startQuickThenNamed = async () => {
+      const quick = await tunnels.startManagedCloudflareTunnel("4567", 3000);
+      configureNamed();
+      const named = await tunnels.startConfiguredCloudflareNamedTunnel(3000).catch((error) => ({ error: error.message }));
+      return { quick, named };
+    };
+    const result = await (async () => { ${body} })();
+    await tunnels.stopManagedCloudflareTunnel();
+    process.stdout.write(JSON.stringify(result));
+    process.exit(0);
+  `], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      PATH: `${binDir}:${process.env.PATH || ""}`,
+      LIFEOS_DATA_DIR: dataDir,
+      LIFEOS_PORT: "4567",
+      LIFEOS_HOST: "127.0.0.1",
+      LIFEOS_CLOUDFLARED_BIN: cloudflaredPath,
+      LIFEOS_TAILSCALE_BIN: "/definitely/missing/tailscale",
+      LIFEOS_ICLOUD_DRIVE_DIR: path.join(dataDir, "no-icloud"),
+      LIFEOS_DEVICE_ENDPOINTS_CACHE_MS: "0",
+      LIFEOS_ALLOW_PUBLIC: "1",
+      PUBLIC_BASE_URL: "",
+      APP_URL: "",
+      ...extraEnv,
+    },
+    encoding: "utf8",
+  }));
+  return { run, stateDir };
+}
+
+test("a Named Tunnel start keeps the quick tunnel it replaced reachable for the handoff window", async (t) => {
+  const { run } = await createQuickTunnelHandoffFixture(t);
+  const result = run(`
+    const { quick, named } = await startQuickThenNamed();
+    // What the named start route does once the stable hostname is ready.
+    process.env.PUBLIC_BASE_URL = named.url;
+    const during = {
+      status: tunnels.getManagedCloudflareTunnelStatus(),
+      quickAlive: alive(quick.pid),
+      candidates: getNetworkDiagnostics().connectionCandidates.map(({ id, baseUrl, priority, stability }) => ({ id, baseUrl, priority, stability })),
+      endpoints: endpointUrls(),
+      quickOriginKnown: isKnownCandidateOrigin(quick.url, "127.0.0.1"),
+      retired: retired.length,
+    };
+    await waitFor(() => !alive(quick.pid) && retired.length > 0, 8000);
+    const after = {
+      handoff: tunnels.getManagedCloudflareTunnelStatus().handoff,
+      quickAlive: alive(quick.pid),
+      namedAlive: alive(named.pid),
+      retired,
+      endpoints: endpointUrls(),
+      quickOriginKnown: isKnownCandidateOrigin(quick.url, "127.0.0.1"),
+    };
+    return { quick, named, during, after };
+  `, { LIFEOS_QUICK_TUNNEL_HANDOFF_MS: "2000" });
+
+  assert.equal(result.quick.url, "https://quick-1-lifeos.trycloudflare.com");
+  assert.equal(result.named.kind, "named");
+  assert.equal(result.named.url, "https://lifeos.example.com");
+  assert.equal(result.named.handoff.running, true);
+  assert.equal(result.named.handoff.url, result.quick.url);
+  assert.equal(result.named.handoff.pid, result.quick.pid);
+  assert.ok(result.named.handoff.expiresAt > result.named.handoff.handoffStartedAt);
+
+  // During the window the quick origin is still a live, lower-ranked entry.
+  assert.equal(result.during.quickAlive, true);
+  assert.equal(result.during.status.kind, "named");
+  const handoffCandidate = result.during.candidates.find((candidate) => candidate.baseUrl === result.quick.url);
+  const namedPriority = Math.max(...result.during.candidates
+    .filter((candidate) => candidate.baseUrl === result.named.url)
+    .map((candidate) => candidate.priority));
+  assert.equal(handoffCandidate?.id, "cloudflare-handoff");
+  assert.equal(handoffCandidate?.stability, "temporary");
+  assert.ok(handoffCandidate.priority < namedPriority);
+  assert.deepEqual(result.during.endpoints, [result.named.url, result.quick.url]);
+  assert.equal(result.during.quickOriginKnown, true);
+  assert.equal(result.during.retired, 0);
+
+  // When the window ends the quick child is stopped and announced as retired.
+  assert.equal(result.after.quickAlive, false);
+  assert.equal(result.after.namedAlive, true);
+  assert.equal(result.after.handoff.running, false);
+  assert.deepEqual(result.after.retired, [{ url: result.quick.url, reason: "expired" }]);
+  assert.deepEqual(result.after.endpoints, [result.named.url]);
+  assert.equal(result.after.quickOriginKnown, false);
+});
+
+test("Stop Cloudflare Tunnel also stops a quick tunnel in its handoff window", async (t) => {
+  const { run } = await createQuickTunnelHandoffFixture(t);
+  const result = run(`
+    const { quick, named } = await startQuickThenNamed();
+    const handoffBeforeStop = tunnels.getManagedCloudflareTunnelStatus().handoff;
+    const stopped = await tunnels.stopManagedCloudflareTunnel();
+    return { quick, named, handoffBeforeStop, stopped, quickAlive: alive(quick.pid), namedAlive: alive(named.pid), retired };
+  `);
+  assert.equal(result.handoffBeforeStop.running, true);
+  // Default window: ten minutes.
+  assert.ok(result.handoffBeforeStop.expiresAt - result.handoffBeforeStop.handoffStartedAt >= 10 * 60 * 1000 - 1000);
+  assert.equal(result.stopped.running, false);
+  assert.equal(result.stopped.handoff.running, false);
+  assert.equal(result.quickAlive, false);
+  assert.equal(result.namedAlive, false);
+  // The stop route announces the change itself.
+  assert.deepEqual(result.retired, []);
+});
+
+test("a quick tunnel that exits during its handoff window clears the slot and is announced", async (t) => {
+  const { run } = await createQuickTunnelHandoffFixture(t);
+  const result = run(`
+    const { quick, named } = await startQuickThenNamed();
+    process.env.PUBLIC_BASE_URL = named.url;
+    process.kill(quick.pid, "SIGKILL");
+    await waitFor(() => retired.length > 0);
+    return {
+      quick,
+      named,
+      retired,
+      status: tunnels.getManagedCloudflareTunnelStatus(),
+      endpoints: endpointUrls(),
+    };
+  `);
+  assert.deepEqual(result.retired, [{ url: result.quick.url, reason: "exited" }]);
+  assert.equal(result.status.handoff.running, false);
+  assert.equal(result.status.handoff.url, "");
+  assert.equal(result.status.kind, "named");
+  assert.equal(result.status.running, true);
+  // The quick child's exit never leaks into the named tunnel's own state.
+  assert.equal(result.status.lastError, "");
+  assert.deepEqual(result.endpoints, [result.named.url]);
+});
+
+test("a Named Tunnel that never comes up gives the quick tunnel its slot back", async (t) => {
+  const { run, stateDir } = await createQuickTunnelHandoffFixture(t);
+  await writeFile(path.join(stateDir, "named-fails"), "1");
+  const result = run(`
+    const { quick, named } = await startQuickThenNamed();
+    const restored = tunnels.getManagedCloudflareTunnelStatus();
+    // Past the handoff window: a restored quick tunnel is not retired.
+    await sleep(900);
+    return {
+      quick,
+      named,
+      restored,
+      later: tunnels.getManagedCloudflareTunnelStatus(),
+      quickAlive: alive(quick.pid),
+      retired,
+      endpoints: endpointUrls(),
+    };
+  `, { LIFEOS_QUICK_TUNNEL_HANDOFF_MS: "300" });
+  assert.match(result.named.error, /exited before becoming ready/);
+  assert.equal(result.restored.kind, "quick");
+  assert.equal(result.restored.ready, true);
+  assert.equal(result.restored.url, result.quick.url);
+  assert.equal(result.restored.pid, result.quick.pid);
+  assert.equal(result.restored.handoff.running, false);
+  assert.equal(result.later.ready, true);
+  assert.equal(result.quickAlive, true);
+  assert.deepEqual(result.retired, []);
+  assert.ok(result.endpoints.includes(result.quick.url));
+});
+
+test("a quick tunnel started while a dropped Named Tunnel waits to reconnect is not handed off or killed", async (t) => {
+  const { run, stateDir } = await createQuickTunnelHandoffFixture(t);
+  const body = `
+    configureNamed();
+    const named = await tunnels.startConfiguredCloudflareNamedTunnel(3000);
+    process.kill(named.pid, "SIGKILL");
+    await waitFor(() => tunnels.getManagedCloudflareTunnelStatus().reconnectScheduledAt !== null);
+    const scheduled = tunnels.getManagedCloudflareTunnelStatus().reconnectScheduledAt;
+    const quick = await settle(tunnels.startManagedCloudflareTunnel("4567", 3000));
+    // Well past the reconnect delay.
+    await sleep(700);
+    const status = tunnels.getManagedCloudflareTunnelStatus();
+    return { scheduled, quick, status, quickAlive: quick.status ? alive(quick.status.pid) : false };
+  `;
+  for (const variant of ["ready", "not-yet-ready"]) {
+    // A quick tunnel whose URL arrives after the reconnect would have fired.
+    if (variant === "not-yet-ready") await writeFile(path.join(stateDir, "quick-slow"), "1");
+    const result = run(body, { LIFEOS_CLOUDFLARE_RECONNECT_DELAY_MS: "300" });
+    assert.equal(typeof result.scheduled, "number", variant);
+    assert.equal(result.quick.error, undefined, `${variant}: ${result.quick.error}`);
+    assert.equal(result.status.kind, "quick", variant);
+    assert.equal(result.status.ready, true, variant);
+    assert.equal(result.status.url, result.quick.status.url, variant);
+    assert.equal(result.status.pid, result.quick.status.pid, variant);
+    assert.equal(result.status.handoff.running, false, variant);
+    assert.equal(result.status.reconnectAttempts, 0, variant);
+    assert.equal(result.status.reconnectScheduledAt, null, variant);
+    assert.equal(result.quickAlive, true, variant);
+  }
+});
+
+test("a Start that lands while Stop waits for cloudflared to exit keeps its tunnel tracked", async (t) => {
+  const { run, stateDir } = await createQuickTunnelHandoffFixture(t);
+  await writeFile(path.join(stateDir, "slow-exit"), "1");
+  const result = run(`
+    const first = await tunnels.startManagedCloudflareTunnel("4567", 3000);
+    const stopping = tunnels.stopManagedCloudflareTunnel();
+    const second = await tunnels.startManagedCloudflareTunnel("4567", 3000);
+    const firstAliveWhenSecondStarted = alive(first.pid);
+    await stopping;
+    const afterFirstStop = tunnels.getManagedCloudflareTunnelStatus();
+    await tunnels.stopManagedCloudflareTunnel();
+    return {
+      first,
+      second,
+      firstAliveWhenSecondStarted,
+      afterFirstStop,
+      firstAlive: alive(first.pid),
+      secondAliveAfterStop: alive(second.pid),
+    };
+  `);
+  assert.equal(result.firstAliveWhenSecondStarted, true);
+  assert.notEqual(result.second.pid, result.first.pid);
+  assert.equal(result.second.url, "https://quick-2-lifeos.trycloudflare.com");
+  // The first Stop finished without blanking the slot the second Start owns.
+  assert.equal(result.afterFirstStop.running, true);
+  assert.equal(result.afterFirstStop.pid, result.second.pid);
+  assert.equal(result.afterFirstStop.url, result.second.url);
+  assert.equal(result.afterFirstStop.kind, "quick");
+  assert.equal(result.firstAlive, false);
+  // So the next Stop still reaches it.
+  assert.equal(result.secondAliveAfterStop, false);
+});
+
+test("once quit cleanup has signalled the tunnels no Start spawns cloudflared", async (t) => {
+  const { run, stateDir } = await createQuickTunnelHandoffFixture(t);
+  const result = run(`
+    const quick = await tunnels.startManagedCloudflareTunnel("4567", 3000);
+    configureNamed();
+    tunnels.signalManagedCloudflareTunnelsForShutdown();
+    // HTTP is still served during the graceful wait.
+    const quickDuringWait = await settle(tunnels.startManagedCloudflareTunnel("4567", 3000));
+    const namedDuringWait = await settle(tunnels.startConfiguredCloudflareNamedTunnel(3000));
+    await tunnels.stopManagedCloudflareTunnel();
+    const quickAfterWait = await settle(tunnels.startManagedCloudflareTunnel("4567", 3000));
+    const namedRestore = await settle(tunnels.maybeStartConfiguredCloudflareTunnel("4567", 3000));
+    // Signalling again is harmless.
+    const resignalled = tunnels.signalManagedCloudflareTunnelsForShutdown();
+    return {
+      quick,
+      quickDuringWait,
+      namedDuringWait,
+      quickAfterWait,
+      namedRestore,
+      resignalled,
+      status: tunnels.getManagedCloudflareTunnelStatus(),
+      quickAlive: alive(quick.pid),
+    };
+  `);
+  for (const attempt of ["quickDuringWait", "namedDuringWait", "quickAfterWait", "namedRestore"]) {
+    assert.match(result[attempt].error || "", /quitting/, attempt);
+  }
+  assert.equal(result.resignalled, 0);
+  assert.equal(result.status.running, false);
+  assert.equal(result.quickAlive, false);
+  const spawned = (await readFile(path.join(stateDir, "cloudflared-pids"), "utf8")).split("\n").filter(Boolean);
+  assert.deepEqual(spawned, [String(result.quick.pid)]);
+});
+
+test("quick tunnel notes say the address ends with the tunnel or a restart and is not recreated", async (t) => {
+  const { run } = await createQuickTunnelHandoffFixture(t);
+  const result = run(`
+    const quick = await tunnels.startManagedCloudflareTunnel("4567", 3000);
+    const notesFor = () => getNetworkDiagnostics().connectionCandidates
+      .filter((candidate) => candidate.baseUrl === quick.url)
+      .map((candidate) => ({ id: candidate.id, notes: candidate.notes }));
+    const managed = notesFor();
+    process.env.PUBLIC_BASE_URL = quick.url;
+    const runtime = notesFor();
+    const { saveDesktopRuntimeConfig } = await import("./server/desktopRuntimeConfig.ts");
+    saveDesktopRuntimeConfig({ mode: "cloudflare", label: "Cloudflare Tunnel", baseUrl: quick.url });
+    const saved = notesFor();
+    const { analyzeIcloudHandoffRepairPacket } = await import("./server/networkDiagnostics.ts");
+    const repair = analyzeIcloudHandoffRepairPacket([
+      "OwnOrbit iCloud Mobile Entry Recovery",
+      "status=fresh",
+      "entryBaseUrl=" + quick.url,
+      "currentBaseUrl=" + quick.url + "/mobile/chat",
+      "lastConnectivityOk=true",
+    ].join("\\n"));
+    return { managed, runtime, saved, repair: repair.recommendations.find((item) => item.id === "save-stable-entry") || null };
+  `);
+  const lifetime = /stops working when the tunnel stops or the desktop app or computer restarts, and it is not recreated: click Start again and re-pair the phone\./;
+  const candidates = [
+    ...result.managed.map((candidate) => ({ ...candidate, expectedId: "cloudflare-0" })),
+    ...result.runtime.map((candidate) => ({ ...candidate, expectedId: "configured-public" })),
+    ...result.saved.map((candidate) => ({ ...candidate, expectedId: "saved-desktop-config" })),
+  ];
+  assert.equal(candidates.length, 3);
+  for (const candidate of candidates) {
+    assert.equal(candidate.id, candidate.expectedId);
+    assert.match(candidate.notes.join(" "), lifetime, candidate.id);
+    assert.doesNotMatch(candidate.notes.join(" "), /may change after restart|restart the Tunnel|generate a fresh entry/i, candidate.id);
+  }
+  assert.match(result.repair?.detail || "", lifetime);
+  assert.doesNotMatch(result.repair?.detail || "", /may change after restart/);
 });

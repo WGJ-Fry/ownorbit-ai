@@ -8,15 +8,76 @@ import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 
+test("CloudKit relay exposes a pinned phone request only to its trusted Mac", async () => {
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), "ownorbit-cloudkit-chat-trusted-mac-"));
+  try {
+    const script = `
+      const { runMigrations } = await import("./server/migrations.ts");
+      const jobs = await import("./server/cloudKitChatJobs.ts");
+      runMigrations();
+      const now = 1700000000000;
+      const trustedMacFingerprint = "f".repeat(64);
+      const request = {
+        schemaVersion: 1,
+        requestId: "023e4567-e89b-42d3-a456-426614174000",
+        conversationId: "123e4567-e89b-42d3-a456-426614174001",
+        userMessageId: "223e4567-e89b-42d3-a456-426614174002",
+        sourceDeviceHash: "a".repeat(64),
+        trustedMacFingerprint,
+        prompt: "Use only my trusted Mac.",
+        locale: "en-US",
+        status: "queued",
+        clientSequence: 1,
+        createdAt: now,
+        expiresAt: now + 60_000,
+        syncMutation: { kind: "chat-request", origin: "ios-native", mutatedAt: now },
+      };
+      jobs.enqueueCloudKitChatRequest(request, {
+        recordName: "chat-request:" + request.requestId,
+        contentHash: "b".repeat(64),
+        now,
+      });
+      const wrongMac = jobs.getNextCloudKitChatJobForRelayClaim({
+        now,
+        trustedMacFingerprint: "e".repeat(64),
+      });
+      const trustedMac = jobs.getNextCloudKitChatJobForRelayClaim({
+        now,
+        trustedMacFingerprint,
+      });
+      console.log(JSON.stringify({
+        wrongMac: wrongMac?.requestId || null,
+        trustedMac: trustedMac?.requestId || null,
+        persistedFingerprint: jobs.getCloudKitChatJob(request.requestId)?.trustedMacFingerprint,
+      }));
+    `;
+    const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
+      cwd: rootDir,
+      env: { ...process.env, LIFEOS_DATA_DIR: dataDir },
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.deepEqual(JSON.parse(result.stdout.trim()), {
+      wrongMac: null,
+      trustedMac: "023e4567-e89b-42d3-a456-426614174000",
+      persistedFingerprint: "f".repeat(64),
+    });
+  } finally {
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});
+
 test("CloudKit chat jobs are idempotent, leased, retried, and exported as responses", async () => {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), "ownorbit-cloudkit-chat-jobs-"));
   try {
     const script = `
       const assert = (await import("node:assert/strict")).default;
+      const crypto = await import("node:crypto");
       const { runMigrations } = await import("./server/migrations.ts");
       const { db } = await import("./server/db.ts");
       runMigrations();
       const jobs = await import("./server/cloudKitChatJobs.ts");
+      const protocol = await import("./server/cloudKitChatProtocol.ts");
       const now = 1700000000000;
       const request = {
         schemaVersion: 1,
@@ -73,6 +134,30 @@ test("CloudKit chat jobs are idempotent, leased, retried, and exported as respon
       assert.equal(responses.length, 1);
       assert.equal(responses[0].status, "completed");
       assert.match(responses[0].text, /Review priorities/);
+      assert.match(responses[0].macPublicKeyFingerprint, /^[0-9a-f]{64}$/);
+      assert.match(responses[0].macSignature, /^[A-Za-z0-9_-]{86}$/);
+      assert.equal(Object.hasOwn(responses[0], "privateKey"), false);
+      const delivery = jobs.markCloudKitChatResponsesExported([
+        { requestId: request.requestId, updatedAt: responses[0].updatedAt, contentHash: "e".repeat(64) },
+      ], now + 7001);
+      assert.equal(delivery.marked, 1);
+      assert.deepEqual(jobs.listCloudKitChatResponsePayloads(), []);
+      assert.equal(jobs.markCloudKitChatResponsesExported([
+        { requestId: request.requestId, updatedAt: responses[0].updatedAt, contentHash: "e".repeat(64) },
+      ], now + 7002).marked, 0);
+
+      const reusedSequenceRequest = {
+        ...request,
+        requestId: "823e4567-e89b-42d3-a456-426614174000",
+        conversationId: "923e4567-e89b-42d3-a456-426614174000",
+        userMessageId: "a23e4567-e89b-42d3-a456-426614174000",
+      };
+      assert.throws(() => jobs.enqueueCloudKitChatRequest(reusedSequenceRequest, {
+        recordName: "chat-request:" + reusedSequenceRequest.requestId,
+        contentHash: "d".repeat(64),
+        importedAt: now + 7500,
+        now: now + 7500,
+      }), /sequence was already used/i);
 
       const configurationRequest = {
         ...request,
@@ -100,6 +185,71 @@ test("CloudKit chat jobs are idempotent, leased, retried, and exported as respon
       assert.deepEqual(configurationRetry, { requeued: 1, requestIds: [configurationRequest.requestId] });
       assert.equal(jobs.getCloudKitChatJob(configurationRequest.requestId).status, "queued");
       assert.equal(jobs.getCloudKitChatJob(configurationRequest.requestId).safeErrorCode, "configuration-updated");
+
+      const exportedFailureRequest = {
+        ...request,
+        requestId: "d23e4567-e89b-42d3-a456-426614174000",
+        conversationId: "e23e4567-e89b-42d3-a456-426614174000",
+        userMessageId: "f23e4567-e89b-42d3-a456-426614174000",
+        clientSequence: 3,
+      };
+      jobs.enqueueCloudKitChatRequest(exportedFailureRequest, {
+        recordName: "chat-request:" + exportedFailureRequest.requestId,
+        contentHash: "f".repeat(64),
+        importedAt: now + 10000,
+        now: now + 10000,
+      });
+      const exportedFailureClaim = jobs.claimNextCloudKitChatJob({
+        requestId: exportedFailureRequest.requestId,
+        now: now + 10001,
+      });
+      jobs.failCloudKitChatJob({
+        requestId: exportedFailureRequest.requestId,
+        leaseId: exportedFailureClaim.leaseId,
+        safeErrorCode: "ai-not-configured",
+        retryable: false,
+        now: now + 10002,
+      });
+      db.prepare("UPDATE cloudkit_chat_jobs SET response_exported_at = ? WHERE request_id = ?")
+        .run(now + 10003, exportedFailureRequest.requestId);
+      const exportedRetry = jobs.requeueCloudKitChatJobsAfterAiConfiguration({ now: now + 11000 });
+      assert.equal(exportedRetry.requestIds.includes(exportedFailureRequest.requestId), false);
+      assert.equal(jobs.getCloudKitChatJob(exportedFailureRequest.requestId).status, "failed");
+
+      const consumedFailureRequest = {
+        ...request,
+        requestId: "213e4567-e89b-42d3-a456-426614174002",
+        conversationId: "313e4567-e89b-42d3-a456-426614174002",
+        userMessageId: "413e4567-e89b-42d3-a456-426614174002",
+        clientSequence: 4,
+      };
+      jobs.enqueueCloudKitChatRequest(consumedFailureRequest, {
+        recordName: "chat-request:" + consumedFailureRequest.requestId,
+        contentHash: "2".repeat(64),
+        importedAt: now + 12000,
+        now: now + 12000,
+      });
+      const consumedClaim = jobs.claimNextCloudKitChatJob({
+        requestId: consumedFailureRequest.requestId,
+        now: now + 12001,
+      });
+      jobs.failCloudKitChatJob({
+        requestId: consumedFailureRequest.requestId,
+        leaseId: consumedClaim.leaseId,
+        safeErrorCode: "ai-not-configured",
+        retryable: false,
+        now: now + 12002,
+      });
+      db.prepare("UPDATE cloudkit_chat_jobs SET response_consumed_at = ? WHERE request_id = ?")
+        .run(now + 12003, consumedFailureRequest.requestId);
+      db.prepare(
+        "INSERT INTO cloudkit_chat_remote_cleanup (" +
+        "request_id, status, attempt_count, next_attempt_at, created_at, completed_at, last_error" +
+        ") VALUES (?, 'queued', 0, ?, ?, NULL, NULL)"
+      ).run(consumedFailureRequest.requestId, now + 12003, now + 12003);
+      const consumedRetry = jobs.requeueCloudKitChatJobsAfterAiConfiguration({ now: now + 13000 });
+      assert.equal(consumedRetry.requestIds.includes(consumedFailureRequest.requestId), false);
+      assert.equal(jobs.getCloudKitChatJob(consumedFailureRequest.requestId).status, "failed");
 
       assert.throws(() => jobs.enqueueCloudKitChatRequest({ ...request, prompt: "different" }, metadata), /conflicts/i);
       console.log(JSON.stringify({ status: completed.status, attempts: completed.attemptCount, responses: responses.length, retryStatus: retryingResponses[0].status, configurationRequeued: configurationRetry.requeued }));
@@ -149,6 +299,37 @@ test("CloudKit chat jobs expire without calling AI", async () => {
     });
     assert.equal(result.status, 0, result.stderr || result.stdout);
     assert.deepEqual(JSON.parse(result.stdout.trim()), { status: "expired", claimable: false, error: "request-expired" });
+  } finally {
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit quarantine orders chat responses before receipts from the same import batch", async () => {
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), "ownorbit-cloudkit-chat-order-"));
+  try {
+    const script = `
+      const { runMigrations } = await import("./server/migrations.ts");
+      const { db } = await import("./server/db.ts");
+      runMigrations();
+      const importedAt = 1700000000000;
+      const insert = db.prepare(
+        "INSERT INTO cloudkit_sync_quarantine (" +
+        "id, zone, record_type, record_name, change_type, status, requires_user_review, payload_json, imported_at" +
+        ") VALUES (?, 'LifeOSChatRelayZone', ?, ?, 'changed', 'auto-ready', 0, '{}', ?)"
+      );
+      insert.run("receipt-row", "LifeOSChatReceipt", "chat-receipt:request", importedAt);
+      insert.run("response-row", "LifeOSChatResponse", "chat-response:request", importedAt);
+      const { listCloudKitSyncQuarantineItems } = await import("./server/cloudKitSyncApply.ts");
+      const recordTypes = listCloudKitSyncQuarantineItems({ limit: 10 }).items.map((item) => item.recordType);
+      console.log(JSON.stringify(recordTypes));
+    `;
+    const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
+      cwd: rootDir,
+      env: { ...process.env, LIFEOS_DATA_DIR: dataDir },
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.deepEqual(JSON.parse(result.stdout.trim()), ["LifeOSChatResponse", "LifeOSChatReceipt"]);
   } finally {
     await rm(dataDir, { recursive: true, force: true });
   }
@@ -219,17 +400,67 @@ test("CloudKit quarantine imports a phone chat request and exports the completed
       const payloadJson = JSON.stringify(payload);
       const contentHash = crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
       const payloadHash = crypto.createHash("sha256").update(JSON.stringify(payloadJson)).digest("hex");
-      db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, source_evidence_id, imported_at) VALUES (?, 'LifeOSDeviceTrustZone', 'LifeOSDeviceKey', ?, 'changed', 'auto-ready', ?, ?, ?, ?, ?, 0, ?, ?, 'device-key-evidence', ?)")
+      db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, source_evidence_id, imported_at) VALUES (?, 'LifeOSChatRelayZone', 'LifeOSDeviceKey', ?, 'changed', 'auto-ready', ?, ?, ?, ?, ?, 0, ?, ?, 'device-key-evidence', ?)")
         .run("device-key-row", deviceProtocol.cloudKitDeviceKeyRecordName(devicePayload.deviceIdHash), "ios-device-key:" + deviceId, deviceContentHash, devicePayloadHash, now, Buffer.byteLength(devicePayloadJson), devicePayloadJson, new Date(now).toISOString(), now + 1);
-      db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, source_evidence_id, imported_at) VALUES (?, 'LifeOSChatZone', 'LifeOSChatRequest', ?, 'changed', 'auto-ready', ?, ?, ?, ?, ?, 0, ?, ?, 'chat-request-evidence', ?)")
+      db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, source_evidence_id, imported_at) VALUES (?, 'LifeOSChatRelayZone', 'LifeOSChatRequest', ?, 'changed', 'auto-ready', ?, ?, ?, ?, ?, 0, ?, ?, 'chat-request-evidence', ?)")
         .run("chat-request-row", "chat-request:" + requestId, "ios-chat-request:" + requestId, contentHash, payloadHash, now, Buffer.byteLength(payloadJson), payloadJson, new Date(now).toISOString(), now + 2);
       const { applyCloudKitSyncQuarantine } = await import("./server/cloudKitSyncApply.ts");
-      const applied = applyCloudKitSyncQuarantine({ now: now + 3 });
+      const firstApply = applyCloudKitSyncQuarantine({ now: now + 3, allowedZones: ["LifeOSChatRelayZone"] });
+      const deviceKeys = await import("./server/cloudKitDeviceKeys.ts");
+      const pendingDevice = deviceKeys.listCloudKitChatDevices({ now: now + 4 }).items[0];
+      deviceKeys.approveCloudKitChatDevice(pendingDevice.id, "test-admin", now + 5);
+      const secondApply = applyCloudKitSyncQuarantine({ now: now + 6, allowedZones: ["LifeOSChatRelayZone"] });
       const jobs = await import("./server/cloudKitChatJobs.ts");
       const worker = await import("./server/cloudKitChatWorker.ts");
+      const remoteMacKeyPair = crypto.generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+      const remoteMacPublicKeyData = remoteMacKeyPair.publicKey.export({ type: "spki", format: "der" });
+      const untrustedResponse = {
+        schemaVersion: 1,
+        requestId,
+        responseId: chatProtocol.cloudKitChatResponseId(requestId),
+        conversationId: payload.conversationId,
+        assistantMessageId: "c23e4567-e89b-42d3-a456-426614174000",
+        status: "completed",
+        text: "This response must not be trusted.",
+        requestContentHash: contentHash,
+        completedAt: now + 6,
+        updatedAt: now + 6,
+        macPublicKey: remoteMacPublicKeyData.toString("base64url"),
+        macPublicKeyFingerprint: crypto.createHash("sha256").update(remoteMacPublicKeyData).digest("hex"),
+        macSignature: "",
+      };
+      untrustedResponse.macSignature = crypto.sign(
+        "sha256",
+        Buffer.from(chatProtocol.cloudKitChatResponseSignatureText(untrustedResponse)),
+        { key: remoteMacKeyPair.privateKey, dsaEncoding: "ieee-p1363" },
+      ).toString("base64url");
+      const untrustedResponseJson = JSON.stringify(untrustedResponse);
+      const untrustedResponseContentHash = crypto.createHash("sha256").update(untrustedResponseJson).digest("hex");
+      const untrustedResponsePayloadHash = crypto.createHash("sha256").update(JSON.stringify(untrustedResponseJson)).digest("hex");
+      db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, source_evidence_id, imported_at) VALUES (?, 'LifeOSChatRelayZone', 'LifeOSChatResponse', ?, 'changed', 'auto-ready', ?, ?, ?, ?, ?, 0, ?, ?, 'untrusted-response-evidence', ?)")
+        .run(
+          "untrusted-response-row",
+          chatProtocol.cloudKitChatResponseRecordName(requestId),
+          "mac-chat-response:" + requestId,
+          untrustedResponseContentHash,
+          untrustedResponsePayloadHash,
+          now + 6,
+          Buffer.byteLength(untrustedResponseJson),
+          untrustedResponseJson,
+          new Date(now + 6).toISOString(),
+          now + 6,
+        );
+      const untrustedApply = applyCloudKitSyncQuarantine({ now: now + 6, allowedZones: ["LifeOSChatRelayZone"] });
+      const untrustedRow = db.prepare("SELECT status, error FROM cloudkit_sync_quarantine WHERE id = 'untrusted-response-row'").get();
+      if (untrustedRow.status !== "conflict" || !/untrusted Mac identity/i.test(untrustedRow.error)) {
+        throw new Error("response from an untrusted Mac was not rejected");
+      }
+      if (jobs.getCloudKitChatJob(requestId).status !== "queued") {
+        throw new Error("untrusted Mac response changed the local job");
+      }
       const beforeWorker = jobs.listCloudKitChatResponsePayloads();
       const workerResult = await worker.runCloudKitChatWorkerQueue({
-        now: now + 4,
+        now: now + 7,
         limit: 1,
         generate: async () => ({
           providerId: "gemini",
@@ -253,18 +484,79 @@ test("CloudKit quarantine imports a phone chat request and exports the completed
         LIFEOS_CLOUDKIT_HELPER_BIN: helper,
         LIFEOS_CLOUDKIT_ENTITLEMENTS_PATH: entitlements,
       });
-      const { getIcloudDataSyncReadiness } = await import("./server/icloudDataSyncReadiness.ts");
-      const { buildCloudKitSyncBatchPreview } = await import("./server/cloudKitSyncBatch.ts");
-      const preview = buildCloudKitSyncBatchPreview(getIcloudDataSyncReadiness({ platformSupported: true }), { limit: 20 });
-      const response = preview.records.find((record) => record.recordType === "LifeOSChatResponse");
-      const responsePayload = jobs.listCloudKitChatResponsePayloads()[0];
+      const { buildCloudKitChatRelayExportPackage } = await import("./server/cloudKitChatRelayBatch.ts");
+      const preview = buildCloudKitChatRelayExportPackage({ limit: 20, now: new Date(now + 8) });
+      const response = preview.helperSyncBatch.records.find((record) => record.recordType === "LifeOSChatResponse");
+      const responsePayload = JSON.parse(response.fields.payloadJson);
+      const responsePayloadHash = crypto.createHash("sha256").update(JSON.stringify(response.fields.payloadJson)).digest("hex");
+      db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, source_evidence_id, imported_at) VALUES (?, 'LifeOSChatRelayZone', 'LifeOSChatResponse', ?, 'changed', 'auto-ready', ?, ?, ?, ?, ?, 0, ?, ?, 'local-response-recovery-evidence', ?)")
+        .run(
+          "local-response-recovery-row",
+          chatProtocol.cloudKitChatResponseRecordName(requestId),
+          "mac-chat-response:" + requestId,
+          response.contentHash,
+          responsePayloadHash,
+          responsePayload.updatedAt,
+          Buffer.byteLength(response.fields.payloadJson),
+          response.fields.payloadJson,
+          new Date(now + 9).toISOString(),
+          now + 9,
+        );
+      const receiptPayload = {
+        schemaVersion: 1,
+        requestId,
+        responseId: responsePayload.responseId,
+        deviceId,
+        sourceDeviceHash: devicePayload.deviceIdHash,
+        publicKeyFingerprint: devicePayload.publicKeyFingerprint,
+        responseContentHash: response.contentHash,
+        responseUpdatedAt: responsePayload.updatedAt,
+        acknowledgedAt: responsePayload.updatedAt,
+        signature: "",
+        syncMutation: {
+          kind: "chat-receipt",
+          origin: "ios-native",
+          mutatedAt: responsePayload.updatedAt,
+        },
+      };
+      receiptPayload.signature = crypto.sign(
+        "sha256",
+        Buffer.from(chatProtocol.cloudKitChatReceiptSignatureText(receiptPayload)),
+        { key: keyPair.privateKey, dsaEncoding: "ieee-p1363" },
+      ).toString("base64url");
+      const receiptJson = JSON.stringify(receiptPayload);
+      const receiptContentHash = crypto.createHash("sha256").update(receiptJson).digest("hex");
+      const receiptPayloadHash = crypto.createHash("sha256").update(JSON.stringify(receiptJson)).digest("hex");
+      db.prepare("INSERT INTO cloudkit_sync_quarantine (id, zone, record_type, record_name, change_type, status, mutation_id, content_hash, payload_hash, logical_clock, payload_byte_size, requires_user_review, payload_json, server_modified_at, source_evidence_id, imported_at) VALUES (?, 'LifeOSChatRelayZone', 'LifeOSChatReceipt', ?, 'changed', 'auto-ready', ?, ?, ?, ?, ?, 0, ?, ?, 'chat-receipt-evidence', ?)")
+        .run(
+          "chat-receipt-row",
+          chatProtocol.cloudKitChatReceiptRecordName(requestId),
+          "ios-chat-receipt:" + requestId,
+          receiptContentHash,
+          receiptPayloadHash,
+          responsePayload.updatedAt,
+          Buffer.byteLength(receiptJson),
+          receiptJson,
+          new Date(now + 9).toISOString(),
+          now + 9,
+        );
+      const receiptApply = applyCloudKitSyncQuarantine({ now: now + 10, allowedZones: ["LifeOSChatRelayZone"] });
+      const cleanupPreview = buildCloudKitChatRelayExportPackage({ limit: 20, now: new Date(now + 11) });
       console.log(JSON.stringify({
-        applied: applied.applied,
+        applied: firstApply.applied + secondApply.applied + receiptApply.applied,
+        pendingConflicts: firstApply.conflicts,
+        untrustedConflicts: untrustedApply.conflicts,
         responsesBeforeWorker: beforeWorker.length,
         workerCompleted: workerResult.completed,
         job: jobs.getCloudKitChatJob(requestId).status,
+        consumedAt: jobs.getCloudKitChatJob(requestId).responseConsumedAt,
+        recoveredExportedAt: jobs.getCloudKitChatJob(requestId).responseExportedAt,
+        recoveredExportMatches: jobs.getCloudKitChatJob(requestId).responseExportedContentHash === response.contentHash,
         response: response?.recordName,
         responseStatus: responsePayload?.status,
+        cleanupDeletions: cleanupPreview.helperSyncBatch.deletions,
+        cleanupZones: cleanupPreview.helperSyncBatch.zones,
+        cleanupReceipts: cleanupPreview.cleanupReceipts,
       }));
     `;
     const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
@@ -274,12 +566,46 @@ test("CloudKit quarantine imports a phone chat request and exports the completed
     });
     assert.equal(result.status, 0, result.stderr || result.stdout);
     assert.deepEqual(JSON.parse(result.stdout.trim()), {
-      applied: 2,
+      applied: 4,
+      pendingConflicts: 1,
+      untrustedConflicts: 1,
       responsesBeforeWorker: 0,
       workerCompleted: 1,
       job: "completed",
+      consumedAt: 1700000000007,
+      recoveredExportedAt: 1700000000009,
+      recoveredExportMatches: true,
       response: "chat-response:923e4567-e89b-42d3-a456-426614174000",
       responseStatus: "completed",
+      cleanupDeletions: [
+        {
+          zone: "LifeOSChatRelayZone",
+          recordType: "LifeOSChatRequest",
+          recordName: "chat-request:923e4567-e89b-42d3-a456-426614174000",
+        },
+        {
+          zone: "LifeOSChatRelayZone",
+          recordType: "LifeOSChatResponse",
+          recordName: "chat-response:923e4567-e89b-42d3-a456-426614174000",
+        },
+        {
+          zone: "LifeOSChatRelayZone",
+          recordType: "LifeOSChatReceipt",
+          recordName: "chat-receipt:923e4567-e89b-42d3-a456-426614174000",
+        },
+        {
+          zone: "LifeOSChatRelayControlZone",
+          recordType: "LifeOSChatClaim",
+          recordName: "chat-claim:923e4567-e89b-42d3-a456-426614174000",
+        },
+      ],
+      cleanupZones: [
+        { zone: "LifeOSChatRelayControlZone", records: 1 },
+        { zone: "LifeOSChatRelayZone", records: 3 },
+      ],
+      cleanupReceipts: [
+        { requestId: "923e4567-e89b-42d3-a456-426614174000" },
+      ],
     });
   } finally {
     await rm(dataDir, { recursive: true, force: true });

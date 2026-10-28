@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { createDeviceWebSocketAuthMessage, getStoredDeviceCredentialAsync, realtimeWebSocketUrl, rotateDeviceToken } from "../services/lifeosApi";
+import { createDeviceWebSocketAuthMessage, getStoredDeviceCredentialAsync, realtimeWebSocketUrl, refreshDeviceEndpoints, rotateDeviceToken } from "../services/lifeosApi";
 
 export type RealtimeStatus = "unbound" | "connecting" | "connected" | "offline";
 
@@ -13,6 +13,10 @@ export function useLifeOSRealtime() {
   const [nextReconnectAt, setNextReconnectAt] = useState<number | null>(null);
   const [retryAttempt, setRetryAttempt] = useState(0);
   const [lastError, setLastError] = useState<string | null>(null);
+  // When the current run of failed connects began; null while connected or
+  // not yet failing.
+  const [failingSince, setFailingSince] = useState<number | null>(null);
+  const failingSinceRef = useRef<number | null>(null);
   const retryRef = useRef(0);
   const socketRef = useRef<WebSocket | null>(null);
   const stoppedRef = useRef(false);
@@ -35,6 +39,17 @@ export function useLifeOSRealtime() {
         window.clearInterval(heartbeatRef.current);
         heartbeatRef.current = null;
       }
+    };
+
+    const markFailing = () => {
+      if (failingSinceRef.current !== null) return;
+      failingSinceRef.current = Date.now();
+      setFailingSince(failingSinceRef.current);
+    };
+
+    const clearFailing = () => {
+      failingSinceRef.current = null;
+      setFailingSince(null);
     };
 
     const scheduleReconnect = (delay: number, attempt = retryRef.current) => {
@@ -68,12 +83,14 @@ export function useLifeOSRealtime() {
         connectingRef.current = false;
         setLastError(error?.message || "Device credential unavailable");
         setStatus("offline");
+        markFailing();
         scheduleReconnect(realtimeReconnectDelay(retryRef.current));
         retryRef.current += 1;
         return;
       }
       if (!credential) {
         connectingRef.current = false;
+        clearFailing();
         setStatus("unbound");
         return;
       }
@@ -89,6 +106,7 @@ export function useLifeOSRealtime() {
         connectingRef.current = false;
         setLastError(error?.message || "WebSocket unavailable");
         setStatus("offline");
+        markFailing();
         scheduleReconnect(realtimeReconnectDelay(retryRef.current));
         retryRef.current += 1;
         return;
@@ -102,6 +120,7 @@ export function useLifeOSRealtime() {
         if (!authMessage) {
           socketRef.current = null;
           ws.close(1008, "Missing device credential");
+          clearFailing();
           setStatus("unbound");
           return;
         }
@@ -124,11 +143,21 @@ export function useLifeOSRealtime() {
             setRetryAttempt(0);
             setNextReconnectAt(null);
             setLastError(null);
+            clearFailing();
             setStatus("connected");
+            // Reconnecting is exactly when the address set may have moved
+            // (desktop restart, port drift, new tunnel) — refresh the list
+            // while this origin still works.
+            refreshDeviceEndpoints().catch(() => null);
           }
           if (event?.type === "device.token.rotate_requested") {
             const currentCredential = await getStoredDeviceCredentialAsync();
             if (currentCredential?.accessToken) rotateDeviceToken().catch(() => null);
+          }
+          if (event?.type === "endpoints.changed") {
+            // A server-side push means the set really moved — bypass the
+            // client throttle so the new list lands immediately.
+            refreshDeviceEndpoints({ force: true }).catch(() => null);
           }
         } catch {}
         setLastEventAt(Date.now());
@@ -138,6 +167,7 @@ export function useLifeOSRealtime() {
         if (socketRef.current !== ws) return;
         setLastError("WebSocket connection failed");
         setStatus("offline");
+        markFailing();
       };
 
       ws.onclose = () => {
@@ -150,6 +180,7 @@ export function useLifeOSRealtime() {
         }
         setLastError("WebSocket connection closed");
         setStatus("offline");
+        markFailing();
         const delay = realtimeReconnectDelay(retryRef.current);
         const attempt = retryRef.current;
         retryRef.current += 1;
@@ -157,9 +188,17 @@ export function useLifeOSRealtime() {
       };
     };
 
-    const handleOnline = () => forceReconnect();
+    // Coming back online or to the foreground starts a fresh observation:
+    // time spent offline or suspended in the background is not time this
+    // phone saw the address failing.
+    const handleOnline = () => {
+      clearFailing();
+      forceReconnect();
+    };
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") forceReconnect();
+      if (document.visibilityState !== "visible") return;
+      clearFailing();
+      forceReconnect();
     };
 
     window.addEventListener("online", handleOnline);
@@ -177,5 +216,5 @@ export function useLifeOSRealtime() {
     };
   }, []);
 
-  return { status, lastEventAt, nextReconnectAt, retryAttempt, lastError };
+  return { status, lastEventAt, nextReconnectAt, retryAttempt, lastError, failingSince };
 }

@@ -264,7 +264,7 @@ The mobile local-actions page includes a URL Scheme permission center. Allowed s
 
 Audit log metadata is redacted recursively before it is returned by admin APIs. Sensitive key names such as token, password, api key, secret, hash, ciphertext, private key, authorization, cookie, and local path are replaced with `[redacted]`.
 
-The mobile chat page monitors online/offline and browser network quality signals. Offline or weak network conditions are surfaced in the chat UI, and failed messages remain in the offline queue with per-message retry, remove, retry-all, and clear actions.
+The mobile chat page monitors online/offline and browser network quality signals. Offline or weak network conditions are surfaced in the chat UI. A typed message or photo that cannot be sent is not queued: it stays in the input box with a notice so it can be sent again. The offline queue only holds messages already shown in the chat whose save to the desktop failed (voice-mode messages, or replies whose save failed), with per-message retry, remove, retry-all, and clear actions.
 
 Backup retention defaults to the newest 20 SQLite backups. Override it with:
 

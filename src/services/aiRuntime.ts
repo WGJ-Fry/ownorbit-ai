@@ -33,12 +33,16 @@ export async function parseAiResponse(response: Response) {
   const data = await response.json().catch(() => ({}));
   if (response.ok) return data;
 
+  const code = String(data?.code || "");
   const message =
-    data?.code === "AI_CONFIG_MISSING"
+    code === "AI_CONFIG_MISSING"
       ? data?.message || "AI service is not configured yet. Open System Settings on the desktop console and configure the Provider Key for the current model."
       : data?.message || data?.error || "The network seems unstable. Please try again later.";
 
-  throw new Error(message);
+  const error = new Error(message) as Error & { code?: string; status?: number };
+  error.code = code;
+  error.status = response.status;
+  throw error;
 }
 
 export async function requestChatCompletion(input: ChatCompletionInput): Promise<ChatCompletionResponse> {

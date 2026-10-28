@@ -4,12 +4,12 @@ import { motion, AnimatePresence } from "motion/react";
 import ChatInputBar from "./components/chat/ChatInputBar";
 import ChatWidgetBox from "./components/chat/ChatWidgetBox";
 import InlineWidgetRenderer from "./components/chat/InlineWidgetRenderer";
-import LocalSettingsModal from "./components/chat/LocalSettingsModal";
 import MobileChatHeader from "./components/chat/MobileChatHeader";
 import OfflineQueueBanner from "./components/chat/OfflineQueueBanner";
 import ProfileModal from "./components/chat/ProfileModal";
 import VoiceModeOverlay from "./components/chat/VoiceModeOverlay";
 import { generateCustomApp, requestChatCompletion } from "./services/aiRuntime";
+import { loadStoredChatDraft, persistStoredChatDraft } from "./services/chatDraftStorage";
 import { loadStoredChatMessages, persistStoredChatMessages } from "./services/chatMessageStorage";
 import { resolveChatStateChanges } from "./services/chatStateChanges";
 import { loadMemoriesForChat, loadRuntimeSettings } from "./services/chatRuntimeSettings";
@@ -22,28 +22,36 @@ const StudioApp = lazy(() => import("./components/apps/StudioApp"));
 
 export default function App() {
   const { locale, t } = useI18n();
+  const formatChatError = (error: unknown) => {
+    const code = error && typeof error === "object" && "code" in error ? String((error as { code?: unknown }).code || "") : "";
+    const status = error && typeof error === "object" && "status" in error ? Number((error as { status?: unknown }).status || 0) : 0;
+    if (code === "AI_CONFIG_MISSING") return t("chat.aiNotConfigured");
+    if (status === 401 || status === 403) return t("chat.authorizationError");
+    if (status >= 500) return t("chat.serverError");
+    return t("chat.networkError");
+  };
   const [messages, setMessages] = useState<Message[]>(() => {
     return loadStoredChatMessages();
   });
-  const [input, setInput] = useState("");
+  const [initialDraft] = useState(() => loadStoredChatDraft());
+  const [input, setInput] = useState(initialDraft.text);
   const [viewMode, setViewMode] = useState<ViewMode>("terminal");
   const [showProfile, setShowProfile] = useState(false);
   const [showVoiceMode, setShowVoiceMode] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [customApps, setCustomApps] = useState<CustomApp[]>([]);
   const [customAppsHydrated, setCustomAppsHydrated] = useState(false);
   
-  const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [voiceState, setVoiceState] = useState<"speaking" | "listening" | "processing">("listening");
   const [voiceRecognitionText, setVoiceRecognitionText] = useState("");
   const recognitionRef = useRef<any>(null);
   
-  const [attachedImage, setAttachedImage] = useState<string | null>(null);
+  const [attachedImage, setAttachedImage] = useState<string | null>(initialDraft.attachedImage);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [sendNotice, setSendNotice] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const { createAndUseChatSession, flushOfflineMessages, loadMessagesFromCore, persistMessageToCore } = useChatPersistence();
+  const { createAndUseChatSession, flushOfflineMessages, loadMessagesFromCore, persistMessageToCore, persistMessagesInOrder } = useChatPersistence();
   const {
     clearQueuedMessages,
     networkStatus,
@@ -194,7 +202,7 @@ export default function App() {
 
     } catch (err) {
       console.error(err);
-      const errorMessage: Message = { role: "model", parts: [{ text: err instanceof Error ? err.message : t("chat.networkError") }] };
+      const errorMessage: Message = { role: "model", parts: [{ text: formatChatError(err) }] };
       setMessages((prev) => [...prev, errorMessage]);
       void persistMessageToCore(errorMessage);
       setVoiceState("listening");
@@ -278,9 +286,25 @@ export default function App() {
     }
   }, [messages]);
 
+  useEffect(() => {
+    const result = persistStoredChatDraft({ text: input, attachedImage });
+    if (result.ok === false) {
+      console.warn("Failed to persist local chat draft:", result.error);
+    }
+  }, [attachedImage, input]);
+
   const handleSend = async () => {
+    const currentInputValue = input;
     const currentInputText = input.trim();
+    const currentAttachedImage = attachedImage;
     if ((!currentInputText && !attachedImage) || isLoading) return;
+
+    if (!networkStatus.online) {
+      if (viewMode !== "terminal") setViewMode("terminal");
+      setSendNotice(t("chat.offlineSendBlocked"));
+      setTimeout(() => inputRef.current?.focus(), 50);
+      return;
+    }
     
     if (viewMode !== "terminal") setViewMode("terminal");
 
@@ -298,11 +322,7 @@ export default function App() {
 
     const userMessage: Message = { role: "user", parts };
     const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
-    void persistMessageToCore(userMessage);
-    setInput("");
-    setAttachedImage(null);
-    if (inputRef.current) inputRef.current.style.height = 'auto'; // reset height
+    setSendNotice(null);
     setIsLoading(true);
 
     try {
@@ -327,13 +347,16 @@ export default function App() {
       const { widgetToShow, widgetArgs } = handleChatStateChanges(data.stateChanges);
 
       const modelMessage: Message = { role: "model", parts: [{ text: data.text }], widget: widgetToShow, widgetArgs };
-      setMessages((prev) => [...prev, modelMessage]);
-      void persistMessageToCore(modelMessage);
+      setMessages((prev) => [...prev, userMessage, modelMessage]);
+      void persistMessagesInOrder([userMessage, modelMessage]);
+      setInput((current) => current === currentInputValue ? "" : current);
+      setAttachedImage((current) => current === currentAttachedImage ? null : current);
+      setTimeout(() => {
+        if (inputRef.current?.value === "") inputRef.current.style.height = "auto";
+      }, 0);
     } catch (err) {
       console.error(err);
-      const errorMessage: Message = { role: "model", parts: [{ text: err instanceof Error ? err.message : t("chat.networkError") }] };
-      setMessages((prev) => [...prev, errorMessage]);
-      void persistMessageToCore(errorMessage);
+      setSendNotice(t("chat.sendFailedDraftPreserved", { error: formatChatError(err) }));
     } finally {
       setIsLoading(false);
       setTimeout(() => inputRef.current?.focus(), 50);
@@ -475,25 +498,7 @@ export default function App() {
             onClose={() => setShowProfile(false)}
             onOpenSettings={() => {
               setShowProfile(false);
-              setShowSettings(true);
-            }}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Settings / Local Deployment Overlay */}
-      <AnimatePresence>
-        {showSettings && (
-          <LocalSettingsModal
-            onClose={() => setShowSettings(false)}
-            saveStatus={saveStatus}
-            onSave={() => {
-              setSaveStatus(t("chat.configSaving"));
-              setTimeout(() => setSaveStatus(t("chat.configSaved")), 1000);
-              setTimeout(() => {
-                setSaveStatus(null);
-                setShowSettings(false);
-              }, 2500);
+              window.location.assign("/mobile/device");
             }}
           />
         )}
@@ -515,7 +520,10 @@ export default function App() {
 
       {/* Main Terminal View (Phone Profile Layout) */}
       <div className="w-full max-w-[500px] bg-[#09090b] flex flex-col h-full relative shadow-[0_0_80px_rgba(0,0,0,0.5)] border-x [border-color:transparent] sm:border-white/[0.05]">
-        <MobileChatHeader onOpenStudio={() => setViewMode("studio")} onOpenProfile={() => setShowProfile(true)} />
+        <MobileChatHeader
+          onOpenDevice={() => window.location.assign("/mobile/device")}
+          onOpenProfile={() => setShowProfile(true)}
+        />
         
         {/* Chat Feed */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-7 scroll-smooth bg-gradient-to-b from-transparent to-[#09090b] hide-scrollbar pb-32">
@@ -536,6 +544,8 @@ export default function App() {
                 initial={{ opacity: 0, y: 15, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 key={i} 
+                data-testid="chat-message"
+                data-message-role={msg.role}
                 className={`flex w-full ${msg.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div className={`max-w-[95%] sm:max-w-[90%] flex flex-col w-auto ${msg.role === "user" ? "items-end" : "items-start"}`}>
@@ -590,10 +600,18 @@ export default function App() {
           input={input}
           attachedImage={attachedImage}
           isLoading={isLoading}
+          notice={sendNotice}
           inputRef={inputRef}
           fileInputRef={fileInputRef}
-          onInputChange={setInput}
-          onAttachImage={setAttachedImage}
+          onInputChange={(value) => {
+            setInput(value);
+            setSendNotice(null);
+          }}
+          onAttachImage={(image) => {
+            setAttachedImage(image);
+            setSendNotice(null);
+          }}
+          onAttachmentError={() => setSendNotice(t("chat.attachmentTooLarge"))}
           onOpenVoiceMode={() => setShowVoiceMode(true)}
           onSend={handleSend}
         />

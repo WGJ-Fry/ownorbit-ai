@@ -198,13 +198,16 @@ export function createDataExport(scopes: DataExportScope[] = [...exportScopeKeys
     `).all();
     const capabilityManifests = db.prepare(`
       SELECT app_id as appId, allowed_capabilities_json as allowedCapabilitiesJson,
-             declared_capabilities_json as declaredCapabilitiesJson, risk_level as riskLevel,
+             declared_capabilities_json as declaredCapabilitiesJson,
+             allowed_network_origins_json as allowedNetworkOriginsJson, risk_level as riskLevel,
              updated_at as updatedAt
       FROM custom_app_capability_manifests ORDER BY updated_at DESC
     `).all();
     const capabilityRequests = db.prepare(`
       SELECT id, app_id as appId, requested_capabilities_json as requestedCapabilitiesJson,
-             missing_capabilities_json as missingCapabilitiesJson, label, reason, risk, status,
+             missing_capabilities_json as missingCapabilitiesJson,
+             requested_network_origins_json as requestedNetworkOriginsJson,
+             missing_network_origins_json as missingNetworkOriginsJson, label, reason, risk, status,
              created_at as createdAt, decided_at as decidedAt, decision_note as decisionNote
       FROM custom_app_capability_requests ORDER BY created_at DESC
     `).all();

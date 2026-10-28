@@ -527,6 +527,10 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(page.getByTestId("onboarding-progress-count")).toHaveText("1 / 3");
   await page.route("**/api/v1/admin/ai-providers/openai/test", async (route) => {
     expect(route.request().method()).toBe("POST");
+    expect(route.request().postDataJSON()).toEqual({
+      mode: "live",
+      credential: "sk-playwright-onboarding-secret-value",
+    });
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -755,21 +759,25 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(page.getByText("检测到地址，但二维码还没生成")).toBeVisible();
   await expect(page.getByText(/二维码没有生成。下一步：重启 OwnOrbit AI/)).toBeVisible();
   await expect(page.getByText("当前检测到的地址")).toBeVisible();
-  await page.getByRole("button", { name: "测试这个地址" }).click();
-  await expect(page.getByText("连接测试通过：3/3 项通过，18ms，手机可访问 https://pair.example.test")).toBeVisible();
-  await page.getByRole("button", { name: "用这个地址生成二维码" }).click();
+  await expect(page.getByRole("button", { name: "测试这个地址" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "用这个地址生成二维码" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "打开连接向导" })).toBeVisible();
+  await page.getByRole("button", { name: "重新检测连接" }).click();
   await expect(page.getByText("已根据连接诊断自动选择绑定地址")).toBeVisible();
   expect(recommendedBindStartAttempts).toBe(2);
   await expect(page.getByText("https://pair.example.test", { exact: true })).toBeVisible();
   await expect(page.getByText("推荐安全")).toBeVisible();
   await expect(page.getByText("需重启生效")).toBeVisible();
-  await expect(page.getByText(/Cloudflare Tunnel · 适合异地访问/)).toBeVisible();
+  await expect(page.getByText("Cloudflare 安全隧道 · 这是稳定的 Cloudflare HTTPS 入口。")).toBeVisible();
   await expect(page.getByText("LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=https://pair.example.test npm run start")).toBeVisible();
   const currentPairingEnvButton = page.getByRole("button", { name: "复制当前绑定启动环境" });
   await expect(currentPairingEnvButton).toBeVisible();
   await currentPairingEnvButton.click();
   await expect(currentPairingEnvButton).toContainText("已复制启动环境");
-  await expect(page.getByRole("button", { name: "测试当前绑定地址" })).toBeVisible();
+  const currentPairingTestButton = page.getByRole("button", { name: "测试当前绑定地址" });
+  await expect(currentPairingTestButton).toBeVisible();
+  await currentPairingTestButton.click();
+  await expect(page.getByText("电脑端入口测试通过：3/3 项通过，18ms，https://pair.example.test。手机仍需按当前连接方式完成网络准备。")).toBeVisible();
   await page.unroute("**/api/v1/admin/network-diagnostics");
   await page.unroute("**/api/v1/admin/network-diagnostics/test-url");
   await page.unroute("**/api/v1/devices/bind/start");
@@ -802,10 +810,18 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await page.getByRole("button", { name: "创建备份" }).click();
   await expect(page.locator('a[href*="/api/v1/backups/"][href$="/download"]').first()).toBeVisible();
 
-  const bindingResponse = await page.context().request.post("/api/v1/devices/bind/start", { headers: csrf });
+  const simulatedPhoneBaseUrl = "https://e2e-phone-entry.example.test";
+  const localMobileBaseUrl = "http://127.0.0.1:3333";
+  const bindingResponse = await page.context().request.post("/api/v1/devices/bind/start", {
+    headers: csrf,
+    data: { baseUrl: simulatedPhoneBaseUrl },
+  });
   expect(bindingResponse.ok()).toBeTruthy();
   const binding = await bindingResponse.json();
   expect(binding.token).toMatch(/^bind_/);
+  expect(binding.baseUrl).toBe(simulatedPhoneBaseUrl);
+  expect(binding.pairingUrl).toBe(`${simulatedPhoneBaseUrl}/mobile/install/${encodeURIComponent(binding.token)}`);
+  const localPairingUrl = `${localMobileBaseUrl}/mobile/install/${encodeURIComponent(binding.token)}`;
 
   const expiredPhoneContext = await browser.newContext({
     ...devices["iPhone 14"],
@@ -822,7 +838,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
       body: JSON.stringify({ error: "Binding token is invalid or expired" }),
     });
   });
-  await expiredPhone.goto(`${new URL(binding.pairingUrl).origin}/mobile/install/bind_expired_e2e`);
+  await expiredPhone.goto(`${localMobileBaseUrl}/mobile/install/bind_expired_e2e`);
   await expiredPhone.getByPlaceholder("例如：iPhone 15 Pro").fill("Expired Phone");
   await expiredPhone.getByRole("button", { name: "确认绑定" }).click();
   await expect(expiredPhone.getByText("这个二维码已经失效")).toBeVisible();
@@ -830,7 +846,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expiredPhone.getByPlaceholder("粘贴 /mobile/install/bind_... 或 bind_...").fill("not-a-pairing-link");
   await expiredPhone.getByRole("button", { name: "使用这个链接继续绑定" }).click();
   await expect(expiredPhone.getByText("绑定链接格式不对")).toBeVisible();
-  await expiredPhone.getByPlaceholder("粘贴 /mobile/install/bind_... 或 bind_...").fill(binding.pairingUrl);
+  await expiredPhone.getByPlaceholder("粘贴 /mobile/install/bind_... 或 bind_...").fill(localPairingUrl);
   await Promise.all([
     expiredPhone.waitForURL(new RegExp(`/mobile/install/${binding.token}`)),
     expiredPhone.getByRole("button", { name: "使用这个链接继续绑定" }).click(),
@@ -845,9 +861,9 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
     localStorage.setItem("lifeos_locale", "zh-CN");
   });
   const phone = await phoneContext.newPage();
-  const phoneBaseUrl = new URL(binding.pairingUrl).origin;
+  const phoneBaseUrl = localMobileBaseUrl;
   expect(new URL(binding.pairingUrl).pathname).toBe(`/mobile/install/${encodeURIComponent(binding.token)}`);
-  await phone.goto(binding.pairingUrl);
+  await phone.goto(localPairingUrl);
   await expect(phone.getByText("确认绑定电脑")).toBeVisible();
   await expect.poll(() => phone.evaluate(() => navigator.userAgent)).toContain("iPhone");
   await expect.poll(() => phone.evaluate(() => window.innerWidth)).toBeLessThanOrEqual(430);
@@ -861,9 +877,59 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(phone.getByText("绑定完成")).toBeVisible();
   await expect.poll(async () => phone.evaluate(() => localStorage.getItem("lifeos_device_credential"))).toBeNull();
 
+  let cloudKitChatDeviceApproved = false;
+  let cloudKitChatApprovalCalls = 0;
+  const cloudKitChatDevicesHandler = async (route: Route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        devices: {
+          items: [{
+            id: "cloudkit-e2e-device",
+            displayName: "Playwright iPhone",
+            publicKeyFingerprintShort: "ABCD 1234",
+            state: cloudKitChatDeviceApproved ? "approved" : "pending",
+            expiresAt: Date.now() + 86_400_000,
+            approvedAt: cloudKitChatDeviceApproved ? Date.now() : null,
+            revokedAt: null,
+            appliedAt: Date.now(),
+          }],
+          summary: {
+            total: 1,
+            pending: cloudKitChatDeviceApproved ? 0 : 1,
+            approved: cloudKitChatDeviceApproved ? 1 : 0,
+            revoked: 0,
+            rawPublicKeyReturned: false,
+            rawDeviceIdReturned: false,
+          },
+        },
+      }),
+    });
+  };
+  const cloudKitChatApprovalHandler = async (route: Route) => {
+    cloudKitChatDeviceApproved = true;
+    cloudKitChatApprovalCalls += 1;
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        device: { id: "cloudkit-e2e-device", state: "approved", approvedAt: Date.now() },
+        relayCycleQueued: true,
+      }),
+    });
+  };
+  await onboardingContext.route("**/api/v1/admin/cloudkit-chat/devices?limit=*", cloudKitChatDevicesHandler);
+  await onboardingContext.route("**/api/v1/admin/cloudkit-chat/devices/cloudkit-e2e-device/approve", cloudKitChatApprovalHandler);
   await page.goto("/admin/onboarding");
   await expect(page.getByTestId("onboarding-progress-count")).toHaveText("3 / 3");
-  await expect(page.getByRole("heading", { name: "已准备好", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "手机端已经准备好", exact: true })).toBeVisible();
+  await expect(page.getByTestId("onboarding-cloudkit-phone-approval")).toContainText("Playwright iPhone");
+  await page.getByRole("button", { name: "允许这台 iPhone" }).click();
+  await expect(page.getByText("已允许 Playwright iPhone，手机现在可以使用这台 Mac 上的模型。")).toBeVisible();
+  await expect(page.getByTestId("onboarding-cloudkit-phone-approval")).toHaveCount(0);
+  expect(cloudKitChatApprovalCalls).toBe(1);
+  await onboardingContext.unroute("**/api/v1/admin/cloudkit-chat/devices?limit=*", cloudKitChatDevicesHandler);
+  await onboardingContext.unroute("**/api/v1/admin/cloudkit-chat/devices/cloudkit-e2e-device/approve", cloudKitChatApprovalHandler);
 
   await phone.goto(`${phoneBaseUrl}/mobile/chat`);
   await expect(phone.getByText(/已连接电脑|正在连接电脑|连接中断，正在重试/)).toBeVisible();
@@ -884,13 +950,36 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await phone.keyboard.press("Enter");
   await expect(phone.getByText("第一条测试消息")).toBeVisible();
   await expect(phone.getByText("已收到第一条测试消息，聊天链路正常。")).toBeVisible();
+  await phone.unroute("**/api/chat");
+
+  const mobileComposer = phone.getByPlaceholder("发送指令，或召唤新应用...");
+  await phoneContext.setOffline(true);
+  await expect.poll(() => phone.evaluate(() => navigator.onLine)).toBe(false);
+  await mobileComposer.fill("断网时保留的草稿");
+  await phone.keyboard.press("Enter");
+  await expect(mobileComposer).toHaveValue("断网时保留的草稿");
+  await expect(phone.getByTestId("chat-send-notice")).toContainText("输入内容还在");
+  await expect(phone.getByTestId("chat-message").filter({ hasText: "断网时保留的草稿" })).toHaveCount(0);
+  await phoneContext.setOffline(false);
+  await expect.poll(() => phone.evaluate(() => navigator.onLine)).toBe(true);
+  // The chat takes its network state from the "online" event, which can land
+  // after navigator.onLine flips; its offline banner going away is the sign.
+  await expect(phone.getByText("当前离线。输入内容会保留，请联网后再次发送。")).toHaveCount(0);
+
+  await phone.route("**/api/chat", async (route) => route.abort("connectionrefused"));
+  await mobileComposer.fill("电脑断开时保留的草稿");
+  await phone.keyboard.press("Enter");
+  await expect(mobileComposer).toHaveValue("电脑断开时保留的草稿");
+  await expect(phone.getByTestId("chat-send-notice")).toContainText("这条消息尚未发送");
+  await expect(phone.getByTestId("chat-message").filter({ hasText: "电脑断开时保留的草稿" })).toHaveCount(0);
+  await phone.unroute("**/api/chat");
+  await mobileComposer.fill("");
 
   await page.goto("/admin/onboarding");
-  await page.getByRole("button", { name: "完成并开始聊天" }).click();
-  await expect(page).toHaveURL(/\/chat/);
-  await expect(page.getByText("JARVIS", { exact: true }).first()).toBeVisible();
-  await expect(page.getByPlaceholder("发送指令，或召唤新应用...")).toBeVisible();
-  await phone.unroute("**/api/chat");
+  await page.getByRole("button", { name: "完成并进入电脑管理台" }).click();
+  await expect(page).toHaveURL(/\/admin\/dashboard/);
+  await expect(page.getByRole("heading", { name: "OwnOrbit Local Core" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "绑定手机" })).toBeVisible();
   await expect(phone.getByText("添加到主屏幕", { exact: true })).toBeVisible();
   await phone.getByRole("button", { name: "关闭安装提示" }).click();
   await phone.reload();
@@ -902,6 +991,20 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(phone.getByRole("button", { name: "粘贴新的绑定链接" })).toBeVisible();
   await phone.getByRole("button", { name: "粘贴新的绑定链接" }).click();
   await expect(phone.getByPlaceholder("https://.../mobile/install/bind_...")).toBeFocused();
+  // A pairing link on another origin (e.g. a restarted quick tunnel) must open
+  // there and leave this origin's credential in place as the fallback.
+  const newQuickTunnelOrigin = "https://e2e-new-quick.trycloudflare.com";
+  const newQuickTunnelPairingUrl = `${newQuickTunnelOrigin}/mobile/install/bind_e2e_new_quick_tunnel`;
+  await phone.route(`${newQuickTunnelOrigin}/**`, (route) => route.fulfill({ contentType: "text/html", body: "<!doctype html><title>new quick tunnel</title>" }));
+  await expect(phone.getByRole("button", { name: "清除旧凭证并重新绑定" })).toBeVisible();
+  await phone.getByPlaceholder("https://.../mobile/install/bind_...").fill(newQuickTunnelPairingUrl);
+  await expect(phone.getByRole("button", { name: "打开新地址并绑定" })).toBeVisible();
+  await Promise.all([
+    phone.waitForURL(newQuickTunnelPairingUrl),
+    phone.getByRole("button", { name: "打开新地址并绑定" }).click(),
+  ]);
+  await phone.unroute(`${newQuickTunnelOrigin}/**`);
+  await phone.goto(`${phoneBaseUrl}/mobile/device`);
   await expect(phone.getByText("已绑定电脑端")).toBeVisible();
   await expect(phone.getByText("Playwright Phone")).toBeVisible();
   await expect(phone.getByText("WebCrypto 签名", { exact: true })).toBeVisible();
@@ -1071,15 +1174,24 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
         cloudflare: {
           installed: true,
           running: true,
+          // A quick tunnel this app started earlier whose cloudflared has
+          // since exited: the server keeps the URL and the last error.
           managed: {
             running: false,
+            ready: false,
             starting: false,
-            url: "",
+            phase: "stopped",
+            url: "https://crashed-lifeos.trycloudflare.com",
             pid: null,
             startedAt: null,
-            command: "",
+            command: "cloudflared tunnel --url http://127.0.0.1:3333",
             lastOutput: "",
-            lastError: "",
+            lastError: "cloudflared exited (SIGKILL).",
+            kind: "quick",
+            reconnectAttempts: 0,
+            lastReconnectAt: null,
+            reconnectScheduledAt: null,
+            reconnectReason: "",
           },
           version: "cloudflared version 2026.6.0",
           detectedUrls: ["https://amber-lifeos.trycloudflare.com"],
@@ -1144,6 +1256,14 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(page.getByText("http://192.168.31.10:3333").first()).toBeVisible();
   await expect(page.getByText("lifeos-mac", { exact: true })).toBeVisible();
   await expect(page.getByText("推荐绑定地址")).toBeVisible();
+  // A crashed quick tunnel is not "running": say it stopped, show why, and
+  // leave Start (not Stop) as the way back.
+  const crashedQuickTunnel = page.getByTestId("cloudflare-quick-tunnel-stopped");
+  await expect(crashedQuickTunnel).toContainText("临时 Tunnel https://crashed-lifeos.trycloudflare.com 已停止，这个地址不会自己恢复。");
+  await expect(crashedQuickTunnel).toContainText("cloudflared exited (SIGKILL).");
+  await expect(page.getByText("已启动临时公网地址：https://crashed-lifeos.trycloudflare.com")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "一键启动 Cloudflare Tunnel", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "停止 Cloudflare Tunnel", exact: true })).toHaveCount(0);
   await expect(page.getByText("Cloudflare Tunnel", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Tailscale MagicDNS", { exact: true })).toBeVisible();
   await expect(page.getByText("需重启生效").first()).toBeVisible();
@@ -1279,6 +1399,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   const restoreButton = backupPanel.getByRole("button", { name: "恢复" }).first();
   await expect(restoreButton).toBeEnabled();
   await restoreButton.click();
+  await expect(backupPanel.getByText(/已安排下次启动恢复|Restore scheduled for next launch/)).toBeVisible();
   await expect(backupPanel.getByText(/恢复任务等待重启|Restore Waiting for Restart/)).toBeVisible();
   page.once("dialog", async (dialog) => {
     expect(dialog.message()).toMatch(/取消等待重启|Cancel the restore task waiting for restart/);

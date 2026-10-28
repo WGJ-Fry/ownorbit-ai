@@ -94,7 +94,8 @@ export function getSecurityDiagnostics() {
   const publicMode = Boolean(publicBaseUrl) || host === "0.0.0.0";
   const storedPasswordPolicy = getClientState("lifeos_admin_password_policy")?.value as ReturnType<typeof evaluatePasswordPolicy> | undefined;
   const passwordPolicy = process.env.LIFEOS_ADMIN_PASSWORD ? evaluatePasswordPolicy(process.env.LIFEOS_ADMIN_PASSWORD) : storedPasswordPolicy;
-  const aiConfigured = listAiProviderStatuses().some((provider) => provider.configured);
+  const activeAiProvider = listAiProviderStatuses().find((provider) => provider.active);
+  const aiConfigured = Boolean(activeAiProvider?.configured && !activeAiProvider.credentialResetRequired);
   const backupCount = listBackups().length;
   const latestBackup = listBackups()[0];
   const latestBackupModifiedAt = latestBackup?.path && fs.existsSync(latestBackup.path) ? fs.statSync(latestBackup.path).mtimeMs : latestBackup?.createdAt;
@@ -185,7 +186,11 @@ export function getSecurityDiagnostics() {
       id: "ai",
       label: "AI Provider",
       status: aiConfigured ? "ok" : "warning",
-      message: aiConfigured ? "At least one AI provider is configured." : "No AI provider is configured yet.",
+      message: aiConfigured
+        ? `${activeAiProvider?.provider || "The active AI provider"} is ready.`
+        : activeAiProvider?.credentialResetRequired
+          ? `${activeAiProvider.provider} must be reconfigured after this desktop update.`
+          : "The active AI provider is not configured yet.",
       action: "Configure an AI Key in System Settings or the first-run guide.",
     },
     {

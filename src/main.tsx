@@ -1,6 +1,5 @@
 import {StrictMode, Suspense, lazy} from 'react';
 import {createRoot} from 'react-dom/client';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { clearSensitiveLocalStorageResidue } from './services/sensitiveLocalStorage';
 import { I18nProvider, useI18n } from './i18n/I18nProvider';
 import { getLifeOSBasePath } from './services/lifeosApi';
@@ -24,6 +23,74 @@ const MobileDevicePage = lazy(() => import('./pages/mobile/MobileDevicePage.tsx'
 const MobilePairPage = lazy(() => import('./pages/mobile/MobilePairPage.tsx'));
 const MobileToolsPage = lazy(() => import('./pages/mobile/MobileToolsPage.tsx'));
 
+function currentLifeOSPath() {
+  const basePath = lifeosBasePath.endsWith("/")
+    ? lifeosBasePath.slice(0, -1)
+    : lifeosBasePath;
+  const pathname = window.location.pathname;
+  const routePath = basePath && pathname.startsWith(`${basePath}/`)
+    ? pathname.slice(basePath.length)
+    : pathname === basePath
+      ? "/"
+      : pathname;
+  return routePath || "/";
+}
+
+function replaceLifeOSPath(routePath: string) {
+  const basePath = lifeosBasePath.endsWith("/")
+    ? lifeosBasePath.slice(0, -1)
+    : lifeosBasePath;
+  window.history.replaceState(
+    null,
+    "",
+    `${basePath}${routePath}${window.location.search}${window.location.hash}`,
+  );
+}
+
+function LifeOSRouter() {
+  let routePath = currentLifeOSPath();
+  if (routePath === "/") {
+    routePath = window.innerWidth < 700 ? "/mobile/chat" : "/admin/login";
+    replaceLifeOSPath(routePath);
+  }
+
+  switch (routePath) {
+    case "/chat":
+      return <App />;
+    case "/mobile/actions":
+      return <MobileActionsPage />;
+    case "/mobile/chat":
+      return <MobileChatPage />;
+    case "/mobile/device":
+      return <MobileDevicePage />;
+    case "/mobile/pair":
+      return <MobilePairPage />;
+    case "/mobile/tools":
+      return <MobileToolsPage />;
+    case "/admin/login":
+      return <AdminLoginPage />;
+    case "/admin/onboarding":
+      return <AdminOnboardingPage />;
+    case "/admin/chat":
+      return <AdminChatPage />;
+    case "/admin/dashboard":
+      return <AdminDashboardPage />;
+    case "/admin/memory":
+      return <AdminMemoryPage />;
+    case "/admin/settings":
+      return <AdminSettingsPage />;
+    case "/admin/devices/pair":
+      return <DevicePairPage />;
+    default:
+      if (/^\/mobile\/install\/[^/]+$/.test(routePath)) {
+        return <MobilePairPage />;
+      }
+      routePath = window.innerWidth < 700 ? "/mobile/chat" : "/admin/login";
+      replaceLifeOSPath(routePath);
+      return routePath === "/mobile/chat" ? <MobileChatPage /> : <AdminLoginPage />;
+  }
+}
+
 function RouteFallback() {
   const { t } = useI18n();
   return (
@@ -39,28 +106,9 @@ function RouteFallback() {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <I18nProvider>
-      <BrowserRouter basename={lifeosBasePath || undefined}>
-        <Suspense fallback={<RouteFallback />}>
-          <Routes>
-            <Route path="/" element={<Navigate to={window.innerWidth < 700 ? "/mobile/chat" : "/admin/login"} replace />} />
-            <Route path="/chat" element={<App />} />
-            <Route path="/mobile/actions" element={<MobileActionsPage />} />
-            <Route path="/mobile/chat" element={<MobileChatPage />} />
-            <Route path="/mobile/device" element={<MobileDevicePage />} />
-            <Route path="/mobile/install/:token" element={<MobilePairPage />} />
-            <Route path="/mobile/pair" element={<MobilePairPage />} />
-            <Route path="/mobile/tools" element={<MobileToolsPage />} />
-            <Route path="/admin/login" element={<AdminLoginPage />} />
-            <Route path="/admin/onboarding" element={<AdminOnboardingPage />} />
-            <Route path="/admin/chat" element={<AdminChatPage />} />
-            <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
-            <Route path="/admin/memory" element={<AdminMemoryPage />} />
-            <Route path="/admin/settings" element={<AdminSettingsPage />} />
-            <Route path="/admin/devices/pair" element={<DevicePairPage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
+      <Suspense fallback={<RouteFallback />}>
+        <LifeOSRouter />
+      </Suspense>
     </I18nProvider>
   </StrictMode>,
 );

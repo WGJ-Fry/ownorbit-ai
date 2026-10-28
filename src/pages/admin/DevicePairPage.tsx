@@ -5,7 +5,24 @@ import { BindingSession, BoundDevice, getBindingSession, getNetworkDiagnostics, 
 import type { ConnectionTestResult } from "../../services/lifeosApi";
 import DevicePairConnectionTestResult from "./DevicePairConnectionTestResult";
 import { useI18n } from "../../i18n/I18nProvider";
+import type { TranslationKey } from "../../i18n/translations";
 import { formatDevicePairingCreateError } from "../../services/devicePairingErrors";
+import { eligiblePhonePairingCandidates } from "../../services/pairingCandidatePolicy";
+
+type ConnectionCandidate = NetworkDiagnostics["connectionCandidates"][number];
+
+const candidateLabelKey: Record<ConnectionCandidate["mode"], TranslationKey> = {
+  configured: "devicePair.candidateLabel.configured",
+  cloudflare: "devicePair.candidateLabel.cloudflare",
+  tailscale: "devicePair.candidateLabel.tailscale",
+  lan: "devicePair.candidateLabel.lan",
+  local: "devicePair.candidateLabel.local",
+};
+
+function candidateNoteKey(candidate: ConnectionCandidate): TranslationKey {
+  const suffix = candidate.stability === "temporary" ? "Temporary" : "Stable";
+  return `devicePair.candidateNote.${candidate.mode}${suffix}` as TranslationKey;
+}
 
 export default function DevicePairPage() {
   const { t } = useI18n();
@@ -19,6 +36,7 @@ export default function DevicePairPage() {
   const [connectionTestResult, setConnectionTestResult] = useState<ConnectionTestResult | null>(null);
   const [testingConnection, setTestingConnection] = useState(false);
   const [copiedEnv, setCopiedEnv] = useState(false);
+  const [clockNow, setClockNow] = useState(() => Date.now());
 
   const createSession = async (baseUrlOverride = "") => {
     setError(null);
@@ -31,13 +49,13 @@ export default function DevicePairPage() {
       try {
         const networkDiagnostics = await getNetworkDiagnostics();
         setDiagnostics(networkDiagnostics);
+        const eligibleCandidates = eligiblePhonePairingCandidates<ConnectionCandidate>(networkDiagnostics.connectionCandidates);
         recommendedBaseUrl = baseUrlOverride
-          || networkDiagnostics.connectionCandidates.find((candidate) => candidate.mode !== "local")?.baseUrl
-          || networkDiagnostics.recommendedBaseUrl
-          || "";
+          ? eligibleCandidates.find((candidate) => candidate.baseUrl === baseUrlOverride)?.baseUrl || ""
+          : eligibleCandidates[0]?.baseUrl || "";
       } catch {
         setDiagnostics(null);
-        recommendedBaseUrl = baseUrlOverride;
+        recommendedBaseUrl = "";
       }
       if (!recommendedBaseUrl) {
         setPairingBaseUrl("");
@@ -49,6 +67,7 @@ export default function DevicePairPage() {
       const data = await startBindingSession(recommendedBaseUrl);
       setPairingBaseUrl(data.baseUrl || recommendedBaseUrl);
       setSession(data);
+      setClockNow(Date.now());
     } catch (err: any) {
       const detail = formatDevicePairingCreateError(err, t);
       setError(detail);
@@ -62,7 +81,17 @@ export default function DevicePairPage() {
 
   useEffect(() => {
     if (!session || confirmedDevice) return;
+    const timer = window.setInterval(() => setClockNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [session, confirmedDevice]);
+
+  useEffect(() => {
+    if (!session || confirmedDevice) return;
     const interval = window.setInterval(async () => {
+      if (Date.now() >= session.expiresAt) {
+        window.clearInterval(interval);
+        return;
+      }
       try {
         const data = await getBindingSession(session.id);
         if (data.device) {
@@ -76,9 +105,16 @@ export default function DevicePairPage() {
     return () => window.clearInterval(interval);
   }, [session, confirmedDevice]);
 
-  const expiresIn = session ? Math.max(0, Math.ceil((session.expiresAt - Date.now()) / 1000)) : 0;
-  const activeCandidate = diagnostics?.connectionCandidates?.find((candidate) => candidate.baseUrl === pairingBaseUrl) || diagnostics?.connectionCandidates?.[0] || null;
-  const hasDetectedPhoneCandidate = Boolean(diagnostics?.connectionCandidates?.some((candidate) => candidate.mode !== "local"));
+  const expiresIn = session ? Math.max(0, Math.ceil((session.expiresAt - clockNow) / 1000)) : 0;
+  const eligibleCandidates = eligiblePhonePairingCandidates<ConnectionCandidate>(diagnostics?.connectionCandidates || []);
+  const activeCandidate = eligibleCandidates.find((candidate) => candidate.baseUrl === pairingBaseUrl) || eligibleCandidates[0] || null;
+  const hasDetectedPhoneCandidate = eligibleCandidates.length > 0;
+  const activeCandidateLabel = activeCandidate
+    ? t(candidateLabelKey[activeCandidate.mode])
+    : "";
+  const activeCandidateNote = activeCandidate
+    ? t(candidateNoteKey(activeCandidate))
+    : "";
 
   const handleTestPairingAddress = async (baseUrl = pairingBaseUrl) => {
     if (!baseUrl) return;
@@ -95,7 +131,7 @@ export default function DevicePairPage() {
         url: baseUrl,
         latencyMs: 0,
         steps: [],
-        error: err.message || t("devicePair.testFailed"),
+        error: t("devicePair.testFailed"),
       });
     } finally {
       setTestingConnection(false);
@@ -153,46 +189,26 @@ export default function DevicePairPage() {
                   {createErrorDetail}
                 </div>
               ) : null}
-              {diagnostics?.connectionCandidates?.length ? (
-                <div className="mt-5 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-left text-xs text-zinc-400">
-                  <div className="font-bold text-zinc-200">{t("devicePair.detectedOnlyTitle")}</div>
+              {eligibleCandidates.length ? (
+                <details className="mt-5 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-left text-xs text-zinc-400">
+                  <summary className="cursor-pointer font-bold text-zinc-200">{t("devicePair.detectedOnlyTitle")}</summary>
                   <div className="mt-2 space-y-2">
-                    {diagnostics.connectionCandidates.slice(0, 3).map((candidate) => (
+                    {eligibleCandidates.slice(0, 3).map((candidate) => (
                       <div key={candidate.id} className="rounded-xl bg-black/20 p-2">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="font-semibold text-zinc-200">{candidate.label}</div>
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleTestPairingAddress(candidate.baseUrl)}
-                              disabled={testingConnection}
-                              className="rounded-lg border border-cyan-400/20 bg-cyan-500/10 px-2.5 py-1 text-[11px] font-bold text-cyan-200 disabled:opacity-50"
-                            >
-                              {t("devicePair.testDetectedCandidate")}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => createSession(candidate.baseUrl)}
-                              className="rounded-lg bg-cyan-500 px-2.5 py-1 text-[11px] font-bold text-[#061016]"
-                            >
-                              {t("devicePair.generateWithCandidate")}
-                            </button>
-                          </div>
-                        </div>
+                        <div className="font-semibold text-zinc-200">{candidate.label}</div>
                         <div className="mt-1 break-all font-mono text-zinc-500">{candidate.baseUrl}</div>
                         {candidate.requiresRestart ? <div className="mt-1 text-amber-100/80">{t("devicePair.candidateNeedsRestartHint")}</div> : null}
                       </div>
                     ))}
                   </div>
-                  {connectionTestResult ? <DevicePairConnectionTestResult result={connectionTestResult} /> : null}
-                </div>
+                </details>
               ) : null}
               <div className="mt-6 grid gap-3">
                 <a href="/admin/settings#mobile-connect" className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-3 text-sm font-bold text-[#061016]">
                   {t("devicePair.openConnectionGuide")}
                 </a>
                 <button
-                  onClick={createSession}
+                  onClick={() => createSession()}
                   className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm font-bold text-zinc-200"
                 >
                   <RefreshCw className="h-4 w-4" />
@@ -211,9 +227,17 @@ export default function DevicePairPage() {
             </div>
           ) : session ? (
             <>
-              <div className="bg-white p-4 rounded-3xl mb-5">
-                <QRCodeSVG value={session.pairingUrl} size={260} />
-              </div>
+              {expiresIn > 0 ? (
+                <div className="bg-white p-4 rounded-3xl mb-5">
+                  <QRCodeSVG value={session.pairingUrl} size={260} />
+                </div>
+              ) : (
+                <div aria-live="polite" className="mb-5 w-full rounded-2xl border border-amber-400/25 bg-amber-500/10 p-5 text-center">
+                  <AlertTriangle className="mx-auto h-8 w-8 text-amber-300" />
+                  <div className="mt-3 font-bold text-amber-100">{t("devicePair.expired")}</div>
+                  <div className="mt-1 text-sm leading-relaxed text-amber-100/75">{t("devicePair.expiredBody")}</div>
+                </div>
+              )}
               <div className="flex items-center gap-2 text-sm text-zinc-400 mb-5">
                 <Smartphone className="w-4 h-4" />
                 {t("devicePair.qrExpires", { value: expiresIn > 0 ? t("devicePair.expiresIn", { seconds: expiresIn }) : t("devicePair.expired") })}
@@ -235,7 +259,20 @@ export default function DevicePairPage() {
                     ) : null}
                   </div>
                   <div className="mt-2 text-center">{t("devicePair.currentAddress")}<span className="font-mono text-cyan-200">{pairingBaseUrl}</span></div>
-                  {activeCandidate ? <div className="mt-2 text-center text-zinc-500">{activeCandidate.label} · {activeCandidate.notes[0]}</div> : null}
+                  {activeCandidate ? (
+                    <div className="mt-2 text-center text-zinc-500">
+                      {activeCandidateLabel} · {activeCandidateNote}
+                    </div>
+                  ) : null}
+                  {activeCandidate?.mode === "tailscale" ? (
+                    <div className="mt-3 rounded-xl border border-cyan-400/20 bg-cyan-500/10 p-3 text-left leading-relaxed text-cyan-50">
+                      <div className="flex items-center gap-2 font-bold">
+                        <Smartphone className="h-4 w-4" />
+                        {t("devicePair.tailscalePhoneRequiredTitle")}
+                      </div>
+                      <div className="mt-1 text-cyan-50/80">{t("devicePair.tailscalePhoneRequiredBody")}</div>
+                    </div>
+                  ) : null}
                   {activeCandidate?.stability === "temporary" ? (
                     <div className="mt-3 rounded-xl border border-amber-400/20 bg-amber-500/10 p-2 text-left leading-relaxed text-amber-100">
                       <div className="font-bold">{t("devicePair.temporaryTitle")}</div>
@@ -245,7 +282,9 @@ export default function DevicePairPage() {
                   {activeCandidate?.requiresRestart ? (
                     <div className="mt-3 rounded-xl border border-blue-400/20 bg-blue-500/10 p-2 text-left">
                       <div className="font-bold text-blue-100">{t("devicePair.restartTitle")}</div>
-                      <div className="mt-1 text-blue-100/75">{activeCandidate.restartInstruction}</div>
+                      <div className="mt-1 text-blue-100/75">
+                        {activeCandidate.requiresRestart ? t("devicePair.restartInstruction") : t("devicePair.addressAlreadyActive")}
+                      </div>
                       <div className="mt-2 rounded-lg bg-black/15 p-2 font-mono text-[10px] leading-relaxed text-blue-100/80">{activeCandidate.envTemplate}</div>
                       <button
                         aria-label={t("devicePair.copyEnvAria")}
@@ -262,7 +301,7 @@ export default function DevicePairPage() {
                     </div>
                   ) : null}
                   <button
-                    onClick={handleTestPairingAddress}
+                    onClick={() => handleTestPairingAddress()}
                     disabled={testingConnection}
                     className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-3 py-2 text-xs font-bold text-cyan-200 disabled:opacity-50"
                   >
@@ -272,20 +311,26 @@ export default function DevicePairPage() {
                   {connectionTestResult ? <DevicePairConnectionTestResult result={connectionTestResult} /> : null}
                 </div>
               ) : null}
+              {expiresIn > 0 ? (
+                <button
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(session.pairingUrl).catch(() => null);
+                    setCopied(true);
+                    window.setTimeout(() => setCopied(false), 1200);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] py-3 text-sm font-bold text-zinc-200 hover:bg-white/[0.06]"
+                >
+                  <Copy className="w-4 h-4" />
+                  {copied ? t("devicePair.copiedLink") : t("devicePair.copyLink")}
+                </button>
+              ) : null}
               <button
-                onClick={async () => {
-                  await navigator.clipboard.writeText(session.pairingUrl).catch(() => null);
-                  setCopied(true);
-                  window.setTimeout(() => setCopied(false), 1200);
-                }}
-                className="w-full flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] py-3 text-sm font-bold text-zinc-200 hover:bg-white/[0.06]"
-              >
-                <Copy className="w-4 h-4" />
-                {copied ? t("devicePair.copiedLink") : t("devicePair.copyLink")}
-              </button>
-              <button
-                onClick={createSession}
-                className="w-full mt-3 flex items-center justify-center gap-2 rounded-xl bg-cyan-500/10 border border-cyan-400/20 py-3 text-sm font-bold text-cyan-200 hover:bg-cyan-500/15"
+                onClick={() => createSession()}
+                className={`w-full flex items-center justify-center gap-2 rounded-xl border py-3 text-sm font-bold ${
+                  expiresIn > 0
+                    ? "mt-3 border-cyan-400/20 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/15"
+                    : "border-cyan-300 bg-cyan-400 text-[#061016] hover:bg-cyan-300"
+                }`}
               >
                 <RefreshCw className="w-4 h-4" />
                 {t("devicePair.regenerate")}

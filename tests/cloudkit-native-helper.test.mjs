@@ -191,6 +191,44 @@ test("CloudKit helper request carries an approved sync export batch only for nat
   }
 });
 
+test("CloudKit helper request carries a bounded global chat claim without private key material", async () => {
+  const env = snapshotEnv();
+  const dir = await mkdtemp(path.join(os.tmpdir(), "lifeos-cloudkit-helper-chat-claim-contract-"));
+  try {
+    const helper = await configureReadyCloudKitEnv(dir);
+    const readiness = getIcloudDataSyncReadiness({ platformSupported: true });
+    const request = buildCloudKitNativeHelperRequest(
+      readiness,
+      "chat-claim",
+      new Date("2026-01-02T03:04:05.000Z"),
+      undefined,
+      undefined,
+      undefined,
+      {
+        requestId: "123e4567-e89b-42d3-a456-426614174000",
+        requestContentHash: "a".repeat(64),
+        claimId: "b".repeat(64),
+        ownerFingerprint: "c".repeat(64),
+        trustedMacFingerprint: "d".repeat(64),
+        fencingToken: 7,
+        claimedAt: 1767323045000,
+        expiresAt: 1767323645000,
+      },
+    );
+    const serialized = JSON.stringify(request);
+    assert.equal(request.operation, "chat-claim");
+    assert.equal(request.chatClaim.fencingToken, 7);
+    assert.equal(request.chatClaim.ownerFingerprint, "c".repeat(64));
+    assert.equal(request.chatClaim.trustedMacFingerprint, "d".repeat(64));
+    assert.equal(serialized.includes("privateKey"), false);
+    assert.equal(serialized.includes(helper), false);
+    assert.equal(serialized.includes(dir), false);
+  } finally {
+    restoreEnv(env);
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("Apple CloudKit helper source implements the native JSON stdio contract", async () => {
   const swiftSource = await readFile(path.join(rootDir, "native/apple/cloudkit-helper/LifeOSCloudKitHelper.swift"), "utf8");
   const cloudKitSchema = await readFile(path.join(rootDir, "native/apple/cloudkit-schema/OwnOrbit.ckdb"), "utf8");
@@ -210,7 +248,14 @@ test("Apple CloudKit helper source implements the native JSON stdio contract", a
   assert.match(swiftSource, /DELETE_DISPOSABLE_RECORDS/);
   assert.match(swiftSource, /SYNC_APPROVED_RECORDS/);
   assert.match(swiftSource, /runSyncExport/);
+  assert.match(swiftSource, /runChatClaim/);
+  assert.match(swiftSource, /chat-claim-exclusive/);
+  assert.match(swiftSource, /chat-claim-trusted-mac/);
+  assert.match(swiftSource, /trustedMacFingerprint/);
+  assert.match(swiftSource, /savePolicy: \.ifServerRecordUnchanged/);
+  assert.match(cloudKitSchema, /RECORD TYPE LifeOSChatClaim/);
   assert.match(swiftSource, /sync-export-save/);
+  assert.match(swiftSource, /sync-export-delete-consumed-relay/);
   assert.match(swiftSource, /runSyncImportPreview/);
   assert.match(swiftSource, /sync-import-preview-query/);
   assert.match(swiftSource, /runSyncChangesPreview/);
@@ -222,6 +267,8 @@ test("Apple CloudKit helper source implements the native JSON stdio contract", a
   assert.match(swiftSource, /validatedExportFields/);
   assert.match(swiftSource, /database\.record\(for: recordId\)/);
   assert.match(swiftSource, /sync-export-upsert/);
+  assert.match(swiftSource, /LifeOSChatRelayControlZone/);
+  assert.match(swiftSource, /CloudKit sync export rejected a deletion outside the consumed chat relay lifecycle/);
   assert.match(swiftSource, /newer or conflicting remote/);
   assert.match(swiftSource, /payload byte length does not match/);
   assert.match(swiftSource, /payload checksum does not match/);

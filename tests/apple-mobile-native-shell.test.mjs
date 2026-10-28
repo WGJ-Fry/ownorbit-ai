@@ -12,7 +12,7 @@ const rootDir = process.cwd();
 const nativeDir = path.join(rootDir, "native", "apple", "mobile-shell");
 
 test("Apple native mobile shell validates safe iCloud entries without storing credentials", async () => {
-  const [project, entry, store, notifications, app, webView, content, buildScript, installScript, smokeScript, packageJson, nativeWorkflow] = await Promise.all([
+  const [project, entry, store, notifications, app, webView, content, buildScript, xcodeTestScript, installScript, smokeScript, packageJson, nativeWorkflow] = await Promise.all([
     readFile(path.join(nativeDir, "project.yml"), "utf8"),
     readFile(path.join(nativeDir, "Sources", "LifeOSEntry.swift"), "utf8"),
     readFile(path.join(nativeDir, "Sources", "LifeOSEntryStore.swift"), "utf8"),
@@ -21,6 +21,7 @@ test("Apple native mobile shell validates safe iCloud entries without storing cr
     readFile(path.join(nativeDir, "Sources", "LifeOSWebView.swift"), "utf8"),
     readFile(path.join(nativeDir, "Sources", "ContentView.swift"), "utf8"),
     readFile(path.join(rootDir, "scripts", "build-ios-mobile-shell.mjs"), "utf8"),
+    readFile(path.join(rootDir, "scripts", "test-ios-native-xcode.mjs"), "utf8"),
     readFile(path.join(rootDir, "scripts", "install-ios-mobile-shell.mjs"), "utf8"),
     readFile(path.join(rootDir, "scripts", "mobile-ios-native-shell-smoke.mjs"), "utf8"),
     readFile(path.join(rootDir, "package.json"), "utf8").then(JSON.parse),
@@ -29,6 +30,8 @@ test("Apple native mobile shell validates safe iCloud entries without storing cr
 
   assert.match(project, /platform: iOS/);
   assert.match(project, /NSLocalNetworkUsageDescription/);
+  assert.match(project, /NSAllowsLocalNetworking: true/);
+  assert.doesNotMatch(project, /NSAllowsArbitraryLoads(?:InWebContent)?: true/);
   assert.match(project, /lifeos/);
   assert.match(entry, /import CryptoKit/);
   assert.match(entry, /SHA256\.hash/);
@@ -55,14 +58,17 @@ test("Apple native mobile shell validates safe iCloud entries without storing cr
   assert.match(webView, /sameOrigin\(url, entry\.baseURL\)/);
   assert.match(content, /fileImporter/);
   assert.match(content, /allowedContentTypes: \[\.json\]/);
-  assert.match(content, /@EnvironmentObject private var cloudStore: LifeOSCloudDataStore/);
-  assert.match(content, /await cloudStore\.enableAndSync\(\)/);
-  assert.match(content, /connect\.cloudDataButton/);
+  assert.match(content, /TabView\(selection: \$selectedTab\)/);
+  assert.match(content, /CloudDataScreen\(showsDoneButton: false\)/);
+  assert.match(content, /tab\.icloudAI/);
+  assert.match(content, /connect\.importEntryButton/);
   assert.match(content, /CloudDataScreen\(\)/);
   assert.match(buildScript, /xcodegen/);
   assert.match(buildScript, /xcodebuild/);
   assert.match(buildScript, /CODE_SIGNING_ALLOWED=NO/);
   assert.match(buildScript, /-allowProvisioningDeviceRegistration/);
+  assert.match(xcodeTestScript, /mobile-shell-xctest/);
+  assert.match(xcodeTestScript, /result\.status \?\? 1/);
   assert.match(installScript, /devicectl/);
   assert.match(installScript, /codesign/);
   assert.match(installScript, /cloudKitEntitlementsVerified/);
@@ -84,7 +90,13 @@ test("Apple native mobile shell validates safe iCloud entries without storing cr
   assert.match(packageJson.scripts["mobile:native:device:build"], /--device/);
   assert.match(packageJson.scripts["mobile:native:device:install"], /install-ios-mobile-shell/);
   assert.match(packageJson.scripts["mobile:native:smoke"], /mobile-ios-native-shell-smoke/);
-  assert.match(nativeWorkflow, /runs-on: macos-latest/);
+  assert.match(packageJson.scripts["test:apple-native:xcode"], /test-ios-native-xcode/);
+  assert.match(packageJson.scripts["quality:gate"], /test:apple-native:xcode/);
+  assert.match(nativeWorkflow, /runs-on: macos-15/);
+  assert.match(nativeWorkflow, /cancel-in-progress: true/);
+  assert.match(nativeWorkflow, /needs:\s*contracts/);
+  assert.match(nativeWorkflow, /tags:\s*\n\s+- "v\*"/);
+  assert.match(nativeWorkflow, /npm run test:apple-native:xcode/);
   assert.match(nativeWorkflow, /npm run mobile:native:device:compile/);
 });
 
@@ -210,6 +222,14 @@ test("Apple native mobile shell has a guarded private CloudKit offline data path
   assert.match(cloudOutbox, /func due\(accountFingerprint:/);
   assert.match(cloudOutbox, /func markNeedsReview/);
   assert.match(cloudSync, /processPendingMutations/);
+  assert.match(cloudSync, /LifeOSChatRelayZone/);
+  assert.match(cloudSync, /fullDataSyncEnabled = UserDefaults\.standard\.bool/);
+  assert.match(cloudSync, /fullDataSyncEnabled \|\| \$0\.kind == \.chatRequest/);
+  assert.match(cloudSync, /scheduleChatResponsePolling\(\)/);
+  assert.match(cloudSync, /sync\(reason: "chat-response-poll"\)/);
+  assert.match(cloudSync, /for attempt in 0\.\.<30/);
+  assert.match(cloudSync, /hasPendingChatResponses\(\)/);
+  assert.doesNotMatch(cloudSync, /chatStatus\s*\|\|/);
   assert.match(cloudSync, /seedSimulatorMutationOutbox/);
   assert.match(cloudSync, /currentAccountFingerprint/);
   assert.match(cloudSync, /resolveMemoryCollision/);

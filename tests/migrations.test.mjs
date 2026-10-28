@@ -5,6 +5,7 @@ import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -179,6 +180,25 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   const legacyCustomApp = db.prepare("SELECT id, name, description, code FROM custom_apps WHERE id = 'legacy-app-1'").get();
   const legacyCustomAppVersion = db.prepare("SELECT app_id as appId, version, code, note FROM custom_app_versions WHERE app_id = 'legacy-app-1'").get();
   const cloudKitDeviceTrustMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 21").get();
+  const deviceRequestNonceMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 25").get();
+  const deviceRequestNonceColumns = db.prepare("PRAGMA table_info(device_request_nonces)").all().map((column) => column.name);
+  const adminSessionCredentialMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 26").get();
+  const adminSessionColumns = db.prepare("PRAGMA table_info(admin_sessions)").all().map((column) => column.name);
+  const chatConversationOwnerMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 27").get();
+  const chatConversationOwnerColumns = db.prepare("PRAGMA table_info(cloudkit_chat_conversation_owners)").all().map((column) => column.name);
+  const cloudKitDeviceApprovalMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 28").get();
+  const cloudKitDeviceKeyColumns = db.prepare("PRAGMA table_info(cloudkit_device_keys)").all().map((column) => column.name);
+  const cloudKitRelayLeaseMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 29").get();
+  const cloudKitRelayLeaseColumns = db.prepare("PRAGMA table_info(cloudkit_chat_relay_leases)").all().map((column) => column.name);
+  const cloudKitResponseDeliveryMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 30").get();
+  const cloudKitChatJobColumns = db.prepare("PRAGMA table_info(cloudkit_chat_jobs)").all().map((column) => column.name);
+  const cloudKitDeviceSequencesMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 31").get();
+  const cloudKitDeviceSequenceColumns = db.prepare("PRAGMA table_info(cloudkit_chat_device_sequences)").all().map((column) => column.name);
+  const cloudKitRelayFencingMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 32").get();
+  const cloudKitResponseReceiptsMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 33").get();
+  const cloudKitRemoteCleanupMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 34").get();
+  const cloudKitRemoteCleanupColumns = db.prepare("PRAGMA table_info(cloudkit_chat_remote_cleanup)").all().map((column) => column.name);
+  const cloudKitTrustedMacMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 35").get();
   db.close();
 
   assert.ok(columns.includes("access_token_expires_at"));
@@ -193,6 +213,9 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   assert.equal(customAppActionPoliciesMigration.name, "custom_app_action_policies");
   assert.equal(customAppCapabilitiesMigration.name, "custom_app_capability_manifests");
   assert.equal(customAppCapabilityRequestsMigration.name, "custom_app_capability_requests");
+  assert.equal(customAppCapabilityColumns.includes("allowed_network_origins_json"), true);
+  assert.equal(customAppCapabilityRequestColumns.includes("requested_network_origins_json"), true);
+  assert.equal(customAppCapabilityRequestColumns.includes("missing_network_origins_json"), true);
   assert.equal(customAppRuntimeEventsMigration.name, "custom_app_runtime_events");
   assert.equal(messageOfflineSyncMigration.name, "message_offline_sync_identity");
   assert.equal(calendarSyncOperationsMigration.name, "calendar_sync_operations");
@@ -201,6 +224,40 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   assert.equal(cloudKitSyncCheckpointsMigration.name, "cloudkit_sync_checkpoints");
   assert.equal(cloudKitSyncQuarantineMigration.name, "cloudkit_sync_quarantine");
   assert.equal(cloudKitDeviceTrustMigration.name, "cloudkit_device_trust_metadata");
+  assert.equal(deviceRequestNonceMigration.name, "device_request_nonces");
+  assert.deepEqual(deviceRequestNonceColumns, ["device_id", "nonce_hash", "used_at", "expires_at"]);
+  assert.equal(adminSessionCredentialMigration.name, "admin_session_credential_version");
+  assert.ok(adminSessionColumns.includes("credential_source"));
+  assert.ok(adminSessionColumns.includes("credential_version"));
+  assert.ok(adminSessionColumns.includes("revoked_reason"));
+  assert.equal(chatConversationOwnerMigration.name, "cloudkit_chat_conversation_owners");
+  assert.deepEqual(chatConversationOwnerColumns, ["conversation_id", "source_device_hash", "created_at", "last_seen_at"]);
+  assert.equal(cloudKitDeviceApprovalMigration.name, "cloudkit_device_key_approvals");
+  assert.ok(cloudKitDeviceKeyColumns.includes("approved_at"));
+  assert.ok(cloudKitDeviceKeyColumns.includes("approval_actor"));
+  assert.equal(cloudKitRelayLeaseMigration.name, "cloudkit_chat_relay_lease");
+  assert.deepEqual(cloudKitRelayLeaseColumns, ["lease_name", "lease_id", "holder_pid", "acquired_at", "expires_at", "fencing_token"]);
+  assert.equal(cloudKitRelayFencingMigration.name, "cloudkit_chat_relay_fencing");
+  assert.equal(cloudKitResponseReceiptsMigration.name, "cloudkit_chat_response_receipts");
+  assert.equal(cloudKitRemoteCleanupMigration.name, "cloudkit_chat_remote_cleanup");
+  assert.equal(cloudKitTrustedMacMigration.name, "cloudkit_chat_trusted_mac");
+  assert.deepEqual(cloudKitRemoteCleanupColumns, [
+    "request_id",
+    "status",
+    "attempt_count",
+    "next_attempt_at",
+    "created_at",
+    "completed_at",
+    "last_error",
+  ]);
+  assert.equal(cloudKitResponseDeliveryMigration.name, "cloudkit_chat_response_delivery");
+  assert.ok(cloudKitChatJobColumns.includes("response_exported_updated_at"));
+  assert.ok(cloudKitChatJobColumns.includes("response_exported_at"));
+  assert.ok(cloudKitChatJobColumns.includes("response_exported_content_hash"));
+  assert.ok(cloudKitChatJobColumns.includes("response_consumed_at"));
+  assert.ok(cloudKitChatJobColumns.includes("trusted_mac_fingerprint"));
+  assert.equal(cloudKitDeviceSequencesMigration.name, "cloudkit_chat_device_sequences");
+  assert.deepEqual(cloudKitDeviceSequenceColumns, ["source_device_hash", "client_sequence", "request_id", "created_at"]);
   assert.ok(connectivityColumns.includes("current_base_url"));
   assert.ok(connectivityColumns.includes("mobile_shell_ok"));
   assert.ok(connectivityColumns.includes("websocket_ok"));
@@ -307,6 +364,25 @@ test("bundled fallback migrations upgrade legacy schema without SQL files on cwd
   const calendarSyncRunsMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 17").get();
   const icloudHandoffEventsMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 18").get();
   const cloudKitDeviceTrustMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 21").get();
+  const deviceRequestNonceMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 25").get();
+  const deviceRequestNonceColumns = db.prepare("PRAGMA table_info(device_request_nonces)").all().map((column) => column.name);
+  const adminSessionCredentialMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 26").get();
+  const adminSessionColumns = db.prepare("PRAGMA table_info(admin_sessions)").all().map((column) => column.name);
+  const chatConversationOwnerMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 27").get();
+  const chatConversationOwnerColumns = db.prepare("PRAGMA table_info(cloudkit_chat_conversation_owners)").all().map((column) => column.name);
+  const cloudKitDeviceApprovalMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 28").get();
+  const cloudKitDeviceKeyColumns = db.prepare("PRAGMA table_info(cloudkit_device_keys)").all().map((column) => column.name);
+  const cloudKitRelayLeaseMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 29").get();
+  const cloudKitRelayLeaseColumns = db.prepare("PRAGMA table_info(cloudkit_chat_relay_leases)").all().map((column) => column.name);
+  const cloudKitResponseDeliveryMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 30").get();
+  const cloudKitChatJobColumns = db.prepare("PRAGMA table_info(cloudkit_chat_jobs)").all().map((column) => column.name);
+  const cloudKitDeviceSequencesMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 31").get();
+  const cloudKitDeviceSequenceColumns = db.prepare("PRAGMA table_info(cloudkit_chat_device_sequences)").all().map((column) => column.name);
+  const cloudKitRelayFencingMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 32").get();
+  const cloudKitResponseReceiptsMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 33").get();
+  const cloudKitRemoteCleanupMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 34").get();
+  const cloudKitRemoteCleanupColumns = db.prepare("PRAGMA table_info(cloudkit_chat_remote_cleanup)").all().map((column) => column.name);
+  const cloudKitTrustedMacMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 35").get();
   const legacyBinding = db.prepare("SELECT id, base_url as baseUrl FROM binding_sessions WHERE id = 'legacy-binding'").get();
   db.close();
 
@@ -323,5 +399,69 @@ test("bundled fallback migrations upgrade legacy schema without SQL files on cwd
   assert.equal(calendarSyncRunsMigration.name, "calendar_sync_runs");
   assert.equal(icloudHandoffEventsMigration.name, "device_icloud_handoff_events");
   assert.equal(cloudKitDeviceTrustMigration.name, "cloudkit_device_trust_metadata");
+  assert.equal(deviceRequestNonceMigration.name, "device_request_nonces");
+  assert.deepEqual(deviceRequestNonceColumns, ["device_id", "nonce_hash", "used_at", "expires_at"]);
+  assert.equal(adminSessionCredentialMigration.name, "admin_session_credential_version");
+  assert.ok(adminSessionColumns.includes("credential_source"));
+  assert.ok(adminSessionColumns.includes("credential_version"));
+  assert.ok(adminSessionColumns.includes("revoked_reason"));
+  assert.equal(chatConversationOwnerMigration.name, "cloudkit_chat_conversation_owners");
+  assert.deepEqual(chatConversationOwnerColumns, ["conversation_id", "source_device_hash", "created_at", "last_seen_at"]);
+  assert.equal(cloudKitDeviceApprovalMigration.name, "cloudkit_device_key_approvals");
+  assert.ok(cloudKitDeviceKeyColumns.includes("approved_at"));
+  assert.ok(cloudKitDeviceKeyColumns.includes("approval_actor"));
+  assert.equal(cloudKitRelayLeaseMigration.name, "cloudkit_chat_relay_lease");
+  assert.deepEqual(cloudKitRelayLeaseColumns, ["lease_name", "lease_id", "holder_pid", "acquired_at", "expires_at", "fencing_token"]);
+  assert.equal(cloudKitRelayFencingMigration.name, "cloudkit_chat_relay_fencing");
+  assert.equal(cloudKitResponseReceiptsMigration.name, "cloudkit_chat_response_receipts");
+  assert.equal(cloudKitRemoteCleanupMigration.name, "cloudkit_chat_remote_cleanup");
+  assert.equal(cloudKitTrustedMacMigration.name, "cloudkit_chat_trusted_mac");
+  assert.deepEqual(cloudKitRemoteCleanupColumns, [
+    "request_id",
+    "status",
+    "attempt_count",
+    "next_attempt_at",
+    "created_at",
+    "completed_at",
+    "last_error",
+  ]);
+  assert.equal(cloudKitResponseDeliveryMigration.name, "cloudkit_chat_response_delivery");
+  assert.ok(cloudKitChatJobColumns.includes("response_exported_updated_at"));
+  assert.ok(cloudKitChatJobColumns.includes("response_exported_at"));
+  assert.ok(cloudKitChatJobColumns.includes("response_exported_content_hash"));
+  assert.ok(cloudKitChatJobColumns.includes("response_consumed_at"));
+  assert.ok(cloudKitChatJobColumns.includes("trusted_mac_fingerprint"));
+  assert.equal(cloudKitDeviceSequencesMigration.name, "cloudkit_chat_device_sequences");
+  assert.deepEqual(cloudKitDeviceSequenceColumns, ["source_device_hash", "client_sequence", "request_id", "created_at"]);
   assert.equal(legacyBinding.baseUrl, null);
+});
+
+test("migration 34 backfills consumed CloudKit chat jobs into durable remote cleanup", async () => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "ownorbit-migration-34-"));
+  const databasePath = path.join(dataDir, "migration-34.db");
+  const db = new DatabaseSync(databasePath);
+  try {
+    db.exec(`
+      CREATE TABLE cloudkit_chat_jobs (
+        request_id TEXT PRIMARY KEY,
+        response_consumed_at INTEGER
+      );
+      INSERT INTO cloudkit_chat_jobs (request_id, response_consumed_at)
+      VALUES ('consumed-request', 1700000000123), ('pending-request', NULL);
+    `);
+    db.exec(readFileSync(path.join(rootDir, "server", "migrations", "034_cloudkit_chat_remote_cleanup.sql"), "utf8"));
+    const cleanupRows = db.prepare(`
+      SELECT request_id as requestId, status, next_attempt_at as nextAttemptAt, created_at as createdAt
+      FROM cloudkit_chat_remote_cleanup
+      ORDER BY request_id
+    `).all();
+    assert.equal(cleanupRows.length, 1);
+    assert.equal(cleanupRows[0].requestId, "consumed-request");
+    assert.equal(cleanupRows[0].status, "queued");
+    assert.equal(cleanupRows[0].nextAttemptAt, 1700000000123);
+    assert.equal(cleanupRows[0].createdAt, 1700000000123);
+  } finally {
+    db.close();
+    await rm(dataDir, { recursive: true, force: true });
+  }
 });

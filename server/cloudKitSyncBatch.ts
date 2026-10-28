@@ -1,8 +1,6 @@
 import crypto from "crypto";
 import { db } from "./db";
 import type { getIcloudDataSyncReadiness } from "./icloudDataSyncReadiness.ts";
-import { listCloudKitChatResponsePayloads } from "./cloudKitChatJobs";
-import { cloudKitChatResponseRecordName } from "./cloudKitChatProtocol";
 
 type IcloudDataSyncReadiness = ReturnType<typeof getIcloudDataSyncReadiness>;
 type CloudKitSyncStatus = "skipped" | "blocked" | "empty" | "needs-review" | "ready";
@@ -85,6 +83,12 @@ export type CloudKitSyncExportRecord = {
   fields: Record<string, string | number | boolean>;
 };
 
+export type CloudKitSyncExportDeletion = {
+  zone: string;
+  recordType: string;
+  recordName: string;
+};
+
 export type CloudKitSyncExportPackage = {
   ok: boolean;
   status: "blocked" | "ready";
@@ -97,6 +101,7 @@ export type CloudKitSyncExportPackage = {
     recordPlanHash: string;
     generatedAt: string;
     records: CloudKitSyncExportRecord[];
+    deletions?: CloudKitSyncExportDeletion[];
     zones: Array<{ zone: string; records: number }>;
   };
   safety: {
@@ -363,22 +368,6 @@ function collectChatRecords(limit: number) {
       logicalClock: payload.logicalClock,
       requiresUserReview: false,
     }), limit);
-  }
-
-  const chatJobTable = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'cloudkit_chat_jobs'").get();
-  if (chatJobTable) {
-    for (const response of listCloudKitChatResponsePayloads(limit)) {
-      pushReady(records, blockedRecords, counts, buildRecord({
-        id: response.requestId,
-        dataType: "chat-history",
-        zone: "LifeOSChatZone",
-        recordType: "LifeOSChatResponse",
-        recordName: cloudKitChatResponseRecordName(response.requestId),
-        payload: response,
-        logicalClock: response.updatedAt,
-        requiresUserReview: false,
-      }), limit);
-    }
   }
 
   return { records, blockedRecords, counts };

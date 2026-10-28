@@ -17,6 +17,7 @@ export function formatDevicePairingCreateError(error: unknown, t: Translate) {
   const normalized = normalizedErrorMessage(error);
 
   if (code === "binding_session_create_failed") return t("devicePair.createFailedRestart");
+  if (code === "lan_pairing_requires_lan_binding") return t("devicePair.createFailedLanBindingRequired");
   if (status === 401 || status === 403) return t("devicePair.createFailedLogin");
   if (status === 429) return t("devicePair.createFailedRateLimit");
   if (status >= 500 || /^request failed:\s*5\d\d/i.test(message)) return t("devicePair.createFailedRestart");

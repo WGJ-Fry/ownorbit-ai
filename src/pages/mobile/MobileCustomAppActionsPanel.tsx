@@ -142,12 +142,22 @@ export default function MobileCustomAppActionsPanel() {
 
   const toggleCapability = async (appId: string, capability: CustomAppCapabilityId) => {
     const currentCapabilities = capabilityManifests[appId]?.allowedCapabilities || defaultCapabilityIds;
+    const enabling = !currentCapabilities.includes(capability);
+    let allowedNetworkOrigins = capabilityManifests[appId]?.allowedNetworkOrigins || [];
+    if (capability === "network" && enabling) {
+      const input = window.prompt(t("customAppActions.networkOriginsPrompt"), allowedNetworkOrigins.join(", "));
+      if (input === null) return;
+      allowedNetworkOrigins = input.split(/[\s,]+/).map((item) => item.trim()).filter(Boolean);
+      if (allowedNetworkOrigins.length === 0) return alert(t("customAppActions.networkOriginsRequired"));
+    } else if (capability === "network") {
+      allowedNetworkOrigins = [];
+    }
     const nextCapabilities = currentCapabilities.includes(capability)
       ? currentCapabilities.filter((item) => item !== capability)
       : [...currentCapabilities, capability];
     setSavingCapabilityAppId(appId);
     try {
-      const data = await updateCustomAppCapabilityManifest(appId, { allowedCapabilities: nextCapabilities });
+      const data = await updateCustomAppCapabilityManifest(appId, { allowedCapabilities: nextCapabilities, allowedNetworkOrigins });
       setCapabilityManifests((items) => ({ ...items, [appId]: data.manifest }));
     } catch (capabilityError: any) {
       alert(capabilityError?.message || t("customAppActions.capabilityUpdateFailed"));
@@ -309,6 +319,11 @@ export default function MobileCustomAppActionsPanel() {
                         );
                       })}
                     </div>
+                    {manifest?.allowedNetworkOrigins.length ? (
+                      <div className="mt-2 break-all text-[10px] leading-relaxed text-cyan-100/70">
+                        {t("customAppActions.networkOriginsLine", { origins: manifest.allowedNetworkOrigins.join(", ") })}
+                      </div>
+                    ) : null}
                   </div>
                 </article>
               );
@@ -335,6 +350,11 @@ export default function MobileCustomAppActionsPanel() {
                   {t(`customAppActions.capabilityStatus.${request.status}` as TranslationKey)}
                 </span>
               </div>
+              {request.requestedNetworkOrigins.length ? (
+                <div className="mt-2 break-all text-[10px] leading-relaxed text-amber-100/80">
+                  {t("customAppActions.networkOriginsLine", { origins: request.requestedNetworkOrigins.join(", ") })}
+                </div>
+              ) : null}
               <div className="flex flex-wrap gap-1.5">
                 {request.requestedCapabilities.map((capability) => (
                   <span key={capability} className="rounded-full border border-amber-300/15 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-100">

@@ -38,6 +38,7 @@ const PRESERVED_EXACT_KEYS = new Set([
   "lifeos_admin_session",
   "lifeos_active_chat_session_id",
   "lifeos_messages",
+  "lifeos_chat_draft",
   "lifeos_model_engine",
   "lifeos_byok_provider",
   "lifeos_tts_voice",
