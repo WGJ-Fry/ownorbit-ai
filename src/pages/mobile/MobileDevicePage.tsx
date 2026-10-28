@@ -5,8 +5,8 @@ import type { DeviceConnectivityReport, DeviceCredentialStorageStatus } from "..
 import { clearOfflineMessageQueue, getOfflineMessageConflictGroups, getOfflineMessageQueue, getOfflineMessageQueueRecoverySummary, getOfflineMessageQueueStorageStatus, getOfflineMessageQueueSummary, removeFailedOfflineMessages, removeOfflineMessages, requestOfflineMessageQueuePersistentStorage, resolveOfflineMessageConflictGroup, retryFailedOfflineMessages, retryOfflineMessage, subscribeOfflineMessageQueue } from "../../services/offlineMessageQueue";
 import type { OfflineMessageConflictGroup, OfflineMessageConflictResolutionOption, OfflineMessageQueueStorageStatus, OfflineQueuedMessage } from "../../services/offlineMessageQueue";
 import { getNetworkStatus } from "../../services/networkStatus";
-import { resolvePairingInputDestination } from "../../services/mobilePairingIntent";
-import { getMobileConnectivityIssue, getMobileRecoveryHints, getPwaCapabilityStatus, getRemoteEntryGuidance, getRemoteEntryStatus, mobileConnectivityResultFromReport, testMobileRemoteConnectivity } from "../../services/pwaCapabilities";
+import { resolvePairingInputDestination, savePendingPairingToken } from "../../services/mobilePairingIntent";
+import { getMobileConnectivityIssue, getMobileRecoveryHints, getPwaCapabilityStatus, getRemoteEntryGuidance, getRemoteEntryStatus, isTemporaryCloudflareOrigin, mobileConnectivityResultFromReport, testMobileRemoteConnectivity } from "../../services/pwaCapabilities";
 import type { MobileConnectivityResult } from "../../services/pwaCapabilities";
 import { getPwaServiceWorkerLifecycleStatus, subscribePwaServiceWorkerLifecycle } from "../../services/pwaServiceWorkerLifecycle";
 import type { PwaServiceWorkerLifecycleStatus } from "../../services/pwaServiceWorkerLifecycle";
@@ -21,6 +21,7 @@ import MobileOfflineQueueRecoveryCard from "./MobileOfflineQueueRecoveryCard";
 import MobileOfflineQueuePanel from "./MobileOfflineQueuePanel";
 import MobileRemoteEntryCard from "./MobileRemoteEntryCard";
 import MobilePwaCapabilitiesCard from "./MobilePwaCapabilitiesCard";
+import MobileTemporaryEntryCard from "./MobileTemporaryEntryCard";
 import { CredentialExpiryCard, CredentialStorageCard, PairingLinkPanel, Row } from "./MobileDeviceStatusCards";
 import { useI18n } from "../../i18n/I18nProvider";
 
@@ -58,6 +59,7 @@ export default function MobileDevicePage() {
   const queueRecovery = useMemo(() => getOfflineMessageQueueRecoverySummary(queueItems, { online: network.online, networkQuality: network.quality, remoteOk: currentEntry.okForRemote }), [currentEntry.okForRemote, network.online, network.quality, queueItems]);
   const connectivityReportStale = Boolean(lastConnectivityReport && Date.now() - lastConnectivityReport.createdAt > 6 * 60 * 60 * 1000);
   const rebindDestination = useMemo(() => resolvePairingInputDestination(pairingInput, window.location.origin), [pairingInput]);
+  const onTemporaryCloudflareOrigin = useMemo(() => isTemporaryCloudflareOrigin(), []);
   const refreshCredentialStorage = async () => {
     const storage = await getStoredDeviceCredentialStorageStatus().catch(() => null);
     setCredentialStorage(storage);
@@ -300,8 +302,11 @@ export default function MobileDevicePage() {
     // Another origin has its own credential storage, so pairing there never
     // overwrites this one. Keep it as the fallback (the desktop can revoke it)
     // instead of leaving the phone with nothing if the new address fails.
-    if (options.clearCurrent && !destination.crossOrigin) {
-      await clearStoredDeviceCredential();
+    if (!destination.crossOrigin) {
+      // Saved before the credential goes, so the pair page can still recover
+      // the token if the install URL is lost on the way.
+      await savePendingPairingToken(destination.token);
+      if (options.clearCurrent) await clearStoredDeviceCredential();
     }
     window.location.href = destination.href;
   };
@@ -332,6 +337,7 @@ export default function MobileDevicePage() {
       </header>
 
       <main className="mx-auto max-w-md p-4">
+        {onTemporaryCloudflareOrigin ? <MobileTemporaryEntryCard /> : null}
         <MobileDeviceHealthSummary
           credential={credential}
           credentialStorage={credentialStorage}

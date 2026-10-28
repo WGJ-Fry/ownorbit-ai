@@ -1389,14 +1389,33 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.doesNotMatch(translationsSource, /Chats will stay in this phone's offline queue/);
   assert.match(mobileChatSource, /isTemporaryEntryLikelyLost/);
   assert.match(mobileChatSource, /mobile\.temporaryEntryLostBody/);
+  // The lost-address hint waits for two minutes of failure, not a count of
+  // quick retries, and its pill only links to the steps on the device page.
+  assert.match(mobileChatSource, /failingSince/);
+  assert.match(mobileChatSource, /TEMPORARY_ENTRY_LOST_AFTER_MS/);
+  assert.doesNotMatch(mobileChatSource, /failedAttempts: retryAttempt/);
+  assert.match(realtimeHookSource, /failingSince/);
+  assert.match(mobileChatSource, /mobile\.temporaryEntryLostAction/);
+  assert.match(translationsSource, /"mobile\.temporaryEntryLostTitle": "这个临时地址可能已失效"/);
+  assert.match(translationsSource, /"mobile\.temporaryEntryLostTitle": "Temporary address may have changed"/);
+  assert.match(translationsSource, /"mobile\.temporaryEntryLostAction": "查看处理步骤"/);
+  assert.match(translationsSource, /"mobile\.temporaryEntryLostAction": "See what to do"/);
+  assert.doesNotMatch(translationsSource, /也不会自动恢复/);
+  assert.doesNotMatch(translationsSource, /很可能已经失效/);
+  assert.doesNotMatch(translationsSource, /has probably changed/);
+  assert.doesNotMatch(translationsSource, /对话记录保存在电脑上，不会因此丢失/);
+  assert.doesNotMatch(translationsSource, /conversation history is stored on the computer and is not lost/);
+  assert.match(translationsSource, /已经发到电脑上的消息会留在电脑上，可以在电脑端 OwnOrbit 里查看；手机上的新页面会从一个新对话开始/);
+  assert.match(translationsSource, /Messages that already reached the computer stay there and can be viewed in the desktop app; the new page on this phone starts a new chat/);
   assert.match(mobileChatSource, /resolvePairingInputDestination/);
+  assert.match(mobileChatSource, /if \(!destination\.crossOrigin\) savePendingPairingToken\(destination\.token\);/);
   assert.doesNotMatch(translationsSource, /下次启动会自动创建新的 Tunnel/);
   assert.doesNotMatch(translationsSource, /next launch will create a fresh Tunnel/);
   assert.match(mobileChatSource, /mobile\.openDeviceConnection/);
   assert.match(mobileChatSource, /\/mobile\/device/);
   assert.match(translationsSource, /正在恢复添加到桌面时保存的绑定信息/);
-  assert.match(translationsSource, /打开设备与连接，可以测试当前入口/);
-  assert.match(translationsSource, /Open Device & Connection to test the current entry/);
+  assert.match(translationsSource, /"mobile\.realtimeOfflineBody": "没发出去的内容会留在输入框里，连上后再点发送。"/);
+  assert.match(translationsSource, /"mobile\.realtimeOfflineBody": "Anything not sent stays in the input box; send it again once reconnected\."/);
   assert.match(mobileChatSource, /launchPairingToken/);
   assert.match(mobileChatSource, /setPairingManifestToken/);
   assert.match(mobileChatSource, /pairingInstallPath/);
@@ -1743,7 +1762,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /打开 Tailscale/);
   assert.match(translationsSource, /重新绑定远程入口/);
   assert.match(translationsSource, /离线消息同步失败/);
-  assert.match(translationsSource, /临时 Cloudflare Tunnel 很可能已失效/);
+  assert.match(translationsSource, /临时 Cloudflare Tunnel 连不上：如果电脑只是睡眠或断网，唤醒并联网后会恢复/);
   assert.match(translationsSource, /Tailscale 通路不可达/);
   assert.match(translationsSource, /只有实时通道失败/);
   assert.match(translationsSource, /实时聊天通道/);
@@ -1758,6 +1777,58 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /add OwnOrbit to the home screen/);
 
   const pwaCapabilitiesSource = await readFile(path.join(rootDir, "src", "services", "pwaCapabilities.ts"), "utf8");
+  // The offline queue only holds messages already shown in the chat whose
+  // save to the desktop failed (voice mode, or replies whose save failed). A
+  // typed message or photo that can't be sent is not queued: it stays in the
+  // input box. No copy may promise that offline sends enter the queue.
+  for (const queuePromise of [
+    /之后断网发送/,
+    /断网发送可能丢失/,
+    /继续离线发送/,
+    /发送失败时会进入离线队列/,
+    /消息会先留在本地队列/,
+    /消息会先进入本地队列/,
+    /发送后看一下队列状态/,
+    /发送重要内容后检查队列/,
+    /离线保护已开启/,
+    /Future offline sends/,
+    /future offline messages will appear here/,
+    /Sends made offline may be lost/,
+    /More offline sends/,
+    /Failed sends will enter the offline queue/,
+    /Messages stay in the local queue/,
+    /Messages will enter the local queue/,
+    /check queue status after sending/,
+    /Check the queue after important sends/,
+    /Offline Protection Is Active/,
+  ]) {
+    assert.doesNotMatch(translationsSource, queuePromise);
+    assert.doesNotMatch(pwaCapabilitiesSource, queuePromise);
+  }
+  assert.match(translationsSource, /只有已经显示在对话里、但没能保存到电脑的消息（例如语音模式里的消息，或保存失败的回复）/);
+  assert.match(translationsSource, /Only messages already shown in the chat that fail to save to the computer \(such as voice-mode messages, or replies whose save failed\)/);
+  assert.match(pwaCapabilitiesSource, /You are offline\. Typed messages and photos can't be sent and stay in the input box/);
+  const desktopReleaseDoc = await readFile(path.join(rootDir, "docs", "desktop-release.md"), "utf8");
+  assert.doesNotMatch(desktopReleaseDoc, /failed messages remain in the offline queue/);
+  assert.match(desktopReleaseDoc, /A typed message or photo that cannot be sent is not queued/);
+  // A quick tunnel does not "change after restart": it stops working when the
+  // desktop app or the computer restarts or the tunnel stops, and nothing
+  // recreates it.
+  for (const restartPromise of [
+    /重启后地址可能变化/,
+    /服务重启后地址可能变化/,
+    /可能会在电脑端重启后失效/,
+    /它可能已经过期/,
+    /may change after restart/,
+    /may change after the service restarts/,
+    /may stop working after the desktop restarts/,
+    /It may have expired/,
+    /likely expired/,
+  ]) {
+    assert.doesNotMatch(translationsSource, restartPromise);
+  }
+  assert.match(pwaCapabilitiesSource, /isTemporaryCloudflareOrigin/);
+  assert.match(pwaCapabilitiesSource, /TEMPORARY_ENTRY_LOST_AFTER_MS = 2 \* 60 \* 1000/);
   assert.match(pwaCapabilitiesSource, /serviceWorkerControlled/);
   assert.match(pwaCapabilitiesSource, /backgroundSyncSupported/);
   assert.match(pwaCapabilitiesSource, /indexedDbSupported/);
@@ -1950,7 +2021,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(chatPersistenceSource, /networkQuality/);
   assert.match(mobileDeviceSource, /navigator\.clipboard\.writeText/);
   assert.match(mobileDeviceSource, /resolvePairingInputDestination/);
-  assert.match(mobileDeviceSource, /clearCurrent && !destination\.crossOrigin/);
+  // Same-origin re-pairing saves the token as a pending intent before the
+  // credential is cleared; another origin never clears it.
+  assert.match(mobileDeviceSource, /if \(!destination\.crossOrigin\) \{[\s\S]{0,240}await savePendingPairingToken\(destination\.token\);\s*if \(options\.clearCurrent\) await clearStoredDeviceCredential\(\);/);
+  assert.match(mobileDeviceSource, /MobileTemporaryEntryCard/);
+  assert.match(mobileDeviceSource, /isTemporaryCloudflareOrigin\(\)/);
   assert.doesNotMatch(mobileDeviceSource, /window\.location\.href = `\/mobile\/pair\?token=/);
   assert.match(mobileDeviceSource, /getOfflineMessageQueueStorageStatus/);
   assert.match(mobileDeviceSource, /MobileOfflineQueuePanel/);
@@ -2448,6 +2523,13 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(cloudflareTunnelActionsSource, /disabled=\{!canStart \|\| tunnelBusy === "start"\}/);
   assert.match(cloudflareTunnelActionsSource, /connection\.cloudflareInstallRequired/);
   assert.match(cloudflareTunnelActionsSource, /cloudflare\.installCommand/);
+  // The server keeps a quick tunnel's URL after cloudflared exits; "running"
+  // copy needs running && ready, and a dead one says it stopped.
+  assert.match(cloudflareTunnelActionsSource, /managed\.kind !== "named" && managed\.running && managed\.ready/);
+  assert.match(cloudflareTunnelActionsSource, /connection\.cloudflareManagedStopped/);
+  assert.doesNotMatch(cloudflareTunnelActionsSource, /\{cloudflare\.managed\.url \? \(/);
+  assert.match(translationsSource, /"connection\.cloudflareManagedStopped": "临时 Tunnel \{\{url\}\} 已停止，这个地址不会自己恢复。/);
+  assert.match(translationsSource, /"connection\.cloudflareManagedStopped": "The temporary tunnel \{\{url\}\} has stopped and will not come back by itself\./);
 
   const devicePairSource = await readFile(path.join(rootDir, "src", "pages", "admin", "DevicePairPage.tsx"), "utf8");
   assert.match(devicePairSource, /connectionCandidates/);

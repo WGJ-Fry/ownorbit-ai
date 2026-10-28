@@ -258,17 +258,118 @@ test("pasted pairing links keep a base path and drop credentials, query and frag
     pairing.resolvePairingInputDestination("https://user:secret@proxy.example.com/ownorbit/mobile/install/bind_strip_extras?next=/admin#frag", current)?.href,
     "https://proxy.example.com/ownorbit/mobile/install/bind_strip_extras",
   );
-  // Same origin under a base path stays a path, and a doubled slash can never
-  // turn that path into a protocol-relative URL to another host.
-  assert.deepEqual(
-    pairing.resolvePairingInputDestination("https://proxy.example.com/ownorbit/mobile/install/bind_same_origin_base", "https://proxy.example.com"),
-    { token: "bind_same_origin_base", href: "/ownorbit/mobile/install/bind_same_origin_base", crossOrigin: false },
+  // A cross-origin destination keeps the base path but never doubles a slash.
+  assert.equal(
+    pairing.resolvePairingInputDestination("https://proxy.example.com//ownorbit/mobile/install/bind_double_slash_base", current)?.href,
+    "https://proxy.example.com/ownorbit/mobile/install/bind_double_slash_base",
   );
-  const slashed = pairing.resolvePairingInputDestination("https://proxy.example.com//evil.example/mobile/install/bind_double_slash", "https://proxy.example.com");
-  assert.equal(slashed?.crossOrigin, false);
-  assert.equal(slashed?.href, "/evil.example/mobile/install/bind_double_slash");
   // extractPairingToken itself is unchanged: it still reads only root install paths.
   assert.equal(pairing.extractPairingToken("https://proxy.example.com/ownorbit/mobile/install/bind_base_path_token"), "");
+});
+
+test("same-origin pairing links under a base path stay rejected so the credential is kept", async () => {
+  installStorage();
+  delete globalThis.indexedDB;
+  const pairing = await import(`../src/services/mobilePairingIntent.ts?case=destination-same-base-${Date.now()}`);
+  const current = "https://proxy.example.com";
+
+  // The pair page reads its token only from a root /mobile/install/ path, so
+  // following these would clear the credential here and then fail to pair.
+  // Before pasted links were followed they were rejected as unreadable; they
+  // still are (the device page then keeps the credential).
+  for (const raw of [
+    "https://proxy.example.com/ownorbit/mobile/install/bind_same_origin_base",
+    "https://proxy.example.com/ownorbit/mobile/pair?token=bind_same_origin_base_query",
+    "https://proxy.example.com/my%20apps/ownorbit/mobile/chat?pairingToken=bind_same_origin_nested",
+    // A doubled slash can never become a protocol-relative path to another host.
+    "https://proxy.example.com//evil.example/mobile/install/bind_double_slash",
+    "https:/proxy.example.com/ownorbit/mobile/install/bind_sloppy_same_origin_base",
+  ]) {
+    assert.equal(pairing.resolvePairingInputDestination(raw, current), null, raw);
+    assert.equal(pairing.resolvePairingInputDestination(raw, `${current}/ownorbit/mobile/device`), null, `${raw} from a base-path page`);
+  }
+  // Root links on the same origin are unaffected.
+  assert.deepEqual(
+    pairing.resolvePairingInputDestination("https://proxy.example.com/mobile/install/bind_same_origin_root", current),
+    { token: "bind_same_origin_root", href: "/mobile/install/bind_same_origin_root", crossOrigin: false },
+  );
+});
+
+test("scheme links with malformed slashes and backslash host forms never resolve to this origin", async () => {
+  installStorage();
+  delete globalThis.indexedDB;
+  const pairing = await import(`../src/services/mobilePairingIntent.ts?case=destination-malformed-${Date.now()}`);
+  const current = "https://old-quick.trycloudflare.com";
+  const newHost = "https://new-quick.trycloudflare.com";
+
+  // Resolved against an https page, "https:/host" and "https:host" keep the
+  // page's host and push the intended one into the path; a "\\host" pair is a
+  // host to the URL parser. Each must land on the new host (or be rejected),
+  // never become a same-origin path that clears this origin's credential.
+  for (const [raw, token] of [
+    ["https:/new-quick.trycloudflare.com/mobile/install/bind_one_slash_scheme", "bind_one_slash_scheme"],
+    ["https:new-quick.trycloudflare.com/mobile/install/bind_no_slash_scheme", "bind_no_slash_scheme"],
+    ["https:\\new-quick.trycloudflare.com/mobile/install/bind_backslash_scheme", "bind_backslash_scheme"],
+    ["HTTPS:\\\\new-quick.trycloudflare.com/mobile/install/bind_double_backslash_scheme", "bind_double_backslash_scheme"],
+    ["https:/\\new-quick.trycloudflare.com/mobile/pair?token=bind_mixed_slash_scheme", "bind_mixed_slash_scheme"],
+    ["\\\\new-quick.trycloudflare.com/mobile/install/bind_backslash_pair", "bind_backslash_pair"],
+    ["/\\new-quick.trycloudflare.com/mobile/install/bind_slash_backslash", "bind_slash_backslash"],
+    ["\\/new-quick.trycloudflare.com/mobile/install/bind_backslash_slash", "bind_backslash_slash"],
+    ["\t\\\\new-quick.trycloudflare.com/mobile/install/bind_padded_backslash_pair\n", "bind_padded_backslash_pair"],
+  ]) {
+    assert.deepEqual(
+      pairing.resolvePairingInputDestination(raw, current),
+      { token, href: `${newHost}/mobile/install/${token}`, crossOrigin: true },
+      JSON.stringify(raw),
+    );
+  }
+  // A sloppy scheme link keeps a base path on the other host too.
+  assert.equal(
+    pairing.resolvePairingInputDestination("https:/proxy.example.com/ownorbit/mobile/install/bind_sloppy_base_path", current)?.href,
+    "https://proxy.example.com/ownorbit/mobile/install/bind_sloppy_base_path",
+  );
+  // An http page reads "https:/host" as the https host, not a path either.
+  assert.equal(
+    pairing.resolvePairingInputDestination("https:/new-quick.trycloudflare.com/mobile/install/bind_from_http_page", "http://192.168.1.20:3000")?.crossOrigin,
+    true,
+  );
+  // A sloppy link that really names this host is still this origin.
+  assert.deepEqual(
+    pairing.resolvePairingInputDestination("https:/old-quick.trycloudflare.com/mobile/install/bind_sloppy_same_host", current),
+    { token: "bind_sloppy_same_host", href: "/mobile/install/bind_sloppy_same_host", crossOrigin: false },
+  );
+  // Non-http schemes written the same way stay rejected, and a backslash host
+  // pair needs a known page origin to inherit a scheme from.
+  assert.equal(pairing.resolvePairingInputDestination("javascript:/new-quick.trycloudflare.com/mobile/install/bind_sloppy_javascript", current), null);
+  assert.equal(pairing.resolvePairingInputDestination("\\\\mac.tailnet.ts.net/mobile/install/bind_backslash_unknown_origin", ""), null);
+  // A single leading backslash is still just a path on this origin.
+  assert.deepEqual(
+    pairing.resolvePairingInputDestination("\\mobile/install/bind_single_backslash_path", current),
+    { token: "bind_single_backslash_path", href: "/mobile/install/bind_single_backslash_path", crossOrigin: false },
+  );
+});
+
+test("saving a pending pairing token can be awaited and never rejects", async () => {
+  const storage = installStorage();
+  globalThis.indexedDB = createFakeIndexedDb();
+  const pairing = await import(`../src/services/mobilePairingIntent.ts?case=awaited-save-${Date.now()}`);
+
+  // The device page awaits this before clearing the credential and leaving.
+  const saving = pairing.savePendingPairingToken("bind_awaited_save_token", 1_000);
+  assert.ok(saving instanceof Promise);
+  await saving;
+  pairing.clearPendingPairingIntentCacheForTests();
+  assert.equal(await pairing.peekPendingPairingTokenAsync(2_000), "bind_awaited_save_token");
+  assert.equal(storage.has("lifeos_pending_pairing_intent"), false);
+
+  // IndexedDB and localStorage both failing still resolves.
+  globalThis.indexedDB = { open() { throw new Error("blocked"); } };
+  globalThis.localStorage.setItem = () => { throw new Error("quota"); };
+  await pairing.savePendingPairingToken("bind_storage_blocked_token", 1_000);
+  assert.equal(pairing.peekPendingPairingToken(2_000), "bind_storage_blocked_token");
+  assert.equal(await pairing.savePendingPairingToken("not-a-bind-token", 1_000), undefined);
+
+  delete globalThis.indexedDB;
 });
 
 test("pasted pairing links on the current origin keep today's relative install path", async () => {

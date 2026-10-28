@@ -1363,7 +1363,11 @@ export type NetworkDiagnostics = {
     running: boolean;
     managed: {
       running: boolean;
+      // running && the tunnel has its URL / registered connection.
+      ready: boolean;
       starting: boolean;
+      phase: "stopped" | "starting" | "ready" | "stopping";
+      // Kept after cloudflared exits; check running/ready before calling it live.
       url: string;
       pid: number | null;
       startedAt: number | null;

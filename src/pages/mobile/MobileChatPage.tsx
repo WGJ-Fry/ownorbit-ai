@@ -6,7 +6,7 @@ import { getMobilePairingIntent, getStoredDeviceCredential, getStoredDeviceCrede
 import { consumePendingPairingTokenAsync, extractPairingToken, pairingInstallPath, peekPendingPairingToken, resolvePairingInputDestination, savePendingPairingToken, setPairingManifestToken } from "../../services/mobilePairingIntent";
 import { loadMobileInstallHintDismissed, saveMobileInstallHintDismissed } from "../../services/mobileInstallHintStorage";
 import { getNetworkStatus } from "../../services/networkStatus";
-import { getRemoteEntryStatus, isTemporaryEntryLikelyLost } from "../../services/pwaCapabilities";
+import { getRemoteEntryStatus, isTemporaryEntryLikelyLost, TEMPORARY_ENTRY_LOST_AFTER_MS } from "../../services/pwaCapabilities";
 import LanguageSwitcher from "../../i18n/LanguageSwitcher";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { TranslationKey } from "../../i18n/translations";
@@ -21,7 +21,7 @@ const STATUS_CLASS = {
 
 export default function MobileChatPage() {
   const { t } = useI18n();
-  const { lastError, lastEventAt, nextReconnectAt, retryAttempt, status } = useLifeOSRealtime();
+  const { failingSince, lastError, lastEventAt, nextReconnectAt, retryAttempt, status } = useLifeOSRealtime();
   const [credential, setCredential] = useState(() => getStoredDeviceCredential());
   const [loadedCredential, setLoadedCredential] = useState(Boolean(credential));
   const [pairingInput, setPairingInput] = useState("");
@@ -34,16 +34,28 @@ export default function MobileChatPage() {
   const shouldShowInstallHint = !isStandalone && !installHintDismissed;
   const launchPairingToken = extractPairingToken(new URLSearchParams(window.location.search).get("pairingToken") || "");
   const currentEntryKind = useMemo(() => getRemoteEntryStatus().kind, []);
+  const [, setLostCheckTick] = useState(0);
   const temporaryEntryLost = isTemporaryEntryLikelyLost({
     entryKind: currentEntryKind,
     realtimeStatus: status,
-    failedAttempts: retryAttempt,
+    failingSince,
+    now: Date.now(),
     phoneOnline: getNetworkStatus().online,
   });
 
   useEffect(() => {
     void handleMobileIcloudHandoffLaunch();
   }, []);
+
+  // Reconnect attempts back off to 30 s apart, so re-check right when the
+  // failure run crosses the threshold instead of waiting for the next one.
+  useEffect(() => {
+    if (currentEntryKind !== "temporary-cloudflare" || status !== "offline" || failingSince === null) return undefined;
+    const remaining = failingSince + TEMPORARY_ENTRY_LOST_AFTER_MS - Date.now();
+    if (remaining <= 0) return undefined;
+    const timer = window.setTimeout(() => setLostCheckTick((tick) => tick + 1), remaining);
+    return () => window.clearTimeout(timer);
+  }, [currentEntryKind, failingSince, status]);
 
   useEffect(() => {
     let cancelled = false;
@@ -142,6 +154,8 @@ export default function MobileChatPage() {
       setPairingInputError(t("mobile.pairingInvalid"));
       return;
     }
+    // A pending intent only helps a pairing on this origin.
+    if (!destination.crossOrigin) savePendingPairingToken(destination.token);
     window.location.href = destination.href;
   };
 
@@ -218,7 +232,7 @@ export default function MobileChatPage() {
 
   return (
     <>
-      <div className={`fixed left-1/2 top-2 z-[100] max-w-[calc(100vw-6.5rem)] -translate-x-1/2 rounded-2xl border px-3 py-1 text-center text-[11px] font-bold backdrop-blur-xl ${STATUS_CLASS[status]}`}>
+      <div data-testid="mobile-realtime-status" className={`fixed left-1/2 top-2 z-[100] max-w-[calc(100vw-6.5rem)] -translate-x-1/2 rounded-2xl border px-3 py-1 text-center text-[11px] font-bold backdrop-blur-xl ${STATUS_CLASS[status]}`}>
         <div>{t(`mobile.status.${status}` as TranslationKey)}</div>
         {status === "offline" && nextReconnectAt ? (
           <div className="mt-0.5 text-[10px] font-medium opacity-80">
@@ -231,9 +245,12 @@ export default function MobileChatPage() {
         ) : null}
         {status === "offline" ? (
           <div className="mt-2 rounded-xl border border-red-200/10 bg-black/15 p-2 text-left text-[10px] font-medium leading-relaxed text-red-50/85">
+            {/* This pill sits over the chat and cannot be dismissed: keep it to
+                a title and one short sentence. The full steps live on the
+                device page. */}
             {temporaryEntryLost ? (
               <>
-                <div className="font-bold text-red-50">{t("mobile.temporaryEntryLostTitle")}</div>
+                <div data-testid="mobile-temporary-entry-lost" className="font-bold text-red-50">{t("mobile.temporaryEntryLostTitle")}</div>
                 <div className="mt-1">{t("mobile.temporaryEntryLostBody")}</div>
               </>
             ) : (
@@ -242,7 +259,7 @@ export default function MobileChatPage() {
             {lastError ? <div className="mt-1 truncate text-red-50/55">{t("mobile.realtimeErrorDetail", { message: lastError })}</div> : null}
             <a href="/mobile/device" className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded-lg border border-red-100/20 bg-red-100/10 px-2 py-1.5 text-[10px] font-bold text-red-50">
               <Smartphone className="h-3 w-3" />
-              {t("mobile.openDeviceConnection")}
+              {t(temporaryEntryLost ? "mobile.temporaryEntryLostAction" : "mobile.openDeviceConnection")}
             </a>
           </div>
         ) : null}

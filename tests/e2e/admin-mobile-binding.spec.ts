@@ -1171,15 +1171,24 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
         cloudflare: {
           installed: true,
           running: true,
+          // A quick tunnel this app started earlier whose cloudflared has
+          // since exited: the server keeps the URL and the last error.
           managed: {
             running: false,
+            ready: false,
             starting: false,
-            url: "",
+            phase: "stopped",
+            url: "https://crashed-lifeos.trycloudflare.com",
             pid: null,
             startedAt: null,
-            command: "",
+            command: "cloudflared tunnel --url http://127.0.0.1:3333",
             lastOutput: "",
-            lastError: "",
+            lastError: "cloudflared exited (SIGKILL).",
+            kind: "quick",
+            reconnectAttempts: 0,
+            lastReconnectAt: null,
+            reconnectScheduledAt: null,
+            reconnectReason: "",
           },
           version: "cloudflared version 2026.6.0",
           detectedUrls: ["https://amber-lifeos.trycloudflare.com"],
@@ -1244,6 +1253,14 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(page.getByText("http://192.168.31.10:3333").first()).toBeVisible();
   await expect(page.getByText("lifeos-mac", { exact: true })).toBeVisible();
   await expect(page.getByText("推荐绑定地址")).toBeVisible();
+  // A crashed quick tunnel is not "running": say it stopped, show why, and
+  // leave Start (not Stop) as the way back.
+  const crashedQuickTunnel = page.getByTestId("cloudflare-quick-tunnel-stopped");
+  await expect(crashedQuickTunnel).toContainText("临时 Tunnel https://crashed-lifeos.trycloudflare.com 已停止，这个地址不会自己恢复。");
+  await expect(crashedQuickTunnel).toContainText("cloudflared exited (SIGKILL).");
+  await expect(page.getByText("已启动临时公网地址：https://crashed-lifeos.trycloudflare.com")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "一键启动 Cloudflare Tunnel", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "停止 Cloudflare Tunnel", exact: true })).toHaveCount(0);
   await expect(page.getByText("Cloudflare Tunnel", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Tailscale MagicDNS", { exact: true })).toBeVisible();
   await expect(page.getByText("需重启生效").first()).toBeVisible();

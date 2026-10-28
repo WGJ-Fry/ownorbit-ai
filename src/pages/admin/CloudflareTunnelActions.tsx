@@ -15,6 +15,13 @@ export default function CloudflareTunnelActions({
 }) {
   const { t } = useI18n();
   const canStart = cloudflare.installed;
+  const managed = cloudflare.managed;
+  // The server keeps the last URL after cloudflared exits, so a URL alone does
+  // not mean the tunnel is up: only claim "running" while it is ready.
+  const quickTunnelUp = Boolean(managed.url) && managed.kind !== "named" && managed.running && managed.ready;
+  const namedTunnelUp = Boolean(managed.url) && managed.kind === "named" && managed.running;
+  // A quick tunnel's address dies with its process and nothing restarts it.
+  const quickTunnelStopped = Boolean(managed.url) && managed.kind !== "named" && !managed.running;
 
   return (
     <div className="mt-3 grid gap-2">
@@ -26,7 +33,7 @@ export default function CloudflareTunnelActions({
         <WandSparkles className="h-3.5 w-3.5" />
         {tunnelBusy === "start" ? t("connection.cloudflareStarting") : t("connection.cloudflareStart")}
       </button>
-      {cloudflare.managed.running ? (
+      {managed.running ? (
         <button
           onClick={onStop}
           disabled={tunnelBusy === "stop"}
@@ -36,27 +43,32 @@ export default function CloudflareTunnelActions({
           {tunnelBusy === "stop" ? t("connection.cloudflareStopping") : t("connection.cloudflareStop")}
         </button>
       ) : null}
-      {cloudflare.managed.url ? (
+      {quickTunnelUp || namedTunnelUp ? (
         <div className="space-y-1 rounded-xl border border-emerald-400/15 bg-emerald-500/10 p-2 text-[11px] leading-relaxed text-emerald-100">
           <div>
-            {cloudflare.managed.kind === "named"
-              ? t("connection.cloudflareNamedManagedUrl", { url: cloudflare.managed.url })
-              : t("connection.cloudflareManagedUrl", { url: cloudflare.managed.url })}
+            {namedTunnelUp
+              ? t("connection.cloudflareNamedManagedUrl", { url: managed.url })
+              : t("connection.cloudflareManagedUrl", { url: managed.url })}
           </div>
-          {cloudflare.managed.kind === "named" ? (
+          {namedTunnelUp ? (
             <div className="text-emerald-100/80">
-              {cloudflare.managed.reconnectAttempts > 0
-                ? t("connection.cloudflareReconnectRestored", { count: cloudflare.managed.reconnectAttempts })
+              {managed.reconnectAttempts > 0
+                ? t("connection.cloudflareReconnectRestored", { count: managed.reconnectAttempts })
                 : t("connection.cloudflareReconnectReady")}
             </div>
           ) : null}
         </div>
-      ) : cloudflare.managed.lastError ? (
+      ) : quickTunnelStopped ? (
+        <div data-testid="cloudflare-quick-tunnel-stopped" className="space-y-1 rounded-xl border border-amber-400/15 bg-amber-500/10 p-2 text-[11px] leading-relaxed text-amber-100">
+          <div>{t("connection.cloudflareManagedStopped", { url: managed.url })}</div>
+          {managed.lastError ? <div className="text-amber-100/75">{managed.lastError}</div> : null}
+        </div>
+      ) : managed.lastError ? (
         <div className="rounded-xl border border-amber-400/15 bg-amber-500/10 p-2 text-[11px] leading-relaxed text-amber-100">
-          {cloudflare.managed.lastError}
-          {cloudflare.managed.reconnectScheduledAt ? (
+          {managed.lastError}
+          {managed.reconnectScheduledAt ? (
             <div className="mt-1">
-              {t("connection.cloudflareReconnectScheduled", { time: new Date(cloudflare.managed.reconnectScheduledAt).toLocaleTimeString() })}
+              {t("connection.cloudflareReconnectScheduled", { time: new Date(managed.reconnectScheduledAt).toLocaleTimeString() })}
             </div>
           ) : null}
         </div>

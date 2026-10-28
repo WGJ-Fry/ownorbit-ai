@@ -449,26 +449,39 @@ export function getMobileConnectivityIssue(
   return "mobileDevice.connectivityIssueUnknown";
 }
 
-// A trycloudflare address dies with its cloudflared process and is never
-// recreated, so once the realtime socket keeps failing there the useful advice
-// is "get the new address", not "wait". Five failures in a row span about 15 s
-// of reconnect backoff (1 + 2 + 4 + 8 s): long enough for a Wi-Fi/cellular
-// handoff or a brief tunnel reconnect to recover on its own, short enough that
-// someone staring at a dead address gets the explanation quickly. Returning to
-// the app restarts the reconnect loop and with it this count. While the phone
-// itself is offline the address is not what's broken, so no verdict.
-export const TEMPORARY_ENTRY_LOST_AFTER_FAILURES = 5;
+// A trycloudflare address dies with its cloudflared process, but a sleeping or
+// briefly offline Mac, or cloudflared re-registering with the edge, also break
+// the socket, and then the SAME address comes back. Those usually clear within
+// a minute, so wait for two minutes of failure without a break while this
+// phone is online (the realtime hook restarts the clock on "online" and on
+// returning to the app). The copy still starts with "wake the computer".
+export const TEMPORARY_ENTRY_LOST_AFTER_MS = 2 * 60 * 1000;
 
 export function isTemporaryEntryLikelyLost(input: {
   entryKind: RemoteEntryKind;
   realtimeStatus: string;
-  failedAttempts: number;
+  failingSince: number | null;
+  now: number;
   phoneOnline: boolean;
 }) {
   return input.entryKind === "temporary-cloudflare"
     && input.realtimeStatus === "offline"
     && input.phoneOnline
-    && input.failedAttempts >= TEMPORARY_ENTRY_LOST_AFTER_FAILURES;
+    && input.failingSince !== null
+    && input.now - input.failingSince >= TEMPORARY_ENTRY_LOST_AFTER_MS;
+}
+
+// The device page explains a temporary address whenever the page itself was
+// opened from one, even when the desktop has since saved a different address
+// (which getRemoteEntryStatus reports as a mismatch instead).
+export function isTemporaryCloudflareOrigin(currentHref?: string) {
+  const base = currentBaseFromHref(currentHref);
+  if (!base) return false;
+  try {
+    return new URL(base).hostname.toLowerCase().endsWith(".trycloudflare.com");
+  } catch {
+    return false;
+  }
 }
 
 export function getRemoteEntryGuidance(
@@ -542,7 +555,7 @@ export function getPwaCapabilityStatus(): PwaCapabilityStatus {
     status.recommendations.push("IndexedDB is unavailable, which affects device credentials and long-term offline state. Check private browsing settings.");
   }
   if (!status.online) {
-    status.recommendations.push("You are offline. Messages will enter the local queue and sync when the network returns.");
+    status.recommendations.push("You are offline. Typed messages and photos can't be sent and stay in the input box; messages already in the queue sync when the network returns.");
   }
 
   return status;

@@ -6,9 +6,16 @@ const INSTALL_PATH_PREFIX = "/mobile/install/";
 const DB_NAME = "lifeos-pairing-intent";
 const STORE_NAME = "intents";
 const PAIRING_INTENT_RECORD_ID = "pending";
-// Input with a scheme ("https:", "javascript:") or a protocol-relative "//host"
+// Input with a scheme ("https:", "javascript:") or a protocol-relative host
 // names its own origin; anything else is a bare token or a path on this origin.
-const ORIGIN_BEARING_INPUT = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
+// In http(s) URLs the parser reads "\" as "/", so any two of them ("//",
+// "\\", "/\", "\/") start a host, not a path.
+const SCHEME_INPUT = /^[a-z][a-z0-9+.-]*:/i;
+const PROTOCOL_RELATIVE_INPUT = /^[\\/]{2}/;
+
+function isOriginBearingInput(value: string) {
+  return SCHEME_INPUT.test(value) || PROTOCOL_RELATIVE_INPUT.test(value);
+}
 
 type PairingIntent = {
   token: string;
@@ -162,7 +169,7 @@ function originOf(value: string) {
 function parsePairingUrl(value: string, base: string | undefined, allowBasePath: boolean) {
   try {
     const parsed = new URL(value, base);
-    const rawBasePath = allowBasePath && ORIGIN_BEARING_INPUT.test(value) ? getLifeOSBasePath(parsed.pathname) : "";
+    const rawBasePath = allowBasePath && isOriginBearingInput(value) ? getLifeOSBasePath(parsed.pathname) : "";
     const routePath = parsed.pathname.slice(rawBasePath.length);
     const pathToken = routePath.startsWith(INSTALL_PATH_PREFIX)
       ? safeDecodeURIComponent(routePath.slice(INSTALL_PATH_PREFIX.length))
@@ -206,38 +213,51 @@ export function pairingInstallPath(token: string) {
 export function resolvePairingInputDestination(raw: unknown, currentOrigin: string): PairingInputDestination | null {
   const value = cleanPairingInput(raw);
   if (!value) return null;
-  if (!ORIGIN_BEARING_INPUT.test(value)) {
+  if (!isOriginBearingInput(value)) {
     const token = extractPairingToken(value);
     return token ? { token, href: pairingInstallPath(token), crossOrigin: false } : null;
   }
   const current = originOf(currentOrigin);
-  const result = parsePairingUrl(value, current || undefined, true);
+  // A link with a scheme is read on its own. Resolved against this page, a
+  // mistyped "https:/host/…" or "https:host/…" would keep this page's host
+  // and turn the intended one into a path (the parser only reads a host when
+  // the scheme differs from the base's). Only "//host" needs this page's scheme.
+  const base = SCHEME_INPUT.test(value) ? undefined : current || undefined;
+  const result = parsePairingUrl(value, base, true);
   if (!result?.token) return null;
   if (result.parsed.protocol !== "http:" && result.parsed.protocol !== "https:") return null;
   const installPath = `${result.basePath}${pairingInstallPath(result.token)}`;
   if (current && result.parsed.origin === current) {
+    // The pair page only reads a token from a root /mobile/install/ path, so
+    // a same-origin link under a base path would clear the credential here
+    // and then fail to pair. Keep rejecting it, as before links were followed.
+    if (result.basePath) return null;
     return { token: result.token, href: installPath, crossOrigin: false };
   }
   return { token: result.token, href: `${result.parsed.origin}${installPath}`, crossOrigin: true };
 }
 
-export function savePendingPairingToken(token: string, now = Date.now()) {
+// Resolves once the intent is stored (IndexedDB, or the localStorage
+// fallback); callers that are about to navigate away can await it.
+export function savePendingPairingToken(token: string, now = Date.now()): Promise<void> {
   const normalized = extractPairingToken(token);
-  if (!normalized.startsWith("bind_")) return;
+  if (!normalized.startsWith("bind_")) return Promise.resolve();
   const intent: PairingIntent = {
     token: normalized,
     createdAt: now,
     expiresAt: now + PAIRING_INTENT_TTL_MS,
   };
   intentCache = intent;
-  void writeIndexedPairingIntent(intent)
+  return writeIndexedPairingIntent(intent)
     .then((written) => {
       if (written && localStorageAvailable()) localStorage.removeItem(PAIRING_INTENT_KEY);
       else if (!written && localStorageAvailable()) localStorage.setItem(PAIRING_INTENT_KEY, JSON.stringify(intent));
     })
     .catch(() => {
       if (localStorageAvailable()) localStorage.setItem(PAIRING_INTENT_KEY, JSON.stringify(intent));
-    });
+    })
+    // The in-memory intent above still covers this page; never fail a caller.
+    .catch(() => undefined);
 }
 
 export function peekPendingPairingToken(now = Date.now()) {
