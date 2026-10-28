@@ -1733,7 +1733,7 @@ function checkAssets() {
   if (
     mobileDeviceStatusCardsSource.includes("mobileDevice.pastePairingLink") &&
     mobileDeviceSource.includes("mobileDevice.rebindButton") &&
-    mobileDeviceSource.includes("pairingInstallPath") &&
+    mobileDeviceSource.includes("resolvePairingInputDestination") &&
     !mobileDeviceSource.includes('href="/mobile/pair"') &&
     !mobileDeviceSource.includes("window.location.href = `/mobile/pair?token=")
   ) pass("mobile device page supports token paste rebinding without naked pair links");

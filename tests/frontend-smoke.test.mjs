@@ -1385,6 +1385,13 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileChatSource, /recoveringPairingIntent/);
   assert.match(mobileChatSource, /mobile\.recoveringPairing/);
   assert.match(mobileChatSource, /mobile\.realtimeOfflineBody/);
+  assert.doesNotMatch(translationsSource, /聊天会继续保存在本机离线队列里/);
+  assert.doesNotMatch(translationsSource, /Chats will stay in this phone's offline queue/);
+  assert.match(mobileChatSource, /isTemporaryEntryLikelyLost/);
+  assert.match(mobileChatSource, /mobile\.temporaryEntryLostBody/);
+  assert.match(mobileChatSource, /resolvePairingInputDestination/);
+  assert.doesNotMatch(translationsSource, /下次启动会自动创建新的 Tunnel/);
+  assert.doesNotMatch(translationsSource, /next launch will create a fresh Tunnel/);
   assert.match(mobileChatSource, /mobile\.openDeviceConnection/);
   assert.match(mobileChatSource, /\/mobile\/device/);
   assert.match(translationsSource, /正在恢复添加到桌面时保存的绑定信息/);
@@ -1942,7 +1949,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(chatPersistenceSource, /deviceIdHint/);
   assert.match(chatPersistenceSource, /networkQuality/);
   assert.match(mobileDeviceSource, /navigator\.clipboard\.writeText/);
-  assert.match(mobileDeviceSource, /pairingInstallPath/);
+  assert.match(mobileDeviceSource, /resolvePairingInputDestination/);
+  assert.match(mobileDeviceSource, /clearCurrent && !destination\.crossOrigin/);
   assert.doesNotMatch(mobileDeviceSource, /window\.location\.href = `\/mobile\/pair\?token=/);
   assert.match(mobileDeviceSource, /getOfflineMessageQueueStorageStatus/);
   assert.match(mobileDeviceSource, /MobileOfflineQueuePanel/);

@@ -5,7 +5,7 @@ import type { DeviceConnectivityReport, DeviceCredentialStorageStatus } from "..
 import { clearOfflineMessageQueue, getOfflineMessageConflictGroups, getOfflineMessageQueue, getOfflineMessageQueueRecoverySummary, getOfflineMessageQueueStorageStatus, getOfflineMessageQueueSummary, removeFailedOfflineMessages, removeOfflineMessages, requestOfflineMessageQueuePersistentStorage, resolveOfflineMessageConflictGroup, retryFailedOfflineMessages, retryOfflineMessage, subscribeOfflineMessageQueue } from "../../services/offlineMessageQueue";
 import type { OfflineMessageConflictGroup, OfflineMessageConflictResolutionOption, OfflineMessageQueueStorageStatus, OfflineQueuedMessage } from "../../services/offlineMessageQueue";
 import { getNetworkStatus } from "../../services/networkStatus";
-import { extractPairingToken, pairingInstallPath } from "../../services/mobilePairingIntent";
+import { resolvePairingInputDestination } from "../../services/mobilePairingIntent";
 import { getMobileConnectivityIssue, getMobileRecoveryHints, getPwaCapabilityStatus, getRemoteEntryGuidance, getRemoteEntryStatus, mobileConnectivityResultFromReport, testMobileRemoteConnectivity } from "../../services/pwaCapabilities";
 import type { MobileConnectivityResult } from "../../services/pwaCapabilities";
 import { getPwaServiceWorkerLifecycleStatus, subscribePwaServiceWorkerLifecycle } from "../../services/pwaServiceWorkerLifecycle";
@@ -57,6 +57,7 @@ export default function MobileDevicePage() {
   const conflictGroups = useMemo(() => getOfflineMessageConflictGroups(queueItems), [queueItems]);
   const queueRecovery = useMemo(() => getOfflineMessageQueueRecoverySummary(queueItems, { online: network.online, networkQuality: network.quality, remoteOk: currentEntry.okForRemote }), [currentEntry.okForRemote, network.online, network.quality, queueItems]);
   const connectivityReportStale = Boolean(lastConnectivityReport && Date.now() - lastConnectivityReport.createdAt > 6 * 60 * 60 * 1000);
+  const rebindDestination = useMemo(() => resolvePairingInputDestination(pairingInput, window.location.origin), [pairingInput]);
   const refreshCredentialStorage = async () => {
     const storage = await getStoredDeviceCredentialStorageStatus().catch(() => null);
     setCredentialStorage(storage);
@@ -291,15 +292,18 @@ export default function MobileDevicePage() {
   };
 
   const openPairingInput = async (options: { clearCurrent?: boolean } = {}) => {
-    const token = extractPairingToken(pairingInput);
-    if (!token) {
+    const destination = resolvePairingInputDestination(pairingInput, window.location.origin);
+    if (!destination) {
       setPairingInputError(t("mobile.pairingInvalid"));
       return;
     }
-    if (options.clearCurrent) {
+    // Another origin has its own credential storage, so pairing there never
+    // overwrites this one. Keep it as the fallback (the desktop can revoke it)
+    // instead of leaving the phone with nothing if the new address fails.
+    if (options.clearCurrent && !destination.crossOrigin) {
       await clearStoredDeviceCredential();
     }
-    window.location.href = pairingInstallPath(token);
+    window.location.href = destination.href;
   };
 
   const handleConnectivityTest = async () => {
@@ -425,7 +429,7 @@ export default function MobileDevicePage() {
                     setPairingInputError(null);
                   }}
                   onSubmit={() => openPairingInput({ clearCurrent: true })}
-                  buttonLabel={t("mobileDevice.rebindButton")}
+                  buttonLabel={t(rebindDestination?.crossOrigin ? "mobileDevice.rebindButtonNewAddress" : "mobileDevice.rebindButton")}
                   title={t("mobileDevice.rebindTitle")}
                   body={t("mobileDevice.rebindBody")}
                 />

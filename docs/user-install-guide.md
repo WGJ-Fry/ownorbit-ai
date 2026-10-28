@@ -208,7 +208,7 @@ Tailscale HTTPS Serve 会给手机一个 `https://<device>.<tailnet>` 入口，�
    LIFEOS_REMOTE_ACCEPTANCE_OUT="./remote-acceptance.json" LIFEOS_REMOTE_BASE_URL="https://<your-tunnel>.trycloudflare.com" npm run remote:acceptance
    ```
 
-`trycloudflare.com` 快速隧道是临时地址。OwnOrbit AI 会在下次启动时自动重新创建 Tunnel 并刷新二维码地址，但已经添加到手机主屏幕的旧临时域名可能失效。需要长期固定入口时，请使用 Tailscale、Cloudflare Named Tunnel，或自己的可信 HTTPS 反向代理。
+`trycloudflare.com` 快速隧道是临时地址：电脑端 OwnOrbit AI 重启、电脑重启，或 Tunnel 停止、意外退出后，这个地址就会失效，OwnOrbit AI 不会自动重新创建它。需要时请回到“手机连接向导”再次点击“一键启动 Cloudflare Tunnel”，让手机扫描新的二维码完成绑定，把新页面重新添加到主屏幕，并删除指向旧临时域名的主屏幕图标。手机聊天页在临时地址上持续连不上时，也会给出同样的提示。需要长期固定入口时，请使用 Tailscale HTTPS Serve、Cloudflare Named Tunnel，或自己的可信 HTTPS 反向代理。
 
 ## AI Key
 
@@ -473,7 +473,7 @@ For an HTTPS public entry, use Cloudflare Tunnel:
    LIFEOS_REMOTE_ACCEPTANCE_OUT="./remote-acceptance.json" LIFEOS_REMOTE_BASE_URL="https://<your-tunnel>.trycloudflare.com" npm run remote:acceptance
    ```
 
-Quick `trycloudflare.com` tunnels are temporary. OwnOrbit AI can recreate a Tunnel on the next launch and refresh QR addresses, but an old home-screen icon that points to the previous temporary domain may stop working. For a stable long-term entry, use Tailscale, Cloudflare Named Tunnel, or your own trusted HTTPS reverse proxy.
+Quick `trycloudflare.com` tunnels are temporary: once the desktop app restarts, the computer reboots, or the tunnel stops or crashes, the address stops working, and OwnOrbit AI does not recreate it automatically. When you need it again, click `Start Cloudflare Tunnel` in the connection guide, scan the new QR code on the phone, add the new page to the home screen again, and delete the old home-screen icon that points to the previous temporary domain. The phone chat page shows the same steps when it keeps failing to reconnect on a temporary address. For a stable long-term entry, use Tailscale HTTPS Serve, Cloudflare Named Tunnel, or your own trusted HTTPS reverse proxy.
 
 For long-term acceptance, complete every manual item in the desktop `Long-Term Remote Acceptance Checklist`: turn off phone Wi-Fi and send a message over cellular data; switch the phone between Wi-Fi and cellular and confirm queue/realtime recovery; regenerate the pairing QR and verify an old QR or stale home-screen entry fails safely before re-pairing with the fresh QR; interrupt and restore Tailscale/Tunnel/network connectivity and confirm the phone shows clear recovery guidance; quit and reopen the desktop app, run `Run Remote Health Check`, and mark restart restore as verified. If you use Apple devices and the iCloud entry is the default path, the `Apple / iCloud Remote Entry` card can record the same real-device evidence directly from first launch. Add a short note for each item that states the phone, network, entry URL type, and result; OwnOrbit stores it in the same long-term acceptance records and diagnostic bundle. Export a diagnostic bundle from Settings afterward; it includes the remote health summary, latest remote smoke report, acceptance checklist, and recent manual acceptance records. For release promotion, save that remote acceptance JSON as `release/remote-acceptance-evidence.json`, or set `LIFEOS_REMOTE_ACCEPTANCE_EVIDENCE=/path/to/diagnostic-bundle.json` before `npm run version:truth:release`. The release truth check rejects promotion without real cellular, network-switch, restart, stale-QR, tunnel-interruption, and diagnostic-export evidence.
 

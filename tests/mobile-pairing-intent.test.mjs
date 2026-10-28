@@ -205,3 +205,133 @@ test("mobile pair page can switch manifest href for iOS add-to-home-screen", asy
 
   delete globalThis.document;
 });
+
+test("pasted pairing links on another origin open there instead of replaying the token here", async () => {
+  installStorage();
+  delete globalThis.indexedDB;
+  const pairing = await import(`../src/services/mobilePairingIntent.ts?case=destination-cross-${Date.now()}`);
+  const current = "https://old-quick.trycloudflare.com";
+
+  assert.deepEqual(
+    pairing.resolvePairingInputDestination("https://new-quick.trycloudflare.com/mobile/install/bind_new_tunnel_token", current),
+    { token: "bind_new_tunnel_token", href: "https://new-quick.trycloudflare.com/mobile/install/bind_new_tunnel_token", crossOrigin: true },
+  );
+  // Legacy pair-page and manifest start_url forms land on the install path too.
+  assert.equal(
+    pairing.resolvePairingInputDestination("https://new-quick.trycloudflare.com/mobile/pair?token=bind_legacy_pair_link", current)?.href,
+    "https://new-quick.trycloudflare.com/mobile/install/bind_legacy_pair_link",
+  );
+  assert.equal(
+    pairing.resolvePairingInputDestination("http://192.168.1.20:3000/mobile/chat?pairingToken=bind_manifest_start", current)?.href,
+    "http://192.168.1.20:3000/mobile/install/bind_manifest_start",
+  );
+  // Scheme, host and port each make a different origin.
+  assert.equal(pairing.resolvePairingInputDestination("http://old-quick.trycloudflare.com/mobile/install/bind_scheme_differs", current)?.crossOrigin, true);
+  assert.equal(pairing.resolvePairingInputDestination("https://old-quick.trycloudflare.com:8443/mobile/install/bind_port_differs", current)?.crossOrigin, true);
+  // Protocol-relative links name a host as well and inherit this page's scheme.
+  assert.deepEqual(
+    pairing.resolvePairingInputDestination("//mac.tailnet.ts.net/mobile/install/bind_protocol_relative", current),
+    { token: "bind_protocol_relative", href: "https://mac.tailnet.ts.net/mobile/install/bind_protocol_relative", crossOrigin: true },
+  );
+  // Surrounding whitespace from a copy/paste is tolerated.
+  assert.equal(
+    pairing.resolvePairingInputDestination("  https://new-quick.trycloudflare.com/mobile/install/bind_padded_link\n", current)?.href,
+    "https://new-quick.trycloudflare.com/mobile/install/bind_padded_link",
+  );
+});
+
+test("pasted pairing links keep a base path and drop credentials, query and fragment", async () => {
+  installStorage();
+  delete globalThis.indexedDB;
+  const pairing = await import(`../src/services/mobilePairingIntent.ts?case=destination-base-${Date.now()}`);
+  const current = "https://old-quick.trycloudflare.com";
+
+  assert.deepEqual(
+    pairing.resolvePairingInputDestination("https://proxy.example.com/ownorbit/mobile/install/bind_base_path_token", current),
+    { token: "bind_base_path_token", href: "https://proxy.example.com/ownorbit/mobile/install/bind_base_path_token", crossOrigin: true },
+  );
+  assert.equal(
+    pairing.resolvePairingInputDestination("https://proxy.example.com/my%20apps/ownorbit/mobile/pair?token=bind_nested_base_path", current)?.href,
+    "https://proxy.example.com/my%20apps/ownorbit/mobile/install/bind_nested_base_path",
+  );
+  assert.equal(
+    pairing.resolvePairingInputDestination("https://user:secret@proxy.example.com/ownorbit/mobile/install/bind_strip_extras?next=/admin#frag", current)?.href,
+    "https://proxy.example.com/ownorbit/mobile/install/bind_strip_extras",
+  );
+  // Same origin under a base path stays a path, and a doubled slash can never
+  // turn that path into a protocol-relative URL to another host.
+  assert.deepEqual(
+    pairing.resolvePairingInputDestination("https://proxy.example.com/ownorbit/mobile/install/bind_same_origin_base", "https://proxy.example.com"),
+    { token: "bind_same_origin_base", href: "/ownorbit/mobile/install/bind_same_origin_base", crossOrigin: false },
+  );
+  const slashed = pairing.resolvePairingInputDestination("https://proxy.example.com//evil.example/mobile/install/bind_double_slash", "https://proxy.example.com");
+  assert.equal(slashed?.crossOrigin, false);
+  assert.equal(slashed?.href, "/evil.example/mobile/install/bind_double_slash");
+  // extractPairingToken itself is unchanged: it still reads only root install paths.
+  assert.equal(pairing.extractPairingToken("https://proxy.example.com/ownorbit/mobile/install/bind_base_path_token"), "");
+});
+
+test("pasted pairing links on the current origin keep today's relative install path", async () => {
+  installStorage();
+  delete globalThis.indexedDB;
+  const pairing = await import(`../src/services/mobilePairingIntent.ts?case=destination-same-${Date.now()}`);
+  const current = "https://old-quick.trycloudflare.com";
+  const same = { token: "bind_same_origin_token", href: "/mobile/install/bind_same_origin_token", crossOrigin: false };
+
+  assert.deepEqual(pairing.resolvePairingInputDestination("bind_same_origin_token", current), same);
+  assert.deepEqual(pairing.resolvePairingInputDestination("/mobile/install/bind_same_origin_token", current), same);
+  assert.deepEqual(pairing.resolvePairingInputDestination("https://old-quick.trycloudflare.com/mobile/install/bind_same_origin_token", current), same);
+  assert.deepEqual(pairing.resolvePairingInputDestination("HTTPS://OLD-QUICK.trycloudflare.com:443/mobile/install/bind_same_origin_token", current), same);
+  assert.deepEqual(pairing.resolvePairingInputDestination("https://old-quick.trycloudflare.com/mobile/chat?pairingToken=bind_same_origin_token", `${current}/mobile/device`), same);
+});
+
+test("pasted pairing links reject non-http schemes and unreadable input", async () => {
+  installStorage();
+  delete globalThis.indexedDB;
+  const pairing = await import(`../src/services/mobilePairingIntent.ts?case=destination-unsafe-${Date.now()}`);
+  const current = "https://old-quick.trycloudflare.com";
+
+  for (const raw of [
+    "",
+    "   ",
+    "not-a-pairing-link",
+    "javascript:alert(1)//mobile/install/bind_javascript_attack",
+    "javascript:location='https://evil.example/?token=bind_javascript_query'",
+    "JaVaScRiPt:alert('/mobile/install/bind_mixed_case_scheme')",
+    "java\tscript:alert(1)?token=bind_tab_split_scheme",
+    "java\nscript:alert(1)?pairingToken=bind_newline_split_scheme",
+    "\u0001javascript:alert(1)?token=bind_control_prefix",
+    "data:text/html,<a href='/mobile/install/bind_data_url_token'>x</a>",
+    "data:text/html;base64,PHNjcmlwdD4=?token=bind_data_query_token",
+    "vbscript:msgbox?token=bind_vbscript_token",
+    "file:///mobile/install/bind_file_url_token",
+    "ftp://files.example.com/mobile/install/bind_ftp_url_token",
+    "mailto:someone@example.com?token=bind_mailto_token",
+    "lifeos://connect/mobile/install/bind_custom_scheme_token",
+    // A host without a scheme must not be taken for a path on this origin.
+    "new-quick.trycloudflare.com/mobile/install/bind_schemeless_host",
+    "https://new-quick.trycloudflare.com/mobile/install/bind_<script>alert(1)</script>",
+    "https://new-quick.trycloudflare.com/mobile/install/bind_unsafe_token_123%2Fextra",
+    "https://new-quick.trycloudflare.com/mobile/chat",
+  ]) {
+    assert.equal(pairing.resolvePairingInputDestination(raw, current), null, JSON.stringify(raw));
+  }
+  assert.equal(pairing.resolvePairingInputDestination(null, current), null);
+  assert.equal(pairing.resolvePairingInputDestination(undefined, current), null);
+});
+
+test("pasted pairing links still resolve when the current origin is unknown", async () => {
+  installStorage();
+  delete globalThis.indexedDB;
+  const pairing = await import(`../src/services/mobilePairingIntent.ts?case=destination-no-origin-${Date.now()}`);
+
+  assert.deepEqual(
+    pairing.resolvePairingInputDestination("https://new-quick.trycloudflare.com/mobile/install/bind_unknown_current", "null"),
+    { token: "bind_unknown_current", href: "https://new-quick.trycloudflare.com/mobile/install/bind_unknown_current", crossOrigin: true },
+  );
+  assert.equal(pairing.resolvePairingInputDestination("//mac.tailnet.ts.net/mobile/install/bind_unknown_current", ""), null);
+  assert.deepEqual(
+    pairing.resolvePairingInputDestination("bind_unknown_current", ""),
+    { token: "bind_unknown_current", href: "/mobile/install/bind_unknown_current", crossOrigin: false },
+  );
+});

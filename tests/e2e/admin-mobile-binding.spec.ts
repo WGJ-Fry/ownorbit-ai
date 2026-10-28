@@ -988,6 +988,20 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(phone.getByRole("button", { name: "粘贴新的绑定链接" })).toBeVisible();
   await phone.getByRole("button", { name: "粘贴新的绑定链接" }).click();
   await expect(phone.getByPlaceholder("https://.../mobile/install/bind_...")).toBeFocused();
+  // A pairing link on another origin (e.g. a restarted quick tunnel) must open
+  // there and leave this origin's credential in place as the fallback.
+  const newQuickTunnelOrigin = "https://e2e-new-quick.trycloudflare.com";
+  const newQuickTunnelPairingUrl = `${newQuickTunnelOrigin}/mobile/install/bind_e2e_new_quick_tunnel`;
+  await phone.route(`${newQuickTunnelOrigin}/**`, (route) => route.fulfill({ contentType: "text/html", body: "<!doctype html><title>new quick tunnel</title>" }));
+  await expect(phone.getByRole("button", { name: "清除旧凭证并重新绑定" })).toBeVisible();
+  await phone.getByPlaceholder("https://.../mobile/install/bind_...").fill(newQuickTunnelPairingUrl);
+  await expect(phone.getByRole("button", { name: "打开新地址并绑定" })).toBeVisible();
+  await Promise.all([
+    phone.waitForURL(newQuickTunnelPairingUrl),
+    phone.getByRole("button", { name: "打开新地址并绑定" }).click(),
+  ]);
+  await phone.unroute(`${newQuickTunnelOrigin}/**`);
+  await phone.goto(`${phoneBaseUrl}/mobile/device`);
   await expect(phone.getByText("已绑定电脑端")).toBeVisible();
   await expect(phone.getByText("Playwright Phone")).toBeVisible();
   await expect(phone.getByText("WebCrypto 签名", { exact: true })).toBeVisible();

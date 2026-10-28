@@ -9,6 +9,7 @@ import {
   consumePendingPairingTokenAsync,
   extractPairingToken,
   pairingInstallPath,
+  resolvePairingInputDestination,
   savePendingPairingToken,
   setPairingManifestToken,
 } from "../../services/mobilePairingIntent";
@@ -149,16 +150,18 @@ export default function MobilePairPage() {
   };
 
   const handlePairingLinkSubmit = () => {
-    const nextToken = extractPairingToken(pairingLinkInput);
-    if (!nextToken) {
+    const destination = resolvePairingInputDestination(pairingLinkInput, window.location.origin);
+    if (!destination) {
       setError({
         titleKey: "mobilePair.recoveryInvalidTitle",
         bodyKey: "mobilePair.recoveryInvalidBody",
       });
       return;
     }
-    savePendingPairingToken(nextToken);
-    window.location.assign(pairingInstallPath(nextToken));
+    // An intent saved here only helps a pairing on this origin; another
+    // origin reads the token from the link itself.
+    if (!destination.crossOrigin) savePendingPairingToken(destination.token);
+    window.location.assign(destination.href);
   };
 
   const handleConnectivityTest = async () => {

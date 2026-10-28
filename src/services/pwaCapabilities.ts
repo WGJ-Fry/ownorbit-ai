@@ -449,6 +449,28 @@ export function getMobileConnectivityIssue(
   return "mobileDevice.connectivityIssueUnknown";
 }
 
+// A trycloudflare address dies with its cloudflared process and is never
+// recreated, so once the realtime socket keeps failing there the useful advice
+// is "get the new address", not "wait". Five failures in a row span about 15 s
+// of reconnect backoff (1 + 2 + 4 + 8 s): long enough for a Wi-Fi/cellular
+// handoff or a brief tunnel reconnect to recover on its own, short enough that
+// someone staring at a dead address gets the explanation quickly. Returning to
+// the app restarts the reconnect loop and with it this count. While the phone
+// itself is offline the address is not what's broken, so no verdict.
+export const TEMPORARY_ENTRY_LOST_AFTER_FAILURES = 5;
+
+export function isTemporaryEntryLikelyLost(input: {
+  entryKind: RemoteEntryKind;
+  realtimeStatus: string;
+  failedAttempts: number;
+  phoneOnline: boolean;
+}) {
+  return input.entryKind === "temporary-cloudflare"
+    && input.realtimeStatus === "offline"
+    && input.phoneOnline
+    && input.failedAttempts >= TEMPORARY_ENTRY_LOST_AFTER_FAILURES;
+}
+
 export function getRemoteEntryGuidance(
   entry: Pick<RemoteEntryStatus, "kind" | "currentBase" | "okForRemote">,
   queue?: { pending?: number; failed?: number; syncing?: number },

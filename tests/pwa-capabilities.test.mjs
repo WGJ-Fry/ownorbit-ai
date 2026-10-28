@@ -145,6 +145,38 @@ test("remote entry status accepts stable HTTPS, Tailscale, and temporary Cloudfl
   assert.equal(quickTunnel.okForRemote, true);
 });
 
+test("temporary Cloudflare entry is reported lost only after repeated realtime failures while the phone is online", async () => {
+  const { getRemoteEntryStatus, isTemporaryEntryLikelyLost, TEMPORARY_ENTRY_LOST_AFTER_FAILURES } = await import(`../src/services/pwaCapabilities.ts?case=temporary-lost-${Date.now()}`);
+  const { realtimeReconnectDelay } = await import(`../src/hooks/useLifeOSRealtime.ts?case=temporary-lost-${Date.now()}`);
+  const entryKind = getRemoteEntryStatus({ currentHref: "https://dead-quick-tunnel.trycloudflare.com/mobile/chat" }).kind;
+  const lost = (overrides = {}) => isTemporaryEntryLikelyLost({
+    entryKind,
+    realtimeStatus: "offline",
+    failedAttempts: TEMPORARY_ENTRY_LOST_AFTER_FAILURES,
+    phoneOnline: true,
+    ...overrides,
+  });
+
+  assert.equal(entryKind, "temporary-cloudflare");
+  assert.equal(lost(), true);
+  assert.equal(lost({ failedAttempts: TEMPORARY_ENTRY_LOST_AFTER_FAILURES + 10 }), true);
+  // A short blip: the first few reconnects have not all failed yet.
+  for (let attempts = 0; attempts < TEMPORARY_ENTRY_LOST_AFTER_FAILURES; attempts += 1) {
+    assert.equal(lost({ failedAttempts: attempts }), false, `${attempts} failures should not trigger`);
+  }
+  // The threshold's comment promises roughly 15 s of backoff before it fires.
+  let backoffMs = 0;
+  for (let attempt = 0; attempt < TEMPORARY_ENTRY_LOST_AFTER_FAILURES - 1; attempt += 1) backoffMs += realtimeReconnectDelay(attempt);
+  assert.equal(backoffMs, 15_000);
+  // The phone itself offline means the address is not what is broken.
+  assert.equal(lost({ phoneOnline: false }), false);
+  assert.equal(lost({ realtimeStatus: "connecting" }), false);
+  assert.equal(lost({ realtimeStatus: "connected" }), false);
+  for (const otherKind of ["cloudflare-named", "tailscale", "stable-https", "same-lan", "configured-mismatch", "unknown"]) {
+    assert.equal(lost({ entryKind: otherKind }), false, `${otherKind} is not a temporary quick tunnel`);
+  }
+});
+
 test("remote entry status treats Tailscale HTTP as a fallback that needs HTTPS Serve", async () => {
   const { getRemoteEntryStatus } = await import(`../src/services/pwaCapabilities.ts?case=remote-tailscale-http-${Date.now()}`);
 
