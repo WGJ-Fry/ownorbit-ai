@@ -2286,8 +2286,16 @@ function buildConnectionCandidates(input: {
   const activeManagedCloudflareUrls = input.cloudflare.managed.ready && input.cloudflare.managed.url
     ? [input.cloudflare.managed.url]
     : [];
+  // A quick tunnel a named tunnel just replaced stays up for a short handoff
+  // window; until it is retired it is as live as the current quick tunnel.
+  const handoffCloudflareUrls = input.cloudflare.managed.handoff.running
+    && input.cloudflare.managed.handoff.url
+    && !activeManagedCloudflareUrls.includes(input.cloudflare.managed.handoff.url)
+    ? [input.cloudflare.managed.handoff.url]
+    : [];
   const isActiveTemporaryCloudflareUrl = (baseUrl: string) => (
-    isTemporaryTryCloudflareUrl(baseUrl) && activeManagedCloudflareUrls.includes(baseUrl)
+    isTemporaryTryCloudflareUrl(baseUrl)
+    && (activeManagedCloudflareUrls.includes(baseUrl) || handoffCloudflareUrls.includes(baseUrl))
   );
   if (input.desktopRuntimeConfig) {
     const savedBaseUrl = input.desktopRuntimeConfig.publicBaseUrl || input.desktopRuntimeConfig.baseUrl;
@@ -2384,6 +2392,18 @@ function buildConnectionCandidates(input: {
       requiresRestart: input.publicBaseUrl !== url,
       stability: "temporary",
       notes: ["Good for quick HTTPS remote access, but trycloudflare.com quick tunnels are temporary and may change after restart."],
+    }));
+  }
+  for (const url of handoffCloudflareUrls) {
+    candidates.push(connectionCandidate({
+      id: "cloudflare-handoff",
+      label: "Previous Cloudflare Tunnel",
+      baseUrl: url,
+      mode: "cloudflare",
+      priority: 80,
+      requiresRestart: input.publicBaseUrl !== url,
+      stability: "temporary",
+      notes: ["A Named Tunnel replaced this temporary Cloudflare Tunnel. It stays up briefly so connected phones can move to the new address, then it is stopped."],
     }));
   }
   if (input.tailscale.online && input.tailscale.serveRunning && input.tailscale.httpsServeUrl) {
@@ -2530,6 +2550,7 @@ function getCloudflareTunnelStatus(port: string) {
   const detectedUrls = Array.from(new Set([
     ...extractCloudflareTunnelUrls(processOutput.output),
     ...(managed.ready && managed.url ? [managed.url] : []),
+    ...(managed.handoff.running && managed.handoff.url ? [managed.handoff.url] : []),
   ]));
   return {
     installed,

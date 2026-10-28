@@ -2,7 +2,7 @@ import type express from "express";
 import crypto from "crypto";
 import { createDatabaseBackup, db } from "../db";
 import { maybeBroadcastDeviceEndpointsChange } from "../deviceEndpoints";
-import { releaseStoppedRemoteEntry, type SurvivingRemoteEntry } from "../remoteEntryRelease";
+import { isRestartStableRemoteEntry, releaseStoppedRemoteEntry, type SurvivingRemoteEntry } from "../remoteEntryRelease";
 import { insertAuditLog, listAuditLogs } from "../audit";
 import { aiProviders, deleteAiApiKey, getActiveAiProviderId, getAiApiKey, getAiConfigStatus, getAiProviderBaseUrl, getAiProviderDefinition, getAiProviderStatus, listAiProviderStatuses, saveActiveAiProvider, saveAiApiKey, saveDiscoveredAiModelCatalog, saveSelectedAiModel, supportsAiProviderModelDiscovery, type AiProviderId } from "../appSecrets";
 import { buildCalendarSyncPreview, buildCalendarSyncPreviewAsync, executeCalendarSyncOperationAsync } from "../calendarSyncPreview";
@@ -12,9 +12,9 @@ import { bootstrapAdminCredential, createAdminSession, getAdminSessionByToken, g
 import { createDiagnosticBundle, getReleaseDiagnostics } from "../diagnosticBundle";
 import { clearHttpOnlyCookie, getClientIp, rateLimit, setClientCookie, setHttpOnlyCookie } from "../httpSecurity";
 import { IcloudHandoffExportError, analyzeIcloudHandoffRepairPacket, cleanupIcloudHandoffEntries, exportIcloudHandoff, getNetworkDiagnostics, installTailscaleClient, maybeRefreshIcloudHandoff, retireIcloudHandoffEntry, startTailscaleHttpsServe, stopTailscaleHttpsServe, testConnectionUrl, getActiveTailscaleHttpsServeUrl } from "../networkDiagnostics";
-import { generateCloudflareNamedTunnelConfig, getCloudflareNamedTunnelStatus, getManagedCloudflareTunnelStatus, refreshCloudflareNamedTunnelConfigForPort, startConfiguredCloudflareNamedTunnel, startManagedCloudflareTunnel, stopManagedCloudflareTunnel } from "../cloudflareTunnel";
+import { generateCloudflareNamedTunnelConfig, getCloudflareNamedTunnelStatus, getManagedCloudflareTunnelStatus, refreshCloudflareNamedTunnelConfigForPort, setCloudflareQuickTunnelHandoffRetiredHandler, startConfiguredCloudflareNamedTunnel, startManagedCloudflareTunnel, stopManagedCloudflareTunnel } from "../cloudflareTunnel";
 import { getDesktopRuntimeConfig, saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
-import { getConfiguredPublicBaseUrl, normalizePublicBaseUrl } from "../publicBaseUrl";
+import { getConfiguredPublicBaseUrl, isTemporaryTryCloudflareUrl, normalizePublicBaseUrl } from "../publicBaseUrl";
 import { getRemoteValidationReport, saveRemoteValidationReport, summarizeRemoteHealth } from "../remoteValidationReport";
 import { getRemoteHealthEvidence, getRemoteHealthMonitorStatus, getRemoteRecoveryReport, runRemoteHealthCheck } from "../remoteHealthMonitor";
 import { getIcloudHandoffMonitorStatus, runIcloudHandoffStartupRefresh } from "../icloudHandoffMonitor";
@@ -947,6 +947,20 @@ function savedConfigAfterRemoteStop(survivor: SurvivingRemoteEntry) {
 }
 
 export function registerAdminRoutes(app: express.Express) {
+  // The quick tunnel a named tunnel replaced is retired by a timer or by its
+  // own exit, not by a route, so its address change is announced from here.
+  setCloudflareQuickTunnelHandoffRetiredHandler((retired) => {
+    try {
+      maybeBroadcastDeviceEndpointsChange(`cloudflare-quick-handoff-${retired.reason}`);
+    } catch {}
+    const icloudRefresh = safeAutoRefreshIcloudHandoff("cloudflare-quick-handoff-retired");
+    insertAuditLog("cloudflare_quick_tunnel_handoff_retired", "network", retired.url, {
+      reason: retired.reason,
+      url: retired.url,
+      icloudRefresh,
+    });
+  });
+
   app.get("/api/v1/admin/status", (req, res) => {
     const configured = isAdminConfigured();
     const authenticated = Boolean(getAdminSessionByToken(getBearerToken(req)));
@@ -2463,12 +2477,19 @@ export function registerAdminRoutes(app: express.Express) {
         process.env.LIFEOS_TRUST_PROXY = "1";
       }
       const icloudRefresh = safeAutoRefreshIcloudHandoff("cloudflare-named-tunnel-started");
+      // Phones still on a replaced quick tunnel learn the new hostname now,
+      // while that tunnel is kept up for the handoff window.
+      try {
+        maybeBroadcastDeviceEndpointsChange("cloudflare-named-tunnel-started");
+      } catch {}
       insertAuditLog("cloudflare_named_tunnel_started", "network", namedTunnel.baseUrl || "cloudflare-named", {
         pid: tunnel.pid,
         hostname: namedTunnel.hostname,
         configPath: namedTunnel.configPath,
         configRefreshReason: refresh.reason,
         configRefreshed: refresh.refreshed,
+        quickTunnelHandoffUrl: tunnel.handoff.url || null,
+        quickTunnelHandoffExpiresAt: tunnel.handoff.expiresAt,
         icloudRefresh,
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.json({ tunnel, namedTunnel, refresh, icloudRefresh, diagnostics: getAdminNetworkDiagnostics(), message: "Cloudflare Named Tunnel started. The stable HTTPS domain is now the mobile pairing address." });
@@ -2485,11 +2506,16 @@ export function registerAdminRoutes(app: express.Express) {
     try {
       const tunnel = await startManagedCloudflareTunnel(port);
       if (!tunnel.url) throw new Error("Cloudflare Tunnel did not return a public URL");
-      const config = saveDesktopRuntimeConfig({
+      // A quick tunnel is never restored at launch, so it must not replace a
+      // saved entry that is; it only takes over the runtime address below.
+      const savedConfig = getDesktopRuntimeConfig();
+      const keptSavedEntry = isRestartStableRemoteEntry(savedConfig) ? savedConfig : null;
+      const config = keptSavedEntry || saveDesktopRuntimeConfig({
         mode: "cloudflare",
         label: "Cloudflare Tunnel",
         baseUrl: tunnel.url,
       });
+      const keptSavedEntryMode = keptSavedEntry?.mode || null;
       process.env.PUBLIC_BASE_URL = tunnel.url;
       process.env.LIFEOS_ALLOW_PUBLIC = "1";
       process.env.LIFEOS_TRUST_PROXY = "1";
@@ -2501,15 +2527,19 @@ export function registerAdminRoutes(app: express.Express) {
         pid: tunnel.pid,
         url: tunnel.url,
         configMode: config.mode,
+        keptSavedEntryMode,
         publicBaseUrlConfigured: Boolean(config.publicBaseUrl),
         icloudRefresh,
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.json({
         tunnel,
         config,
+        keptSavedEntryMode,
         icloudRefresh,
         diagnostics: getAdminNetworkDiagnostics(),
-        message: "Cloudflare Tunnel started. The public HTTPS address has been saved for mobile pairing.",
+        message: keptSavedEntryMode
+          ? "Cloudflare Tunnel started. Its temporary HTTPS address is used for mobile pairing until it stops; the saved startup entry was kept for the next launch."
+          : "Cloudflare Tunnel started. The public HTTPS address has been saved for mobile pairing.",
       });
     } catch (error: any) {
       insertAuditLog("cloudflare_tunnel_start_failed", "network", "cloudflare", {
@@ -2523,16 +2553,26 @@ export function registerAdminRoutes(app: express.Express) {
     const activeTunnel = getManagedCloudflareTunnelStatus();
     const savedConfig = getDesktopRuntimeConfig();
     const stoppedUrl = activeTunnel.url || (savedConfig?.mode === "cloudflare" ? savedConfig.publicBaseUrl : "");
+    // Stop also ends a quick tunnel that is still in its handoff window.
+    const normalizedStoppedUrls = [stoppedUrl, activeTunnel.handoff.url].map(normalizePublicBaseUrl).filter(Boolean);
     const tunnel = await stopManagedCloudflareTunnel();
     const normalizedStoppedUrl = normalizePublicBaseUrl(stoppedUrl);
-    const clearedPublicBaseUrl = Boolean(normalizedStoppedUrl && normalizePublicBaseUrl(process.env.PUBLIC_BASE_URL) === normalizedStoppedUrl);
-    const clearedAppUrl = Boolean(normalizedStoppedUrl && normalizePublicBaseUrl(process.env.APP_URL) === normalizedStoppedUrl);
+    const clearedPublicBaseUrl = normalizedStoppedUrls.includes(normalizePublicBaseUrl(process.env.PUBLIC_BASE_URL));
+    const clearedAppUrl = normalizedStoppedUrls.includes(normalizePublicBaseUrl(process.env.APP_URL));
     if (clearedPublicBaseUrl) delete process.env.PUBLIC_BASE_URL;
     if (clearedAppUrl) delete process.env.APP_URL;
     const clearedActiveEntry = clearedPublicBaseUrl || clearedAppUrl;
     const survivor = clearedActiveEntry || savedConfig?.mode === "cloudflare" ? survivingRemoteEntry("cloudflare") : null;
     if (clearedActiveEntry) releaseStoppedRemoteEntry(survivor);
-    const config = savedConfig?.mode === "cloudflare" ? savedConfigAfterRemoteStop(survivor) : null;
+    // Only the saved Cloudflare entry that was actually stopped is replaced: a
+    // saved Named Tunnel stays when what stopped was a quick tunnel started
+    // over it. (Stop with nothing running still clears it.)
+    const savedEntryStopped = savedConfig?.mode === "cloudflare" && (
+      isTemporaryTryCloudflareUrl(savedConfig.publicBaseUrl)
+      || normalizePublicBaseUrl(savedConfig.publicBaseUrl) === normalizedStoppedUrl
+    );
+    const config = savedEntryStopped ? savedConfigAfterRemoteStop(survivor) : null;
+    const keptSavedEntryMode = !config && isRestartStableRemoteEntry(savedConfig) ? savedConfig?.mode || null : null;
     const requiresRestart = process.env.LIFEOS_HOST === "0.0.0.0";
     const icloud = reconcileIcloudHandoffAfterRemoteStop("cloudflare-tunnel-stopped");
     insertAuditLog("cloudflare_tunnel_stopped", "network", "cloudflare", {
@@ -2543,6 +2583,7 @@ export function registerAdminRoutes(app: express.Express) {
       clearedAppUrl,
       savedLocalMode: Boolean(config) && !survivor,
       survivingEntryMode: survivor?.mode || null,
+      keptSavedEntryMode,
       requiresRestart,
       icloudRefresh: icloud.refresh,
       icloudRetirement: icloud.retirement,
@@ -2554,6 +2595,7 @@ export function registerAdminRoutes(app: express.Express) {
       tunnel,
       config,
       clearedActiveEntry,
+      keptSavedEntryMode,
       requiresRestart,
       icloudRefresh: icloud.refresh,
       icloudRetirement: icloud.retirement,

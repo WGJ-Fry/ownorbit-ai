@@ -24,14 +24,15 @@ import { startBackupScheduler } from "./server/backupSchedule";
 import { startCloudKitAutoSyncScheduler } from "./server/cloudKitAutoSyncSchedule";
 import { startCloudKitChatLifecycleScheduler } from "./server/cloudKitChatLifecycle";
 import { startCloudKitChatRelayScheduler } from "./server/cloudKitChatRelaySchedule";
-import { maybeStartConfiguredCloudflareTunnel, stopManagedCloudflareTunnel } from "./server/cloudflareTunnel";
+import { maybeStartConfiguredCloudflareTunnel } from "./server/cloudflareTunnel";
 import { runIcloudHandoffStartupRefresh, startIcloudHandoffMonitor } from "./server/icloudHandoffMonitor";
-import { maybeStartConfiguredTailscaleServe, stopOwnedTailscaleHttpsServeOnShutdown } from "./server/networkDiagnostics";
+import { maybeStartConfiguredTailscaleServe } from "./server/networkDiagnostics";
 import { startRemoteHealthMonitor } from "./server/remoteHealthMonitor";
 import { getInstallPairingToken, htmlWithInstallPairingManifest, htmlWithPublicBaseHref, setInstallPairingIntentCookie } from "./server/mobileInstall";
 import { getConfiguredPublicBasePath } from "./server/publicBaseUrl";
 import { migrateLegacyCustomAppsFromClientState } from "./server/customApps";
-import { cleanupTailscaleSocket, prepareTailscaleSocketPath, protectTailscaleSocket } from "./server/tailscaleSocket";
+import { createOwnedRemoteEntryShutdown } from "./server/remoteEntryShutdown";
+import { prepareTailscaleSocketPath, protectTailscaleSocket } from "./server/tailscaleSocket";
 
 const app = express();
 const PORT = Number(process.env.LIFEOS_PORT || process.env.PORT || 3000);
@@ -246,18 +247,9 @@ async function startServer() {
     });
   });
 
-  let remoteCleanupFinished = false;
-  const cleanupOwnedRemoteEntry = async () => {
-    if (remoteCleanupFinished) return;
-    remoteCleanupFinished = true;
-    await stopManagedCloudflareTunnel();
-    const result = stopOwnedTailscaleHttpsServeOnShutdown(String(PORT));
-    if (result.reason === "stop-failed") {
-      console.warn("Tailscale HTTPS Serve shutdown cleanup failed:", result.error);
-    }
-    cleanupTailscaleSocket(tailscaleSocketPath);
-    delete process.env.LIFEOS_TAILSCALE_LOOPBACK_PORT;
-  };
+  // Serve-off, socket cleanup and cloudflared SIGTERM all happen synchronously
+  // inside the first call, so the "exit" path completes them too.
+  const cleanupOwnedRemoteEntry = createOwnedRemoteEntryShutdown({ port: String(PORT), tailscaleSocketPath });
   process.once("exit", () => { void cleanupOwnedRemoteEntry(); });
 
   const shutdown = async () => {

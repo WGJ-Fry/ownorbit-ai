@@ -1,4 +1,16 @@
-import { getConfiguredPublicBaseUrl } from "./publicBaseUrl.ts";
+import { getConfiguredPublicBaseUrl, isTemporaryTryCloudflareUrl } from "./publicBaseUrl.ts";
+
+type SavedRemoteEntry = { mode: string; publicBaseUrl: string } | null | undefined;
+
+// A saved startup entry that comes back by itself after a restart: Tailscale
+// HTTPS Serve, a Cloudflare Named Tunnel, or a configured HTTPS entry. Quick
+// tunnels are never restored, so starting one must not overwrite these — the
+// quick URL only takes over the runtime PUBLIC_BASE_URL.
+export function isRestartStableRemoteEntry(config: SavedRemoteEntry) {
+  const url = String(config?.publicBaseUrl || "");
+  if (!url.startsWith("https://") || isTemporaryTryCloudflareUrl(url)) return false;
+  return config?.mode === "tailscale" || config?.mode === "cloudflare" || config?.mode === "configured";
+}
 
 export type SurvivingRemoteEntry = {
   mode: "cloudflare" | "tailscale";
