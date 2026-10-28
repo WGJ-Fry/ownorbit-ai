@@ -59,7 +59,9 @@ test("CloudKit Mac response identity survives a process restart and remains veri
   }
 });
 
-test("unsigned macOS archives an inaccessible Keychain identity without decrypting it", async () => {
+// isUnsignedDesktop() only holds on macOS; elsewhere there is no Keychain
+// identity to archive and the system-storage path applies instead.
+test("unsigned macOS archives an inaccessible Keychain identity without decrypting it", { skip: process.platform !== "darwin" }, async () => {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), "ownorbit-cloudkit-unsigned-identity-"));
   try {
     const script = `
