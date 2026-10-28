@@ -1868,7 +1868,7 @@ export function analyzeIcloudHandoffRepairPacket(text: unknown) {
     addRecommendation("start-cloudflare", "warning", "Use Cloudflare Tunnel when a temporary HTTPS public entry is acceptable.");
   } else if (entryMode === "cloudflare" && diagnostics.icloud.recommendedStability === "temporary") {
     reason = reason === "ready" ? "temporary-entry" : reason;
-    addRecommendation("save-stable-entry", "warning", "The current Cloudflare quick tunnel is temporary and may change after restart.");
+    addRecommendation("save-stable-entry", "warning", `The current Cloudflare quick tunnel is temporary. ${QUICK_TUNNEL_LIFETIME_NOTE} Save Tailscale HTTPS Serve or a Cloudflare Named Tunnel for long-term use.`);
   }
 
   if (!recommendations.length) {
@@ -2236,6 +2236,10 @@ function buildRetiredIcloudHandoffHtml(packet: Record<string, unknown>) {
 </html>`;
 }
 
+// Quick tunnels are never restored or restarted by OwnOrbit; a new address
+// only appears when the admin starts one again.
+const QUICK_TUNNEL_LIFETIME_NOTE = "Its address stops working when the tunnel stops or the desktop app or computer restarts, and it is not recreated: click Start again and re-pair the phone.";
+
 function connectionCandidate(input: {
   id: string;
   label: string;
@@ -2297,6 +2301,10 @@ function buildConnectionCandidates(input: {
     isTemporaryTryCloudflareUrl(baseUrl)
     && (activeManagedCloudflareUrls.includes(baseUrl) || handoffCloudflareUrls.includes(baseUrl))
   );
+  const publicIsTemporaryCloudflare = isTemporaryTryCloudflareUrl(input.publicBaseUrl);
+  // A quick tunnel holds PUBLIC_BASE_URL only until it stops and ranks below
+  // a live stable tunnel, so pairing already uses that tunnel: no restart.
+  const liveStableTunnelRequiresRestart = (baseUrl: string) => input.publicBaseUrl !== baseUrl && !publicIsTemporaryCloudflare;
   if (input.desktopRuntimeConfig) {
     const savedBaseUrl = input.desktopRuntimeConfig.publicBaseUrl || input.desktopRuntimeConfig.baseUrl;
     const savedIsTemporaryCloudflare = isTemporaryTryCloudflareUrl(savedBaseUrl);
@@ -2342,11 +2350,13 @@ function buildConnectionCandidates(input: {
         baseUrl: savedBaseUrl,
         mode: input.desktopRuntimeConfig.mode,
         priority: savedStability === "stable" ? 97 : savedStability === "temporary" ? 74 : 12,
-        requiresRestart: input.publicBaseUrl !== input.desktopRuntimeConfig.publicBaseUrl,
+        requiresRestart: savedStability === "stable"
+          ? liveStableTunnelRequiresRestart(input.desktopRuntimeConfig.publicBaseUrl)
+          : input.publicBaseUrl !== input.desktopRuntimeConfig.publicBaseUrl,
         stability: savedStability,
         notes: [
           savedIsTemporaryCloudflare
-            ? "Saved temporary Cloudflare Tunnel is currently running and detected. If it stops resolving, restart the Tunnel and generate a fresh entry."
+            ? `Saved temporary Cloudflare Tunnel is currently running and detected. ${QUICK_TUNNEL_LIFETIME_NOTE}`
             : input.desktopRuntimeConfig.publicBaseUrl
             ? "Saved desktop startup config. Quit and reopen OwnOrbit AI to make this address authoritative for pairing QR codes."
             : "Saved local/LAN startup config. Use only on the same trusted network.",
@@ -2354,7 +2364,6 @@ function buildConnectionCandidates(input: {
       }));
     }
   }
-  const publicIsTemporaryCloudflare = isTemporaryTryCloudflareUrl(input.publicBaseUrl);
   const publicMatchesInactiveSavedTransport = Boolean(
     input.desktopRuntimeConfig?.publicBaseUrl === input.publicBaseUrl
     && (
@@ -2372,11 +2381,14 @@ function buildConnectionCandidates(input: {
       label: "Current PUBLIC_BASE_URL",
       baseUrl: input.publicBaseUrl,
       mode: "configured",
-      priority: input.publicBaseUrl.startsWith("https://") ? 100 : 70,
+      // A quick tunnel owns PUBLIC_BASE_URL only until it stops, so it ranks
+      // with the other quick tunnel candidates: below a live Tailscale Serve
+      // or Named Tunnel, which pairing and endpoint migration should prefer.
+      priority: publicIsTemporaryCloudflare ? 84 : input.publicBaseUrl.startsWith("https://") ? 100 : 70,
       requiresRestart: false,
       stability: publicIsTemporaryCloudflare ? "temporary" : "stable",
       notes: publicIsTemporaryCloudflare
-        ? ["The current temporary Cloudflare Tunnel is running and detected. Generate a fresh entry if the phone reports DNS or connectivity errors."]
+        ? [`The current temporary Cloudflare Tunnel is running and detected. ${QUICK_TUNNEL_LIFETIME_NOTE}`]
         : input.publicBaseUrl.startsWith("https://")
         ? ["An HTTPS public/tunnel address is configured, so pairing QR codes will prefer it."]
         : ["The current PUBLIC_BASE_URL is not HTTPS. Use it only with Tailscale or a trusted private network."],
@@ -2391,7 +2403,7 @@ function buildConnectionCandidates(input: {
       priority: 84 - index,
       requiresRestart: input.publicBaseUrl !== url,
       stability: "temporary",
-      notes: ["Good for quick HTTPS remote access, but trycloudflare.com quick tunnels are temporary and may change after restart."],
+      notes: [`Good for quick HTTPS remote access, but a trycloudflare.com quick tunnel is temporary. ${QUICK_TUNNEL_LIFETIME_NOTE}`],
     }));
   }
   for (const url of handoffCloudflareUrls) {
@@ -2413,7 +2425,7 @@ function buildConnectionCandidates(input: {
       baseUrl: input.tailscale.httpsServeUrl,
       mode: "tailscale",
       priority: 98,
-      requiresRestart: input.publicBaseUrl !== input.tailscale.httpsServeUrl,
+      requiresRestart: liveStableTunnelRequiresRestart(input.tailscale.httpsServeUrl),
       stability: "stable",
       notes: ["Private Tailnet entry. Tailscale must be connected on the phone with the same account. HTTPS Serve is already active."],
     }));
@@ -2858,8 +2870,11 @@ export function maybeStartConfiguredTailscaleServe(port = String(process.env.LIF
   }
 
   const status = getTailscaleStatus(port);
-  if (status.serveRunning && status.httpsServeUrl) {
-    ownedTailscaleServeTarget = tailscaleServeTarget(String(port));
+  // A Serve rule that points here is ours to turn off at quit, but `tailscale
+  // serve status` keeps reporting it while this computer is offline in the
+  // Tailnet, so only a reachable one takes over the runtime address.
+  if (status.serveRunning && status.httpsServeUrl) ownedTailscaleServeTarget = tailscaleServeTarget(String(port));
+  if (status.httpsServeReady) {
     process.env.PUBLIC_BASE_URL = status.httpsServeUrl;
     const updatedConfig = saveDesktopRuntimeConfig({
       mode: "tailscale",

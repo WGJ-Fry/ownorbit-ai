@@ -73,6 +73,10 @@ const quickTunnelHandoff: QuickTunnelHandoff = {
 
 let reconnectHandler: CloudflareReconnectHandler | null = null;
 let handoffRetiredHandler: QuickTunnelHandoffRetiredHandler | null = null;
+// Set once quit cleanup has signalled the tunnels. HTTP is still served while
+// the graceful wait runs, so a Start that lands then must not spawn a child
+// that nothing will stop.
+let shutdownStarted = false;
 
 const namedTunnelConfigPath = path.join(dataDir, "cloudflared-named-tunnel.yml");
 const namedTunnelSettingsPath = path.join(dataDir, "cloudflared-named-tunnel.json");
@@ -155,6 +159,9 @@ function scheduleNamedTunnelReconnect(reason: string) {
     managedTunnel.reconnectTimer = null;
     managedTunnel.reconnectScheduledAt = null;
     if (managedTunnel.stopping || isAutostartDisabled()) return;
+    // The admin started something else (a quick tunnel) since the named
+    // tunnel dropped; reconnecting would hand it off or kill it.
+    if (childIsRunning() && managedTunnel.kind !== "named") return;
     managedTunnel.reconnectAttempts += 1;
     managedTunnel.lastReconnectAt = Date.now();
     startConfiguredCloudflareNamedTunnel(15000, currentRuntimePort())
@@ -462,7 +469,12 @@ export function refreshCloudflareNamedTunnelConfigForPort(port: string) {
   };
 }
 
+function rejectStartDuringShutdown() {
+  return Promise.reject(new Error("OwnOrbit is quitting; Cloudflare Tunnel was not started."));
+}
+
 export function startConfiguredCloudflareNamedTunnel(timeoutMs = 15000, port = "") {
+  if (shutdownStarted) return rejectStartDuringShutdown();
   if (port) refreshCloudflareNamedTunnelConfigForPort(port);
   const status = getCloudflareNamedTunnelStatus();
   if (!status.ready || !status.name) throw new Error("Cloudflare Named Tunnel is not ready. Generate the config first.");
@@ -584,7 +596,9 @@ export function getManagedCloudflareTunnelStatus() {
 // Quit cleanup also runs from process "exit", where nothing awaited ever
 // resumes, so every cloudflared child this core owns gets SIGTERM right here.
 // stopManagedCloudflareTunnel() can follow to wait for them gracefully.
+// Safe to call again: it re-signals whatever the slots hold now.
 export function signalManagedCloudflareTunnelsForShutdown() {
+  shutdownStarted = true;
   managedTunnel.stopping = true;
   clearReconnectTimer();
   clearQuickTunnelHandoffTimer();
@@ -604,7 +618,11 @@ export async function stopManagedCloudflareTunnel() {
   managedTunnel.phase = "stopping";
   clearReconnectTimer();
   const child = managedTunnel.process;
+  // The handoff slot is emptied right here, before anything is awaited.
   await Promise.all([terminateChild(child), retireQuickTunnelHandoff("stopped")]);
+  // A Start that landed during the graceful wait owns the slot now; blanking
+  // it would leave that child running untracked, past Stop and quit.
+  if (managedTunnel.process && managedTunnel.process !== child) return getManagedCloudflareTunnelStatus();
   managedTunnel.process = null;
   managedTunnel.pid = null;
   managedTunnel.startedAt = null;
@@ -612,7 +630,7 @@ export async function stopManagedCloudflareTunnel() {
   managedTunnel.command = "";
   managedTunnel.kind = "";
   managedTunnel.phase = "stopped";
-  managedTunnel.stopping = false;
+  managedTunnel.stopping = shutdownStarted;
   managedTunnel.reconnectReason = "";
   return getManagedCloudflareTunnelStatus();
 }
@@ -669,10 +687,14 @@ export async function maybeStartConfiguredCloudflareTunnel(port: string, timeout
 }
 
 export function startManagedCloudflareTunnel(port: string, timeoutMs = 15000) {
+  if (shutdownStarted) return rejectStartDuringShutdown();
   const current = getManagedCloudflareTunnelStatus();
   if (current.running && current.ready && current.url) return Promise.resolve(current);
   if (current.running && current.starting) return waitForManagedTunnelUrl(timeoutMs);
 
+  // A Named Tunnel that dropped may still have a reconnect pending; firing
+  // now it would hand this quick tunnel off, or kill it before it is ready.
+  clearReconnectTimer();
   managedTunnel.lastOutput = "";
   managedTunnel.lastError = "";
   managedTunnel.url = "";

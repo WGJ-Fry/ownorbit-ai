@@ -15,7 +15,9 @@ export type RemoteEntryShutdownSteps = {
 // from SIGTERM/SIGINT, which the desktop shell races with app.exit after
 // 1.5 s. Everything that has to happen therefore runs synchronously before
 // anything is awaited; only the graceful wait for cloudflared to exit is left
-// for the signal path. Later calls return the first call's wait.
+// for the signal path. Later calls (SIGTERM then "exit") re-send the
+// idempotent cloudflared signal, in case a child slipped in after the first,
+// and return the first call's wait.
 export function createRemoteEntryShutdown(steps: RemoteEntryShutdownSteps) {
   let pending: Promise<void> | null = null;
   const warn = steps.warn || ((message: string, detail?: unknown) => console.warn(message, detail));
@@ -28,7 +30,10 @@ export function createRemoteEntryShutdown(steps: RemoteEntryShutdownSteps) {
   };
 
   return function cleanupOwnedRemoteEntry() {
-    if (pending) return pending;
+    if (pending) {
+      runStep("Cloudflare Tunnel shutdown signal", steps.signalCloudflareTunnels);
+      return pending;
+    }
     pending = Promise.resolve();
     runStep("Cloudflare Tunnel shutdown signal", steps.signalCloudflareTunnels);
     runStep("Tailscale HTTPS Serve shutdown cleanup", () => {

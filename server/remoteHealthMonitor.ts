@@ -1,6 +1,6 @@
 import { getDesktopRuntimeConfig } from "./desktopRuntimeConfig.ts";
 import { maybeBroadcastDeviceEndpointsChange } from "./deviceEndpoints.ts";
-import { maybeStartConfiguredCloudflareTunnel, setCloudflareTunnelReconnectHandler } from "./cloudflareTunnel.ts";
+import { getManagedCloudflareTunnelStatus, maybeStartConfiguredCloudflareTunnel, setCloudflareTunnelReconnectHandler } from "./cloudflareTunnel.ts";
 import { maybeRefreshIcloudHandoff, maybeStartConfiguredTailscaleServe, testConnectionUrl } from "./networkDiagnostics.ts";
 import { getRemoteValidationReport, saveRemoteValidationReport, type RemoteValidationReport } from "./remoteValidationReport.ts";
 import { getClientState, setClientState } from "./clientState.ts";
@@ -96,6 +96,22 @@ function configuredRemoteBaseUrl() {
   return getConfiguredPublicBaseUrl();
 }
 
+// A quick tunnel is only ever started by the admin, and it keeps the saved
+// stable entry it was started over — usually because that entry is down (say
+// Tailscale blocked by a VPN). While it runs it is the live entry: restoring
+// the saved one would take the runtime address back to the dead hostname, or
+// start a Named Tunnel that hands the quick tunnel off and stops it.
+function liveManagedQuickTunnel() {
+  const tunnel = getManagedCloudflareTunnelStatus();
+  return tunnel.running && tunnel.kind === "quick" ? tunnel : null;
+}
+
+function healthCheckBaseUrl() {
+  const quickTunnel = liveManagedQuickTunnel();
+  if (quickTunnel) return getConfiguredPublicBaseUrl() || quickTunnel.url || configuredRemoteBaseUrl();
+  return configuredRemoteBaseUrl();
+}
+
 export async function runRemoteHealthCheck(reason = "manual") {
   const icloudRefresh = safeRefreshIcloudHandoff(`remote-health-${reason}`);
   // Endpoint-set change detection must run even without a configured remote
@@ -104,7 +120,7 @@ export async function runRemoteHealthCheck(reason = "manual") {
   try {
     maybeBroadcastDeviceEndpointsChange(`remote-health-${reason}`);
   } catch {}
-  const baseUrl = configuredRemoteBaseUrl();
+  const baseUrl = healthCheckBaseUrl();
   if (!baseUrl) return { skipped: true, reason: "no_remote_entry", report: getRemoteValidationReport(), icloudRefresh };
   if (running) return { skipped: true, reason: "already_running", report: getRemoteValidationReport() };
   running = true;
@@ -172,6 +188,8 @@ function labelForReason(reason: string, restored: boolean) {
 async function restoreSavedRemoteEntry() {
   const config = getDesktopRuntimeConfig();
   if (!config || !config.publicBaseUrl) return { attempted: false, restored: false, started: false, mode: "unknown" as const, reason: "no_saved_remote_entry" };
+  // Checked again here: a quick tunnel may have started while the probe ran.
+  if (liveManagedQuickTunnel()) return { attempted: false, restored: false, started: false, mode: "cloudflare" as const, reason: "quick_tunnel_running" };
   try {
     if (config.mode === "cloudflare") {
       const result = await maybeStartConfiguredCloudflareTunnel(String(config.port || process.env.LIFEOS_PORT || process.env.PORT || "3000"), 5000);

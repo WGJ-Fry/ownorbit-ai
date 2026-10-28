@@ -2563,7 +2563,7 @@ export function registerAdminRoutes(app: express.Express) {
     if (clearedAppUrl) delete process.env.APP_URL;
     const clearedActiveEntry = clearedPublicBaseUrl || clearedAppUrl;
     const survivor = clearedActiveEntry || savedConfig?.mode === "cloudflare" ? survivingRemoteEntry("cloudflare") : null;
-    if (clearedActiveEntry) releaseStoppedRemoteEntry(survivor);
+    const release = clearedActiveEntry ? releaseStoppedRemoteEntry(survivor, savedConfig) : null;
     // Only the saved Cloudflare entry that was actually stopped is replaced: a
     // saved Named Tunnel stays when what stopped was a quick tunnel started
     // over it. (Stop with nothing running still clears it.)
@@ -2584,6 +2584,7 @@ export function registerAdminRoutes(app: express.Express) {
       savedLocalMode: Boolean(config) && !survivor,
       survivingEntryMode: survivor?.mode || null,
       keptSavedEntryMode,
+      restoredSavedEntryMode: release === "saved-configured" ? "configured" : null,
       requiresRestart,
       icloudRefresh: icloud.refresh,
       icloudRetirement: icloud.retirement,
@@ -2679,7 +2680,7 @@ export function registerAdminRoutes(app: express.Express) {
       if (clearedAppUrl) delete process.env.APP_URL;
       const clearedActiveEntry = clearedPublicBaseUrl || clearedAppUrl;
       const survivor = clearedActiveEntry || savedConfig?.mode === "tailscale" ? survivingRemoteEntry("tailscale") : null;
-      if (clearedActiveEntry) releaseStoppedRemoteEntry(survivor);
+      if (clearedActiveEntry) releaseStoppedRemoteEntry(survivor, savedConfig);
       const config = savedConfig?.mode === "tailscale" ? savedConfigAfterRemoteStop(survivor) : null;
       const icloud = reconcileIcloudHandoffAfterRemoteStop("tailscale-serve-stopped");
       insertAuditLog("tailscale_https_serve_stopped", "network", serve.url || "tailscale", {

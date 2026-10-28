@@ -48,9 +48,11 @@ test("quit cleanup turns Tailscale Serve off and removes the socket before waiti
   assert.deepEqual(calls, ["cloudflared-sigterm", "tailscale-serve-off", "tailscale-socket-cleanup", "runtime-env-cleanup"]);
   assert.equal(waits(), 1);
 
+  // SIGTERM then "exit": the second call re-sends the idempotent cloudflared
+  // signal (a child may have slipped in since) and shares the first wait.
   const second = cleanup();
   assert.equal(second, first);
-  assert.deepEqual(calls, ["cloudflared-sigterm", "tailscale-serve-off", "tailscale-socket-cleanup", "runtime-env-cleanup"]);
+  assert.deepEqual(calls, ["cloudflared-sigterm", "tailscale-serve-off", "tailscale-socket-cleanup", "runtime-env-cleanup", "cloudflared-sigterm"]);
   assert.equal(waits(), 1);
 });
 

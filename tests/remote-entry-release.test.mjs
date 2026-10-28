@@ -49,6 +49,34 @@ test("a LAN-bound core keeps public access for its own listener", () => {
   });
 });
 
+test("with no live tunnel left, a kept saved configured HTTPS entry gets its launch settings back", () => {
+  const savedEntry = { mode: "configured", publicBaseUrl: "https://orbit.example.com" };
+  withEnv({ LIFEOS_HOST: "127.0.0.1", LIFEOS_ALLOW_PUBLIC: "1", LIFEOS_TRUST_PROXY: "1" }, () => {
+    assert.equal(releaseStoppedRemoteEntry(null, savedEntry), "saved-configured");
+    // What desktop/main.cjs applies for this entry at launch.
+    assert.equal(process.env.PUBLIC_BASE_URL, "https://orbit.example.com");
+    assert.equal(process.env.LIFEOS_ALLOW_PUBLIC, "1");
+    assert.equal(process.env.LIFEOS_TRUST_PROXY, "1");
+  });
+  // A live tunnel still wins over it.
+  withEnv({ LIFEOS_HOST: "127.0.0.1" }, () => {
+    assert.equal(releaseStoppedRemoteEntry({ mode: "tailscale", label: "Tailscale HTTPS Serve", url: "https://mac.tailnet.ts.net" }, savedEntry), "survivor");
+    assert.equal(process.env.PUBLIC_BASE_URL, "https://mac.tailnet.ts.net");
+  });
+  // Saved entries that are tunnels this core runs come back only with it.
+  for (const entry of [
+    { mode: "tailscale", publicBaseUrl: "https://mac.tailnet.ts.net" },
+    { mode: "cloudflare", publicBaseUrl: "https://orbit.example.com" },
+    { mode: "configured", publicBaseUrl: "https://quick-lifeos.trycloudflare.com" },
+  ]) {
+    withEnv({ LIFEOS_HOST: "127.0.0.1", LIFEOS_ALLOW_PUBLIC: "1", LIFEOS_TRUST_PROXY: "1" }, () => {
+      assert.equal(releaseStoppedRemoteEntry(null, entry), "cleared", entry.mode);
+      assert.equal(process.env.PUBLIC_BASE_URL, undefined, entry.mode);
+      assert.equal(process.env.LIFEOS_TRUST_PROXY, undefined, entry.mode);
+    });
+  }
+});
+
 test("an independently configured public URL keeps its settings", () => {
   withEnv({
     LIFEOS_HOST: "127.0.0.1",

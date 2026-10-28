@@ -2,6 +2,7 @@ import http from "http";
 import { WebSocket, WebSocketServer } from "ws";
 import { insertAuditLog } from "./audit";
 import { getActiveDeviceBySignature } from "./auth";
+import { isKnownCandidateOrigin } from "./deviceEndpoints";
 import { getActiveDeviceByToken, updateDevicePresence } from "./devices";
 import { getConfiguredPublicOrigin, stripConfiguredPublicBasePath } from "./publicBaseUrl";
 
@@ -31,7 +32,13 @@ function websocketOriginAllowed(request: http.IncomingMessage) {
     }
     const publicOrigin = getConfiguredPublicOrigin();
     if (publicOrigin) allowedOrigins.add(publicOrigin);
-    return allowedOrigins.has(originUrl.origin);
+    if (allowedOrigins.has(originUrl.origin)) return true;
+    // Tunnels reach the core over plain HTTP and a quick tunnel sends no
+    // X-Forwarded-Host, so a phone on a live origin that is not PUBLIC_BASE_URL
+    // (a quick tunnel being handed off, or one still up after Tailscale Serve
+    // took the runtime address) is matched against the cached candidate list.
+    // Called per upgrade only: deviceEndpoints imports this module back.
+    return isKnownCandidateOrigin(originUrl.origin);
   } catch {
     return false;
   }
