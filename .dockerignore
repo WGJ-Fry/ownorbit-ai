@@ -3,7 +3,28 @@
 node_modules
 dist
 release
+build
 *.log
+
+# Local configuration, credentials, databases, and generated user data must
+# never enter the Docker build context, including when a remote builder is used.
+.env
+.env.*
+!.env.example
+data
+.playwright-data
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.pem
+*.key
+*.p12
+*.pfx
+*.mobileprovision
+*.cer
+*.crt
+backups
 
 lifeos_vault
 lifeos_data

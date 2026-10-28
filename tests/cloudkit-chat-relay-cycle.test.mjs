@@ -70,6 +70,45 @@ function relayPayloadScript(extra) {
   `;
 }
 
+test("CloudKit chat relay treats an existing relay lease as healthy in-progress work", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "ownorbit-chat-relay-busy-"));
+  try {
+    const result = runIsolatedRelay(
+      { ...process.env, LIFEOS_DATA_DIR: path.join(dir, "data") },
+      `
+        const { runMigrations } = await import("./server/migrations.ts");
+        const { acquireCloudKitChatRelayLease } = await import("./server/cloudKitChatRelayLease.ts");
+        const { runCloudKitChatRelayCycle } = await import("./server/cloudKitChatRelayCycle.ts");
+        runMigrations();
+        const now = 1700000000000;
+        const held = acquireCloudKitChatRelayLease({ now, leaseMs: 30_000 });
+        const cycle = await runCloudKitChatRelayCycle({
+          now: now + 1,
+          readiness: {
+            enabled: true,
+            ready: true,
+            status: "ready",
+            privacy: {
+              syncsChatHistory: false,
+              syncsMemory: false,
+              syncsTasks: false,
+              syncsGeneratedApps: false,
+            },
+          },
+        });
+        process.stdout.write(JSON.stringify({ held, cycle }));
+      `,
+    );
+
+    assert.equal(result.held.acquired, true);
+    assert.equal(result.cycle.ok, true);
+    assert.equal(result.cycle.status, "relay-busy");
+    assert.equal(result.cycle.leaseExpiresAt, 1700000030000);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("CloudKit chat relay exports only matching responses and never local business data", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "ownorbit-chat-relay-export-"));
   try {
@@ -258,6 +297,70 @@ test("CloudKit chat relay cycle pulls first, runs the worker, and uploads only t
       result.exported[0].records.map((record) => [record.zone, record.recordType]),
       [["LifeOSChatRelayZone", "LifeOSChatResponse"]],
     );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CloudKit chat relay idle cycle does not open the Mac identity store", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "ownorbit-chat-relay-idle-"));
+  try {
+    const result = runIsolatedRelay(
+      { ...process.env, LIFEOS_DATA_DIR: path.join(dir, "data") },
+      `
+        const { runMigrations } = await import("./server/migrations.ts");
+        const { runCloudKitChatRelayCycle } = await import("./server/cloudKitChatRelayCycle.ts");
+        runMigrations();
+        const operations = [];
+        const cycle = await runCloudKitChatRelayCycle({
+          now: 1700000000000,
+          readiness: {
+            enabled: true,
+            ready: true,
+            status: "ready",
+            privacy: {
+              syncsChatHistory: false,
+              syncsMemory: false,
+              syncsTasks: false,
+              syncsGeneratedApps: false,
+            },
+          },
+          getMacIdentity: () => {
+            throw new Error("idle relay must not open the Mac identity store");
+          },
+          runHelper: async (_readiness, options) => {
+            operations.push(options.operation);
+            return {
+              ok: true,
+              status: "passed",
+              operation: options.operation,
+              syncChangesPreview: {
+                scannedZones: ["LifeOSChatRelayZone"],
+                changed: 0,
+                deleted: 0,
+                failed: 0,
+                moreComing: false,
+                changeTokenResetZones: [],
+                rawPayloadIncluded: false,
+                zones: [],
+                changedRecords: [],
+                deletedRecords: [],
+              },
+              warnings: [],
+              errors: [],
+            };
+          },
+          runWorker: async () => {
+            throw new Error("idle relay must not run the AI worker");
+          },
+        });
+        process.stdout.write(JSON.stringify({ cycle, operations }));
+      `,
+    );
+    assert.equal(result.cycle.ok, true);
+    assert.equal(result.cycle.status, "completed");
+    assert.equal(result.cycle.worker.status, "idle");
+    assert.deepEqual(result.operations, ["sync-changes-preview"]);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

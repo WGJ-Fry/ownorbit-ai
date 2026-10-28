@@ -54,7 +54,8 @@ export function registerCoreRoutes(app: express.Express, host: string) {
     const publicBaseUrl = configuredPublicBaseUrl
       || (savedPublicBaseUrl && !isTemporaryTryCloudflareUrl(savedPublicBaseUrl) ? savedPublicBaseUrl : "");
     trace("publicBaseUrl");
-    const aiConfigured = listAiProviderStatuses().some((provider) => provider.configured);
+    const activeAiProvider = listAiProviderStatuses().find((provider) => provider.active);
+    const aiConfigured = Boolean(activeAiProvider?.configured && !activeAiProvider.credentialResetRequired);
     trace("aiConfigured");
     const adminConfigured = isAdminConfigured();
     trace("adminConfigured");

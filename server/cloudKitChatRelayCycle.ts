@@ -3,6 +3,7 @@ import { runCloudKitChatWorkerQueue } from "./cloudKitChatWorker";
 import { buildCloudKitChatRelayExportPackage } from "./cloudKitChatRelayBatch";
 import {
   getNextCloudKitChatJobForRelayClaim,
+  hasDueCloudKitChatJob,
   markCloudKitChatResponsesExported,
 } from "./cloudKitChatJobs";
 import {
@@ -41,6 +42,7 @@ type RelayCycleOptions = {
   readiness?: CloudKitChatRelayReadiness;
   runHelper?: typeof runCloudKitNativeHelper;
   runWorker?: typeof runCloudKitChatWorkerQueue;
+  getMacIdentity?: typeof getCloudKitMacIdentityPublic;
   lease?: CloudKitChatRelayLease;
 };
 
@@ -188,11 +190,16 @@ async function runCloudKitChatRelayCycleWithLease(options: RelayCycleOptions = {
     };
   }
 
-  const owner = getCloudKitMacIdentityPublic();
-  const candidate = getNextCloudKitChatJobForRelayClaim({
-    now,
-    trustedMacFingerprint: owner.publicKeyFingerprint,
-  });
+  const hasDueJob = hasDueCloudKitChatJob(now);
+  const owner = hasDueJob
+    ? (options.getMacIdentity || getCloudKitMacIdentityPublic)()
+    : undefined;
+  const candidate = owner
+    ? getNextCloudKitChatJobForRelayClaim({
+        now,
+        trustedMacFingerprint: owner.publicKeyFingerprint,
+      })
+    : undefined;
   let claim: CloudKitNativeHelperResult | undefined;
   if (candidate) {
     const claimNow = clock();
@@ -202,7 +209,7 @@ async function runCloudKitChatRelayCycleWithLease(options: RelayCycleOptions = {
         "ownorbit-cloudkit-chat-claim.v1",
         candidate.requestId,
         candidate.requestContentHash,
-        owner.publicKeyFingerprint,
+        owner!.publicKeyFingerprint,
         String(fencingToken),
       ].join("\n"))
       .digest("hex");
@@ -214,7 +221,7 @@ async function runCloudKitChatRelayCycleWithLease(options: RelayCycleOptions = {
         requestId: candidate.requestId,
         requestContentHash: candidate.requestContentHash,
         claimId,
-        ownerFingerprint: owner.publicKeyFingerprint,
+        ownerFingerprint: owner!.publicKeyFingerprint,
         trustedMacFingerprint: candidate.trustedMacFingerprint || "",
         fencingToken,
         claimedAt: claimNow,
@@ -330,7 +337,7 @@ export async function runCloudKitChatRelayCycle(options: RelayCycleOptions = {})
   const acquired = acquireCloudKitChatRelayLease({ now });
   if (!acquired.acquired) {
     return {
-      ok: false,
+      ok: true,
       status: "relay-busy" as const,
       readiness,
       pull: undefined,

@@ -1,16 +1,15 @@
 import { useEffect, useState } from "react";
 import { Activity, AlertTriangle, Brain, DatabaseBackup, Download, Eye, KeyRound, LogOut, MessageSquareText, Plus, RefreshCw, Server, Settings, Smartphone, Wifi } from "lucide-react";
-import { BoundDevice, ChatSession, MemoryRecord, backupDownloadUrl, createBackup, getHealth, listBackups, listChatSessions, listDevices, listMemories, logoutAdmin, previewBackup, requestDeviceTokenRotation, restoreBackup, revokeDevice } from "../../services/lifeosApi";
+import { BoundDevice, ChatSession, MemoryRecord, backupDownloadUrl, createBackup, getCloudKitChatDevices, getHealth, listBackups, listChatSessions, listDevices, listMemories, logoutAdmin, previewBackup, requestDeviceTokenRotation, restoreBackup, revokeDevice } from "../../services/lifeosApi";
 import type { BackupPreview } from "../../services/lifeosApi";
 import { buildRestoreConfirmMessage } from "../../services/backupRestoreUi";
 import LanguageSwitcher from "../../i18n/LanguageSwitcher";
 import { useI18n } from "../../i18n/I18nProvider";
 import DashboardMetric from "./DashboardMetric";
 import DeviceConnectivityStatus from "./DeviceConnectivityStatus";
-
+import PendingCloudKitDeviceApproval from "./PendingCloudKitDeviceApproval";
 type Health = Awaited<ReturnType<typeof getHealth>>;
 type BackupItem = Awaited<ReturnType<typeof listBackups>>["backups"][number];
-
 export default function AdminDashboardPage() {
   const { t } = useI18n();
   const [health, setHealth] = useState<Health | null>(null);
@@ -18,21 +17,29 @@ export default function AdminDashboardPage() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [memories, setMemories] = useState<MemoryRecord[]>([]);
   const [backups, setBackups] = useState<BackupItem[]>([]);
+  const [pendingCloudKitDeviceCount, setPendingCloudKitDeviceCount] = useState(0);
   const [backupPreview, setBackupPreview] = useState<BackupPreview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyDeviceId, setBusyDeviceId] = useState<string | null>(null);
   const [busyBackupFile, setBusyBackupFile] = useState<string | null>(null);
   const onlyPasswordRisk = Boolean(health?.publicRisk?.items?.length) && health!.publicRisk.items.every((item) => item.id === "password");
-
   const refresh = async () => {
     setError(null);
     try {
-      const [healthData, deviceData, sessionData, memoryData, backupData] = await Promise.all([getHealth(), listDevices(), listChatSessions(), listMemories(), listBackups()]);
+      const [healthData, deviceData, sessionData, memoryData, backupData, cloudKitDevicesData] = await Promise.all([
+        getHealth(),
+        listDevices(),
+        listChatSessions(),
+        listMemories(),
+        listBackups(),
+        getCloudKitChatDevices(10).catch(() => null),
+      ]);
       setHealth(healthData);
       setDevices(deviceData.devices);
       setSessions(sessionData.sessions);
       setMemories(memoryData.memories);
       setBackups(backupData.backups);
+      if (cloudKitDevicesData) setPendingCloudKitDeviceCount(cloudKitDevicesData.devices.summary.pending);
     } catch (err: any) {
       setError(err.message || "Failed to load console status");
     }
@@ -128,6 +135,8 @@ export default function AdminDashboardPage() {
             ) : null}
           </div>
         )}
+
+        <PendingCloudKitDeviceApproval count={pendingCloudKitDeviceCount} />
 
         {health?.publicAccessWarning && onlyPasswordRisk && health.publicSetupRisk ? (
           <div className="mb-6 rounded-2xl border border-amber-400/25 bg-amber-500/10 p-4 text-sm text-amber-100">

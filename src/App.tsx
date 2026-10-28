@@ -9,6 +9,7 @@ import OfflineQueueBanner from "./components/chat/OfflineQueueBanner";
 import ProfileModal from "./components/chat/ProfileModal";
 import VoiceModeOverlay from "./components/chat/VoiceModeOverlay";
 import { generateCustomApp, requestChatCompletion } from "./services/aiRuntime";
+import { loadStoredChatDraft, persistStoredChatDraft } from "./services/chatDraftStorage";
 import { loadStoredChatMessages, persistStoredChatMessages } from "./services/chatMessageStorage";
 import { resolveChatStateChanges } from "./services/chatStateChanges";
 import { loadMemoriesForChat, loadRuntimeSettings } from "./services/chatRuntimeSettings";
@@ -32,7 +33,8 @@ export default function App() {
   const [messages, setMessages] = useState<Message[]>(() => {
     return loadStoredChatMessages();
   });
-  const [input, setInput] = useState("");
+  const [initialDraft] = useState(() => loadStoredChatDraft());
+  const [input, setInput] = useState(initialDraft.text);
   const [viewMode, setViewMode] = useState<ViewMode>("terminal");
   const [showProfile, setShowProfile] = useState(false);
   const [showVoiceMode, setShowVoiceMode] = useState(false);
@@ -43,9 +45,10 @@ export default function App() {
   const [voiceRecognitionText, setVoiceRecognitionText] = useState("");
   const recognitionRef = useRef<any>(null);
   
-  const [attachedImage, setAttachedImage] = useState<string | null>(null);
+  const [attachedImage, setAttachedImage] = useState<string | null>(initialDraft.attachedImage);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [sendNotice, setSendNotice] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { createAndUseChatSession, flushOfflineMessages, loadMessagesFromCore, persistMessageToCore } = useChatPersistence();
@@ -283,9 +286,25 @@ export default function App() {
     }
   }, [messages]);
 
+  useEffect(() => {
+    const result = persistStoredChatDraft({ text: input, attachedImage });
+    if (result.ok === false) {
+      console.warn("Failed to persist local chat draft:", result.error);
+    }
+  }, [attachedImage, input]);
+
   const handleSend = async () => {
+    const currentInputValue = input;
     const currentInputText = input.trim();
+    const currentAttachedImage = attachedImage;
     if ((!currentInputText && !attachedImage) || isLoading) return;
+
+    if (!networkStatus.online) {
+      if (viewMode !== "terminal") setViewMode("terminal");
+      setSendNotice(t("chat.offlineSendBlocked"));
+      setTimeout(() => inputRef.current?.focus(), 50);
+      return;
+    }
     
     if (viewMode !== "terminal") setViewMode("terminal");
 
@@ -303,11 +322,7 @@ export default function App() {
 
     const userMessage: Message = { role: "user", parts };
     const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
-    void persistMessageToCore(userMessage);
-    setInput("");
-    setAttachedImage(null);
-    if (inputRef.current) inputRef.current.style.height = 'auto'; // reset height
+    setSendNotice(null);
     setIsLoading(true);
 
     try {
@@ -332,13 +347,17 @@ export default function App() {
       const { widgetToShow, widgetArgs } = handleChatStateChanges(data.stateChanges);
 
       const modelMessage: Message = { role: "model", parts: [{ text: data.text }], widget: widgetToShow, widgetArgs };
-      setMessages((prev) => [...prev, modelMessage]);
+      setMessages((prev) => [...prev, userMessage, modelMessage]);
+      void persistMessageToCore(userMessage);
       void persistMessageToCore(modelMessage);
+      setInput((current) => current === currentInputValue ? "" : current);
+      setAttachedImage((current) => current === currentAttachedImage ? null : current);
+      setTimeout(() => {
+        if (inputRef.current?.value === "") inputRef.current.style.height = "auto";
+      }, 0);
     } catch (err) {
       console.error(err);
-      const errorMessage: Message = { role: "model", parts: [{ text: formatChatError(err) }] };
-      setMessages((prev) => [...prev, errorMessage]);
-      void persistMessageToCore(errorMessage);
+      setSendNotice(t("chat.sendFailedDraftPreserved", { error: formatChatError(err) }));
     } finally {
       setIsLoading(false);
       setTimeout(() => inputRef.current?.focus(), 50);
@@ -526,6 +545,8 @@ export default function App() {
                 initial={{ opacity: 0, y: 15, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 key={i} 
+                data-testid="chat-message"
+                data-message-role={msg.role}
                 className={`flex w-full ${msg.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div className={`max-w-[95%] sm:max-w-[90%] flex flex-col w-auto ${msg.role === "user" ? "items-end" : "items-start"}`}>
@@ -580,10 +601,18 @@ export default function App() {
           input={input}
           attachedImage={attachedImage}
           isLoading={isLoading}
+          notice={sendNotice}
           inputRef={inputRef}
           fileInputRef={fileInputRef}
-          onInputChange={setInput}
-          onAttachImage={setAttachedImage}
+          onInputChange={(value) => {
+            setInput(value);
+            setSendNotice(null);
+          }}
+          onAttachImage={(image) => {
+            setAttachedImage(image);
+            setSendNotice(null);
+          }}
+          onAttachmentError={() => setSendNotice(t("chat.attachmentTooLarge"))}
           onOpenVoiceMode={() => setShowVoiceMode(true)}
           onSend={handleSend}
         />

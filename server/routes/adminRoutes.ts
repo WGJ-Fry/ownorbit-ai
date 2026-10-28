@@ -10,10 +10,10 @@ import { createCalendarSyncRun, listCalendarSyncRuns } from "../calendarSyncRuns
 import { bootstrapAdminCredential, createAdminSession, getAdminSessionByToken, getBearerToken, isAdminConfigured, requireAdmin, resetAdminCredential, rotateAdminCredential, verifyAdminPassword } from "../auth";
 import { createDiagnosticBundle, getReleaseDiagnostics } from "../diagnosticBundle";
 import { clearHttpOnlyCookie, getClientIp, rateLimit, setClientCookie, setHttpOnlyCookie } from "../httpSecurity";
-import { IcloudHandoffExportError, analyzeIcloudHandoffRepairPacket, cleanupIcloudHandoffEntries, exportIcloudHandoff, getNetworkDiagnostics, installTailscaleClient, maybeRefreshIcloudHandoff, startTailscaleHttpsServe, stopTailscaleHttpsServe, testConnectionUrl } from "../networkDiagnostics";
+import { IcloudHandoffExportError, analyzeIcloudHandoffRepairPacket, cleanupIcloudHandoffEntries, exportIcloudHandoff, getNetworkDiagnostics, installTailscaleClient, maybeRefreshIcloudHandoff, retireIcloudHandoffEntry, startTailscaleHttpsServe, stopTailscaleHttpsServe, testConnectionUrl } from "../networkDiagnostics";
 import { generateCloudflareNamedTunnelConfig, getCloudflareNamedTunnelStatus, getManagedCloudflareTunnelStatus, refreshCloudflareNamedTunnelConfigForPort, startConfiguredCloudflareNamedTunnel, startManagedCloudflareTunnel, stopManagedCloudflareTunnel } from "../cloudflareTunnel";
-import { saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
-import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
+import { getDesktopRuntimeConfig, saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
+import { getConfiguredPublicBaseUrl, normalizePublicBaseUrl } from "../publicBaseUrl";
 import { getRemoteValidationReport, saveRemoteValidationReport, summarizeRemoteHealth } from "../remoteValidationReport";
 import { getRemoteHealthEvidence, getRemoteHealthMonitorStatus, getRemoteRecoveryReport, runRemoteHealthCheck } from "../remoteHealthMonitor";
 import { getIcloudHandoffMonitorStatus, runIcloudHandoffStartupRefresh } from "../icloudHandoffMonitor";
@@ -905,6 +905,24 @@ function safeAutoRefreshIcloudHandoff(reason: string) {
       requestedReason: reason,
       status: "unknown",
       error: String(error?.message || error || "iCloud Handoff refresh failed").slice(0, 240),
+    };
+  }
+}
+
+function reconcileIcloudHandoffAfterRemoteStop(reason: string) {
+  const refresh = safeAutoRefreshIcloudHandoff(reason);
+  if (refresh.reason !== "no-phone-entry") return { refresh, retirement: null };
+  try {
+    return { refresh, retirement: retireIcloudHandoffEntry(reason) };
+  } catch (error: any) {
+    return {
+      refresh,
+      retirement: {
+        retired: false,
+        reason: "error",
+        requestedReason: reason,
+        error: String(error?.message || error || "iCloud entry retirement failed").slice(0, 240),
+      },
     };
   }
 }
@@ -1951,12 +1969,22 @@ export function registerAdminRoutes(app: express.Express) {
     try {
       const actor = `${(req as any).actor?.type || "admin"}:${(req as any).actor?.id || "session"}`;
       const device = approveCloudKitChatDevice(req.params.deviceId, actor);
+      const relayTimer = setTimeout(() => {
+        runCloudKitChatRelayCycleLocked().catch((error) => {
+          insertAuditLog("icloud_chat_relay_failed", "network", "cloudkit-chat-relay", {
+            trigger: "device-approved",
+            error: error instanceof Error ? error.message : String(error),
+          }, "system", "cloudkit-device-approval");
+        });
+      }, 0);
+      relayTimer.unref?.();
       insertAuditLog("cloudkit_chat_device_approved", "device", req.params.deviceId, {
         state: device.state,
         approvedAt: device.approvedAt,
+        relayCycleQueued: true,
         rawPublicKeyLogged: false,
       }, (req as any).actor?.type, (req as any).actor?.id);
-      res.json({ ok: true, device });
+      res.json({ ok: true, device, relayCycleQueued: true });
     } catch (error: any) {
       res.status(400).json({ error: error?.message || "CloudKit chat device approval failed" });
     }
@@ -2472,15 +2500,59 @@ export function registerAdminRoutes(app: express.Express) {
     }
   });
 
-  app.post("/api/v1/admin/cloudflare-tunnel/stop", requireAdmin, (req, res) => {
-    const tunnel = stopManagedCloudflareTunnel();
+  app.post("/api/v1/admin/cloudflare-tunnel/stop", requireAdmin, async (req, res) => {
+    const activeTunnel = getManagedCloudflareTunnelStatus();
+    const savedConfig = getDesktopRuntimeConfig();
+    const stoppedUrl = activeTunnel.url || (savedConfig?.mode === "cloudflare" ? savedConfig.publicBaseUrl : "");
+    const tunnel = await stopManagedCloudflareTunnel();
+    const normalizedStoppedUrl = normalizePublicBaseUrl(stoppedUrl);
+    const clearedPublicBaseUrl = Boolean(normalizedStoppedUrl && normalizePublicBaseUrl(process.env.PUBLIC_BASE_URL) === normalizedStoppedUrl);
+    const clearedAppUrl = Boolean(normalizedStoppedUrl && normalizePublicBaseUrl(process.env.APP_URL) === normalizedStoppedUrl);
+    if (clearedPublicBaseUrl) delete process.env.PUBLIC_BASE_URL;
+    if (clearedAppUrl) delete process.env.APP_URL;
+    const clearedActiveEntry = clearedPublicBaseUrl || clearedAppUrl;
+    if (clearedActiveEntry) {
+      if (!getConfiguredPublicBaseUrl()) {
+        delete process.env.LIFEOS_ALLOW_PUBLIC;
+        delete process.env.LIFEOS_TRUST_PROXY;
+      }
+    }
+    const port = String(process.env.LIFEOS_PORT || process.env.PORT || "3000");
+    const config = savedConfig?.mode === "cloudflare"
+      ? saveDesktopRuntimeConfig({
+          mode: "local",
+          label: "Local management",
+          baseUrl: `http://127.0.0.1:${port}`,
+        })
+      : null;
+    const requiresRestart = process.env.LIFEOS_HOST === "0.0.0.0";
+    const icloud = reconcileIcloudHandoffAfterRemoteStop("cloudflare-tunnel-stopped");
     insertAuditLog("cloudflare_tunnel_stopped", "network", "cloudflare", {
       stoppedAt: Date.now(),
+      kind: activeTunnel.kind,
+      clearedActiveEntry,
+      clearedPublicBaseUrl,
+      clearedAppUrl,
+      savedLocalMode: Boolean(config),
+      requiresRestart,
+      icloudRefresh: icloud.refresh,
+      icloudRetirement: icloud.retirement,
     }, (req as any).actor?.type, (req as any).actor?.id);
     try {
       maybeBroadcastDeviceEndpointsChange("cloudflare-tunnel-stopped");
     } catch {}
-    res.json({ tunnel, diagnostics: getAdminNetworkDiagnostics(), message: "Cloudflare Tunnel stopped." });
+    res.json({
+      tunnel,
+      config,
+      clearedActiveEntry,
+      requiresRestart,
+      icloudRefresh: icloud.refresh,
+      icloudRetirement: icloud.retirement,
+      diagnostics: getAdminNetworkDiagnostics(),
+      message: requiresRestart
+        ? "Cloudflare Tunnel stopped and its old phone address was removed. Restart OwnOrbit AI to return the listener to this computer only."
+        : "Cloudflare Tunnel stopped and its old phone address was removed.",
+    });
   });
 
   app.post("/api/v1/admin/tailscale-serve/start", requireAdmin, (req, res) => {
@@ -2546,15 +2618,50 @@ export function registerAdminRoutes(app: express.Express) {
 
   app.post("/api/v1/admin/tailscale-serve/stop", requireAdmin, (req, res) => {
     try {
+      const savedConfig = getDesktopRuntimeConfig();
       const serve = stopTailscaleHttpsServe();
+      const stoppedUrl = serve.url || (savedConfig?.mode === "tailscale" ? savedConfig.publicBaseUrl : "");
+      const normalizedStoppedUrl = normalizePublicBaseUrl(stoppedUrl);
+      const clearedPublicBaseUrl = Boolean(normalizedStoppedUrl && normalizePublicBaseUrl(process.env.PUBLIC_BASE_URL) === normalizedStoppedUrl);
+      const clearedAppUrl = Boolean(normalizedStoppedUrl && normalizePublicBaseUrl(process.env.APP_URL) === normalizedStoppedUrl);
+      if (clearedPublicBaseUrl) delete process.env.PUBLIC_BASE_URL;
+      if (clearedAppUrl) delete process.env.APP_URL;
+      const clearedActiveEntry = clearedPublicBaseUrl || clearedAppUrl;
+      if (clearedActiveEntry && !getConfiguredPublicBaseUrl()) {
+        delete process.env.LIFEOS_ALLOW_PUBLIC;
+        delete process.env.LIFEOS_TRUST_PROXY;
+      }
+      const port = String(process.env.LIFEOS_PORT || process.env.PORT || "3000");
+      const config = savedConfig?.mode === "tailscale"
+        ? saveDesktopRuntimeConfig({
+            mode: "local",
+            label: "Local management",
+            baseUrl: `http://127.0.0.1:${port}`,
+          })
+        : null;
+      const icloud = reconcileIcloudHandoffAfterRemoteStop("tailscale-serve-stopped");
       insertAuditLog("tailscale_https_serve_stopped", "network", serve.url || "tailscale", {
         command: serve.command,
         url: serve.url,
+        clearedActiveEntry,
+        clearedPublicBaseUrl,
+        clearedAppUrl,
+        savedLocalMode: Boolean(config),
+        icloudRefresh: icloud.refresh,
+        icloudRetirement: icloud.retirement,
       }, (req as any).actor?.type, (req as any).actor?.id);
       try {
         maybeBroadcastDeviceEndpointsChange("tailscale-serve-stopped");
       } catch {}
-      res.json({ serve, diagnostics: getAdminNetworkDiagnostics(), message: "Tailscale HTTPS Serve stopped." });
+      res.json({
+        serve,
+        config,
+        clearedActiveEntry,
+        icloudRefresh: icloud.refresh,
+        icloudRetirement: icloud.retirement,
+        diagnostics: getAdminNetworkDiagnostics(),
+        message: "Tailscale HTTPS Serve stopped and its old phone address was removed.",
+      });
     } catch (error: any) {
       insertAuditLog("tailscale_https_serve_stop_failed", "network", "tailscale", {
         error: error?.message || "Tailscale HTTPS Serve stop failed",

@@ -1,15 +1,18 @@
-import { Paperclip, Mic, Send, X } from "lucide-react";
+import { CircleAlert, Paperclip, Mic, Send, X } from "lucide-react";
 import type { RefObject } from "react";
 import { useI18n } from "../../i18n/I18nProvider";
+import { MAX_CHAT_DRAFT_IMAGE_BYTES, MAX_CHAT_DRAFT_TEXT_LENGTH } from "../../services/chatDraftStorage";
 
 type ChatInputBarProps = {
   input: string;
   attachedImage: string | null;
   isLoading: boolean;
+  notice: string | null;
   inputRef: RefObject<HTMLTextAreaElement>;
   fileInputRef: RefObject<HTMLInputElement>;
   onInputChange: (value: string) => void;
   onAttachImage: (image: string | null) => void;
+  onAttachmentError: () => void;
   onOpenVoiceMode: () => void;
   onSend: () => void;
 };
@@ -18,10 +21,12 @@ export default function ChatInputBar({
   input,
   attachedImage,
   isLoading,
+  notice,
   inputRef,
   fileInputRef,
   onInputChange,
   onAttachImage,
+  onAttachmentError,
   onOpenVoiceMode,
   onSend,
 }: ChatInputBarProps) {
@@ -29,6 +34,17 @@ export default function ChatInputBar({
 
   return (
     <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5 bg-gradient-to-t from-[#09090b] via-[#09090b]/95 to-transparent z-20 pt-16">
+      {notice ? (
+        <div
+          data-testid="chat-send-notice"
+          role="status"
+          aria-live="polite"
+          className="mb-2 flex items-start gap-2 rounded-lg border border-amber-300/20 bg-[#211b0f]/95 px-3 py-2 text-xs leading-relaxed text-amber-100 shadow-lg"
+        >
+          <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{notice}</span>
+        </div>
+      ) : null}
       <div className={`flex flex-col bg-[#18181b]/90 backdrop-blur-md rounded-[28px] border transition-all duration-300 shadow-2xl relative ${(input.trim() || attachedImage) ? "border-indigo-500/40 shadow-[0_4px_30px_rgba(99,102,241,0.15)]" : "border-white/[0.08]"}`}>
         {attachedImage && (
           <div className="px-5 pt-4 pb-1">
@@ -59,6 +75,7 @@ export default function ChatInputBar({
             }
           }}
           placeholder={t("chat.input.placeholder")}
+          maxLength={MAX_CHAT_DRAFT_TEXT_LENGTH}
           rows={1}
           className="flex-1 bg-transparent pt-4 pb-2 px-5 outline-none text-[15px] font-medium text-zinc-100 placeholder-zinc-500 w-full resize-none min-h-[48px] max-h-[120px] hide-scrollbar leading-relaxed"
         />
@@ -73,8 +90,14 @@ export default function ChatInputBar({
               onChange={(event) => {
                 const file = event.target.files?.[0];
                 if (file) {
+                  if (file.size > MAX_CHAT_DRAFT_IMAGE_BYTES) {
+                    event.target.value = "";
+                    onAttachmentError();
+                    return;
+                  }
                   const reader = new FileReader();
                   reader.onload = (loadEvent) => onAttachImage(loadEvent.target?.result as string);
+                  reader.onerror = () => onAttachmentError();
                   reader.readAsDataURL(file);
                 }
               }}

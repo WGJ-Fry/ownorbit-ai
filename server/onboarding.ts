@@ -75,7 +75,8 @@ export function getOnboardingStatus() {
   const webDeviceCount = devices.filter((device) => device.status !== "revoked").length;
   const cloudKitDeviceCount = countActiveCloudKitDevices();
   const security = getSecurityDiagnostics();
-  const aiConfigured = providers.some((provider) => provider.configured);
+  const activeProvider = providers.find((provider) => provider.active);
+  const aiConfigured = Boolean(activeProvider?.configured && !activeProvider.credentialResetRequired);
   const hasBackup = backups.length > 0;
   const hasDevice = webDeviceCount > 0 || cloudKitDeviceCount > 0;
   const securityReady = security.overall !== "critical";
@@ -88,7 +89,11 @@ export function getOnboardingStatus() {
       done: aiConfigured,
       required: true,
       actionPath: "/admin/onboarding",
-      message: aiConfigured ? "At least one AI provider is configured." : "Configure Gemini, OpenAI, OpenRouter, or a local model first.",
+      message: aiConfigured
+        ? `${activeProvider?.provider || "The active AI provider"} is ready.`
+        : activeProvider?.credentialResetRequired
+          ? `Re-enter the ${activeProvider.provider} credential after this desktop update.`
+          : "Configure and select an AI provider first.",
     },
     {
       id: "backup",

@@ -298,8 +298,20 @@ type EncryptedSecret = {
   storage: SecretStorageKind;
 };
 
+function shouldAvoidElectronSafeStorage() {
+  if (process.platform !== "darwin") return false;
+  if (process.env.LIFEOS_DESKTOP_PACKAGED === "1") {
+    return process.env.LIFEOS_DISTRIBUTION !== "signed"
+      || process.env.LIFEOS_DESKTOP_SIGNATURE_VERIFIED !== "1";
+  }
+  return process.env.LIFEOS_DISTRIBUTION === "unsigned";
+}
+
 function getElectronSafeStorage() {
   try {
+    // Ad-hoc macOS builds do not have a stable code identity. Reusing Keychain
+    // ciphertext after an update can synchronously block Electron's main thread.
+    if (shouldAvoidElectronSafeStorage()) return null;
     if (!process.versions.electron) return null;
     if (typeof require !== "function") return null;
     const electron = require("electron");
@@ -316,7 +328,7 @@ function getElectronSafeStorage() {
 }
 
 function canUseElectronSafeStorageStatus() {
-  return Boolean(process.versions.electron);
+  return Boolean(process.versions.electron) && !shouldAvoidElectronSafeStorage();
 }
 
 function getPreferredSecretStorage(): SecretStorageKind {
@@ -609,6 +621,18 @@ export function saveInternalAppSecret(
   `).run(secretId, encrypted.storage, encrypted.ciphertext, encrypted.iv, encrypted.tag, now, now);
 }
 
+export function archiveInternalAppSecret(secretId: string, reason = "unavailable") {
+  if (!internalSecretIdPattern.test(secretId)) throw new Error("Internal secret id is invalid.");
+  const normalizedReason = String(reason || "unavailable").toLowerCase().replace(/[^a-z0-9-]+/g, "-").slice(0, 24) || "unavailable";
+  const row = db.prepare("SELECT id FROM app_secrets WHERE id = ? AND provider = 'internal'").get(secretId);
+  if (!row) return { archived: false, archiveId: "" };
+  const archiveId = `${secretId}.archived-${normalizedReason}-${Date.now()}-${crypto.randomBytes(3).toString("hex")}`;
+  if (!internalSecretIdPattern.test(archiveId)) throw new Error("Archived internal secret id is invalid.");
+  db.prepare("UPDATE app_secrets SET id = ?, updated_at = ? WHERE id = ? AND provider = 'internal'")
+    .run(archiveId, Date.now(), secretId);
+  return { archived: true, archiveId };
+}
+
 export function getInternalAppSecretStorage(secretId: string) {
   if (!internalSecretIdPattern.test(secretId)) throw new Error("Internal secret id is invalid.");
   const row = db.prepare(`
@@ -657,8 +681,9 @@ export function getAiProviderStatus(providerId: AiProviderId) {
 
   const row = db.prepare("SELECT updated_at, secret_storage FROM app_secrets WHERE id = ?").get(provider.secretId) as any;
   const storage = (row?.secret_storage || getPreferredSecretStorage()) as SecretStorageKind;
+  const credentialResetRequired = Boolean(row?.secret_storage === "electron_safe_storage" && !getElectronSafeStorage());
   return {
-    configured: Boolean(row),
+    configured: Boolean(row) && !credentialResetRequired,
     id: provider.id,
     provider: provider.name,
     envVar: provider.envVar,
@@ -669,6 +694,7 @@ export function getAiProviderStatus(providerId: AiProviderId) {
     defaultModel: getDefaultAiModel(provider.id),
     selectedModel: getSelectedAiModel(provider.id),
     secureStorage: getSecretStorageStatus(row ? { secret_storage: storage } : null),
+    credentialResetRequired,
     restartRequired: false,
     updatedAt: row?.updated_at,
   };

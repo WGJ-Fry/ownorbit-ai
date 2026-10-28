@@ -347,7 +347,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     body: "{}",
   });
   assert.equal(approveChatDevice.status, 200);
-  assert.equal((await approveChatDevice.json()).device.state, "approved");
+  const approveChatDevicePayload = await approveChatDevice.json();
+  assert.equal(approveChatDevicePayload.device.state, "approved");
+  assert.equal(approveChatDevicePayload.relayCycleQueued, true);
   const cloudKitOnboarding = await request(port, "/api/v1/admin/onboarding", { headers: adminHeaders }).then((res) => res.json());
   assert.equal(cloudKitOnboarding.onboarding.steps.find((step) => step.id === "device").done, true);
   assert.deepEqual(cloudKitOnboarding.onboarding.deviceReadiness, {
@@ -1120,7 +1122,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   }).then((res) => res.json());
   assert.equal(desktopConnectionConfig.restartRequired, true);
   assert.equal(desktopConnectionConfig.config.mode, "cloudflare");
-  assert.equal(desktopConnectionConfig.config.host, "0.0.0.0");
+  assert.equal(desktopConnectionConfig.config.host, "127.0.0.1");
   assert.equal(desktopConnectionConfig.config.allowPublic, true);
   assert.equal(desktopConnectionConfig.config.publicBaseUrl, "https://desktop-config.example.com/mobile");
   assert.equal(desktopConnectionConfig.icloudRefresh.requestedReason, "desktop-connection-config-saved");
@@ -1147,11 +1149,11 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     method: "POST",
     headers: adminHeaders,
     body: JSON.stringify({}),
-  }).then((res) => res.json());
-  assert.equal(defaultBindingAfterStaleTemporaryCloudflare.icloudRefresh.requestedReason, "binding-session-created");
-  assert.equal(typeof defaultBindingAfterStaleTemporaryCloudflare.icloudRefresh.refreshed, "boolean");
-  assert.notEqual(defaultBindingAfterStaleTemporaryCloudflare.baseUrl, "https://old-lifeos.trycloudflare.com");
-  assert.equal(defaultBindingAfterStaleTemporaryCloudflare.pairingUrl.includes("old-lifeos.trycloudflare.com"), false);
+  });
+  assert.equal(defaultBindingAfterStaleTemporaryCloudflare.status, 409);
+  const staleTemporaryCloudflareBindingBody = await defaultBindingAfterStaleTemporaryCloudflare.json();
+  assert.equal(staleTemporaryCloudflareBindingBody.code, "no_phone_reachable_entry");
+  assert.equal(JSON.stringify(staleTemporaryCloudflareBindingBody).includes("old-lifeos.trycloudflare.com"), false);
   const tailscaleHttpsConnectionConfig = await request(port, "/api/v1/admin/desktop-connection-config", {
     method: "PUT",
     headers: adminHeaders,
@@ -1165,10 +1167,36 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(tailscaleHttpsConnectionConfig.config.host, "127.0.0.1");
   assert.equal(tailscaleHttpsConnectionConfig.config.publicBaseUrl, "https://lifeos-mac.tailnet.example.ts.net");
 
-  const defaultRemoteBinding = await request(port, "/api/v1/devices/bind/start", {
+  const inactiveTailscaleBinding = await request(port, "/api/v1/devices/bind/start", {
     method: "POST",
     headers: adminHeaders,
     body: JSON.stringify({}),
+  });
+  assert.equal(inactiveTailscaleBinding.status, 409);
+  assert.equal((await inactiveTailscaleBinding.json()).code, "no_phone_reachable_entry");
+
+  const configuredRemoteConnection = await request(port, "/api/v1/admin/desktop-connection-config", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      mode: "configured",
+      label: "Trusted HTTPS Proxy",
+      baseUrl: "https://lifeos-mac.tailnet.example.ts.net",
+    }),
+  }).then((res) => res.json());
+  assert.equal(configuredRemoteConnection.config.host, "127.0.0.1");
+
+  const inactiveConfiguredBinding = await request(port, "/api/v1/devices/bind/start", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({}),
+  });
+  assert.equal(inactiveConfiguredBinding.status, 409);
+
+  const defaultRemoteBinding = await request(port, "/api/v1/devices/bind/start", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ baseUrl: "https://lifeos-mac.tailnet.example.ts.net" }),
   }).then((res) => res.json());
   assert.equal(defaultRemoteBinding.baseUrl, "https://lifeos-mac.tailnet.example.ts.net");
   assert.equal(defaultRemoteBinding.pairingUrl, `https://lifeos-mac.tailnet.example.ts.net/mobile/install/${encodeURIComponent(defaultRemoteBinding.token)}`);
@@ -1790,7 +1818,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(typeof diagnosticExportAudit.metadata.releaseChecksumAvailable, "boolean");
   assert.equal(typeof diagnosticExportAudit.metadata.releaseArtifactCount, "number");
   assert.equal(typeof diagnosticExportAudit.metadata.publicBaseUrlConfigured, "boolean");
-  assert.ok(["cloudflare", "tailscale", "public", "lan", "none"].includes(diagnosticExportAudit.metadata.remoteEntryMode));
+  assert.ok(["cloudflare", "tailscale", "configured", "public", "lan", "none"].includes(diagnosticExportAudit.metadata.remoteEntryMode));
   assert.equal(typeof diagnosticExportAudit.metadata.remoteAcceptanceReady, "boolean");
   assert.equal(typeof diagnosticExportAudit.metadata.remoteAcceptanceHasLongTermEntry, "boolean");
   assert.equal(typeof diagnosticExportAudit.metadata.remoteAcceptanceHasRealWorldEvidence, "boolean");
@@ -1940,8 +1968,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(networkDiagnosticsWithBinding.latestBindingSession.baseUrl, binding.baseUrl);
   assert.equal(networkDiagnosticsWithBinding.latestBindingSession.expiresAt, binding.expiresAt);
   assert.equal(networkDiagnosticsWithBinding.latestBindingSession.expired, false);
-  assert.equal(networkDiagnosticsWithBinding.icloud.pairingSession.status, "address-changed");
-  assert.equal(networkDiagnosticsWithBinding.icloud.pairingSession.action, "regenerate-qr");
+  assert.equal(networkDiagnosticsWithBinding.icloud.pairingSession.status, "ready");
+  assert.equal(networkDiagnosticsWithBinding.icloud.pairingSession.action, "use-current-qr");
   assert.equal(networkDiagnosticsWithBinding.icloud.pairingSession.baseUrl, binding.baseUrl);
   assert.equal(networkDiagnosticsWithBinding.icloud.pairingSession.bindingId, binding.id);
   assert.equal(typeof networkDiagnosticsWithBinding.remoteHealthMonitor.enabled, "boolean");
@@ -2006,10 +2034,17 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(expiredBindingAudit.metadata.icloudRefresh.requestedReason, "binding-token-invalid-or-expired");
   assert.equal(JSON.stringify(expiredBindingAudit).includes("bind_expired_or_old_qr"), false);
 
-  const credential = await request(port, "/api/v1/devices/bind/confirm", {
-    method: "POST",
-    body: JSON.stringify({ token: binding.token, deviceName: "Test Phone", deviceType: "mobile" }),
-  }).then((res) => res.json());
+  const bindingBody = JSON.stringify({ token: binding.token, deviceName: "Test Phone", deviceType: "mobile" });
+  const bindingAttempts = await Promise.all([
+    request(port, "/api/v1/devices/bind/confirm", { method: "POST", body: bindingBody }),
+    request(port, "/api/v1/devices/bind/confirm", { method: "POST", body: bindingBody }),
+  ]).then((responses) => Promise.all(responses.map(async (response) => ({ status: response.status, body: await response.json() }))));
+  const successfulBinding = bindingAttempts.find((attempt) => attempt.status === 200);
+  const rejectedBinding = bindingAttempts.find((attempt) => attempt.status !== 200);
+  assert.ok(successfulBinding);
+  assert.equal(rejectedBinding?.status, 409);
+  assert.equal(rejectedBinding?.body.code, "binding_already_used");
+  const credential = successfulBinding.body;
   assert.equal(credential.device.name, "Test Phone");
   assert.match(credential.accessToken, /^device_/);
   assert.equal(typeof credential.accessTokenExpiresAt, "number");
@@ -2209,6 +2244,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const selfRevokeBinding = await request(port, "/api/v1/devices/bind/start", {
     method: "POST",
     headers: adminHeaders,
+    body: JSON.stringify({ baseUrl: "https://lifeos-mac.tailnet.example.ts.net" }),
   }).then((res) => res.json());
   const selfRevokeCredential = await request(port, "/api/v1/devices/bind/confirm", {
     method: "POST",
@@ -2234,6 +2270,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const signatureBinding = await request(port, "/api/v1/devices/bind/start", {
     method: "POST",
     headers: adminHeaders,
+    body: JSON.stringify({ baseUrl: "https://lifeos-mac.tailnet.example.ts.net" }),
   }).then((res) => res.json());
   const invalidSignatureKeyPair = crypto.generateKeyPairSync("ec", { namedCurve: "P-384" });
   const invalidSignatureBinding = await request(port, "/api/v1/devices/bind/confirm", {
@@ -2261,6 +2298,18 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(signatureCredential.authMethod, "signature");
   assert.equal(signatureCredential.accessToken, undefined);
   assert.equal(signatureCredential.accessTokenExpiresAt, undefined);
+  const signedRotationPath = "/api/v1/devices/token/rotate";
+  const signedRotation = await request(port, signedRotationPath, {
+    method: "POST",
+    headers: signedDeviceHeaders({
+      deviceId: signatureCredential.device.id,
+      privateKey: signatureKeyPair.privateKey,
+      method: "POST",
+      pathname: signedRotationPath,
+    }),
+  });
+  assert.equal(signedRotation.status, 409);
+  assert.equal((await signedRotation.json()).code, "signature_device_token_rotation_not_allowed");
   const signedStateBody = JSON.stringify({ value: { enabled: true } });
   const signedStateHeaders = signedDeviceHeaders({
     deviceId: signatureCredential.device.id,
@@ -2332,7 +2381,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const migrationSourceBinding = await request(port, "/api/v1/devices/bind/start", {
     method: "POST",
     headers: adminHeaders,
-    body: JSON.stringify({}),
+    body: JSON.stringify({ baseUrl: "https://lifeos-mac.tailnet.example.ts.net" }),
   }).then((res) => res.json());
   const migrationOldKeyPair = createDeviceKeyPair();
   const migrationCredential = await request(port, "/api/v1/devices/bind/confirm", {
@@ -2608,6 +2657,13 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(JSON.stringify(testedLocalLive).includes(localModelEndpoint), false);
   const localProvidersAfterLive = await request(port, "/api/v1/admin/ai-providers", { headers: adminHeaders }).then((res) => res.json());
   assert.ok(localProvidersAfterLive.providers.find((provider) => provider.id === "local").models.includes("phi4:latest"));
+  const activeLocalProvider = await request(port, "/api/v1/admin/ai-providers/local/active", {
+    method: "PUT",
+    headers: adminHeaders,
+  }).then((res) => res.json());
+  assert.equal(activeLocalProvider.provider.id, "local");
+  assert.equal(activeLocalProvider.provider.active, true);
+  assert.equal(activeLocalProvider.provider.configured, true);
   const auditAfterLocalLive = await request(port, "/api/v1/audit-logs", { headers: adminHeaders }).then((res) => res.json());
   const localLiveTestAudit = auditAfterLocalLive.logs.find((log) => log.action === "ai_provider_tested" && log.targetType === "config" && log.targetId === "local" && log.metadata.result === "live_ready");
   assert.equal(localLiveTestAudit.metadata.provider, "Local Model");

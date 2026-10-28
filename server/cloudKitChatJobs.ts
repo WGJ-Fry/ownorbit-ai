@@ -307,6 +307,17 @@ function expireAndRecoverJobs(now: number) {
   `).run(now, now, now, now);
 }
 
+export function hasDueCloudKitChatJob(now = Date.now()) {
+  expireAndRecoverJobs(now);
+  const row = db.prepare(`
+    SELECT 1 as found
+    FROM cloudkit_chat_jobs
+    WHERE status = 'queued' AND expires_at > ? AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
+    LIMIT 1
+  `).get(now, now) as { found?: number } | undefined;
+  return row?.found === 1;
+}
+
 export function getNextCloudKitChatJobForRelayClaim(options: { now?: number; trustedMacFingerprint?: string } = {}) {
   const now = options.now ?? Date.now();
   const trustedMacFingerprint = String(options.trustedMacFingerprint || "").trim().toLowerCase();

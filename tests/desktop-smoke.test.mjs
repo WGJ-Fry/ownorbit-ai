@@ -1,12 +1,24 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
 const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
+const require = createRequire(import.meta.url);
+const { parseMacCodeSignatureDistribution, resolveDesktopDistribution } = require("../desktop/distributionPolicy.cjs");
+
+test("desktop distribution policy treats ad-hoc macOS builds as unsigned", () => {
+  assert.equal(parseMacCodeSignatureDistribution("Signature=adhoc\nTeamIdentifier=not set"), "unsigned");
+  assert.equal(parseMacCodeSignatureDistribution("Authority=Developer ID Application: Example (ABCDE12345)\nTeamIdentifier=ABCDE12345"), "signed");
+  assert.equal(resolveDesktopDistribution({ configured: "signed", platform: "darwin", isPackaged: true }), "unsigned");
+  assert.equal(resolveDesktopDistribution({ configured: "signed", platform: "darwin", isPackaged: false }), "signed");
+  assert.equal(resolveDesktopDistribution({ platform: "darwin", isPackaged: false }), "unsigned");
+  assert.equal(resolveDesktopDistribution({ platform: "win32", isPackaged: true }), "");
+});
 
 function electronBinaryPath() {
   if (process.platform === "darwin") return path.join(rootDir, "node_modules", "electron", "dist", "Electron.app", "Contents", "MacOS", "Electron");
@@ -294,8 +306,8 @@ test("Electron desktop loads saved connection config before starting local core"
 
   const { health, port: actualPort } = await waitForHealth(port, child, output);
   assert.equal(actualPort, port);
-  assert.equal(health.host, "0.0.0.0");
-  assert.equal(health.networkMode, "lan");
+  assert.equal(health.host, "127.0.0.1");
+  assert.equal(health.networkMode, "local");
   assert.equal(health.publicBaseUrl, "https://desktop-smoke.example.com");
   assert.equal(health.publicAccessAllowed, true);
 });
@@ -306,6 +318,7 @@ test("Electron desktop autostarts saved Tailscale HTTPS Serve config", async (t)
   const userDataDir = await mkdtemp(path.join(tmpdir(), "lifeos-desktop-tailscale-user-"));
   const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-desktop-tailscale-bin-"));
   const commandLog = path.join(binDir, "tailscale.log");
+  const serveState = path.join(binDir, "tailscale-serve-target.txt");
   await mkdir(path.join(userDataDir, "data"), { recursive: true });
   await writeFile(path.join(userDataDir, "data", "desktop-runtime-config.json"), `${JSON.stringify({
     mode: "tailscale",
@@ -318,7 +331,7 @@ test("Electron desktop autostarts saved Tailscale HTTPS Serve config", async (t)
     updatedAt: Date.now(),
   }, null, 2)}\n`);
   const tailscalePath = path.join(binDir, "tailscale-mock.mjs");
-  await writeFile(tailscalePath, `import { appendFileSync } from "node:fs";
+  await writeFile(tailscalePath, `import { appendFileSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 const args = process.argv.slice(2);
 appendFileSync(${JSON.stringify(commandLog)}, args.join(" ") + "\\n");
 if (args[0] === "version") {
@@ -330,12 +343,20 @@ if (args[0] === "status") {
   process.exit(0);
 }
 if (args[0] === "serve" && args[1] === "status") {
-  console.log("{}");
+  const target = existsSync(${JSON.stringify(serveState)}) ? readFileSync(${JSON.stringify(serveState)}, "utf8").trim() : "";
+  console.log(target ? JSON.stringify({ Web: { "lifeos-mac.tailnet.example.ts.net:443": { Handlers: { "/": { Proxy: target } } } } }) : "{}");
+  process.exit(0);
+}
+if (args[0] === "serve" && args.includes("off")) {
+  rmSync(${JSON.stringify(serveState)}, { force: true });
   process.exit(0);
 }
 if (args[0] === "serve") {
+  const target = args[1] === "--bg" ? args[3] : args[2];
+  writeFileSync(${JSON.stringify(serveState)}, target);
   console.log("ok");
-  process.exit(0);
+  if (args[1] === "--bg") process.exit(0);
+  setInterval(() => {}, 60_000);
 }
 process.exit(1);
 `);
@@ -376,8 +397,20 @@ process.exit(1);
   assert.equal(health.host, "127.0.0.1");
   assert.equal(health.publicBaseUrl, "https://lifeos-mac.tailnet.example.ts.net");
   assert.equal(health.publicAccessAllowed, true);
-  const log = await waitForFileMatch(commandLog, /serve --bg https:443 http:\/\/127\.0\.0\.1:/);
-  assert.match(log, new RegExp(`serve --bg https:443 http://127\\.0\\.0\\.1:${actualPort}`));
+  const expectedServePattern = process.platform === "win32"
+    ? /serve --bg --https=443 http:\/\/127\.0\.0\.1:\d+/
+    : process.platform === "darwin"
+    ? new RegExp(`serve --bg --https=443 http://127\\.0\\.0\\.1:${port}(?:\\s|$)`)
+    : /serve --bg --https=443 unix:\S+\/core\.sock/;
+  const log = await waitForFileMatch(commandLog, expectedServePattern);
+  assert.match(log, expectedServePattern);
+  if (process.platform === "win32") {
+    assert.doesNotMatch(log, new RegExp(`serve --bg --https=443 http://127\\.0\\.0\\.1:${port}(?:\\s|$)`));
+  } else if (process.platform === "darwin") {
+    assert.doesNotMatch(log, /serve --bg --https=443 unix:/);
+  } else {
+    assert.doesNotMatch(log, /serve --bg --https=443 http:\/\/127\.0\.0\.1:/);
+  }
 });
 
 test("Electron desktop exports a redacted desktop diagnostic bundle", async (t) => {

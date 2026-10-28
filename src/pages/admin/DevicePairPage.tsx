@@ -7,6 +7,7 @@ import DevicePairConnectionTestResult from "./DevicePairConnectionTestResult";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { TranslationKey } from "../../i18n/translations";
 import { formatDevicePairingCreateError } from "../../services/devicePairingErrors";
+import { eligiblePhonePairingCandidates } from "../../services/pairingCandidatePolicy";
 
 type ConnectionCandidate = NetworkDiagnostics["connectionCandidates"][number];
 
@@ -48,13 +49,13 @@ export default function DevicePairPage() {
       try {
         const networkDiagnostics = await getNetworkDiagnostics();
         setDiagnostics(networkDiagnostics);
+        const eligibleCandidates = eligiblePhonePairingCandidates<ConnectionCandidate>(networkDiagnostics.connectionCandidates);
         recommendedBaseUrl = baseUrlOverride
-          || networkDiagnostics.connectionCandidates.find((candidate) => candidate.mode !== "local")?.baseUrl
-          || networkDiagnostics.recommendedBaseUrl
-          || "";
+          ? eligibleCandidates.find((candidate) => candidate.baseUrl === baseUrlOverride)?.baseUrl || ""
+          : eligibleCandidates[0]?.baseUrl || "";
       } catch {
         setDiagnostics(null);
-        recommendedBaseUrl = baseUrlOverride;
+        recommendedBaseUrl = "";
       }
       if (!recommendedBaseUrl) {
         setPairingBaseUrl("");
@@ -105,8 +106,9 @@ export default function DevicePairPage() {
   }, [session, confirmedDevice]);
 
   const expiresIn = session ? Math.max(0, Math.ceil((session.expiresAt - clockNow) / 1000)) : 0;
-  const activeCandidate = diagnostics?.connectionCandidates?.find((candidate) => candidate.baseUrl === pairingBaseUrl) || diagnostics?.connectionCandidates?.[0] || null;
-  const hasDetectedPhoneCandidate = Boolean(diagnostics?.connectionCandidates?.some((candidate) => candidate.mode !== "local"));
+  const eligibleCandidates = eligiblePhonePairingCandidates<ConnectionCandidate>(diagnostics?.connectionCandidates || []);
+  const activeCandidate = eligibleCandidates.find((candidate) => candidate.baseUrl === pairingBaseUrl) || eligibleCandidates[0] || null;
+  const hasDetectedPhoneCandidate = eligibleCandidates.length > 0;
   const activeCandidateLabel = activeCandidate
     ? t(candidateLabelKey[activeCandidate.mode])
     : "";
@@ -187,39 +189,19 @@ export default function DevicePairPage() {
                   {createErrorDetail}
                 </div>
               ) : null}
-              {diagnostics?.connectionCandidates?.length ? (
-                <div className="mt-5 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-left text-xs text-zinc-400">
-                  <div className="font-bold text-zinc-200">{t("devicePair.detectedOnlyTitle")}</div>
+              {eligibleCandidates.length ? (
+                <details className="mt-5 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-left text-xs text-zinc-400">
+                  <summary className="cursor-pointer font-bold text-zinc-200">{t("devicePair.detectedOnlyTitle")}</summary>
                   <div className="mt-2 space-y-2">
-                    {diagnostics.connectionCandidates.slice(0, 3).map((candidate) => (
+                    {eligibleCandidates.slice(0, 3).map((candidate) => (
                       <div key={candidate.id} className="rounded-xl bg-black/20 p-2">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="font-semibold text-zinc-200">{candidate.label}</div>
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleTestPairingAddress(candidate.baseUrl)}
-                              disabled={testingConnection}
-                              className="rounded-lg border border-cyan-400/20 bg-cyan-500/10 px-2.5 py-1 text-[11px] font-bold text-cyan-200 disabled:opacity-50"
-                            >
-                              {t("devicePair.testDetectedCandidate")}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => createSession(candidate.baseUrl)}
-                              className="rounded-lg bg-cyan-500 px-2.5 py-1 text-[11px] font-bold text-[#061016]"
-                            >
-                              {t("devicePair.generateWithCandidate")}
-                            </button>
-                          </div>
-                        </div>
+                        <div className="font-semibold text-zinc-200">{candidate.label}</div>
                         <div className="mt-1 break-all font-mono text-zinc-500">{candidate.baseUrl}</div>
                         {candidate.requiresRestart ? <div className="mt-1 text-amber-100/80">{t("devicePair.candidateNeedsRestartHint")}</div> : null}
                       </div>
                     ))}
                   </div>
-                  {connectionTestResult ? <DevicePairConnectionTestResult result={connectionTestResult} /> : null}
-                </div>
+                </details>
               ) : null}
               <div className="mt-6 grid gap-3">
                 <a href="/admin/settings#mobile-connect" className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-3 text-sm font-bold text-[#061016]">

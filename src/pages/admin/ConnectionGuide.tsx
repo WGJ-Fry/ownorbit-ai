@@ -14,6 +14,7 @@ import ConnectionMobileEntryPanel from "./ConnectionMobileEntryPanel";
 import ConnectionRecommendedEntryCard from "./ConnectionRecommendedEntryCard";
 import { appendIcloudAutoRefreshStatus } from "./icloudAutoRefreshStatus";
 import type { IcloudAutoRefreshResult } from "../../services/lifeosApi";
+import { candidateSupportsPhonePairing, eligiblePhonePairingCandidates } from "../../services/pairingCandidatePolicy";
 type Health = Awaited<ReturnType<typeof getHealth>>;
 type ConnectionResult = Awaited<ReturnType<typeof testConnectionUrl>>["result"];
 function connectionStatusMessage(result: ConnectionResult, t: ReturnType<typeof useI18n>["t"]) {
@@ -34,8 +35,9 @@ export default function ConnectionGuide({ health }: { health: Health | null }) {
   const [tailscaleServeBusy, setTailscaleServeBusy] = useState<"start" | "stop" | null>(null);
   const [testing, setTesting] = useState(false);
   const [remoteHealthBusy, setRemoteHealthBusy] = useState(false);
-  const recommendedCandidate = diagnostics?.connectionCandidates?.find((candidate) => candidate.mode !== "local") || null;
-  const baseUrl = recommendedCandidate?.baseUrl || health?.publicBaseUrl || diagnostics?.recommendedBaseUrl || "http://LAN-IP:3000";
+  const phoneCandidates = eligiblePhonePairingCandidates<NetworkDiagnostics["connectionCandidates"][number]>(diagnostics?.connectionCandidates || []);
+  const recommendedCandidate = phoneCandidates[0] || null;
+  const baseUrl = recommendedCandidate?.baseUrl || "";
   const mobileChatUrl = recommendedCandidate ? `${baseUrl.replace(/\/$/, "")}/mobile/chat` : "";
 
   useEffect(() => {
@@ -258,13 +260,15 @@ export default function ConnectionGuide({ health }: { health: Health | null }) {
                     </div>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      onClick={() => copyText(candidate.id, candidate.mobileChatUrl)}
-                      className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-bold text-zinc-200"
-                    >
-                      <Copy className="h-3.5 w-3.5" />
-                      {copied === candidate.id ? t("connection.copied") : t("connection.copyMobileEntry")}
-                    </button>
+                    {candidateSupportsPhonePairing(candidate) ? (
+                      <button
+                        onClick={() => copyText(candidate.id, candidate.mobileChatUrl)}
+                        className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-bold text-zinc-200"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                        {copied === candidate.id ? t("connection.copied") : t("connection.copyMobileEntry")}
+                      </button>
+                    ) : null}
                     <button
                       onClick={() => handleTestCandidate(candidate.id, candidate.baseUrl)}
                       disabled={testingCandidate === candidate.id}

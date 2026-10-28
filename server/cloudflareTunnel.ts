@@ -14,6 +14,7 @@ type ManagedTunnel = {
   lastError: string;
   command: string;
   kind: "quick" | "named" | "";
+  phase: "stopped" | "starting" | "ready" | "stopping";
   stopping: boolean;
   reconnectTimer: ReturnType<typeof setTimeout> | null;
   reconnectAttempts: number;
@@ -33,6 +34,7 @@ const managedTunnel: ManagedTunnel = {
   lastError: "",
   command: "",
   kind: "",
+  phase: "stopped",
   stopping: false,
   reconnectTimer: null,
   reconnectAttempts: 0,
@@ -56,6 +58,43 @@ function appendOutput(value: string) {
   managedTunnel.lastOutput = next.slice(-8000);
   const detected = extractCloudflareTunnelUrls(managedTunnel.lastOutput);
   if (detected[0]) managedTunnel.url = detected[0];
+}
+
+function childIsRunning(child = managedTunnel.process) {
+  return Boolean(child && child.exitCode === null);
+}
+
+function terminateChild(child: ChildProcessWithoutNullStreams | null, graceMs = 1500) {
+  if (!child || child.exitCode !== null) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    let finished = false;
+    let forceTimer: ReturnType<typeof setTimeout>;
+    let finalTimer: ReturnType<typeof setTimeout>;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      if (forceTimer) clearTimeout(forceTimer);
+      if (finalTimer) clearTimeout(finalTimer);
+      resolve();
+    };
+    child.once("exit", finish);
+    try { child.kill("SIGTERM"); } catch { finish(); return; }
+    forceTimer = setTimeout(() => {
+      if (child.exitCode === null) {
+        try { child.kill("SIGKILL"); } catch {}
+      }
+    }, graceMs);
+    finalTimer = setTimeout(finish, graceMs + 750);
+    forceTimer.unref();
+    finalTimer.unref();
+  });
+}
+
+function clearManagedProcess(child: ChildProcessWithoutNullStreams | null) {
+  if (child && managedTunnel.process !== child) return;
+  managedTunnel.process = null;
+  managedTunnel.pid = null;
+  if (managedTunnel.phase !== "stopping") managedTunnel.phase = "stopped";
 }
 
 function clearReconnectTimer() {
@@ -290,7 +329,11 @@ export function startConfiguredCloudflareNamedTunnel(timeoutMs = 15000, port = "
   if (port) refreshCloudflareNamedTunnelConfigForPort(port);
   const status = getCloudflareNamedTunnelStatus();
   if (!status.ready || !status.name) throw new Error("Cloudflare Named Tunnel is not ready. Generate the config first.");
-  if (managedTunnel.process && !managedTunnel.process.killed && managedTunnel.url === status.baseUrl) return Promise.resolve(getManagedCloudflareTunnelStatus());
+  if (childIsRunning() && managedTunnel.kind === "named" && managedTunnel.url === status.baseUrl) {
+    return managedTunnel.phase === "ready"
+      ? Promise.resolve(getManagedCloudflareTunnelStatus())
+      : waitForManagedTunnelReady(timeoutMs);
+  }
 
   clearReconnectTimer();
   managedTunnel.stopping = false;
@@ -300,6 +343,7 @@ export function startConfiguredCloudflareNamedTunnel(timeoutMs = 15000, port = "
   managedTunnel.command = status.command;
   managedTunnel.startedAt = Date.now();
   managedTunnel.kind = "named";
+  managedTunnel.phase = "starting";
 
   return new Promise<ReturnType<typeof getManagedCloudflareTunnelStatus>>((resolve, reject) => {
     let settled = false;
@@ -320,6 +364,7 @@ export function startConfiguredCloudflareNamedTunnel(timeoutMs = 15000, port = "
       const handleOutput = (chunk: Buffer) => {
         appendOutput(chunk.toString("utf8"));
         if (/registered tunnel connection|connection registered|started tunnel/i.test(managedTunnel.lastOutput)) {
+          managedTunnel.phase = "ready";
           finish(() => resolve(getManagedCloudflareTunnelStatus()));
         }
       };
@@ -327,13 +372,13 @@ export function startConfiguredCloudflareNamedTunnel(timeoutMs = 15000, port = "
       child.stderr.on("data", handleOutput);
       child.on("error", (error) => {
         managedTunnel.lastError = error.message || "Failed to start Cloudflare Named Tunnel";
-        managedTunnel.process = null;
+        managedTunnel.phase = "stopped";
+        clearManagedProcess(child);
         finish(() => reject(new Error(managedTunnel.lastError)));
       });
       child.on("exit", (code, signal) => {
-        const wasReady = settled && managedTunnel.kind === "named";
-        managedTunnel.process = null;
-        managedTunnel.pid = null;
+        const wasReady = managedTunnel.phase === "ready";
+        clearManagedProcess(child);
         if (!settled) {
           managedTunnel.lastError = `cloudflared named tunnel exited before becoming ready (${signal || (code ?? "unknown")}).`;
           finish(() => reject(new Error(managedTunnel.lastError)));
@@ -342,7 +387,16 @@ export function startConfiguredCloudflareNamedTunnel(timeoutMs = 15000, port = "
           scheduleNamedTunnelReconnect("process_exit");
         }
       });
-      timer = setTimeout(() => finish(() => resolve(getManagedCloudflareTunnelStatus())), timeoutMs);
+      timer = setTimeout(() => {
+        const message = "Timed out waiting for Cloudflare Named Tunnel to register a connection.";
+        managedTunnel.lastError = message;
+        finish(() => {
+          void terminateChild(child).finally(() => {
+            clearManagedProcess(child);
+            reject(new Error(message));
+          });
+        });
+      }, timeoutMs);
     } catch (error: any) {
       managedTunnel.lastError = error?.message || "Failed to start Cloudflare Named Tunnel";
       managedTunnel.process = null;
@@ -352,10 +406,12 @@ export function startConfiguredCloudflareNamedTunnel(timeoutMs = 15000, port = "
 }
 
 export function getManagedCloudflareTunnelStatus() {
-  const running = Boolean(managedTunnel.process && !managedTunnel.process.killed);
+  const running = childIsRunning();
   return {
     running,
-    starting: running && !managedTunnel.url,
+    ready: running && managedTunnel.phase === "ready",
+    starting: running && managedTunnel.phase === "starting",
+    phase: managedTunnel.phase,
     url: managedTunnel.url,
     pid: running ? managedTunnel.pid : null,
     startedAt: running ? managedTunnel.startedAt : null,
@@ -370,18 +426,20 @@ export function getManagedCloudflareTunnelStatus() {
   };
 }
 
-export function stopManagedCloudflareTunnel() {
+export async function stopManagedCloudflareTunnel() {
   managedTunnel.stopping = true;
+  managedTunnel.phase = "stopping";
   clearReconnectTimer();
-  if (managedTunnel.process && !managedTunnel.process.killed) {
-    managedTunnel.process.kill("SIGTERM");
-  }
+  const child = managedTunnel.process;
+  await terminateChild(child);
   managedTunnel.process = null;
   managedTunnel.pid = null;
   managedTunnel.startedAt = null;
   managedTunnel.url = "";
   managedTunnel.command = "";
   managedTunnel.kind = "";
+  managedTunnel.phase = "stopped";
+  managedTunnel.stopping = false;
   managedTunnel.reconnectReason = "";
   return getManagedCloudflareTunnelStatus();
 }
@@ -439,7 +497,7 @@ export async function maybeStartConfiguredCloudflareTunnel(port: string, timeout
 
 export function startManagedCloudflareTunnel(port: string, timeoutMs = 15000) {
   const current = getManagedCloudflareTunnelStatus();
-  if (current.running && current.url) return Promise.resolve(current);
+  if (current.running && current.ready && current.url) return Promise.resolve(current);
   if (current.running && current.starting) return waitForManagedTunnelUrl(timeoutMs);
 
   managedTunnel.lastOutput = "";
@@ -449,6 +507,7 @@ export function startManagedCloudflareTunnel(port: string, timeoutMs = 15000) {
   managedTunnel.startedAt = Date.now();
   managedTunnel.kind = "quick";
   managedTunnel.stopping = false;
+  managedTunnel.phase = "starting";
 
   return new Promise<ReturnType<typeof getManagedCloudflareTunnelStatus>>((resolve, reject) => {
     let settled = false;
@@ -472,6 +531,7 @@ export function startManagedCloudflareTunnel(port: string, timeoutMs = 15000) {
       const handleOutput = (chunk: Buffer) => {
         appendOutput(chunk.toString("utf8"));
         if (managedTunnel.url) {
+          managedTunnel.phase = "ready";
           finish(() => resolve(getManagedCloudflareTunnelStatus()));
         }
       };
@@ -480,13 +540,13 @@ export function startManagedCloudflareTunnel(port: string, timeoutMs = 15000) {
       child.stderr.on("data", handleOutput);
       child.on("error", (error) => {
         managedTunnel.lastError = error.message || "Failed to start cloudflared";
-        managedTunnel.process = null;
+        managedTunnel.phase = "stopped";
+        clearManagedProcess(child);
         finish(() => reject(new Error(managedTunnel.lastError)));
       });
       child.on("exit", (code, signal) => {
-        const expectedStop = settled && managedTunnel.url;
-        managedTunnel.process = null;
-        managedTunnel.pid = null;
+        const expectedStop = managedTunnel.stopping;
+        clearManagedProcess(child);
         if (!expectedStop) {
           managedTunnel.lastError = `cloudflared exited before creating a tunnel (${signal || (code ?? "unknown")}).`;
           finish(() => reject(new Error(managedTunnel.lastError)));
@@ -498,7 +558,12 @@ export function startManagedCloudflareTunnel(port: string, timeoutMs = 15000) {
           ? "cloudflared started but no trycloudflare.com URL was detected yet."
           : "Timed out waiting for cloudflared to create a tunnel URL.";
         managedTunnel.lastError = message;
-        finish(() => reject(new Error(message)));
+        finish(() => {
+          void terminateChild(child).finally(() => {
+            clearManagedProcess(child);
+            reject(new Error(message));
+          });
+        });
       }, timeoutMs);
     } catch (error: any) {
       managedTunnel.lastError = error?.message || "Failed to start cloudflared";
@@ -513,7 +578,7 @@ export function waitForManagedTunnelUrl(timeoutMs = 15000) {
   return new Promise<ReturnType<typeof getManagedCloudflareTunnelStatus>>((resolve, reject) => {
     const poll = () => {
       const status = getManagedCloudflareTunnelStatus();
-      if (status.url) {
+      if (status.ready && status.url) {
         resolve(status);
         return;
       }
@@ -529,4 +594,8 @@ export function waitForManagedTunnelUrl(timeoutMs = 15000) {
     };
     poll();
   });
+}
+
+function waitForManagedTunnelReady(timeoutMs = 15000) {
+  return waitForManagedTunnelUrl(timeoutMs);
 }

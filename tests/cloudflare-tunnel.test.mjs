@@ -6,6 +6,47 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+test("quick Cloudflare Tunnel timeout terminates the unready process", async (t) => {
+  const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-cloudflared-timeout-bin-"));
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-cloudflared-timeout-data-"));
+  const cloudflaredPath = path.join(binDir, "cloudflared");
+
+  t.after(async () => {
+    await rm(binDir, { recursive: true, force: true });
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  await writeFile(cloudflaredPath, `#!/bin/sh
+trap 'exit 0' TERM INT
+while true; do sleep 1; done
+`);
+  await chmod(cloudflaredPath, 0o755);
+
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const tunnelManager = await import("./server/cloudflareTunnel.ts");
+    let error = "";
+    try {
+      await tunnelManager.startManagedCloudflareTunnel("4567", 100);
+    } catch (caught) {
+      error = String(caught?.message || caught);
+    }
+    process.stdout.write(JSON.stringify({ error, status: tunnelManager.getManagedCloudflareTunnelStatus() }));
+  `], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      LIFEOS_DATA_DIR: dataDir,
+      LIFEOS_CLOUDFLARED_BIN: cloudflaredPath,
+    },
+    encoding: "utf8",
+  });
+  const result = JSON.parse(output);
+  assert.match(result.error, /Timed out waiting for cloudflared to create a tunnel URL/);
+  assert.equal(result.status.running, false);
+  assert.equal(result.status.ready, false);
+  assert.equal(result.status.phase, "stopped");
+});
+
 test("configured quick Cloudflare Tunnel is not treated as restart-stable", async (t) => {
   const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-cloudflared-bin-"));
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-cloudflared-data-"));
@@ -108,7 +149,7 @@ while true; do sleep 1; done
   assert.equal(stableSavedConfig.publicBaseUrl, "https://lifeos.example.com");
   assert.equal(stableSavedConfig.baseUrl, "https://lifeos.example.com");
 
-  tunnelManager.stopManagedCloudflareTunnel();
+  await tunnelManager.stopManagedCloudflareTunnel();
 });
 
 test("Cloudflare Named Tunnel config is generated and autostarted as a stable entry", async (t) => {
@@ -189,7 +230,7 @@ while true; do sleep 1; done
   assert.equal(started.tunnel.url, "https://lifeos.example.com");
   assert.equal(process.env.PUBLIC_BASE_URL, "https://lifeos.example.com");
 
-  tunnelManager.stopManagedCloudflareTunnel();
+  await tunnelManager.stopManagedCloudflareTunnel();
 
   await rm(credentialsFile, { force: true });
   const missingCredentialsStatus = tunnelManager.getCloudflareNamedTunnelStatus();
@@ -238,7 +279,7 @@ while true; do sleep 1; done
     saveDesktopRuntimeConfig({ mode: "cloudflare", label: "Cloudflare Named Tunnel", baseUrl: "https://lifeos.example.com" });
     const started = await startConfiguredCloudflareNamedTunnel(1000, "6789");
     const restoredConfig = readFileSync(${JSON.stringify(path.join(dataDir, "cloudflared-named-tunnel.yml"))}, "utf8");
-    stopManagedCloudflareTunnel();
+    await stopManagedCloudflareTunnel();
     process.stdout.write(JSON.stringify({ refreshed, refreshedConfig, started, restoredConfig }));
   `], {
     cwd: process.cwd(),
@@ -320,9 +361,9 @@ while true; do sleep 1; done
   const cacheKey = Date.now();
   const tunnelManager = await import(`../server/cloudflareTunnel.ts?cloudflare-named-reconnect=${cacheKey}`);
   const { dataDir: activeDataDir } = await import("../server/db.ts");
-  t.after(() => {
+  t.after(async () => {
     try {
-      tunnelManager.stopManagedCloudflareTunnel();
+      await tunnelManager.stopManagedCloudflareTunnel();
     } catch {}
   });
   tunnelManager.generateCloudflareNamedTunnelConfig({
@@ -359,7 +400,7 @@ while true; do sleep 1; done
   const refreshedConfig = await readFile(path.join(activeDataDir, "cloudflared-named-tunnel.yml"), "utf8");
   assert.match(refreshedConfig, /service: http:\/\/127\.0\.0\.1:7890/);
 
-  tunnelManager.stopManagedCloudflareTunnel();
+  await tunnelManager.stopManagedCloudflareTunnel();
   const stopped = tunnelManager.getManagedCloudflareTunnelStatus();
   assert.equal(stopped.running, false);
   assert.equal(stopped.reconnectScheduledAt, null);

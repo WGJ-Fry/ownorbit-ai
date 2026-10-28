@@ -140,15 +140,15 @@ test("CloudKit chat worker schedules bounded retries for temporary provider fail
   }
 });
 
-test("CloudKit chat worker aborts timed-out provider calls and does not automatically retry them", async () => {
+test("CloudKit chat worker aborts timed-out provider calls and schedules a bounded retry", async () => {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), "ownorbit-cloudkit-chat-worker-timeout-"));
   try {
     const output = runWorkerScenario(dataDir, "timeout");
     assert.equal(output.generatorHasSignal, true);
     assert.equal(output.generatorAborted, true);
-    assert.equal(output.jobStatus, "failed");
-    assert.equal(output.result.retryScheduled, 0);
-    assert.equal(output.result.failed, 1);
+    assert.equal(output.jobStatus, "queued");
+    assert.equal(output.result.retryScheduled, 1);
+    assert.equal(output.result.failed, 0);
     assert.equal(output.result.items[0].safeErrorCode, "ai-timeout");
   } finally {
     await rm(dataDir, { recursive: true, force: true });

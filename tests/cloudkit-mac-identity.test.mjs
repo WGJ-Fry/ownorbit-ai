@@ -58,3 +58,43 @@ test("CloudKit Mac response identity survives a process restart and remains veri
     await rm(dataDir, { recursive: true, force: true });
   }
 });
+
+test("unsigned macOS archives an inaccessible Keychain identity without decrypting it", async () => {
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), "ownorbit-cloudkit-unsigned-identity-"));
+  try {
+    const script = `
+      const { runMigrations } = await import("./server/migrations.ts");
+      const { db } = await import("./server/db.ts");
+      runMigrations();
+      const now = Date.now();
+      db.prepare(\`
+        INSERT INTO app_secrets (id, provider, secret_storage, ciphertext, iv, auth_tag, created_at, updated_at)
+        VALUES ('internal.cloudkit-chat-mac-identity.v1', 'internal', 'electron_safe_storage',
+          'ciphertext-that-must-not-be-decrypted', 'electron_safe_storage', '', ?, ?)
+      \`).run(now, now);
+      const identity = await import("./server/cloudKitMacIdentity.ts");
+      const publicIdentity = identity.getCloudKitMacIdentityPublic();
+      const rows = db.prepare(\`
+        SELECT id, secret_storage as storage
+        FROM app_secrets
+        WHERE provider = 'internal' AND id LIKE 'internal.cloudkit-chat-mac-identity%'
+        ORDER BY id
+      \`).all();
+      process.stdout.write(JSON.stringify({ publicIdentity, rows }));
+    `;
+    const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
+      cwd: rootDir,
+      env: { ...process.env, LIFEOS_DATA_DIR: dataDir, LIFEOS_DISTRIBUTION: "unsigned" },
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const payload = JSON.parse(result.stdout);
+    assert.match(payload.publicIdentity.publicKeyFingerprint, /^[a-f0-9]{64}$/);
+    assert.equal(payload.rows.length, 2);
+    assert.deepEqual(payload.rows.map((row) => row.storage).sort(), ["electron_safe_storage", "local_aes_gcm"]);
+    assert.equal(payload.rows.some((row) => row.id === "internal.cloudkit-chat-mac-identity.v1" && row.storage === "local_aes_gcm"), true);
+    assert.equal(payload.rows.some((row) => row.id.includes("archived-unsigned-keychain") && row.storage === "electron_safe_storage"), true);
+  } finally {
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});

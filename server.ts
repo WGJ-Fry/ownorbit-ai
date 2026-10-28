@@ -24,13 +24,14 @@ import { startBackupScheduler } from "./server/backupSchedule";
 import { startCloudKitAutoSyncScheduler } from "./server/cloudKitAutoSyncSchedule";
 import { startCloudKitChatLifecycleScheduler } from "./server/cloudKitChatLifecycle";
 import { startCloudKitChatRelayScheduler } from "./server/cloudKitChatRelaySchedule";
-import { maybeStartConfiguredCloudflareTunnel } from "./server/cloudflareTunnel";
+import { maybeStartConfiguredCloudflareTunnel, stopManagedCloudflareTunnel } from "./server/cloudflareTunnel";
 import { runIcloudHandoffStartupRefresh, startIcloudHandoffMonitor } from "./server/icloudHandoffMonitor";
-import { maybeStartConfiguredTailscaleServe } from "./server/networkDiagnostics";
+import { maybeStartConfiguredTailscaleServe, stopOwnedTailscaleHttpsServeOnShutdown } from "./server/networkDiagnostics";
 import { startRemoteHealthMonitor } from "./server/remoteHealthMonitor";
 import { getInstallPairingToken, htmlWithInstallPairingManifest, htmlWithPublicBaseHref, setInstallPairingIntentCookie } from "./server/mobileInstall";
 import { getConfiguredPublicBasePath } from "./server/publicBaseUrl";
 import { migrateLegacyCustomAppsFromClientState } from "./server/customApps";
+import { cleanupTailscaleSocket, prepareTailscaleSocketPath, protectTailscaleSocket } from "./server/tailscaleSocket";
 
 const app = express();
 const PORT = Number(process.env.LIFEOS_PORT || process.env.PORT || 3000);
@@ -128,6 +129,33 @@ app.use(apiRequestErrorHandler);
 async function startServer() {
   const server = http.createServer(app);
   attachRealtimeServer(server);
+  const tailscaleSocketPath = prepareTailscaleSocketPath();
+  const tailscaleSocketServer = tailscaleSocketPath ? http.createServer(app) : null;
+  const tailscaleWindowsRelayServer = process.platform === "win32" ? http.createServer(app) : null;
+  if (tailscaleSocketServer) {
+    attachRealtimeServer(tailscaleSocketServer);
+    tailscaleSocketServer.listen(tailscaleSocketPath, () => {
+      protectTailscaleSocket(tailscaleSocketPath);
+      console.log("OwnOrbit private Tailscale socket is ready");
+    });
+  }
+  if (tailscaleWindowsRelayServer) {
+    attachRealtimeServer(tailscaleWindowsRelayServer);
+    await new Promise<void>((resolve, reject) => {
+      tailscaleWindowsRelayServer.once("error", reject);
+      tailscaleWindowsRelayServer.listen(0, "127.0.0.1", () => {
+        tailscaleWindowsRelayServer.off("error", reject);
+        const address = tailscaleWindowsRelayServer.address();
+        if (!address || typeof address === "string") {
+          reject(new Error("OwnOrbit could not allocate the private Windows Tailscale relay."));
+          return;
+        }
+        process.env.LIFEOS_TAILSCALE_LOOPBACK_PORT = String(address.port);
+        console.log("OwnOrbit private Windows Tailscale relay is ready");
+        resolve();
+      });
+    });
+  }
 
   if (process.env.NODE_ENV !== "production" && !RUNNING_BUNDLED_SERVER) {
     const { createServer: createViteServer } = await import("vite");
@@ -218,7 +246,24 @@ async function startServer() {
     });
   });
 
-  const shutdown = () => {
+  let remoteCleanupFinished = false;
+  const cleanupOwnedRemoteEntry = async () => {
+    if (remoteCleanupFinished) return;
+    remoteCleanupFinished = true;
+    await stopManagedCloudflareTunnel();
+    const result = stopOwnedTailscaleHttpsServeOnShutdown(String(PORT));
+    if (result.reason === "stop-failed") {
+      console.warn("Tailscale HTTPS Serve shutdown cleanup failed:", result.error);
+    }
+    cleanupTailscaleSocket(tailscaleSocketPath);
+    delete process.env.LIFEOS_TAILSCALE_LOOPBACK_PORT;
+  };
+  process.once("exit", () => { void cleanupOwnedRemoteEntry(); });
+
+  const shutdown = async () => {
+    await cleanupOwnedRemoteEntry();
+    tailscaleSocketServer?.close();
+    tailscaleWindowsRelayServer?.close();
     server.close(() => {
       process.exit(0);
     });

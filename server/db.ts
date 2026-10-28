@@ -11,6 +11,19 @@ const pendingRestoreMetaPath = path.join(dataDir, "restore-pending.json");
 const defaultBackupRetentionCount = 20;
 const sensitiveClientStateKey = /api[-_]?key|byok[-_]?key|token|password|passphrase|secret|authorization|cookie|private/i;
 
+function protectPrivatePath(targetPath: string, mode: number) {
+  if (process.platform === "win32" || !fs.existsSync(targetPath)) return;
+  try {
+    fs.chmodSync(targetPath, mode);
+  } catch {}
+}
+
+function protectSqliteFiles() {
+  for (const targetPath of [dbPath, `${dbPath}-wal`, `${dbPath}-shm`, `${dbPath}-journal`]) {
+    protectPrivatePath(targetPath, 0o600);
+  }
+}
+
 function getBackupRetentionCount() {
   const rawValue = process.env.LIFEOS_BACKUP_RETENTION_COUNT;
   if (rawValue === undefined || rawValue === "") return defaultBackupRetentionCount;
@@ -19,8 +32,10 @@ function getBackupRetentionCount() {
   return parsed;
 }
 
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
-if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true, mode: 0o700 });
+protectPrivatePath(dataDir, 0o700);
+protectPrivatePath(backupDir, 0o700);
 
 function removeSqliteSidecars() {
   for (const suffix of ["-wal", "-shm", "-journal"]) {
@@ -33,6 +48,7 @@ function applyPendingRestoreBeforeOpen() {
   if (!fs.existsSync(pendingRestorePath)) return;
   removeSqliteSidecars();
   fs.copyFileSync(pendingRestorePath, dbPath);
+  protectPrivatePath(dbPath, 0o600);
   fs.rmSync(pendingRestorePath, { force: true });
   fs.rmSync(pendingRestoreMetaPath, { force: true });
 }
@@ -295,6 +311,7 @@ db.exec(`
     applied_at INTEGER NOT NULL
   );
 `);
+protectSqliteFiles();
 
 function tableColumns(tableName: string) {
   return new Set(db.prepare(`PRAGMA table_info(${tableName})`).all().map((column) => String(column.name)));
@@ -449,6 +466,7 @@ export function createDatabaseBackup(options: { prune?: boolean; protectedFiles?
   db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
   const { file, targetPath } = createBackupFileName();
   fs.copyFileSync(dbPath, targetPath);
+  protectPrivatePath(targetPath, 0o600);
   const redaction = sanitizeBackupFile(targetPath);
   const stat = fs.statSync(targetPath);
   if (options.prune !== false) {
@@ -500,6 +518,7 @@ export function scheduleDatabaseRestore(file: string) {
   db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
   const preRestore = createDatabaseBackup({ prune: false });
   fs.copyFileSync(sourcePath, pendingRestorePath);
+  protectPrivatePath(pendingRestorePath, 0o600);
   pruneBackups([safeFile, preRestore.file]);
   const restore = {
     restoredFrom: safeFile,
@@ -508,7 +527,8 @@ export function scheduleDatabaseRestore(file: string) {
     scheduledForNextStart: true,
     restartRequired: true,
   };
-  fs.writeFileSync(pendingRestoreMetaPath, JSON.stringify(restore, null, 2));
+  fs.writeFileSync(pendingRestoreMetaPath, JSON.stringify(restore, null, 2), { mode: 0o600 });
+  protectPrivatePath(pendingRestoreMetaPath, 0o600);
   return restore;
 }
 

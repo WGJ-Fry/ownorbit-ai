@@ -309,8 +309,30 @@ export function getOpenBindingSessionByToken(token: string, now: number) {
   return row ? mapBindingSession(row) : undefined;
 }
 
-export function confirmBindingSession(bindingId: string, deviceId: string, confirmedAt: number) {
-  db.prepare("UPDATE binding_sessions SET confirmed_at = ?, confirmed_device_id = ? WHERE id = ?").run(confirmedAt, deviceId, bindingId);
+export function getBindingSessionByToken(token: string) {
+  const row = db.prepare("SELECT * FROM binding_sessions WHERE token_hash = ?").get(tokenHash(token));
+  return row ? mapBindingSession(row) : undefined;
+}
+
+export function confirmBindingSessionWithDevice(bindingId: string, device: DeviceRecord, confirmedAt: number) {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    insertDevice(device);
+    const claimed = db.prepare(`
+      UPDATE binding_sessions
+      SET confirmed_at = ?, confirmed_device_id = ?
+      WHERE id = ? AND confirmed_at IS NULL AND expires_at > ?
+    `).run(confirmedAt, device.id, bindingId, confirmedAt).changes === 1;
+    if (!claimed) {
+      db.exec("ROLLBACK");
+      return false;
+    }
+    db.exec("COMMIT");
+    return true;
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
 }
 
 // Migration vouchers let an already-authenticated phone move its binding to a

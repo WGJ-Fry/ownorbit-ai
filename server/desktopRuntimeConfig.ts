@@ -68,11 +68,12 @@ export function normalizeDesktopRuntimeConfig(input: {
   const isLocal = mode === "local";
   const isLan = mode === "lan";
   const isTailscaleHttpsServe = mode === "tailscale" && parsed.protocol === "https:";
+  const isLoopbackTunnel = mode === "configured" || mode === "cloudflare" || isTailscaleHttpsServe;
   const publicBaseUrl = isLocal || isLan ? "" : normalizedBaseUrl;
   return {
     mode,
     label: normalizeLabel(input.label, mode),
-    host: isLocal || isTailscaleHttpsServe ? "127.0.0.1" as const : "0.0.0.0" as const,
+    host: isLocal || isLoopbackTunnel ? "127.0.0.1" as const : "0.0.0.0" as const,
     port,
     publicBaseUrl,
     allowPublic: !isLocal,

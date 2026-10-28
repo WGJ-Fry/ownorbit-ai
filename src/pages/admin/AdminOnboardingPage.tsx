@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import type React from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { AlertTriangle, ArrowRight, CheckCircle2, Cloud, Copy, DatabaseBackup, KeyRound, Loader2, QrCode, RefreshCw, ShieldAlert, SlidersHorizontal, Sparkles, Smartphone, Wifi } from "lucide-react";
-import { cleanupIcloudHandoffEntries, completeOnboarding, createBackup, exportIcloudHandoff, getBackupSchedule, getBindingSession, getCloudKitDeviceTrustMetadata, getConfigDiagnostics, getNetworkDiagnostics, getOnboardingStatus, isLifeosRequestTimeout, listAiProviders, listBackups, listDevices, saveAiProviderKey, saveDesktopConnectionConfig, startBindingSession, startCloudflareTunnel, startTailscaleHttpsServe, testAiProvider, testConnectionUrl, updateActiveAiProvider, updateAiProviderModel, updateBackupSchedule } from "../../services/lifeosApi";
-import type { AiProviderId, AiProviderStatus, BackupRecord, BackupSchedule, BindingSession, BoundDevice, CloudKitDeviceTrustMetadataSummary, ConfigDiagnostics, NetworkDiagnostics, OnboardingStatus } from "../../services/lifeosApi";
+import { approveCloudKitChatDevice, cleanupIcloudHandoffEntries, completeOnboarding, createBackup, exportIcloudHandoff, getBackupSchedule, getBindingSession, getCloudKitChatDevices, getCloudKitDeviceTrustMetadata, getConfigDiagnostics, getNetworkDiagnostics, getOnboardingStatus, isLifeosRequestTimeout, listAiProviders, listBackups, listDevices, saveAiProviderKey, saveDesktopConnectionConfig, startBindingSession, startCloudflareTunnel, startTailscaleHttpsServe, testAiProvider, testConnectionUrl, updateActiveAiProvider, updateAiProviderModel, updateBackupSchedule } from "../../services/lifeosApi";
+import type { AiProviderId, AiProviderStatus, BackupRecord, BackupSchedule, BindingSession, BoundDevice, CloudKitChatDeviceItem, CloudKitDeviceTrustMetadataSummary, ConfigDiagnostics, NetworkDiagnostics, OnboardingStatus } from "../../services/lifeosApi";
 import LanguageSwitcher from "../../i18n/LanguageSwitcher";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { TranslationKey } from "../../i18n/translations";
@@ -70,6 +70,10 @@ export default function AdminOnboardingPage() {
   const [backupSchedule, setBackupSchedule] = useState<BackupSchedule | null>(null);
   const [devices, setDevices] = useState<BoundDevice[]>([]);
   const [cloudKitDeviceTrustSummary, setCloudKitDeviceTrustSummary] = useState<CloudKitDeviceTrustMetadataSummary | null>(null);
+  const [cloudKitChatDevices, setCloudKitChatDevices] = useState<CloudKitChatDeviceItem[]>([]);
+  const [approvingCloudKitDeviceId, setApprovingCloudKitDeviceId] = useState<string | null>(null);
+  const [cloudKitChatDeviceLoadFailed, setCloudKitChatDeviceLoadFailed] = useState(false);
+  const [cloudKitChatDeviceRefreshing, setCloudKitChatDeviceRefreshing] = useState(false);
   const [onboarding, setOnboarding] = useState<OnboardingStatus | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -83,11 +87,13 @@ export default function AdminOnboardingPage() {
   const activeProvider = useMemo(() => providers.find((provider) => provider.id === selectedProvider), [providers, selectedProvider]);
   const isLocalProvider = selectedProvider === "local";
   const selectedProviderLabel = activeProvider?.provider || providerLabels[selectedProvider] || selectedProvider;
-  const aiConfigured = providers.some((provider) => provider.configured);
+  const configuredActiveProvider = providers.find((provider) => provider.active);
+  const aiConfigured = Boolean(configuredActiveProvider?.configured && !configuredActiveProvider.credentialResetRequired);
   const latestBackup = backups[0];
   const hasBackup = backups.length > 0;
   const onboardingSteps = Array.isArray(onboarding?.steps) ? onboarding.steps : [];
   const hasBoundWebDevice = devices.some((device) => device.status !== "revoked");
+  const pendingCloudKitChatDevices = cloudKitChatDevices.filter((device) => device.state === "pending");
   const hasDevice = hasBoundWebDevice || Boolean(onboarding?.deviceReadiness?.ready) || onboardingSteps.some((step) => step.id === "device" && step.done);
   const primaryStep = !aiConfigured ? "ai" : !hasDevice ? "device" : "chat";
   const primaryStepNumber = primaryStep === "ai" ? 2 : 3;
@@ -303,6 +309,11 @@ export default function AdminOnboardingPage() {
     const providerData = await listAiProviders().catch(() => null);
     if (providerData) {
       setProviders(providerData.providers);
+      const preferredProvider = providerData.providers.find((provider) => provider.active)
+        || providerData.providers.find((provider) => provider.credentialResetRequired)
+        || providerData.providers.find((provider) => provider.configured)
+        || providerData.providers[0];
+      if (preferredProvider) setSelectedProvider(preferredProvider.id);
       setProviderLoadError("");
     } else {
       setProviderLoadError(t("onboarding.providerLoadFailed"));
@@ -311,19 +322,26 @@ export default function AdminOnboardingPage() {
     // unrelated backup or onboarding request cannot hide the Apple handoff UI.
     const networkData = await getNetworkDiagnostics().catch(() => null);
     setNetworkDiagnostics(networkData);
-    const [diagnosticsData, backupData, scheduleData, deviceData, onboardingData, deviceTrustData] = await Promise.all([
+    const [diagnosticsData, backupData, scheduleData, deviceData, onboardingData, deviceTrustData, chatDevicesData] = await Promise.all([
       getConfigDiagnostics().catch(() => null),
       listBackups().catch(() => null),
       getBackupSchedule().catch(() => null),
       listDevices().catch(() => null),
       getOnboardingStatus().catch(() => null),
       getCloudKitDeviceTrustMetadata(10).catch(() => null),
+      getCloudKitChatDevices(10).catch(() => null),
     ]);
     if (diagnosticsData) setDiagnostics(diagnosticsData);
     if (backupData) setBackups(backupData.backups);
     if (scheduleData) setBackupSchedule(scheduleData.schedule);
     if (deviceData) setDevices(deviceData.devices);
     setCloudKitDeviceTrustSummary(deviceTrustData?.deviceTrust.summary || null);
+    if (chatDevicesData) {
+      setCloudKitChatDevices(chatDevicesData.devices.items);
+      setCloudKitChatDeviceLoadFailed(false);
+    } else {
+      setCloudKitChatDeviceLoadFailed(true);
+    }
     if (onboardingData) setOnboarding(onboardingData.onboarding);
     if (!providerData && !networkData && !diagnosticsData && !backupData && !scheduleData && !deviceData && !onboardingData) {
       throw new Error("Local core is not ready.");
@@ -401,23 +419,57 @@ export default function AdminOnboardingPage() {
   }, [simpleIcloudShouldPollPickup, simpleIcloudFlowStage]);
 
   useEffect(() => {
-    if (primaryStep !== "device" || hasDevice) return;
     let stopped = false;
     const refreshNativeDeviceReadiness = async () => {
-      const [onboardingData, deviceTrustData] = await Promise.all([
+      const [onboardingData, deviceTrustData, chatDevicesData] = await Promise.all([
         getOnboardingStatus().catch(() => null),
         getCloudKitDeviceTrustMetadata(10).catch(() => null),
+        getCloudKitChatDevices(10).catch(() => null),
       ]);
       if (stopped) return;
       if (onboardingData) setOnboarding(onboardingData.onboarding);
       if (deviceTrustData) setCloudKitDeviceTrustSummary(deviceTrustData.deviceTrust.summary);
+      if (chatDevicesData) {
+        setCloudKitChatDevices(chatDevicesData.devices.items);
+        setCloudKitChatDeviceLoadFailed(false);
+      } else {
+        setCloudKitChatDeviceLoadFailed(true);
+      }
     };
+    void refreshNativeDeviceReadiness();
     const interval = window.setInterval(refreshNativeDeviceReadiness, 2500);
     return () => {
       stopped = true;
       window.clearInterval(interval);
     };
-  }, [primaryStep, hasDevice]);
+  }, []);
+
+  const handleRefreshCloudKitChatDevices = async () => {
+    setCloudKitChatDeviceRefreshing(true);
+    try {
+      const data = await getCloudKitChatDevices(10);
+      setCloudKitChatDevices(data.devices.items);
+      setCloudKitChatDeviceLoadFailed(false);
+    } catch {
+      setCloudKitChatDeviceLoadFailed(true);
+    } finally {
+      setCloudKitChatDeviceRefreshing(false);
+    }
+  };
+
+  const handleApproveCloudKitDevice = async (device: CloudKitChatDeviceItem) => {
+    setApprovingCloudKitDeviceId(device.id);
+    setStatus(null);
+    try {
+      await approveCloudKitChatDevice(device.id);
+      setStatus(t("onboarding.cloudKitPhoneApproved", { name: device.displayName }));
+      await refresh();
+    } catch (error: any) {
+      setStatus(error?.message || t("settings.cloudKitChatDeviceUpdateFailed"));
+    } finally {
+      setApprovingCloudKitDeviceId(null);
+    }
+  };
 
   useEffect(() => {
     if (primaryStep !== "device" || hasDevice || !showSimpleIcloudQrAfterPickup || !simpleIcloudCurrentEntry || inlinePairingSession || inlinePairingBusy || inlinePairingError) return;
@@ -759,6 +811,58 @@ export default function AdminOnboardingPage() {
 
         {status ? <div className="mb-5 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 text-sm text-zinc-300">{status}</div> : null}
 
+        {pendingCloudKitChatDevices.length > 0 ? (
+          <section id="onboarding-cloudkit-phone-approval" data-testid="onboarding-cloudkit-phone-approval" className="mb-5 scroll-mt-5 border-y border-amber-300/20 bg-amber-400/10 px-4 py-4 text-amber-50">
+            <div className="flex items-start gap-3">
+              <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <div className="font-bold">{t("settings.cloudKitChatDevicePending", { count: pendingCloudKitChatDevices.length })}</div>
+                <p className="mt-1 text-xs leading-relaxed text-amber-50/75">{t("settings.cloudKitChatDevicePendingBody")}</p>
+                <div className="mt-3 divide-y divide-amber-100/10 border-y border-amber-100/10">
+                  {pendingCloudKitChatDevices.map((device) => (
+                    <div key={device.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-bold">{device.displayName}</div>
+                        <div className="mt-1 text-xs text-amber-50/65">
+                          {t("settings.cloudKitDeviceTrustFingerprint")} {device.publicKeyFingerprintShort}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void handleApproveCloudKitDevice(device)}
+                        disabled={Boolean(approvingCloudKitDeviceId)}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-200 px-4 py-2 text-sm font-bold text-[#1d1304] disabled:opacity-50"
+                      >
+                        {approvingCloudKitDeviceId === device.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Smartphone className="h-4 w-4" />}
+                        {t("settings.cloudKitChatDeviceApprove")}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : cloudKitChatDeviceLoadFailed ? (
+          <section data-testid="onboarding-cloudkit-phone-check-failed" className="mb-5 flex flex-col gap-3 border-y border-amber-300/20 bg-amber-400/10 px-4 py-4 text-amber-50 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+              <div>
+                <div className="font-bold">{t("settings.cloudKitChatDeviceCheckFailed")}</div>
+                <p className="mt-1 text-xs leading-relaxed text-amber-50/75">{t("settings.cloudKitChatDeviceCheckFailedBody")}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleRefreshCloudKitChatDevices()}
+              disabled={cloudKitChatDeviceRefreshing}
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-amber-100/20 bg-black/20 px-4 py-2 text-sm font-bold disabled:opacity-50"
+            >
+              {cloudKitChatDeviceRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              {t("settings.cloudKitChatDeviceRetry")}
+            </button>
+          </section>
+        ) : null}
+
         {primaryStep === "ai" ? (
           <section id="onboarding-ai-key" className="scroll-mt-5 rounded-[28px] border border-cyan-400/20 bg-[#101722] p-5 shadow-2xl shadow-cyan-950/20">
             <StepHeader done={aiConfigured} icon={<KeyRound className="h-5 w-5" />} title={t("onboarding.simpleAiTitle")} />
@@ -776,6 +880,13 @@ export default function AdminOnboardingPage() {
                   {busy === "providers" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                   {t("onboarding.retryLocalCore")}
                 </button>
+              </div>
+            ) : null}
+
+            {activeProvider?.credentialResetRequired ? (
+              <div data-testid="onboarding-ai-key-reset-required" className="mt-4 border-y border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm leading-relaxed text-amber-50">
+                <div className="font-bold">{t("aiKey.credentialResetTitle")}</div>
+                <div className="mt-1 text-xs text-amber-50/75">{t("aiKey.credentialResetBody", { provider: activeProvider.provider })}</div>
               </div>
             ) : null}
 

@@ -4,7 +4,7 @@ import { accessSync, constants, existsSync, mkdirSync, readFileSync, readdirSync
 import os from "os";
 import path from "path";
 import { WebSocket } from "ws";
-import { extractCloudflareTunnelUrls, getManagedCloudflareTunnelStatus } from "./cloudflareTunnel.ts";
+import { extractCloudflareTunnelUrls, getCloudflareNamedTunnelStatus, getManagedCloudflareTunnelStatus } from "./cloudflareTunnel.ts";
 import { DesktopRuntimeConfig, getDesktopRuntimeConfig, saveDesktopRuntimeConfig } from "./desktopRuntimeConfig.ts";
 import { getLatestBindingSession, getLatestIcloudHandoffEventByTypes } from "./devices.ts";
 import { getIcloudDataSyncReadiness } from "./icloudDataSyncReadiness.ts";
@@ -13,6 +13,7 @@ import { buildIcloudPairingSessionStatus } from "./icloudPairingSession.ts";
 import { getLatestIcloudRepairImportRecord } from "./icloudRepairImports.ts";
 import { getConfiguredPublicBaseUrl, isTemporaryTryCloudflareUrl } from "./publicBaseUrl";
 import { TAILSCALE_DNS_ADMIN_URL, buildTunnelConflictNote, detectTunnelConflicts } from "./tunnelConflict.ts";
+import { tailscaleServeTarget } from "./tailscaleSocket.ts";
 
 type CommandResult = {
   ok: boolean;
@@ -26,6 +27,23 @@ const macTailscaleCandidates = [
   "/Applications/Tailscale.app/Contents/MacOS/Tailscale",
   "/Applications/Tailscale.app/Contents/MacOS/tailscale",
 ];
+let ownedTailscaleServeTarget = "";
+
+export function extractTailscaleServeRootProxyTarget(raw: string, dnsName: string) {
+  try {
+    const parsed = JSON.parse(raw);
+    const expectedHost = String(dnsName || "").trim().replace(/\.+$/, "").toLowerCase();
+    if (!expectedHost || !parsed?.Web || typeof parsed.Web !== "object") return "";
+    const webEntry = Object.entries(parsed.Web as Record<string, unknown>).find(([key]) => {
+      const normalizedKey = key.trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "").toLowerCase();
+      return normalizedKey === `${expectedHost}:443`;
+    })?.[1] as { Handlers?: Record<string, { Proxy?: unknown }> } | undefined;
+    const target = webEntry?.Handlers?.["/"]?.Proxy;
+    return typeof target === "string" ? target : "";
+  } catch {
+    return "";
+  }
+}
 
 type ConnectionProbeStep = {
   id: "health" | "mobile-shell" | "websocket";
@@ -364,10 +382,11 @@ function getIcloudDesktopIdentity() {
 }
 
 function preferredHandoffCandidate(candidates: ConnectionCandidate[]) {
+  const activeCandidates = candidates.filter((candidate) => !(candidate.mode === "tailscale" && !candidate.secure));
   return (
-    candidates.find((candidate) => candidate.mode !== "local" && candidate.secure && candidate.stability === "stable") ||
-    candidates.find((candidate) => candidate.mode !== "local" && candidate.secure) ||
-    candidates.find((candidate) => candidate.mode !== "local") ||
+    activeCandidates.find((candidate) => candidate.mode !== "local" && candidate.secure && candidate.stability === "stable") ||
+    activeCandidates.find((candidate) => candidate.mode !== "local" && candidate.secure) ||
+    activeCandidates.find((candidate) => candidate.mode !== "local") ||
     null
   );
 }
@@ -2190,6 +2209,33 @@ function buildIcloudHandoffHtml(input: { generatedAt: number; candidate: Connect
 </html>`;
 }
 
+function buildRetiredIcloudHandoffHtml(packet: Record<string, unknown>) {
+  return `<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="lifeos-entry-generated-at" content="${htmlEscape(packet.generatedAt || "")}" />
+    <meta name="lifeos-entry-checksum" content="${htmlEscape(packet.entryChecksumSha256 || "")}" />
+    <title>OwnOrbit AI Mobile Entry Retired</title>
+    <style>
+      body { margin: 0; min-height: 100vh; background: #060a10; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: grid; place-items: center; padding: 20px; }
+      main { box-sizing: border-box; width: min(520px, 100%); border: 1px solid rgba(248,113,113,.25); background: #101722; border-radius: 24px; padding: 24px; }
+      h1 { margin: 0; font-size: 24px; letter-spacing: 0; }
+      p { color: #cbd5e1; line-height: 1.65; }
+      strong { color: #fecaca; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>这个手机入口已停用</h1>
+      <p><strong>不要继续使用旧二维码或旧链接。</strong>请在 Mac 上重新打开 OwnOrbit，再从 iCloud Drive 打开最新入口。</p>
+      <p><strong>This mobile entry is retired.</strong> Reopen OwnOrbit on the Mac, then open the newest entry from iCloud Drive.</p>
+    </main>
+  </body>
+</html>`;
+}
+
 function connectionCandidate(input: {
   id: string;
   label: string;
@@ -2203,7 +2249,11 @@ function connectionCandidate(input: {
   const secure = input.baseUrl.startsWith("https://") || input.mode === "local";
   const normalizedBaseUrl = input.baseUrl.replace(/\/$/, "");
   const parsedBaseUrl = new URL(normalizedBaseUrl);
-  const host = input.mode === "local" || (input.mode === "tailscale" && parsedBaseUrl.protocol === "https:") ? "127.0.0.1" : "0.0.0.0";
+  const host = input.mode === "local"
+    || input.mode === "cloudflare"
+    || (input.mode === "tailscale" && parsedBaseUrl.protocol === "https:")
+    ? "127.0.0.1"
+    : "0.0.0.0";
   const trustProxy = secure && input.mode !== "local" && input.mode !== "lan" ? " LIFEOS_TRUST_PROXY=1" : "";
   const envTemplate = input.mode === "local"
     ? `LIFEOS_HOST=127.0.0.1 LIFEOS_PORT=${parsedBaseUrl.port || "3000"} npm run start`
@@ -2224,6 +2274,8 @@ function connectionCandidate(input: {
 
 function buildConnectionCandidates(input: {
   port: string;
+  host: string;
+  publicAccessAllowed: boolean;
   publicBaseUrl: string;
   lanUrls: string[];
   desktopRuntimeConfig: DesktopRuntimeConfig | null;
@@ -2231,14 +2283,43 @@ function buildConnectionCandidates(input: {
   tailscale: ReturnType<typeof getTailscaleStatus>;
 }) {
   const candidates: ReturnType<typeof connectionCandidate>[] = [];
+  const activeManagedCloudflareUrls = input.cloudflare.managed.ready && input.cloudflare.managed.url
+    ? [input.cloudflare.managed.url]
+    : [];
   const isActiveTemporaryCloudflareUrl = (baseUrl: string) => (
-    isTemporaryTryCloudflareUrl(baseUrl) && input.cloudflare.detectedUrls.includes(baseUrl)
+    isTemporaryTryCloudflareUrl(baseUrl) && activeManagedCloudflareUrls.includes(baseUrl)
   );
   if (input.desktopRuntimeConfig) {
     const savedBaseUrl = input.desktopRuntimeConfig.publicBaseUrl || input.desktopRuntimeConfig.baseUrl;
     const savedIsTemporaryCloudflare = isTemporaryTryCloudflareUrl(savedBaseUrl);
-    const savedTemporaryIsActive = isActiveTemporaryCloudflareUrl(savedBaseUrl) || input.publicBaseUrl === savedBaseUrl;
-    const shouldIncludeSavedConfig = Boolean(savedBaseUrl && (!savedIsTemporaryCloudflare || savedTemporaryIsActive));
+    const savedTemporaryIsActive = isActiveTemporaryCloudflareUrl(savedBaseUrl);
+    const savedTailscaleIsActive = input.desktopRuntimeConfig.mode !== "tailscale" || Boolean(
+      input.tailscale.httpsServeReady && input.tailscale.httpsServeUrl === savedBaseUrl
+    );
+    const savedCloudflareIsActive = input.desktopRuntimeConfig.mode !== "cloudflare" || (
+      savedIsTemporaryCloudflare
+        ? savedTemporaryIsActive
+        : Boolean(
+            input.cloudflare.managed.running
+            && input.cloudflare.managed.ready
+            && input.cloudflare.managed.kind === "named"
+            && input.cloudflare.named.baseUrl === savedBaseUrl
+          )
+    );
+    const savedLanIsActive = input.desktopRuntimeConfig.mode !== "lan" || (
+      input.host === "0.0.0.0" && input.publicAccessAllowed
+    );
+    const savedConfiguredIsActive = input.desktopRuntimeConfig.mode !== "configured" || (
+      input.publicAccessAllowed && input.publicBaseUrl === savedBaseUrl
+    );
+    const shouldIncludeSavedConfig = Boolean(
+      savedBaseUrl
+      && (!savedIsTemporaryCloudflare || savedTemporaryIsActive)
+      && savedTailscaleIsActive
+      && savedCloudflareIsActive
+      && savedLanIsActive
+      && savedConfiguredIsActive
+    );
     const savedStability = savedIsTemporaryCloudflare
       ? "temporary"
       : input.desktopRuntimeConfig.mode === "local"
@@ -2266,7 +2347,18 @@ function buildConnectionCandidates(input: {
     }
   }
   const publicIsTemporaryCloudflare = isTemporaryTryCloudflareUrl(input.publicBaseUrl);
-  if (input.publicBaseUrl && (!publicIsTemporaryCloudflare || isActiveTemporaryCloudflareUrl(input.publicBaseUrl))) {
+  const publicMatchesInactiveSavedTransport = Boolean(
+    input.desktopRuntimeConfig?.publicBaseUrl === input.publicBaseUrl
+    && (
+      (input.desktopRuntimeConfig.mode === "tailscale" && !input.tailscale.httpsServeReady)
+      || (input.desktopRuntimeConfig.mode === "cloudflare" && !input.cloudflare.managed.running)
+    )
+  );
+  if (
+    input.publicBaseUrl
+    && !publicMatchesInactiveSavedTransport
+    && (!publicIsTemporaryCloudflare || isActiveTemporaryCloudflareUrl(input.publicBaseUrl))
+  ) {
     candidates.push(connectionCandidate({
       id: "configured-public",
       label: "Current PUBLIC_BASE_URL",
@@ -2282,7 +2374,7 @@ function buildConnectionCandidates(input: {
         : ["The current PUBLIC_BASE_URL is not HTTPS. Use it only with Tailscale or a trusted private network."],
     }));
   }
-  for (const [index, url] of input.cloudflare.detectedUrls.entries()) {
+  for (const [index, url] of activeManagedCloudflareUrls.entries()) {
     candidates.push(connectionCandidate({
       id: `cloudflare-${index}`,
       label: index === 0 ? "Cloudflare Tunnel" : `Cloudflare Tunnel ${index + 1}`,
@@ -2294,23 +2386,19 @@ function buildConnectionCandidates(input: {
       notes: ["Good for quick HTTPS remote access, but trycloudflare.com quick tunnels are temporary and may change after restart."],
     }));
   }
-  if (input.tailscale.httpsServeUrl) {
+  if (input.tailscale.online && input.tailscale.serveRunning && input.tailscale.httpsServeUrl) {
     candidates.push(connectionCandidate({
       id: "tailscale-serve-https",
       label: "Tailscale HTTPS Serve",
       baseUrl: input.tailscale.httpsServeUrl,
       mode: "tailscale",
-      priority: input.tailscale.serveRunning ? 98 : 93,
+      priority: 98,
       requiresRestart: input.publicBaseUrl !== input.tailscale.httpsServeUrl,
       stability: "stable",
-      notes: [
-        input.tailscale.serveRunning
-          ? "Private Tailnet entry. Tailscale must be connected on the phone with the same account. HTTPS Serve is already active."
-          : `Private Tailnet entry. Connect Tailscale on the phone with the same account, then run: ${input.tailscale.serveCommand}`,
-      ],
+      notes: ["Private Tailnet entry. Tailscale must be connected on the phone with the same account. HTTPS Serve is already active."],
     }));
   }
-  for (const [index, url] of input.tailscale.magicDnsUrls.entries()) {
+  for (const [index, url] of (input.host === "0.0.0.0" && input.publicAccessAllowed ? input.tailscale.magicDnsUrls : []).entries()) {
     candidates.push(connectionCandidate({
       id: `tailscale-magicdns-${index}`,
       label: index === 0 ? "Tailscale MagicDNS" : `Tailscale MagicDNS ${index + 1}`,
@@ -2322,7 +2410,7 @@ function buildConnectionCandidates(input: {
       notes: ["Tailscale MagicDNS over HTTP can help diagnose Tailnet reachability, but it is not a long-term phone/PWA entry. Start Tailscale HTTPS Serve and re-pair with the HTTPS address."],
     }));
   }
-  for (const [index, url] of input.tailscale.urls.entries()) {
+  for (const [index, url] of (input.host === "0.0.0.0" && input.publicAccessAllowed ? input.tailscale.urls : []).entries()) {
     candidates.push(connectionCandidate({
       id: `tailscale-ip-${index}`,
       label: index === 0 ? "Tailscale IP" : `Tailscale IP ${index + 1}`,
@@ -2334,7 +2422,7 @@ function buildConnectionCandidates(input: {
       notes: ["Tailscale IP over HTTP is only a fallback for checking VPN reachability. Long-term remote use requires Tailscale HTTPS Serve so PWA, WebCrypto, and WebSocket behavior stay reliable."],
     }));
   }
-  for (const [index, url] of input.lanUrls.entries()) {
+  for (const [index, url] of (input.host === "0.0.0.0" && input.publicAccessAllowed ? input.lanUrls : []).entries()) {
     candidates.push(connectionCandidate({
       id: `lan-${index}`,
       label: index === 0 ? "LAN Wi-Fi" : `LAN address ${index + 1}`,
@@ -2436,22 +2524,24 @@ function getCloudflareTunnelStatus(port: string) {
   const installed = version.ok;
   const processOutput = installed ? getProcessOutput("cloudflared") : { ok: false, output: "" };
   const managed = getManagedCloudflareTunnelStatus();
+  const named = getCloudflareNamedTunnelStatus();
   const processRunning = installed && processOutput.ok && processOutput.output.toLowerCase().includes("cloudflared");
   const running = processRunning || managed.running;
   const detectedUrls = Array.from(new Set([
     ...extractCloudflareTunnelUrls(processOutput.output),
-    ...(managed.url ? [managed.url] : []),
+    ...(managed.ready && managed.url ? [managed.url] : []),
   ]));
   return {
     installed,
     running,
     managed,
+    named,
     version: installed ? version.output.split("\n")[0] : "",
     detectedUrls,
     suggestedCommand: `cloudflared tunnel --url http://127.0.0.1:${port}`,
     installCommand: process.platform === "darwin" ? "brew install cloudflared" : "Download and install cloudflared, then confirm the command is available",
     installUrl: "https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/",
-    envTemplate: `LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=${detectedUrls[0] || "https://<your-tunnel>.trycloudflare.com"} npm run start`,
+    envTemplate: `LIFEOS_HOST=127.0.0.1 LIFEOS_ALLOW_PUBLIC=1 LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=${detectedUrls[0] || "https://<your-tunnel>.trycloudflare.com"} npm run start`,
     notes: installed
       ? [
         running ? "A running cloudflared process was detected." : "cloudflared is installed. Run the command below to create a temporary HTTPS tunnel.",
@@ -2480,6 +2570,12 @@ function getTailscaleStatus(portOverride = String(process.env.LIFEOS_PORT || pro
   let httpsServeUrl = "";
   let serveRunning = false;
   let serveStatus = "";
+  const serveTarget = tailscaleServeTarget(port);
+  const publicServeTarget = serveTarget.startsWith("unix:")
+    ? "unix:[OwnOrbit private socket]"
+    : process.platform === "win32" && serveTarget
+    ? "http://127.0.0.1:[OwnOrbit private relay]"
+    : serveTarget;
 
   if (installed) {
     const status = runTailscaleCommand(["status", "--json"]);
@@ -2512,21 +2608,22 @@ function getTailscaleStatus(portOverride = String(process.env.LIFEOS_PORT || pro
       }
     }
     const serve = runTailscaleCommand(["serve", "status", "--json"]);
-    serveStatus = serve.output;
     if (serve.ok) {
-      serveRunning = Boolean(
-        serve.output.includes(`127.0.0.1:${port}`)
-          || serve.output.includes(`:${port}`),
-      );
-    } else {
-      serveRunning = serve.output.toLowerCase().includes("https") && serve.output.includes(String(port));
+      serveRunning = Boolean(serveTarget && extractTailscaleServeRootProxyTarget(serve.output, dnsName) === serveTarget);
     }
+    serveStatus = !serve.ok
+      ? "Tailscale HTTPS Serve status is unavailable."
+      : serveRunning
+        ? "OwnOrbit HTTPS Serve is ready."
+        : "Tailscale Serve does not point to this OwnOrbit runtime.";
   }
 
-  const mobileUrls = Array.from(new Set([...(httpsServeUrl ? [httpsServeUrl] : []), ...magicDnsUrls, ...urls]));
-  const serveCommand = httpsServeUrl ? `tailscale serve --bg https:443 http://127.0.0.1:${port}` : "";
+  const mobileUrls = Array.from(new Set([...(httpsServeUrl && serveRunning ? [httpsServeUrl] : []), ...magicDnsUrls, ...urls]));
+  const serveCommand = httpsServeUrl && serveTarget
+    ? `tailscale serve --bg --https=443 ${publicServeTarget}`
+    : "";
   const magicDnsEnabled = Boolean(dnsName);
-  const httpsServeReady = Boolean(online && magicDnsEnabled && httpsServeUrl);
+  const httpsServeReady = Boolean(online && magicDnsEnabled && httpsServeUrl && serveRunning);
   const loginCommand = "tailscale up";
   // "Tailscale is stopped" on its own sends people looking at their Tailscale
   // account when the real cause is usually another tunnel holding the route.
@@ -2540,6 +2637,7 @@ function getTailscaleStatus(portOverride = String(process.env.LIFEOS_PORT || pro
     version: installed ? version.output.split("\n")[0] : "",
     deviceName,
     tailnetName,
+    dnsName,
     magicDnsEnabled,
     urls,
     magicDnsUrls,
@@ -2645,11 +2743,17 @@ export function startTailscaleHttpsServe(port = String(process.env.LIFEOS_PORT |
   if (!before.online) throw new Error("Tailscale is installed but not online. Sign in and connect this computer to your Tailnet first.");
   if (!before.httpsServeUrl) throw new Error("Tailscale MagicDNS/HTTPS name was not detected. Enable MagicDNS and HTTPS certificates in Tailscale first.");
 
-  const command = before.serveCommand || `tailscale serve --bg https:443 http://127.0.0.1:${port}`;
-  const result = runManagedTailscaleCommand(["serve", "--bg", "https:443", `http://127.0.0.1:${port}`]);
+  const target = tailscaleServeTarget(String(port));
+  if (!target) throw new Error("OwnOrbit private Tailscale relay is not ready. Restart the desktop app and try again.");
+  const command = before.serveCommand || `tailscale serve --bg --https=443 ${target}`;
+  const result = runManagedTailscaleCommand(["serve", "--bg", "--https=443", target]);
   if (!result.ok) throw new Error(result.output || "Failed to start Tailscale HTTPS Serve");
-
   const after = getTailscaleStatus(port);
+  if (!after.httpsServeReady || !after.serveRunning) {
+    runManagedTailscaleCommand(["serve", "--https=443", "off"]);
+    throw new Error("Tailscale HTTPS Serve did not become ready for the OwnOrbit private endpoint.");
+  }
+  ownedTailscaleServeTarget = target;
   return {
     ok: true,
     command,
@@ -2664,6 +2768,7 @@ export function stopTailscaleHttpsServe() {
   if (!before.installed) throw new Error("Tailscale CLI was not detected.");
   const result = runManagedTailscaleCommand(["serve", "--https=443", "off"]);
   if (!result.ok) throw new Error(result.output || "Failed to stop Tailscale HTTPS Serve");
+  ownedTailscaleServeTarget = "";
   const after = getTailscaleStatus();
   return {
     ok: true,
@@ -2672,6 +2777,27 @@ export function stopTailscaleHttpsServe() {
     url: before.httpsServeUrl,
     status: after,
   };
+}
+
+export function stopOwnedTailscaleHttpsServeOnShutdown(port = String(process.env.LIFEOS_PORT || process.env.PORT || "3000")) {
+  const normalizedPort = String(port);
+  const expectedTarget = tailscaleServeTarget(normalizedPort);
+  if (!ownedTailscaleServeTarget || ownedTailscaleServeTarget !== expectedTarget) {
+    return { stopped: false, reason: "not-owned" as const };
+  }
+  try {
+    const status = getTailscaleStatus(normalizedPort);
+    if (!status.serveRunning) {
+      ownedTailscaleServeTarget = "";
+      return { stopped: false, reason: "not-running" as const };
+    }
+    const serve = stopTailscaleHttpsServe();
+    return { stopped: true, reason: "stopped" as const, serve };
+  } catch (error: any) {
+    return { stopped: false, reason: "stop-failed" as const, error: error?.message || String(error) };
+  } finally {
+    ownedTailscaleServeTarget = "";
+  }
 }
 
 function isTailscaleServeAutostartDisabled() {
@@ -2687,6 +2813,7 @@ export function maybeStartConfiguredTailscaleServe(port = String(process.env.LIF
 
   const status = getTailscaleStatus(port);
   if (status.serveRunning && status.httpsServeUrl) {
+    ownedTailscaleServeTarget = tailscaleServeTarget(String(port));
     process.env.PUBLIC_BASE_URL = status.httpsServeUrl;
     const updatedConfig = saveDesktopRuntimeConfig({
       mode: "tailscale",
@@ -2727,7 +2854,16 @@ export function getNetworkDiagnostics() {
     ? null
     : rawDesktopRuntimeConfig;
   const tailscale = getTailscaleStatus(port);
-  const connectionCandidates = buildConnectionCandidates({ port, publicBaseUrl, lanUrls, desktopRuntimeConfig, cloudflare, tailscale });
+  const connectionCandidates = buildConnectionCandidates({
+    port,
+    host,
+    publicAccessAllowed: process.env.LIFEOS_ALLOW_PUBLIC === "1",
+    publicBaseUrl,
+    lanUrls,
+    desktopRuntimeConfig,
+    cloudflare,
+    tailscale,
+  });
   const icloud = getIcloudHandoffStatus(connectionCandidates);
   const recommendedBaseUrl = connectionCandidates[0]?.baseUrl || `http://127.0.0.1:${port}`;
   const remoteReadiness = buildRemoteReadiness({
@@ -2918,6 +3054,66 @@ export function cleanupIcloudHandoffEntries(reason = "manual-cleanup") {
   };
 }
 
+export function retireIcloudHandoffEntry(reason = "remote-entry-stopped") {
+  const diagnostics = getNetworkDiagnostics();
+  const status = diagnostics.icloud;
+  if (!status.platformSupported || !status.available || !status.appFolderPath) {
+    return { retired: false, reason: status.platformSupported ? "icloud-unavailable" : "unsupported-platform", requestedReason: reason };
+  }
+
+  const removedFiles: string[] = [];
+  const tombstonedFiles: string[] = [];
+  const errors: string[] = [];
+  const previousPacket = readIcloudHandoffPacket(status.packetFilePath);
+  if (previousPacket) {
+    try {
+      const retiredAt = Date.now();
+      const packet = {
+        ...previousPacket,
+        generatedAt: retiredAt,
+        refreshAfter: retiredAt - 1,
+        expiresAt: retiredAt - 1,
+        mobilePairUrl: "",
+        mobileChatUrl: "",
+        fallbackCandidates: [],
+        fallbackCandidateCount: 0,
+        exportReason: reason,
+        retiredAt,
+        retiredReason: reason,
+        entryChecksumSha256: "",
+      };
+      packet.entryChecksumSha256 = buildIcloudEntryChecksum(packet);
+      writePrivateFileAtomic(status.packetFilePath, `${JSON.stringify(packet, null, 2)}\n`);
+      writePrivateFileAtomic(status.handoffFilePath, buildRetiredIcloudHandoffHtml(packet));
+      tombstonedFiles.push(path.basename(status.packetFilePath), path.basename(status.handoffFilePath));
+    } catch (error: any) {
+      errors.push(String(error?.message || error || "entry retirement failed").slice(0, 160));
+    }
+  } else {
+    removeIcloudFile(status.appFolderPath, path.basename(status.packetFilePath), removedFiles, errors);
+    removeIcloudFile(status.appFolderPath, path.basename(status.handoffFilePath), removedFiles, errors);
+  }
+  try {
+    const generatedAt = Date.now();
+    const entries = readIcloudEntrySummaries(status.appFolderPath);
+    writePrivateFileAtomic(status.indexFilePath, buildIcloudHandoffIndexHtml({
+      generatedAt,
+      currentDesktopId: status.desktopId,
+      entries,
+    }));
+  } catch (error: any) {
+    errors.push(String(error?.message || error || "index refresh failed").slice(0, 160));
+  }
+  return {
+    retired: tombstonedFiles.length > 0 || removedFiles.length > 0,
+    reason: errors.length ? "partial" : "retired",
+    requestedReason: reason,
+    removedFiles,
+    tombstonedFiles,
+    errors,
+  };
+}
+
 export function maybeRefreshIcloudHandoff(reason = "auto") {
   const diagnostics = getNetworkDiagnostics();
   const status = diagnostics.icloud;
@@ -2943,7 +3139,12 @@ export function maybeRefreshIcloudHandoff(reason = "auto") {
   if (!status.available) return { refreshed: false, reason: "icloud-unavailable", requestedReason: reason, status: status.handoffHealth.status };
   if (status.availability.status === "account-unavailable") return { refreshed: false, reason: "icloud-account-unavailable", requestedReason: reason, status: status.handoffHealth.status };
   if (status.availability.status === "read-only") return { refreshed: false, reason: "icloud-read-only", requestedReason: reason, status: status.handoffHealth.status };
-  if (!status.canExport) return { refreshed: false, reason: "no-phone-entry", requestedReason: reason, status: status.handoffHealth.status };
+  if (!status.canExport) {
+    const retirement = status.handoffHealth.status === "missing" || status.handoffHealth.status === "expired"
+      ? { retired: false, reason: "already-unavailable" }
+      : retireIcloudHandoffEntry(`${reason}-no-phone-entry`);
+    return { refreshed: false, reason: "no-phone-entry", requestedReason: reason, status: status.handoffHealth.status, retirement };
+  }
   if (!status.handoffHealth.needsRefresh && !indexConsistencyNeedsRefresh && phoneConfirmation.action !== "refresh-entry" && !pairingSessionNeedsRefresh) {
     return {
       refreshed: false,

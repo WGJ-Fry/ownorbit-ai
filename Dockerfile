@@ -8,7 +8,10 @@ ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 COPY package*.json ./
 RUN npm ci
 
-COPY . .
+COPY index.html tsconfig.json vite.config.ts server.ts ./
+COPY public ./public
+COPY src ./src
+COPY server ./server
 RUN npm run build
 RUN npm prune --omit=dev
 

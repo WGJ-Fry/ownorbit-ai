@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Menu, Tray, Notification, clipboard, dialog, ipcMain, nativeImage, powerMonitor, shell } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const crypto = require("crypto");
+const { spawnSync } = require("child_process");
 const fs = require("fs");
 const http = require("http");
 const net = require("net");
@@ -9,6 +10,7 @@ const path = require("path");
 const { createCloudKitPushListenerController } = require("./cloudKitPushListener.cjs");
 const { applyCloudKitHelperRuntimeEnvironment, resolveCloudKitHelperRuntime } = require("./cloudKitHelperRuntime.cjs");
 const { resolveDesktopLoginItemPolicy, shouldShowDesktopWindowOnStartup } = require("./loginItemPolicy.cjs");
+const { resolveDesktopDistribution } = require("./distributionPolicy.cjs");
 const { resolvePreferredDesktopUserDataPath } = require("./userDataPath.cjs");
 
 let mainWindow;
@@ -223,9 +225,15 @@ function normalizeDesktopRuntimeConfig(config) {
   if (!config || typeof config !== "object") return null;
   const mode = String(config.mode || "");
   if (!["configured", "cloudflare", "tailscale", "lan", "local"].includes(mode)) return null;
-  const host = config.host === "0.0.0.0" ? "0.0.0.0" : "127.0.0.1";
-  const port = Number.parseInt(String(config.port || ""), 10);
   const publicBaseUrl = String(config.publicBaseUrl || "").trim();
+  const isLoopbackTunnel = mode === "cloudflare"
+    || (mode === "tailscale" && /^https:\/\//i.test(publicBaseUrl));
+  const host = isLoopbackTunnel
+    ? "127.0.0.1"
+    : config.host === "0.0.0.0"
+      ? "0.0.0.0"
+      : "127.0.0.1";
+  const port = Number.parseInt(String(config.port || ""), 10);
   return {
     mode,
     host,
@@ -400,6 +408,24 @@ function waitForEndpoint(url, options = {}) {
 
 async function startLocalCore() {
   desktopLogPath = path.join(app.getPath("logs"), "lifeos-desktop.log");
+  let macCodeSignature = "";
+  if (process.platform === "darwin" && app.isPackaged) {
+    const signature = spawnSync("codesign", ["-dvvv", app.getPath("exe")], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 5_000,
+    });
+    macCodeSignature = `${signature.stdout || ""}\n${signature.stderr || ""}`;
+  }
+  const distribution = resolveDesktopDistribution({
+    configured: app.isPackaged ? "" : process.env.LIFEOS_DISTRIBUTION,
+    platform: process.platform,
+    isPackaged: app.isPackaged,
+    macCodeSignature,
+  });
+  if (distribution) process.env.LIFEOS_DISTRIBUTION = distribution;
+  process.env.LIFEOS_DESKTOP_PACKAGED = app.isPackaged ? "1" : "0";
+  process.env.LIFEOS_DESKTOP_SIGNATURE_VERIFIED = distribution === "signed" ? "1" : "0";
   process.env.LIFEOS_DATA_DIR = path.join(app.getPath("userData"), "data");
   const helperRuntime = resolveCloudKitHelperRuntime({ environment: process.env, resourcesPath: process.resourcesPath });
   cloudKitHelperRuntimeStatus = applyCloudKitHelperRuntimeEnvironment(helperRuntime, process.env);
@@ -415,7 +441,7 @@ async function startLocalCore() {
   const appPath = getDesktopAppRoot();
   const runtimeCwd = app.isPackaged ? path.dirname(appPath) : appPath;
   process.chdir(runtimeCwd);
-  writeDesktopLog("Starting OwnOrbit local core", `port=${serverPort} dataDirConfigured=${Boolean(process.env.LIFEOS_DATA_DIR)} packaged=${app.isPackaged}`);
+  writeDesktopLog("Starting OwnOrbit local core", `port=${serverPort} dataDirConfigured=${Boolean(process.env.LIFEOS_DATA_DIR)} packaged=${app.isPackaged} distribution=${process.env.LIFEOS_DISTRIBUTION || "unclassified"}`);
   if (process.env.LIFEOS_DESKTOP_FORCE_CORE_FAILURE === "1") {
     throw new Error("Forced desktop startup failure for smoke testing.");
   }
@@ -716,7 +742,7 @@ async function runCloudKitChatRelayFromDesktop(reason = "desktop-chat-relay-poll
     }, 75_000);
     if (response.ok) {
       const result = response.body?.result || {};
-      if (result.processed || result.exportedResponses || result.status !== "completed") {
+      if (result.processed || result.exportedResponses || !["completed", "relay-busy"].includes(result.status)) {
         writeDesktopLog(
           "iPhone iCloud chat relay cycle finished",
           `reason=${reason} status=${result.status || "unknown"} processed=${Number(result.processed || 0)} completed=${Number(result.completed || 0)} exported=${Number(result.exportedResponses || 0)}`,

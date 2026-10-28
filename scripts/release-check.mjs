@@ -1110,6 +1110,7 @@ function checkAssets() {
   const cloudflareTunnelActionsSource = exists("src/pages/admin/CloudflareTunnelActions.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/CloudflareTunnelActions.tsx"), "utf8") : "";
   const customRemoteEntrySource = exists("src/pages/admin/CustomRemoteEntryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/CustomRemoteEntryCard.tsx"), "utf8") : "";
   const devicePairSource = exists("src/pages/admin/DevicePairPage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/DevicePairPage.tsx"), "utf8") : "";
+  const pairingCandidatePolicySource = exists("src/services/pairingCandidatePolicy.ts") ? fs.readFileSync(path.join(rootDir, "src/services/pairingCandidatePolicy.ts"), "utf8") : "";
   const devicePairConnectionTestSource = exists("src/pages/admin/DevicePairConnectionTestResult.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/DevicePairConnectionTestResult.tsx"), "utf8") : "";
   const devicePairingErrorsSource = exists("src/services/devicePairingErrors.ts") ? fs.readFileSync(path.join(rootDir, "src/services/devicePairingErrors.ts"), "utf8") : "";
   const devicePairingErrorsTestSource = exists("tests/device-pairing-errors.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/device-pairing-errors.test.mjs"), "utf8") : "";
@@ -1136,9 +1137,9 @@ function checkAssets() {
     networkDiagnosticsSource.includes("restartInstruction") &&
     networkDiagnosticsSource.includes("desktopRuntimeConfig") &&
     networkDiagnosticsSource.includes("saved-desktop-config") &&
-    networkDiagnosticsTestSource.includes("recommends saved desktop remote config before local-only entries") &&
+    networkDiagnosticsTestSource.includes("does not advertise a saved remote config before restart") &&
     networkDiagnosticsTestSource.includes("LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=https://lifeos-mac.tailnet.example.ts.net") &&
-    networkDiagnosticsTestSource.includes('tailscaleHttpCandidate.envTemplate.includes("LIFEOS_TRUST_PROXY=1"), false') &&
+    networkDiagnosticsTestSource.includes('magicDns.envTemplate.includes("LIFEOS_TRUST_PROXY=1"), false') &&
     desktopRuntimeConfigSource.includes("desktop-runtime-config.json") &&
     desktopRuntimeConfigSource.includes("normalizeDesktopRuntimeConfig") &&
     desktopRuntimeConfigSource.includes("allowPublic") &&
@@ -1151,7 +1152,7 @@ function checkAssets() {
     networkDiagnosticsSource.includes("httpsServeReady") &&
     networkDiagnosticsSource.includes("httpsServeUrl") &&
     networkDiagnosticsSource.includes("getTailscaleStatus(portOverride =") &&
-    networkDiagnosticsSource.includes("tailscale serve --bg https:443") &&
+    networkDiagnosticsSource.includes("tailscale serve --bg --https=443") &&
     networkDiagnosticsSource.includes("LIFEOS_TRUST_PROXY=1") &&
     networkDiagnosticsSource.includes("startTailscaleHttpsServe") &&
     networkDiagnosticsSource.includes("stopTailscaleHttpsServe") &&
@@ -1308,7 +1309,8 @@ function checkAssets() {
     remoteAcceptanceSource.includes("Remote acceptance report URLs must not contain username, password, token, query, or fragment") &&
     desktopRuntimeConfigSource.includes("Desktop connection baseUrl must not contain username, password, token, query, or fragment") &&
     apiAuthTestSourceForRouting.includes("unsafeRemoteDesktopConnectionConfig.status, 400") &&
-    deviceRoutesSource.includes("getDesktopRuntimeConfig()?.publicBaseUrl") &&
+    deviceRoutesSource.includes("getDeviceEndpointsSnapshot(bindHost, { maxAgeMs: 0 })") &&
+    !deviceRoutesSource.includes("getDesktopRuntimeConfig()?.publicBaseUrl") &&
     deviceRoutesSource.includes("baseUrl must not contain username, password, token, query, or fragment") &&
     apiAuthTestSourceForRouting.includes("defaultRemoteBinding.baseUrl") &&
     apiAuthTestSourceForRouting.includes("tokenizedPairingBaseUrl.status, 400") &&
@@ -1472,9 +1474,12 @@ function checkAssets() {
     packageJson.scripts.test.includes("tests/client-routing.test.mjs") &&
     desktopRuntimeConfigSmokeTestSource.includes("loads saved connection config before starting local core") &&
     desktopRuntimeConfigSmokeTestSource.includes("autostarts saved Tailscale HTTPS Serve config") &&
-    devicePairSource.includes("networkDiagnostics.recommendedBaseUrl") &&
-    devicePairSource.includes('candidate.mode !== "local"') &&
-    connectionGuideCombinedSource.includes('candidate.mode !== "local"') &&
+    devicePairSource.includes("eligiblePhonePairingCandidates") &&
+    !devicePairSource.includes("networkDiagnostics.recommendedBaseUrl") &&
+    connectionGuideSource.includes("eligiblePhonePairingCandidates") &&
+    pairingCandidatePolicySource.includes('candidate.mode === "local"') &&
+    pairingCandidatePolicySource.includes('candidate.mode !== "lan"') &&
+    pairingCandidatePolicySource.includes('parsed.protocol !== "https:"') &&
     connectionGuideCombinedSource.includes("NoPhoneReachableNotice") &&
     connectionGuideCombinedSource.includes("ConnectionMobileEntryPanel") &&
     translationsSource.includes("connection.noPhoneReachableShort")
@@ -1531,7 +1536,7 @@ function checkAssets() {
   if (
     networkDiagnosticsSource.includes("cloudflared tunnel --url") &&
     networkDiagnosticsSource.includes("tailscale") &&
-    networkDiagnosticsSource.includes("tailscale serve --bg https:443") &&
+    networkDiagnosticsSource.includes("tailscale serve --bg --https=443") &&
     networkDiagnosticsSource.includes("magicDnsEnabled") &&
     networkDiagnosticsSource.includes("loginCommand") &&
     networkDiagnosticsSource.includes("httpsServeReady") &&

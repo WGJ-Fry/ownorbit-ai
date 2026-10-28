@@ -14,6 +14,12 @@ const require = createRequire(import.meta.url);
 const asar = require("@electron/asar");
 const productName = packageJson.build?.productName || "OwnOrbit AI";
 const launchRequested = process.env.LIFEOS_ARTIFACT_SMOKE_LAUNCH === "1" || process.argv.includes("--launch");
+const allowDirtyLocal = process.argv.includes("--allow-dirty-local");
+
+if (allowDirtyLocal && String(process.env.CI || "").toLowerCase() === "true") {
+  console.error("[FAIL] --allow-dirty-local is only available for local verification");
+  process.exit(1);
+}
 
 function fail(message) {
   console.error(`[FAIL] ${message}`);
@@ -223,10 +229,14 @@ function checkUpdateFeed() {
   if (manifest.version !== packageJson.version) fail(`release manifest version ${manifest.version} does not match package ${packageJson.version}`);
   const provenanceFailures = releaseProvenanceFailures(manifest.source, {
     expectedCommit: currentSourceCommit(rootDir),
-    requireClean: true,
+    requireClean: !allowDirtyLocal,
   });
   if (provenanceFailures.length > 0) fail(provenanceFailures.join("\n"));
-  pass(`release artifacts are bound to clean source commit ${manifest.source.commit.slice(0, 12)}`);
+  if (allowDirtyLocal && manifest.source.dirty) {
+    console.log("[WARN] verifying a local-only package from uncommitted source; it is not eligible for publishing");
+  } else {
+    pass(`release artifacts are bound to clean source commit ${manifest.source.commit.slice(0, 12)}`);
+  }
   if (!Array.isArray(manifest.artifacts) || manifest.artifacts.length === 0) fail("release manifest has no artifacts");
   for (const artifact of manifest.artifacts) {
     const artifactPath = path.join(releaseDir, "update-feed", artifact.fileName || "");

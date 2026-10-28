@@ -218,6 +218,21 @@ struct CloudDataScreen: View {
                 }
             }
 
+            if chatItems.contains(where: chatItemNeedsMacTrustRecovery) {
+                Section {
+                    Button {
+                        confirmResetMacTrust = true
+                    } label: {
+                        Label("cloud.chat.macTrust.recovery.button", systemImage: "desktopcomputer.and.arrow.down")
+                    }
+                    .disabled(cloudStore.isSyncing || cloudStore.isWriting)
+                } header: {
+                    Text("cloud.chat.macTrust.recovery.title")
+                } footer: {
+                    Text("cloud.chat.macTrust.recovery.body")
+                }
+            }
+
             Section {
                 NavigationLink {
                     diagnosticsContent
@@ -403,14 +418,12 @@ struct CloudDataScreen: View {
                     Label("cloud.chat.rebind.button", systemImage: "key.horizontal")
                 }
                 .disabled(cloudStore.isSyncing || cloudStore.isWriting)
-                if cloudStore.macTrustIdentityChanged {
-                    Button(role: .destructive) {
-                        confirmResetMacTrust = true
-                    } label: {
-                        Label("cloud.chat.macTrust.reset.button", systemImage: "desktopcomputer.and.arrow.down")
-                    }
-                    .disabled(cloudStore.isSyncing || cloudStore.isWriting)
+                Button(role: .destructive) {
+                    confirmResetMacTrust = true
+                } label: {
+                    Label("cloud.chat.macTrust.reset.button", systemImage: "desktopcomputer.and.arrow.down")
                 }
+                .disabled(cloudStore.isSyncing || cloudStore.isWriting)
             } header: {
                 Text("cloud.chat.rebind.section")
             } footer: {
@@ -616,6 +629,17 @@ struct CloudDataScreen: View {
             case "unsafe-ai-response": return "cloud.chat.state.unsafeResponse"
             default: return "cloud.chat.state.failed"
             }
+        }
+    }
+
+    private func chatItemNeedsMacTrustRecovery(_ item: LifeOSCloudChatItem) -> Bool {
+        switch item.state {
+        case .macUnavailable, .timedOut:
+            return true
+        case .waitingForMac, .retrying:
+            return Date().timeIntervalSince(item.createdAt) >= 60
+        case .processing, .completed, .failed:
+            return false
         }
     }
 

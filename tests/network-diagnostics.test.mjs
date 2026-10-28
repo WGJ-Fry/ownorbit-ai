@@ -11,6 +11,25 @@ import { WebSocketServer } from "ws";
 
 const rootDir = process.cwd();
 
+test("Tailscale Serve readiness requires this device root handler and exact OwnOrbit target", async () => {
+  const { extractTailscaleServeRootProxyTarget } = await import(`../server/networkDiagnostics.ts?serve-root=${Date.now()}`);
+  const expectedTarget = "unix:/private/ownorbit/core.sock";
+  const status = JSON.stringify({
+    Web: {
+      "other.tailnet.ts.net:443": { Handlers: { "/": { Proxy: expectedTarget } } },
+      "mac.tailnet.ts.net:443": {
+        Handlers: {
+          "/other": { Proxy: expectedTarget },
+          "/": { Proxy: "http://127.0.0.1:9999" },
+        },
+      },
+    },
+  });
+  assert.equal(extractTailscaleServeRootProxyTarget(status, "mac.tailnet.ts.net"), "http://127.0.0.1:9999");
+  assert.notEqual(extractTailscaleServeRootProxyTarget(status, "mac.tailnet.ts.net"), expectedTarget);
+  assert.equal(extractTailscaleServeRootProxyTarget(status, "missing.tailnet.ts.net"), "");
+});
+
 test("iCloud pairing session status guides stale QR repair", async () => {
   const { buildIcloudPairingSessionStatus } = await import(`../server/icloudPairingSession.ts?pairing-status=${Date.now()}`);
   const now = 1_000_000;
@@ -156,6 +175,8 @@ test("iCloud acceptance summary separates synced entry from real-device evidence
 test("network diagnostics filters non-LAN interface addresses from LAN candidates", async (t) => {
   const oldNetworkInterfaces = os.networkInterfaces;
   const oldPort = process.env.LIFEOS_PORT;
+  const oldHost = process.env.LIFEOS_HOST;
+  const oldAllowPublic = process.env.LIFEOS_ALLOW_PUBLIC;
   const oldPublicBaseUrl = process.env.PUBLIC_BASE_URL;
   const oldAppUrl = process.env.APP_URL;
   const oldCloudflaredBin = process.env.LIFEOS_CLOUDFLARED_BIN;
@@ -165,6 +186,10 @@ test("network diagnostics filters non-LAN interface addresses from LAN candidate
     os.networkInterfaces = oldNetworkInterfaces;
     if (oldPort === undefined) delete process.env.LIFEOS_PORT;
     else process.env.LIFEOS_PORT = oldPort;
+    if (oldHost === undefined) delete process.env.LIFEOS_HOST;
+    else process.env.LIFEOS_HOST = oldHost;
+    if (oldAllowPublic === undefined) delete process.env.LIFEOS_ALLOW_PUBLIC;
+    else process.env.LIFEOS_ALLOW_PUBLIC = oldAllowPublic;
     if (oldPublicBaseUrl === undefined) delete process.env.PUBLIC_BASE_URL;
     else process.env.PUBLIC_BASE_URL = oldPublicBaseUrl;
     if (oldAppUrl === undefined) delete process.env.APP_URL;
@@ -187,6 +212,8 @@ test("network diagnostics filters non-LAN interface addresses from LAN candidate
     ],
   });
   process.env.LIFEOS_PORT = "3000";
+  process.env.LIFEOS_HOST = "127.0.0.1";
+  delete process.env.LIFEOS_ALLOW_PUBLIC;
   delete process.env.PUBLIC_BASE_URL;
   delete process.env.APP_URL;
   process.env.LIFEOS_CLOUDFLARED_BIN = "/definitely/missing/cloudflared";
@@ -202,6 +229,8 @@ test("network diagnostics filters non-LAN interface addresses from LAN candidate
   ]);
   assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.baseUrl.includes("198.18.0.1")), false);
   assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.baseUrl.includes("100.64.0.10") && candidate.mode === "lan"), false);
+  assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.mode === "lan"), false);
+  assert.equal(diagnostics.connectionCandidates[0].id, "local");
 });
 
 test("network diagnostics detects mocked Cloudflare and Tailscale CLIs", async (t) => {
@@ -320,7 +349,7 @@ exit 1
   assert.equal(diagnostics.tailscale.httpsServeUrl, "https://lifeos-mac.tailnet.example.ts.net");
   assert.equal(diagnostics.tailscale.httpsServeReady, true);
   assert.equal(diagnostics.tailscale.serveRunning, true);
-  assert.equal(diagnostics.tailscale.serveCommand, "tailscale serve --bg https:443 http://127.0.0.1:4567");
+  assert.equal(diagnostics.tailscale.serveCommand, "tailscale serve --bg --https=443 http://127.0.0.1:4567");
   assert.deepEqual(diagnostics.tailscale.mobileUrls, ["https://lifeos-mac.tailnet.example.ts.net", "http://lifeos-mac.tailnet.example.ts.net:4567", "http://100.64.0.10:4567", "http://[fd7a:115c:a1e0::1]:4567"]);
   assert.match(diagnostics.tailscale.installUrl, /^https:\/\/tailscale\.com\/download/);
   assert.equal(diagnostics.tailscale.autoInstall.command, "brew install --cask tailscale-app");
@@ -342,19 +371,14 @@ exit 1
   assert.equal(diagnostics.remoteReadiness.actions.some((action) => action.id === "needsRestart"), true);
   assert.equal(diagnostics.connectionCandidates[0].envTemplate, "LIFEOS_HOST=127.0.0.1 LIFEOS_ALLOW_PUBLIC=1 LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=https://lifeos-mac.tailnet.example.ts.net npm run start");
   assert.match(diagnostics.connectionCandidates[0].restartInstruction, /Copy the startup environment/);
-  const cloudflareCandidate = diagnostics.connectionCandidates.find((candidate) => candidate.id === "cloudflare-0");
-  assert.equal(cloudflareCandidate.stability, "temporary");
+  assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.id === "cloudflare-0"), false);
   assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.id === "tailscale-serve-https" && candidate.baseUrl === "https://lifeos-mac.tailnet.example.ts.net"), true);
-  assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.id === "tailscale-magicdns-0" && candidate.baseUrl === "http://lifeos-mac.tailnet.example.ts.net:4567"), true);
-  assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.id === "tailscale-ip-0" && candidate.baseUrl === "http://100.64.0.10:4567"), true);
-  assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.id === "tailscale-ip-1" && candidate.baseUrl === "http://[fd7a:115c:a1e0::1]:4567"), true);
+  assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.id === "tailscale-magicdns-0"), false);
+  assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.id === "tailscale-ip-0"), false);
+  assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.id === "tailscale-ip-1"), false);
   const tailscaleCandidate = diagnostics.connectionCandidates.find((candidate) => candidate.id === "tailscale-serve-https");
-  const tailscaleHttpCandidate = diagnostics.connectionCandidates.find((candidate) => candidate.id === "tailscale-magicdns-0");
   assert.match(tailscaleCandidate.envTemplate, /LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=https:\/\/lifeos-mac\.tailnet\.example\.ts\.net/);
   assert.match(tailscaleCandidate.notes[0], /HTTPS Serve is already active/);
-  assert.equal(tailscaleHttpCandidate.stability, "temporary");
-  assert.match(tailscaleHttpCandidate.notes[0], /not a long-term phone\/PWA entry/);
-  assert.equal(tailscaleHttpCandidate.envTemplate.includes("LIFEOS_TRUST_PROXY=1"), false);
 });
 
 test("iCloud handoff export writes mobile entry files without requiring Tailscale", async (t) => {
@@ -996,6 +1020,8 @@ test("iCloud handoff auto refresh updates exported entry after LAN fallback chan
   const oldTailscaleBin = process.env.LIFEOS_TAILSCALE_BIN;
   const oldIcloudDriveDir = process.env.LIFEOS_ICLOUD_DRIVE_DIR;
   const oldForceIcloud = process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+  const oldHost = process.env.LIFEOS_HOST;
+  const oldAllowPublic = process.env.LIFEOS_ALLOW_PUBLIC;
 
   t.after(async () => {
     os.networkInterfaces = oldNetworkInterfaces;
@@ -1013,6 +1039,10 @@ test("iCloud handoff auto refresh updates exported entry after LAN fallback chan
     else process.env.LIFEOS_ICLOUD_DRIVE_DIR = oldIcloudDriveDir;
     if (oldForceIcloud === undefined) delete process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
     else process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = oldForceIcloud;
+    if (oldHost === undefined) delete process.env.LIFEOS_HOST;
+    else process.env.LIFEOS_HOST = oldHost;
+    if (oldAllowPublic === undefined) delete process.env.LIFEOS_ALLOW_PUBLIC;
+    else process.env.LIFEOS_ALLOW_PUBLIC = oldAllowPublic;
     await rm(icloudDir, { recursive: true, force: true });
   });
 
@@ -1023,6 +1053,8 @@ test("iCloud handoff auto refresh updates exported entry after LAN fallback chan
   process.env.LIFEOS_TAILSCALE_BIN = "/definitely/missing/tailscale";
   process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = "1";
   process.env.LIFEOS_ICLOUD_DRIVE_DIR = icloudDir;
+  process.env.LIFEOS_HOST = "0.0.0.0";
+  process.env.LIFEOS_ALLOW_PUBLIC = "1";
   os.networkInterfaces = () => ({
     en0: [{ family: "IPv4", internal: false, address: "192.168.0.10" }],
   });
@@ -1061,6 +1093,8 @@ test("iCloud handoff auto refresh records LAN IP address changes", async (t) => 
   const oldTailscaleBin = process.env.LIFEOS_TAILSCALE_BIN;
   const oldIcloudDriveDir = process.env.LIFEOS_ICLOUD_DRIVE_DIR;
   const oldForceIcloud = process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
+  const oldHost = process.env.LIFEOS_HOST;
+  const oldAllowPublic = process.env.LIFEOS_ALLOW_PUBLIC;
 
   t.after(async () => {
     os.networkInterfaces = oldNetworkInterfaces;
@@ -1078,6 +1112,10 @@ test("iCloud handoff auto refresh records LAN IP address changes", async (t) => 
     else process.env.LIFEOS_ICLOUD_DRIVE_DIR = oldIcloudDriveDir;
     if (oldForceIcloud === undefined) delete process.env.LIFEOS_FORCE_ICLOUD_HANDOFF;
     else process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = oldForceIcloud;
+    if (oldHost === undefined) delete process.env.LIFEOS_HOST;
+    else process.env.LIFEOS_HOST = oldHost;
+    if (oldAllowPublic === undefined) delete process.env.LIFEOS_ALLOW_PUBLIC;
+    else process.env.LIFEOS_ALLOW_PUBLIC = oldAllowPublic;
     await rm(icloudDir, { recursive: true, force: true });
   });
 
@@ -1088,6 +1126,8 @@ test("iCloud handoff auto refresh records LAN IP address changes", async (t) => 
   process.env.LIFEOS_TAILSCALE_BIN = "/definitely/missing/tailscale";
   process.env.LIFEOS_FORCE_ICLOUD_HANDOFF = "1";
   process.env.LIFEOS_ICLOUD_DRIVE_DIR = icloudDir;
+  process.env.LIFEOS_HOST = "0.0.0.0";
+  process.env.LIFEOS_ALLOW_PUBLIC = "1";
   os.networkInterfaces = () => ({
     en0: [{ family: "IPv4", internal: false, address: "192.168.8.10" }],
   });
@@ -1130,6 +1170,8 @@ test("iCloud handoff auto refresh records Cloudflare tunnel address changes", as
   const oldUrlFile = process.env.LIFEOS_TEST_CLOUDFLARE_URL_FILE;
 
   t.after(async () => {
+    const tunnelManager = await import("../server/cloudflareTunnel.ts");
+    await tunnelManager.stopManagedCloudflareTunnel();
     process.env.PATH = oldPath;
     if (oldPort === undefined) delete process.env.LIFEOS_PORT;
     else process.env.LIFEOS_PORT = oldPort;
@@ -1151,15 +1193,16 @@ test("iCloud handoff auto refresh records Cloudflare tunnel address changes", as
     await rm(binDir, { recursive: true, force: true });
   });
 
-  await writeFile(cloudflaredPath, "#!/bin/sh\necho 'cloudflared version 2026.6.0'\n");
-  await writeFile(pgrepPath, `#!/bin/sh
-if [ "$2" = "cloudflared" ]; then
-  url="$(cat "$LIFEOS_TEST_CLOUDFLARE_URL_FILE")"
-  echo "123 cloudflared tunnel --url http://127.0.0.1:4567 $url"
+  await writeFile(cloudflaredPath, `#!/bin/sh
+if [ "$1" = "--version" ]; then
+  echo 'cloudflared version 2026.6.0'
   exit 0
 fi
-exit 1
+cat "$LIFEOS_TEST_CLOUDFLARE_URL_FILE" >&2
+trap 'exit 0' TERM INT
+while true; do sleep 1; done
 `);
+  await writeFile(pgrepPath, "#!/bin/sh\nexit 1\n");
   await chmod(cloudflaredPath, 0o755);
   await chmod(pgrepPath, 0o755);
   await writeFile(urlFile, "https://old-lifeos.trycloudflare.com");
@@ -1174,6 +1217,9 @@ exit 1
   process.env.LIFEOS_ICLOUD_DRIVE_DIR = icloudDir;
   process.env.LIFEOS_TEST_CLOUDFLARE_URL_FILE = urlFile;
 
+  const tunnelManager = await import("../server/cloudflareTunnel.ts");
+  await tunnelManager.stopManagedCloudflareTunnel();
+  await tunnelManager.startManagedCloudflareTunnel("4567", 1500);
   const { exportIcloudHandoff, maybeRefreshIcloudHandoff } = await import(`../server/networkDiagnostics.ts?icloud-cloudflare-address-refresh=${Date.now()}`);
   const first = exportIcloudHandoff("test-cloudflare-address-initial");
   const firstPacket = JSON.parse(await readFile(first.packetFilePath, "utf8"));
@@ -1181,6 +1227,8 @@ exit 1
   assert.equal(firstPacket.candidateId, "cloudflare-0");
 
   await writeFile(urlFile, "https://new-lifeos.trycloudflare.com");
+  await tunnelManager.stopManagedCloudflareTunnel();
+  await tunnelManager.startManagedCloudflareTunnel("4567", 1500);
   const refresh = maybeRefreshIcloudHandoff("test-cloudflare-address-change");
   const nextPacket = JSON.parse(await readFile(first.packetFilePath, "utf8"));
   const history = JSON.parse(await readFile(first.historyFilePath, "utf8"));
@@ -1190,6 +1238,57 @@ exit 1
   assert.equal(nextPacket.changeType, "cloudflare-address-changed");
   assert.equal(nextPacket.previousBaseUrl, "https://old-lifeos.trycloudflare.com");
   assert.equal(history[0].changeType, "cloudflare-address-changed");
+});
+
+test("iCloud handoff retires an old phone entry when no reachable address remains", async (t) => {
+  const icloudDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-retired-entry-"));
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-icloud-retired-data-"));
+  t.after(async () => {
+    await rm(icloudDir, { recursive: true, force: true });
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const fs = await import("node:fs");
+    const network = await import("./server/networkDiagnostics.ts?icloud-retire=" + Date.now());
+    const first = network.exportIcloudHandoff("test-retire-initial");
+    delete process.env.PUBLIC_BASE_URL;
+    delete process.env.APP_URL;
+    const refresh = network.maybeRefreshIcloudHandoff("test-remote-stopped");
+    const packet = JSON.parse(fs.readFileSync(first.packetFilePath, "utf8"));
+    const html = fs.readFileSync(first.handoffFilePath, "utf8");
+    process.stdout.write(JSON.stringify({ refresh, packet, html }));
+  `], {
+    cwd: rootDir,
+    env: {
+      ...process.env,
+      LIFEOS_DATA_DIR: dataDir,
+      LIFEOS_FORCE_ICLOUD_HANDOFF: "1",
+      LIFEOS_ICLOUD_DRIVE_DIR: icloudDir,
+      LIFEOS_ICLOUD_SYNC_SERVICE_STATUS: "running",
+      LIFEOS_ICLOUD_ACCOUNT_STATUS: "ready",
+      LIFEOS_HOST: "127.0.0.1",
+      LIFEOS_ALLOW_PUBLIC: "1",
+      PUBLIC_BASE_URL: "https://lifeos.example.test",
+      APP_URL: "",
+      LIFEOS_CLOUDFLARED_BIN: "/definitely/missing/cloudflared",
+      LIFEOS_TAILSCALE_BIN: "/definitely/missing/tailscale",
+    },
+    encoding: "utf8",
+  });
+  const result = JSON.parse(output);
+
+  assert.equal(result.refresh.refreshed, false);
+  assert.equal(result.refresh.reason, "no-phone-entry");
+  assert.equal(result.refresh.retirement.retired, true);
+  assert.equal(result.refresh.retirement.tombstonedFiles.length, 2);
+  assert.equal(result.packet.mobilePairUrl, "");
+  assert.equal(result.packet.mobileChatUrl, "");
+  assert.equal(result.packet.expiresAt < Date.now(), true);
+  assert.match(result.packet.entryChecksumSha256, /^[a-f0-9]{64}$/);
+  assert.match(result.html, /这个手机入口已停用/);
+  assert.match(result.html, /This mobile entry is retired/);
+  assert.doesNotMatch(result.html, /href=/);
 });
 
 test("iCloud handoff auto refresh records Tailscale HTTPS address changes", async (t) => {
@@ -1901,7 +2000,7 @@ test("iCloud availability blocks export when Apple ID or iCloud Drive is disable
   const { exportIcloudHandoff, getNetworkDiagnostics } = await import(`../server/networkDiagnostics.ts?icloud-account-disabled=${Date.now()}`);
   const diagnostics = getNetworkDiagnostics();
   assert.equal(diagnostics.icloud.available, true);
-  assert.equal(diagnostics.icloud.canExport, false);
+  assert.notEqual(diagnostics.icloud.recommendedBaseUrl, "https://lifeos-mac.tailnet.example.ts.net");
   assert.equal(diagnostics.icloud.availability.status, "account-unavailable");
   assert.equal(diagnostics.icloud.availability.severity, "danger");
   assert.equal(diagnostics.icloud.availability.account.checked, true);
@@ -2287,7 +2386,7 @@ test("network diagnostics normalizes configured public base URLs before UI and p
   assert.equal(JSON.stringify(diagnostics).includes("user:password"), false);
 });
 
-test("network diagnostics recommends saved desktop remote config before local-only entries", async (t) => {
+test("network diagnostics does not advertise a saved remote config before restart", async (t) => {
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-saved-remote-config-"));
   const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-empty-network-bin-"));
   t.after(async () => {
@@ -2326,19 +2425,12 @@ test("network diagnostics recommends saved desktop remote config before local-on
   });
   const diagnostics = JSON.parse(output);
 
-  assert.equal(diagnostics.recommendedBaseUrl, "https://lifeos.example.com/base");
-  assert.equal(diagnostics.firstCandidate.id, "saved-desktop-config");
-  assert.equal(diagnostics.firstCandidate.label, "Home HTTPS Proxy");
-  assert.equal(diagnostics.firstCandidate.baseUrl, "https://lifeos.example.com/base");
-  assert.equal(diagnostics.firstCandidate.mode, "configured");
-  assert.equal(diagnostics.firstCandidate.secure, true);
-  assert.equal(diagnostics.firstCandidate.stability, "stable");
-  assert.equal(diagnostics.firstCandidate.requiresRestart, true);
-  assert.equal(diagnostics.remoteReadiness.status, "blocked");
-  assert.equal(diagnostics.remoteReadiness.baseUrl, "https://lifeos.example.com/base");
-  assert.equal(diagnostics.remoteReadiness.blockers.some((blocker) => blocker.id === "needsPublicOptIn"), true);
-  assert.equal(diagnostics.remoteReadiness.actions.some((action) => action.id === "needsRestart"), true);
+  assert.equal(diagnostics.recommendedBaseUrl, "http://127.0.0.1:4567");
+  assert.equal(diagnostics.firstCandidate.id, "local");
+  assert.equal(diagnostics.remoteReadiness.status, "local-only");
+  assert.equal(diagnostics.remoteReadiness.baseUrl, "http://127.0.0.1:4567");
   assert.equal(diagnostics.desktopRuntimeConfig.publicBaseUrl, "https://lifeos.example.com/base");
+  assert.equal(diagnostics.desktopRuntimeConfig.label, "Home HTTPS Proxy");
 });
 
 test("network diagnostics ignores stale saved temporary Cloudflare URLs", async (t) => {
@@ -2393,6 +2485,79 @@ test("network diagnostics ignores stale saved temporary Cloudflare URLs", async 
   assert.notEqual(diagnostics.recommendedBaseUrl, "https://old-lifeos.trycloudflare.com");
   assert.notEqual(diagnostics.icloud.recommendedBaseUrl, "https://old-lifeos.trycloudflare.com");
   assert.equal(diagnostics.icloud.canExport, false);
+});
+
+test("network diagnostics never exports an offline saved Tailscale address", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-stale-tailscale-config-"));
+  const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-offline-tailscale-bin-"));
+  const tailscalePath = path.join(binDir, "tailscale");
+  await writeFile(tailscalePath, `#!/bin/sh
+if [ "$1" = "version" ]; then
+  echo "1.66.4"
+  exit 0
+fi
+if [ "$1" = "status" ]; then
+  echo '{"Self":{"Online":false,"HostName":"lifeos-mac","DNSName":"lifeos-mac.tailnet.example.ts.net.","TailscaleIPs":["100.64.0.10"]},"MagicDNSSuffix":"tailnet.example.ts.net"}'
+  exit 0
+fi
+if [ "$1" = "serve" ] && [ "$2" = "status" ]; then
+  echo '{"Web":{"lifeos-mac.tailnet.example.ts.net:443":{"Handlers":{"/":{"Proxy":"http://127.0.0.1:4567"}}}}}'
+  exit 0
+fi
+exit 1
+`);
+  await chmod(tailscalePath, 0o755);
+  t.after(async () => {
+    await rm(dataDir, { recursive: true, force: true });
+    await rm(binDir, { recursive: true, force: true });
+  });
+
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const { saveDesktopRuntimeConfig } = await import("./server/desktopRuntimeConfig.ts");
+    const { getNetworkDiagnostics } = await import("./server/networkDiagnostics.ts");
+    saveDesktopRuntimeConfig({
+      mode: "tailscale",
+      label: "Tailscale HTTPS Serve",
+      baseUrl: "https://lifeos-mac.tailnet.example.ts.net",
+    });
+    const diagnostics = getNetworkDiagnostics();
+    process.stdout.write(JSON.stringify({
+      candidates: diagnostics.connectionCandidates.map((candidate) => ({ id: candidate.id, baseUrl: candidate.baseUrl })),
+      recommendedBaseUrl: diagnostics.recommendedBaseUrl,
+      remoteReadiness: diagnostics.remoteReadiness,
+      icloudCanExport: diagnostics.icloud.canExport,
+      tailscale: {
+        online: diagnostics.tailscale.online,
+        serveRunning: diagnostics.tailscale.serveRunning,
+        httpsServeReady: diagnostics.tailscale.httpsServeReady,
+      },
+    }));
+  `], {
+    cwd: rootDir,
+    env: {
+      ...process.env,
+      LIFEOS_DATA_DIR: dataDir,
+      PATH: binDir,
+      LIFEOS_PORT: "4567",
+      LIFEOS_HOST: "127.0.0.1",
+      LIFEOS_ALLOW_PUBLIC: "1",
+      PUBLIC_BASE_URL: "https://lifeos-mac.tailnet.example.ts.net",
+      APP_URL: "",
+      LIFEOS_TAILSCALE_BIN: tailscalePath,
+      LIFEOS_CLOUDFLARED_BIN: "/definitely/missing/cloudflared",
+    },
+    encoding: "utf8",
+  });
+  const diagnostics = JSON.parse(output);
+
+  assert.equal(diagnostics.tailscale.online, false);
+  assert.equal(diagnostics.tailscale.serveRunning, true);
+  assert.equal(diagnostics.tailscale.httpsServeReady, false);
+  assert.equal(diagnostics.candidates.some((candidate) => candidate.baseUrl === "https://lifeos-mac.tailnet.example.ts.net"), false);
+  assert.equal(diagnostics.candidates.some((candidate) => candidate.id.startsWith("tailscale-")), false);
+  assert.equal(diagnostics.recommendedBaseUrl, "http://127.0.0.1:4567");
+  assert.equal(diagnostics.remoteReadiness.status, "local-only");
+  assert.equal(diagnostics.icloudCanExport, false);
 });
 
 test("connection URL tests strip credentials, query secrets, and fragments from returned probe URL", async (t) => {
@@ -2556,16 +2721,23 @@ exit 1
   process.env.LIFEOS_PORT = "4567";
   process.env.LIFEOS_TAILSCALE_BIN = tailscalePath;
 
-  const { startTailscaleHttpsServe, stopTailscaleHttpsServe } = await import(`../server/networkDiagnostics.ts?tailscale-serve=${Date.now()}`);
+  const { startTailscaleHttpsServe, stopOwnedTailscaleHttpsServeOnShutdown, stopTailscaleHttpsServe } = await import(`../server/networkDiagnostics.ts?tailscale-serve=${Date.now()}`);
   const started = startTailscaleHttpsServe("4567");
   assert.equal(started.url, "https://lifeos-mac.tailnet.example.ts.net");
-  assert.equal(started.command, "tailscale serve --bg https:443 http://127.0.0.1:4567");
+  assert.equal(started.command, "tailscale serve --bg --https=443 http://127.0.0.1:4567");
+
+  const unrelated = stopOwnedTailscaleHttpsServeOnShutdown("4568");
+  assert.deepEqual(unrelated, { stopped: false, reason: "not-owned" });
+
+  const cleanup = stopOwnedTailscaleHttpsServeOnShutdown("4567");
+  assert.equal(cleanup.stopped, true);
+  assert.equal(cleanup.reason, "stopped");
 
   const stopped = stopTailscaleHttpsServe();
   assert.equal(stopped.command, "tailscale serve --https=443 off");
 
   const log = await import("node:fs/promises").then((fs) => fs.readFile(commandLog, "utf8"));
-  assert.match(log, /serve --bg https:443 http:\/\/127\.0\.0\.1:4567/);
+  assert.match(log, /serve --bg --https=443 http:\/\/127\.0\.0\.1:4567/);
   assert.match(log, /serve --https=443 off/);
 });
 
@@ -2575,6 +2747,7 @@ test("Tailscale HTTP fallback is not accepted as a long-term remote entry", asyn
   const oldPort = process.env.LIFEOS_PORT;
   const oldAllowPublic = process.env.LIFEOS_ALLOW_PUBLIC;
   const oldTailscaleBin = process.env.LIFEOS_TAILSCALE_BIN;
+  const oldHost = process.env.LIFEOS_HOST;
 
   t.after(async () => {
     process.env.PATH = oldPath;
@@ -2584,6 +2757,8 @@ test("Tailscale HTTP fallback is not accepted as a long-term remote entry", asyn
     else process.env.LIFEOS_ALLOW_PUBLIC = oldAllowPublic;
     if (oldTailscaleBin === undefined) delete process.env.LIFEOS_TAILSCALE_BIN;
     else process.env.LIFEOS_TAILSCALE_BIN = oldTailscaleBin;
+    if (oldHost === undefined) delete process.env.LIFEOS_HOST;
+    else process.env.LIFEOS_HOST = oldHost;
     await rm(binDir, { recursive: true, force: true });
   });
 
@@ -2609,6 +2784,7 @@ exit 1
   process.env.LIFEOS_PORT = "4567";
   process.env.LIFEOS_TAILSCALE_BIN = tailscalePath;
   process.env.LIFEOS_ALLOW_PUBLIC = "1";
+  process.env.LIFEOS_HOST = "0.0.0.0";
 
   const { getNetworkDiagnostics } = await import(`../server/networkDiagnostics.ts?tailscale-http=${Date.now()}`);
   const diagnostics = getNetworkDiagnostics();
@@ -2618,26 +2794,31 @@ exit 1
   assert.equal(magicDns.baseUrl, "http://lifeos-mac.tailnet.example.ts.net:4567");
   assert.equal(diagnostics.tailscale.loginCommand, "tailscale up");
   assert.equal(diagnostics.tailscale.magicDnsEnabled, true);
-  assert.equal(diagnostics.tailscale.httpsServeReady, true);
+  assert.equal(diagnostics.tailscale.httpsServeReady, false);
   assert.equal(diagnostics.tailscale.serveRunning, false);
   assert.equal(magicDns.secure, false);
   assert.equal(magicDns.stability, "temporary");
+  assert.equal(magicDns.envTemplate.includes("LIFEOS_TRUST_PROXY=1"), false);
   assert.equal(tailnetIp.baseUrl, "http://100.64.0.10:4567");
   assert.equal(tailnetIp.secure, false);
   assert.equal(tailnetIp.stability, "temporary");
-  assert.equal(diagnostics.recommendedBaseUrl, "https://lifeos-mac.tailnet.example.ts.net");
-  assert.equal(diagnostics.connectionCandidates[0].id, "tailscale-serve-https");
-  assert.equal(diagnostics.remoteReadiness.status, "needs-restart");
-  assert.equal(diagnostics.remoteReadiness.baseUrl, "https://lifeos-mac.tailnet.example.ts.net");
-  assert.equal(diagnostics.remoteReadiness.actions.some((action) => action.id === "needsRestart"), true);
+  assert.equal(diagnostics.tailscale.mobileUrls.includes("https://lifeos-mac.tailnet.example.ts.net"), false);
+  assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.id === "tailscale-serve-https"), false);
+  assert.equal(diagnostics.recommendedBaseUrl, "http://lifeos-mac.tailnet.example.ts.net:4567");
+  assert.equal(diagnostics.remoteReadiness.status, "blocked");
+  assert.equal(diagnostics.remoteReadiness.baseUrl, "http://lifeos-mac.tailnet.example.ts.net:4567");
+  assert.equal(diagnostics.remoteReadiness.actions.some((action) => action.id === "needsHttps"), true);
+  assert.equal(diagnostics.icloud.canExport, false);
 });
 
-test("HTTPS tunnel is preferred over Tailscale HTTP fallback when HTTPS Serve is unavailable", async (t) => {
+test("an unmanaged Cloudflare process URL is ignored when HTTPS Serve is unavailable", async (t) => {
   const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-tailscale-http-cloudflare-bin-"));
   const oldPath = process.env.PATH || "";
   const oldPort = process.env.LIFEOS_PORT;
   const oldTailscaleBin = process.env.LIFEOS_TAILSCALE_BIN;
   const oldCloudflaredBin = process.env.LIFEOS_CLOUDFLARED_BIN;
+  const oldHost = process.env.LIFEOS_HOST;
+  const oldAllowPublic = process.env.LIFEOS_ALLOW_PUBLIC;
 
   t.after(async () => {
     process.env.PATH = oldPath;
@@ -2647,6 +2828,10 @@ test("HTTPS tunnel is preferred over Tailscale HTTP fallback when HTTPS Serve is
     else process.env.LIFEOS_TAILSCALE_BIN = oldTailscaleBin;
     if (oldCloudflaredBin === undefined) delete process.env.LIFEOS_CLOUDFLARED_BIN;
     else process.env.LIFEOS_CLOUDFLARED_BIN = oldCloudflaredBin;
+    if (oldHost === undefined) delete process.env.LIFEOS_HOST;
+    else process.env.LIFEOS_HOST = oldHost;
+    if (oldAllowPublic === undefined) delete process.env.LIFEOS_ALLOW_PUBLIC;
+    else process.env.LIFEOS_ALLOW_PUBLIC = oldAllowPublic;
     await rm(binDir, { recursive: true, force: true });
   });
 
@@ -2684,16 +2869,16 @@ exit 1
   process.env.LIFEOS_PORT = "4567";
   process.env.LIFEOS_TAILSCALE_BIN = tailscalePath;
   process.env.LIFEOS_CLOUDFLARED_BIN = cloudflaredPath;
+  process.env.LIFEOS_HOST = "0.0.0.0";
+  process.env.LIFEOS_ALLOW_PUBLIC = "1";
 
   const { getNetworkDiagnostics } = await import(`../server/networkDiagnostics.ts?tailscale-http-cloudflare=${Date.now()}`);
   const diagnostics = getNetworkDiagnostics();
   assert.equal(diagnostics.tailscale.magicDnsEnabled, false);
   assert.equal(diagnostics.tailscale.httpsServeReady, false);
   assert.match(diagnostics.tailscale.notes.join("\n"), /MagicDNS suffix was not detected/);
-  assert.equal(diagnostics.connectionCandidates[0].id, "cloudflare-0");
-  assert.equal(diagnostics.connectionCandidates[0].baseUrl, "https://amber-lifeos.trycloudflare.com");
-  assert.equal(diagnostics.connectionCandidates[0].secure, true);
-  assert.equal(diagnostics.connectionCandidates[0].stability, "temporary");
+  assert.equal(diagnostics.connectionCandidates[0].id, "tailscale-ip-0");
+  assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.id === "cloudflare-0"), false);
   assert.equal(diagnostics.connectionCandidates.find((candidate) => candidate.id === "tailscale-ip-0").stability, "temporary");
   assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.id === "tailscale-serve-https"), false);
 });
@@ -2858,7 +3043,8 @@ exit 1
   assert.equal(result.reason, "tailscale_configured");
   assert.equal(await readFile(stateFile, "utf8"), "http://127.0.0.1:4567\n");
   assert.equal(result.serve.status.serveRunning, true);
-  assert.match(result.serve.status.serveStatus, /4567/);
+  assert.equal(result.serve.status.serveStatus, "OwnOrbit HTTPS Serve is ready.");
+  assert.doesNotMatch(result.serve.status.serveStatus, /127\.0\.0\.1|\/Users\//);
 });
 
 test("iCloud phone confirmation status classifies missing, stale, and issue-after-confirm", async () => {

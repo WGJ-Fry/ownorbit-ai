@@ -24,10 +24,14 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ios-native-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  compile:
-    runs-on: macos-latest
-    timeout-minutes: 20
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -38,14 +42,71 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install XcodeGen
-        run: brew install xcodegen
-
       - name: Validate native contracts
         run: npm run test:apple-native
+
+  xctest:
+    needs: contracts
+    runs-on: macos-15
+    timeout-minutes: 35
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+
+      - name: Show Apple toolchain
+        run: xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
 
       - name: Run native XCTest suite
         run: npm run test:apple-native:xcode
 
+  device_compile:
+    needs: contracts
+    runs-on: macos-15
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+
+      - name: Show Apple toolchain
+        run: xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
       - name: Compile unsigned iPhoneOS target
         run: npm run mobile:native:device:compile
+
+  compile:
+    if: always()
+    needs:
+      - contracts
+      - xctest
+      - device_compile
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Require every iOS check
+        env:
+          CONTRACTS_RESULT: ${{ needs.contracts.result }}
+          XCTEST_RESULT: ${{ needs.xctest.result }}
+          DEVICE_COMPILE_RESULT: ${{ needs.device_compile.result }}
+        run: |
+          test "$CONTRACTS_RESULT" = "success"
+          test "$XCTEST_RESULT" = "success"
+          test "$DEVICE_COMPILE_RESULT" = "success"

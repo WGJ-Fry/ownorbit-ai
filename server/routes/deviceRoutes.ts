@@ -4,23 +4,14 @@ import { insertAuditLog, redactAuditString } from "../audit";
 import { requireAdmin } from "../auth";
 import { getRequestActor } from "../auth";
 import { noteCloudKitLocalChange } from "../cloudKitAutoSyncSchedule";
-import { BindingSession, DeviceRecord, confirmBindingSession, getBindingSessionById, getDevice, getDevices, getLatestDeviceConnectivityReport, getLatestDeviceIcloudHandoffEvent, getOpenBindingSessionByToken, getOpenDeviceMigrationVoucherByToken, insertBindingSession, insertDevice, insertDeviceConnectivityReport, insertDeviceIcloudHandoffEvent, insertDeviceMigrationVoucher, markDeviceMigrationVoucherUsed, migrateDeviceCredential, pruneExpiredBindingSessions, pruneExpiredDeviceMigrationVouchers, revokeDeviceRecord, rotateDeviceToken } from "../devices";
-import { getDesktopRuntimeConfig } from "../desktopRuntimeConfig";
+import { BindingSession, DeviceRecord, confirmBindingSessionWithDevice, getBindingSessionById, getBindingSessionByToken, getDevice, getDevices, getLatestDeviceConnectivityReport, getLatestDeviceIcloudHandoffEvent, getOpenBindingSessionByToken, getOpenDeviceMigrationVoucherByToken, insertBindingSession, insertDeviceConnectivityReport, insertDeviceIcloudHandoffEvent, insertDeviceMigrationVoucher, markDeviceMigrationVoucherUsed, migrateDeviceCredential, pruneExpiredBindingSessions, pruneExpiredDeviceMigrationVouchers, revokeDeviceRecord, rotateDeviceToken } from "../devices";
 import { rateLimit } from "../httpSecurity";
 import { maybeRefreshIcloudHandoff } from "../networkDiagnostics";
 import { getDeviceEndpointsSnapshot } from "../deviceEndpoints";
 import { pairingBaseUrlNeedsLanBinding } from "../phoneReachability";
-import { getConfiguredPublicBaseUrl, isTemporaryTryCloudflareUrl, normalizePublicBaseUrl } from "../publicBaseUrl";
+import { normalizePublicBaseUrl } from "../publicBaseUrl";
 import { broadcastRealtime, closeDeviceConnection, isDeviceOnline, sendRealtimeToDevice } from "../realtime";
 import { createSecret, tokenHash } from "../security";
-
-function publicBaseUrl(req: express.Request) {
-  const configured = getConfiguredPublicBaseUrl();
-  if (configured && !isTemporaryTryCloudflareUrl(configured)) return configured;
-  const saved = getDesktopRuntimeConfig()?.publicBaseUrl || "";
-  if (saved && !isTemporaryTryCloudflareUrl(saved)) return saved;
-  return `${req.protocol}://${req.get("host")}`;
-}
 
 function normalizePairingBaseUrl(value: unknown) {
   const raw = String(value || "").trim();
@@ -233,11 +224,25 @@ export function registerDeviceRoutes(app: express.Express, bindHost = "127.0.0.1
   app.post("/api/v1/devices/bind/start", rateLimit({ keyPrefix: "bind-start", windowMs: 5 * 60 * 1000, max: 20 }), requireAdmin, (req, res) => {
     const now = Date.now();
     const token = createSecret("bind");
-    let baseUrl = publicBaseUrl(req);
+    let baseUrl = "";
     try {
-      baseUrl = normalizePairingBaseUrl(req.body?.baseUrl) || baseUrl;
+      const requestedBaseUrl = String(req.body?.baseUrl || "").trim();
+      baseUrl = requestedBaseUrl
+        ? normalizePairingBaseUrl(requestedBaseUrl)
+        : getDeviceEndpointsSnapshot(bindHost, { maxAgeMs: 0 }).candidates[0]?.baseUrl || "";
     } catch (error: any) {
       return res.status(400).json({ error: error.message || "Invalid baseUrl" });
+    }
+    if (!baseUrl) {
+      insertAuditLog("binding_session_blocked", "binding_session", "unknown", {
+        reason: "no_phone_reachable_entry",
+        bindHost,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      return res.status(409).json({
+        code: "no_phone_reachable_entry",
+        error: "No verified phone-reachable address is active yet. Start Tailscale HTTPS Serve, Cloudflare Tunnel, or trusted LAN access, then retry.",
+        recovery: { action: "open-connection-guide" },
+      });
     }
     if (pairingBaseUrlNeedsLanBinding(baseUrl, bindHost)) {
       insertAuditLog("binding_session_blocked", "binding_session", "unknown", {
@@ -316,6 +321,13 @@ export function registerDeviceRoutes(app: express.Express, bindHost = "127.0.0.1
     }
 
     const now = Date.now();
+    const knownSession = getBindingSessionByToken(token);
+    if (knownSession?.confirmedAt) {
+      return res.status(409).json({
+        code: "binding_already_used",
+        error: "This pairing QR code has already been used. Generate a new QR code to bind another phone.",
+      });
+    }
     const session = getOpenBindingSessionByToken(token, now);
     if (!session) {
       const icloudRefresh = safeRefreshIcloudForBinding("binding-token-invalid-or-expired");
@@ -354,8 +366,12 @@ export function registerDeviceRoutes(app: express.Express, bindHost = "127.0.0.1
       lastSeenAt: now,
     };
 
-    insertDevice(device);
-    confirmBindingSession(session.id, device.id, now);
+    if (!confirmBindingSessionWithDevice(session.id, device, now)) {
+      return res.status(409).json({
+        code: "binding_already_used",
+        error: "This pairing QR code has already been used. Generate a new QR code to bind another phone.",
+      });
+    }
     noteCloudKitLocalChange("device-trust", { type: "device", id: device.id });
     insertAuditLog("device_bound", "device", device.id, {
       bindingSessionId: session.id,
@@ -396,6 +412,12 @@ export function registerDeviceRoutes(app: express.Express, bindHost = "127.0.0.1
     if (!actor || actor.type !== "device") return res.status(401).json({ error: "Device authentication required" });
 
     const previousDevice = getDevice(actor.id);
+    if (previousDevice?.publicKey) {
+      return res.status(409).json({
+        code: "signature_device_token_rotation_not_allowed",
+        error: "This device uses a protected signing key and cannot switch to a transferable access token.",
+      });
+    }
     const accessToken = createSecret("device");
     const accessTokenExpiresAt = deviceTokenExpiresAt();
     const device = rotateDeviceToken(actor.id, tokenHash(accessToken), accessTokenExpiresAt);

@@ -1,5 +1,10 @@
 import crypto from "crypto";
-import { getInternalAppSecret, saveInternalAppSecret } from "./appSecrets";
+import {
+  archiveInternalAppSecret,
+  getInternalAppSecret,
+  getInternalAppSecretStorage,
+  saveInternalAppSecret,
+} from "./appSecrets";
 import {
   cloudKitChatResponseSignatureText,
   type CloudKitChatResponsePayload,
@@ -8,9 +13,19 @@ import {
 
 const identitySecretId = "internal.cloudkit-chat-mac-identity.v1";
 
+function isVerifiedSignedDesktop() {
+  return process.env.LIFEOS_DISTRIBUTION === "signed"
+    && (process.env.LIFEOS_DESKTOP_PACKAGED !== "1" || process.env.LIFEOS_DESKTOP_SIGNATURE_VERIFIED === "1");
+}
+
+function isUnsignedDesktop() {
+  return process.platform === "darwin" && !isVerifiedSignedDesktop();
+}
+
 function requireSystemIdentityStorage() {
   return process.platform === "darwin"
     && Boolean(process.versions.electron)
+    && isVerifiedSignedDesktop()
     && process.env.LIFEOS_ALLOW_INSECURE_MAC_IDENTITY_STORAGE !== "1";
 }
 
@@ -65,6 +80,15 @@ function createStoredIdentity(requireSystemStorage = requireSystemIdentityStorag
 
 function loadOrCreatePrivateKey() {
   const requireSystemStorage = requireSystemIdentityStorage();
+  if (
+    isUnsignedDesktop()
+    && getInternalAppSecretStorage(identitySecretId) === "electron_safe_storage"
+  ) {
+    // Preserve the inaccessible ciphertext for forensic rollback, then create a
+    // stable file-encrypted identity. The iPhone will require an explicit Mac
+    // trust reset before accepting a changed identity.
+    archiveInternalAppSecret(identitySecretId, "unsigned-keychain");
+  }
   return parseStoredIdentity(getInternalAppSecret(identitySecretId, {
     requireSystemStorage,
     migrateToSystemStorage: requireSystemStorage,

@@ -28,7 +28,7 @@ export function getNetworkStatus(nav: NavigatorLike = typeof navigator === "unde
   const saveData = connection?.saveData;
 
   if (!online) {
-    return { online, effectiveType, downlink, rtt, saveData, quality: "offline", labelKey: "network.offline", label: "You are offline. Messages will be saved locally first." };
+    return { online, effectiveType, downlink, rtt, saveData, quality: "offline", labelKey: "network.offline", label: "You are offline. Your draft stays here; send it again after reconnecting." };
   }
 
   const slowEffectiveType = effectiveType === "slow-2g" || effectiveType === "2g";

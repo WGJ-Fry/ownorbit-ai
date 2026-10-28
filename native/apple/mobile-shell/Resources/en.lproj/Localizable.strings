@@ -162,11 +162,14 @@
 "cloud.chat.rebind.title" = "Rebind this iPhone?";
 "cloud.chat.rebind.body" = "This removes unsent chat requests signed by the old key and creates a new device key. You must approve the device again on the Mac.";
 "cloud.chat.rebind.confirm" = "Create new device key";
-"cloud.chat.rebind.footer" = "Use this only after the device was revoked, its key expired, or the administrator asked you to pair again.";
+"cloud.chat.rebind.footer" = "Use the matching action only after device revocation, key expiry, an administrator rebind request, or a Mac reinstall.";
 "cloud.chat.macTrust.reset.button" = "Confirm the new Mac";
 "cloud.chat.macTrust.reset.title" = "Did you just replace or reinstall your Mac?";
 "cloud.chat.macTrust.reset.body" = "OwnOrbit rejected replies from a new Mac to protect your conversations. Continue only if you intentionally replaced, reinstalled, or migrated the Mac. After reset, send a new question; old replies cannot establish trust.";
 "cloud.chat.macTrust.reset.confirm" = "Stop trusting the old Mac";
+"cloud.chat.macTrust.recovery.title" = "Mac still not responding?";
+"cloud.chat.macTrust.recovery.body" = "If the Mac was reinstalled or updated, reset trust and send the question again. Do not reset it if you did not replace the Mac.";
+"cloud.chat.macTrust.recovery.button" = "Reset Mac trust and send again";
 "cloud.chat.macTrust.status.reset" = "The old Mac was removed. Send a new question to verify the replacement Mac.";
 "cloud.chat.macTrust.status.failed" = "Mac trust could not be reset from the system keychain.";
 "cloud.chat.macTrust.status.changed" = "A reply came from a different Mac. OwnOrbit stopped receiving it to protect your conversation.";

@@ -110,7 +110,7 @@ function classifyWorkerError(error: any) {
   const code = String(error?.code || "");
   const message = String(error?.message || "").toLowerCase();
   if (code === "AI_CONFIG_MISSING") return { safeErrorCode: "ai-not-configured", retryable: false };
-  if (code === "AI_TIMEOUT") return { safeErrorCode: "ai-timeout", retryable: false };
+  if (code === "AI_TIMEOUT") return { safeErrorCode: "ai-timeout", retryable: true };
   if (/secret-like|response label is invalid|response is empty/.test(message)) {
     return { safeErrorCode: "unsafe-ai-response", retryable: false };
   }

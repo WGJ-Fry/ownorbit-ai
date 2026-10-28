@@ -292,6 +292,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(appSource, /resolveChatStateChanges\(stateChanges\)/);
   assert.match(appSource, /loadStoredChatMessages/);
   assert.match(appSource, /persistStoredChatMessages/);
+  assert.match(appSource, /loadStoredChatDraft/);
+  assert.match(appSource, /persistStoredChatDraft/);
+  assert.match(appSource, /chat\.attachmentTooLarge/);
   assert.match(appSource, /formatChatError/);
   assert.match(appSource, /chat\.aiNotConfigured/);
   assert.doesNotMatch(appSource, /err instanceof Error \? err\.message/);
@@ -302,6 +305,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(chatMessageStorageSource, /parseStoredChatMessages/);
   assert.match(chatMessageStorageSource, /defaultChatMessages/);
   assert.match(chatMessageStorageSource, /catch/);
+  const chatDraftStorageSource = await readFile(path.join(rootDir, "src", "services", "chatDraftStorage.ts"), "utf8");
+  assert.match(chatDraftStorageSource, /MAX_CHAT_DRAFT_IMAGE_BYTES/);
+  assert.match(chatDraftStorageSource, /removeItem\(CHAT_DRAFT_STORAGE_KEY\)/);
 
   const chatPersistenceSource = await readFile(path.join(rootDir, "src", "hooks", "useChatPersistence.ts"), "utf8");
   const chatSessionStorageSource = await readFile(path.join(rootDir, "src", "services", "chatSessionStorage.ts"), "utf8");
@@ -1764,6 +1770,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(pwaCapabilitiesSource, /\/api\/v1\/ws/);
   const dashboardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminDashboardPage.tsx"), "utf8");
   assert.match(dashboardSource, /connectivityReport/);
+  assert.match(dashboardSource, /getCloudKitChatDevices\(10\)/);
+  assert.match(dashboardSource, /PendingCloudKitDeviceApproval/);
+  const pendingCloudKitDeviceApprovalSource = await readFile(path.join(rootDir, "src", "pages", "admin", "PendingCloudKitDeviceApproval.tsx"), "utf8");
+  assert.match(pendingCloudKitDeviceApprovalSource, /dashboard-cloudkit-phone-approval/);
   const deviceConnectivityStatusSource = await readFile(path.join(rootDir, "src", "pages", "admin", "DeviceConnectivityStatus.tsx"), "utf8");
   assert.match(deviceConnectivityStatusSource, /mobileShellOk/);
   assert.match(deviceConnectivityStatusSource, /dashboard\.mobileConnectivityChecks/);
@@ -2433,7 +2443,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
 
   const devicePairSource = await readFile(path.join(rootDir, "src", "pages", "admin", "DevicePairPage.tsx"), "utf8");
   assert.match(devicePairSource, /connectionCandidates/);
-  assert.match(devicePairSource, /candidate\.mode !== "local"/);
+  assert.match(devicePairSource, /eligiblePhonePairingCandidates/);
+  assert.doesNotMatch(devicePairSource, /networkDiagnostics\.recommendedBaseUrl/);
   assert.match(devicePairSource, /devicePair\.noReachableAddress/);
   assert.match(devicePairSource, /devicePair\.openConnectionGuide/);
   assert.match(devicePairSource, /testConnectionUrl/);
@@ -2453,6 +2464,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(devicePairSource, /devicePair\.restartTitle/);
   assert.match(devicePairSource, /devicePair\.temporaryTitle/);
   assert.match(devicePairSource, /devicePair\.temporaryBody/);
+
+  const electronInstallSource = await readFile(path.join(rootDir, "scripts", "install-electron.mjs"), "utf8");
+  assert.match(electronInstallSource, /packageJson\.devDependencies\?\.electron/);
+  assert.doesNotMatch(electronInstallSource, /\|\| "42\.3\.3"/);
   assert.match(devicePairSource, /formatDevicePairingCreateError/);
   assert.match(devicePairSource, /DevicePairConnectionTestResult/);
   assert.match(devicePairSource, /setClockNow\(Date\.now\(\)\)/);
@@ -2667,6 +2682,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /aiKey\.summaryConfiguredTitle/);
   assert.match(translationsSource, /System Secure Storage Available/);
   assert.match(aiKeyPanelSource, /aiKey\.enabledHint/);
+  assert.match(aiKeyPanelSource, /credentialResetRequired/);
+  assert.match(aiKeyPanelSource, /ai-key-reset-required/);
+  assert.match(adminOnboardingSource, /onboarding-ai-key-reset-required/);
   assert.match(translationsSource, /多模型聚合路由/);
   assert.match(translationsSource, /系统安全存储不可用/);
   assert.match(translationsSource, /当前保存位置/);

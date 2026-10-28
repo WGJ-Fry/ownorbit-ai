@@ -92,7 +92,9 @@ test("Apple native mobile shell validates safe iCloud entries without storing cr
   assert.match(packageJson.scripts["mobile:native:smoke"], /mobile-ios-native-shell-smoke/);
   assert.match(packageJson.scripts["test:apple-native:xcode"], /test-ios-native-xcode/);
   assert.match(packageJson.scripts["quality:gate"], /test:apple-native:xcode/);
-  assert.match(nativeWorkflow, /runs-on: macos-latest/);
+  assert.match(nativeWorkflow, /runs-on: macos-15/);
+  assert.match(nativeWorkflow, /cancel-in-progress: true/);
+  assert.match(nativeWorkflow, /needs:\s*contracts/);
   assert.match(nativeWorkflow, /tags:\s*\n\s+- "v\*"/);
   assert.match(nativeWorkflow, /npm run test:apple-native:xcode/);
   assert.match(nativeWorkflow, /npm run mobile:native:device:compile/);

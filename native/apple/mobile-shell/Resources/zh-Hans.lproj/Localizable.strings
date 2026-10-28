@@ -40,11 +40,14 @@
 "cloud.chat.rebind.title" = "重新绑定这台 iPhone？";
 "cloud.chat.rebind.body" = "这会移除尚未发送的旧聊天请求并生成新的设备密钥。之后需要在 Mac 管理端批准这台设备。";
 "cloud.chat.rebind.confirm" = "生成新设备密钥";
-"cloud.chat.rebind.footer" = "仅在设备被撤销、密钥失效或管理员要求重新绑定时使用。";
+"cloud.chat.rebind.footer" = "仅在设备被撤销、密钥失效、管理员要求重新绑定，或 Mac 重装后使用对应操作。";
 "cloud.chat.macTrust.reset.button" = "确认新的 Mac";
 "cloud.chat.macTrust.reset.title" = "确认你刚刚更换或重装了 Mac？";
 "cloud.chat.macTrust.reset.body" = "为保护对话，OwnOrbit 已拒绝来自新 Mac 的回复。只有在你确实更换、重装或迁移了 Mac 时才能继续。重置后请重新发送一条问题，旧回复不会建立信任。";
 "cloud.chat.macTrust.reset.confirm" = "停止信任旧 Mac";
+"cloud.chat.macTrust.recovery.title" = "Mac 一直没有回复？";
+"cloud.chat.macTrust.recovery.body" = "如果刚重装或更新过 Mac，重置信任后重新发送。没有更换 Mac 时不要操作。";
+"cloud.chat.macTrust.recovery.button" = "重置 Mac 信任并重新发送";
 "cloud.chat.macTrust.status.reset" = "旧 Mac 已移除。请重新发送一条问题，以验证新的 Mac。";
 "cloud.chat.macTrust.status.failed" = "无法从系统钥匙串重置 Mac 信任。";
 "cloud.chat.macTrust.status.changed" = "检测到回复来自另一台 Mac，已停止接收，以保护你的对话。";

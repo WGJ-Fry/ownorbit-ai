@@ -657,6 +657,7 @@ export type ConfigDiagnostics = {
       migrationRecommended?: boolean;
     };
     restartRequired: boolean;
+    credentialResetRequired?: boolean;
     updatedAt?: number;
     recommendations: string[];
   };
@@ -2615,6 +2616,10 @@ export function analyzeIcloudHandoffRepairPacket(packet: string) {
 export function stopCloudflareTunnel() {
   return requestJson<{
     tunnel: NetworkDiagnostics["cloudflare"]["managed"];
+    config: NetworkDiagnostics["desktopRuntimeConfig"];
+    clearedActiveEntry: boolean;
+    requiresRestart: boolean;
+    icloudRefresh?: IcloudAutoRefreshResult;
     diagnostics: NetworkDiagnostics;
     message: string;
   }>("/api/v1/admin/cloudflare-tunnel/stop", { method: "POST" });
@@ -2803,7 +2808,7 @@ export function getCloudKitChatDevices(limit?: number) {
 }
 
 export function approveCloudKitChatDevice(deviceId: string) {
-  return requestJson<{ ok: true; device: { id: string; state: "approved"; approvedAt: number } }>(
+  return requestJson<{ ok: true; device: { id: string; state: "approved"; approvedAt: number }; relayCycleQueued: true }>(
     `/api/v1/admin/cloudkit-chat/devices/${encodeURIComponent(deviceId)}/approve`,
     { method: "POST", body: "{}" },
   );
@@ -3029,6 +3034,9 @@ export function stopTailscaleHttpsServe() {
       url: string;
       status: NetworkDiagnostics["tailscale"];
     };
+    config: NetworkDiagnostics["desktopRuntimeConfig"];
+    clearedActiveEntry: boolean;
+    icloudRefresh?: IcloudAutoRefreshResult;
     diagnostics: NetworkDiagnostics;
     message: string;
   }>("/api/v1/admin/tailscale-serve/stop", { method: "POST" });
