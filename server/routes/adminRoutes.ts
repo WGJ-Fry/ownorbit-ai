@@ -16,7 +16,7 @@ import { generateCloudflareNamedTunnelConfig, getCloudflareNamedTunnelStatus, ge
 import { getDesktopRuntimeConfig, saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { getConfiguredPublicBaseUrl, isTemporaryTryCloudflareUrl, normalizePublicBaseUrl } from "../publicBaseUrl";
 import { getRemoteValidationReport, saveRemoteValidationReport, summarizeRemoteHealth } from "../remoteValidationReport";
-import { getRemoteHealthEvidence, getRemoteHealthMonitorStatus, getRemoteRecoveryReport, runRemoteHealthCheck } from "../remoteHealthMonitor";
+import { getRemoteHealthEvidence, getRemoteHealthMonitorStatus, getRemoteRecoveryReport, remoteHealthSummaryBaseUrl, runRemoteHealthCheck } from "../remoteHealthMonitor";
 import { getIcloudHandoffMonitorStatus, runIcloudHandoffStartupRefresh } from "../icloudHandoffMonitor";
 import { buildIcloudAcceptanceSummary } from "../icloudAcceptance";
 import { buildRemoteAcceptanceChecklist, buildRemoteAcceptanceEvidencePack, getRemoteAcceptanceRecords, getRemoteAcceptanceRunbookRecords, saveRemoteAcceptanceRecord, saveRemoteAcceptanceRunbookFromConnectionTest, saveRemoteAcceptanceRunbookReport, summarizeRemoteAcceptanceChecklist } from "../remoteAcceptance";
@@ -589,7 +589,7 @@ function getAdminNetworkDiagnostics() {
   ]);
   const remoteAcceptanceRecords = getRemoteAcceptanceRecords();
   const remoteHealthSummary = summarizeRemoteHealth({
-    baseUrl: diagnostics.desktopRuntimeConfig?.publicBaseUrl || diagnostics.remoteReadiness.baseUrl,
+    baseUrl: remoteHealthSummaryBaseUrl(diagnostics),
     readiness: diagnostics.remoteReadiness,
     report: remoteValidationReport,
     pairingSession: latestBindingSession,
@@ -2680,7 +2680,9 @@ export function registerAdminRoutes(app: express.Express) {
       if (clearedAppUrl) delete process.env.APP_URL;
       const clearedActiveEntry = clearedPublicBaseUrl || clearedAppUrl;
       const survivor = clearedActiveEntry || savedConfig?.mode === "tailscale" ? survivingRemoteEntry("tailscale") : null;
-      if (clearedActiveEntry) releaseStoppedRemoteEntry(survivor, savedConfig);
+      // A saved Tailscale entry is the one stopping here, never one to hand
+      // the runtime address back to later.
+      if (clearedActiveEntry) releaseStoppedRemoteEntry(survivor, savedConfig?.mode === "tailscale" ? null : savedConfig);
       const config = savedConfig?.mode === "tailscale" ? savedConfigAfterRemoteStop(survivor) : null;
       const icloud = reconcileIcloudHandoffAfterRemoteStop("tailscale-serve-stopped");
       insertAuditLog("tailscale_https_serve_stopped", "network", serve.url || "tailscale", {

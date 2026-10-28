@@ -6,7 +6,7 @@ import { getMobilePairingIntent, getStoredDeviceCredential, getStoredDeviceCrede
 import { consumePendingPairingTokenAsync, extractPairingToken, pairingInstallPath, peekPendingPairingToken, resolvePairingInputDestination, savePendingPairingToken, setPairingManifestToken } from "../../services/mobilePairingIntent";
 import { loadMobileInstallHintDismissed, saveMobileInstallHintDismissed } from "../../services/mobileInstallHintStorage";
 import { getNetworkStatus } from "../../services/networkStatus";
-import { getRemoteEntryStatus, isTemporaryEntryLikelyLost, TEMPORARY_ENTRY_LOST_AFTER_MS } from "../../services/pwaCapabilities";
+import { getRemoteEntryStatus, isTemporaryEntryLikelyLost, TEMPORARY_ENTRY_LOST_AFTER_MS, TEMPORARY_ENTRY_STEPS_ANCHOR } from "../../services/pwaCapabilities";
 import LanguageSwitcher from "../../i18n/LanguageSwitcher";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { TranslationKey } from "../../i18n/translations";
@@ -56,6 +56,15 @@ export default function MobileChatPage() {
     const timer = window.setTimeout(() => setLostCheckTick((tick) => tick + 1), remaining);
     return () => window.clearTimeout(timer);
   }, [currentEntryKind, failingSince, status]);
+
+  // The hint is only for a phone that is online itself. Between reconnect
+  // attempts nothing else re-renders, so going offline would leave it up for
+  // up to one backoff interval.
+  useEffect(() => {
+    const handleOffline = () => setLostCheckTick((tick) => tick + 1);
+    window.addEventListener("offline", handleOffline);
+    return () => window.removeEventListener("offline", handleOffline);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -257,7 +266,7 @@ export default function MobileChatPage() {
               <div>{t("mobile.realtimeOfflineBody")}</div>
             )}
             {lastError ? <div className="mt-1 truncate text-red-50/55">{t("mobile.realtimeErrorDetail", { message: lastError })}</div> : null}
-            <a href="/mobile/device" className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded-lg border border-red-100/20 bg-red-100/10 px-2 py-1.5 text-[10px] font-bold text-red-50">
+            <a href={temporaryEntryLost ? `/mobile/device#${TEMPORARY_ENTRY_STEPS_ANCHOR}` : "/mobile/device"} className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded-lg border border-red-100/20 bg-red-100/10 px-2 py-1.5 text-[10px] font-bold text-red-50">
               <Smartphone className="h-3 w-3" />
               {t(temporaryEntryLost ? "mobile.temporaryEntryLostAction" : "mobile.openDeviceConnection")}
             </a>

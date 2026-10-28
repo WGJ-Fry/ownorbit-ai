@@ -337,7 +337,6 @@ export default function MobileDevicePage() {
       </header>
 
       <main className="mx-auto max-w-md p-4">
-        {onTemporaryCloudflareOrigin ? <MobileTemporaryEntryCard /> : null}
         <MobileDeviceHealthSummary
           credential={credential}
           credentialStorage={credentialStorage}
@@ -356,10 +355,12 @@ export default function MobileDevicePage() {
           <MobileEndpointFallbackCard active={Boolean(connectivityTest && !connectivityTest.ok)} />
         ) : null}
         {credential ? (
-          // Suggested only while the current entry works — migration needs the
-          // old origin alive to hand out its voucher.
-          <MobileEndpointMigrationCard active={!connectivityTest || connectivityTest.ok} />
+          // Suggested only while the current entry works (the latest test, else
+          // health, says so) — migration needs it alive to hand out its voucher.
+          <MobileEndpointMigrationCard active={connectivityTest ? connectivityTest.ok : Boolean(health)} />
         ) : null}
+        {/* Also says what a temporary address is when the entry card reports a mismatch instead. */}
+        {onTemporaryCloudflareOrigin ? <MobileTemporaryEntryCard explainAddress={currentEntry.kind !== "temporary-cloudflare"} /> : null}
         {credential ? (
           <MobileConnectionRecoveryCard
             connectivityBusy={connectivityBusy}

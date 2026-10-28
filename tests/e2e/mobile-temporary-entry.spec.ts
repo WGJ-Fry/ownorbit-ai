@@ -4,6 +4,9 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 // page shell still loads (in real life from the service worker cache), but
 // nothing behind the address answers.
 const deadOrigin = "https://e2e-dead-quick.trycloudflare.com";
+// A stable address the phone learned from the desktop's endpoint list, which
+// answers as this desktop.
+const stableOrigin = "https://e2e-stable.tailnet.example.ts.net";
 const shellOrigin = "http://127.0.0.1:3333";
 const viewport = { width: 375, height: 667 };
 // The connection pill floats over the chat and cannot be dismissed. Before
@@ -15,11 +18,11 @@ const copy = {
   "zh-CN": {
     offline: "连接中断，正在重试",
     retry: (attempt: number) => `第 ${attempt} 次重连`,
-    offlineBody: "没发出去的内容会留在输入框里",
+    offlineBody: "打字和图片没发出去会留在输入框里",
     lostTitle: "这个临时地址可能已失效",
     lostAction: "查看处理步骤",
     openDevice: "打开设备与连接",
-    cardTitle: "当前使用临时 Cloudflare 地址",
+    cardTitle: "连不上时按这个顺序处理",
     wakeStep: "1. 先看电脑是不是在睡眠或断网",
     renewStep: "2. 电脑端 OwnOrbit 或电脑重启过",
     renewStart: "在电脑上点“一键启动 Cloudflare Tunnel”。",
@@ -28,11 +31,11 @@ const copy = {
   "en-US": {
     offline: "Connection lost, retrying",
     retry: (attempt: number) => `Reconnect attempt ${attempt} `,
-    offlineBody: "Anything not sent stays in the input box",
+    offlineBody: "Typed messages and photos that didn't send stay in the input box",
     lostTitle: "Temporary address may have changed",
     lostAction: "See what to do",
     openDevice: "Open Device & Connection",
-    cardTitle: "Temporary Cloudflare Entry",
+    cardTitle: "If it stops connecting, go in this order",
     wakeStep: "1. First check whether the computer is asleep or offline",
     renewStep: "2. If the desktop app or the computer restarted",
     renewStart: "On the computer, click “Start Cloudflare Tunnel”.",
@@ -40,7 +43,11 @@ const copy = {
   },
 } as const;
 
-async function openDeadQuickTunnelPhone(browser: Browser, locale: keyof typeof copy) {
+async function openDeadQuickTunnelPhone(
+  browser: Browser,
+  locale: keyof typeof copy,
+  options: { stableCandidate?: boolean; healthAnswers?: boolean } = {},
+) {
   const context = await browser.newContext({ viewport, locale, serviceWorkers: "block" });
   await context.addInitScript(() => {
     if (location.hostname !== "e2e-dead-quick.trycloudflare.com" || sessionStorage.getItem("e2e-seeded")) return;
@@ -53,9 +60,30 @@ async function openDeadQuickTunnelPhone(browser: Browser, locale: keyof typeof c
       accessTokenExpiresAt: Date.now() + 30 * 86_400_000,
     }));
   });
+  if (options.stableCandidate) {
+    await context.addInitScript(([quick, stable]) => {
+      if (location.origin !== quick) return;
+      localStorage.setItem("lifeos_endpoint_candidates_v1", JSON.stringify({
+        version: "e2e",
+        generatedAt: Date.now(),
+        storedAt: Date.now(),
+        candidates: [
+          { id: "tailscale-serve-https", mode: "tailscale", baseUrl: stable, priority: 98, secure: true, stability: "stable" },
+          { id: "cloudflare-1", mode: "cloudflare", baseUrl: quick, priority: 84, secure: true, stability: "temporary" },
+        ],
+      }));
+    }, [deadOrigin, stableOrigin] as const);
+    await context.route(`${stableOrigin}/api/v1/health`, (route) => route.fulfill({
+      contentType: "application/json",
+      headers: { "access-control-allow-origin": deadOrigin },
+      body: JSON.stringify({ ok: true, service: "lifeos-local-core" }),
+    }));
+  }
   await context.route(`${deadOrigin}/**`, async (route) => {
     const url = new URL(route.request().url());
-    if (url.pathname.startsWith("/api/")) {
+    // A sleeping-then-woken desktop: only the health check answers, which is
+    // all the page needs to know this address still reaches it.
+    if (url.pathname.startsWith("/api/") && !(options.healthAnswers && url.pathname === "/api/v1/health")) {
       await route.abort("connectionrefused");
       return;
     }
@@ -132,9 +160,13 @@ for (const locale of ["zh-CN", "en-US"] as const) {
     // check first.
     await page.clock.resume();
     await pill.getByRole("link", { name: text.lostAction }).click();
-    await expect(page).toHaveURL(`${deadOrigin}/mobile/device`);
+    await expect(page).toHaveURL(`${deadOrigin}/mobile/device#temporary-entry`);
     const card = page.getByTestId("mobile-temporary-entry-card");
     await expect(card).toContainText(text.cardTitle);
+    // Sent here by the pill: the steps are open and scrolled to, below the
+    // sticky header (the card starts more than 500 px down otherwise).
+    await expect(card.getByText(text.wakeStep)).toBeInViewport();
+    await expect.poll(async () => (await card.boundingBox())!.y).toBeLessThan(150);
     const cardText = await card.innerText();
     const order = [text.wakeStep, text.renewStep, text.renewStart, text.chats].map((part) => cardText.indexOf(part));
     expect(order.every((index) => index >= 0)).toBe(true);
@@ -146,7 +178,12 @@ for (const locale of ["zh-CN", "en-US"] as const) {
 test("device page on a temporary address keeps its credential for base-path links and saves the token before re-pairing here", async ({ browser }) => {
   const { context, page } = await openDeadQuickTunnelPhone(browser, "zh-CN");
   await page.goto(`${deadOrigin}/mobile/device`);
-  await expect(page.getByTestId("mobile-temporary-entry-card")).toBeVisible();
+  // Opened directly, the steps stay folded so the rest of the page is not
+  // pushed a screen down.
+  const card = page.getByTestId("mobile-temporary-entry-card");
+  await expect(card).toBeVisible();
+  await expect(card.getByText(copy["zh-CN"].wakeStep)).toBeHidden();
+  expect((await card.boundingBox())!.height).toBeLessThan(120);
   await expect(page.getByText("Dead Quick Phone")).toBeVisible();
   await expect.poll(() => readIndexedDbRecord(page, "lifeos-device-keys", "credentials", "primary")).not.toBeNull();
   const input = page.getByPlaceholder("https://.../mobile/install/bind_...");
@@ -173,4 +210,25 @@ test("device page on a temporary address keeps its credential for base-path link
   expect(pending?.token).toBe("bind_e2e_same_origin_rebind");
   expect(await readIndexedDbRecord(page, "lifeos-device-keys", "credentials", "primary")).toBeNull();
   await context.close();
+});
+
+test("the one-tap migration is only offered while this temporary address still reaches the computer", async ({ browser }) => {
+  // Dead address: migration needs a voucher from it, so the steps card must
+  // not be pointing at a migration card that can only fail.
+  const dead = await openDeadQuickTunnelPhone(browser, "zh-CN", { stableCandidate: true });
+  await dead.page.goto(`${deadOrigin}/mobile/device#temporary-entry`);
+  await expect(dead.page.getByTestId("mobile-temporary-entry-card")).toBeVisible();
+  await expect(dead.page.getByText("Dead Quick Phone")).toBeVisible();
+  // (The steps card quotes the migration card's title, so look for its button.)
+  const migrate = (page: Page) => page.getByRole("button", { name: "迁移到稳定地址" });
+  await dead.page.waitForTimeout(1500);
+  await expect(migrate(dead.page)).toHaveCount(0);
+  await dead.context.close();
+
+  // Same phone once the address answers again: the migration card is there.
+  const alive = await openDeadQuickTunnelPhone(browser, "zh-CN", { stableCandidate: true, healthAnswers: true });
+  await alive.page.goto(`${deadOrigin}/mobile/device`);
+  await expect(migrate(alive.page)).toBeVisible();
+  await expect(alive.page.getByRole("heading", { name: "有更稳定的地址可用" })).toBeVisible();
+  await alive.context.close();
 });

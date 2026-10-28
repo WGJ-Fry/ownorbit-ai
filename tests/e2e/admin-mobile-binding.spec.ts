@@ -962,6 +962,9 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(phone.getByTestId("chat-message").filter({ hasText: "断网时保留的草稿" })).toHaveCount(0);
   await phoneContext.setOffline(false);
   await expect.poll(() => phone.evaluate(() => navigator.onLine)).toBe(true);
+  // The chat takes its network state from the "online" event, which can land
+  // after navigator.onLine flips; its offline banner going away is the sign.
+  await expect(phone.getByText("当前离线。输入内容会保留，请联网后再次发送。")).toHaveCount(0);
 
   await phone.route("**/api/chat", async (route) => route.abort("connectionrefused"));
   await mobileComposer.fill("电脑断开时保留的草稿");

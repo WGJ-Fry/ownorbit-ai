@@ -17,8 +17,11 @@ import { WebSocket } from "ws";
 // a non-loopback name fails here, so those probes fail fast and never leave
 // this machine.
 const systemLookup = dns.lookup;
+// A test can watch which names the probes look up, and when.
+let lookupObserver = null;
 dns.lookup = (hostname, options, callback) => {
   if (hostname === "127.0.0.1" || hostname === "localhost") return systemLookup(hostname, options, callback);
+  lookupObserver?.(hostname);
   const done = typeof options === "function" ? options : callback;
   process.nextTick(() => done(Object.assign(new Error(`getaddrinfo ENOTFOUND ${hostname}`), { code: "ENOTFOUND", hostname })));
 };
@@ -78,6 +81,9 @@ fi
 if [ "$1" = "serve" ] && [ "$2" = "--bg" ]; then
   exit 0
 fi
+if [ "$1" = "serve" ] && [ "$2" = "--https=443" ] && [ "$3" = "off" ]; then
+  exit 0
+fi
 exit 1
 `);
 writeFileSync(path.join(binDir, "pgrep"), "#!/bin/sh\nexit 1\n");
@@ -104,7 +110,7 @@ const { insertDevice } = await import("../server/devices.ts");
 const { tokenHash } = await import("../server/security.ts");
 const { getDesktopRuntimeConfig, saveDesktopRuntimeConfig } = await import("../server/desktopRuntimeConfig.ts");
 const { maybeBroadcastDeviceEndpointsChange } = await import("../server/deviceEndpoints.ts");
-const { getManagedCloudflareTunnelStatus, stopManagedCloudflareTunnel } = await import("../server/cloudflareTunnel.ts");
+const { getManagedCloudflareTunnelStatus, maybeStartConfiguredCloudflareTunnel, stopManagedCloudflareTunnel } = await import("../server/cloudflareTunnel.ts");
 const { maybeStartConfiguredTailscaleServe } = await import("../server/networkDiagnostics.ts");
 const { runRemoteHealthCheck } = await import("../server/remoteHealthMonitor.ts");
 const { registerAdminRoutes } = await import("../server/routes/adminRoutes.ts");
@@ -454,11 +460,150 @@ test("the remote health monitor leaves a running quick tunnel alone while the sa
   assert.equal(result.report.baseUrl, quickUrl);
   assert.equal(result.recovery.attempted, false);
   assert.equal(result.recovery.recoveryReason, "quick_tunnel_running");
+  assert.equal(result.recovery.mode, "cloudflare");
   assert.equal(process.env.PUBLIC_BASE_URL, quickUrl);
   assert.equal(getManagedCloudflareTunnelStatus().url, quickUrl);
   assert.deepEqual(savedEntry(), { mode: "tailscale", publicBaseUrl: TAILSCALE_URL });
   const pairing = await adminRequest("POST", "/api/v1/devices/bind/start", {});
   assert.equal(pairing.body.baseUrl, quickUrl);
+  // The admin health summary reads the report for the address it checked,
+  // not the dead saved ts.net one.
+  const diagnostics = await adminRequest("GET", "/api/v1/admin/network-diagnostics");
+  assert.equal(diagnostics.body.remoteHealthSummary.baseUrl, quickUrl);
+});
+
+test("while a quick tunnel runs over a live Tailscale Serve the health monitor checks the pairing address", async (t) => {
+  t.after(resetRemoteState);
+  setTailscaleOnline(true);
+  useSavedRemoteEntry({ mode: "tailscale", label: "Tailscale HTTPS Serve", baseUrl: TAILSCALE_URL });
+  const started = await adminRequest("POST", "/api/v1/admin/cloudflare-tunnel/start");
+  assert.equal(started.status, 200, JSON.stringify(started.body));
+  const quickUrl = started.body.tunnel.url;
+
+  // New QR codes use ts.net, so that is the address worth checking, and the
+  // summary is keyed to the same report instead of reading it as stale.
+  const checked = await adminRequest("POST", "/api/v1/admin/network-diagnostics/remote-health");
+  assert.equal(checked.status, 200, JSON.stringify(checked.body));
+  assert.equal(checked.body.report.baseUrl, TAILSCALE_URL);
+  assert.equal(checked.body.recovery.recoveryReason, "quick_tunnel_running");
+  // The failed check was of Tailscale Serve, so that is what to look at.
+  assert.equal(checked.body.recovery.mode, "tailscale");
+  assert.equal(checked.body.recovery.recoveryAction, "check-tailscale");
+  const summary = checked.body.diagnostics.remoteHealthSummary;
+  assert.equal(summary.baseUrl, TAILSCALE_URL);
+  assert.notEqual(summary.status, "stale");
+  assert.equal(summary.recommendations.includes("refresh-stale-check"), false);
+  assert.equal(process.env.PUBLIC_BASE_URL, quickUrl);
+  assert.equal(getManagedCloudflareTunnelStatus().url, quickUrl);
+});
+
+test("a failed check while a quick tunnel runs names the entry that was checked", async (t) => {
+  t.after(resetRemoteState);
+  // The quick URL saved as the desktop entry (the connection guide offers it
+  // as "Current PUBLIC_BASE_URL"): still a Cloudflare problem, not "nothing to do".
+  setTailscaleOnline(false);
+  useSavedRemoteEntry({ mode: "tailscale", label: "Tailscale HTTPS Serve", baseUrl: TAILSCALE_URL });
+  const quick = await adminRequest("POST", "/api/v1/admin/cloudflare-tunnel/start");
+  assert.equal(quick.status, 200, JSON.stringify(quick.body));
+  const saved = await adminRequest("PUT", "/api/v1/admin/desktop-connection-config", { mode: "configured", baseUrl: quick.body.tunnel.url });
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  const quickCheck = await adminRequest("POST", "/api/v1/admin/network-diagnostics/remote-health");
+  assert.equal(quickCheck.body.report.baseUrl, quick.body.tunnel.url);
+  assert.equal(quickCheck.body.recovery.mode, "cloudflare");
+  assert.equal(quickCheck.body.recovery.recoveryAction, "check-cloudflare");
+  await resetRemoteState();
+
+  // A saved Named Tunnel is down and Tailscale Serve is live: Serve is what
+  // gets checked, so a failure is a Tailscale one.
+  await configureNamedTunnel();
+  setTailscaleOnline(true);
+  const started = await adminRequest("POST", "/api/v1/admin/cloudflare-tunnel/start");
+  assert.equal(started.status, 200, JSON.stringify(started.body));
+  const serveCheck = await adminRequest("POST", "/api/v1/admin/network-diagnostics/remote-health");
+  assert.equal(serveCheck.body.report.baseUrl, TAILSCALE_URL);
+  assert.equal(serveCheck.body.recovery.mode, "tailscale");
+  assert.equal(serveCheck.body.recovery.recoveryAction, "check-tailscale");
+});
+
+test("a saved Tailscale entry takes the runtime address back once Serve is reachable after a quick tunnel stopped while it was offline", async (t) => {
+  t.after(async () => {
+    lookupObserver = null;
+    await resetRemoteState();
+  });
+  setTailscaleOnline(false);
+  setFlag("tailscale-serve-leftover", true);
+  useSavedRemoteEntry({ mode: "tailscale", label: "Tailscale HTTPS Serve", baseUrl: TAILSCALE_URL });
+  const started = await adminRequest("POST", "/api/v1/admin/cloudflare-tunnel/start");
+  assert.equal(started.status, 200, JSON.stringify(started.body));
+  const stopped = await adminRequest("POST", "/api/v1/admin/cloudflare-tunnel/stop");
+  assert.equal(stopped.status, 200);
+  assert.equal(process.env.PUBLIC_BASE_URL, undefined);
+  assert.equal(process.env.LIFEOS_TRUST_PROXY, undefined);
+
+  const offline = await runRemoteHealthCheck("schedule");
+  assert.equal(offline.recovery.recoveryReason, "restore_failed");
+  assert.equal(process.env.PUBLIC_BASE_URL, undefined);
+
+  // Back online, the check of ts.net passes in real life, and restore only
+  // follows a failed one, so the address must already be back when the probe
+  // runs. The probes here never resolve, so watch when they look ts.net up.
+  setTailscaleOnline(true);
+  const atProbe = [];
+  lookupObserver = (hostname) => {
+    if (hostname === new URL(TAILSCALE_URL).hostname) atProbe.push(process.env.PUBLIC_BASE_URL);
+  };
+  const online = await runRemoteHealthCheck("schedule");
+  assert.equal(atProbe[0], TAILSCALE_URL);
+  assert.equal(online.recovery.restored, true);
+  assert.equal(process.env.PUBLIC_BASE_URL, TAILSCALE_URL);
+  assert.equal(process.env.LIFEOS_TRUST_PROXY, "1");
+  assert.equal(process.env.LIFEOS_ALLOW_PUBLIC, "1");
+  const diagnostics = await adminRequest("GET", "/api/v1/admin/network-diagnostics");
+  assert.equal(diagnostics.body.remoteReadiness.status, "ready");
+  const serveCandidate = diagnostics.body.connectionCandidates.find((candidate) => candidate.baseUrl === TAILSCALE_URL);
+  assert.equal(serveCandidate.requiresRestart, false);
+});
+
+test("Tailscale Serve the admin stopped is not taken back by the health monitor", async (t) => {
+  t.after(resetRemoteState);
+  setTailscaleOnline(true);
+  useSavedRemoteEntry({ mode: "tailscale", label: "Tailscale HTTPS Serve", baseUrl: TAILSCALE_URL });
+  const stopped = await adminRequest("POST", "/api/v1/admin/tailscale-serve/stop");
+  assert.equal(stopped.status, 200, JSON.stringify(stopped.body));
+  assert.equal(savedEntry().mode, "local");
+  assert.equal(process.env.PUBLIC_BASE_URL, undefined);
+
+  await runRemoteHealthCheck("schedule");
+  assert.equal(process.env.PUBLIC_BASE_URL, undefined);
+  assert.equal(process.env.LIFEOS_TRUST_PROXY, undefined);
+
+  // Saving the entry again (as a later Start would) does not bring back the
+  // proxy trust this stop dropped: it was the entry that stopped.
+  saveDesktopRuntimeConfig({ mode: "tailscale", label: "Tailscale HTTPS Serve", baseUrl: TAILSCALE_URL });
+  await runRemoteHealthCheck("schedule");
+  assert.equal(process.env.PUBLIC_BASE_URL, TAILSCALE_URL);
+  assert.equal(process.env.LIFEOS_TRUST_PROXY, undefined);
+  assert.equal(process.env.LIFEOS_ALLOW_PUBLIC, undefined);
+});
+
+test("the startup Cloudflare autostart does not start a saved Named Tunnel over a running quick tunnel", async (t) => {
+  t.after(resetRemoteState);
+  await configureNamedTunnel();
+  const started = await adminRequest("POST", "/api/v1/admin/cloudflare-tunnel/start");
+  assert.equal(started.status, 200, JSON.stringify(started.body));
+  const quickUrl = started.body.tunnel.url;
+
+  // What server.ts runs about 16 s after listen; a slow first restore by the
+  // monitor can leave the admin time to start a quick tunnel before it.
+  const autostart = await maybeStartConfiguredCloudflareTunnel("4567", 5000);
+  assert.equal(autostart.started, false);
+  assert.equal(autostart.reason, "quick_tunnel_running");
+  const tunnel = getManagedCloudflareTunnelStatus();
+  assert.equal(tunnel.kind, "quick");
+  assert.equal(tunnel.running, true);
+  assert.equal(tunnel.url, quickUrl);
+  assert.equal(tunnel.handoff.running, false);
+  assert.equal(process.env.PUBLIC_BASE_URL, quickUrl);
 });
 
 test("Tailscale Serve autostart only takes the runtime address while Serve is reachable", async (t) => {
@@ -518,4 +663,8 @@ test("with no quick tunnel running the remote health monitor still restores the 
   assert.equal(tailscale.recovery.restored, true);
   assert.equal(tailscale.recovery.recoveryReason, "already_running");
   assert.equal(process.env.PUBLIC_BASE_URL, TAILSCALE_URL);
+  // Restoring a saved entry is not a public opt-in: only a quick tunnel stop
+  // that dropped the flags gives them back (see the offline-stop test).
+  assert.equal(process.env.LIFEOS_ALLOW_PUBLIC, undefined);
+  assert.equal(process.env.LIFEOS_TRUST_PROXY, undefined);
 });

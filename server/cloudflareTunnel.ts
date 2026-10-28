@@ -650,6 +650,14 @@ function isTemporaryCloudflareUrl(value = "") {
 
 export async function maybeStartConfiguredCloudflareTunnel(port: string, timeoutMs = 15000) {
   const config = getDesktopRuntimeConfig();
+  // A quick tunnel is only ever started by the admin, usually because the
+  // saved Named Tunnel is down. Starting the saved one from a background
+  // restore (the startup autostart, the health monitor) would hand the quick
+  // tunnel off and stop it, or kill it outright while it is still starting.
+  const current = getManagedCloudflareTunnelStatus();
+  if (current.running && current.kind === "quick") {
+    return { started: false, reason: "quick_tunnel_running", tunnel: current, config };
+  }
   let namedStatus = getCloudflareNamedTunnelStatus();
   let refreshResult: ReturnType<typeof refreshCloudflareNamedTunnelConfigForPort> | null = null;
   if (config?.mode === "cloudflare" && !isAutostartDisabled() && !isTemporaryCloudflareUrl(config.publicBaseUrl)) {

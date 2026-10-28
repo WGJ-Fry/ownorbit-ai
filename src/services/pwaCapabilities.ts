@@ -484,6 +484,10 @@ export function isTemporaryCloudflareOrigin(currentHref?: string) {
   }
 }
 
+// The chat pill's "may have changed" hint links to the device page's steps
+// card with this fragment, and the card opens itself when it sees it.
+export const TEMPORARY_ENTRY_STEPS_ANCHOR = "temporary-entry";
+
 export function getRemoteEntryGuidance(
   entry: Pick<RemoteEntryStatus, "kind" | "currentBase" | "okForRemote">,
   queue?: { pending?: number; failed?: number; syncing?: number },

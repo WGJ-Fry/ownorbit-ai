@@ -1414,8 +1414,14 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileChatSource, /mobile\.openDeviceConnection/);
   assert.match(mobileChatSource, /\/mobile\/device/);
   assert.match(translationsSource, /正在恢复添加到桌面时保存的绑定信息/);
-  assert.match(translationsSource, /"mobile\.realtimeOfflineBody": "没发出去的内容会留在输入框里，连上后再点发送。"/);
-  assert.match(translationsSource, /"mobile\.realtimeOfflineBody": "Anything not sent stays in the input box; send it again once reconnected\."/);
+  // Voice mode puts unsent commands in the chat and the queue, not the input
+  // box, so the pill only promises the box for typed messages and photos.
+  assert.match(translationsSource, /"mobile\.realtimeOfflineBody": "打字和图片没发出去会留在输入框里，连上后再点发送。"/);
+  assert.match(translationsSource, /"mobile\.realtimeOfflineBody": "Typed messages and photos that didn't send stay in the input box; send again once reconnected\."/);
+  // The lost hint links straight to the steps card, and going offline drops
+  // the hint at once instead of at the next reconnect attempt.
+  assert.match(mobileChatSource, /`\/mobile\/device#\$\{TEMPORARY_ENTRY_STEPS_ANCHOR\}`/);
+  assert.match(mobileChatSource, /window\.addEventListener\("offline", handleOffline\)/);
   assert.match(mobileChatSource, /launchPairingToken/);
   assert.match(mobileChatSource, /setPairingManifestToken/);
   assert.match(mobileChatSource, /pairingInstallPath/);
@@ -2025,6 +2031,14 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   // credential is cleared; another origin never clears it.
   assert.match(mobileDeviceSource, /if \(!destination\.crossOrigin\) \{[\s\S]{0,240}await savePendingPairingToken\(destination\.token\);\s*if \(options\.clearCurrent\) await clearStoredDeviceCredential\(\);/);
   assert.match(mobileDeviceSource, /MobileTemporaryEntryCard/);
+  // The steps card sits below the one-tap migration card and stays folded
+  // unless the chat pill sent the user to it.
+  assert.ok(mobileDeviceSource.indexOf("<MobileEndpointMigrationCard") < mobileDeviceSource.indexOf("<MobileTemporaryEntryCard"));
+  // Migration needs a voucher from this origin, so it is only offered once
+  // this session has reached the computer through it.
+  // A passing test after the page loaded on a dead origin brings it back.
+  assert.match(mobileDeviceSource, /<MobileEndpointMigrationCard active=\{connectivityTest \? connectivityTest\.ok : Boolean\(health\)\} \/>/);
+  assert.match(mobileDeviceSource, /<MobileTemporaryEntryCard explainAddress=\{currentEntry\.kind !== "temporary-cloudflare"\} \/>/);
   assert.match(mobileDeviceSource, /isTemporaryCloudflareOrigin\(\)/);
   assert.doesNotMatch(mobileDeviceSource, /window\.location\.href = `\/mobile\/pair\?token=/);
   assert.match(mobileDeviceSource, /getOfflineMessageQueueStorageStatus/);

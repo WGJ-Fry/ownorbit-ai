@@ -1,10 +1,11 @@
 import { getDesktopRuntimeConfig } from "./desktopRuntimeConfig.ts";
 import { maybeBroadcastDeviceEndpointsChange } from "./deviceEndpoints.ts";
 import { getManagedCloudflareTunnelStatus, maybeStartConfiguredCloudflareTunnel, setCloudflareTunnelReconnectHandler } from "./cloudflareTunnel.ts";
-import { maybeRefreshIcloudHandoff, maybeStartConfiguredTailscaleServe, testConnectionUrl } from "./networkDiagnostics.ts";
+import { getNetworkDiagnostics, maybeRefreshIcloudHandoff, maybeStartConfiguredTailscaleServe, testConnectionUrl } from "./networkDiagnostics.ts";
+import { adoptReleasedRemoteEntry, savedTailscaleEntryAwaitingAdoption } from "./remoteEntryRelease.ts";
 import { getRemoteValidationReport, saveRemoteValidationReport, type RemoteValidationReport } from "./remoteValidationReport.ts";
 import { getClientState, setClientState } from "./clientState.ts";
-import { getConfiguredPublicBaseUrl } from "./publicBaseUrl.ts";
+import { getConfiguredPublicBaseUrl, normalizePublicBaseUrl } from "./publicBaseUrl.ts";
 
 let monitorTimer: ReturnType<typeof setInterval> | null = null;
 let running = false;
@@ -106,10 +107,29 @@ function liveManagedQuickTunnel() {
   return tunnel.running && tunnel.kind === "quick" ? tunnel : null;
 }
 
-function healthCheckBaseUrl() {
+// While it runs, the entry worth checking is the one new phones are paired to:
+// a live saved Tailscale Serve or Named Tunnel outranks the quick URL, and the
+// quick URL is it otherwise. The admin health summary is keyed to the same
+// address, so the report it reads is never for a different one.
+function liveEntryBaseUrl(readinessBaseUrl: string, quickTunnelUrl: string): string {
+  if (/^https:\/\//i.test(readinessBaseUrl)) return readinessBaseUrl;
+  return getConfiguredPublicBaseUrl() || quickTunnelUrl;
+}
+
+function healthCheckBaseUrl(): string {
   const quickTunnel = liveManagedQuickTunnel();
-  if (quickTunnel) return getConfiguredPublicBaseUrl() || quickTunnel.url || configuredRemoteBaseUrl();
+  if (quickTunnel) return liveEntryBaseUrl(getNetworkDiagnostics().remoteReadiness.baseUrl, quickTunnel.url || "") || configuredRemoteBaseUrl();
   return configuredRemoteBaseUrl();
+}
+
+export function remoteHealthSummaryBaseUrl(diagnostics: {
+  desktopRuntimeConfig?: { publicBaseUrl?: string } | null;
+  remoteReadiness: { baseUrl?: string };
+}): string {
+  const readinessBaseUrl = diagnostics.remoteReadiness.baseUrl || "";
+  const quickTunnel = liveManagedQuickTunnel();
+  if (quickTunnel) return liveEntryBaseUrl(readinessBaseUrl, quickTunnel.url || "");
+  return diagnostics.desktopRuntimeConfig?.publicBaseUrl || readinessBaseUrl;
 }
 
 export async function runRemoteHealthCheck(reason = "manual") {
@@ -126,11 +146,19 @@ export async function runRemoteHealthCheck(reason = "manual") {
   running = true;
   try {
     let recovery: Awaited<ReturnType<typeof restoreSavedRemoteEntry>> = { attempted: false, restored: false, started: false, mode: "unknown", reason: "not_needed" };
+    // A quick tunnel stopped while Tailscale was offline left the saved entry
+    // without the runtime address. Restore below only follows a failed check,
+    // and once Serve is reachable again the check passes, so take the
+    // address back first; while Serve is still down this restores nothing.
+    if (savedTailscaleEntryAwaitingAdoption(getDesktopRuntimeConfig())) {
+      const adoption = await restoreSavedRemoteEntry();
+      if (adoption.restored) recovery = adoption;
+    }
     let checkBaseUrl = baseUrl;
     let result = await testConnectionUrl(checkBaseUrl);
     const healthOkBefore = result.ok;
     if (!result.ok) {
-      recovery = await restoreSavedRemoteEntry();
+      recovery = await restoreSavedRemoteEntry(checkBaseUrl);
       if (recovery.restored) {
         checkBaseUrl = remoteBaseUrl() || baseUrl;
         result = await testConnectionUrl(checkBaseUrl);
@@ -185,11 +213,30 @@ function labelForReason(reason: string, restored: boolean) {
   return "Scheduled remote health check";
 }
 
-async function restoreSavedRemoteEntry() {
+function savedEntryMode(config: { mode: string }) {
+  return config.mode === "cloudflare" ? "cloudflare" as const : config.mode === "tailscale" ? "tailscale" as const : "configured" as const;
+}
+
+// While a quick tunnel runs, the failed check may have been of the quick URL
+// itself, of a saved entry that outranks it, or of a live Tailscale Serve
+// (MagicDNS names are *.ts.net). The report names that one, so the card does
+// not send the admin to fix a Cloudflare tunnel for a Tailscale failure.
+function probedEntryMode(probedBaseUrl: string, quickTunnelUrl: string, config: { mode: string; publicBaseUrl: string }) {
+  const probed = normalizePublicBaseUrl(probedBaseUrl);
+  if (!probed || probed === normalizePublicBaseUrl(quickTunnelUrl)) return "cloudflare" as const;
+  if (probed === normalizePublicBaseUrl(config.publicBaseUrl)) return savedEntryMode(config);
+  if (new URL(probed).hostname.endsWith(".ts.net")) return "tailscale" as const;
+  return "cloudflare" as const;
+}
+
+async function restoreSavedRemoteEntry(probedBaseUrl = "") {
   const config = getDesktopRuntimeConfig();
   if (!config || !config.publicBaseUrl) return { attempted: false, restored: false, started: false, mode: "unknown" as const, reason: "no_saved_remote_entry" };
   // Checked again here: a quick tunnel may have started while the probe ran.
-  if (liveManagedQuickTunnel()) return { attempted: false, restored: false, started: false, mode: "cloudflare" as const, reason: "quick_tunnel_running" };
+  const quickTunnel = liveManagedQuickTunnel();
+  if (quickTunnel) {
+    return { attempted: false, restored: false, started: false, mode: probedEntryMode(probedBaseUrl, quickTunnel.url || "", config), reason: "quick_tunnel_running" };
+  }
   try {
     if (config.mode === "cloudflare") {
       const result = await maybeStartConfiguredCloudflareTunnel(String(config.port || process.env.LIFEOS_PORT || process.env.PORT || "3000"), 5000);
@@ -202,10 +249,13 @@ async function restoreSavedRemoteEntry() {
       };
     }
     if (config.mode === "tailscale") {
+      const awaitingAdoption = savedTailscaleEntryAwaitingAdoption(config);
       const result = maybeStartConfiguredTailscaleServe(String(config.port || process.env.LIFEOS_PORT || process.env.PORT || "3000"));
+      const restored = Boolean(result.started || result.reason === "already_running");
+      if (restored && awaitingAdoption) adoptReleasedRemoteEntry(String(process.env.PUBLIC_BASE_URL || ""));
       return {
         attempted: true,
-        restored: Boolean(result.started || result.reason === "already_running"),
+        restored,
         started: Boolean(result.started),
         mode: "tailscale" as const,
         reason: result.reason || "tailscale_restore_attempted",
@@ -216,7 +266,7 @@ async function restoreSavedRemoteEntry() {
       attempted: true,
       restored: false,
       started: false,
-      mode: config.mode === "cloudflare" ? "cloudflare" as const : config.mode === "tailscale" ? "tailscale" as const : "configured" as const,
+      mode: savedEntryMode(config),
       reason: "restore_failed",
       error: String(error?.message || error || "Remote restore failed").slice(0, 240),
     };
