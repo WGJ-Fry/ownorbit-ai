@@ -541,6 +541,22 @@ export function registerDeviceRoutes(app: express.Express, bindHost = "127.0.0.1
       }
     }
 
+    // Same rule token/rotate enforces: a device bound to a protected signing
+    // key must not turn into a transferable bearer-token device. Rejected
+    // before burning — a missing key is a client capability gap (e.g. a
+    // plain-HTTP origin without WebCrypto), not a leaked token, so the
+    // voucher stays redeemable from a signature-capable origin.
+    if (device.publicKey && !normalizedPublicKey) {
+      insertAuditLog("device_migration_key_required", "device", device.id, {
+        voucherId: voucher.id,
+        attemptedAt: now,
+      }, "device", "unbound");
+      return res.status(409).json({
+        code: "signature_device_token_migration_not_allowed",
+        error: "This device uses a protected signing key. Migrate from a secure (HTTPS) address so the new origin can create its own signing key.",
+      });
+    }
+
     if (!markDeviceMigrationVoucherUsed(voucher.id, now)) {
       return res.status(400).json({
         code: "migration_token_invalid_or_expired",

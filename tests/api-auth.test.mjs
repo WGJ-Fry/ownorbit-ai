@@ -2485,9 +2485,11 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   });
   assert.equal(rightOriginAfterBurn.status, 400);
 
-  // Token-mode redemption (a plain-HTTP origin without WebCrypto): the device
-  // downgrades to bearer-token auth and the signature key dies.
-  const tokenModeVoucher = await request(port, "/api/v1/devices/me/migrate-token", {
+  // Policy: a signature device cannot become a bearer-token device by
+  // redeeming without a key — the same rule token/rotate enforces. The
+  // rejection does not burn the voucher, so it still redeems from a
+  // signature-capable origin.
+  const keylessVoucher = await request(port, "/api/v1/devices/me/migrate-token", {
     method: "POST",
     headers: signedDeviceHeaders({
       deviceId: migrationDeviceId,
@@ -2496,14 +2498,16 @@ test("admin auth protects APIs and device binding enables mobile access", async 
       pathname: "/api/v1/devices/me/migrate-token",
     }),
   }).then((res) => res.json());
-  const tokenModeMigrated = await request(port, "/api/v1/devices/migrate/confirm", {
+  const keylessRedeem = await request(port, "/api/v1/devices/migrate/confirm", {
     method: "POST",
-    body: JSON.stringify({ token: tokenModeVoucher.token }),
-  }).then((res) => res.json());
-  assert.equal(tokenModeMigrated.authMethod, "token");
-  assert.match(tokenModeMigrated.accessToken, /^device_/);
-  assert.equal(typeof tokenModeMigrated.accessTokenExpiresAt, "number");
-  const signatureAfterTokenMigration = await request(port, "/api/v1/devices/me/connectivity-report", {
+    body: JSON.stringify({ token: keylessVoucher.token }),
+  });
+  assert.equal(keylessRedeem.status, 409);
+  const keylessRedeemBody = await keylessRedeem.json();
+  assert.equal(keylessRedeemBody.code, "signature_device_token_migration_not_allowed");
+  assert.equal(keylessRedeemBody.accessToken, undefined);
+  assert.equal(JSON.stringify(keylessRedeemBody).includes(keylessVoucher.token), false);
+  const signatureAfterKeylessAttempt = await request(port, "/api/v1/devices/me/connectivity-report", {
     headers: signedDeviceHeaders({
       deviceId: migrationDeviceId,
       privateKey: migrationNewKeyPair.privateKey,
@@ -2511,22 +2515,66 @@ test("admin auth protects APIs and device binding enables mobile access", async 
       pathname: "/api/v1/devices/me/connectivity-report",
     }),
   });
-  assert.equal(signatureAfterTokenMigration.status, 401);
-  const tokenAfterTokenMigration = await request(port, "/api/v1/devices/me/connectivity-report", {
+  assert.equal(signatureAfterKeylessAttempt.status, 200);
+  const migrationThirdKeyPair = createDeviceKeyPair();
+  const keyedRetry = await request(port, "/api/v1/devices/migrate/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token: keylessVoucher.token, publicKey: migrationThirdKeyPair.publicKey }),
+  }).then((res) => res.json());
+  assert.equal(keyedRetry.device?.id, migrationDeviceId, JSON.stringify(keyedRetry));
+  assert.equal(keyedRetry.authMethod, "signature");
+  assert.equal(keyedRetry.accessToken, undefined);
+
+  // A token-mode device (paired over plain-HTTP LAN, no WebCrypto) may still
+  // migrate without a key: it never had a signing key to protect.
+  const tokenDeviceBinding = await request(port, "/api/v1/devices/bind/start", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ baseUrl: "https://lifeos-mac.tailnet.example.ts.net" }),
+  }).then((res) => res.json());
+  const tokenDeviceCredential = await request(port, "/api/v1/devices/bind/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token: tokenDeviceBinding.token, deviceName: "Token Migration Phone", deviceType: "mobile" }),
+  }).then((res) => res.json());
+  assert.equal(tokenDeviceCredential.authMethod, "token");
+  const tokenDeviceVoucher = await request(port, "/api/v1/devices/me/migrate-token", {
+    method: "POST",
     headers: {
-      "X-LifeOS-Device-ID": migrationDeviceId,
-      "X-LifeOS-Device-Token": tokenModeMigrated.accessToken,
+      "X-LifeOS-Device-ID": tokenDeviceCredential.device.id,
+      "X-LifeOS-Device-Token": tokenDeviceCredential.accessToken,
+    },
+  }).then((res) => res.json());
+  const tokenDeviceMigrated = await request(port, "/api/v1/devices/migrate/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token: tokenDeviceVoucher.token }),
+  }).then((res) => res.json());
+  assert.equal(tokenDeviceMigrated.authMethod, "token");
+  assert.match(tokenDeviceMigrated.accessToken, /^device_/);
+  assert.notEqual(tokenDeviceMigrated.accessToken, tokenDeviceCredential.accessToken);
+  const oldTokenAfterMigration = await request(port, "/api/v1/devices/me/connectivity-report", {
+    headers: {
+      "X-LifeOS-Device-ID": tokenDeviceCredential.device.id,
+      "X-LifeOS-Device-Token": tokenDeviceCredential.accessToken,
     },
   });
-  assert.equal(tokenAfterTokenMigration.status, 200);
+  assert.equal(oldTokenAfterMigration.status, 401);
+  const newTokenAfterMigration = await request(port, "/api/v1/devices/me/connectivity-report", {
+    headers: {
+      "X-LifeOS-Device-ID": tokenDeviceCredential.device.id,
+      "X-LifeOS-Device-Token": tokenDeviceMigrated.accessToken,
+    },
+  });
+  assert.equal(newTokenAfterMigration.status, 200);
 
   // A voucher issued before revocation must not resurrect a revoked device.
   const preRevocationVoucher = await request(port, "/api/v1/devices/me/migrate-token", {
     method: "POST",
-    headers: {
-      "X-LifeOS-Device-ID": migrationDeviceId,
-      "X-LifeOS-Device-Token": tokenModeMigrated.accessToken,
-    },
+    headers: signedDeviceHeaders({
+      deviceId: migrationDeviceId,
+      privateKey: migrationThirdKeyPair.privateKey,
+      method: "POST",
+      pathname: "/api/v1/devices/me/migrate-token",
+    }),
   }).then((res) => res.json());
   assert.match(preRevocationVoucher.token, /^migrate_/);
   const revokeMigrationDevice = await request(port, `/api/v1/devices/${migrationDeviceId}`, {
@@ -2780,13 +2828,14 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(deletedMemory.status, 200);
 
   const cloudKitAutoSyncAfterLocalChanges = await request(port, "/api/v1/admin/icloud-data-sync/auto-sync", { headers: adminHeaders }).then((res) => res.json());
-  // 14 = 2 chat + 3 memory + 9 device-trust (the migration flows above add a
-  // bind, two credential rotations, and a revocation — one device-trust
-  // change each).
-  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.total, 14);
+  // 16 = 2 chat + 3 memory + 11 device-trust. The migration flows above add
+  // six device-trust changes: two binds (signature + token device), three
+  // credential rotations, and one revocation. The rejected keyless attempt
+  // changes nothing.
+  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.total, 16);
   assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.byType["chat-history"], 2);
   assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.byType.memory, 3);
-  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.byType["device-trust"], 9);
+  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.byType["device-trust"], 11);
   assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.rawPayloadStored, false);
   assert.equal(typeof cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.nextSuggestedRunAt, "number");
   assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.enabled, false);
@@ -3753,9 +3802,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const revokedStateAccess = await request(port, "/api/v1/state/lifeos_tasks_pro", { headers: deviceHeaders });
   assert.equal(revokedStateAccess.status, 401);
   const cloudKitAutoSyncAfterDeviceTrustChanges = await request(port, "/api/v1/admin/icloud-data-sync/auto-sync", { headers: adminHeaders }).then((res) => res.json());
-  // 11 = the original 7 plus the migration flows: bind, two rotations, and a
-  // revocation.
-  assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType["device-trust"], 11);
+  // 13 = the original 7 plus the six migration-flow changes counted above.
+  assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType["device-trust"], 13);
   assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType["generated-app-state"], 1);
   assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType.tasks, 1);
   assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType["chat-history"] >= 1, true);
